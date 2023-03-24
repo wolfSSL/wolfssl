@@ -177,6 +177,17 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 # enabled
 ENABLED_CERTS="no"
 
+# Implements requirements from RFC9325
+AC_ARG_ENABLE([harden-tls],
+    [AS_HELP_STRING([--enable-harden-tls],[Enable requirements from RFC9325 (default: disabled)])],
+    [ ENABLED_HARDEN_TLS=$enableval ],
+    [ ENABLED_HARDEN_TLS=no ]
+    )
+
+if test "x$ENABLED_HARDEN_TLS" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS"
+fi
 
 # Support for forcing 32-bit mode
 # To force 32-bit instructions use:
