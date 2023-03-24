@@ -204,6 +204,7 @@ jobs:
                 break
               fi
             done
+            echo "test ran $i times"
             if [ "$HWSIM_RES" -ne "0" ]; then
               exit $HWSIM_RES
             fi
