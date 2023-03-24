@@ -1235,9 +1235,11 @@ enum {
 #endif
 #define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
 
+#ifndef NO_DH
 #if WOLFSSL_MAX_DHKEY_BITS < WOLFSSL_MIN_DHKEY_BITS
 #error "WOLFSSL_MAX_DHKEY_BITS has to be greater than WOLFSSL_MIN_DHKEY_BITS"
 #endif
+#endif /* NO_DH */
 
 #ifndef MAX_PSK_ID_LEN
     /* max psk identity/hint supported */

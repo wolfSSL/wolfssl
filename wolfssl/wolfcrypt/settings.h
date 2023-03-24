@@ -1939,6 +1939,9 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SP_INT_DIGIT_ALIGN
     #define WOLFSSL_SP_INT_DIGIT_ALIGN
 #endif
+#ifdef __APPLE__
+    #define WOLFSSL_SP_NO_DYN_STACK
+#endif
 
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */

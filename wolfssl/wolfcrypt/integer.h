@@ -189,6 +189,26 @@ typedef int           mp_err;
    BITS_PER_DIGIT*2) */
 #define MP_WARRAY  ((mp_word)1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 
+/* No point in dynamically allocating mp_int when it is very small.
+ * The dp field will grow and shrink dynamically.
+ */
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)    \
+    mp_int name[1]
+/* Declare statically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max) \
+    mp_int name[1]
+/* Zero out mp_int of minimal size. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type) \
+    XMEMSET(name, 0, sizeof(mp_int))
+/* Dispose of static mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type)
+/* Initialize an mp_int. */
+#define INIT_MP_INT_SIZE(name, bits) \
+    mp_init(name)
+/* Type to cast to when using size marcos. */
+#define MP_INT_SIZE     mp_int
+
 #ifdef HAVE_WOLF_BIGINT
     /* raw big integer */
     typedef struct WC_BIGINT {
@@ -237,6 +257,8 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 #define mp_isword(a, w) \
     ((((a)->used == 1) && ((a)->dp[0] == (w))) || (((w) == 0) && ((a)->used == 0)) \
                                                                ? MP_YES : MP_NO)
+/* Number of bits used based on used field only. */
+#define mp_bitsused(a)   ((a)->used * DIGIT_BIT)
 
 /* number of primes */
 #ifdef MP_8BIT
