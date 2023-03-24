@@ -21497,11 +21497,21 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
                 ret = WOLFSSL_FAILURE;
             }
             else {
+#ifdef WOLFSSL_NO_REALLOC
+                tmp = (byte*)XMALLOC(input->ticketLen,
+                        output->heap, DYNAMIC_TYPE_SESSION_TICK);
+                XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+                ticBuff = NULL;
+#else
                 tmp = (byte*)XREALLOC(ticBuff, input->ticketLen,
                         output->heap, DYNAMIC_TYPE_SESSION_TICK);
+#endif /* WOLFSSL_NO_REALLOC */
                 if (tmp == NULL) {
                     WOLFSSL_MSG("Failed to allocate memory for ticket");
+#ifndef WOLFSSL_NO_REALLOC
                     XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+                    ticBuff = NULL;
+#endif /* WOLFSSL_NO_REALLOC */
                     output->ticket = NULL;
                     output->ticketLen = 0;
                     output->ticketLenAlloc = 0;
