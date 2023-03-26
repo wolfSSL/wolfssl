@@ -1,6 +1,6 @@
 /* dh.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1161,6 +1161,8 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     ForceZero(cBuf, cSz);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(cBuf, cSz);
 #endif
 
     /* tmpQ: M = min(2^N,q) - 1 */
@@ -1289,7 +1291,6 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 {
     int ret = 0;
 #ifndef WOLFSSL_SP_MATH
-    word32 binSz = 0;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int* x;
     mp_int* y;
@@ -1298,6 +1299,10 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     mp_int y[1];
 #endif
 #endif
+
+    if (*pubSz < (word32)mp_unsigned_bin_size(&key->p)) {
+        return WC_KEY_SIZE_E;
+    }
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
@@ -1339,18 +1344,11 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     if (ret == 0 && mp_exptmod(&key->g, x, &key->p, y) != MP_OKAY)
         ret = MP_EXPTMOD_E;
 
-    if (ret == 0) {
-        binSz = mp_unsigned_bin_size(y);
-        if (binSz > *pubSz) {
-            ret = WC_KEY_SIZE_E;
-        }
-    }
-
     if (ret == 0 && mp_to_unsigned_bin(y, pub) != MP_OKAY)
         ret = MP_TO_E;
 
     if (ret == 0)
-        *pubSz = binSz;
+        *pubSz = mp_unsigned_bin_size(y);
 
     mp_clear(y);
     mp_clear(x);
@@ -2035,6 +2033,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
         RESTORE_VECTOR_REGISTERS();
 
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
+            ret = MP_VAL;
+        }
+
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2062,6 +2067,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
         RESTORE_VECTOR_REGISTERS();
 
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
+            ret = MP_VAL;
+        }
+
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2088,6 +2100,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         mp_clear(y);
 
         RESTORE_VECTOR_REGISTERS();
+
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
+            ret = MP_VAL;
+        }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)

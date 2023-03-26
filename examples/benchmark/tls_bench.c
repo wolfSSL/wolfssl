@@ -1,6 +1,6 @@
 /* tls_bench.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -273,32 +273,12 @@ static struct group_info groups[] = {
     { WOLFSSL_FFDHE_6144, "FFDHE_6144" },
     { WOLFSSL_FFDHE_8192, "FFDHE_8192" },
 #ifdef HAVE_PQC
-    { WOLFSSL_NTRU_HPS_LEVEL1, "NTRU_HPS_LEVEL1" },
-    { WOLFSSL_NTRU_HPS_LEVEL3, "NTRU_HPS_LEVEL3" },
-    { WOLFSSL_NTRU_HPS_LEVEL5, "NTRU_HPS_LEVEL5" },
-    { WOLFSSL_NTRU_HRSS_LEVEL3, "NTRU_HRSS_LEVEL3" },
-    { WOLFSSL_SABER_LEVEL1, "SABER_LEVEL1" },
-    { WOLFSSL_SABER_LEVEL3, "SABER_LEVEL3" },
-    { WOLFSSL_SABER_LEVEL5, "SABER_LEVEL5" },
     { WOLFSSL_KYBER_LEVEL1, "KYBER_LEVEL1" },
     { WOLFSSL_KYBER_LEVEL3, "KYBER_LEVEL3" },
     { WOLFSSL_KYBER_LEVEL5, "KYBER_LEVEL5" },
-    { WOLFSSL_KYBER_90S_LEVEL1, "KYBER_90S_LEVEL1" },
-    { WOLFSSL_KYBER_90S_LEVEL3, "KYBER_90S_LEVEL3" },
-    { WOLFSSL_KYBER_90S_LEVEL5, "KYBER_90S_LEVEL5" },
-    { WOLFSSL_P256_NTRU_HPS_LEVEL1, "P256_NTRU_HPS_LEVEL1" },
-    { WOLFSSL_P384_NTRU_HPS_LEVEL3, "P384_NTRU_HPS_LEVEL3" },
-    { WOLFSSL_P521_NTRU_HPS_LEVEL5, "P521_NTRU_HPS_LEVEL5" },
-    { WOLFSSL_P384_NTRU_HRSS_LEVEL3, "P384_NTRU_HRSS_LEVEL3" },
-    { WOLFSSL_P256_SABER_LEVEL1, "P256_SABER_LEVEL1" },
-    { WOLFSSL_P384_SABER_LEVEL3, "P384_SABER_LEVEL3" },
-    { WOLFSSL_P521_SABER_LEVEL5, "P521_SABER_LEVEL5" },
     { WOLFSSL_P256_KYBER_LEVEL1, "P256_KYBER_LEVEL1" },
     { WOLFSSL_P384_KYBER_LEVEL3, "P384_KYBER_LEVEL3" },
     { WOLFSSL_P521_KYBER_LEVEL5, "P521_KYBER_LEVEL5" },
-    { WOLFSSL_P256_KYBER_90S_LEVEL1, "P256_KYBER_90S_LEVEL1" },
-    { WOLFSSL_P384_KYBER_90S_LEVEL3, "P384_KYBER_90S_LEVEL3" },
-    { WOLFSSL_P521_KYBER_90S_LEVEL5, "P521_KYBER_90S_LEVEL5" },
 #endif
     { 0, NULL }
 };
@@ -2054,7 +2034,9 @@ int bench_tls(void* args)
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
+#if ! (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
         const char *gname = "N/A";
+#endif
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
@@ -2066,7 +2048,8 @@ int bench_tls(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
-            gname = theadInfo[0].group == 0 ? "N/A" : groups[group_index].name;
+            const char *gname = theadInfo[0].group == 0 ? "N/A"
+                : groups[group_index].name;
 
             if (argDoGroups && groups[group_index].group == 0) {
                 /* Skip unsupported group. */

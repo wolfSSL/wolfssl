@@ -1,6 +1,6 @@
 /* xil-sha3.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,6 +32,83 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+
+#include <xsecure_shaclient.h>
+
+/* Initialize hardware for SHA3 operations
+ *
+ * sha   SHA3 structure to initialize
+ * heap  memory heap hint to use
+ * devId used for async operations (currently not supported here)
+ */
+int wc_InitSha3_384(wc_Sha3* sha, void* heap, int devId)
+{
+    (void) heap;
+    (void) devId;
+
+    if (sha == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wc_InitXsecure(&(sha->xSec))) {
+        WOLFSSL_MSG("Can't initialize Xsecure");
+        return BAD_STATE_E;
+    }
+
+    XSecure_Sha3Initialize();
+
+    return 0;
+}
+
+
+/* Update SHA3 state
+ *
+ * sha   SHA3 structure to update
+ * data  message to update SHA3 state with
+ * len   length of data buffer
+ */
+int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
+{
+    if (sha == NULL ||  (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)data, len);
+    XSecure_Sha3Update(&(sha->xSec.cinst), XIL_CAST_U64(data), len);
+
+    return 0;
+}
+
+
+/* Finalize SHA3 state and get digest
+ *
+ * sha  SHA3 structure to get hash
+ * out  digest out, expected to be large enough to hold SHA3 digest
+ */
+int wc_Sha3_384_Final(wc_Sha3* sha, byte* out)
+{
+    if (sha == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, WC_SHA3_384_DIGEST_SIZE);
+    XSecure_Sha3Finish(&(sha->xSec.cinst), XIL_CAST_U64(out));
+
+    return wc_InitSha3_384(sha, NULL, INVALID_DEVID);
+}
+
+
+/* Free SHA3 structure
+ *
+ * sha  SHA3 structure to free
+ */
+void wc_Sha3_384_Free(wc_Sha3* sha)
+{
+    (void)sha;
+    /* nothing to free yet */
+}
+
+#else /* non-versal */
 
 #if !defined(WOLFSSL_NOSHA3_224) || !defined(WOLFSSL_NOSHA3_256) \
     || !defined(WOLFSSL_NOSHA3_512)
@@ -163,5 +240,6 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
     return -1;
 #endif
 }
+#endif
 
 #endif

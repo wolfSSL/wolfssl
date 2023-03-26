@@ -1,6 +1,6 @@
 /* wolfSSL-TLS-ServerThreaded.cs
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,11 +38,11 @@ public class wolfSSL_TLS_ServerThread
     public wolfSSL_TLS_ServerThread(IntPtr ctx, Socket fd)
     {
         _ctx = ctx;
-        _fd = fd;        
+        _fd = fd;
     }
 
     private const int kEchoBufSz = 1024;
-    public void start_client() 
+    public void start_client()
     {
         StringBuilder buff = new StringBuilder(kEchoBufSz);
         IntPtr ssl = wolfssl.new_ssl(_ctx);
@@ -186,7 +186,7 @@ public class wolfSSL_TLS_ServerThreaded
                 break;
             }
         }
-        
+
         tcp.Stop();
         wolfssl.CTX_free(ctx);
         wolfssl.Cleanup();

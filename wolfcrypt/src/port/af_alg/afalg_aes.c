@@ -1,6 +1,6 @@
 /* afalg_aes.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -62,11 +62,12 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     if (aes->rdFd < 0) {
         WOLFSSL_MSG("Unable to accept and get AF_ALG read socket");
         aes->rdFd = WC_SOCK_NOTSET;
-        return aes->rdFd;
+        return WC_AFALG_SOCK_E;
     }
 
     if (setsockopt(aes->alFd, SOL_ALG, ALG_SET_KEY, key, aes->keylen) != 0) {
         WOLFSSL_MSG("Unable to set AF_ALG key");
+        (void)close(aes->rdFd);
         aes->rdFd = WC_SOCK_NOTSET;
         return WC_AFALG_SOCK_E;
     }
@@ -93,8 +94,9 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
 
     if (wc_Afalg_SetOp(CMSG_FIRSTHDR(&(aes->msg)), aes->dir) < 0) {
         WOLFSSL_MSG("Error with setting AF_ALG operation");
+        (void)close(aes->rdFd);
         aes->rdFd = WC_SOCK_NOTSET;
-        return -1;
+        return WC_AFALG_SOCK_E;
     }
 
     return 0;
@@ -127,8 +129,14 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->left = 0;
 #endif
 
+    if (aes->rdFd > 0) {
+        (void)close(aes->rdFd);
+    }
     aes->rdFd = WC_SOCK_NOTSET;
-    aes->alFd = wc_Afalg_Socket();
+    if (aes->alFd <= 0) {
+        aes->alFd = wc_Afalg_Socket();
+    }
+
     if (aes->alFd < 0) {
          WOLFSSL_MSG("Unable to open an AF_ALG socket");
          return WC_AFALG_SOCK_E;
@@ -156,8 +164,14 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             return BAD_FUNC_ARG;
         }
 
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+
         if (aes->rdFd == WC_SOCK_NOTSET) {
-                if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESCBC,
+            if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESCBC,
                                 AES_IV_SIZE, 0)) != 0) {
                 WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
                 return ret;
@@ -184,11 +198,11 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 
             ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
             ret = (int)read(aes->rdFd, out, sz);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
 
             /* set IV for next CBC call */
@@ -205,9 +219,16 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         struct iovec    iov;
         int ret;
 
-        if (aes == NULL || out == NULL || in == NULL
-                                       || sz % AES_BLOCK_SIZE != 0) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
+            return BAD_FUNC_ARG;
+#endif
         }
 
         if (aes->rdFd == WC_SOCK_NOTSET) {
@@ -238,11 +259,11 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 
             ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
             ret = (int)read(aes->rdFd, out, sz);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
 
         }
@@ -288,11 +309,11 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 
             ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
             ret = (int)read(aes->rdFd, out, sz);
             if (ret < 0) {
-                return ret;
+                return WC_AFALG_SOCK_E;
             }
 
         return 0;
@@ -397,7 +418,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
                 ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
                 if (ret < 0) {
-                    return ret;
+                    return WC_AFALG_SOCK_E;
                 }
 
 
@@ -415,7 +436,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
                 ret = (int)readv(aes->rdFd, iov, 2);
                 if (ret < 0) {
-                    return ret;
+                    return WC_AFALG_SOCK_E;
                 }
 
                 if (aes->left > 0) {
@@ -490,8 +511,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->keylen = len;
     aes->rounds = len/4 + 6;
 
+    if (aes->rdFd > 0) {
+        (void)close(aes->rdFd);
+    }
     aes->rdFd = WC_SOCK_NOTSET;
-    aes->alFd = wc_Afalg_Socket();
+    if (aes->alFd <= 0) {
+        aes->alFd = wc_Afalg_Socket();
+    }
+
     if (aes->alFd < 0) {
          WOLFSSL_MSG("Unable to open an AF_ALG socket");
          return WC_AFALG_SOCK_E;
@@ -534,6 +561,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (ivSz > WC_SYSTEM_AESGCM_IV)
+        ivSz = WC_SYSTEM_AESGCM_IV;
+
     if (ivSz != WC_SYSTEM_AESGCM_IV) {
         WOLFSSL_MSG("IV size not supported on system");
         return BAD_FUNC_ARG;
@@ -545,6 +575,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
         WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
+
+    if (aes->alFd <= 0) {
+        WOLFSSL_MSG("AF_ALG GcmEncrypt called with alFd unset");
         return BAD_FUNC_ARG;
     }
 
@@ -618,12 +653,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         if (ret < 0) {
-            return ret;
+            return WC_AFALG_SOCK_E;
         }
 
         ret = read(aes->rdFd, out, sz + AES_BLOCK_SIZE);
         if (ret < 0) {
-            return ret;
+            return WC_AFALG_SOCK_E;
         }
         XMEMCPY(authTag, out + sz, authTagSz);
     }
@@ -636,8 +671,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         xorbuf(authTag, scratch, authTagSz);
     }
 #else
@@ -662,7 +698,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     ret = (int)sendmsg(aes->rdFd, msg, 0);
     if (ret < 0) {
-        return ret;
+        return WC_AFALG_SOCK_E;
     }
 
     {
@@ -685,7 +721,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (ret < 0) {
-        return ret;
+        return WC_AFALG_SOCK_E;
     }
 #endif
 
@@ -723,6 +759,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
+
+    if (ivSz > WC_SYSTEM_AESGCM_IV)
+        ivSz = WC_SYSTEM_AESGCM_IV;
 
     if (ivSz != WC_SYSTEM_AESGCM_IV) {
         WOLFSSL_MSG("IV size not supported on system");
@@ -825,7 +864,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     if (ret < 0) {
-        return ret;
+        return WC_AFALG_SOCK_E;
     }
 
     ret = read(aes->rdFd, out, sz + AES_BLOCK_SIZE);
@@ -866,7 +905,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     msg->msg_iovlen = 3; /* # of iov structures */
     ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
     if (ret < 0) {
-        return ret;
+        return WC_AFALG_SOCK_E;
     }
 
     {

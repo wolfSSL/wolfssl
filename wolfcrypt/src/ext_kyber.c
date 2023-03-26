@@ -1,6 +1,6 @@
 /* ext_kyber.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,10 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
-#if defined(WOLFSSL_KYBER_90S) && defined(HAVE_PQM4)
-#error "KYBER-90s is not supported when building PQM4"
-#endif
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/ext_kyber.h>
@@ -41,20 +38,21 @@
 #endif
 
 #if defined (HAVE_LIBOQS)
+
 static const char* OQS_ID2name(int id) {
     switch (id) {
-#ifdef WOLFSSL_KYBER_90S
-        case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512_90s;
-        case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768_90s;
-        case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024_90s;
-#else
         case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512;
         case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768;
         case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024;
-#endif
         default:           break;
     }
     return NULL;
+}
+
+int ext_kyber_enabled(int id)
+{
+    const char * name = OQS_ID2name(id);
+    return OQS_KEM_alg_is_enabled(name);
 }
 #endif
 
@@ -307,8 +305,11 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
 int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     const char* algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameter. */
@@ -342,6 +343,7 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
             ret = BAD_FUNC_ARG;
         }
     }
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
@@ -355,8 +357,6 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     if (ret != 0) {
         ForceZero(key, sizeof(*key));
     }
-
-    OQS_KEM_free(kem);
 
     return ret;
 }
@@ -397,8 +397,11 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     const char * algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameters. */
@@ -424,6 +427,8 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
             ret = BAD_FUNC_ARG;
         }
     }
+
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
@@ -433,8 +438,6 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
         }
     }
 #endif /* HAVE_PQM4 */
-
-    OQS_KEM_free(kem);
 
     return ret;
 }
@@ -480,9 +483,11 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len)
 {
     int ret = 0;
-    const char * algName = NULL;
     word32 ctlen = 0;
+#ifdef HAVE_LIBOQS
+    const char * algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
@@ -513,17 +518,17 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
             ret = BAD_FUNC_ARG;
         }
     }
+
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
-        if (crypto_kem_enc(ss, ct, key->priv) != 0) {
+        if (crypto_kem_dec(ss, ct, key->priv) != 0) {
             WOLFSSL_MSG("PQM4 Decapsulation failure.");
             ret = BAD_FUNC_ARG;
         }
     }
 #endif /* HAVE_PQM4 */
-
-    OQS_KEM_free(kem);
 
     return ret;
 

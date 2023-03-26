@@ -455,10 +455,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     \code
     Gmac gmac;
     key[] = { some 16, 24, or 32 byte length key };
+    wc_AesInit(gmac.aes, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
     wc_GmacSetKey(&gmac, key, sizeof(key));
     \endcode
 
     \sa wc_GmacUpdate
+    \sa wc_AesInit
 */
 int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
 
@@ -486,6 +488,7 @@ int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
     key[] = { some 16, 24, or 32 byte length key };
     iv[] = { some 16 byte length iv };
 
+    wc_AesInit(gmac.aes, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
     wc_GmacSetKey(&gmac, key, sizeof(key));
     authIn[] = { some 16 byte authentication input };
     tag[AES_BLOCK_SIZE]; // will store authentication code
@@ -495,6 +498,7 @@ int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
     \endcode
 
     \sa wc_GmacSetKey
+    \sa wc_AesInit
 */
 int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
@@ -851,7 +855,8 @@ int wc_AesXtsFree(XtsAes* aes);
 /*!
     \ingroup AES
     \brief Initialize Aes structure. Sets heap hint to be used and ID for use
-    with async hardware
+    with async hardware. It is up to the user to call wc_AesFree on the Aes
+    structure when done.
     \return 0 Success
 
     \param aes aes structure in to initialize
@@ -866,13 +871,41 @@ int wc_AesXtsFree(XtsAes* aes);
 
     //heap hint could be set here if used
 
-    wc_AesInit(&aes, hint, devId);
+    wc_AesInit(&enc, hint, devId);
     \endcode
 
     \sa wc_AesSetKey
     \sa wc_AesSetIV
+    \sa wc_AesFree
 */
 int  wc_AesInit(Aes* aes, void* heap, int devId);
+
+/*!
+    \ingroup AES
+    \brief free resources associated with the Aes structure when applicable.
+    Internally may sometimes be a no-op but still recommended to call in all
+    cases as a general best-practice (IE if application code is ported for use
+    on new environments where the call is applicable).
+    \return no return (void function)
+
+    \param aes aes structure in to free
+
+    _Example_
+    \code
+    Aes enc;
+    void* hint = NULL;
+    int devId = INVALID_DEVID; //if not using async INVALID_DEVID is default
+
+    //heap hint could be set here if used
+
+    wc_AesInit(&enc, hint, devId);
+    // ... do some interesting things ...
+    wc_AesFree(&enc);
+    \endcode
+
+    \sa wc_AesInit
+*/
+int  wc_AesFree(Aes* aes);
 
 /*!
     \ingroup AES

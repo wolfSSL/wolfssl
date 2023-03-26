@@ -1,6 +1,6 @@
 /* cmac.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -67,6 +67,9 @@ struct Cmac {
     byte*  msg;
     word32 used;
     word32 len;
+#endif
+#ifdef WOLFSSL_SE050
+    byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
 };
 

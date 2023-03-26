@@ -1,6 +1,6 @@
 /* error-crypt.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -252,8 +252,12 @@ enum {
 
     IO_FAILED_E = -291,          /* Input/output failure */
     SYSLIB_FAILED_E = -292,      /* System/library call failed */
+    USE_HW_PSK = -293,           /* Callback return to indicate HW has PSK */
 
-    WC_LAST_E           = -292,  /* Update this to indicate last error */
+    ENTROPY_RT_E        = -294,  /* Entropy Repetition Test failed */
+    ENTROPY_APT_E       = -295,  /* Entropy Adaptive Proportion Test failed */
+
+    WC_LAST_E           = -295,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

@@ -1,6 +1,6 @@
 /* wolfSSL-TLS-PSK-Client.cs
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -55,7 +55,7 @@ public class wolfSSL_TLS_PSK_Client
             return 0;
         Marshal.Copy(id, 0, identity, 9);
 
-        /* Use desired key, note must be a key smaller than max key size parameter 
+        /* Use desired key, note must be a key smaller than max key size parameter
             Replace this with desired key. Is trivial one for testing */
         if (max_key < 4)
             return 0;

@@ -28,16 +28,16 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.5.0 LANGUAGES C ASM)
+project(wolfssl VERSION 5.6.0 LANGUAGES C ASM)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 35)
+set(LIBTOOL_CURRENT 39)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 0)
+set(LIBTOOL_AGE 4)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
@@ -103,6 +103,7 @@ check_function_exists("inet_ntoa" HAVE_INET_NTOA)
 check_function_exists("memset" HAVE_MEMSET)
 check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
+check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
 
 include(CheckTypeSize)
 
@@ -169,7 +170,9 @@ find_package(Threads)
 # Example for map file and custom linker script
 #set(CMAKE_EXE_LINKER_FLAGS " -Xlinker -Map=output.map -T\"${CMAKE_CURRENT_SOURCE_DIR}/linker.ld\"")
 
-if(WIN32)
+if(DEFINED WARNING_C_FLAGS)
+set(CMAKE_C_FLAGS "${WARNING_C_FLAGS} ${CMAKE_C_FLAGS}")
+elseif(WIN32)
 # Windows cl.exe does not support the -Wextra, -Wno-unused and -Werror flags.
 set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
 else()
@@ -928,7 +931,7 @@ endif()
 # DH
 add_option("WOLFSSL_DH"
     "Enable DH (default: enabled)"
-    "yes" "yes;no")
+    "yes" "yes;no;const")
 
 if(WOLFSSL_OPENSSH)
     override_cache(WOLFSSL_DH "yes")
@@ -941,6 +944,11 @@ else()
       list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
       override_cache(WOLFSSL_DH "no")
     endif()
+endif()
+
+if("${WOLFSSL_DH}" STREQUAL "const")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DH_CONST")
+    set(WOLFSSL_DH_CONST "yes")
 endif()
 
 # TODO: - Anonymous
@@ -1340,6 +1348,15 @@ if(WOLFSSL_SESSION_TICKET)
         "-DHAVE_SESSION_TICKET")
 endif()
 
+add_option("WOLFSSL_TICKET_NONCE_MALLOC"
+    "Enable dynamic allocation of ticket nonces (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_TICKET_NONCE_MALLOC)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_TICKET_NONCE_MALLOC")
+endif()
+
 # Extended master secret extension
 add_option("WOLFSSL_EXTENDED_MASTER"
     "Enable Extended Master Secret (default: enabled)"
@@ -1517,6 +1534,10 @@ endif()
 
 # TODO: - Fast huge math
 
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
+endif()
+
 # SP math all
 add_option("WOLFSSL_SP_MATH_ALL"
     "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
@@ -1552,6 +1573,10 @@ add_option("WOLFSSL_CRYPT_TESTS"
 
 add_option("WOLFSSL_CRYPT_TESTS_LIBS"
     "Build static libraries from the wolfCrypt test and benchmark sources (default: disabled)"
+    "no" "yes;no")
+
+add_option("WOLFSSL_CRYPT_TESTS_HELP"
+    "Add help text to wolfCrypt test (default: disabled)"
     "no" "yes;no")
 
 # TODO: - LIBZ
@@ -1638,6 +1663,40 @@ add_option("WOLFSSL_USER_SETTINGS"
 add_option("WOLFSSL_OPTFLAGS"
     "Enable default optimization CFLAGS for the compiler (default: enabled)"
     "yes" "yes;no")
+
+add_option("WOLFSSL_SYS_CA_CERTS"
+    "Enable ability to load CA certs from OS (default: enabled)"
+    "yes" "yes;no")
+
+if(WOLFSSL_SYS_CA_CERTS)
+    if(NOT WOLFSSL_FILESYSTEM)
+        message("Can't enable system CA certs without a filesystem.")
+        override_cache(WOLFSSL_SYS_CA_CERTS "no")
+    elseif(APPLE)
+        check_include_file("Security/SecTrustSettings.h" HAVE_SECURITY_SECTRUSTSETTINGS_H)
+        if(NOT HAVE_SECURITY_SECTRUSTSETTINGS_H)
+            message("Can't enable system CA certs without Security/SecTrustSettings.h.")
+            override_cache(WOLFSSL_SYS_CA_CERTS "no")
+        else()
+            find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
+            if(NOT CORE_FOUNDATION_FRAMEWORK)
+                message("Can't enable system CA certs without CoreFoundation framework.")
+                override_cache(WOLFSSL_SYS_CA_CERTS "no")
+            else()
+                find_library(SECURITY_FRAMEWORK Security)
+                if(NOT SECURITY_FRAMEWORK)
+                    message("Can't enable system CA certs without Security framework.")
+                    override_cache(WOLFSSL_SYS_CA_CERTS "no")
+                endif()
+            endif()
+        endif()
+    endif()
+
+
+    if(WOLFSSL_SYS_CA_CERTS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SYS_CA_CERTS")
+    endif()
+endif()
 
 # FLAGS operations
 
@@ -1744,6 +1803,14 @@ if (WOLFSSL_TLSX)
 endif()
 
 
+add_option("WOLFSSL_CAAM"
+    "Enable use of CAAM with NXP (default: disabled)"
+    "no" "yes;no")
+if (WOLFSSL_CAAM)
+   list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
+endif()
+
+
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
 generate_build_flags()
@@ -1754,7 +1821,16 @@ generate_build_flags()
 # USER SETTINGS
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
-    set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS
+        -DWOLFSSL_USER_SETTINGS_ASM")
+
+    # Create user_settings_asm.h for use in assembly files (e.g. .S files).
+    execute_process(COMMAND $ENV{SHELL} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+                            "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
+                    RESULT_VARIABLE USER_SETTINGS_ASM_RET)
+    if (NOT USER_SETTINGS_ASM_RET EQUAL 0)
+        message(FATAL_ERROR "${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh failed.")
+    endif()
 endif()
 
 # TODO: Applying definitions to everything like this, rather than
@@ -1777,7 +1853,6 @@ endif()
 
 # Suppress some warnings about separate compilation, inlining
 add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
-
 # Generate user options header
 message("Generating user options header...")
 if (${CMAKE_DISABLE_SOURCE_CHANGES})
@@ -1880,11 +1955,19 @@ if(WIN32)
     # For Windows link ws2_32
     target_link_libraries(wolfssl PUBLIC
         $<$<PLATFORM_ID:Windows>:ws2_32>)
+elseif(APPLE)
+    if(WOLFSSL_SYS_CA_CERTS)
+        target_link_libraries(wolfssl PUBLIC
+            ${CORE_FOUNDATION_FRAMEWORK}
+            ${SECURITY_FRAMEWORK})
+    endif()
 else()
-    # DH requires math (m) library
-    target_link_libraries(wolfssl
-        PUBLIC
-            m)
+    if(WOLFSSL_DH AND NOT WOLFSSL_DH_CONST)
+        # DH requires math (m) library
+        target_link_libraries(wolfssl
+            PUBLIC
+                m)
+    endif()
 endif()
 
 ####################################################
@@ -1974,6 +2057,9 @@ if(WOLFSSL_CRYPT_TESTS)
         set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
         target_link_libraries(wolfcrypttest_lib wolfssl)
         target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
+        if(WOLFSSL_CRYPT_TESTS_HELP)
+            target_compile_options(wolfcrypttest_lib PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+        endif()
 
         # Make another library for the wolfCrypt benchmark code.
         add_library(wolfcryptbench_lib
@@ -1993,6 +2079,9 @@ if(WOLFSSL_CRYPT_TESTS)
     set_property(TARGET wolfcrypttest
                  PROPERTY RUNTIME_OUTPUT_NAME
                  testwolfcrypt)
+    if(WOLFSSL_CRYPT_TESTS_HELP)
+        target_compile_options(wolfcrypttest PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+    endif()
 
     # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
@@ -2127,7 +2216,7 @@ if(NOT BUILD_FIPS OR BUILD_FIPS_V1)
     "wolfssl/wolfcrypt/fips.h")
 endif()
 
-if(NOT BUILD_QNXCAAM)
+if(NOT BUILD_QNXCAAM OR BUILD_CAAM)
   list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/port/caam"
     )

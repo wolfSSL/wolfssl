@@ -1,6 +1,6 @@
 /* esp32-crypt.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,6 +27,7 @@
 #include "esp_idf_version.h"
 #include "esp_types.h"
 #include "esp_log.h"
+#include "esp_random.h"
 
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
     #undef LOG_LOCAL_LEVEL
@@ -52,6 +53,8 @@
 
 #if ESP_IDF_VERSION_MAJOR >= 4
     #include <esp32/rom/ets_sys.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    #include <esp32s3/rom/ets_sys.h>
 #else
     #include <rom/ets_sys.h>
 #endif
@@ -68,6 +71,8 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     #if ESP_IDF_VERSION_MAJOR >= 4
         #include "esp32/rom/aes.h"
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #include "esp32s3/rom/aes.h"
     #else
         #include "rom/aes.h"
     #endif
@@ -104,6 +109,8 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     #if ESP_IDF_VERSION_MAJOR >= 4
         #include "esp32/rom/sha.h"
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+         #include "esp32s3/rom/sha.h"
     #else
         #include "rom/sha.h"
     #endif
@@ -126,7 +133,13 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
          * actual enable/disable only occurs for ref_counts[periph] == 0 */
         int lockDepth; /* see ref_counts[periph] in periph_ctrl.c */
 
+        /* ESP32S3 defines SHA_TYPE to enum, all other ESP32s define it to
+           typedef enum. */
+    #if defined(CONFIG_IDF_TARGET_ESP32S3)
+        SHA_TYPE sha_type;
+    #else
         enum SHA_TYPE sha_type;
+    #endif
     } WC_ESP32SHA;
 
     int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);

@@ -1,6 +1,6 @@
 /* des3.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -59,6 +59,11 @@ enum {
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
+#endif
+
+#ifdef WOLFSSL_SE050
+    /* SE050 SDK also defines DES_BLOCK_SIZE */
+    #undef DES_BLOCK_SIZE
 #endif
 
 enum {

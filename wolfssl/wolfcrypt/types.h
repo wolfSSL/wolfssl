@@ -1,6 +1,6 @@
 /* types.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -48,12 +48,20 @@ decouple library dependencies with standard string, memory and so on.
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         typedef void (*wolfSSL_ex_data_cleanup_routine_t)(void *data);
         #endif
-    typedef struct WOLFSSL_CRYPTO_EX_DATA {
-        void* ex_data[MAX_EX_DATA];
-        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_ex_data_cleanup_routine_t ex_data_cleanup_routines[MAX_EX_DATA];
-        #endif
-    } WOLFSSL_CRYPTO_EX_DATA;
+        typedef struct WOLFSSL_CRYPTO_EX_DATA {
+            void* ex_data[MAX_EX_DATA];
+            #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+            wolfSSL_ex_data_cleanup_routine_t
+                ex_data_cleanup_routines[MAX_EX_DATA];
+            #endif
+        } WOLFSSL_CRYPTO_EX_DATA;
+        typedef void (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+                WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+        typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+                const WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx,
+                long argV, void* arg);
+        typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+                WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
     #endif
 
     #if defined(WORDS_BIGENDIAN)
@@ -66,10 +74,18 @@ decouple library dependencies with standard string, memory and so on.
 
     #ifndef WOLFSSL_TYPES
         #ifndef byte
+            /* If using C++ C17 or later and getting:
+             *   "error: reference to 'byte' is ambiguous", this is caused by
+             * cstddef conflict with "std::byte" in
+             *   "enum class byte : unsigned char {};".
+             * This can occur if the user application is using "std" as the
+             * default namespace before including wolfSSL headers.
+             * Workarounds: https://github.com/wolfSSL/wolfssl/issues/5400
+             */
             typedef unsigned char  byte;
+        #endif
             typedef   signed char  sword8;
             typedef unsigned char  word8;
-        #endif
         #ifdef WC_16BIT_CPU
             typedef          int   sword16;
             typedef unsigned int   word16;
@@ -133,7 +149,10 @@ decouple library dependencies with standard string, memory and so on.
                 defined(_ARCH_PPC64) || defined(__mips64) || \
                 defined(__x86_64__)  || defined(__s390x__ ) || \
                 ((defined(sun) || defined(__sun)) && \
-                 (defined(LP64) || defined(_LP64))))
+                 (defined(LP64) || defined(_LP64))) || \
+                (defined(__riscv_xlen) && (__riscv_xlen == 64)) || \
+                defined(__aarch64__) || \
+                (defined(__DCC__) && (defined(__LP64) || defined(__LP64__))))
                 /* long should be 64bit */
                 #define SIZEOF_LONG 8
             #elif defined(__i386__) || defined(__CORTEX_M3__)
@@ -173,9 +192,14 @@ decouple library dependencies with standard string, memory and so on.
 #if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-         defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
+        (defined(__mips64) && \
+         ((defined(_ABI64) && (_MIPS_SIM == _ABI64)) || \
+          (defined(_ABIO64) && (_MIPS_SIM == _ABIO64)))) || \
+         defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
-        (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64)
+        (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
+        defined(__aarch64__) || \
+        (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
           (defined(LP64) || defined(_LP64))
@@ -240,6 +264,25 @@ typedef struct w64wrapper {
     };
 
     #define WOLFSSL_MAX_16BIT 0xffffU
+    #define WOLFSSL_MAX_32BIT 0xffffffffU
+
+    #ifndef WARN_UNUSED_RESULT
+        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
+            #define WARN_UNUSED_RESULT __must_check
+        #elif defined(__GNUC__) && (__GNUC__ >= 4)
+            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+        #else
+            #define WARN_UNUSED_RESULT
+        #endif
+    #endif /* WARN_UNUSED_RESULT */
+
+    #ifndef WC_MAYBE_UNUSED
+        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+            #define WC_MAYBE_UNUSED __attribute__((unused))
+        #else
+            #define WC_MAYBE_UNUSED
+        #endif
+    #endif /* WC_MAYBE_UNUSED */
 
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
@@ -274,18 +317,13 @@ typedef struct w64wrapper {
             #define WC_INLINE
         #endif
     #else
-        #ifdef __GNUC__
-            #define WC_INLINE __attribute__((unused))
-        #else
-            #define WC_INLINE
-        #endif
+        #define WC_INLINE WC_MAYBE_UNUSED
     #endif
     #endif
 
     #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
         #define INLINE WC_INLINE
     #endif
-
 
     /* set up rotate style */
     #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && \
@@ -302,7 +340,6 @@ typedef struct w64wrapper {
            instructions  */
         #define FAST_ROTATE
     #endif
-
 
     /* set up thread local storage if available */
     #ifdef HAVE_THREAD_LS
@@ -337,24 +374,6 @@ typedef struct w64wrapper {
         #undef  FALL_THROUGH
         #define FALL_THROUGH
     #endif
-
-    #ifndef WARN_UNUSED_RESULT
-        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
-            #define WARN_UNUSED_RESULT __must_check
-        #elif defined(__GNUC__) && (__GNUC__ >= 4)
-            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-        #else
-            #define WARN_UNUSED_RESULT
-        #endif
-    #endif /* WARN_UNUSED_RESULT */
-
-    #ifndef WC_MAYBE_UNUSED
-        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
-            #define WC_MAYBE_UNUSED __attribute__((unused))
-        #else
-            #define WC_MAYBE_UNUSED
-        #endif
-    #endif /* WC_MAYBE_UNUSED */
 
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
@@ -1131,7 +1150,8 @@ typedef struct w64wrapper {
     /* AESNI requires alignment and ARMASM gains some performance from it
      * Xilinx RSA operations require alignment */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
-        defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
+        defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX) || \
+        defined(WOLFSSL_XILINX)
           #ifndef WOLFSSL_USE_ALIGN
               #define WOLFSSL_USE_ALIGN
           #endif
@@ -1233,6 +1253,53 @@ typedef struct w64wrapper {
         #define FALSE 0
     #endif
 
+    #ifdef SINGLE_THREADED
+        #if defined(WC_32BIT_CPU)
+            typedef void*        THREAD_RETURN;
+        #else
+            typedef unsigned int THREAD_RETURN;
+        #endif
+        typedef void*            THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) || \
+          defined(FREESCALE_MQX)
+        typedef unsigned int  THREAD_RETURN;
+        typedef int           THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_NUCLEUS)
+        typedef unsigned int  THREAD_RETURN;
+        typedef intptr_t      THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_TIRTOS)
+        typedef void          THREAD_RETURN;
+        typedef Task_Handle   THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_ZEPHYR)
+        typedef void            THREAD_RETURN;
+        typedef struct k_thread THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(NETOS)
+        typedef UINT        THREAD_RETURN;
+        typedef TX_THREAD   THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE TX_WAIT_FOREVER
+        #define WAIT_OBJECT_0 TX_NO_WAIT
+    #elif defined(WOLFSSL_LINUXKM)
+        typedef unsigned int  THREAD_RETURN;
+        typedef size_t        THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
+        !defined(__MINGW32__)
+        typedef void*         THREAD_RETURN;
+        typedef pthread_t     THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE      (-1)
+        #define WAIT_OBJECT_0 0L
+    #else
+        typedef unsigned int  THREAD_RETURN;
+        typedef size_t        THREAD_TYPE;
+        #define WOLFSSL_THREAD __stdcall
+    #endif
 
     #if defined(HAVE_STACK_SIZE)
         #define EXIT_TEST(ret) return (THREAD_RETURN)((size_t)(ret))

@@ -1,6 +1,6 @@
 /* integer.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -234,6 +234,7 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 #define mp_isodd(a) \
     (((a)->used > 0 && (((a)->dp[0] & 1u) == 1u)) ? MP_YES : MP_NO)
 #define mp_isneg(a)  (((a)->sign != MP_ZPOS) ? MP_YES : MP_NO)
+#define mp_setneg(a) ((a)->sign = MP_NEG)
 #define mp_isword(a, w) \
     ((((a)->used == 1) && ((a)->dp[0] == (w))) || (((w) == 0) && ((a)->used == 0)) \
                                                                ? MP_YES : MP_NO)
@@ -387,7 +388,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     !defined(NO_DSA) || !defined(NO_DH)
     MP_API int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
 #endif
-#if !defined(NO_DSA) || defined(HAVE_ECC)
+#if !defined(NO_DSA) || defined(HAVE_ECC) || defined(OPENSSL_EXTRA)
     MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 

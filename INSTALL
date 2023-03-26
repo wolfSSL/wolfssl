@@ -221,8 +221,8 @@
     - FALCON (signature scheme)
     - SPHINCS+ (signature scheme)
 
-    The following NIST Competition Round 3 finalist algorithms are supported,
-    but are deprecated and will be removed soon:
+    The following NIST Competition Round 3 finalist algorithms were supported,
+    but have been removed after 5.3.3
     - SABER (KEM)
     - NTRU (KEM)
 

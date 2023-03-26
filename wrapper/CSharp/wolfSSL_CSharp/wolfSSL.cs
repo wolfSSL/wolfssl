@@ -1,6 +1,6 @@
 /* wolfSSL.cs
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1757,7 +1757,7 @@ namespace wolfSSL.CSharp {
         }
 
         /// <summary>
-        /// Used to load in the private key from a file 
+        /// Used to load in the private key from a file
         /// </summary>
         /// <param name="ctx">CTX structure for TLS/SSL connections </param>
         /// <param name="fileKey">Name of the file, includeing absolute directory</param>
@@ -1998,7 +1998,7 @@ namespace wolfSSL.CSharp {
                     wolfSSL_sk_X509_free(sk);
                 }
                 return ret;
-                
+
             }
             catch (Exception e)
             {

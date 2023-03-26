@@ -1,6 +1,6 @@
 /* esp32_sha.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -179,7 +179,7 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
             /* this could be a warning of wonkiness in RTOS environment.
              * we were successful, but not expected depth count*/
 
-            ESP_LOGE(TAG, "warning lockDepth mismatch.");
+            ESP_LOGV(TAG, "warning lockDepth mismatch.");
         }
         ctx->lockDepth = 0;
         ctx->mode = ESP32_SHA_INIT;
@@ -274,7 +274,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
             ESP_LOGV(TAG, "Hardware Mode, lock depth = %d", ctx->lockDepth);
         }
         else {
-            ESP_LOGI(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
+            ESP_LOGV(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
             ctx->mode = ESP32_SHA_SW;
             return 0; /* success, but revert to SW */
         }
@@ -507,8 +507,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
 
     #if defined(WOLFSSL_SHA384)
         case SHA2_384:
-            SHA_LOAD_REG = SHA_384_LOAD_REG;
-            SHA_BUSY_REG = SHA_384_BUSY_REG;
+            DPORT_REG_WRITE(SHA_384_LOAD_REG, 1);
             break;
     #endif
 
@@ -551,7 +550,11 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
      *    DPORT_SEQUENCE_REG_READ(address + i * 4);
      */
     esp_dport_access_read_buffer(
+#if ESP_IDF_VERSION_MAJOR >= 4
+        (uint32_t*)(hash), /* the result will be found in hash upon exit     */
+#else
         (word32*)(hash), /* the result will be found in hash upon exit     */
+#endif
         SHA_TEXT_BASE,   /* there's a fixed reg addy for all SHA           */
         wc_esp_sha_digest_size(ctx->sha_type) / sizeof(word32) /* # 4-byte */
     );

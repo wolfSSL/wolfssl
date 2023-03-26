@@ -1,6 +1,6 @@
 /* random.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -159,14 +159,12 @@ struct OS_Seed {
 #ifdef HAVE_HASHDRBG
 struct DRBG_internal {
     word32 reseedCtr;
-    word32 lastBlock;
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     void* heap;
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
-    byte   matchCount;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256 sha256;
 #endif
@@ -259,6 +257,19 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
 #endif /* HAVE_HASHDRBG */
+
+#ifdef HAVE_ENTROPY_MEMUSE
+/* Maximum entropy bits that can be produced. */
+#define MAX_ENTROPY_BITS    256
+
+/* For generating data for assessment. */
+WOLFSSL_API int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
+WOLFSSL_API int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
+WOLFSSL_API int wc_Entropy_OnDemandTest(void);
+
+WOLFSSL_LOCAL int Entropy_Init(void);
+WOLFSSL_LOCAL void Entropy_Final(void);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -1,6 +1,6 @@
 /* quic.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -71,7 +71,7 @@ struct wolfssl_quic_method_t {
      */
     int (*flush_flight)(WOLFSSL* ssl);
     /**
-     * Send a TLS alert that happend during handshake. In QUIC, such alerts
+     * Send a TLS alert that happened during handshake. In QUIC, such alerts
      * lead to connection shutdown.
      */
     int (*send_alert)(WOLFSSL* ssl, WOLFSSL_ENCRYPTION_LEVEL level,
@@ -88,7 +88,7 @@ WOLFSSL_API
 int wolfSSL_CTX_set_quic_method(WOLFSSL_CTX* ctx,
                                 const WOLFSSL_QUIC_METHOD* quic_method);
 /**
- * Mark extactly this SSL instance for QUIC protocol handling.
+ * Mark exactly this SSL instance for QUIC protocol handling.
  * Provides all callbacks to the QUIC application the SSL stack needs.
  */
 WOLFSSL_API
@@ -168,7 +168,7 @@ WOLFSSL_API void wolfSSL_set_quic_early_data_enabled(WOLFSSL* ssl, int enabled);
 
 /**
  * Advisory amount of the maximum data a QUIC protocol handler should have
- * in flight. This varies during handshake processing, for example certficate
+ * in flight. This varies during handshake processing, for example certificate
  * exchange will increase the limit.
  */
 WOLFSSL_API

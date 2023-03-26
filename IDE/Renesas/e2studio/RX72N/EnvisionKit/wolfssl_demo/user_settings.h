@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(RENESAS_T4_USE)
+  #include "wolfssl_simple_demo.h"
+#endif
 /*-- Renesas MCU type ---------------------------------------------------------
  *
  *
@@ -41,6 +44,10 @@
   #define WOLFSSL_RENESAS_TSIP
   #define WOLFSSL_RENESAS_TSIP_VER     115
 
+#if defined(SIMPLE_TLS_CLIENT) || defined(SIMPLE_TLS_SERVER)
+ #undef WOLFSSL_RENESAS_TSIP
+ #undef WOLFSSL_RENESAS_TSIP_VER
+#endif
 
 /*-- TLS version definitions  --------------------------------------------------
  *
@@ -57,9 +64,12 @@
  *  Otherwise, define "SINGLE_THREADED". They are exclusive each other.
  *   
  *----------------------------------------------------------------------------*/
-
-#define FREERTOS
-#define FREERTOS_TCP
+#if !defined(RENESAS_T4_USE)
+ #define FREERTOS
+ #define FREERTOS_TCP
+#else
+ #define SINGLE_THREADED
+#endif
 
 #if !defined(FREERTOS_TCP)
     #define WOLFSSL_NO_SOCK
@@ -147,7 +157,6 @@
   #define WOLFSSL_LOG_PRINTF
   #define WOLFSSL_HAVE_MIN
   #define WOLFSSL_HAVE_MAX
-  #define WOLFSSL_SMALL_STACK
   #define NO_WRITEV
   
 
@@ -165,7 +174,12 @@
   #define TFM_TIMING_RESISTANT
   #define ECC_TIMING_RESISTANT
 
-  #define USE_FAST_MATH
+  #define FP_MAX_BITS   4096
+  #define WOLFSSL_SP_MATH
+  #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
+  #define WOLFSSL_HAVE_SP_RSA
+  #define WOLFSSL_HAVE_SP_DH
+  #define WOLFSSL_HAVE_SP_ECC
 
 /*-- Debugging options  ------------------------------------------------------
  *
@@ -211,6 +225,7 @@
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
+        #define WOLF_PRIVATE_KEY_ID
     #endif
 
 #else

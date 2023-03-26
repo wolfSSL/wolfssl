@@ -1,6 +1,6 @@
 /* ec448.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,8 @@
 
 #ifndef WOLFSSL_EC448_H_
 #define WOLFSSL_EC448_H_
+
+#include <wolfssl/openssl/compat_types.h>
 
 #ifdef __cplusplus
 extern "C" {

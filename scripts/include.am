@@ -118,3 +118,11 @@ if BUILD_DTLS13
 EXTRA_DIST += scripts/dtls13.test
 EXTRA_DIST += scripts/dtlscid.test
 endif
+
+if BUILD_DTLS_CID
+dist_noinst_SCRIPTS+= scripts/dtlscid.test
+endif
+
+EXTRA_DIST += scripts/bench/bench_functions.sh
+
+EXTRA_DIST += scripts/user_settings_asm.sh

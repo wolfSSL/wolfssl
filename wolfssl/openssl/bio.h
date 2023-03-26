@@ -1,6 +1,6 @@
 /* bio.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -169,6 +169,9 @@
 #define BIO_CLOSE                  0x01
 
 #define BIO_FP_WRITE               0x04
+
+/* You shouldn't free up or change the data if BIO_FLAGS_MEM_RDONLY is set */
+#define BIO_FLAGS_MEM_RDONLY       0x200
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

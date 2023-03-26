@@ -1,6 +1,6 @@
 /* x509v3.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,12 +24,16 @@
 #ifndef WOLFSSL_x509v3_H
 #define WOLFSSL_x509v3_H
 
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/openssl/conf.h>
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #define EXFLAG_KUSAGE  0x2
 #define EXFLAG_XKUSAGE 0x4
@@ -160,6 +164,8 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb
 #define X509v3_get_ext_count      wolfSSL_sk_num
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef  __cplusplus
 }

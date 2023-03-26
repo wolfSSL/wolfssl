@@ -100,7 +100,8 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
-The L5 and WB55 support ECC PKA acceleration, which is enabled with `WOLFSSL_STM32_PKA`.
+The PKA acceleration for ECC is avaialble on some U5, L5 and WB55 chips.
+This is enabled with `WOLFSSL_STM32_PKA`. You can see some of the benchmarks [here](STM32_Benchmarks.md).
 
 To disable hardware crypto acceleration you can define:
 
@@ -111,35 +112,32 @@ To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 
 If you'd like to use the older Standard Peripheral library undefine `WOLFSSL_STM32_CUBEMX`.
 
-With STM32 Cube HAL v2 some AES GCM hardware has a limitation for the AAD header, which must be a multiple of 4 bytes.
+With STM32 Cube HAL v2 some AES GCM hardware has a limitation for the AAD header, which must be a multiple of 4 bytes. If your HAL does not support `CRYP_HEADERWIDTHUNIT_BYTE` then consider adding `STM32_AESGCM_PARTIAL` if you are getting AES GCM authentication failures. This bug existed in v1.16.0 or later.
 
-If using `STM32_AESGCM_PARTIAL` with the following patch it will enable use for all AAD header sizes. The `STM32Cube_FW_F7_V1.16.0` patch is:
+The STM32F7 v1.17.0 pack has a bug in the AES GCM code for handling of additional authentication data when not a multiple of 4 bytes. To patch see `stm32f7xx_hal_cryp.c` -> `CRYP_GCMCCM_SetHeaderPhase`:
 
 ```diff
-diff --git a/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h b/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
---- a/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
-+++ b/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
-@@ -63,6 +63,7 @@ typedef struct
-                                         GCM : also known as Additional Authentication Data
-                                         CCM : named B1 composed of the associated data length and Associated Data. */
-   uint32_t HeaderSize;                /*!< The size of header buffer in word  */
-+  uint32_t HeaderPadSize;             /*!< <PATCH> The size of padding in bytes added to actual header data to pad it to a multiple of 32 bits </PATCH>  */
-   uint32_t *B0;                       /*!< B0 is first authentication block used only  in AES CCM mode */
-   uint32_t DataWidthUnit;              /*!< Data With Unit, this parameter can be value of @ref CRYP_Data_Width_Unit*/
-   uint32_t KeyIVConfigSkip;            /*!< CRYP peripheral Key and IV configuration skip, to config Key and Initialization
+diff --git a/stm32f7xx_hal_cryp.c b/stm32f7xx_hal_cryp.c
+index 2ae42d0..9666f26 100644
+--- a/stm32f7xx_hal_cryp.c
++++ b/stm32f7xx_hal_cryp.c
+@@ -5600,7 +5600,6 @@ static HAL_StatusTypeDef CRYP_GCMCCM_SetHeaderPhase(CRYP_HandleTypeDef *hcryp, u
+   uint32_t size_in_bytes;
+   uint32_t tmp;
+   uint32_t mask[12] = {0x0U, 0xFF000000U, 0xFFFF0000U, 0xFFFFFF00U,  /* 32-bit data type */
+-                       0x0U, 0x0000FF00U, 0x0000FFFFU, 0xFF00FFFFU,  /* 16-bit data type */
+                        0x0U, 0x000000FFU, 0x0000FFFFU, 0x00FFFFFFU}; /*  8-bit data type */
 
-diff --git a/Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cryp_ex.c b/Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cryp_ex.c
---- a/Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cryp_ex.c
-+++ b/Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cryp_ex.c
-@@ -132,6 +132,8 @@ HAL_StatusTypeDef HAL_CRYPEx_AESGCM_GenerateAuthTAG(CRYP_HandleTypeDef *hcryp, u
-   uint64_t inputlength = (uint64_t)hcryp->SizesSum * 8U; /* input length in bits */
-   uint32_t tagaddr = (uint32_t)AuthTag;
- 
-+  headerlength -= ((uint64_t)(hcryp->Init.HeaderPadSize) * 8U); /* <PATCH> Decrement the header size removing the pad size </PATCH> */  
-+
-   if (hcryp->State == HAL_CRYP_STATE_READY)
-   {
-     /* Process locked */
+   /***************************** Header phase for GCM/GMAC or CCM *********************************/
+@@ -5842,7 +5841,7 @@ static HAL_StatusTypeDef CRYP_GCMCCM_SetHeaderPhase(CRYP_HandleTypeDef *hcryp, u
+       {
+         /* Enter last bytes, padded with zeroes */
+         tmp =  *(uint32_t *)(hcryp->Init.Header + hcryp->CrypHeaderCount);
+-        tmp &= mask[(hcryp->Init.DataType * 2U) + (size_in_bytes % 4U)];
++        tmp &= mask[(hcryp->Init.HeaderWidthUnit * 4U) + (size_in_bytes % 4U)];
+         hcryp->Instance->DINR = tmp;
+         loopcounter++;
+         /* Pad the data with zeros to have a complete block */
 ```
 
 If you are using FreeRTOS make sure your `FreeRTOSConfig.h` has its `configTOTAL_HEAP_SIZE` increased.
@@ -155,9 +153,29 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 .b. WolfCrypt Benchmark
 .l. WolfSSL TLS Bench
 .e. Show Cipher List
+.s. Run TLS 1.3 Server over UART
+.c. Run TLS 1.3 Client over UART
 
 Please select one of the above options:
 ```
+
+### Example for TLS v1.3 over UART
+
+A tutorial for setting this up can be found here: https://www.youtube.com/watch?v=OK6MKXYiVBY
+
+The TLS v1.3 client/server examples over UART are paired with these host-side applications:
+* https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/client-tls-uart.c
+* https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/server-tls-uart.c
+
+To use this example you will need to use the STM32Cube interface to enable an additional USART and enable DMA for the RX with defaults. Enabling DMA for the USART requires adding the USART RX DMA in the STM32Cube tool. Under Connectivity click on your TLS USART# and goto DMA Settings and "Add" one for USART#_RX with default options.
+
+Then set the TLS_UART macro to the correct `huart#` instance. This USART will be used as a TLS transport.
+
+```c
+#define TLS_UART huart2
+```
+
+To disable the TLS UART example you can define `NO_TLS_UART_TEST`.
 
 ## Benchmarks
 

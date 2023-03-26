@@ -1,6 +1,6 @@
 /* wolfcaam.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,10 +30,13 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h>
 #elif defined(WOLFSSL_SECO_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h>
+#elif defined(WOLFSSL_IMXRT1170_CAAM)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
 #endif
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SECO_CAAM)
+    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SECO_CAAM) || \
+	defined(WOLFSSL_IMXRT1170_CAAM)
 
 
 /* unique devId for CAAM use on crypto callbacks */
@@ -92,7 +95,8 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define WC_CAAM_BLACK_KEYMOD_SZ 16
 #define WC_CAAM_MAX_ENTROPY 44
 
-#if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SECO_CAAM)
+#if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SECO_CAAM) && \
+	!defined(WOLFSSL_IMXRT1170_CAAM)
     WOLFSSL_API int wc_caamSetResource(IODevice ioDev);
     #ifndef WC_CAAM_READ
         #define WC_CAAM_READ(reg)      wc_caamReadRegister((reg))

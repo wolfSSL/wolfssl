@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,11 +22,21 @@
     #include <config.h>
 #endif
 
+
+/*
+ * WOLFSSL_CAAM is used to enable CAAM support
+ *
+ * Different Hardware Ports
+ * WOLFSSL_IMX6_CAAM build for QNX + IMX6
+ * WOLFSSL_SECO_CAAM make use of NXP's SECO HSM library on i.MX8
+ * WOLFSSL_IMXRT1170_CAAM make use of NXP's CAAM driver for RT1170 series boards
+ *
+ */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6UL_CAAM) || defined(WOLFSSL_IMX6_CAAM_BLOB) || \
-    defined(WOLFSSL_SECO_CAAM)
+    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -175,7 +185,6 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
 
         case WC_ALGO_TYPE_HASH:
         #ifdef WOLFSSL_CAAM_HASH
-        #ifdef WOLFSSL_SECO_CAAM
             switch(info->hash.type) {
                 #ifdef WOLFSSL_SHA224
                 case WC_HASH_TYPE_SHA224:
@@ -213,7 +222,6 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                     WOLFSSL_MSG("Unknown or unsupported hash type");
                     ret = CRYPTOCB_UNAVAILABLE;
             }
-        #endif
         #endif /* WOLFSSL_CAAM_HASH */
         break;
 

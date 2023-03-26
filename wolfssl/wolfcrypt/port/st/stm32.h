@@ -1,6 +1,6 @@
 /* stm32.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -60,14 +60,8 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
-#if defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7) || \
-    defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-    defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5) || \
-    defined(WOLFSSL_STM32WB)
 #define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
-#else
-#define STM32_HASH_FIFO_SIZE 1
-#endif
+
 
 /* STM32 Hash Context */
 typedef struct {

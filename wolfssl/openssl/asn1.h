@@ -1,6 +1,6 @@
 /* asn1.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -96,7 +96,7 @@
 #define ASN1_STRING_FLAG_EMBED           0x080
 
 /* X.509 PKI size limits from RFC2459 (appendix A) */
-/* internally our limit is CTC_NAME_SIZE (64) - overriden with WC_CTC_NAME_SIZE */
+/* internally our limit is CTC_NAME_SIZE (64) - overridden with WC_CTC_NAME_SIZE */
 #define ub_name                    CTC_NAME_SIZE /* 32768 */
 #define ub_common_name             CTC_NAME_SIZE /* 64 */
 #define ub_locality_name           CTC_NAME_SIZE /* 128 */

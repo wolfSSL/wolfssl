@@ -1,6 +1,6 @@
 /* linuxkm_wc_port.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -105,6 +105,13 @@
          */
         #undef USE_SPLIT_PMD_PTLOCKS
         #define USE_SPLIT_PMD_PTLOCKS 0
+
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            /* without this, static show_free_areas() mm.h brings in direct
+             * reference to unexported __show_free_areas().
+             */
+            #define __show_free_areas my__show_free_areas
+        #endif
     #endif
     #include <linux/mm.h>
     #ifndef SINGLE_THREADED
@@ -267,8 +274,13 @@
         typeof(kvfree) *kvfree;
         #endif
         typeof(is_vmalloc_addr) *is_vmalloc_addr;
-        typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
-        typeof(kmalloc_order_trace) *kmalloc_order_trace;
+
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            typeof(kmalloc_trace) *kmalloc_trace;
+        #else
+            typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
+            typeof(kmalloc_order_trace) *kmalloc_order_trace;
+        #endif
 
         typeof(get_random_bytes) *get_random_bytes;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -310,7 +322,11 @@
              */
             #endif
         #endif
-        typeof(cpu_number) *cpu_number;
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+            typeof(cpu_number) *cpu_number;
+        #else
+            typeof(pcpu_hot) *pcpu_hot;
+        #endif
         typeof(nr_cpu_ids) *nr_cpu_ids;
 
         #endif /* WOLFSSL_LINUXKM_SIMD_X86 */
@@ -402,8 +418,12 @@
         #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
     #endif
     #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
-    #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
-    #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+        #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
+    #else
+        #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
+        #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
+    #endif
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -443,7 +463,11 @@
              */
             #endif
         #endif
-        #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+            #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
+        #else
+            #define pcpu_hot (*(wolfssl_linuxkm_get_pie_redirect_table()->pcpu_hot))
+        #endif
         #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
     #endif
 

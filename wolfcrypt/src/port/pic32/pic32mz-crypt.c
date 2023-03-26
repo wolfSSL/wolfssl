@@ -1,6 +1,6 @@
 /* pic32mz-crypt.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -89,11 +89,13 @@ static int Pic32Crypto(const byte* pIn, int inLen, word32* pOut, int outLen,
     bufferDescriptor *bd_p;
     byte *in_p;
     byte *out_p;
+    unsigned int *updptrVal_p;
     word32* dst;
     word32 padRemain;
     int timeout = 0xFFFFFF;
     word32* in = (word32*)pIn;
     word32* out = pOut;
+    word32 updptrVal = 0;
     int isDynamic = 0;
 
     /* check args */
@@ -125,6 +127,7 @@ static int Pic32Crypto(const byte* pIn, int inLen, word32* pOut, int outLen,
     bd_p = KVA0_TO_KVA1(&bd);
     out_p= KVA0_TO_KVA1(out);
     in_p = KVA0_TO_KVA1(in);
+    updptrVal_p = KVA0_TO_KVA1(&updptrVal);
 
     /* Sync cache if in physical memory (not flash) */
     if (PIC32MZ_IF_RAM(in_p)) {
@@ -193,6 +196,7 @@ static int Pic32Crypto(const byte* pIn, int inLen, word32* pOut, int outLen,
         if (in != out)
             XMEMSET(out_p, 0, outLen); /* clear output buffer */
         bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out);
+        bd_p->UPDPTR = (unsigned int)KVA_TO_PA(updptrVal_p);
     }
     else {
         /* hashing */

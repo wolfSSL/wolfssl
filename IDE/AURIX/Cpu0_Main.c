@@ -1,6 +1,6 @@
 /* Cpu0_Main.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -80,6 +80,8 @@ void asclin0_Tx_ISR(void)
 static void init_UART(void)
 {
     IfxAsclin_Asc_Config ascConfig;
+
+    IfxCpu_Irq_installInterruptHandler(asclin0_Tx_ISR, INTPRIO_ASCLIN0_TX);
 
     /* Port pins configuration */
     const IfxAsclin_Asc_Pins pins = {

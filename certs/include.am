@@ -10,6 +10,7 @@ EXTRA_DIST += \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
 	     certs/client-uri-cert.pem \
+	     certs/client-absolute-urn.pem \
 	     certs/client-relative-uri.pem \
 	     certs/client-crl-dist.pem \
 	     certs/client-crl-dist.der \
@@ -64,7 +65,8 @@ EXTRA_DIST += \
 	     certs/entity-no-ca-bool-cert.pem \
 	     certs/entity-no-ca-bool-key.pem \
 	     certs/x942dh2048.pem \
-	     certs/fpki-cert.der
+	     certs/fpki-cert.der \
+	     certs/rid-cert.der
 
 EXTRA_DIST += \
 	     certs/ca-key.der \

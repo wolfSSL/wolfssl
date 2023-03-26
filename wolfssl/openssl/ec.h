@@ -1,6 +1,6 @@
 /* ec.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -116,18 +116,15 @@ struct WOLFSSL_EC_KEY {
 
     void*          internal;     /* our ECC Key */
     void*          heap;
-    char           form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
+    unsigned char  form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
                                   * POINT_CONVERSION_COMPRESSED */
     word16 pkcs8HeaderSz;
 
     /* option bits */
-    byte inSet:1;        /* internal set from external ? */
-    byte exSet:1;        /* external set from internal ? */
+    byte inSet:1;                /* internal set from external ? */
+    byte exSet:1;                /* external set from internal ? */
 
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
-#endif
-    int              refCount;                       /* reference count */
+    wolfSSL_Ref ref;             /* Reference count information. */
 };
 
 struct WOLFSSL_EC_BUILTIN_CURVE {
@@ -153,12 +150,12 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *curve,
                         const WOLFSSL_EC_POINT *p,
                         unsigned char *out, unsigned int *len);
 WOLFSSL_API
-int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
+int wolfSSL_ECPoint_d2i(const unsigned char *in, unsigned int len,
                         const WOLFSSL_EC_GROUP *curve, WOLFSSL_EC_POINT *p);
 WOLFSSL_API
 size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
                                   const WOLFSSL_EC_POINT *p,
-                                  char form,
+                                  int form,
                                   byte *buf, size_t len, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
 int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
@@ -175,13 +172,13 @@ WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned ch
 WOLFSSL_API
 int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
-void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form);
+void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, int form);
 WOLFSSL_API
 point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key);
 WOLFSSL_API
 WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
                                           const WOLFSSL_EC_POINT *p,
-                                          char form,
+                                          int form,
                                           WOLFSSL_BIGNUM *in, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
 int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
@@ -234,6 +231,11 @@ WOLFSSL_API int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
 WOLFSSL_API int wolfSSL_ECDSA_verify(int type, const unsigned char *digest,
                                    int digestSz, const unsigned char *sig,
                                    int sigSz, WOLFSSL_EC_KEY *key);
+
+
+#if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+WOLFSSL_API int EccEnumToNID(int n);
+#endif
 
 WOLFSSL_API
 void wolfSSL_EC_GROUP_set_asn1_flag(WOLFSSL_EC_GROUP *group, int flag);

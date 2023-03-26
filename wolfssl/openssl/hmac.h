@@ -1,6 +1,6 @@
 /* hmac.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -56,7 +56,7 @@ WOLFSSL_LOCAL int wolfSSL_HmacCopy(Hmac* des, Hmac* src);
 WOLFSSL_API int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
                                  int keylen, const WOLFSSL_EVP_MD* type);
 WOLFSSL_API int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
-                             int keylen, const EVP_MD* type, WOLFSSL_ENGINE* e);
+                             int keylen, const WOLFSSL_EVP_MD* type, WOLFSSL_ENGINE* e);
 WOLFSSL_API int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
                                    const unsigned char* data, int len);
 WOLFSSL_API int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,

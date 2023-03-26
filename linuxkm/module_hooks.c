@@ -1,6 +1,6 @@
 /* module_hooks.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -234,6 +234,16 @@ static int wolfssl_init(void)
             "] POST succeeded.\n");
 #endif /* HAVE_FIPS */
 
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret < 0) {
+        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
 #ifdef WOLFCRYPT_ONLY
     ret = wolfCrypt_Init();
     if (ret != 0) {
@@ -249,14 +259,7 @@ static int wolfssl_init(void)
 #endif
 
 #ifndef NO_CRYPT_TEST
-
-#ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
-    if (ret == 0)
-#endif
-    {
-        ret = wolfcrypt_test(NULL);
-    }
+    ret = wolfcrypt_test(NULL);
     if (ret < 0) {
         pr_err("wolfcrypt self-test failed with return code %d.\n", ret);
         (void)libwolfssl_cleanup();
@@ -394,10 +397,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
 #endif
     wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
-    wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
-        kmem_cache_alloc_trace;
-    wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
-        kmalloc_order_trace;
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+        wolfssl_linuxkm_pie_redirect_table.kmalloc_trace =
+            kmalloc_trace;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
+            kmem_cache_alloc_trace;
+        wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
+            kmalloc_order_trace;
+    #endif
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -440,7 +448,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
          */
         #endif
     #endif
-    wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
 #endif
 

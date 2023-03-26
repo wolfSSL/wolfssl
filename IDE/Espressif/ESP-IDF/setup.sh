@@ -77,8 +77,8 @@ ${CPDCMD} ./src/*.c ${WOLFSSLLIB_TRG_DIR}/src/
 ${CPDCMD} -r ./wolfcrypt/src/*.{c,i} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/
 ${CPDCMD} -r ./wolfcrypt/src/port  ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/port/
 ${CPDCMD} -r ./wolfcrypt/test ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
-# Copy dummy test_paths.h to handle the case configure hasn't yet executed 
-${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/dummy_test_paths.h ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/test/test_paths.h 
+# Copy dummy test_paths.h to handle the case configure hasn't yet executed
+${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/dummy_test_paths.h ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/test/test_paths.h
 ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 
 ${CPDCMD} -r ./wolfssl/*.h ${WOLFSSLLIB_TRG_DIR}/wolfssl/
@@ -96,7 +96,7 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/dummy_config_h ${WOLFSSLLIB_TRG_DIR}/include/c
 # unit test app
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/test/* ${WOLFSSLLIB_TRG_DIR}/test/
 
-popd > /dev/null # 
+popd > /dev/null #
 
 ${CPDCMD} ./libs/CMakeLists.txt ${WOLFSSLLIB_TRG_DIR}/
 ${CPDCMD} ./libs/component.mk ${WOLFSSLLIB_TRG_DIR}/
@@ -110,9 +110,6 @@ fi
 ${RMDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/main/
-
-${CPDCMD}    ${BASEDIR}/wolfcrypt/benchmark/benchmark.h ${BASEDIR}/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/benchmark.h
-${CPDCMD}    ${BASEDIR}/wolfcrypt/benchmark/benchmark.c ${BASEDIR}/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/benchmark.c
 
 ${CPDCMD} -r ./wolfcrypt/benchmark/benchmark.c ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/main/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_benchmark/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
@@ -156,7 +153,7 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/* ${WOLFSSLEXP_TRG_DIR
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/main/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/main/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/main/include/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/main/include/
 
-popd > /dev/null # 
+popd > /dev/null #
 
 if [ "${WOLFSSL_SETUP_VERBOSE}" == "true" ]; then
   echo "Copy complete!"

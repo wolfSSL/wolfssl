@@ -379,6 +379,9 @@ IDE/XCODE/Index
 /IDE/QNX/example-cmac/cmac-test
 /IDE/QNX/CAAM-DRIVER/wolfCrypt
 
+# Xilinx
+/IDE/XilinxSDK/data
+
 # Emacs
 *~
 
@@ -390,6 +393,8 @@ cmake_install.cmake
 # GDB Settings
 \.gdbinit
 
+libFuzzer
+
 # Pycharm and other IDEs
 \.idea
 
@@ -398,3 +403,16 @@ XXX-fips-test
 
 # ASYNC
 async
+
+# Generated user_settings_asm.h.
+user_settings_asm.h
+
+# VisualGD
+**/.visualgdb
+
+# Espressif sdk config default should be saved in sdkconfig.defaults
+# we won't track the actual working sdkconfig files
+/IDE/Espressif/**/sdkconfig
+
+# auto-created CMake backups
+**/CMakeLists.txt.old

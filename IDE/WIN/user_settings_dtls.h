@@ -51,6 +51,7 @@
         #define HAVE_SECURE_RENEGOTIATION
 
         #define HAVE_AESGCM
+        #define WOLFSSL_AESGCM_STREAM
         #define WOLFSSL_SHA384
         #define WOLFSSL_SHA512
 
@@ -61,12 +62,19 @@
         #define ECC_SHAMIR
         #define ECC_TIMING_RESISTANT
 
+        #define WOLFSSL_SP_X86_64
+        #define SP_INT_BITS  4096
+
         /* Optional Performance Speedups */
         #if 0
             /* AESNI on x64 */
             #ifdef _WIN64
                 #define HAVE_INTEL_RDSEED
                 #define WOLFSSL_AESNI
+                #define HAVE_INTEL_AVX1
+                #if 0
+                    #define HAVE_INTEL_AVX2
+                #endif
             #endif
 
             /* Single Precision Support for RSA/DH 1024/2048/3072 and

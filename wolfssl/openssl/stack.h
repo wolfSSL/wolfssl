@@ -1,6 +1,6 @@
 /* stack.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,9 @@
 
 #ifndef WOLFSSL_STACK_H_
 #define WOLFSSL_STACK_H_
+
+#include <wolfssl/openssl/compat_types.h>
+#include <wolfssl/openssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {

@@ -1,6 +1,6 @@
 /* tls1.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,6 +41,12 @@
 
 #ifndef TLS_MAX_VERSION
 #define TLS_MAX_VERSION                 TLS1_3_VERSION
+#endif
+
+#ifdef WOLFSSL_QUIC
+/* from rfc9001 */
+#define TLSEXT_TYPE_quic_transport_parameters_draft   0xffa5
+#define TLSEXT_TYPE_quic_transport_parameters         0x0039
 #endif
 
 #endif /* WOLFSSL_OPENSSL_TLS1_H_ */

@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -306,13 +306,8 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     }
 
     if (wroteToFifo) {
-        /* If we wrote a block send one more 32-bit to FIFO to trigger
-         * start. We cannot leave 16 deep FIFO filled before saving off
-         * context */
-        wc_Stm32_Hash_Data(stmCtx, 4);
-        stmCtx->fifoBytes += 4;
-
-        (void)wc_Stm32_Hash_WaitDone(stmCtx);
+        /* make sure hash operation is done */
+        ret = wc_Stm32_Hash_WaitDone(stmCtx);
 
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);
@@ -732,46 +727,48 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
     const uint8_t **GenPointX, const uint8_t **GenPointY, const uint8_t **order,
     int size)
 {
-    switch(size) {
+    switch (size) {
+#ifdef ECC256
     case 32:
-        *prime = stm32_ecc256_prime;
-        *coef = stm32_ecc256_coef;
+        if (prime) *prime = stm32_ecc256_prime;
+        if (coef) *coef = stm32_ecc256_coef;
         if (coefB) *coefB = stm32_ecc256_coefB;
-        *GenPointX = stm32_ecc256_pointX;
-        *GenPointY = stm32_ecc256_pointY;
-        *coef_sign = &stm32_ecc256_coef_sign;
+        if (GenPointX) *GenPointX = stm32_ecc256_pointX;
+        if (GenPointY) *GenPointY = stm32_ecc256_pointY;
+        if (coef_sign) *coef_sign = &stm32_ecc256_coef_sign;
         if (order) *order = stm32_ecc256_order;
         break;
+#endif
 #ifdef ECC224
     case 28:
-        *prime = stm32_ecc224_prime;
-        *coef = stm32_ecc224_coef;
+        if (prime) *prime = stm32_ecc224_prime;
+        if (coef) *coef = stm32_ecc224_coef;
         if (coefB) *coefB = stm32_ecc224_coefB;
-        *GenPointX = stm32_ecc224_pointX;
-        *GenPointY = stm32_ecc224_pointY;
-        *coef_sign = &stm32_ecc224_coef;
+        if (GenPointX) *GenPointX = stm32_ecc224_pointX;
+        if (GenPointY) *GenPointY = stm32_ecc224_pointY;
+        if (coef_sign) *coef_sign = &stm32_ecc224_coef_sign;
         if (order) *order = stm32_ecc224_order;
         break;
 #endif
 #ifdef ECC192
     case 24:
-        *prime = stm32_ecc192_prime;
-        *coef = stm32_ecc192_coef;
+        if (prime) *prime = stm32_ecc192_prime;
+        if (coef) *coef = stm32_ecc192_coef;
         if (coefB) *coefB = stm32_ecc192_coefB;
-        *GenPointX = stm32_ecc192_pointX;
-        *GenPointY = stm32_ecc192_pointY;
-        *coef_sign = &stm32_ecc192_coef;
+        if (GenPointX) *GenPointX = stm32_ecc192_pointX;
+        if (GenPointY) *GenPointY = stm32_ecc192_pointY;
+        if (coef_sign) *coef_sign = &stm32_ecc192_coef_sign;
         if (order) *order = stm32_ecc192_order;
         break;
 #endif
 #ifdef ECC384
     case 48:
-        *prime = stm32_ecc384_prime;
-        *coef = stm32_ecc384_coef;
+        if (prime) *prime = stm32_ecc384_prime;
+        if (coef) *coef = stm32_ecc384_coef;
         if (coefB) *coefB = stm32_ecc384_coefB;
-        *GenPointX = stm32_ecc384_pointX;
-        *GenPointY = stm32_ecc384_pointY;
-        *coef_sign = &stm32_ecc384_coef;
+        if (GenPointX) *GenPointX = stm32_ecc384_pointX;
+        if (GenPointY) *GenPointY = stm32_ecc384_pointY;
+        if (coef_sign) *coef_sign = &stm32_ecc384_coef_sign;
         if (order) *order = stm32_ecc384_order;
         break;
 #endif
@@ -809,8 +806,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     uint8_t PtYbin[STM32_MAX_ECC_SIZE];
     const uint8_t *prime, *coef, *coefB, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
-    (void)a;
-    (void)heap;
+
     XMEMSET(&pka_mul, 0x00, sizeof(PKA_ECCMulInTypeDef));
     XMEMSET(&pka_mul_res, 0x00, sizeof(PKA_ECCMulOutTypeDef));
     pka_mul_res.ptX = PtXbin;
@@ -845,7 +841,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     pka_mul.modulus = prime;
     pka_mul.pointX = Gxbin;
     pka_mul.pointY = Gybin;
-    pka_mul.scalarMulSize = size;
+    pka_mul.scalarMulSize = szkbin;
     pka_mul.scalarMul = kbin;
 #ifdef WOLFSSL_STM32_PKA_V2
     pka_mul.coefB = coefB;
@@ -857,6 +853,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
 
     status = HAL_PKA_ECCMul(&hpka, &pka_mul, HAL_MAX_DELAY);
     if (status != HAL_OK) {
+        HAL_PKA_RAMReset(&hpka);
         return WC_HW_E;
     }
     pka_mul_res.ptX = Gxbin;
@@ -875,6 +872,10 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     if (res == MP_OKAY)
         res = mp_set(R->z, 1);
     HAL_PKA_RAMReset(&hpka);
+
+    (void)heap;
+    (void)a; /* uses computed (absolute value, |a| < p) */
+
     return res;
 }
 

@@ -1,6 +1,6 @@
 /* renesas_cmn.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -46,8 +46,16 @@ WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message,
 WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
 		unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
         const unsigned char* key, unsigned int keySz, int* result, void* ctx);
-WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
-        unsigned char** out, const unsigned char* key, unsigned int keySz, void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl,
+                                unsigned char* sig, unsigned int sigSz,
+                                unsigned char** out, const unsigned char* key,
+                                unsigned int keySz, void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_RsaSignCheckCb(WOLFSSL* ssl,
+                                unsigned char* sig, unsigned int sigSz,
+                                unsigned char** out,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx);
+                                
 WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
              word32 sz, int padSz, int content, int verify, int epochOrder);
 WOLFSSL_LOCAL int Renesas_cmn_usable(const WOLFSSL *ssl, byte seskey_gennerated);

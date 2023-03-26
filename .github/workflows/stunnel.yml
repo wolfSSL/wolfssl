@@ -1,0 +1,42 @@
+name: stunnel Tests
+
+on:
+  workflow_call:
+
+jobs:
+  stunnel_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 5.67 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-stunnel
+          install: true
+    
+      - name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Build and test stunnel
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: mtrojnar/stunnel
+          ref: stunnel-${{ matrix.ref }}
+          path: stunnel
+          patch-file: $GITHUB_WORKSPACE/osp/stunnel/${{ matrix.ref }}/stunnel-${{ matrix.ref }}.patch
+          configure: --enable-wolfssl SSLDIR=$GITHUB_WORKSPACE/build-dir
+          check: true
+
+      - name: Confirm stunnel built with wolfSSL
+        working-directory: ./stunnel
+        run: ldd src/stunnel | grep wolfssl
+

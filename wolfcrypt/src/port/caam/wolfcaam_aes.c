@@ -1,6 +1,6 @@
 /* wolfcaam_aes.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -104,6 +104,7 @@ static int wc_CAAM_AesAeadCommon(Aes* aes, const byte* in, byte* out, word32 sz,
 
 
 #if defined(HAVE_AESCCM)
+#ifndef WOLFSSL_SECO_CAAM
 /* B0 is [ reserved | adata | M | L ] [ nonce ] [ l(m) ]
  * Ctr is current counter
  */
@@ -141,6 +142,7 @@ static word32 CreateB0CTR(byte* B0Ctr0, const byte* nonce, word32 nonceSz,
 
     return 0;
 }
+#endif
 
 
 /* plaintext in ciphertext and mac out
@@ -150,7 +152,9 @@ int wc_CAAM_AesCcmEncrypt(Aes* aes, const byte* in, byte* out, word32 sz,
         const byte* nonce, word32 nonceSz, byte* authTag, word32 authTagSz,
         const byte* authIn, word32 authInSz)
 {
+#ifndef WOLFSSL_SECO_CAAM
     byte B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
+#endif
 
     if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
         nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
@@ -162,9 +166,14 @@ int wc_CAAM_AesCcmEncrypt(Aes* aes, const byte* in, byte* out, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+#ifndef WOLFSSL_SECO_CAAM
     CreateB0CTR(B0Ctr0, nonce, nonceSz, authInSz, authTagSz, sz);
     return wc_CAAM_AesAeadCommon(aes, in, out, sz, B0Ctr0, 2*AES_BLOCK_SIZE,
         authTag, authTagSz, authIn, authInSz, CAAM_ENC, CAAM_AESCCM);
+#else
+    return wc_CAAM_AesAeadCommon(aes, in, out, sz, nonce, nonceSz,
+        authTag, authTagSz, authIn, authInSz, CAAM_ENC, CAAM_AESCCM);
+#endif
 }
 
 
@@ -176,7 +185,9 @@ int wc_CAAM_AesCcmDecrypt(Aes* aes, const byte* in, byte* out, word32 sz,
         word32 authTagSz, const byte* authIn, word32 authInSz)
 {
     int ret;
+#ifndef WOLFSSL_SECO_CAAM
     byte B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
+#endif
 
     /* sanity check on arguments */
     if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
@@ -189,9 +200,14 @@ int wc_CAAM_AesCcmDecrypt(Aes* aes, const byte* in, byte* out, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+#ifndef WOLFSSL_SECO_CAAM
     CreateB0CTR(B0Ctr0, nonce, nonceSz, authInSz, authTagSz, sz);
     ret = wc_CAAM_AesAeadCommon(aes, in, out, sz, B0Ctr0, 2*AES_BLOCK_SIZE,
             (byte*)authTag, authTagSz, authIn, authInSz, CAAM_DEC, CAAM_AESCCM);
+#else
+    ret = wc_CAAM_AesAeadCommon(aes, in, out, sz, nonce, nonceSz,
+            (byte*)authTag, authTagSz, authIn, authInSz, CAAM_DEC, CAAM_AESCCM);
+#endif
 
     if (ret != 0) {
         /* If the authTag check fails, don't keep the decrypted data.

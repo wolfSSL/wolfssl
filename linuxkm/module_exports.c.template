@@ -1,7 +1,7 @@
 /* module_exports.c.template -- static preamble for dynamically generated
  * module_exports.c (see Kbuild)
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -87,6 +87,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef HAVE_HPKE
+    #include <wolfssl/wolfcrypt/hpke.h>
 #endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>

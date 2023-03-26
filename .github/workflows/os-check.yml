@@ -1,0 +1,117 @@
+name: Ubuntu-Macos-Windows Tests
+
+on:
+  workflow_call:
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        config: [
+          # Add new configs here
+          '',
+          '--enable-all --enable-asn=template',
+          '--enable-all --enable-asn=original',
+        ]
+    name: make check
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: ${{ matrix.config }}
+          check: true
+
+  make_user_settings:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        user-settings: [
+          # Add new user_settings.h here
+          'examples/configs/user_settings_all.h',
+        ]
+    name: make user_setting.h
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: --enable-usersettings
+          check: true
+          user-settings: ${{ matrix.user-settings }}
+
+  make_user_settings_testwolfcrypt:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        user-settings: [
+          # Add new user_settings.h here
+          'examples/configs/user_settings_min_ecc.h',
+          'examples/configs/user_settings_wolfboot_keytools.h',
+          'examples/configs/user_settings_wolftpm.h',
+        ]
+    name: make user_setting.h (testwolfcrypt only)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: --enable-usersettings --disable-examples
+          check: false
+          user-settings: ${{ matrix.user-settings }}
+
+      - name: Run wolfcrypt/test/testwolfcrypt
+        run: ./wolfcrypt/test/testwolfcrypt
+
+  # Has to be dedicated function due to the sed call
+  make_user_all:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make user_setting.h (with sed)
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
+    - name: user_settings_all.h with compatibility layer
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        sed -i -e "s/if 0/if 1/" user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+  windows_build:
+    name: Windows Build Test
+    runs-on: windows-latest
+    env:
+      # Path to the solution file relative to the root of the project.
+      SOLUTION_FILE_PATH: wolfssl64.sln
+
+      # Configuration type to build.
+      # You can convert this to a build matrix if you need coverage of multiple configuration types.
+      # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+      BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x64
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}

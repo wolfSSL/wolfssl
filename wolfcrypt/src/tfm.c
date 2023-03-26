@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -643,7 +643,8 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     return FP_OKAY;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK          /* 0  1  2  3   4  */
+  /* allocate 5 elements of fp_int for q, x, y, t1, t2 */
   q = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_BIGINT);
   if (q == NULL) {
       return FP_MEM;
@@ -657,8 +658,18 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(t1);
   fp_init(t2);
-  fp_init_copy(x, a);
-  fp_init_copy(y, b);
+
+  /* Init a copy (y) of the input (b) and
+  ** Init a copy (x) of the input (a)
+  **
+  ** ALERT: Not calling fp_init_copy() as some compiler optimization settings
+  ** such as -O2 will complain that (x) or (y) "may be used uninitialized".
+  ** The fp_init() is here only to appease the compiler.  */
+  fp_init(x);
+  fp_copy(a, x); /* copy (src = a) to (dst = x) */
+
+  fp_init(y);
+  fp_copy(b, y); /* copy (src = b) to (dst = y) */
 
   /* fix the sign */
   neg = (a->sign == b->sign) ? FP_ZPOS : FP_NEG;
@@ -3810,7 +3821,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
   fp_init_copy(t, a);
 
   x = fp_to_unsigned_bin_at_pos(0, t, b);
-  fp_reverse (b, x);
+  mp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
@@ -3820,7 +3831,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 {
-#if DIGIT_BIT == 64 || DIGIT_BIT == 32
+#if DIGIT_BIT == 64 || DIGIT_BIT == 32 || DIGIT_BIT == 16
   int i = 0;
   int j = 0;
   int x;
@@ -3833,6 +3844,12 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   }
   for (; x >= 0; x--) {
      b[x] = 0;
+  }
+  if (i < a->used - 1) {
+      return FP_VAL;
+  }
+  if ((i == a->used - 1) && ((a->dp[i] >> j) != 0)) {
+      return FP_VAL;
   }
 
   return FP_OKAY;
@@ -3856,11 +3873,14 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
       b[x] = (unsigned char) (t->dp[0] & 255);
       fp_div_2d (t, 8, t, NULL);
   }
-  fp_reverse (b, x);
+  mp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
+  if (!fp_iszero(t)) {
+      return FP_VAL;
+  }
   return FP_OKAY;
 #endif
 }
@@ -4104,23 +4124,6 @@ void fp_rshd(fp_int *a, int x)
    /* decrement count */
    a->used -= x;
    fp_clamp(a);
-}
-
-/* reverse an array, used for radix code */
-void fp_reverse (unsigned char *s, int len)
-{
-  int     ix, iy;
-  unsigned char t;
-
-  ix = 0;
-  iy = len - 1;
-  while (ix < iy) {
-    t     = s[ix];
-    s[ix] = s[iy];
-    s[iy] = t;
-    ++ix;
-    --iy;
-  }
 }
 
 
@@ -4465,6 +4468,7 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
   return MP_OKAY;
 }
 
+/* copy (src = a) to (dst = b) */
 void fp_copy(const fp_int *a, fp_int *b)
 {
     /* if source and destination are different */
@@ -4502,11 +4506,13 @@ int mp_init_copy(fp_int * a, fp_int * b)
     return MP_OKAY;
 }
 
+/* Copy (dst = a) from (src = b) */
 void fp_init_copy(fp_int *a, fp_int* b)
 {
     if (a != b) {
         fp_init(a);
-        fp_copy(b, a);
+        /* Note reversed parameter order! */
+        fp_copy(b, a); /* copy (src = b) to (dst = a) */
     }
 }
 
@@ -5098,6 +5104,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         return FP_VAL;
     if (a->sign == FP_NEG)
         return FP_VAL;
+    if (t <= 0 || t > FP_PRIME_SIZE)
+        return FP_VAL;
 
     if (fp_isone(a)) {
         *result = FP_NO;
@@ -5516,7 +5524,7 @@ static wcchar fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                     "abcdefghijklmnopqrstuvwxyz+/";
 #endif
 
-#if !defined(NO_DSA) || defined(HAVE_ECC)
+#if defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
 static int fp_read_radix_16(fp_int *a, const char *str)
 {
@@ -5743,8 +5751,13 @@ int mp_radix_size (mp_int *a, int radix, int *size)
         return FP_MEM;
 #endif
 
-    /* init a copy of the input */
-    fp_init_copy (t, a);
+    /* Init a copy (t) of the input (a)
+    **
+    ** ALERT: Not calling fp_init_copy() as some compiler optimization settings
+    ** such as -O2 will complain that (t) "may be used uninitialized"
+    ** The fp_init() is here only to appease the compiler.  */
+    fp_init(t);
+    fp_copy(a, t); /* copy (src = a) to (dst = t)*/
 
     /* force temp to positive */
     t->sign = FP_ZPOS;
@@ -5816,8 +5829,13 @@ int mp_toradix (mp_int *a, char *str, int radix)
         return FP_MEM;
 #endif
 
-    /* init a copy of the input */
-    fp_init_copy (t, a);
+    /* Init a copy (t) of the input (a)
+    **
+    ** ALERT: Not calling fp_init_copy() as some compiler optimization settings
+    ** such as -O2 will complain that (t) "may be used uninitialized"
+    ** The fp_init() is here only to appease the compiler.  */
+    fp_init(t);
+    fp_copy(a, t); /* copy (src = a) to (dst = t) */
 
     /* if it is negative output a - */
     if (t->sign == FP_NEG) {
@@ -5848,7 +5866,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     /* reverse the digits of the string.  In this case _s points
      * to the first digit [excluding the sign] of the number]
      */
-    fp_reverse ((unsigned char *)_s, digs);
+    mp_reverse ((unsigned char *)_s, digs);
 
     /* append a NULL so the string is properly terminated */
     *str = '\0';

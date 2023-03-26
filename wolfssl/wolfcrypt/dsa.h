@@ -1,6 +1,6 @@
 /* dsa.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -56,8 +56,8 @@ enum {
     /* 160 bit q length */
     DSA_160_HALF_SIZE = 20,            /* r and s size  */
     DSA_160_SIG_SIZE  = 40,            /* signature size */
-    DSA_HALF_SIZE = DSA_160_HALF_SIZE, /* kept for compatiblity  */
-    DSA_SIG_SIZE = DSA_160_SIG_SIZE,   /* kept for compatiblity */
+    DSA_HALF_SIZE = DSA_160_HALF_SIZE, /* kept for compatibility  */
+    DSA_SIG_SIZE = DSA_160_SIG_SIZE,   /* kept for compatibility */
     /* 256 bit q length */
     DSA_256_HALF_SIZE = 32,            /* r and s size  */
     DSA_256_SIG_SIZE  = 64,            /* signature size */

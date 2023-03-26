@@ -1,6 +1,6 @@
 /* sha.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,6 +50,11 @@
 
 #ifdef FREESCALE_LTC_SHA
     #include "fsl_ltc.h"
+#endif
+
+#if defined(WOLFSSL_IMXRT1170_CAAM)
+    #include "fsl_device_registers.h"
+    #include "fsl_caam.h"
 #endif
 
 #ifdef WOLFSSL_IMXRT_DCP
@@ -108,6 +113,8 @@ enum {
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h"
+#elif defined(WOLFSSL_RENESAS_RX64_HASH)
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas-rx64-hw-crypt.h"
 #else
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
@@ -155,6 +162,10 @@ struct wc_Sha {
     #ifdef WOLF_CRYPTO_CB
         int    devId;
         void*  devCtx; /* generic crypto callback context */
+    #endif
+    #ifdef WOLFSSL_IMXRT1170_CAAM
+        caam_hash_ctx_t ctx;
+        caam_handle_t hndl;
     #endif
     #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
         byte*  msg;

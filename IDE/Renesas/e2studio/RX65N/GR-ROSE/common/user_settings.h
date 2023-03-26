@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -215,6 +215,7 @@
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
+        #define WOLF_PRIVATE_KEY_ID
     #endif
 
 #else

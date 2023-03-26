@@ -1,6 +1,6 @@
 /* bn.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -40,17 +40,40 @@
 typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    sp_int fp;
-#elif defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
-    fp_int fp;
-#endif
+    mp_int mpi;
 } WOLFSSL_BIGNUM;
 
 #define WOLFSSL_BN_ULONG unsigned long
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #define BN_ULONG         WOLFSSL_BN_ULONG
 #endif
+
+#ifndef WOLFSSL_MAX_BN_BITS
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+        /* SP implementation supports numbers of SP_INT_BITS bits. */
+        #define WOLFSSL_MAX_BN_BITS     SP_INT_BITS
+    #elif defined(USE_FAST_MATH)
+        /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
+        #define WOLFSSL_MAX_BN_BITS     (FP_MAX_BITS / 2)
+    #else
+        #ifdef WOLFSSL_MYSQL_COMPATIBLE
+            /* Integer maths is dynamic but we only go up to 8192 bits. */
+            #define WOLFSSL_MAX_BN_BITS 8192
+        #else
+            /* Integer maths is dynamic but we only go up to 4096 bits. */
+            #define WOLFSSL_MAX_BN_BITS 4096
+        #endif
+    #endif
+#endif
+
+#define WOLFSSL_BN_RAND_TOP_ANY     (-1)
+#define WOLFSSL_BN_RAND_TOP_ONE     0
+#define WOLFSSL_BN_RAND_TOP_TWO     1
+
+#define WOLFSSL_BN_RAND_BOTTOM_ANY  0
+#define WOLFSSL_BN_RAND_BOTTOM_ODD  1
+
+#define WOLFSSL_BN_MAX_VAL          ((BN_ULONG)-1)
 
 typedef struct WOLFSSL_BN_CTX   WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
@@ -60,7 +83,7 @@ WOLFSSL_API void           wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX* ctx);
 WOLFSSL_API void           wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX* ctx);
 
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_new(void);
-#if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
+#if !defined(USE_INTEGER_HEAP_MATH) && !defined(HAVE_WOLF_BIGINT)
 WOLFSSL_API void           wolfSSL_BN_init(WOLFSSL_BIGNUM* bn);
 #endif
 WOLFSSL_API void           wolfSSL_BN_free(WOLFSSL_BIGNUM* bn);
@@ -161,6 +184,13 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
+#define BN_RAND_TOP_ANY     WOLFSSL_BN_RAND_TOP_ANY
+#define BN_RAND_TOP_ONE     WOLFSSL_BN_RAND_TOP_ONE
+#define BN_RAND_TOP_TWO     WOLFSSL_BN_RAND_TOP_TWO
+
+#define BN_RAND_BOTTOM_ANY  WOLFSSL_BN_RAND_BOTTOM_ANY
+#define BN_RAND_BOTTOM_ODD  WOLFSSL_BN_RAND_BOTTOM_ODD
+
 typedef WOLFSSL_BIGNUM   BIGNUM;
 typedef WOLFSSL_BN_CTX   BN_CTX;
 typedef WOLFSSL_BN_GENCB BN_GENCB;
@@ -170,7 +200,9 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_CTX_free       wolfSSL_BN_CTX_free
 
 #define BN_new        wolfSSL_BN_new
+#if !defined(USE_INTEGER_HEAP_MATH) && !defined(HAVE_WOLF_BIGINT)
 #define BN_init       wolfSSL_BN_init
+#endif
 #define BN_free       wolfSSL_BN_free
 #define BN_clear_free wolfSSL_BN_clear_free
 #define BN_clear      wolfSSL_BN_clear

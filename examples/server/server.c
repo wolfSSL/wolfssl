@@ -1,6 +1,6 @@
 /* server.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -273,7 +273,7 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     (void)ssl;
 
-    WOLFSSL_ENTER("TestEmbedSendTo()");
+    WOLFSSL_ENTER("TestEmbedSendTo");
 
     if (dtlsCtx->failOnce) {
         word32 seq = 0;
@@ -499,19 +499,18 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
+#ifdef __MINGW32__
+#define SIZE_FMT "%d"
+#define SIZE_TYPE int
+#else
+#define SIZE_FMT "%zu"
+#define SIZE_TYPE size_t
+#endif
         printf(
-        #if !defined(__MINGW32__)
-            "wolfSSL Server Benchmark %zu bytes\n"
-        #else
-            "wolfSSL Server Benchmark %d bytes\n"
-        #endif
+            "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
-    #if !defined(__MINGW32__)
-            throughput,
-    #else
-            (int)throughput,
-    #endif
+            (SIZE_TYPE)throughput,
             rx_time * 1000, throughput / rx_time / 1024 / 1024,
             tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
@@ -577,8 +576,23 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
         else if (SSL_get_error(ssl, 0) == 0 &&
                             tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
-            err = wolfSSL_peek(ssl, buffer, 0);
-            if(err < 0) {
+            /* do a peek and check for "pending" */
+            #ifdef WOLFSSL_ASYNC_CRYPT
+            err = 0;
+            #endif
+            do {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (err == WC_PENDING_E) {
+                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                    if (ret < 0) break;
+                }
+            #endif
+                ret = wolfSSL_peek(ssl, buffer, 0);
+                err = SSL_get_error(ssl, ret);
+            } while (err == WC_PENDING_E
+                || err == WOLFSSL_ERROR_WANT_READ
+                || err == WOLFSSL_ERROR_WANT_WRITE);
+            if (err < 0) {
                 err_sys_ex(runWithErrors, "wolfSSL_peek failed");
             }
             if (wolfSSL_pending(ssl))
@@ -692,57 +706,6 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else if (XSTRCMP(pqcAlg, "KYBER_LEVEL5") == 0) {
                 groups[count] = WOLFSSL_KYBER_LEVEL5;
             }
-            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL1") == 0)  {
-                groups[count] = WOLFSSL_NTRU_HPS_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_NTRU_HPS_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_NTRU_HPS_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "NTRU_HRSS_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_NTRU_HRSS_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "SABER_LEVEL1") == 0) {
-                groups[count] = WOLFSSL_SABER_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "SABER_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_SABER_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "SABER_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_SABER_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL1") == 0) {
-                groups[count] = WOLFSSL_KYBER_90S_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_KYBER_90S_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_KYBER_90S_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "P256_NTRU_HPS_LEVEL1") == 0) {
-                groups[count] = WOLFSSL_P256_NTRU_HPS_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "P384_NTRU_HPS_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_P384_NTRU_HPS_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "P521_NTRU_HPS_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_P521_NTRU_HPS_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "P384_NTRU_HRSS_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_P384_NTRU_HRSS_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "P256_SABER_LEVEL1") == 0) {
-                groups[count] = WOLFSSL_P256_SABER_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "P384_SABER_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_P384_SABER_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "P521_SABER_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_P521_SABER_LEVEL5;
-            }
             else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL1") == 0) {
                 groups[count] = WOLFSSL_P256_KYBER_LEVEL1;
             }
@@ -751,15 +714,6 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 groups[count] = WOLFSSL_P521_KYBER_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "P256_KYBER_90S_LEVEL1") == 0) {
-                groups[count] = WOLFSSL_P256_KYBER_90S_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "P384_KYBER_90S_LEVEL3") == 0) {
-                groups[count] = WOLFSSL_P384_KYBER_90S_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "P521_KYBER_90S_LEVEL5") == 0) {
-                groups[count] = WOLFSSL_P521_KYBER_90S_LEVEL5;
             }
 
             if (groups[count] == 0) {
@@ -979,13 +933,7 @@ static const char* server_usage_msg[][65] = {
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
+            "            KYBER_LEVEL5,  P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5] \n", /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 61 */
@@ -1000,10 +948,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 64 */
+                                                                        /* 65 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1170,13 +1121,7 @@ static const char* server_usage_msg[][65] = {
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
+            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (デフォルトはSRTP_AES128_CM_SHA1_80)\n",       /* 61 */
@@ -1193,10 +1138,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 65 */
         NULL,
     },
 #endif
@@ -1350,6 +1298,9 @@ static void Usage(void)
 #ifdef CAN_FORCE_CURVE
     printf("%s", msg[++msgId]);     /* force-curve */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    printf("%s", msg[++msgId]);     /* --onlyPskDheKe */
+#endif
     printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
@@ -1416,6 +1367,7 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
 }
 #endif
 
+
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 {
     SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
@@ -1456,6 +1408,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DTLS_CID
         {"cid", 2, 263},
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef HAVE_SUPPORTED_CURVES
+        {"onlyPskDheKe", 2, 264},
+#endif /* HAVE_SUPPORTED_CURVES */
         { 0, 0, 0 }
     };
 #endif
@@ -1548,6 +1503,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
+#ifdef HAVE_SUPPORTED_CURVES
+    int onlyPskDheKe = 0;
+#endif
 #endif
     int updateKeysIVs = 0;
 #ifndef NO_CERTS
@@ -2315,6 +2273,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             break;
 #endif /* WOLFSSL_CID */
+        case 264:
+#ifdef HAVE_SUPPORTED_CURVES
+        #ifdef WOLFSSL_TLS13
+            onlyPskDheKe = 1;
+        #endif
+#endif
+            break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2357,6 +2323,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 version = -1;
         }
     }
+
+#ifndef HAVE_SESSION_TICKET
+    if ((version >= 4) && resume) {
+        fprintf(stderr, "Can't do TLS 1.3 resumption; need session tickets!\n");
+    }
+#endif
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
@@ -2487,6 +2459,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (method != NULL) {
         ctx = SSL_CTX_new(method(NULL));
     }
+#ifdef WOLFSSL_CALLBACKS
+    wolfSSL_CTX_set_msg_callback(ctx, msgDebugCb);
+#endif
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
@@ -2855,6 +2830,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
+#ifdef HAVE_SUPPORTED_CURVES
+    if (onlyPskDheKe)
+        wolfSSL_CTX_only_dhe_psk(ctx);
+#endif
 #endif
 #ifdef HAVE_SESSION_TICKET
 #ifdef WOLFSSL_TLS13
@@ -3042,7 +3021,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     if (!disableCRL) {
 #ifdef HAVE_CRL_MONITOR
         crlFlags = WOLFSSL_CRL_MONITOR | WOLFSSL_CRL_START_MON;
@@ -3068,8 +3047,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #ifndef NO_RSA
     /* All the OCSP Stapling test certs are RSA. */
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if !defined(NO_FILESYSTEM) && (\
+       defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         { /* scope start */
             const char* ca1 = "certs/ocsp/intermediate1-ca-cert.pem";
             const char* ca2 = "certs/ocsp/intermediate2-ca-cert.pem";
@@ -3356,6 +3336,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             } while (err == WC_PENDING_E);
         }
 #else
+        (void)nonBlocking;
         ret = NonBlockingSSL_Accept(ssl);
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -3760,7 +3741,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    wolfsentry_ret =
+        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
     if (wolfsentry_ret < 0) {
         fprintf(stderr,
                 "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",
@@ -3798,7 +3780,7 @@ exit:
 #ifdef HAVE_SECURE_RENEGOTIATION
     (void) forceScr;
 #endif
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) && defined(WOLFSSL_EARLY_DATA)
     (void) earlyData;
 #endif
 #ifndef WOLFSSL_TIRTOS

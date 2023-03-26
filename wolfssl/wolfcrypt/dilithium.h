@@ -1,6 +1,6 @@
 /* dilithium.h
  *
- * Copyright (C) 2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -65,16 +65,12 @@
 #define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
 #define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE
 
-#define SHAKE_VARIANT 1
-#define AES_VARIANT   2
-
 /* Structs */
 
 struct dilithium_key {
     bool pubKeySet;
     bool prvKeySet;
     byte level; /* 2,3 or 5 */
-    byte sym; /* SHAKE_VARIANT or AES_VARIANT */
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE];
     byte k[DILITHIUM_MAX_PRV_KEY_SIZE];
 };
@@ -96,9 +92,9 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 WOLFSSL_API
 int wc_dilithium_init(dilithium_key* key);
 WOLFSSL_API
-int wc_dilithium_set_level_and_sym(dilithium_key* key, byte level, byte sym);
+int wc_dilithium_set_level(dilithium_key* key, byte level);
 WOLFSSL_API
-int wc_dilithium_get_level_and_sym(dilithium_key* key, byte* level, byte *sym);
+int wc_dilithium_get_level(dilithium_key* key, byte* level);
 WOLFSSL_API
 void wc_dilithium_free(dilithium_key* key);
 

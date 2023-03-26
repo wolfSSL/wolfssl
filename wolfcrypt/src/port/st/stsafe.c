@@ -1,6 +1,6 @@
 /* stsafe.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -249,7 +249,7 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     word32 otherKeyX_len = sizeof(otherKeyX);
     word32 otherKeyY_len = sizeof(otherKeyY);
     byte pubKeyRaw[STSAFE_MAX_PUBKEY_RAW_LEN];
-    StSafeA_KeySlotNumber slot;
+    StSafeA_KeySlotNumber slot = STSAFE_A_SLOT_0;
     StSafeA_CurveId curve_id;
     ecc_key tmpKey;
     int ecc_curve;
@@ -322,7 +322,11 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     }
 
     /* Compute shared secret */
-    err = stsafe_interface_shared_secret(curve_id, &otherKeyX[0], &otherKeyY[0],
+    err = stsafe_interface_shared_secret(
+#ifdef WOLFSSL_STSAFE_TAKES_SLOT
+        slot,
+#endif
+        curve_id, &otherKeyX[0], &otherKeyY[0],
         out, (int32_t*)outlen);
     if (err != STSAFE_A_OK) {
     #ifdef USE_STSAFE_VERBOSE
@@ -535,7 +539,11 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             if (rc == 0) {
                 /* Compute shared secret */
             	*info->pk.ecdh.outlen = 0;
-                rc = stsafe_interface_shared_secret(curve_id,
+                rc = stsafe_interface_shared_secret(
+        #ifdef WOLFSSL_STSAFE_TAKES_SLOT
+                    STSAFE_A_SLOT_0,
+        #endif
+                    curve_id,
                     otherKeyX, otherKeyY,
                     info->pk.ecdh.out, (int32_t*)info->pk.ecdh.outlen);
                 if (rc != STSAFE_A_OK) {

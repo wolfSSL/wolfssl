@@ -32,6 +32,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
                          wolfssl/wolfcrypt/hmac.h \
+                         wolfssl/wolfcrypt/hpke.h \
                          wolfssl/wolfcrypt/kdf.h \
                          wolfssl/wolfcrypt/integer.h \
                          wolfssl/wolfcrypt/md2.h \
@@ -83,8 +84,9 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
-                         wolfssl/wolfcrypt/port/nxp/se050_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
+                         wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
+                         wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
                          wolfssl/wolfcrypt/port/caam/caam_qnx.h \
@@ -180,7 +182,8 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_aes.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h \
-                         wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h
 endif
 
 if BUILD_IOTSAFE
@@ -189,4 +192,12 @@ endif
 
 if BUILD_PSA
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/psa/psa.h
+endif
+
+if BUILD_SE050
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/se050_port.h
+endif
+
+if BUILD_MAXQ10XX
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/maxim/maxq10xx.h
 endif

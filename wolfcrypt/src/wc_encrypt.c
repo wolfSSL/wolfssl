@@ -1,6 +1,6 @@
 /* wc_encrypt.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -341,6 +341,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 #endif /* WOLFSSL_SMALL_STACK */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(key, 0xff, WC_MAX_SYM_KEY_SIZE);
     wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
 #endif
 
@@ -422,20 +423,25 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             typeH = WC_SHA;
             derivedLen = 16;           /* may need iv for v1.5 */
             break;
-
+        #endif /* !NO_SHA */
+        #if !defined(NO_SHA) || !defined(NO_SHA256)
         case PBE_SHA1_DES3:
-            switch(shaOid) {
+            switch (shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 32;
                     break;
+            #endif
+            #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;
                     derivedLen = 32;           /* may need iv for v1.5 */
                     break;
+            #endif
             }
         break;
-        #endif /* !NO_SHA */
+        #endif
     #endif /* !NO_DES3 */
     #if !defined(NO_SHA) && !defined(NO_RC4)
         case PBE_SHA1_RC4_128:
@@ -498,6 +504,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
     if (ret == 0) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(key, 0xff, PKCS_MAX_KEY_SIZE);
         wc_MemZero_Add("wc_CryptKey key", key, PKCS_MAX_KEY_SIZE);
     #endif
 

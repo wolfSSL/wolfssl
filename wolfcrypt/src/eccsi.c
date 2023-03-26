@@ -1,6 +1,6 @@
 /* eccsi.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1618,6 +1618,7 @@ int wc_ValidateEccsiPvt(EccsiKey* key, const ecc_point* pvt, int* valid)
  * @param  [out]  hashSz    Length of hash data in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, id, pvt, hash or hashSz is NULL.
+ * @return  BAD_FUNC_ARG when hash size doesn't match curve size.
  * @return  BAD_STATE_E when public key not set.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value when an internal operation fails.
@@ -1626,6 +1627,8 @@ int wc_HashEccsiId(EccsiKey* key, enum wc_HashType hashType, const byte* id,
         word32 idSz, ecc_point* pvt, byte* hash, byte* hashSz)
 {
     int err = 0;
+    int dgstSz = -1;
+    int curveSz = -1;
 
     if ((key == NULL) || (id == NULL) || (pvt == NULL) || (hash == NULL) ||
             (hashSz == NULL)) {
@@ -1634,6 +1637,22 @@ int wc_HashEccsiId(EccsiKey* key, enum wc_HashType hashType, const byte* id,
     if ((err == 0) && (key->ecc.type != ECC_PRIVATEKEY) &&
             (key->ecc.type != ECC_PUBLICKEY)) {
         err = BAD_STATE_E;
+    }
+    /* Ensure digest output size matches curve size (RFC 6507 4.1). */
+    if (err == 0) {
+        dgstSz = wc_HashGetDigestSize(hashType);
+        if (dgstSz < 0) {
+            err = dgstSz;
+        }
+    }
+    if (err == 0) {
+        curveSz = wc_ecc_get_curve_size_from_id(key->ecc.dp->id);
+        if (curveSz < 0) {
+            err = curveSz;
+        }
+    }
+    if ((err == 0) && (dgstSz != curveSz)) {
+        err = BAD_FUNC_ARG;
     }
     /* Load the curve parameters for operations */
     if (err == 0) {

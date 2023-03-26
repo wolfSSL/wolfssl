@@ -1,6 +1,6 @@
 /* signature.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -192,13 +192,16 @@ int wc_SignatureVerifyHash(
             ret = cc310_RsaSSL_Verify(hash_data, hash_len, (byte*)sig,
                 (RsaKey*)key, cc310_hashModeRSA(hash_type, 1));
         }
+        if (ret != 0) {
+            ret = SIG_VERIFY_E;
+        }
     #else
 
             word32 plain_len = hash_len;
         #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             byte *plain_data;
         #else
-            byte  plain_data[MAX_ENCODED_SIG_SZ];
+            ALIGN64 byte plain_data[MAX_ENCODED_SIG_SZ];
         #endif
 
             /* Make sure the plain text output is at least key size */
@@ -242,8 +245,7 @@ int wc_SignatureVerifyHash(
             }
     #endif /* WOLFSSL_CRYPTOCELL */
             if (ret != 0) {
-                WOLFSSL_MSG("RSA Signature Verify difference!");
-                ret = SIG_VERIFY_E;
+                WOLFSSL_MSG("RSA Signature Verify failed!");
             }
 #else
             ret = SIG_TYPE_E;

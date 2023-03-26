@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -55,16 +55,14 @@
 #define AssertFalse(x)   Assert(!(x), ("%s is false",    #x), (#x " => TRUE"))
 #define AssertNotNull(x) Assert( (x), ("%s is not null", #x), (#x " => NULL"))
 
-#define AssertNull(x) do {                              \
-    PEDANTIC_EXTENSION void* _x = (void *) (x);         \
-                                                        \
-    Assert(!_x, ("%s is null", #x), (#x " => %p", _x)); \
+#define AssertNull(x) do {                                                     \
+    PEDANTIC_EXTENSION void* _x = (void*)(x);                                  \
+    Assert(!_x, ("%s is null", #x), (#x " => %p", _x));                        \
 } while(0)
 
 #define AssertInt(x, y, op, er) do {                                           \
     int _x = (int)(x);                                                         \
     int _y = (int)(y);                                                         \
-                                                                               \
     Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%d " #er " %d", _x, _y));    \
 } while(0)
 
@@ -76,10 +74,9 @@
 #define AssertIntLE(x, y) AssertInt(x, y, <=,  >)
 
 #define AssertStr(x, y, op, er) do {                                           \
-    const char* _x = x;                                                        \
-    const char* _y = y;                                                        \
-    int   _z = (_x && _y) ? strcmp(_x, _y) : -1;                               \
-                                                                               \
+    const char* _x = (const char*)(x);                                         \
+    const char* _y = (const char*)(y);                                         \
+    int         _z = (_x && _y) ? strcmp(_x, _y) : -1;                         \
     Assert(_z op 0, ("%s " #op " %s", #x, #y),                                 \
                                             ("\"%s\" " #er " \"%s\"", _x, _y));\
 } while(0)
@@ -113,7 +110,11 @@
 #define AssertPtrLE(x, y) AssertPtr(x, y, <=,  >)
 
 
+void ApiTest_PrintTestCases(void);
+int ApiTest_RunIdx(int idx);
+int ApiTest_RunName(char* name);
 void ApiTest(void);
+
 int  SuiteTest(int argc, char** argv);
 int  HashTest(void);
 void SrpTest(void);

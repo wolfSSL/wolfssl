@@ -7,6 +7,19 @@ Tool for performing cryptographic algorithm benchmarking.
 * Symmetric algorithms like AES and ChaCha20 are measured in Killobytes (KB) or Megabytes (MB) per second.
 * Asymmetric algorithms like RSA and ECC are measured using Operations Per Second (Ops) per second.
 
+## Compile Options
+
+Compile with the following options for fixed units. Otherwise the units will auto-scale. See `-base10` parameter option, below.
+
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_GB` for GB/GiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_MB` for MB/MiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_KB` for KB/KiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_B` for Bytes
+
+To set the output to always be CSV:
+
+`-DWOLFSSL_BENCHMARK_FIXED_CSV`
+
 ## Usage
 
 ```sh
@@ -96,7 +109,7 @@ Benchmark complete
 
 ## Windows Visual Studio
 
-For building wolfCrypt Benchmark project in Visual Studio open the `benchmark.sln`. For newer Visual Studio version it may prompt for a one-way upgrade. Then you may have to right-click on the solution and choose `Retarget solution` to update the project files for your Visual Studio version.
+For building wolfCrypt Benchmark project in Visual Studio open the `benchmark.sln`. For newer Visual Studio version it may prompt for a one-way upgrade. If prompted to overwrite the `benchmark.vcxproj` project, select "No". Then you may have to right-click on the solution and choose `Retarget solution` to update the project files for your Visual Studio version.
 
 If you see an error about `rc.exe` then you'll need to update the "Target Platform Version". You can do this by right-clicking on the benchmark project -> General -> "Target Platform Version" and changing to 8.1 (needs to match the wolfssl library project).
 

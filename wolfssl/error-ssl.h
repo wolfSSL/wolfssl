@@ -1,6 +1,6 @@
 /* error-ssl.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -180,6 +180,9 @@ enum wolfSSL_ErrorCodes {
     DILITHIUM_KEY_SIZE_E         = -453,   /* Wrong key size for Dilithium. */
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
+    QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
+
+    DUPLICATE_TLS_EXT_E          = -457,   /* Duplicate TLS extension in msg. */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
@@ -192,7 +195,7 @@ enum wolfSSL_ErrorCodes {
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
-    /* no error stings go down here, add above negotiation errors !!!! */
+    /* no error strings go down here, add above negotiation errors !!!! */
 };
 
 

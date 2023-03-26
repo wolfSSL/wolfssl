@@ -1,6 +1,6 @@
 /* ecc.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -68,6 +68,10 @@
 
 #ifdef WOLFSSL_SE050
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -173,8 +177,9 @@ enum {
     #endif
     ECC_MAX_CRYPTO_HW_SIZE = CRYPTOCELL_KEY_SIZE,
 #elif defined(WOLFSSL_SE050)
-    ECC_MAX_CRYPTO_HW_SIZE = 32,
-    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = 64,
+    ECC_MAX_CRYPTO_HW_SIZE = 66,
+#elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    ECC_MAX_CRYPTO_HW_SIZE = MAX_ECC_BYTES,
 #endif
 
 
@@ -447,7 +452,8 @@ struct ecc_key {
     int    partNum; /* partition number*/
 #endif
 #ifdef WOLFSSL_SE050
-    int keyId;
+    word32 keyId;
+    byte   keyIdSet;
 #endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     int  slot;        /* Key Slot Number (-1 unknown) */
@@ -465,11 +471,18 @@ struct ecc_key {
      */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
 #endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    maxq_ecc_t maxq_ctx;
+#endif
 #ifdef WOLFSSL_KCAPI_ECC
     struct kcapi_handle* handle;
     byte pubkey_raw[MAX_ECC_BYTES * 2];
 #endif
-
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    wc_Xsecure xSec;
+    byte keyRaw[3 * ECC_MAX_CRYPTO_HW_SIZE] ALIGN32;
+    byte* privKey;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
     mp_int* s;
@@ -557,12 +570,10 @@ ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
                                      mp_int* modulus, mp_digit mp);
 
-WOLFSSL_LOCAL
-int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
-    mp_int* a, mp_int* modulus, mp_digit mp, int* infinity);
-WOLFSSL_LOCAL
-int ecc_projective_dbl_point_safe(ecc_point* P, ecc_point* R, mp_int* a,
-                                  mp_int* modulus, mp_digit mp);
+ECC_API int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B,
+    ecc_point* R, mp_int* a, mp_int* modulus, mp_digit mp, int* infinity);
+ECC_API int ecc_projective_dbl_point_safe(ecc_point* P, ecc_point* R, mp_int* a,
+    mp_int* modulus, mp_digit mp);
 
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
@@ -586,9 +597,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
-WOLFSSL_LOCAL
-int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
-                             byte* out, word32 *outlen);
+
 WOLFSSL_API
 int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
@@ -656,10 +665,8 @@ WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_fp_free(void);
 WOLFSSL_LOCAL
 void wc_ecc_fp_init(void);
-#ifdef ECC_TIMING_RESISTANT
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
-#endif
 
 WOLFSSL_API
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
@@ -716,10 +723,10 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 WOLFSSL_API
 int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
-WOLFSSL_LOCAL
+ECC_API
 int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
-WOLFSSL_LOCAL
+ECC_API
 int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                       mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
                       void* heap);
@@ -916,6 +923,13 @@ int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle);
 WOLFSSL_LOCAL
 int sp_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash, word32 hashLen, mp_int* pX,
     mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+#endif
+
+#ifdef WOLFSSL_SE050
+WOLFSSL_API
+int wc_ecc_use_key_id(ecc_key* key, word32 keyId, word32 flags);
+WOLFSSL_API
+int wc_ecc_get_key_id(ecc_key* key, word32* keyId);
 #endif
 
 #ifdef WC_ECC_NONBLOCK

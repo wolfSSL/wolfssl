@@ -261,7 +261,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     _Example_
     \code
     DsaKey key;
-    WC_WC_RNG rng;
+    WC_RNG rng;
     int derSz;
     int bufferSize = // Sufficient buffer size;
     byte der[bufferSize];
@@ -293,7 +293,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
     _Example_
     \code
-    WC_WC_RNG rng;
+    WC_RNG rng;
     DsaKey dsa;
     wc_InitRng(&rng);
     wc_InitDsa(&dsa);
@@ -326,7 +326,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
     _Example_
     \code
     DsaKey key;
-    WC_WC_RNG rng;
+    WC_RNG rng;
     wc_InitDsaKey(&key);
     wc_InitRng(&rng);
     if(wc_MakeDsaParameters(&rng, 1024, &genKey) != 0)

@@ -4,6 +4,7 @@
 
 include IDE/XCODE/include.am
 include IDE/XCODE-FIPSv2/include.am
+include IDE/XCODE-FIPSv5/include.am
 include IDE/WIN/include.am
 include IDE/WIN10/include.am
 include IDE/WIN-SGX/include.am
@@ -50,8 +51,7 @@ include IDE/IAR-MSP430/include.am
 include IDE/zephyr/include.am
 include IDE/AURIX/include.am
 include IDE/MCUEXPRESSO/include.am
+include IDE/Espressif/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif
 EXTRA_DIST+= IDE/OPENSTM32/README.md
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/setup_win.bat
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/dummy_test_paths.h

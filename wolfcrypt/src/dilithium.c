@@ -1,6 +1,6 @@
 /* dilithium.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -76,26 +76,16 @@ int wc_dilithium_sign_msg(const byte* in, word32 inLen,
     }
 
     if (ret == 0) {
-        if ((key->sym == SHAKE_VARIANT) && (key->level == 2)) {
+        if (key->level == 2) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_2);
         }
-        else if ((key->sym == SHAKE_VARIANT) && (key->level == 3)) {
+        else if (key->level == 3) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_3);
         }
-        else if ((key->sym == SHAKE_VARIANT) && (key->level == 5)) {
+        else if (key->level == 5) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_5);
         }
-        else if ((key->sym == AES_VARIANT) && (key->level == 2)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_2_aes);
-        }
-        else if ((key->sym == AES_VARIANT) && (key->level == 3)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_3_aes);
-        }
-        else if ((key->sym == AES_VARIANT) && (key->level == 5)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_5_aes);
-        }
-
-        if (oqssig == NULL) {
+        else {
             ret = SIG_TYPE_E;
         }
     }
@@ -164,26 +154,16 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 
     if (ret == 0) {
-        if ((key->sym == SHAKE_VARIANT) && (key->level == 2)) {
+        if (key->level == 2) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_2);
         }
-        else if ((key->sym == SHAKE_VARIANT) && (key->level == 3)) {
+        else if (key->level == 3) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_3);
         }
-        else if ((key->sym == SHAKE_VARIANT) && (key->level == 5)) {
+        else if (key->level == 5) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_5);
         }
-        else if ((key->sym == AES_VARIANT) && (key->level == 2)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_2_aes);
-        }
-        else if ((key->sym == AES_VARIANT) && (key->level == 3)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_3_aes);
-        }
-        else if ((key->sym == AES_VARIANT) && (key->level == 5)) {
-            oqssig = OQS_SIG_new(OQS_SIG_alg_dilithium_5_aes);
-        }
-
-        if (oqssig == NULL) {
+        else {
             ret = SIG_TYPE_E;
         }
     }
@@ -227,10 +207,9 @@ int wc_dilithium_init(dilithium_key* key)
  *
  * key   [out]  Dilithium key.
  * level [in]   Either 2,3 or 5.
- * sym [in]   Either SHAKE_VARIANT or AES_VARIANT.
- * returns BAD_FUNC_ARG when key is NULL or level or sym are bad values.
+ * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
  */
-int wc_dilithium_set_level_and_sym(dilithium_key* key, byte level, byte sym)
+int wc_dilithium_set_level(dilithium_key* key, byte level)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -240,25 +219,19 @@ int wc_dilithium_set_level_and_sym(dilithium_key* key, byte level, byte sym)
         return BAD_FUNC_ARG;
     }
 
-    if (sym != SHAKE_VARIANT && sym != AES_VARIANT) {
-        return BAD_FUNC_ARG;
-    }
-
     key->level = level;
-    key->sym = sym;
     key->pubKeySet = 0;
     key->prvKeySet = 0;
     return 0;
 }
 
-/* Get the level and symmetric variant of the dilithium private/public key.
+/* Get the level of the dilithium private/public key.
  *
  * key   [in]  Dilithium key.
  * level [out] The level.
- * sym   [out] The symetric variant. SHAKE_VARIANT or AES_VARIANT.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-int wc_dilithium_get_level_and_sym(dilithium_key* key, byte* level, byte* sym)
+int wc_dilithium_get_level(dilithium_key* key, byte* level)
 {
     if (key == NULL || level == NULL) {
         return BAD_FUNC_ARG;
@@ -268,12 +241,7 @@ int wc_dilithium_get_level_and_sym(dilithium_key* key, byte* level, byte* sym)
         return BAD_FUNC_ARG;
     }
 
-    if (key->sym != SHAKE_VARIANT && key->sym != AES_VARIANT) {
-        return BAD_FUNC_ARG;
-    }
-
     *level = key->level;
-    *sym = key->sym;
     return 0;
 }
 
@@ -365,10 +333,6 @@ int wc_dilithium_import_public(const byte* in, word32 inLen,
         return BAD_FUNC_ARG;
     }
 
-    if (key->sym != SHAKE_VARIANT && key->sym != AES_VARIANT) {
-        return BAD_FUNC_ARG;
-    }
-
     if ((key->level == 2) && (inLen != DILITHIUM_LEVEL2_PUB_KEY_SIZE)) {
         return BAD_FUNC_ARG;
     }
@@ -398,10 +362,6 @@ static int parse_private_key(const byte* priv, word32 privSz,
     }
 
     if ((key->level != 2) && (key->level != 3) && (key->level != 5)) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (key->sym != SHAKE_VARIANT && key->sym != AES_VARIANT) {
         return BAD_FUNC_ARG;
     }
 
@@ -553,7 +513,8 @@ int wc_dilithium_import_private_key(const byte* priv, word32 privSz,
  *         BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE,
  *         0 otherwise.
  */
-int wc_dilithium_export_private_only(dilithium_key* key, byte* out, word32* outLen)
+int wc_dilithium_export_private_only(dilithium_key* key, byte* out,
+    word32* outLen)
 {
     /* sanity checks on arguments */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
@@ -561,10 +522,6 @@ int wc_dilithium_export_private_only(dilithium_key* key, byte* out, word32* outL
     }
 
     if ((key->level != 2) && (key->level != 3) && (key->level != 5)) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (key->sym != SHAKE_VARIANT && key->sym != AES_VARIANT) {
         return BAD_FUNC_ARG;
     }
 
@@ -615,10 +572,6 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out, word32* outLen)
     }
 
     if ((key->level != 2) && (key->level != 3) && (key->level != 5)) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (key->sym != SHAKE_VARIANT && key->sym != AES_VARIANT) {
         return BAD_FUNC_ARG;
     }
 
@@ -817,23 +770,14 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level == 2) && (key->sym == SHAKE_VARIANT)) {
+    if (key->level == 2) {
         keytype = DILITHIUM_LEVEL2k;
     }
-    else if ((key->level == 3) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 3) {
         keytype = DILITHIUM_LEVEL3k;
     }
-    else if ((key->level == 5) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 5) {
         keytype = DILITHIUM_LEVEL5k;
-    }
-    if ((key->level == 2) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL2k;
-    }
-    else if ((key->level == 3) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL3k;
-    }
-    else if ((key->level == 5) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL5k;
     }
     else {
         return BAD_FUNC_ARG;
@@ -865,23 +809,14 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level == 2) && (key->sym == SHAKE_VARIANT)) {
+    if (key->level == 2) {
         keytype = DILITHIUM_LEVEL2k;
     }
-    else if ((key->level == 3) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 3) {
         keytype = DILITHIUM_LEVEL3k;
     }
-    else if ((key->level == 5) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 5) {
         keytype = DILITHIUM_LEVEL5k;
-    }
-    if ((key->level == 2) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL2k;
-    }
-    else if ((key->level == 3) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL3k;
-    }
-    else if ((key->level == 5) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL5k;
     }
     else {
         return BAD_FUNC_ARG;
@@ -920,23 +855,14 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 inLen,
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level == 2) && (key->sym == SHAKE_VARIANT)) {
+    if (key->level == 2) {
         keytype = DILITHIUM_LEVEL2k;
     }
-    else if ((key->level == 3) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 3) {
         keytype = DILITHIUM_LEVEL3k;
     }
-    else if ((key->level == 5) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 5) {
         keytype = DILITHIUM_LEVEL5k;
-    }
-    if ((key->level == 2) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL2k;
-    }
-    else if ((key->level == 3) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL3k;
-    }
-    else if ((key->level == 5) && (key->sym == AES_VARIANT)) {
-        keytype = DILITHIUM_AES_LEVEL5k;
     }
     else {
         return BAD_FUNC_ARG;
@@ -958,35 +884,20 @@ int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 inLen)
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level == 2) && (key->sym == SHAKE_VARIANT)) {
+    if (key->level == 2) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, key->p,
                              DILITHIUM_LEVEL2_KEY_SIZE, output, inLen,
                              DILITHIUM_LEVEL2k);
     }
-    else if ((key->level == 3) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 3) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, key->p,
                              DILITHIUM_LEVEL3_KEY_SIZE, output, inLen,
                              DILITHIUM_LEVEL3k);
     }
-    else if ((key->level == 5) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 5) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, key->p,
                              DILITHIUM_LEVEL5_KEY_SIZE, output, inLen,
                              DILITHIUM_LEVEL5k);
-    }
-    else if ((key->level == 2) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, key->p,
-                             DILITHIUM_LEVEL2_KEY_SIZE, output, inLen,
-                             DILITHIUM_AES_LEVEL2k);
-    }
-    else if ((key->level == 3) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, key->p,
-                             DILITHIUM_LEVEL3_KEY_SIZE, output, inLen,
-                             DILITHIUM_AES_LEVEL3k);
-    }
-    else if ((key->level == 5) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, key->p,
-                             DILITHIUM_LEVEL5_KEY_SIZE, output, inLen,
-                             DILITHIUM_AES_LEVEL5k);
     }
 
     return BAD_FUNC_ARG;
@@ -998,29 +909,17 @@ int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 inLen)
         return BAD_FUNC_ARG;
     }
 
-    if ((key->level == 2) && (key->sym == SHAKE_VARIANT)) {
+    if (key->level == 2) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0, output,
                              inLen, DILITHIUM_LEVEL2k);
     }
-    else if ((key->level == 3) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 3) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0, output,
                              inLen, DILITHIUM_LEVEL3k);
     }
-    else if ((key->level == 5) && (key->sym == SHAKE_VARIANT)) {
+    else if (key->level == 5) {
         return SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0, output,
                              inLen, DILITHIUM_LEVEL5k);
-    }
-    else if ((key->level == 2) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0, output,
-                             inLen, DILITHIUM_AES_LEVEL2k);
-    }
-    else if ((key->level == 3) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0, output,
-                             inLen, DILITHIUM_AES_LEVEL3k);
-    }
-    else if ((key->level == 5) && (key->sym == AES_VARIANT)) {
-        return SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0, output,
-                             inLen, DILITHIUM_AES_LEVEL5k);
     }
 
     return BAD_FUNC_ARG;

@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -44,6 +44,10 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#ifdef WOLFSSL_IMXRT1170_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
 #endif
 
 /* fips wrapper calls, user can call direct */
@@ -335,6 +339,11 @@
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_RENESAS_RX64_HASH)
+
+/* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
+
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
@@ -549,6 +558,9 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_IMXRT1170_CAAM
+   ret = wc_CAAM_HashInit(&sha->hndl, &sha->ctx, WC_HASH_TYPE_SHA);
+#endif
 
     return ret;
 }
@@ -856,7 +868,8 @@ void wc_ShaFree(wc_Sha* sha)
     se050_hash_free(&sha->se050Ctx);
 #endif
 #if (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH))
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
+    defined(WOLFSSL_RENESAS_RX64_HASH)
     if (sha->msg != NULL) {
         XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha->msg = NULL;
@@ -875,6 +888,7 @@ void wc_ShaFree(wc_Sha* sha)
 
 #if !defined(WOLFSSL_RENESAS_TSIP_CRYPT) || \
     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+#if !defined(WOLFSSL_RENESAS_RX64_HASH)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
@@ -930,6 +944,9 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #ifdef WOLFSSL_PIC32MZ_HASH
     ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    ret = se050_hash_copy(&src->se050Ctx, &dst->se050Ctx);
+#endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
      dst->ctx.mode = src->ctx.mode;
@@ -941,6 +958,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #endif
     return ret;
 }
+#endif /* WOLFSSL_RENESAS_RX64_HASH */
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
 #endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */

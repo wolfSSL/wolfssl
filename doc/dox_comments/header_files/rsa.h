@@ -314,7 +314,7 @@ int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
     _Example_
     \code
     RsaKey key;
-    WC_WC_RNG rng;
+    WC_RNG rng;
     int ret = 0;
     long e = 65537; // standard value to use for exponent
     wc_InitRsaKey(&key, NULL); // not using heap hint. No custom memory
@@ -1118,7 +1118,7 @@ int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     // Allocate memory for der
     int derSz = // Amount of memory allocated for der;
     RsaKey key;
-    WC_WC_RNG rng;
+    WC_RNG rng;
     long e = 65537; // standard value to use for exponent
     ret = wc_MakeRsaKey(&key, 2048, e, &rng); // generate 2048 bit long
     private key
@@ -1161,7 +1161,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
 
     _Example_
     \code
-    WC_WC_WC_RNG rng;
+    WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -1208,7 +1208,7 @@ int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 
     _Example_
     \code
-    WC_WC_WC_RNG rng;
+    WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -1265,7 +1265,7 @@ int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 
     _Example_
     \code
-    WC_WC_WC_RNG rng;
+    WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -1463,7 +1463,7 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
     _Example_
     \code
     RsaKey priv;
-    WC_WC_RNG rng;
+    WC_RNG rng;
     int ret = 0;
     long e = 65537; // standard value to use for exponent
 

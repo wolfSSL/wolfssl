@@ -1,6 +1,6 @@
 /* cmac.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,7 @@
 #define WOLFSSL_CMAC_H_
 
 #include <wolfssl/wolfcrypt/cmac.h>
+#include <wolfssl/openssl/compat_types.h>
 
 #ifdef __cplusplus
 extern "C" {

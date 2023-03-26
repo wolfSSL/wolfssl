@@ -1,6 +1,6 @@
 /* pwdbased.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -581,8 +581,7 @@ static void scryptSalsa(word32* out, word32* in)
     word32 x[16];
 
 #ifdef LITTLE_ENDIAN_ORDER
-    for (i = 0; i < 16; ++i)
-        x[i] = in[i];
+    XMEMCPY(x, in, sizeof(x));
 #else
     for (i = 0; i < 16; i++)
         x[i] = ByteReverseWord32(in[i]);
@@ -623,15 +622,14 @@ static void scryptSalsa(word32* out, word32* in)
  */
 static void scryptBlockMix(byte* b, byte* y, int r)
 {
-    byte x[64];
 #ifdef WORD64_AVAILABLE
+    word64  x[8];
     word64* b64 = (word64*)b;
     word64* y64 = (word64*)y;
-    word64* x64 = (word64*)x;
 #else
+    word32  x[16];
     word32* b32 = (word32*)b;
     word32* y32 = (word32*)y;
-    word32* x32 = (word32*)x;
 #endif
     int  i;
     int  j;
@@ -643,10 +641,11 @@ static void scryptBlockMix(byte* b, byte* y, int r)
     {
 #ifdef WORD64_AVAILABLE
         for (j = 0; j < 8; j++)
-            x64[j] ^= b64[i * 8 + j];
+            x[j] ^= b64[i * 8 + j];
+
 #else
         for (j = 0; j < 16; j++)
-            x32[j] ^= b32[i * 16 + j];
+            x[j] ^= b32[i * 16 + j];
 #endif
         scryptSalsa((word32*)x, (word32*)x);
         XMEMCPY(y + i * 64, x, sizeof(x));

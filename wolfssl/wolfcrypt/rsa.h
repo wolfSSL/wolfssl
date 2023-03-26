@@ -1,6 +1,6 @@
 /* rsa.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -83,7 +83,11 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLFSSL_XILINX_CRYPT
-#include "xsecure_rsa.h"
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
+#include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
+#else
+#include <xsecure_rsa.h>
+#endif
 #endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
@@ -202,6 +206,10 @@ struct RsaKey {
 #ifdef WC_RSA_BLINDING
     WC_RNG* rng;                              /* for PrivateDecrypt blinding */
 #endif
+#ifdef WOLFSSL_SE050
+    word32 keyId;
+    byte   keyIdSet;
+#endif
 #ifdef WOLF_CRYPTO_CB
     int   devId;
 #endif
@@ -214,7 +222,12 @@ struct RsaKey {
 #ifdef WOLFSSL_XILINX_CRYPT
     word32 pubExp; /* to keep values in scope they are here in struct */
     byte*  mod;
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    int mSz;
+    wc_Xsecure xSec;
+#else
     XSecure_Rsa xRsa;
+#endif
 #endif
 #if defined(WOLFSSL_KCAPI_RSA)
     struct kcapi_handle* handle;
@@ -267,6 +280,10 @@ WOLFSSL_API int  wc_CheckRsaKey(RsaKey* key);
 #ifdef WOLFSSL_XILINX_CRYPT
 WOLFSSL_LOCAL int wc_InitRsaHw(RsaKey* key);
 #endif /* WOLFSSL_XILINX_CRYPT */
+#ifdef WOLFSSL_SE050
+WOLFSSL_API int wc_RsaUseKeyId(RsaKey* key, word32 keyId, word32 flags);
+WOLFSSL_API int wc_RsaGetKeyId(RsaKey* key, word32* keyId);
+#endif /* WOLFSSL_SE050 */
 
 WOLFSSL_API int  wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int type, RsaKey* key, WC_RNG* rng);
@@ -340,7 +357,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_KCAPI_RSA)
+        defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
 #endif
 

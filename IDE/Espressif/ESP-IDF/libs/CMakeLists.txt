@@ -30,6 +30,8 @@ set(COMPONENT_SRCDIRS "./src/"
                       "./wolfcrypt/src/"
                       "./wolfcrypt/src/port/Espressif/"
                       "./wolfcrypt/src/port/atmel/"
+                      "./wolfcrypt/benchmark/"
+                      "./wolfcrypt/test/"
 #                      "$ENV{IDF_PATH}/components/soc/esp32s3/include/soc"
                       )
 
@@ -69,6 +71,7 @@ set(COMPONENT_SRCEXCLUDE
     "./src/conf.c"
     "./src/misc.c"
     "./src/pk.c"
+    "./src/ssl_misc.c" # included by ssl.c
     "./src/x509.c"
     "./src/x509_str.c"
     "./wolfcrypt/src/evp.c"

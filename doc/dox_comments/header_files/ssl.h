@@ -1232,6 +1232,70 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                                          const char* path, unsigned int flags);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief This function returns a pointer to an array of strings representing
+    directories wolfSSL will search for system CA certs when
+    wolfSSL_CTX_load_system_CA_certs is called.
+
+    \return Valid pointer on success.
+    \return NULL pointer on failure.
+
+    \param num pointer to a word32 that will be populated with the length of the
+    array of strings.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    const char** dirs;
+    word32 numDirs;
+
+    dirs = wolfSSL_get_system_CA_dirs(&numDirs);
+    for (int i = 0; i < numDirs; ++i) {
+        printf("Potential system CA dir: %s\n", dirs[i]);
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_load_system_CA_certs
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_load_verify_locations_ex
+*/
+const char** wolfSSL_get_system_CA_dirs(word32* num);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function attempts to load CA certificates into a WOLFSSL_CTX
+    from an OS-dependent CA certificate store. Loaded certificates will be
+    trusted.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return WOLFSSL_BAD_PATH if no system CA certs were loaded.
+    \return WOLFSSL_FAILURE for other failure types (e.g. Windows cert store
+    wasn't properly closed).
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_load_system_CA_certs(ctx,);
+    if (ret != WOLFSSL_SUCCESS) {
+        // error loading system CA certs
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_get_system_CA_dirs
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_load_verify_locations_ex
+*/
+int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx);
+
+/*!
     \ingroup Setup
 
     \brief This function loads a certificate to use for verifying a peer
@@ -13690,15 +13754,16 @@ wolfSSL_accept_TLSv13(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief This function sets the maximum amount of early data that will be
-    accepted by a TLS v1.3 server using the wolfSSL context.
+    \brief This function sets the maximum amount of early data that a
+    TLS v1.3 client or server is willing to exchange using the wolfSSL context.
     Call this function to limit the amount of early data to process to mitigate
     replay attacks. Early data is protected by keys derived from those of the
     connection that the session ticket was sent and therefore will be the same
     every time a session ticket is used in resumption.
     The value is included in the session ticket for resumption.
-    A value of zero indicates no early data is to be sent by client using
-    session tickets.
+    A server value of zero indicates no early data is to be sent by client using
+    session tickets. A client value of zero indicates that the client will
+    not send any early data.
     It is recommended that the number of early data bytes be kept as low as
     practically possible in the application.
 
@@ -13707,7 +13772,6 @@ wolfSSL_accept_TLSv13(WOLFSSL* ssl);
     \param [in] sz the amount of early data to accept in bytes.
 
     \return BAD_FUNC_ARG if ctx is NULL or not using TLS v1.3.
-    \return SIDE_ERROR if called with a client.
     \return 0 if successful.
 
     _Example_
@@ -13731,15 +13795,16 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief This function sets the maximum amount of early data that will be
-    accepted by a TLS v1.3 server using the wolfSSL context.
+    \brief This function sets the maximum amount of early data that a
+    TLS v1.3 client or server is willing to exchange.
     Call this function to limit the amount of early data to process to mitigate
     replay attacks. Early data is protected by keys derived from those of the
     connection that the session ticket was sent and therefore will be the same
     every time a session ticket is used in resumption.
     The value is included in the session ticket for resumption.
-    A value of zero indicates no early data is to be sent by client using
-    session tickets.
+    A server value of zero indicates no early data is to be sent by client using
+    session tickets. A client value of zero indicates that the client will
+    not send any early data.
     It is recommended that the number of early data bytes be kept as low as
     practically possible in the application.
 
@@ -13747,7 +13812,6 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
     \param [in] sz the amount of early data to accept from client in bytes.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return SIDE_ERROR if called with a client.
     \return 0 if successful.
 
     _Example_

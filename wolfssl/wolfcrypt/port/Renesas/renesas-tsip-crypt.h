@@ -1,6 +1,6 @@
 /* renesas-tsip-crypt.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -79,6 +79,12 @@ enum {
     TSIP_TEMP_WORK_SIZE        = 128,
 };
 
+typedef enum {
+    TSIP_KEY_TYPE_RSA2048      = 0,
+    TSIP_KEY_TYPE_RSA4096      = 1,
+    TSIP_KEY_TYPE_ECDSAP256    = 2,
+} wolfssl_TSIP_KEY_TYPE;
+
 struct WOLFSSL;
 struct KeyShareEntry;
 
@@ -130,11 +136,22 @@ typedef struct TsipUserCtx {
     /* handle is used as work area for Tls13 handshake */
     tsip_tls13_handle_t                                handle13;
 
-    /* RSA-2048bit private key-index for client authentication */
-    tsip_rsa2048_private_key_index_t                   RsaPrivateKeyIdx;
+    /* client key pair wrapped by provisioning key */
+    byte*                                              wrappedPrivateKey;
+    byte*                                              wrappedPublicKey;
+    int                                                wrappedKeyType;
 
-    /* ECC P256 private key-index for client authentication */
-    tsip_ecc_private_key_index_t                       EcdsaPrivateKeyIdx;
+    #if !defined(NO_RSA)
+    /* RSA-2048bit private and public key-index for client authentication */
+    tsip_rsa2048_private_key_index_t                   Rsa2048PrivateKeyIdx;
+    tsip_rsa2048_public_key_index_t                    Rsa2048PublicKeyIdx;
+    #endif /* !NO_RSA */
+
+    #if defined(HAVE_ECC)
+    /* ECC P256 private and public key-index for client authentication */
+    tsip_ecc_private_key_index_t                       EcdsaP256PrivateKeyIdx;
+    tsip_ecc_public_key_index_t                        EcdsaP256PublicKeyIdx;
+    #endif /* HAVE_ECC */
 
     /* ECDHE private key index for Tls13 handshake */
     tsip_tls_p256_ecc_key_index_t                      EcdhPrivKey13Idx;
@@ -224,8 +241,16 @@ typedef struct TsipUserCtx {
     uint32_t    tsip_cipher;
     
     /* flags */
-    uint8_t ClientRsaPrivKey_set:1;
-    uint8_t ClientEccPrivKey_set:1;
+    #if !defined(NO_RSA)
+    uint8_t ClientRsa2048PrivKey_set:1;
+    uint8_t ClientRsa2048PubKey_set:1;
+    #endif
+
+    #if defined(HAVE_ECC)
+    uint8_t ClientEccP256PrivKey_set:1;
+    uint8_t ClientEccP256PubKey_set:1;
+    #endif
+
     uint8_t HmacInitialized:1;
     uint8_t RootCAverified:1;
     uint8_t EcdsaPrivKey_set:1;
@@ -265,6 +290,8 @@ typedef struct
     uint32_t   encrypted_user_tls_key_type;
     uint8_t *  encrypted_user_private_key;
     uint32_t   encrypted_user_private_key_type;
+    uint8_t *  encrypted_user_public_key;
+    uint32_t   encrypted_user_public_key_type;
     tsip_ecc_private_key_index_t client_private_key_index;       
     tsip_tls_ca_certification_public_key_index_t  user_rsa2048_tls_pubindex;
 } tsip_key_data;
@@ -296,6 +323,13 @@ WOLFSSL_API int  tsip_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx);
 
 WOLFSSL_API int  tsip_set_clientPrivateKeyEnc(const byte* key, int keyType);
 
+#if defined(WOLF_PRIVATE_KEY_ID)
+WOLFSSL_API int tsip_use_PrivateKey_buffer(struct WOLFSSL* ssl,
+                                const char* keyBuf, int keyBufLen, int keyType);
+WOLFSSL_API int tsip_use_PublicKey_buffer(struct WOLFSSL* ssl,
+                                const char* keyBuf, int keyBufLen, int keyType);
+#endif /* WOLF_PRIVATE_KEY_ID */
+
 #if (WOLFSSL_RENESAS_TSIP_VER >=109)
 
 #define wc_tsip_inform_user_keys_ex tsip_inform_user_keys_ex
@@ -318,6 +352,17 @@ WOLFSSL_API void tsip_inform_user_keys(
 /*----------------------------------------------------*/
 /*   internal use functions                           */
 /*----------------------------------------------------*/
+WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc);
+
+WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
+                        WOLFSSL* ssl, 
+                        unsigned char* sig, unsigned int sigSz,
+                        unsigned char** out,
+                        const unsigned char* keyDer, unsigned int keySz,
+                        void* ctx);
+
+WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc);
+
 #if (WOLFSSL_RENESAS_TSIP_VER >=115)
 #ifdef WOLF_CRYPTO_CB
 

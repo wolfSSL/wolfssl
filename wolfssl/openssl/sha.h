@@ -1,6 +1,6 @@
 /* sha.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,20 +36,29 @@
     extern "C" {
 #endif
 
+/* adder for HW crypto */
+#if defined(STM32_HASH)
+    #define CTX_SHA_HW_ADDER sizeof(STM32_HASH_Context)
+#elif defined(WOLFSSL_IMXRT1170_CAAM)
+    #define CTX_SHA_HW_ADDER (sizeof(caam_hash_ctx_t) + sizeof(caam_handle_t))
+#elif defined(WOLFSSL_ESPWROOM32) && \
+     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #define CTX_SHA_HW_ADDER sizeof(WC_ESP32SHA)
+#else
+    #define CTX_SHA_HW_ADDER 0
+#endif
+
+
 #ifndef NO_SHA
 typedef struct WOLFSSL_SHA_CTX {
     /* big enough to hold wolfcrypt Sha, but check on init */
-#if defined(STM32_HASH)
-    void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(STM32_HASH_Context)) / sizeof(void*)];
-#else
-    void* holder[(112 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
-#endif
-    #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    void* holder[(112 + WC_ASYNC_DEV_SIZE + CTX_SHA_HW_ADDER) / sizeof(void*)];
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
-    #endif
-    #ifdef WOLF_CRYPTO_CB
+#endif
+#ifdef WOLF_CRYPTO_CB
     void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) / sizeof(void*)];
-    #endif
+#endif
 } WOLFSSL_SHA_CTX;
 
 WOLFSSL_API int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha);
@@ -93,12 +102,6 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_SHA */
 
-/* adder for HW crypto */
-#ifdef STM32_HASH
-#define CTX_SHA2_HW_ADDER 34
-#else
-#define CTX_SHA2_HW_ADDER 0
-#endif
 
 #ifdef WOLFSSL_SHA224
 
@@ -107,8 +110,15 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
  * to Sha224, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA224_CTX {
     /* big enough to hold wolfcrypt Sha224, but check on init */
-    ALIGN16 void* holder[(274 + CTX_SHA2_HW_ADDER + WC_ASYNC_DEV_SIZE) /
-                                                                 sizeof(void*)];
+    ALIGN16 void* holder[(274 + CTX_SHA_HW_ADDER + WC_ASYNC_DEV_SIZE) /
+        sizeof(void*)];
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    ALIGN16 void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
+#endif
+#ifdef WOLF_CRYPTO_CB
+    ALIGN16 void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) /
+        sizeof(void*)];
+#endif
 } WOLFSSL_SHA224_CTX;
 
 WOLFSSL_API int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha);
@@ -141,8 +151,15 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
  * to Sha256, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA256_CTX {
     /* big enough to hold wolfcrypt Sha256, but check on init */
-    ALIGN16 void* holder[(274 + CTX_SHA2_HW_ADDER + WC_ASYNC_DEV_SIZE) /
-                                                                 sizeof(void*)];
+    ALIGN16 void* holder[(274 + CTX_SHA_HW_ADDER + WC_ASYNC_DEV_SIZE) /
+        sizeof(void*)];
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    ALIGN16 void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
+#endif
+#ifdef WOLF_CRYPTO_CB
+    ALIGN16 void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) /
+        sizeof(void*)];
+#endif
 } WOLFSSL_SHA256_CTX;
 
 WOLFSSL_API int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256);
@@ -185,7 +202,13 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #ifdef WOLFSSL_SHA384
 typedef struct WOLFSSL_SHA384_CTX {
     /* big enough to hold wolfCrypt Sha384, but check on init */
-    void* holder[(268 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    void* holder[(288 + CTX_SHA_HW_ADDER + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
+#endif
+#ifdef WOLF_CRYPTO_CB
+    void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) / sizeof(void*)];
+#endif
 } WOLFSSL_SHA384_CTX;
 
 WOLFSSL_API int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha);
@@ -214,7 +237,13 @@ typedef WOLFSSL_SHA384_CTX SHA384_CTX;
 #ifdef WOLFSSL_SHA512
 typedef struct WOLFSSL_SHA512_CTX {
     /* big enough to hold wolfCrypt Sha384, but check on init */
-    void* holder[(288 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    void* holder[(288 + CTX_SHA_HW_ADDER + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
+#endif
+#ifdef WOLF_CRYPTO_CB
+    void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) / sizeof(void*)];
+#endif
 } WOLFSSL_SHA512_CTX;
 
 WOLFSSL_API int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha);
@@ -300,4 +329,3 @@ WOLFSSL_API int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
 
 
 #endif /* WOLFSSL_SHA_H_ */
-

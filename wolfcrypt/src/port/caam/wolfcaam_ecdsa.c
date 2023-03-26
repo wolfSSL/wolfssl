@@ -1,6 +1,6 @@
 /* wolfcaam_ecdsa.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -240,6 +240,7 @@ static int wc_CAAM_DevMakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
 
 #endif /* WOLFSSL_DEVCRYPTO_ECDSA */
 
+#ifndef WOLFSSL_IMXRT1170_CAAM
 /* helper function get the ECDSEL value, this is a value that signals the
  * hardware to use preloaded curve parameters
  */
@@ -743,7 +744,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
     return -1;
 }
 #endif /* WOLFSSL_KEY_GEN */
-
+#endif /* WOLFSSL_IMXRT1170_CAAM */
 
 /* if dealing with a black encrypted key then it can not be checked */
 int wc_CAAM_EccCheckPrivKey(ecc_key* key, const byte* pubKey, word32 pubKeySz) {

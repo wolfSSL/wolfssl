@@ -1,6 +1,6 @@
 /* asn.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -269,7 +269,7 @@ typedef struct ASNGetData {
             /* Maximum length of buffer. */
             word32* length;
         } buffer;
-        /* Refernce to ASN.1 item's data. */
+        /* Reference to ASN.1 item's data. */
         struct {
             /* Pointer reference into input buffer. */
             const byte* data;
@@ -675,8 +675,8 @@ enum DN_Tags {
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
 #ifdef WOLFSSL_CERT_NAME_ALL
-    ASN_NAME          = 0x2a,   /* name */
-    ASN_GIVEN_NAME    = 0x29,   /* GN */
+    ASN_NAME          = 0x29,   /* name */
+    ASN_GIVEN_NAME    = 0x2a,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
@@ -755,75 +755,72 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* NIDs */
-enum
-{
-    NID_undef = 0,
-    NID_netscape_cert_type = NID_undef,
-    NID_des = 66,
-    NID_des3 = 67,
-    NID_sha256 = 672,
-    NID_sha384 = 673,
-    NID_sha512 = 674,
-    NID_sha512_224 = 1094,
-    NID_sha512_256 = 1095,
-    NID_pkcs7_signed = 22,
-    NID_pkcs7_enveloped = 23,
-    NID_pkcs7_signedAndEnveloped = 24,
-    NID_pkcs9_unstructuredName = 49,
-    NID_pkcs9_contentType = 50, /* 1.2.840.113549.1.9.3 */
-    NID_pkcs9_challengePassword = 54,
-    NID_hw_name_oid = 73,
-    NID_id_pkix_OCSP_basic = 74,
-    NID_any_policy = 75,
-    NID_anyExtendedKeyUsage = 76,
-    NID_givenName = 99, /* 2.5.4.42 */
-    NID_initials = 101, /* 2.5.4.43 */
-    NID_title = 106,
-    NID_description = 107,
-    NID_basic_constraints = 133,
-    NID_key_usage = 129,     /* 2.5.29.15 */
-    NID_ext_key_usage = 151, /* 2.5.29.37 */
-    NID_subject_key_identifier = 128,
-    NID_authority_key_identifier = 149,
-    NID_private_key_usage_period = 130, /* 2.5.29.16 */
-    NID_subject_alt_name = 131,
-    NID_issuer_alt_name = 132,
-    NID_info_access = 69,
-    NID_sinfo_access = 79,      /* id-pe 11 */
-    NID_name_constraints = 144, /* 2.5.29.30 */
-    NID_crl_distribution_points = 145, /* 2.5.29.31 */
-    NID_certificate_policies = 146,
-    NID_policy_mappings = 147,
-    NID_policy_constraints = 150,
-    NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
-    NID_tlsfeature = 1020,             /* id-pe 24 */
-    NID_buildingName = 1494,
+#define NID_undef 0
+#define NID_netscape_cert_type NID_undef
+#define NID_des 66
+#define NID_des3 67
+#define NID_sha256 672
+#define NID_sha384 673
+#define NID_sha512 674
+#define NID_sha512_224 1094
+#define NID_sha512_256 1095
+#define NID_pkcs7_signed 22
+#define NID_pkcs7_enveloped 23
+#define NID_pkcs7_signedAndEnveloped 24
+#define NID_pkcs9_unstructuredName 49
+#define NID_pkcs9_contentType 50  /* 1.2.840.113549.1.9.3 */
+#define NID_pkcs9_challengePassword 54
+#define NID_hw_name_oid 73
+#define NID_id_pkix_OCSP_basic 74
+#define NID_any_policy 75
+#define NID_anyExtendedKeyUsage 76
+#define NID_givenName 100  /* 2.5.4.42 */
+#define NID_initials 101  /* 2.5.4.43 */
+#define NID_title 106
+#define NID_description 107
+#define NID_basic_constraints 133
+#define NID_key_usage 129      /* 2.5.29.15 */
+#define NID_ext_key_usage 151  /* 2.5.29.37 */
+#define NID_subject_key_identifier 128
+#define NID_authority_key_identifier 149
+#define NID_private_key_usage_period 130  /* 2.5.29.16 */
+#define NID_subject_alt_name 131
+#define NID_issuer_alt_name 132
+#define NID_info_access 69
+#define NID_sinfo_access 79       /* id-pe 11 */
+#define NID_name_constraints 144  /* 2.5.29.30 */
+#define NID_crl_distribution_points 145  /* 2.5.29.31 */
+#define NID_certificate_policies 146
+#define NID_policy_mappings 147
+#define NID_policy_constraints 150
+#define NID_inhibit_any_policy 168       /* 2.5.29.54 */
+#define NID_tlsfeature 1020              /* id-pe 24 */
+#define NID_buildingName 1494
 
-    NID_dnQualifier = 174,             /* 2.5.4.46 */
-    NID_commonName = 14,               /* CN Changed to not conflict
-                                        * with PBE_SHA1_DES3 */
-    NID_name = 173,                    /* N , OID = 2.5.4.41 */
-    NID_surname = 0x04,                /* SN */
-    NID_serialNumber = 0x05,           /* serialNumber */
-    NID_countryName = 0x06,            /* C  */
-    NID_localityName = 0x07,           /* L  */
-    NID_stateOrProvinceName = 0x08,    /* ST */
-    NID_streetAddress = ASN_STREET_ADDR, /* street */
-    NID_organizationName = 0x0a,       /* O  */
-    NID_organizationalUnitName = 0x0b, /* OU */
-    NID_jurisdictionCountryName = 0xc,
-    NID_jurisdictionStateOrProvinceName = 0xd,
-    NID_businessCategory = ASN_BUS_CAT,
-    NID_domainComponent = ASN_DOMAIN_COMPONENT,
-    NID_postalCode = ASN_POSTAL_CODE,  /* postalCode */
-    NID_favouriteDrink = 462,
-    NID_userId = 458,
-    NID_emailAddress = 0x30,           /* emailAddress */
-    NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
-    NID_ms_upn = 265,                  /* 1.3.6.1.4.1.311.20.2.3 */
+#define NID_dnQualifier 174              /* 2.5.4.46 */
+#define NID_commonName 14                /* CN Changed to not conflict
+                                    * with PBE_SHA1_DES3 */
+#define NID_name 173                     /* N , OID = 2.5.4.41 */
+#define NID_surname 0x04                 /* SN */
+#define NID_serialNumber 0x05            /* serialNumber */
+#define NID_countryName 0x06             /* C  */
+#define NID_localityName 0x07            /* L  */
+#define NID_stateOrProvinceName 0x08     /* ST */
+#define NID_streetAddress ASN_STREET_ADDR  /* street */
+#define NID_organizationName 0x0a        /* O  */
+#define NID_organizationalUnitName 0x0b  /* OU */
+#define NID_jurisdictionCountryName 0xc
+#define NID_jurisdictionStateOrProvinceName 0xd
+#define NID_businessCategory ASN_BUS_CAT
+#define NID_domainComponent ASN_DOMAIN_COMPONENT
+#define NID_postalCode ASN_POSTAL_CODE   /* postalCode */
+#define NID_favouriteDrink 462
+#define NID_userId 458
+#define NID_emailAddress 0x30            /* emailAddress */
+#define NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
+#define NID_ms_upn 265                   /* 1.3.6.1.4.1.311.20.2.3 */
 
-    NID_X9_62_prime_field = 406        /* 1.2.840.10045.1.1 */
-};
+#define NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
 #endif /* OPENSSL_EXTRA */
 
 enum ECC_TYPES
@@ -872,7 +869,7 @@ enum Misc_ASN {
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
-#ifdef NO_SHA
+#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     KEYID_SIZE          = WC_SHA256_DIGEST_SIZE,
 #else
     KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
@@ -884,7 +881,7 @@ enum Misc_ASN {
 #else
     RSA_INTS            =   2,     /* RSA ints in private key */
 #endif
-    DSA_PARAM_INTS      =   3,     /* DSA paramater ints */
+    DSA_PARAM_INTS      =   3,     /* DSA parameter ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
     DSA_PUB_INTS        =   4,     /* DSA ints in public key */
     DSA_INTS            =   5,     /* DSA ints in private key */
@@ -1098,9 +1095,6 @@ enum Key_Sum {
     DILITHIUM_LEVEL2k = 213,    /* 1.3.6.1.4.1.2.267.7.4.4 */
     DILITHIUM_LEVEL3k = 216,    /* 1.3.6.1.4.1.2.267.7.6.5 */
     DILITHIUM_LEVEL5k = 220,    /* 1.3.6.1.4.1.2.267.7.8.7 */
-    DILITHIUM_AES_LEVEL2k = 217,/* 1.3.6.1.4.1.2.267.11.4.4 */
-    DILITHIUM_AES_LEVEL3k = 221,/* 1.3.6.1.4.1.2.267.11.6.5 + 1 (See GetOID() in asn.c) */
-    DILITHIUM_AES_LEVEL5k = 224,/* 1.3.6.1.4.1.2.267.11.8.7 */
     SPHINCS_FAST_LEVEL1k   = 281, /* 1 3 9999 6 7 4 */
     SPHINCS_FAST_LEVEL3k   = 283, /* 1 3 9999 6 8 3 + 2 (See GetOID() in asn.c) */
     SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
@@ -1217,7 +1211,7 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_TIMESTAMP_OID   = 78,  /* 1.3.6.1.5.5.7.3.8, id-kp-timeStamping    */
     EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
 
-    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authenticaiton */
+    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authentication */
     EKU_SSH_CLIENT_AUTH_OID    = ID_KP(21), /* id-kp-secureShellClient */
     EKU_SSH_MSCL_OID           = 264,
         /* 1.3.6.1.4.1.311.20.2.2, MS Smart Card Logon */
@@ -1591,7 +1585,7 @@ struct DecodedCert {
     byte    issuerHash[KEYID_SIZE];  /* hash of all Names                */
 #ifdef HAVE_OCSP
     byte    subjectKeyHash[KEYID_SIZE]; /* hash of the public Key         */
-    byte    issuerKeyHash[KEYID_SIZE]; /* hash of the public Key         */
+    byte    issuerKeyHash[KEYID_SIZE];  /* hash of the public Key         */
 #endif /* HAVE_OCSP */
     const byte* signature;           /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
@@ -1818,6 +1812,9 @@ struct DecodedCert {
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     byte*  sce_tsip_encRsaKeyIdx;
+#endif
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    word32 publicKeyIndex; /* offset to start of public key */
 #endif
 
     int badDate;
@@ -2085,7 +2082,6 @@ WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
-WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
@@ -2196,9 +2192,6 @@ WOLFSSL_LOCAL int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
 WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,
     const mp_int*);
 #endif
-#if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-WOLFSSL_API int EccEnumToNID(int n);
-#endif
 
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
@@ -2243,9 +2236,6 @@ enum cert_enums {
     DILITHIUM_LEVEL2_KEY     = 18,
     DILITHIUM_LEVEL3_KEY     = 19,
     DILITHIUM_LEVEL5_KEY     = 20,
-    DILITHIUM_AES_LEVEL2_KEY = 21,
-    DILITHIUM_AES_LEVEL3_KEY = 22,
-    DILITHIUM_AES_LEVEL5_KEY = 23,
     SPHINCS_FAST_LEVEL1_KEY  = 24,
     SPHINCS_FAST_LEVEL3_KEY  = 25,
     SPHINCS_FAST_LEVEL5_KEY  = 26,
@@ -2472,8 +2462,8 @@ WOLFSSL_LOCAL int VerifyCRL_Signature(SignatureCtx* sigCtx,
                                       const byte* signature, word32 sigSz,
                                       word32 signatureOID, Signer *ca,
                                       void* heap);
-WOLFSSL_LOCAL int  ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz,
-                            int verify, void* cm);
+WOLFSSL_LOCAL int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl,
+                           const byte* buff, word32 sz, int verify, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 
 

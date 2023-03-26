@@ -24,10 +24,12 @@
 #                       test/digsigku.pem
 #                       ecc-privOnlyCert.pem
 #                       client-uri-cert.pem
+#                       client-absolute-uri.pem
 #                       client-relative-uri.pem
 #                       client-crl-dist.pem
 #                       entity-no-ca-bool-cert.pem
 #                       fpki-cert.der
+#                       rid-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -110,6 +112,26 @@ run_renewcerts(){
     ############################################################
     #openssl ec -inform pem -in certs/ecc-key.pem -outform der -out certs/ecc-keyPub.der -pubout
     openssl ec -inform pem -in certs/ecc-key.pem -outform pem -out certs/ecc-keyPub.pem -pubout
+
+    ############################################################
+    #### update the self-signed (2048-bit) client-absolute-urn.pem
+    ############################################################
+    echo "Updating 2048-bit client-absolute-urn.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nABSOLUTE_URN\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions absolute_urn -signkey client-key.pem -out client-absolute-urn.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-absolute-urn.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem client-absolute-urn.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
 
     ############################################################
     #### update the self-signed (2048-bit) client-relative-uri.pem
@@ -356,6 +378,20 @@ run_renewcerts(){
     openssl x509 -req -in fpki-req.pem -extfile wolfssl.cnf -extensions fpki_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 -out fpki-cert.der -outform DER
     check_result $? "Step 2"
     rm fpki-req.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign rid-cert.der ################
+    ###########################################################
+    echo "Updating rid-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nRID\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > rid-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in rid-req.pem -extfile wolfssl.cnf -extensions rid_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 7 -out rid-cert.der -outform DER
+    check_result $? "Step 2"
+    rm rid-req.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################

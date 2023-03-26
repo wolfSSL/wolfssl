@@ -1,6 +1,6 @@
 /* conf.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -330,7 +330,7 @@ static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
         return 0;
 }
 
-/* Use SHA for hashing as OpenSSL uses a hash algorithm that is
+/* Use SHA[256] for hashing as OpenSSL uses a hash algorithm that is
  * "not as good as MD5, but still good" so using SHA should be more
  * than good enough for this application. The produced hashes don't
  * need to line up between OpenSSL and wolfSSL. The hashes are for
@@ -338,19 +338,21 @@ static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
-#ifndef NO_SHA
-    wc_Sha sha;
     int strLen;
+#if !defined(NO_SHA)
+    wc_Sha sha;
     byte digest[WC_SHA_DIGEST_SIZE];
+#elif !defined(NO_SHA256)
+    wc_Sha256 sha;
+    byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");
 
     if (!str)
         return 0;
-
-#ifndef NO_SHA
     strLen = (int)XSTRLEN(str);
 
+#if !defined(NO_SHA)
     if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
         WOLFSSL_MSG("SHA1 Init failed");
         return 0;
@@ -366,6 +368,25 @@ unsigned long wolfSSL_LH_strhash(const char *str)
         }
     }
     wc_ShaFree(&sha);
+#elif !defined(NO_SHA256)
+    if (wc_InitSha256_ex(&sha, NULL, 0) != 0) {
+        WOLFSSL_MSG("SHA256 Init failed");
+        return 0;
+    }
+
+    ret = wc_Sha256Update(&sha, (const byte *)str, (word32)strLen);
+    if (ret != 0) {
+        WOLFSSL_MSG("SHA256 Update failed");
+    } else {
+        ret = wc_Sha256Final(&sha, digest);
+        if (ret != 0) {
+            WOLFSSL_MSG("SHA256 Final failed");
+        }
+    }
+    wc_Sha256Free(&sha);
+#endif
+
+#if !defined(NO_SHA) || !defined(NO_SHA256)
     if (ret != 0)
         return 0;
 
@@ -722,7 +743,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                     strIdx += 2;
                     startIdx = strIdx;
                 }
-                while (*strIdx && (XISALNUM(*strIdx) || *strIdx == '_'))
+                while (*strIdx && (XISALNUM((int)(*strIdx)) || *strIdx == '_'))
                     strIdx++;
                 endIdx = strIdx;
                 if (startIdx == endIdx) {
@@ -1116,7 +1137,7 @@ void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CTX *ctx)
 /**
  * set flag value into WOLFSSL_CONF_CTX
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure to be set
- * @param flags falg value to be OR'd
+ * @param flags flag value to be OR'd
  * @return OR'd flag value, otherwise 0
  */
 unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx,
@@ -1558,7 +1579,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
  * @param cctx a pointer to WOLFSSL_CONF_CTX structure
  * @param cmd  configuration command
  * @return The SSL_CONF_TYPE_* type or SSL_CONF_TYPE_UNKNOWN if an
- *         unvalid command
+ *         invalid command
  */
 int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
 {
