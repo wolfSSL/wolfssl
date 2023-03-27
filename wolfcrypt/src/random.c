@@ -991,8 +991,24 @@ static void Entropy_StopThread(void)
 #ifndef ENTROPY_NUM_WORDS_BITS
     /* Number of bits to count of 64-bit words in state. */
     #define ENTROPY_NUM_WORDS_BITS      14
-#elif ENTROPY_NUM_WORDS_BITS < 8
+#endif
+
+/* Floor of 8 yields pool of 256x 64-bit word samples
+ * 9  -> 512x 64-bit word samples
+ * 10 -> 1,024x 64-bit word samples
+ * 11 -> 2,048x 64-bit word samples
+ * 12 -> 4,096x 64-bit word samples
+ * 13 -> 8,192x 64-bit word samples
+ * 14 -> 16,384x 64-bit word samples
+ * 15 -> 32,768x 64-bit word samples
+ * ... doubling every time up to a maximum of:
+ * 30 -> 1,073,741,824x 64-bit word samples
+ * 1 billion+ samples should be more then sufficient for any use-case
+ */
+#if ENTROPY_NUM_WORDS_BITS < 8
     #error "ENTROPY_NUM_WORDS_BITS must be 8 or more"
+#elif ENTROPY_NUM_WORDS_BITS > 30
+    #error "ENTROPY_NUM_WORDS_BITS must be less than 31"
 #endif
 /* Number of 64-bit words in state. */
 #define ENTROPY_NUM_WORDS               (1 << ENTROPY_NUM_WORDS_BITS)
@@ -1010,7 +1026,7 @@ static void Entropy_StopThread(void)
     /* Upper round of log2(ENTROPY_NUM_UPDATES) */
     #define ENTROPY_NUM_UPDATES_BITS    5
 #elif !defined(ENTROPY_NUM_UPDATES_BITS)
-    #define ENTROP_NUM_UPDATES_BITS     ENTROPY_BLOCK_SZ
+    #define ENTROPY_NUM_UPDATES_BITS     ENTROPY_BLOCK_SZ
 #endif
 /* Amount to shift offset to get better coverage of a block */
 #define ENTROPY_OFFSET_SHIFTING          \
