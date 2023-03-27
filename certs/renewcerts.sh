@@ -98,20 +98,20 @@ run_renewcerts(){
     ############################################################
     # Public Versions of client-key.pem
     ############################################################
-    openssl rsa -inform pem -in certs/client-key.pem -outform der -out certs/client-keyPub.der -pubout
-    openssl rsa -inform pem -in certs/client-key.pem -outform pem -out certs/client-keyPub.pem -pubout
+    openssl rsa -inform pem -in client-key.pem -outform der -out client-keyPub.der -pubout
+    openssl rsa -inform pem -in client-key.pem -outform pem -out client-keyPub.pem -pubout
 
     ############################################################
     # Public Versions of server-key.pem
     ############################################################
-    #openssl rsa -inform pem -in certs/server-key.pem -outform der -out certs/server-keyPub.der -pubout
-    openssl rsa -inform pem -in certs/server-key.pem -outform pem -out certs/server-keyPub.pem -pubout
+    #openssl rsa -inform pem -in server-key.pem -outform der -out server-keyPub.der -pubout
+    openssl rsa -inform pem -in server-key.pem -outform pem -out server-keyPub.pem -pubout
 
     ############################################################
     # Public Versions of ecc-key.pem
     ############################################################
-    #openssl ec -inform pem -in certs/ecc-key.pem -outform der -out certs/ecc-keyPub.der -pubout
-    openssl ec -inform pem -in certs/ecc-key.pem -outform pem -out certs/ecc-keyPub.pem -pubout
+    #openssl ec -inform pem -in ecc-key.pem -outform der -out ecc-keyPub.der -pubout
+    openssl ec -inform pem -in ecc-key.pem -outform pem -out ecc-keyPub.pem -pubout
 
     ############################################################
     #### update the self-signed (2048-bit) client-absolute-urn.pem
