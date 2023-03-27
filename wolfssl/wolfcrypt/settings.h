@@ -2995,6 +2995,13 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_TLS
         #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
     #endif
+    #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_SECURE_RENEGOTIATION) && \
+        !defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        #error "TLS 1.2 requires at least HAVE_SERVER_RENEGOTIATION_INFO to send the secure renegotiation extension https://www.rfc-editor.org/rfc/rfc9325#section-3.5"
+    #endif
+    #if !defined(WOLFSSL_EXTRA_ALERTS) || !defined(WOLFSSL_CHECK_ALERT_ON_ERR)
+        #error "RFC9325 requires some additional alerts to be sent"
+    #endif
     /* Ciphersuite check done in internal.h */
 #endif
 

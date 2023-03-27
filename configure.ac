@@ -195,6 +195,7 @@ then
     else
     	AC_MSG_ERROR([Invalid value for --enable-harden-tls])
 	fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_ALERTS -DWOLFSSL_CHECK_ALERT_ON_ERR"
 fi
 
 # Support for forcing 32-bit mode

@@ -7127,11 +7127,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif
 
-#ifdef HAVE_SECURE_RENEGOTIATION
+#if defined(HAVE_SECURE_RENEGOTIATION) || \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         int useSecureReneg = ssl->ctx->useSecureReneg;
         /* use secure renegotiation by default (not recommend) */
-    #ifdef WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT
+    #if defined(WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT) || \
+        (defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12))
         useSecureReneg = 1;
     #endif
         if (useSecureReneg) {
@@ -26985,6 +26987,18 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
             if (!pendingEMS && ssl->options.haveEMS)
                 ssl->options.haveEMS = 0;
+        }
+#endif
+
+#ifdef WOLFSSL_HARDEN_TLS
+        if (ssl->secure_renegotiation == NULL ||
+                !ssl->secure_renegotiation->enabled) {
+            /* If the server does not acknowledge the extension, the client
+             * MUST generate a fatal handshake_failure alert prior to
+             * terminating the connection.
+             * https://www.rfc-editor.org/rfc/rfc9325#name-renegotiation-in-tls-12 */
+            WOLFSSL_MSG("ServerHello did not contain SCR extension");
+            return SECURE_RENEGOTIATION_E;
         }
 #endif
 
