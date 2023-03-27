@@ -858,42 +858,27 @@ run_renewcerts(){
 #start in root.
 cd ../ || exit 1
 
-#if there was an argument given, check it for validity or print out error
 if [ ! -z "$1" ]; then
-    #valid argument print out other valid arguments
-    if [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
-        echo ""
-        echo "\"no argument\"        will attempt to update all certificates"
-        echo "-h or -help          display this menu"
-        echo ""
-        echo ""
-    #else the argument was invalid, tell user to use -h or -help
-    else
-        echo ""
-        echo "That is not a valid option."
-        echo ""
-        echo "use -h or -help for a list of available options."
-        echo ""
-    fi
-else
-    echo "Saving the configure state"
-    echo ""
-    cp config.status tmp.status || exit 1
-    cp wolfssl/options.h tmp.options.h || exit 1
+    echo "No arguments expected"
+    exit 1
+fi
 
-    echo "Running make clean"
-    echo ""
-    make clean
-    check_result $? "make clean"
+echo "Saving the configure state"
+echo ""
+cp config.status tmp.status || exit 1
+cp wolfssl/options.h tmp.options.h || exit 1
 
-    run_renewcerts
-    cd ../ || exit 1
-    rm ./certs/wolfssl.cnf
+echo "Running make clean"
+echo ""
+make clean
+check_result $? "make clean"
 
-    # restore previous configure state
-    restore_config
-    check_result $? "restoring old configuration"
+run_renewcerts
+cd ../ || exit 1
+rm ./certs/wolfssl.cnf
 
-fi #END already defined
+# restore previous configure state
+restore_config
+check_result $? "restoring old configuration"
 
 exit 0
