@@ -9388,12 +9388,12 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_StoreMessage(ssl, data, sz);
     if (ret != 0 && ret != CRYPTOCB_UNAVAILABLE) {
         return ret;
     }
-#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA
