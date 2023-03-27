@@ -304,6 +304,9 @@
     #undef HAVE_AES_CBC
 #endif
 
+    /* When adding new ciphersuites, make sure that they have appropriate
+     * guards for WOLFSSL_HARDEN_TLS. */
+
 #ifndef WOLFSSL_AEAD_ONLY
     #if !defined(NO_RSA) && !defined(NO_RC4) && !defined(WOLFSSL_HARDEN_TLS)
         /* MUST NOT negotiate RC4 cipher suites
@@ -318,12 +321,7 @@
         #endif
     #endif
 
-    #if !defined(NO_RSA) && !defined(NO_DES3) && !defined(WOLFSSL_HARDEN_TLS)
-        /* SHOULD NOT negotiate cipher suites that use algorithms offering
-         * less than 128 bits of security.
-         * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
-         * Using guidance from section 5.6.1
-         * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+    #if !defined(NO_RSA) && !defined(NO_DES3)
         #if !defined(NO_SHA)
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
@@ -661,10 +659,9 @@
                 #endif
             #endif
         #endif
-        #if !defined(NO_DES3) && !defined(WOLFSSL_HARDEN_TLS)
-            /* SHOULD NOT negotiate cipher suites that use algorithms offering
-             * less than 128 bits of security.
-             * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+        #if !defined(NO_DES3) && !(defined(WOLFSSL_HARDEN_TLS) && \
+                                           WOLFSSL_HARDEN_TLS > 112)
+            /* 3DES offers only 112 bits of security.
              * Using guidance from section 5.6.1
              * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
             #ifndef NO_SHA
@@ -1181,25 +1178,26 @@ enum {
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
     #ifdef WOLFSSL_HARDEN_TLS
-        /* SHOULD NOT negotiate cipher suites that use algorithms offering
-         * less than 128 bits of security.
-         * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
-         * Using guidance from section 5.6.1
+        /* Using guidance from section 5.6.1
          * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
-        #define WOLFSSL_MIN_DHKEY_BITS 3072
+        #if WOLFSSL_HARDEN_TLS >= 128
+            #define WOLFSSL_MIN_DHKEY_BITS 3072
+        #elif WOLFSSL_HARDEN_TLS >= 112
+            #define WOLFSSL_MIN_DHKEY_BITS 2048
+        #endif
     #elif defined(WOLFSSL_MAX_STRENGTH)
         #define WOLFSSL_MIN_DHKEY_BITS 2048
     #else
         #define WOLFSSL_MIN_DHKEY_BITS 1024
     #endif
 #endif
-#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 3072
-    /* SHOULD NOT negotiate cipher suites that use algorithms offering
-     * less than 128 bits of security.
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 2048
+    /* Implementations MUST NOT negotiate cipher suites offering less than
+     * 112 bits of security.
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
      * Using guidance from section 5.6.1
      * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
-    #error "For 128 bits of security DH needs at least 3072 bit keys"
+    #error "For 112 bits of security DH needs at least 2048 bit keys"
 #endif
 #if (WOLFSSL_MIN_DHKEY_BITS % 8)
     #error DH minimum bit size must be multiple of 8
@@ -1828,25 +1826,26 @@ enum Misc {
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
     #ifdef WOLFSSL_HARDEN_TLS
-        /* SHOULD NOT negotiate cipher suites that use algorithms offering
-         * less than 128 bits of security.
-         * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
-         * Using guidance from section 5.6.1
+        /* Using guidance from section 5.6.1
          * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
-        #define WOLFSSL_MIN_RSA_BITS 3072
+        #if WOLFSSL_HARDEN_TLS >= 128
+            #define WOLFSSL_MIN_RSA_BITS 3072
+        #elif WOLFSSL_HARDEN_TLS >= 112
+            #define WOLFSSL_MIN_RSA_BITS 2048
+        #endif
     #elif defined(WOLFSSL_MAX_STRENGTH)
         #define WOLFSSL_MIN_RSA_BITS 2048
     #else
         #define WOLFSSL_MIN_RSA_BITS 1024
     #endif
 #endif /* WOLFSSL_MIN_RSA_BITS */
-#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_RSA_BITS < 3072
-    /* SHOULD NOT negotiate cipher suites that use algorithms offering
-     * less than 128 bits of security.
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_RSA_BITS < 2048
+    /* Implementations MUST NOT negotiate cipher suites offering less than
+     * 112 bits of security.
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
      * Using guidance from section 5.6.1
      * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
-    #error "For 128 bits of security RSA needs at least 3072 bit keys"
+    #error "For 112 bits of security RSA needs at least 2048 bit keys"
 #endif
 #if (WOLFSSL_MIN_RSA_BITS % 8)
     /* This is to account for the example case of a min size of 2050 bits but
