@@ -43,20 +43,12 @@
 ######################## FUNCTIONS SECTION ####################################
 ###############################################################################
 
-#function for restoring a previous configure state
-restore_config(){
-    mv tmp.status config.status
-    mv tmp.options.h wolfssl/options.h
-    make clean
-    make -j 8
-}
-
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Failed at \"$2\", Abort"
         exit 1
     else
-        echo "Step Succeeded!"
+        echo "$2 Succeeded!"
     fi
 }
 
@@ -98,20 +90,20 @@ run_renewcerts(){
     ############################################################
     # Public Versions of client-key.pem
     ############################################################
-    openssl rsa -inform pem -in certs/client-key.pem -outform der -out certs/client-keyPub.der -pubout
-    openssl rsa -inform pem -in certs/client-key.pem -outform pem -out certs/client-keyPub.pem -pubout
+    openssl rsa -inform pem -in client-key.pem -outform der -out client-keyPub.der -pubout
+    openssl rsa -inform pem -in client-key.pem -outform pem -out client-keyPub.pem -pubout
 
     ############################################################
     # Public Versions of server-key.pem
     ############################################################
-    #openssl rsa -inform pem -in certs/server-key.pem -outform der -out certs/server-keyPub.der -pubout
-    openssl rsa -inform pem -in certs/server-key.pem -outform pem -out certs/server-keyPub.pem -pubout
+    #openssl rsa -inform pem -in server-key.pem -outform der -out server-keyPub.der -pubout
+    openssl rsa -inform pem -in server-key.pem -outform pem -out server-keyPub.pem -pubout
 
     ############################################################
     # Public Versions of ecc-key.pem
     ############################################################
-    #openssl ec -inform pem -in certs/ecc-key.pem -outform der -out certs/ecc-keyPub.der -pubout
-    openssl ec -inform pem -in certs/ecc-key.pem -outform pem -out certs/ecc-keyPub.pem -pubout
+    #openssl ec -inform pem -in ecc-key.pem -outform der -out ecc-keyPub.der -pubout
+    openssl ec -inform pem -in ecc-key.pem -outform pem -out ecc-keyPub.pem -pubout
 
     ############################################################
     #### update the self-signed (2048-bit) client-absolute-urn.pem
@@ -858,42 +850,20 @@ run_renewcerts(){
 #start in root.
 cd ../ || exit 1
 
-#if there was an argument given, check it for validity or print out error
 if [ ! -z "$1" ]; then
-    #valid argument print out other valid arguments
-    if [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
-        echo ""
-        echo "\"no argument\"        will attempt to update all certificates"
-        echo "-h or -help          display this menu"
-        echo ""
-        echo ""
-    #else the argument was invalid, tell user to use -h or -help
-    else
-        echo ""
-        echo "That is not a valid option."
-        echo ""
-        echo "use -h or -help for a list of available options."
-        echo ""
-    fi
-else
-    echo "Saving the configure state"
-    echo ""
-    cp config.status tmp.status || exit 1
-    cp wolfssl/options.h tmp.options.h || exit 1
+    echo "No arguments expected"
+    exit 1
+fi
 
-    echo "Running make clean"
-    echo ""
-    make clean
-    check_result $? "make clean"
+echo "Running make clean"
+echo ""
+make clean
+check_result $? "make clean"
 
-    run_renewcerts
-    cd ../ || exit 1
-    rm ./certs/wolfssl.cnf
+touch certs/.rnd || exit 1
 
-    # restore previous configure state
-    restore_config
-    check_result $? "restoring old configuration"
-
-fi #END already defined
+run_renewcerts
+cd ../ || exit 1
+rm ./certs/wolfssl.cnf
 
 exit 0
