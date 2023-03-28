@@ -860,20 +860,7 @@ echo ""
 make clean
 check_result $? "make clean"
 
-RANDFILE=/var/lib/jenkins/.rnd
-RANDFILE2=/home/jenkins/.rnd
-
-# Test for OpenSSL .rnd file:
-echo "RANDFILE = $RANDFILE"
-echo "RANDFILE2 = $RANDFILE2"
-if [ ! -f "$RANDFILE" ]; then
-    echo "We should touch $RANDFILE"
-    mkdir -p $(dirname $RANDFILE) && touch "$RANDFILE" || exit 1
-fi
-if [ ! -f "$RANDFILE2" ]; then
-    echo "We should touch $RANDFILE2"
-    mkdir -p $(dirname $RANDFILE2) && touch "$RANDFILE2" || exit 1
-fi
+touch certs/.rnd || exit 1
 
 run_renewcerts
 cd ../ || exit 1
