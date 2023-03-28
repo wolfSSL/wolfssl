@@ -43,14 +43,6 @@
 ######################## FUNCTIONS SECTION ####################################
 ###############################################################################
 
-#function for restoring a previous configure state
-restore_config(){
-    mv tmp.status config.status
-    mv tmp.options.h wolfssl/options.h
-    make clean
-    make -j 8
-}
-
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Failed at \"$2\", Abort"
@@ -863,11 +855,6 @@ if [ ! -z "$1" ]; then
     exit 1
 fi
 
-echo "Saving the configure state"
-echo ""
-cp config.status tmp.status || exit 1
-cp wolfssl/options.h tmp.options.h || exit 1
-
 echo "Running make clean"
 echo ""
 make clean
@@ -876,9 +863,5 @@ check_result $? "make clean"
 run_renewcerts
 cd ../ || exit 1
 rm ./certs/wolfssl.cnf
-
-# restore previous configure state
-restore_config
-check_result $? "restoring old configuration"
 
 exit 0
