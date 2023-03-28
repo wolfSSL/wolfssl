@@ -179,7 +179,7 @@ ENABLED_CERTS="no"
 
 # Implements requirements from RFC9325
 AC_ARG_ENABLE([harden-tls],
-    [AS_HELP_STRING([--enable-harden-tls],[Enable requirements from RFC9325. Possible values are <yes>, <112>, or <128> (default: disabled)])],
+    [AS_HELP_STRING([--enable-harden-tls],[Enable requirements from RFC9325. Possible values are <yes>, <112>, or <128>. <yes> is equivalent to <112>. (default: disabled)])],
     [ ENABLED_HARDEN_TLS=$enableval ],
     [ ENABLED_HARDEN_TLS=no ]
     )
