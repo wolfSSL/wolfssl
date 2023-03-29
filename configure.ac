@@ -8641,8 +8641,23 @@ echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
+# check for supported command to trim option with
+which colrm &> /dev/null
+RESULT=$?
+if test "$RESULT" = "0"; then
+    TRIM="colrm 3"
+else
+    which cut &> /dev/null
+    RESULT=$?
+    if test "$RESULT" = "0"; then
+        TRIM="cut -c1-2"
+    else
+        AC_MSG_ERROR([Could not find colrm or cut to make options file])
+    fi
+fi
+
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
-    opt_type=$(echo $option | colrm 3)
+    opt_type=$(echo $option | $TRIM )
     case "$opt_type" in
     -D)
         RHS_only=$(echo $option | sed 's/^-D//')
