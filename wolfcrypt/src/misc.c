@@ -262,7 +262,7 @@ WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
     word32 i;
 
     for (i = 0; i < n; i++)
-        *(*r)++ = *(*a)++ ^ *(*b)++;
+        *((*r)++) = *((*a)++) ^ *((*b)++);
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
@@ -276,16 +276,26 @@ WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
     byte*       b;
     const byte* m;
 
-    if (((wc_ptr_t)buf | (wc_ptr_t)mask) % WOLFSSL_WORD_SIZE == 0) {
-        /* Alignment checks out. Possible to XOR words. */
-        XorWordsOut( (wolfssl_word**)&out, (const wolfssl_word**)&buf,
-                     (const wolfssl_word**)&mask, count / WOLFSSL_WORD_SIZE);
-        count %= WOLFSSL_WORD_SIZE;
-    }
-
     o = (byte*)out;
     b = (byte*)buf;
     m = (const byte*)mask;
+
+
+    if (((wc_ptr_t)o) % WOLFSSL_WORD_SIZE ==
+            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE &&
+            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
+                        ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
+        /* Alignment checks out. Possible to XOR words. */
+        /* Move alignment so that it lines up with a
+         * WOLFSSL_WORD_SIZE boundary */
+        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+            *(o++) = *(b++) ^ *(m++);
+            count--;
+        }
+        XorWordsOut( (wolfssl_word**)&o, (const wolfssl_word**)&b,
+                     (const wolfssl_word**)&m, count / WOLFSSL_WORD_SIZE);
+        count %= WOLFSSL_WORD_SIZE;
+    }
 
     for (i = 0; i < count; i++)
         o[i] = b[i] ^ m[i];
@@ -299,7 +309,7 @@ WC_MISC_STATIC WC_INLINE void XorWords(wolfssl_word** r, const wolfssl_word** a,
     word32 i;
 
     for (i = 0; i < n; i++)
-        *(*r)++ ^= *(*a)++;
+        *((*r)++) ^= *((*a)++);
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
@@ -311,15 +321,22 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
     byte*       b;
     const byte* m;
 
-    if (((wc_ptr_t)buf | (wc_ptr_t)mask) % WOLFSSL_WORD_SIZE == 0) {
-        /* Alignment checks out. Possible to XOR words. */
-        XorWords( (wolfssl_word**)&buf,
-                  (const wolfssl_word**)&mask, count / WOLFSSL_WORD_SIZE);
-        count %= WOLFSSL_WORD_SIZE;
-    }
-
     b = (byte*)buf;
     m = (const byte*)mask;
+
+    if (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
+            ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
+        /* Alignment checks out. Possible to XOR words. */
+        /* Move alignment so that it lines up with a
+         * WOLFSSL_WORD_SIZE boundary */
+        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+            *(b++) ^= *(m++);
+            count--;
+        }
+        XorWords( (wolfssl_word**)&b,
+                  (const wolfssl_word**)&m, count / WOLFSSL_WORD_SIZE);
+        count %= WOLFSSL_WORD_SIZE;
+    }
 
     for (i = 0; i < count; i++)
         b[i] ^= m[i];
