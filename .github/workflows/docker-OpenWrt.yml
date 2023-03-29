@@ -37,7 +37,7 @@ jobs:
             - uses: actions/download-artifact@v3
               with:
                 name: openwrt-libwolfssl.so
-                path: Docker/OpenWrt/libwolfssl.so
+                path: Docker/OpenWrt/.
             - name: Build but dont push
               uses: docker/build-push-action@v3
               with:
