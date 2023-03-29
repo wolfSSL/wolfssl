@@ -1143,7 +1143,6 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     int ret;
     word32 hLen;
     int psLen;
-    int i;
     word32 idx;
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -1235,10 +1234,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
     XMEMCPY(pkcsBlock + (pkcsBlockLen - inputLen), input, inputLen);
     pkcsBlock[idx--] = 0x01; /* PS and M separator */
-    while (psLen > 0 && idx > 0) {
-        pkcsBlock[idx--] = 0x00;
-        psLen--;
-    }
+    XMEMSET(pkcsBlock + idx - psLen + 1, 0, psLen);
+    idx -= psLen;
 
     idx = idx - hLen + 1;
     XMEMCPY(pkcsBlock + idx, lHash, hLen);
@@ -1277,19 +1274,14 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return ret;
     }
 
-    i = 0;
-    idx = hLen + 1;
-    while (idx < pkcsBlockLen && (word32)i < (pkcsBlockLen - hLen -1)) {
-        pkcsBlock[idx] = dbMask[i++] ^ pkcsBlock[idx];
-        idx++;
-    }
+    xorbuf(pkcsBlock + hLen + 1, dbMask,pkcsBlockLen - hLen - 1);
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(dbMask, heap, DYNAMIC_TYPE_RSA);
 #endif
 
     /* create maskedSeed from seedMask */
-    idx = 0;
-    pkcsBlock[idx++] = 0x00;
+    pkcsBlock[0] = 0x00;
     /* create seedMask inline */
     if ((ret = RsaMGF(mgf, pkcsBlock + hLen + 1, pkcsBlockLen - hLen - 1,
                                            pkcsBlock + 1, hLen, heap)) != 0) {
@@ -1301,11 +1293,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
 
     /* xor created seedMask with seed to make maskedSeed */
-    i = 0;
-    while (idx < (hLen + 1) && i < (int)hLen) {
-        pkcsBlock[idx] = pkcsBlock[idx] ^ seed[i++];
-        idx++;
-    }
+    xorbuf(pkcsBlock + 1, seed, hLen);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     /* Seed must be zeroized now that it has been used. */
     wc_MemZero_Add("Pad OAEP seed", seed, hLen);
@@ -1349,7 +1337,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         int saltLen, int bits, void* heap)
 {
     int   ret = 0;
-    int   hLen, i, o, maskLen, hiBits;
+    int   hLen, o, maskLen, hiBits;
     byte* m;
     byte* s;
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -1485,9 +1473,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
         m = pkcsBlock + maskLen - saltLen - 1;
         *(m++) ^= 0x01;
-        for (i = 0; i < saltLen; i++) {
-            m[i] ^= salt[o + i];
-        }
+        xorbuf(m, salt + o, saltLen);
     }
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
@@ -1681,9 +1667,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
     /* xor seedMask value with maskedSeed to get seed value */
-    for (idx = 0; idx < (word32)hLen; idx++) {
-        tmp[idx] = tmp[idx] ^ pkcsBlock[1 + idx];
-    }
+    xorbuf(tmp, pkcsBlock + 1, hLen);
 
     /* get dbMask value */
     if ((ret = RsaMGF(mgf, tmp, hLen, tmp + hLen,
@@ -1698,9 +1682,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
     /* get DB value by doing maskedDB xor dbMask */
-    for (idx = 0; idx < (pkcsBlockLen - hLen - 1); idx++) {
-        pkcsBlock[hLen + 1 + idx] = pkcsBlock[hLen + 1 + idx] ^ tmp[idx + hLen];
-    }
+    xorbuf(pkcsBlock + hLen + 1, tmp + hLen, pkcsBlockLen - hLen - 1);
 
     ForceZero(tmp, pkcsBlockLen);
 #ifdef WOLFSSL_SMALL_STACK
@@ -1873,8 +1855,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
             return PSS_SALTLEN_E;
         }
     }
-    for (i++; i < maskLen; i++)
-        pkcsBlock[i] ^= tmp[i];
+    xorbuf(pkcsBlock + i, tmp + i, maskLen - i);
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
     XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
