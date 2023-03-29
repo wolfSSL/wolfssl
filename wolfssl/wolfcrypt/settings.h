@@ -2342,7 +2342,10 @@ extern void uITRON4_free(void *p) ;
 #ifndef WC_ASYNC_DEV_SIZE
     #define WC_ASYNC_DEV_SIZE 0
 #endif
-
+#ifdef HAVE_INTEL_QA /* Disable SHA512/224 and SHA512/256 support for QAT */
+    #define WOLFSSL_NOSHA512_224
+    #define WOLFSSL_NOSHA512_256
+#endif
 /* leantls checks */
 #ifdef WOLFSSL_LEANTLS
     #ifndef HAVE_ECC
