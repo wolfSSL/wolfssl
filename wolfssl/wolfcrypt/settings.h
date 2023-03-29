@@ -2023,7 +2023,8 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
     #else
-        #ifdef WOLFSSL_HARDEN_TLS
+        #if defined(WOLFSSL_HARDEN_TLS) && \
+            !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
             /* Using guidance from section 5.6.1
              * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
             #if WOLFSSL_HARDEN_TLS >= 128
@@ -2040,7 +2041,8 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(WOLFSSL_HARDEN_TLS) && ECC_MIN_KEY_SZ < 224
+#if defined(WOLFSSL_HARDEN_TLS) && ECC_MIN_KEY_SZ < 224 && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
     /* Implementations MUST NOT negotiate cipher suites offering less than
      * 112 bits of security.
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
@@ -2989,14 +2991,14 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef WOLFSSL_HARDEN_TLS
-    #ifdef HAVE_TRUNCATED_HMAC
+    #if defined(HAVE_TRUNCATED_HMAC) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC)
         #error "Truncated HMAC Extension not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.6"
     #endif
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS)
         #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
     #endif
     #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_SECURE_RENEGOTIATION) && \
-        !defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        !defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
         #error "TLS 1.2 requires at least HAVE_SERVER_RENEGOTIATION_INFO to send the secure renegotiation extension https://www.rfc-editor.org/rfc/rfc9325#section-3.5"
     #endif
     #if !defined(WOLFSSL_EXTRA_ALERTS) || !defined(WOLFSSL_CHECK_ALERT_ON_ERR)

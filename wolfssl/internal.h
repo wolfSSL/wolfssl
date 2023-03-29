@@ -304,11 +304,15 @@
     #undef HAVE_AES_CBC
 #endif
 
-    /* When adding new ciphersuites, make sure that they have appropriate
-     * guards for WOLFSSL_HARDEN_TLS. */
+/* When adding new ciphersuites, make sure that they have appropriate
+ * guards for WOLFSSL_HARDEN_TLS. */
+#ifndef WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES
+/* Use a separate define (undef'ed later) to simplify macro logic. */
+#define WSSL_HARDEN_TLS WOLFSSL_HARDEN_TLS
+#endif
 
 #ifndef WOLFSSL_AEAD_ONLY
-    #if !defined(NO_RSA) && !defined(NO_RC4) && !defined(WOLFSSL_HARDEN_TLS)
+    #if !defined(NO_RSA) && !defined(NO_RC4) && !defined(WSSL_HARDEN_TLS)
         /* MUST NOT negotiate RC4 cipher suites
          * https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
         #if defined(WOLFSSL_STATIC_RSA)
@@ -381,7 +385,7 @@
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
             #endif
           #endif
-            #if !defined(NO_DH) && !defined(WOLFSSL_HARDEN_TLS)
+            #if !defined(NO_DH) && !defined(WSSL_HARDEN_TLS)
               /* SHOULD NOT negotiate cipher suites based on ephemeral
                * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
                * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -466,7 +470,7 @@
     #endif
 
     #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-        !defined(NO_RSA) && !defined(WOLFSSL_HARDEN_TLS)
+        !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -504,7 +508,7 @@
     #endif
 
     #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-        !defined(WOLFSSL_HARDEN_TLS)
+        !defined(WSSL_HARDEN_TLS)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -634,7 +638,7 @@
                 #endif
             #endif
         #endif /* NO_AES */
-        #if !defined(NO_RC4) && !defined(WOLFSSL_HARDEN_TLS)
+        #if !defined(NO_RC4) && !defined(WSSL_HARDEN_TLS)
             /* MUST NOT negotiate RC4 cipher suites
              * https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
             #if !defined(NO_SHA)
@@ -659,8 +663,8 @@
                 #endif
             #endif
         #endif
-        #if !defined(NO_DES3) && !(defined(WOLFSSL_HARDEN_TLS) && \
-                                           WOLFSSL_HARDEN_TLS > 112)
+        #if !defined(NO_DES3) && !(defined(WSSL_HARDEN_TLS) && \
+                                           WSSL_HARDEN_TLS > 112)
             /* 3DES offers only 112 bits of security.
              * Using guidance from section 5.6.1
              * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
@@ -713,7 +717,7 @@
         #if !defined(NO_RSA) && defined(HAVE_ECC)
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
-        #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WOLFSSL_HARDEN_TLS)
+        #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
             /* SHOULD NOT negotiate cipher suites based on ephemeral
              * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
              * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -726,7 +730,7 @@
                                                              defined(HAVE_ED448)
                 #define BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
             #endif
-            #if !defined(NO_DH) && !defined(WOLFSSL_HARDEN_TLS)
+            #if !defined(NO_DH) && !defined(WSSL_HARDEN_TLS)
                 /* SHOULD NOT negotiate cipher suites based on ephemeral
                  * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
                  * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -738,7 +742,7 @@
 #endif /* !WOLFSSL_MAX_STRENGTH */
 
 #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-    !defined(NO_RSA) && defined(HAVE_AESGCM) && !defined(WOLFSSL_HARDEN_TLS)
+    !defined(NO_RSA) && defined(HAVE_AESGCM) && !defined(WSSL_HARDEN_TLS)
     /* SHOULD NOT negotiate cipher suites based on ephemeral
      * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
      * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -753,7 +757,7 @@
 #endif
 
 #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-    !defined(WOLFSSL_HARDEN_TLS)
+    !defined(WSSL_HARDEN_TLS)
     /* SHOULD NOT negotiate cipher suites based on ephemeral
      * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
      * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -826,7 +830,7 @@
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
         #endif
     #endif
-    #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WOLFSSL_HARDEN_TLS)
+    #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -949,7 +953,7 @@
     #define BUILD_AES
 #endif
 
-#if !defined(NO_RC4) && !defined(WOLFSSL_HARDEN_TLS)
+#if !defined(NO_RC4) && !defined(WSSL_HARDEN_TLS)
     /* MUST NOT negotiate RC4 cipher suites
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
     #undef  BUILD_ARC4
@@ -976,7 +980,7 @@
     #define HAVE_PFS
 #endif
 
-#ifdef WOLFSSL_HARDEN_TLS
+#ifdef WSSL_HARDEN_TLS
     #ifdef HAVE_NULL_CIPHER
         #error "NULL ciphers not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.1"
     #endif
@@ -990,6 +994,8 @@
         #error "At least the server side has to be authenticated"
     #endif
 #endif
+
+#undef WSSL_HARDEN_TLS
 
 /* actual cipher values, 2nd byte */
 enum {
@@ -1177,7 +1183,7 @@ enum {
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
-    #ifdef WOLFSSL_HARDEN_TLS
+    #if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
         /* Using guidance from section 5.6.1
          * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
         #if WOLFSSL_HARDEN_TLS >= 128
@@ -1191,7 +1197,8 @@ enum {
         #define WOLFSSL_MIN_DHKEY_BITS 1024
     #endif
 #endif
-#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 2048
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 2048 && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
     /* Implementations MUST NOT negotiate cipher suites offering less than
      * 112 bits of security.
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
@@ -1825,7 +1832,7 @@ enum Misc {
 
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
-    #ifdef WOLFSSL_HARDEN_TLS
+    #if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
         /* Using guidance from section 5.6.1
          * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
         #if WOLFSSL_HARDEN_TLS >= 128
@@ -1839,7 +1846,8 @@ enum Misc {
         #define WOLFSSL_MIN_RSA_BITS 1024
     #endif
 #endif /* WOLFSSL_MIN_RSA_BITS */
-#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_RSA_BITS < 2048
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_RSA_BITS < 2048 && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
     /* Implementations MUST NOT negotiate cipher suites offering less than
      * 112 bits of security.
      * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
