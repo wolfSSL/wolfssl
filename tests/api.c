@@ -61981,6 +61981,10 @@ static int test_openssl_FIPS_drbg(void)
     AssertIntNE(XMEMCMP(data1, zeroData, dlen), 0);
     AssertIntNE(XMEMCMP(data1, data2, dlen), 0);
     AssertIntEQ(FIPS_drbg_uninstantiate(dctx), WOLFSSL_SUCCESS);
+#ifndef HAVE_GLOBAL_RNG
+    /* gets freed by wolfSSL_Cleanup() when HAVE_GLOBAL_RNG defined */
+    wolfSSL_FIPS_drbg_free(dctx);
+#endif
 
     res = TEST_RES_CHECK(1);
 #endif

@@ -4954,7 +4954,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
 #endif /* !WOLFSSL_NOSHA512_224 */
 
-#ifndef WOLFSSL_NOSHA512_224
+#ifndef WOLFSSL_NOSHA512_256
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512_256(void)
     {
         WOLFSSL_ENTER("EVP_sha512_256");
