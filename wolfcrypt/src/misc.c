@@ -599,7 +599,7 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
 {
     int i;
     for (i = 0; i < size; ++i) {
-        *(dst + i) ^= (*(dst + i) ^ *(src + i)) & mask;
+        dst[i] ^= (dst[i] ^ src[i]) & mask;
     }
 }
 
