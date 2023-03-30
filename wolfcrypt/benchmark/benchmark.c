@@ -63,6 +63,7 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifdef WOLFSSL_ESPIDF
     #include <xtensa/hal.h> /* reminder Espressif RISC-V not yet implemented */
@@ -2841,6 +2842,10 @@ int benchmark_init(void)
         printf("%swolfCrypt_Init failed %d\n", err_prefix, ret);
         return EXIT_FAILURE;
     }
+
+#ifdef HAVE_WC_INTROSPECTION
+    printf("Math: %s\n", wc_GetMathInfo());
+#endif
 
 #ifdef WOLFSSL_SECO_CAAM
     if (wc_SECO_OpenHSM(SECO_KEY_STORE_ID,

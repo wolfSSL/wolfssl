@@ -1468,6 +1468,19 @@ typedef struct w64wrapper {
     #endif
 
 
+    /* opaque math variable type */
+    #if defined(USE_FAST_MATH)
+        struct fp_int;
+        #define MATH_INT_T struct fp_int
+    #elif defined(USE_INTEGER_HEAP_MATH)
+        struct mp_int;
+        #define MATH_INT_T struct mp_int
+    #else
+        struct sp_int;
+        #define MATH_INT_T struct sp_int
+    #endif
+
+
     #ifdef __cplusplus
         }   /* extern "C" */
     #endif

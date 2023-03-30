@@ -24,6 +24,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -152,19 +153,6 @@ WOLFSSL_LOCAL void se050_aes_free(struct Aes* aes);
 #endif
 
 struct WC_RNG;
-#ifdef HAVE_ECC
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    struct sp_int;
-    #define MATH_INT_T struct sp_int
-    typedef struct sp_int mp_int;
-#elif defined(USE_FAST_MATH)
-    struct fp_int;
-    #define MATH_INT_T struct fp_int
-    typedef struct fp_int mp_int;
-#else
-    struct mp_int;
-	#define MATH_INT_T struct mp_int
-#endif
 struct ecc_key;
 
 WOLFSSL_LOCAL int se050_ecc_use_key_id(struct ecc_key* key, word32 keyId);
