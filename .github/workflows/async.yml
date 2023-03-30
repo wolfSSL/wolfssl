@@ -1,0 +1,25 @@
+name: Async Tests
+
+on:
+  workflow_call:
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-asynccrypt --enable-all --enable-dtls13',
+        ]
+    name: make check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL async
+        run: |
+          bash -e async-check.sh keep # this step already tests the basic config
+          ./configure ${{ matrix.config }}
+          make check
+

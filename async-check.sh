@@ -19,7 +19,7 @@ function Usage() {
     printf '%s\n\n' "---------------------------------"
 }
 
-ASYNC_REPO=git@github.com:wolfSSL/wolfAsyncCrypt.git
+ASYNC_REPO=https://github.com/wolfSSL/wolfAsyncCrypt.git
 #ASYNC_REPO=../wolfAsyncCrypt
 
 # Optionally keep async files
@@ -40,15 +40,25 @@ fi
 
 
 # link files
+rm ./wolfcrypt/src/async.c
 ln -s -F ../../async/wolfcrypt/src/async.c ./wolfcrypt/src/async.c
+rm ./wolfssl/wolfcrypt/async.h
 ln -s -F ../../async/wolfssl/wolfcrypt/async.h ./wolfssl/wolfcrypt/async.h
+rm ./wolfcrypt/src/port/intel/quickassist.c
 ln -s -F ../../../../async/wolfcrypt/src/port/intel/quickassist.c ./wolfcrypt/src/port/intel/quickassist.c
+rm ./wolfcrypt/src/port/intel/quickassist_mem.c
 ln -s -F ../../../../async/wolfcrypt/src/port/intel/quickassist_mem.c ./wolfcrypt/src/port/intel/quickassist_mem.c
+rm ./wolfcrypt/src/port/intel/README.md
 ln -s -F ../../../../async/wolfcrypt/src/port/intel/README.md ./wolfcrypt/src/port/intel/README.md
+rm ./wolfssl/wolfcrypt/port/intel/quickassist.h
 ln -s -F ../../../../async/wolfssl/wolfcrypt/port/intel/quickassist.h ./wolfssl/wolfcrypt/port/intel/quickassist.h
+rm ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
 ln -s -F ../../../../async/wolfssl/wolfcrypt/port/intel/quickassist_mem.h ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+rm ./wolfcrypt/src/port/cavium/cavium_nitrox.c
 ln -s -F ../../../../async/wolfcrypt/src/port/cavium/cavium_nitrox.c ./wolfcrypt/src/port/cavium/cavium_nitrox.c
+rm ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 ln -s -F ../../../../async/wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+rm ./wolfcrypt/src/port/cavium/README.md
 ln -s -F ../../../../async/wolfcrypt/src/port/cavium/README.md ./wolfcrypt/src/port/cavium/README.md
 
 
@@ -58,7 +68,6 @@ make check
 
 
 # Clean up
-popd
 if [ "x$KEEP" == "xno" ];
 then
     unlink ./wolfcrypt/src/async.c
