@@ -139,7 +139,7 @@
     /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef SINGLE_THREADED
-        #include <kernel.h>
+        #include <zephyr/kernel.h>
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
 
@@ -508,7 +508,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS(b,s,f) -2 /* Not ported yet */
 
 #elif defined(WOLFSSL_ZEPHYR)
-    #include <fs/fs.h>
+    #include <zephyr/fs/fs.h>
 
     #define XFILE      struct fs_file_t*
     #define STAT       struct fs_dirent
@@ -913,7 +913,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef _POSIX_C_SOURCE
-        #include <posix/time.h>
+        #include <zephyr/posix/time.h>
     #else
         #include <sys/time.h>
     #endif

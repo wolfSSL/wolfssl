@@ -140,7 +140,7 @@
 #elif defined(WOLFSSL_ZEPHYR)
     #include <string.h>
     #include <sys/types.h>
-    #include <net/socket.h>
+    #include <zephyr/net/socket.h>
     #define SOCKET_T int
     #define SOL_SOCKET 1
     #define WOLFSSL_USE_GETADDRINFO

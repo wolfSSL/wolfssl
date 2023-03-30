@@ -194,7 +194,7 @@
     #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef SINGLE_THREADED
-        #include <kernel.h>
+        #include <zephyr/kernel.h>
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
     /* do nothing */
