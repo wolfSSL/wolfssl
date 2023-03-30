@@ -306,7 +306,8 @@
 
 /* When adding new ciphersuites, make sure that they have appropriate
  * guards for WOLFSSL_HARDEN_TLS. */
-#ifndef WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES
+#if defined(WOLFSSL_HARDEN_TLS) && \
+    !defined(WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES)
 /* Use a separate define (undef'ed later) to simplify macro logic. */
 #define WSSL_HARDEN_TLS WOLFSSL_HARDEN_TLS
 #endif
