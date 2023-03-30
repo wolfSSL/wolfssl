@@ -310,6 +310,7 @@
     !defined(WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES)
 /* Use a separate define (undef'ed later) to simplify macro logic. */
 #define WSSL_HARDEN_TLS WOLFSSL_HARDEN_TLS
+#define NO_TLS_DH
 #endif
 
 #ifndef WOLFSSL_AEAD_ONLY
@@ -386,7 +387,7 @@
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
             #endif
           #endif
-            #if !defined(NO_DH) && !defined(WSSL_HARDEN_TLS)
+            #if !defined(NO_DH) && !defined(NO_TLS_DH)
               /* SHOULD NOT negotiate cipher suites based on ephemeral
                * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
                * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -471,7 +472,7 @@
     #endif
 
     #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-        !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
+        !defined(NO_RSA) && !defined(NO_TLS_DH)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -509,7 +510,7 @@
     #endif
 
     #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-        !defined(WSSL_HARDEN_TLS)
+        !defined(NO_TLS_DH)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -718,7 +719,7 @@
         #if !defined(NO_RSA) && defined(HAVE_ECC)
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
-        #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
+        #if !defined(NO_DH) && !defined(NO_RSA) && !defined(NO_TLS_DH)
             /* SHOULD NOT negotiate cipher suites based on ephemeral
              * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
              * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -731,7 +732,7 @@
                                                              defined(HAVE_ED448)
                 #define BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
             #endif
-            #if !defined(NO_DH) && !defined(WSSL_HARDEN_TLS)
+            #if !defined(NO_DH) && !defined(NO_TLS_DH)
                 /* SHOULD NOT negotiate cipher suites based on ephemeral
                  * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
                  * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -743,7 +744,7 @@
 #endif /* !WOLFSSL_MAX_STRENGTH */
 
 #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-    !defined(NO_RSA) && defined(HAVE_AESGCM) && !defined(WSSL_HARDEN_TLS)
+    !defined(NO_RSA) && defined(HAVE_AESGCM) && !defined(NO_TLS_DH)
     /* SHOULD NOT negotiate cipher suites based on ephemeral
      * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
      * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -758,7 +759,7 @@
 #endif
 
 #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-    !defined(WSSL_HARDEN_TLS)
+    !defined(NO_TLS_DH)
     /* SHOULD NOT negotiate cipher suites based on ephemeral
      * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
      * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -831,7 +832,7 @@
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
         #endif
     #endif
-    #if !defined(NO_DH) && !defined(NO_RSA) && !defined(WSSL_HARDEN_TLS)
+    #if !defined(NO_DH) && !defined(NO_RSA) && !defined(NO_TLS_DH)
         /* SHOULD NOT negotiate cipher suites based on ephemeral
          * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
          * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */

@@ -81,7 +81,7 @@
  *     https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
  * WOLFSSL_HARDEN_TLS
  *     Implement the recommendations specified in RFC9325. This macro needs to
- *     be defined to the desired amount of bits of security. The currently
+ *     be defined to the desired number of bits of security. The currently
  *     implemented values are 112 and 128 bits. The following macros disable
  *     certain checks.
  *     - WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC
