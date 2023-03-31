@@ -2364,7 +2364,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
     }
     /* Handle 0 length data separately. */
     else if (s->length == 0) {
-        ret = XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ret = (char *)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (ret != NULL) {
             ret[0] = '\0';
         }
