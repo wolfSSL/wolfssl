@@ -190,6 +190,7 @@ set(COMPONENT_SRCEXCLUDE
     "${WOLFSSL_ROOT}/src/conf.c"
     "${WOLFSSL_ROOT}/src/misc.c"
     "${WOLFSSL_ROOT}/src/pk.c"
+    "${WOLFSSL_ROOT}/src/ssl_bn.c" # included by ssl.c
     "${WOLFSSL_ROOT}/src/ssl_misc.c" # included by ssl.c
     "${WOLFSSL_ROOT}/src/x509.c"
     "${WOLFSSL_ROOT}/src/x509_str.c"

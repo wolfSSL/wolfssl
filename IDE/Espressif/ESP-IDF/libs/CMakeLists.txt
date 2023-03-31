@@ -71,6 +71,7 @@ set(COMPONENT_SRCEXCLUDE
     "./src/conf.c"
     "./src/misc.c"
     "./src/pk.c"
+    "./src/ssl_bn.c" # included by ssl.c
     "./src/ssl_misc.c" # included by ssl.c
     "./src/x509.c"
     "./src/x509_str.c"
