@@ -40,6 +40,8 @@
  * ASN1_item APIs
  ******************************************************************************/
 
+#ifndef NO_ASN
+
 #ifdef OPENSSL_EXTRA
 
 #ifdef OPENSSL_ALL
@@ -2362,7 +2364,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
     }
     /* Handle 0 length data separately. */
     else if (s->length == 0) {
-        ret = XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ret = (char *)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (ret != NULL) {
             ret[0] = '\0';
         }
@@ -4021,6 +4023,8 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 }
 
 #endif /* OPENSSL_ALL || WOLFSSL_WPAS */
+
+#endif /* !NO_ASN */
 
 #endif /* !WOLFSSL_SSL_ASN1_INCLUDED */
 

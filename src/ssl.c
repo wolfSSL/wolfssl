@@ -150,9 +150,6 @@
     int wolfssl_bn_get_value(WOLFSSL_BIGNUM* bn, mp_int* mpi);
     int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi);
 #endif
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
-    static int wolfssl_bn_set_neg(WOLFSSL_BIGNUM* bn, int n);
-#endif
 
 #if defined(WOLFSSL_QT)
     #include <wolfssl/wolfcrypt/sha.h>
@@ -210,11 +207,6 @@
 
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
-
-#ifndef OPENSSL_EXTRA_NO_ASN1
-#define WOLFSSL_SSL_ASN1_INCLUDED
-#include "src/ssl_asn1.c"
-#endif /* OPENSSL_EXTRA_NO_ASN1 */
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
@@ -415,6 +407,11 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 
 #define WOLFSSL_SSL_BN_INCLUDED
 #include "src/ssl_bn.c"
+
+#ifndef OPENSSL_EXTRA_NO_ASN1
+#define WOLFSSL_SSL_ASN1_INCLUDED
+#include "src/ssl_asn1.c"
+#endif /* OPENSSL_EXTRA_NO_ASN1 */
 
 #define WOLFSSL_PK_INCLUDED
 #include "src/pk.c"
