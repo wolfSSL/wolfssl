@@ -19,7 +19,7 @@ jobs:
 
       - name: Test wolfSSL async
         run: |
-          bash -e async-check.sh keep # this step already tests the basic config
+          ./async-check.sh setup
           ./configure ${{ matrix.config }}
           make check
 
