@@ -40,6 +40,8 @@
  * ASN1_item APIs
  ******************************************************************************/
 
+#ifndef NO_ASN
+
 #ifdef OPENSSL_EXTRA
 
 #ifdef OPENSSL_ALL
@@ -4021,6 +4023,8 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 }
 
 #endif /* OPENSSL_ALL || WOLFSSL_WPAS */
+
+#endif /* !NO_ASN */
 
 #endif /* !WOLFSSL_SSL_ASN1_INCLUDED */
 
