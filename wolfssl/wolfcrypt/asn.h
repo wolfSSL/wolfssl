@@ -686,7 +686,7 @@ enum DN_Tags {
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
-    ASN_FAVOURITE_DRINK  = 0x05, /* favouriteDrink */
+    ASN_FAVOURITE_DRINK  = 0x13, /* favouriteDrink */
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
