@@ -43,6 +43,13 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hpke.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 const int hpkeSupportedKem[HPKE_SUPPORTED_KEM_LEN] = {
     DHKEM_P256_HKDF_SHA256,
     DHKEM_P384_HKDF_SHA384,
@@ -581,7 +588,6 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context,
     byte* out)
 {
-    int i;
     int ret;
     byte seq_bytes[HPKE_Nn_MAX];
 
@@ -589,9 +595,7 @@ static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context,
      * nonce */
     ret = I2OSP(context->seq, hpke->Nn, seq_bytes);
     if (ret == 0) {
-        for (i = 0; i < (int)hpke->Nn; i++) {
-            out[i] = (context->base_nonce[i] ^ seq_bytes[i]);
-        }
+        xorbufout(out, context->base_nonce, seq_bytes, hpke->Nn);
     }
 
     return ret;
