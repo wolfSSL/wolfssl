@@ -18882,7 +18882,7 @@ exit:
         #endif
                ) {
             ASNGetData dataASN[policyInfoASN_Length];
-            byte* data;
+            byte* data = NULL;
             word32 length = 0;
 
             /* Clear dynamic data and check OID is a cert policy type. */
@@ -20002,7 +20002,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Check parameters starting with a SEQUENCE. */
         else if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
             word32 oid = dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum;
-            word32 sigAlgParamsSz;
+            word32 sigAlgParamsSz = 0;
 
             /* Parameters only with RSA PSS. */
             if (oid != CTC_RSASSAPSS) {
@@ -29050,9 +29050,9 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     return ret;
 #else
     DECL_ASNSETDATA(dataASN, certReqBodyASN_Length);
-    word32 publicKeySz;
+    word32 publicKeySz = 0;
     word32 subjectSz = 0;
-    word32 extSz;
+    word32 extSz = 0;
     int sz = 0;
     int ret = 0;
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)

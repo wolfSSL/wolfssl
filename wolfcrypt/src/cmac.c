@@ -237,6 +237,10 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         subKey = cmac->k1;
     }
     else {
+        /* ensure we will have a valid remainder value */
+        if (cmac->bufferSz > AES_BLOCK_SIZE) {
+            return BAD_STATE_E;
+        }
         word32 remainder = AES_BLOCK_SIZE - cmac->bufferSz;
 
         if (remainder == 0) {
@@ -245,6 +249,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         if (remainder > 1) {
             XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0, remainder);
         }
+
         cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
         subKey = cmac->k2;
     }

@@ -450,7 +450,12 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    local = (byte*)md5->buffer;
+    local = (byte*)md5->buffer; /* buffer allocated in word32 size */
+
+    /* ensure we have a valid buffer length; (-1 to append a byte to length) */
+    if (md5->buffLen > WC_MD5_BLOCK_SIZE - 1) {
+        return BUFFER_E;
+    }
 
     local[md5->buffLen++] = 0x80;  /* add 1 */
 
