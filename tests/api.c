@@ -7568,7 +7568,7 @@ static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
     return the new session object
     */
     fprintf(stderr, "get_session_called %d\n", ++get_session_called);
-    *ref = 1;
+    *ref = 0;
 
     for(i = 0; i < SESSION_CACHE_SIZE; i++) {
         if(server_sessionCache.entries[i].key != NULL &&
@@ -7697,7 +7697,7 @@ static void twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
     WOLFSSL_SESSION** sess;
     sess = &twcase_client_first_session_ptr;
     if (*sess == NULL) {
-        AssertNotNull(*sess = wolfSSL_get_session(ssl));
+        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
     }
     else {
         /* If we have a session retrieved then remaining connections should be
@@ -7725,6 +7725,8 @@ static void twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
 static void twcase_client_set_sess_ssl_ready(WOLFSSL* ssl)
 {
     /* Set the session to reuse for the client */
+    AssertNotNull(ssl);
+    AssertNotNull(twcase_client_first_session_ptr);
     AssertIntEQ(wolfSSL_set_session(ssl,twcase_client_first_session_ptr),
                 WOLFSSL_SUCCESS);
 }

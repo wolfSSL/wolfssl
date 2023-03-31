@@ -14649,9 +14649,6 @@ static int SslSessionCacheOff(const WOLFSSL* ssl, const WOLFSSL_SESSION* session
     #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_FORCE_CACHE_ON_TICKET)
                 && session->ticketLen == 0
     #endif
-    #ifdef OPENSSL_EXTRA
-                && ssl->options.side != WOLFSSL_CLIENT_END
-    #endif
                 ;
 }
 
@@ -15076,17 +15073,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         return WOLFSSL_FAILURE;
     }
 
-    if (session->type == WOLFSSL_SESSION_TYPE_CACHE) {
-        if (session->cacheRow < SESSION_ROWS) {
-            sessRow = &SessionCache[session->cacheRow];
-            if (SESSION_ROW_RD_LOCK(sessRow) != 0) {
-                WOLFSSL_MSG("Session row lock failed");
-                return WOLFSSL_FAILURE;
-            }
-        }
-    }
-
-    if (ret == WOLFSSL_SUCCESS && SslSessionCacheOff(ssl, session)) {
+    if (SslSessionCacheOff(ssl, session)) {
         WOLFSSL_MSG("Session cache off");
         ret = WOLFSSL_FAILURE;
     }
@@ -15096,8 +15083,16 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         WOLFSSL_MSG("Setting session for wrong role");
         ret = WOLFSSL_FAILURE;
     }
-
     if (ret == WOLFSSL_SUCCESS) {
+        if (session->type == WOLFSSL_SESSION_TYPE_CACHE) {
+            if (session->cacheRow < SESSION_ROWS) {
+                sessRow = &SessionCache[session->cacheRow];
+                if (SESSION_ROW_RD_LOCK(sessRow) != 0) {
+                    WOLFSSL_MSG("Session row lock failed");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
 #ifdef HAVE_STUNNEL
         /* stunnel depends on the ex_data not being duplicated. Copy OpenSSL
          * behaviour for now. */
@@ -15382,6 +15377,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     int overwrite = 0;
 #ifdef HAVE_EX_DATA
     int rem_sess_cb_called = 0;
+    int free_session = 0;
 #endif
     (void)ctx;
     (void)sessionIndex;
@@ -15496,7 +15492,6 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     sessRow->Sessions[idx] = cacheSession;
 #else
     cacheSession = &sessRow->Sessions[idx];
-#endif
 
 #ifdef HAVE_EX_DATA
     if (cacheSession->ownExData) {
@@ -15510,9 +15505,10 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
             rem_sess_cb_called = 1;
         }
     }
+    cacheSession->type = WOLFSSL_SESSION_TYPE_CACHE;
 #endif
 
-    cacheSession->type = WOLFSSL_SESSION_TYPE_CACHE;
+#endif
     cacheSession->cacheRow = row;
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -15617,20 +15613,21 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
                (!cacheSession->ownExData && ctx->new_sess_cb != NULL)) {
                 /* Include it if previously removed for an update.
                  * Or include it if this is the initial session. */
-                wolfSSL_SESSION_up_ref(addSession);
                 cacheSession->ex_data = addSession->ex_data;
-                addSession->ownExData = 0;
-                cacheSession->ownExData = 1;
+                cacheSession->ownExData = addSession->ownExData ? 1 : 0;
                 ret = ctx->new_sess_cb(NULL, cacheSession);
                 if (ret == WOLFSSL_SUCCESS) {
                     ret = 0;  /* reset to wolfssl success */
                 }
+                else
+                    free_session = 1;
             }
         }
 #endif
     SESSION_ROW_UNLOCK(sessRow);
 #ifdef HAVE_EX_DATA
-    if (ret != 0 && rem_sess_cb_called) {
+    if (free_session && rem_sess_cb_called) {
+        cacheSession->ownExData = 0;
         wolfSSL_FreeSession(ctx, cacheSession);
     }
 #endif
@@ -15760,42 +15757,24 @@ void AddSession(WOLFSSL* ssl)
     }
     /* Setup done */
 
-    if (ssl->options.side == WOLFSSL_SERVER_END /* No point in adding a
-                                                 * client session */
-#ifdef HAVE_EXT_CACHE
-            && !ssl->options.internalCacheOff
-#endif
-            )
-    {
-        /* Try to add the session to internal cache and external cache
-        if a new_sess_cb is set. Its ok if we don't succeed. */
-        (void)AddSessionToCache(ssl->ctx, session, id, idSz,
+
+    /* Try to add the session to internal cache and external cache
+    if a new_sess_cb is set. Its ok if we don't succeed. */
+    (void)AddSessionToCache(ssl->ctx, session, id, idSz,
 #ifdef SESSION_INDEX
-                &ssl->sessionIndex,
+            &ssl->sessionIndex,
 #else
-                NULL,
+            NULL,
 #endif
-                ssl->options.side,
+            ssl->options.side,
 #ifdef HAVE_SESSION_TICKET
-                ssl->options.useTicket,
+            ssl->options.useTicket,
 #else
-                0,
+            0,
 #endif
-                NULL,
-                0);
-    }
-    else {
-#ifdef HAVE_EXT_CACHE
-        /* cache client session if a new_sess_cb is set. */
-        if (error == 0 && ssl->ctx->new_sess_cb != NULL) {
-            int cbRet = 0;
-            wolfSSL_SESSION_up_ref(session);
-            cbRet = ssl->ctx->new_sess_cb(ssl, session);
-            if (cbRet == 0)
-                wolfSSL_FreeSession(ssl->ctx, session);
-        }
-#endif
-    }
+            (ssl->options.side == WOLFSSL_CLIENT_END) ? &ssl->clientSession : NULL
+            ,
+            0);
 
 #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
     if (error == 0) {

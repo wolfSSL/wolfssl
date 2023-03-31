@@ -10025,10 +10025,6 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 #endif
     const byte* nonce;
     byte        nonceLength;
-#ifndef NO_SESSION_CACHE
-    const byte* id;
-    byte idSz;
-#endif
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_DO);
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
@@ -10125,17 +10121,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += length;
 
     #ifndef NO_SESSION_CACHE
-    AddSession(ssl);
-    if (!ssl->options.internalCacheOff) {
-        id = ssl->session->sessionID;
-        idSz = ssl->session->sessionIDSz;
-        if (ssl->session->haveAltSessionID) {
-            id = ssl->session->altSessionID;
-            idSz = ID_LEN;
-        }
-        AddSessionToCache(ssl->ctx, ssl->session, id, idSz, NULL,
-            ssl->session->side, 1, &ssl->clientSession, 0);
-    }
+    	AddSession(ssl);
     #endif
 
     /* Always encrypted. */
@@ -10392,7 +10378,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Only add to cache when support built in and when the ticket contains
      * an ID. Otherwise we have no way to actually retrieve the ticket from the
      * cache. */
-#if !defined(NO_SESSION_CACHE)
+#if !defined(NO_SESSION_CACHE) && defined(WOLFSSL_TICKET_HAVE_ID)
     AddSession(ssl);
 #endif
 
