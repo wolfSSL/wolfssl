@@ -39,9 +39,9 @@ function CleanUp() {
     unlink ./wolfcrypt/src/port/cavium/cavium_nitrox.c
     unlink ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
     unlink ./wolfcrypt/src/port/cavium/README.md
-    
+
     rm -rf ./async
-    
+
     # restore original README.md files
     git checkout -- wolfcrypt/src/port/cavium/README.md
     git checkout -- wolfcrypt/src/port/intel/README.md
