@@ -21,20 +21,18 @@
 #undef WOLFSSL_ESPIDF
 #undef WOLFSSL_ESPWROOM32
 #undef WOLFSSL_ESPWROOM32SE
-#undef WOLFSSL_ESPWROOM32
-#undef WOLFSSL_ESP8266
 
 #define WOLFSSL_ESPIDF
 
 /*
- * choose ONE of these Espressif chips to define:
+ * choose ONE of these Espressif chips to define for HW acceleration or
+ * leave all undefined for a non-accelerated build for other chips:
  *
  * WOLFSSL_ESPWROOM32
  * WOLFSSL_ESPWROOM32SE
- * WOLFSSL_ESP8266
  */
 
-#define WOLFSSL_ESPWROOM32
+/* #define WOLFSSL_ESPWROOM32 */
 
 /* #define DEBUG_WOLFSSL_VERBOSE */
 

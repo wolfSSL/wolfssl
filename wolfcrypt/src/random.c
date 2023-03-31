@@ -3391,53 +3391,29 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_ESPIDF)
 
     /* Espressif */
-    #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
+    #include <esp_idf_version.h>
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+	#include <esp_random.h>
+    #else
+	#include <esp_system.h>
+    #endif
 
-        /* Espressif ESP32 */
-        #include <esp_system.h>
-        #if defined(CONFIG_IDF_TARGET_ESP32S3)
-            #include <esp_random.h>
-        #endif
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+	word32 rand;
+	while (sz > 0) {
+	    word32 len = sizeof(rand);
+	    if (sz < len)
+		len = sz;
+	    /* Get one random 32-bit word from hw RNG */
+	    rand = esp_random( );
+	    XMEMCPY(output, &rand, len);
+	    output += len;
+	    sz -= len;
+	}
 
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            word32 rand;
-            while (sz > 0) {
-                word32 len = sizeof(rand);
-                if (sz < len)
-                    len = sz;
-                /* Get one random 32-bit word from hw RNG */
-                rand = esp_random( );
-                XMEMCPY(output, &rand, len);
-                output += len;
-                sz -= len;
-            }
-
-            return 0;
-        }
-
-    #elif defined(WOLFSSL_ESP8266)
-
-        /* Espressif ESP8266 */
-        #include <esp_system.h>
-
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            word32 rand;
-            while (sz > 0) {
-                word32 len = sizeof(rand);
-                if (sz < len)
-                    len = sz;
-                /* Get one random 32-bit word from hw RNG */
-                rand = esp_random( );
-                XMEMCPY(output, &rand, len);
-                output += len;
-                sz -= len;
-            }
-
-            return 0;
-        }
-    #endif /* end WOLFSSL_ESPWROOM32 */
+	return 0;
+    }
 
 #elif defined(WOLFSSL_LINUXKM)
     #include <linux/random.h>

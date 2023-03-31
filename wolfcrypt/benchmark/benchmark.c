@@ -66,7 +66,14 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifdef WOLFSSL_ESPIDF
-    #include <xtensa/hal.h> /* reminder Espressif RISC-V not yet implemented */
+    #include <esp_idf_version.h>
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
+	#include <hal/cpu_hal.h>
+    #else
+	#include <xtensa/hal.h>
+	#define cpu_hal_get_cycle_count() xthal_get_ccount()
+    #endif
+
     #include <esp_log.h>
 #endif
 
@@ -964,28 +971,28 @@ static const char* bench_desc_words[][15] = {
     static THREAD_LS_T word64 total_cycles;
 
     /* the return value */
-    static THREAD_LS_T word64 _xthal_get_ccount_ex = 0;
+    static THREAD_LS_T word64 _cpu_hal_get_cycle_count_ex = 0;
 
     /* the last value seen, adjusted for an overflow */
-    static THREAD_LS_T word64 _xthal_get_ccount_last = 0;
+    static THREAD_LS_T word64 _cpu_hal_get_cycle_count_last = 0;
 
     /* TAG for ESP_LOGx() */
     static const char* TAG = "wolfssl_benchmark";
 
     #define HAVE_GET_CYCLES
     #define INIT_CYCLE_COUNTER
-    static WC_INLINE word64 get_xtensa_cycles(void);
+    static WC_INLINE word64 get_esp_cpu_cycles(void);
 
-    /* WARNING the hal UINT xthal_get_ccount() quietly rolls over. */
-    #define BEGIN_ESP_CYCLES begin_cycles = (get_xtensa_cycles());
+    /* WARNING the hal UINT cpu_hal_get_cycle_count() quietly rolls over. */
+    #define BEGIN_ESP_CYCLES begin_cycles = (get_esp_cpu_cycles());
 
     /* since it rolls over, we have something that will tolerate one */
     #define END_ESP_CYCLES                                          \
         ESP_LOGV(TAG,"%llu - %llu",                                 \
-                     get_xtensa_cycles(),                           \
+                     get_esp_cpu_cycles(),                           \
                      begin_cycles                                   \
                 );                                                  \
-                total_cycles = (get_xtensa_cycles() - begin_cycles);
+                total_cycles = (get_esp_cpu_cycles() - begin_cycles);
 
     #define SHOW_ESP_CYCLES(b, n, s) \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
@@ -997,23 +1004,23 @@ static const char* bench_desc_words[][15] = {
               (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.6f,\n", \
               (float)total_cycles / (count*s))
 
-    /* xthal_get_ccount_ex() is a single-overflow-tolerant extension to
-    ** the Espressif `unsigned xthal_get_ccount()` which is known to overflow
-    ** at least once during full benchmark tests.
+    /* cpu_hal_get_cycle_count_ex() is a single-overflow-tolerant extension to
+    ** the Espressif `unsigned cpu_hal_get_cycle_count()` which is known to
+    ** overflow at least once during full benchmark tests.
     */
-    word64 xthal_get_ccount_ex()
+    word64 cpu_hal_get_cycle_count_ex()
     {
         /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
 
         /* the currently observed clock counter value */
-        word64 thisVal = xthal_get_ccount();
+        word64 thisVal = cpu_hal_get_cycle_count();
 
         /* if the current value is less than the previous value,
         ** we likely overflowed at least once.
         */
-        if (thisVal < _xthal_get_ccount_last)
+        if (thisVal < _cpu_hal_get_cycle_count_last)
         {
-            /* Warning: we assume the return type of xthal_get_ccount()
+            /* Warning: we assume the return type of cpu_hal_get_cycle_count()
             ** will always be unsigned int to add UINT_MAX.
             **
             ** NOTE for long duration between calls with multiple overflows:
@@ -1022,21 +1029,21 @@ static const char* bench_desc_words[][15] = {
             **
             ** At this time no single test overflows. This is currently only a
             ** concern for cumulative counts over multiple tests. As long
-            ** as well call xthal_get_ccount_ex() with no more than one
+            ** as well call cpu_hal_get_cycle_count_ex() with no more than one
             ** overflow CPU tick count, all will be well.
             */
-            ESP_LOGV(TAG, "Alert: Detected xthal_get_ccount overflow, "
+            ESP_LOGV(TAG, "Alert: Detected cpu_hal_get_cyclecount overflow, "
                           "adding %ull", UINT_MAX);
             thisVal += (word64)UINT_MAX;
         }
 
         /* adjust our actual returned value that takes into account overflow */
-        _xthal_get_ccount_ex += (thisVal - _xthal_get_ccount_last);
+        _cpu_hal_get_cycle_count_ex += (thisVal - _cpu_hal_get_cycle_count_last);
 
         /* all of this took some time, so reset the "last seen" value */
-        _xthal_get_ccount_last = xthal_get_ccount();
+        _cpu_hal_get_cycle_count_last = cpu_hal_get_cycle_count();
 
-        return _xthal_get_ccount_ex;
+        return _cpu_hal_get_cycle_count_ex;
     }
 
 /* implement other architecture cycle counters here */
@@ -8887,9 +8894,9 @@ void bench_sphincsKeySign(byte level, byte optim)
 #if defined(HAVE_GET_CYCLES)
 
     #if defined(WOLFSSL_ESPIDF)
-        static WC_INLINE word64 get_xtensa_cycles(void)
+        static WC_INLINE word64 get_esp_cpu_cycles(void)
         {
-            return xthal_get_ccount_ex();
+            return cpu_hal_get_cycle_count_ex();
         }
 
     /* implement other architectures here */
