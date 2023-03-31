@@ -6136,9 +6136,7 @@ static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, int idx,
         i = 0;
     }
     o = i;
-    for (; i < hashSz; i++) {
-        out[idx + i - o] ^= v[i];
-    }
+    xorbuf(out + idx + i - o, v + i, hashSz - i);
 }
 
 /*
