@@ -7481,15 +7481,15 @@ WOLFSSL_TEST_SUBROUTINE int des3_test(void)
 
         /* Use i as the splitter */
         XMEMCPY(iv4, iv3, sizeof(DES_cblock));
-        DES_ede3_cbc_encrypt(vector, cipher, i, &ks1, &ks2, &ks3,
+        DES_ede3_cbc_encrypt(vector, cipher, (long)i, &ks1, &ks2, &ks3,
                 &iv4, DES_ENCRYPT);
-        DES_ede3_cbc_encrypt(vector + i, cipher + i, sizeof(vector) - i, &ks1,
-                &ks2, &ks3, &iv4, DES_ENCRYPT);
+        DES_ede3_cbc_encrypt(vector + i, cipher + i, (long)(sizeof(vector) - i),
+                &ks1, &ks2, &ks3, &iv4, DES_ENCRYPT);
         XMEMCPY(iv4, iv3, sizeof(DES_cblock));
-        DES_ede3_cbc_encrypt(cipher, plain, i, &ks1, &ks2, &ks3,
+        DES_ede3_cbc_encrypt(cipher, plain, (long)i, &ks1, &ks2, &ks3,
                 &iv4, DES_DECRYPT);
-        DES_ede3_cbc_encrypt(cipher + i, plain + i, sizeof(cipher) - i, &ks1,
-                &ks2, &ks3, &iv4, DES_DECRYPT);
+        DES_ede3_cbc_encrypt(cipher + i, plain + i, (long)(sizeof(cipher) - i),
+                &ks1, &ks2, &ks3, &iv4, DES_DECRYPT);
 
         if (XMEMCMP(plain, vector, sizeof(plain)))
             return WC_TEST_RET_ENC_NC;
