@@ -31442,6 +31442,7 @@ static int test_wolfSSL_ASN1_OBJECT(void)
     AssertNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
     ASN1_OBJECT_free(a);
     s.obj = der;
+    s.objSz = sizeof(der);
     AssertNotNull(a = wolfSSL_ASN1_OBJECT_dup(&s));
     ASN1_OBJECT_free(a);
     ASN1_OBJECT_free(&s);
