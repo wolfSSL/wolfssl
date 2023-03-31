@@ -6249,6 +6249,11 @@ WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
 
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk, WOLF_STACK_TYPE type);
+WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

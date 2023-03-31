@@ -13657,31 +13657,27 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         if (ts->tm_year >= 50 && ts->tm_year < 100) {
             year = ts->tm_year;
         }
-        else if (ts->tm_year >= 100 && ts->tm_year < 150) {
-            year = ts->tm_year - 100;
-        }
         else {
-            WOLFSSL_MSG("unsupported year range");
-            return BAD_FUNC_ARG;
+            year = ts->tm_year - 100;
         }
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-        #if defined(WOLF_C89)
-            if (len < 14) {
-                WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
-                return BUFFER_E;
-            }
-            ret = XSPRINTF((char*)buf,
+    #if defined(WOLF_C89)
+        if (len < ASN_UTC_TIME_SIZE) {
+            WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
+            return BUFFER_E;
+        }
+        ret = XSPRINTF((char*)buf,
                         "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-        #else
-            ret = XSNPRINTF((char*)buf, len,
+    #else
+        ret = XSNPRINTF((char*)buf, len,
                         "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-        #endif
+    #endif
     }
     else {
         /* GeneralizedTime */
@@ -13691,19 +13687,19 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-        #if defined(WOLF_C89)
-            if (len < 16) {
-                WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
-                return BUFFER_E;
-            }
-            ret = XSPRINTF((char*)buf,
+    #if defined(WOLF_C89)
+        if (len < ASN_GENERALIZED_TIME_SIZE) {
+            WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
+            return BUFFER_E;
+        }
+        ret = XSPRINTF((char*)buf,
                         "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-        #else
-            ret = XSNPRINTF((char*)buf, len,
+    #else
+        ret = XSNPRINTF((char*)buf, len,
                         "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-        #endif
+    #endif
     }
 
     return ret;
@@ -14630,48 +14626,58 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     int sz;
     int ret = 0;
     int o = 0;
+    const byte* algoName = 0;
+    word32 algoSz = 0;
 
     CALLOC_ASNSETDATA(dataASN, algoIdASN_Length, ret, NULL);
 
-    /* Set the OID and OID type to encode. */
-    SetASN_OID(&dataASN[ALGOIDASN_IDX_OID], algoOID, type);
-    /* Hashes, signatures not ECC and keys not RSA put put NULL tag. */
-    if (!(type == oidHashType ||
-             (type == oidSigType && !IsSigAlgoECC(algoOID)) ||
-             (type == oidKeyType && algoOID == RSAk))) {
-        /* Don't put out NULL DER item. */
-        dataASN[ALGOIDASN_IDX_NULL].noOut = 1;
-    }
-    if (algoOID == DSAk) {
-        /* Don't include SEQUENCE for DSA keys. */
-        o = 1;
-    }
-    else if (curveSz > 0) {
-        /* Don't put out NULL DER item. */
-        dataASN[ALGOIDASN_IDX_NULL].noOut = 0;
-        /* Include space for extra data of length curveSz.
-         * Subtract 1 for sequence and 1 for length encoding. */
-        SetASN_Buffer(&dataASN[ALGOIDASN_IDX_NULL], NULL, curveSz - 2);
-    }
-
-    /* Calculate size of encoding. */
-    ret = SizeASN_Items(algoIdASN + o, dataASN + o, algoIdASN_Length - o, &sz);
-    if (ret == 0 && output != NULL) {
-        /* Encode into buffer. */
-        SetASN_Items(algoIdASN + o, dataASN + o, algoIdASN_Length - o, output);
-        if (curveSz > 0) {
-            /* Return size excluding curve data. */
-            sz = dataASN[o].offset - dataASN[ALGOIDASN_IDX_NULL].offset;
-        }
-    }
-
-    if (ret == 0) {
-        /* Return encoded size. */
-        ret = sz;
+    algoName = OidFromId(algoOID, type, &algoSz);
+    if (algoName == NULL) {
+        WOLFSSL_MSG("Unknown Algorithm");
     }
     else {
-        /* Unsigned return type so 0 indicates error. */
-        ret = 0;
+        /* Set the OID and OID type to encode. */
+        SetASN_OID(&dataASN[ALGOIDASN_IDX_OID], algoOID, type);
+        /* Hashes, signatures not ECC and keys not RSA output NULL tag. */
+        if (!(type == oidHashType ||
+                 (type == oidSigType && !IsSigAlgoECC(algoOID)) ||
+                 (type == oidKeyType && algoOID == RSAk))) {
+            /* Don't put out NULL DER item. */
+            dataASN[ALGOIDASN_IDX_NULL].noOut = 1;
+        }
+        if (algoOID == DSAk) {
+            /* Don't include SEQUENCE for DSA keys. */
+            o = 1;
+        }
+        else if (curveSz > 0) {
+            /* Don't put out NULL DER item. */
+            dataASN[ALGOIDASN_IDX_NULL].noOut = 0;
+            /* Include space for extra data of length curveSz.
+             * Subtract 1 for sequence and 1 for length encoding. */
+            SetASN_Buffer(&dataASN[ALGOIDASN_IDX_NULL], NULL, curveSz - 2);
+        }
+
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(algoIdASN + o, dataASN + o, algoIdASN_Length - o,
+            &sz);
+        if (ret == 0 && output != NULL) {
+            /* Encode into buffer. */
+            SetASN_Items(algoIdASN + o, dataASN + o, algoIdASN_Length - o,
+                output);
+            if (curveSz > 0) {
+                /* Return size excluding curve data. */
+                sz = dataASN[o].offset - dataASN[ALGOIDASN_IDX_NULL].offset;
+            }
+        }
+
+        if (ret == 0) {
+            /* Return encoded size. */
+            ret = sz;
+        }
+        else {
+            /* Unsigned return type so 0 indicates error. */
+            ret = 0;
+        }
     }
 
     FREE_ASNSETDATA(dataASN, NULL);
@@ -35912,6 +35918,9 @@ end:
     /* Size of buffer for date. */
     word32 lastDateSz = MAX_DATE_SIZE;
     word32 nextDateSz = MAX_DATE_SIZE;
+
+    /* When NO_ASN_TIME is defined, verify not used. */
+    (void)verify;
 
     WOLFSSL_MSG("ParseCRL");
 
