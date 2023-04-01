@@ -1576,6 +1576,14 @@ extern void uITRON4_free(void *p) ;
     #define XSTRNCAT(pstr_dest, pstr_cat, len_max) \
                     ((CPU_CHAR *)Str_Cat_N((CPU_CHAR *)(pstr_dest), \
                      (const CPU_CHAR *)(pstr_cat),(CPU_SIZE_T)(len_max)))
+    #ifndef XATOI /* if custom XATOI is not already defined */
+        #define XATOI(s) atoi((s))
+    #endif
+    #if defined(USE_WOLF_STRTOK)
+        #define XSTRTOK(s1, d, ptr) wc_strtok((s1), (d), (ptr))
+    #else
+        #define XSTRTOK(s1, d, ptr) strtok_r((s1), (d), (ptr))
+    #endif
     #define XMEMSET(pmem, data_val, size) \
                     ((void)Mem_Set((void *)(pmem), \
                     (CPU_INT08U) (data_val), \
@@ -1601,7 +1609,8 @@ extern void uITRON4_free(void *p) ;
         #define XSNPRINTF snprintf
     #endif
 
-    #define XMEMMOVE XMEMCPY
+    #define XMEMMOVE(pdest, psrc, size) ((void)Mem_Move((void *)(pdest), \
+                     (void *)(psrc), (CPU_SIZE_T)(size)))
 
     #if (OS_CFG_MUTEX_EN == DEF_DISABLED)
         #define SINGLE_THREADED
