@@ -43,7 +43,7 @@ that can be serialized and deserialized in a cross-platform way.
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
 #endif
 
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \
@@ -116,6 +116,7 @@ enum ASN_Tags {
     ASN_APPLICATION       = 0x40,
     ASN_CONTEXT_SPECIFIC  = 0x80,
     ASN_PRIVATE           = 0xC0,
+    ASN_CLASS_MASK        = 0xC0,
 
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,

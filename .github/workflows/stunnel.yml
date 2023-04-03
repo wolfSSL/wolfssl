@@ -4,13 +4,9 @@ on:
   workflow_call:
 
 jobs:
-  stunnel_check:
-    strategy:
-      fail-fast: false
-      matrix:
-        # List of releases to test
-        ref: [ 5.67 ]
-    name: ${{ matrix.ref }}
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
     steps:
       - name: Build wolfSSL
@@ -19,6 +15,29 @@ jobs:
           path: wolfssl
           configure: --enable-stunnel
           install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-stunnel
+          path: build-dir
+          retention-days: 1
+
+  stunnel_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 5.67 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-stunnel
+          path: build-dir
     
       - name: Checkout OSP
         uses: actions/checkout@v3

@@ -29,15 +29,14 @@
 #ifndef WOLF_CRYPT_INTEGER_H
 #define WOLF_CRYPT_INTEGER_H
 
-/* may optionally use fast math instead, not yet supported on all platforms and
-   may not be faster on all
-*/
-#include <wolfssl/wolfcrypt/types.h>       /* will set MP_xxBIT if not default */
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    #include <wolfssl/wolfcrypt/sp_int.h>
-#elif defined(USE_FAST_MATH)
-    #include <wolfssl/wolfcrypt/tfm.h>
-#else
+/* may optionally use SP math all or fast math instead. The heap math requires
+ * realloc and is not timing resistant. The SP math all is recommended for new
+ * designs.
+ */
+
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
+#ifdef USE_INTEGER_HEAP_MATH
 
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -411,7 +410,6 @@ MP_API int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
 #endif
 
 
-#endif /* USE_FAST_MATH */
+#endif /* USE_INTEGER_HEAP_MATH */
 
 #endif  /* WOLF_CRYPT_INTEGER_H */
-

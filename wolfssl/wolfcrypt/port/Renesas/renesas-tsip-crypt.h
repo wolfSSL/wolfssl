@@ -29,6 +29,11 @@
     #include "r_tsip_rx_if.h"
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP)
+    #include "r_tsip_rx_if.h"    
+#endif
+
+
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/ssl.h>
 
@@ -130,7 +135,6 @@ typedef struct TsipUserCtx {
     /* HEAP_HINT */
     void*                   heap;
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
     /* TLSv1.3 handshake related members, mainly keys */
 
     /* handle is used as work area for Tls13 handshake */
@@ -201,13 +205,6 @@ typedef struct TsipUserCtx {
     /* signature data area for TLS1.3 CertificateVerify message  */
     byte                             sigDataCertVerify[TSIP_TLS_MAX_SIGDATA_SZ];
 
-    /* peer's Rsa 2046 bit public key index for CertificateVerify message */
-    tsip_rsa2048_public_key_index_t                    serverRsa2048PubKey13Idx;
-
-    /* peer's Ecc P256 public key index for CertificateVerify message */
-    tsip_ecc_public_key_index_t                       serverEccP256PubKey13Idx;
-
-#endif /* WOLFSSL_RENESAS_TSIP_VER >=115 */
     
 #if (WOLFSSL_RENESAS_TSIP_VER >=109)
     /* out from R_SCE_TLS_ServerKeyExchangeVerify */
@@ -363,7 +360,7 @@ WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
 
 WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc);
 
-#if (WOLFSSL_RENESAS_TSIP_VER >=115)
+
 #ifdef WOLF_CRYPTO_CB
 
 struct wc_CryptoInfo;
@@ -430,7 +427,7 @@ WOLFSSL_LOCAL int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
 WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(struct WOLFSSL*ssl);
 
 #endif /* WOLF_CRYPTO_CB */
-#endif /* WOLFSSL_RENESAS_TSIP_VER >=115 */
+
 
 
 #if (WOLFSSL_RENESAS_TSIP_VER >=109)

@@ -29,7 +29,7 @@
 
 #ifdef WOLFSSL_SE050
 
-#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -47,16 +47,6 @@
     #include "ex_sss_boot.h"
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    struct sp_int;
-    #define MATH_INT_T struct sp_int
-#elif defined(USE_FAST_MATH)
-    struct fp_int;
-    #define MATH_INT_T struct fp_int
-#else
-    struct mp_int;
-    #define MATH_INT_T struct mp_int
-#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
     struct ecc_key;
@@ -1979,7 +1969,7 @@ int wc_se050_ecc_insert_private_key(word32 keyId, const byte* eccDer,
     return se050_ecc_insert_key(keyId, eccDer, eccDerSize, ECC_PRIVATEKEY);
 }
 
-int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, mp_int* r, mp_int* s,
+int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT_T* s,
                            byte* out, word32 *outLen, struct ecc_key* key)
 {
     int                 ret = 0;
@@ -2151,8 +2141,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, mp_int* r, mp_int* s,
     return ret;
 }
 
-int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, mp_int* r,
-                             mp_int* s, struct ecc_key* key, int* res)
+int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
+                             MATH_INT_T* s, struct ecc_key* key, int* res)
 {
     int                 ret = 0;
     sss_status_t        status;

@@ -69,7 +69,7 @@
 
 #define TLSSERVER_IP      "192.168.11.49"
 #define TLSSERVER_PORT    11111
-#define YEAR 2022
+#define YEAR 2023
 #define MON  3
 #define FREQ 10000 /* Hz */
 #define MAX_MSGSTR  80
@@ -240,8 +240,7 @@ static void Tls_client_init()
     }
     #endif
      
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS)
 
     if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
                                                          != WOLFSSL_SUCCESS) {
@@ -379,10 +378,11 @@ static void Tls_client(void *pvParam)
 
     /* set client key(s) */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+
     #if defined(USE_ECC_CERT)
-    /* Client authentication using ECDSA certificate for TLS1.2 and 1.3 will be
-     * handled by TSIP. Therefore, the client private key should be
-     * TSIP-specific format and be set by tsip_use_PrivateKey_buffer.
+    /* Client authentication using ECDSA certificate can be handled by TSIP.
+     * Therefore, the client private key should be TSIP-specific format
+     * and be set by tsip_use_PrivateKey_buffer.
      */
     if (ret == 0){
         ret = tsip_use_PrivateKey_buffer(ssl,
@@ -393,28 +393,24 @@ static void Tls_client(void *pvParam)
             printf("ERROR tsip_use_PrivateKey_buffer\n");
         }
     }
-    #else
-        #if defined(WOLFSSL_TLS13)
-        /* Client authentication using RSA certificate for TLS1.3 cannot be
-         * handled by TSIP v1.15. Therefore, the client private key should be
-         * set using wolfSSL_use_PrivateKey_buffer for software processing.
-         */
-        if (ret == 0) { 
-            err = wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
-                            sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1);
-            
-            if (err != SSL_SUCCESS) {
-                printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
-                                                    wolfSSL_get_error(ssl, 0));
-                ret = -1;
-            }
+# if defined(WOLFSSL_CHECK_SIG_FAULTS)
+    if (ret == 0){
+        ret = tsip_use_PublicKey_buffer(ssl,
+                (const char*)g_key_block_data.encrypted_user_ecc256_public_key,
+                sizeof(g_key_block_data.encrypted_user_ecc256_public_key),
+                TSIP_ECCP256);
+        if (ret != 0) {
+            printf("ERROR tsip_use_PublicKey_buffer\n");
         }
-        #else
-        /* Client authentication using RSA certificate for TLS1.2 can be
-         * handled by TSIP. Note that the internal verification of 
-         * the signature process requires not only the client's private key but
-         * also its public key, so pass them using tsip_use_PrivateKey_buffer 
-         * and tsip_use_PublicKey_buffer respectively.
+    }
+#endif /* WOLFSSL_CHECK_SIG_FAULTS */
+    
+    #else
+    /* Client authentication using RSA certificate can be handled by TSIP.
+     * Note that the internal verification of the signature process requires
+     * not only the client's private key but also its public key, so pass them 
+     * using tsip_use_PrivateKey_buffer and tsip_use_PublicKey_buffer
+     * respectively.
          */
         if (ret == 0) {
             ret = tsip_use_PrivateKey_buffer(ssl,
@@ -434,7 +430,7 @@ static void Tls_client(void *pvParam)
                 printf("ERROR tsip_use_PublicKey_buffer: %d\n", ret);
             }
         }
-        #endif /* WOLFSSL_TLS13 */
+
     #endif /* USE_ECC_CERT */
 #else
     #if defined(USE_ECC_CERT)

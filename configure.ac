@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.5.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.6.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -47,9 +47,9 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
 # these numbers don't always line up nicely with the library version.
 WOLFSSL_LIBRARY_VERSION_FIRST=35
-WOLFSSL_LIBRARY_VERSION_SECOND=3
+WOLFSSL_LIBRARY_VERSION_SECOND=4
 WOLFSSL_LIBRARY_VERSION_THIRD=0
-WOLFSSL_LIBRARY_VERSION=38:0:3
+WOLFSSL_LIBRARY_VERSION=39:0:4
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -6586,10 +6586,11 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
 
      AS_IF([test "x$QAT_DIR" = "xyes"],[AC_MSG_ERROR([need a PATH for --with-intelqa$intelqa_opt])])
 
-     AM_CPPFLAGS="$AM_CPPFLAGS -I$QAT_DIR/quickassist/include -I$QAT_DIR/quickassist/include/lac -I$QAT_DIR/quickassist/utilities/osal/include \
+     QAT_FLAGS="-I$QAT_DIR/quickassist/include -I$QAT_DIR/quickassist/include/lac -I$QAT_DIR/quickassist/utilities/osal/include \
          -I$QAT_DIR/quickassist/utilities/osal/src/linux/user_space/include -I$QAT_DIR/quickassist/lookaside/access_layer/include \
          -I$QAT_DIR/quickassist/lookaside/access_layer/src/common/include -I$srcdir/wolfssl -I$srcdir/wolfssl/wolfcrypt/port/intel \
          -I$QAT_DIR/quickassist/utilities/libusdm_drv"
+     AM_CPPFLAGS="$AM_CPPFLAGS $QAT_FLAGS"
      CPPFLAGS="$AM_CPPFLAGS"
 
      LDFLAGS="$LDFLAGS -L$QAT_DIR/build"
@@ -8640,8 +8641,23 @@ echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
+# check for supported command to trim option with
+which colrm &> /dev/null
+RESULT=$?
+if test "$RESULT" = "0"; then
+    TRIM="colrm 3"
+else
+    which cut &> /dev/null
+    RESULT=$?
+    if test "$RESULT" = "0"; then
+        TRIM="cut -c1-2"
+    else
+        AC_MSG_ERROR([Could not find colrm or cut to make options file])
+    fi
+fi
+
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
-    opt_type=$(echo $option | colrm 3)
+    opt_type=$(echo $option | $TRIM )
     case "$opt_type" in
     -D)
         RHS_only=$(echo $option | sed 's/^-D//')
@@ -8720,6 +8736,10 @@ if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS -I$srcdir"
+    if test "$ENABLED_INTEL_QA" = "yes"
+    then
+        CFLAGS="$CFLAGS $QAT_FLAGS"
+    fi
     build_pwd="$(pwd)"
     cd "$srcdir"
     openssl_headers=$(echo wolfssl/openssl/*.h)

@@ -60,7 +60,7 @@ typedef e_tsip_err_t (*aesGcmDecUpdateFn)
 typedef e_tsip_err_t (*aesGcmDecFinalFn)
         (tsip_gcm_handle_t*, uint8_t*, uint32_t*, uint8_t*, uint32_t);
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
 
 /* function pointer type defs for TLSv13 handshake AES-GCM/CCM encryption */
 typedef e_tsip_err_t (*Tls13AesEncInitFn)
@@ -80,10 +80,10 @@ typedef e_tsip_err_t (*Tls13AesDecUpdateFn)
 typedef e_tsip_err_t (*Tls13AesDecFinalFn)
         (tsip_tls13_handle_t*, uint8_t*, uint32_t*);
 
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+
 /*  encrypt plain data.
  *  
  *  return cipher data size on success, negative value on failure.
@@ -228,10 +228,10 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
     WOLFSSL_LEAVE("tsip_Tls13AesEncrypt", ret);
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+
 /* decrypt encrypted handshake data for TLSv1.3
  * AES-GCM or AES-CCM can be used
  * return 0 on success, otherwise on error.
@@ -375,7 +375,7 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
     return ret;
 }
 
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
 
 #if (WOLFSSL_RENESAS_TSIP_VER >= 109)
 #ifdef WOLF_CRYPTO_CB

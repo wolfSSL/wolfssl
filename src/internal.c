@@ -9388,12 +9388,12 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_StoreMessage(ssl, data, sz);
     if (ret != 0 && ret != CRYPTOCB_UNAVAILABLE) {
         return ret;
     }
-#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA
@@ -24206,8 +24206,8 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
         keaStr = "PSK";
     else if (XSTRCMP(n[0],"EDH") == 0)
         keaStr = "EDH";
-    else if ((XSTRCMP(n[1],"SHA") == 0) || (XSTRCMP(n[2],"SHA") == 0) ||
-             (XSTRCMP(n[3],"SHA") == 0) || (XSTRCMP(n[4],"SHA") == 0) ||
+    else if ((XSTRNCMP(n[1],"SHA", 3) == 0) || (XSTRNCMP(n[2],"SHA", 3) == 0) ||
+             (XSTRNCMP(n[3],"SHA", 3) == 0) || (XSTRNCMP(n[4],"SHA", 3) == 0) ||
              (XSTRCMP(n[2],"RSA") == 0) || (XSTRCMP(n[0],"AES128") == 0) ||
              (XSTRCMP(n[0],"AES256") == 0) || (XSTRCMP(n[1],"MD5") == 0))
         keaStr = "RSA";
@@ -24231,7 +24231,7 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
         ((XSTRCMP(n[0],"TLS13") == 0) && ((XSTRCMP(n[1],"AES128") == 0) ||
          (XSTRCMP(n[1],"AES256") == 0) || (XSTRCMP(n[1],"CHACHA20") == 0))) ||
         (XSTRCMP(n[0],"RSA") == 0) || (XSTRCMP(n[1],"RSA") == 0) ||
-        (XSTRCMP(n[1],"SHA") == 0) || (XSTRCMP(n[2],"SHA") == 0) ||
+        (XSTRNCMP(n[1],"SHA", 3) == 0) || (XSTRNCMP(n[2],"SHA", 3) == 0) ||
         (XSTRCMP(n[1],"MD5") == 0))
         authStr = "RSA";
     else if (XSTRCMP(n[0],"PSK") == 0 || XSTRCMP(n[1],"PSK") == 0)

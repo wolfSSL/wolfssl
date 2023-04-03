@@ -231,10 +231,6 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
         return;
 
     if (x->obj != NULL) {
-        if (x->obj->pathlen != NULL) {
-            wolfSSL_ASN1_INTEGER_free(x->obj->pathlen);
-            x->obj->pathlen = NULL;
-        }
         wolfSSL_ASN1_OBJECT_free(x->obj);
     }
 
@@ -3381,8 +3377,15 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
 
     /* already went through them */
-    if (cert->altNamesNext == NULL)
+    if (cert->altNamesNext == NULL) {
+#ifdef WOLFSSL_MULTICIRCULATE_ALTNAMELIST
+        /* Reset altNames List to head
+         * so that caller can circulate the list again
+         */
+        cert->altNamesNext = cert->altNames;
+#endif
         return NULL;
+    }
 
     ret = cert->altNamesNext->name;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
@@ -10071,7 +10074,6 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
                 return WOLFSSL_FATAL_ERROR;
             }
             totalBytes += ret;
-            wolfSSL_OPENSSL_free(cano_data->data);
             wolfSSL_ASN1_STRING_free(cano_data);
         }
     }

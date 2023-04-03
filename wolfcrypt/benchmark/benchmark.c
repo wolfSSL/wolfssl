@@ -63,6 +63,7 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifdef WOLFSSL_ESPIDF
     #include <xtensa/hal.h> /* reminder Espressif RISC-V not yet implemented */
@@ -1665,8 +1666,8 @@ static WC_INLINE int bench_stats_check(double start)
     return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
 }
 
-/* return text for units and scale the value of blocks as needed for base2 */
-static const char* get_blocktype_base10(double* blocks)
+/* return text for units and scale the value of blocks as needed */
+static const char* get_blocktype(double* blocks)
 {
     const char* rt;
 
@@ -1674,7 +1675,7 @@ static const char* get_blocktype_base10(double* blocks)
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "GB/s"
-    *blocks /= (1000UL * 1000UL * 1000UL);
+    *blocks /= (1024UL * 1024UL * 1024UL);
     rt = "GiB";
 #elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
@@ -1712,8 +1713,8 @@ static const char* get_blocktype_base10(double* blocks)
     return rt;
 }
 
-/* return text for units and scale the value of blocks as needed */
-static const char* get_blocktype(double* blocks)
+/* return text for units and scale the value of blocks as needed for base2 */
+static const char* get_blocktype_base10(double* blocks)
 {
     const char* rt;
 
@@ -2841,6 +2842,10 @@ int benchmark_init(void)
         printf("%swolfCrypt_Init failed %d\n", err_prefix, ret);
         return EXIT_FAILURE;
     }
+
+#ifdef HAVE_WC_INTROSPECTION
+    printf("Math: %s\n", wc_GetMathInfo());
+#endif
 
 #ifdef WOLFSSL_SECO_CAAM
     if (wc_SECO_OpenHSM(SECO_KEY_STORE_ID,

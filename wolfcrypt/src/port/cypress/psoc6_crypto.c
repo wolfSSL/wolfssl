@@ -32,22 +32,16 @@
 #endif
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    struct sp_int;
-    #define MATH_INT_T struct sp_int
-#elif defined(USE_FAST_MATH)
-    struct fp_int;
-    #define MATH_INT_T struct fp_int
-#else
-    struct mp_int;
-	#define MATH_INT_T struct mp_int
-#endif
 
 #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <stdint.h>
+
+#ifdef HAVE_ECC
+#include <wolfssl/wolfcrypt/ecc.h>
+#endif
 
 static CRYPTO_Type *crypto_base = PSOC6_CRYPTO_BASE;
 
@@ -192,7 +186,7 @@ static cy_en_crypto_ecc_curve_id_t psoc6_get_curve_id(int size)
         case 32:
             return CY_CRYPTO_ECC_ECP_SECP256R1;
         case 48:
-            return CY_CRYPTO_ECC_ECP_SECP384R1; 
+            return CY_CRYPTO_ECC_ECP_SECP384R1;
         case 66:
             return CY_CRYPTO_ECC_ECP_SECP521R1;
         default:
@@ -200,7 +194,6 @@ static cy_en_crypto_ecc_curve_id_t psoc6_get_curve_id(int size)
     }
 }
 
-#include <wolfssl/wolfcrypt/ecc.h>
 int psoc6_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
                     word32 hashlen, int* verif_res, ecc_key* key)
 {
@@ -214,7 +207,7 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
 
     if (!key || !verif_res || !r || !s || !hash)
         return -BAD_FUNC_ARG;
-    
+
     /* retrieve and check sizes */
     szModulus = mp_unsigned_bin_size(key->pubkey.x);
     szkbin = mp_unsigned_bin_size(r);

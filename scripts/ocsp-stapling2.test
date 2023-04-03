@@ -29,6 +29,11 @@ if ! ./examples/client/client -V | grep -q 3; then
     exit 77
 fi
 
+if ./examples/client/client '-#' | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
+    echo 'skipping oscp-stapling2.test because WOLFSSL_SNIFFER defined.'
+    exit 77
+fi
+
 if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
     IPV6_SUPPORTED=yes
 else
@@ -466,7 +471,15 @@ generate_port() {
 generate_port
 openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
 openssl_pid=$!
-sleep 0.1
+MAX_TIMEOUT=10
+until nc -z localhost $port # Wait for openssl to be ready
+do
+    sleep 0.05
+    if [ "$MAX_TIMEOUT" == "0" ]; then
+        break
+    fi
+    ((MAX_TIMEOUT--))
+done
 
 printf '%s\n\n' "------------- TEST CASE 9 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned

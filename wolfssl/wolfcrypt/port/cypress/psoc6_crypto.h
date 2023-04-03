@@ -23,6 +23,7 @@
 #define _PSOC6_CRYPTO_PORT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 #include "cy_crypto_core_sha.h"
 #include "cy_device_headers.h"
 #include "psoc6_02_config.h"
@@ -42,7 +43,7 @@
 
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
-int psoc6_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+int psoc6_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
                     word32 hashlen, int* verif_res, ecc_key* key);
 #endif /* HAVE_ECC */
 

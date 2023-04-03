@@ -18,6 +18,8 @@ jobs:
         uses: ./.github/workflows/docker-OpenWrt.yml
     os-check:
         uses: ./.github/workflows/os-check.yml
+    async:
+        uses: ./.github/workflows/async.yml
     stunnel:
         uses: ./.github/workflows/stunnel.yml
     openvpn:

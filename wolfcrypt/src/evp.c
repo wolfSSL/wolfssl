@@ -45,7 +45,7 @@
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifndef NO_AES
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
@@ -4954,7 +4954,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
 #endif /* !WOLFSSL_NOSHA512_224 */
 
-#ifndef WOLFSSL_NOSHA512_224
+#ifndef WOLFSSL_NOSHA512_256
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512_256(void)
     {
         WOLFSSL_ENTER("EVP_sha512_256");
