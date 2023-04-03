@@ -25,7 +25,7 @@
  * Initialize the wolfSSL library.
  */
 
-#include <init.h>
+#include <zephyr/init.h>
 
 #include "user_settings.h"
 #include "wolfssl/ssl.h"

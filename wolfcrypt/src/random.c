@@ -3577,11 +3577,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <random/rand32.h>
+        #include <zephyr/random/rand32.h>
     #ifndef _POSIX_C_SOURCE
-        #include <posix/time.h>
+        #include <zephyr/posix/time.h>
     #else
-        #include <sys/time.h>
+        #include <time.h>
     #endif
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)

@@ -1748,9 +1748,9 @@ extern void uITRON4_free(void *p) ;
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
-    #include <zephyr.h>
-    #include <sys/printk.h>
-    #include <sys/util.h>
+    #include <zephyr/kernel.h>
+    #include <zephyr/sys/printk.h>
+    #include <zephyr/sys/util.h>
     #include <stdlib.h>
 
     #define WOLFSSL_DH_CONST
