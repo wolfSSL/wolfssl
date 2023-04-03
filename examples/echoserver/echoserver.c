@@ -298,7 +298,6 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CYASSL* ssl = NULL;
         CYASSL* write_ssl = NULL;   /* may have separate w/ HAVE_WRITE_DUP */
         char    command[SVR_COMMAND_SIZE+1];
-        int     echoSz = 0;
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
@@ -374,6 +373,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
         while (1) {
+            int echoSz;
+
             do {
                 err = 0; /* reset error */
                 ret = CyaSSL_read(ssl, command, sizeof(command)-1);

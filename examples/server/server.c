@@ -269,7 +269,6 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_TEST_DTLS_CTX* dtlsCtx = (WOLFSSL_TEST_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
-    int err;
 
     (void)ssl;
 
@@ -291,7 +290,7 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = TranslateReturnCode(sent, sd);
 
     if (sent < 0) {
-        err = wolfSSL_LastError();
+        int err = wolfSSL_LastError();
         WOLFSSL_MSG("Embed Send To error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
@@ -337,8 +336,6 @@ static int NonBlockingSSL_Accept(SSL* ssl)
             || error == WC_PENDING_E
         #endif
     )) {
-        int currTimeout = 1;
-
         if (error == WOLFSSL_ERROR_WANT_READ) {
             /* printf("... server would read block\n"); */
         }
@@ -354,6 +351,8 @@ static int NonBlockingSSL_Accept(SSL* ssl)
         else
     #endif
         {
+            int currTimeout = 1;
+
             if (error == WOLFSSL_ERROR_WANT_WRITE)
             {
                 select_ret = tcp_select_tx(sockfd, currTimeout);
@@ -408,7 +407,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
 {
     int ret = 0, err;
     double start = 0, rx_time = 0, tx_time = 0;
-    int select_ret, len, rx_pos;
+    int len, rx_pos;
     size_t xfer_bytes = 0;
     char* buffer;
 
@@ -420,7 +419,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     while ((echoData && throughput == 0) ||
           (!echoData && xfer_bytes < throughput))
     {
-        select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
+        int select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
         if (select_ret == TEST_RECV_READY) {
 
             if (throughput)
@@ -611,7 +610,6 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
 static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
 {
     int ret, err;
-    char buffer[WOLFSSL_MAX_ERROR_SZ];
     int len;
 
 #ifdef OPENSSL_ALL
@@ -642,6 +640,7 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_WRITE);
     if (ret != outputLen) {
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "SSL_write msg error %d, %s\n", err,
                                                  ERR_error_string(err, buffer));
         err_sys_ex(runWithErrors, "SSL_write failed");
@@ -2193,10 +2192,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 262: {
                 /* Note: this requires TSL1.3 (version >= 4) */
                 #ifdef HAVE_ECC
-                int idx = 0; /* ecc curve index */
                 int j = 0; /* our group index */
                 #endif
                 if (NULL == myoptarg) {
+                #ifdef HAVE_ECC
+                    int idx = 0; /* ecc curve index */
+                #endif
                     Usage();
                     if (lng_index == 1) {
                         /* TODO: Need Japanese translation */
@@ -3167,10 +3168,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
         if (doDTLS && dtlsUDP) {
             byte          b[1500];
-            int           n;
             int           isClientHello = 0;
 
             while (!isClientHello) {
+                int n;
+
                 client_len = sizeof client_addr;
 
                 /* For DTLS, peek at the next datagram so we can get the
@@ -3411,7 +3413,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
     {
         byte*  rnd = NULL;
-        byte*  pt;
         size_t size;
 
         /* get size of buffer then print */
@@ -3438,6 +3439,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 
         if (rnd) {
+            byte*  pt;
             printf("Server Random : ");
             for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
             printf("\n");

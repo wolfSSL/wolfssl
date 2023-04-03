@@ -1273,7 +1273,6 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     int sub)
 {
     int ret = 1;
-    int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* w_mp = NULL;
@@ -1304,6 +1303,7 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     }
 
     if (ret == 1) {
+        int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
         if (w > (WOLFSSL_BN_ULONG)MP_MASK) {
             /* Initialize temporary MP integer. */

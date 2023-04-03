@@ -1219,7 +1219,6 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         if ((XSTRCMP(peer, "localhost") != 0) &&
             (XSTRCMP(peer, "127.0.0.1") != 0)) {
             FILE* fp;
-            char host_out[100];
             char cmd[100];
 
             XSTRNCPY(cmd, "host ", 6);
@@ -1227,6 +1226,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             found = 0;
             fp = popen(cmd, "r");
             if (fp != NULL) {
+                char host_out[100];
                 while (fgets(host_out, sizeof(host_out), fp) != NULL) {
                     int i;
                     int j = 0;
@@ -2455,7 +2455,6 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM)
     int i;
-    int b = 0x01;
     WOLFSSL_SESSION* lsess;
     char buf[256];
     const char* cipher_id = "TLS13-AES128-GCM-SHA256";
@@ -2486,8 +2485,9 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     }
 
     if (i != numCiphers) {
+        int b = 0x01;
         SSL_SESSION_set_cipher(lsess, cipher);
-            for (i = 0; i < 32; i++, b += 0x22) {
+        for (i = 0; i < 32; i++, b += 0x22) {
             if (b >= 0x100)
                 b = 0x01;
             local_psk[i] = b;
@@ -2857,7 +2857,6 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     WOLFSSL_BIO* bio = NULL;
     WOLFSSL_STACK* sk = NULL;
     X509* x509 = NULL;
-    int i = 0;
 #endif
 #endif
 
@@ -2900,6 +2899,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 #if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
         /* avoid printing duplicate certs */
         if (store->depth == 1) {
+            int i;
             /* retrieve x509 certs and display them on stdout */
             sk = wolfSSL_X509_STORE_GetCerts(store);
 
@@ -3074,10 +3074,10 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
     {
         #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
             !defined(NETOS)
-            int depth, res;
-            XFILE keyFile;
+            int depth;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                keyFile = XFOPEN(dhParamFile, "rb");
+                int res;
+                XFILE keyFile = XFOPEN(dhParamFile, "rb");
                 if (keyFile != NULL) {
                     fclose(keyFile);
                     return depth;
@@ -4814,13 +4814,13 @@ static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, 
 {
     static int wantWriteFlag = 1;
 
-    int sent;
     int sd = *(int*)ctx;
 
     (void)ssl;
 
     if (!wantWriteFlag)
     {
+        int sent;
         wantWriteFlag = 1;
 
         sent = wolfIO_Send(sd, buf, sz, 0);
@@ -5164,7 +5164,6 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
     int* zero_return)
 {
-    int timeout = DEFAULT_TIMEOUT_SEC;
     char foo[1];
     int ret = 0;
     int dtls;
@@ -5177,6 +5176,8 @@ static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
     *zero_return = 0;
 
     if (!blocking) {
+        int timeout = DEFAULT_TIMEOUT_SEC;
+
 #ifdef WOLFSSL_DTLS
         if (dtls) {
             timeout = wolfSSL_dtls_get_current_timeout(ssl);

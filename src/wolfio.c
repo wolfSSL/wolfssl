@@ -2647,13 +2647,12 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_so
 int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
 {
     uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
-    int ret;
-    unsigned int max_sendlen;
     int total_written = 0;
     (void)ssl;
     do {
+        int ret;
         unsigned int bytes_left = sz - total_written;
-        max_sendlen = tcp_socket_max_sendlen(&ctx->conn.tcp);
+        unsigned int max_sendlen = tcp_socket_max_sendlen(&ctx->conn.tcp);
         if (bytes_left > max_sendlen) {
             fprintf(stderr, "uIPSend: Send limited by buffer\r\n");
             bytes_left = max_sendlen;

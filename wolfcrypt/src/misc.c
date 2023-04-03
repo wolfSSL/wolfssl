@@ -181,18 +181,18 @@ WC_MISC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
 {
-    word32 count, i;
+    word32 i;
 
 #ifdef WOLFSSL_USE_ALIGN
     if ((((size_t)in & 0x3) == 0) &&
         (((size_t)out & 0x3) == 0))
-    {
 #endif
-        count = byteCount/(word32)sizeof(word32);
+    {
+        word32 count = byteCount/(word32)sizeof(word32);
         for (i = 0; i < count; i++)
             out[i] = ByteReverseWord32(in[i]);
-#ifdef WOLFSSL_USE_ALIGN
     }
+#ifdef WOLFSSL_USE_ALIGN
     else {
         byte *in_bytes = (byte *)in;
         byte *out_bytes = (byte *)out;

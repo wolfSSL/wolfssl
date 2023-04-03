@@ -2375,14 +2375,13 @@ int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
     byte* pub, word32* pPubSz)
 {
     int ret = 0;
-    word32 pubSz, privSz;
 
     if (key == NULL || (priv && pPrivSz == NULL) || (pub && pPubSz == NULL)) {
         return BAD_FUNC_ARG;
     }
 
     if (priv) {
-        privSz = mp_unsigned_bin_size(&key->priv);
+        word32 privSz = mp_unsigned_bin_size(&key->priv);
         if (privSz > *pPrivSz) {
             return BUFFER_E;
         }
@@ -2391,7 +2390,7 @@ int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
     }
 
     if (pub) {
-        pubSz = mp_unsigned_bin_size(&key->pub);
+        word32 pubSz = mp_unsigned_bin_size(&key->pub);
         if (pubSz > *pPubSz) {
             return BUFFER_E;
         }

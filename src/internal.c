@@ -1715,7 +1715,6 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     int ret = 0;
     int optSz = 0;
     int rc;
-    byte validProto = 0; /* did we find a valid protocol */
 
     WOLFSSL_ENTER("wolfSSL_session_import_internal");
     /* check at least enough room for protocol and length */
@@ -1725,6 +1724,8 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
 
     /* Check if is TLS export protocol */
     if (ret == 0) {
+        byte validProto = 0; /* did we find a valid protocol */
+
         if (buf[idx]             ==  (byte)TLS_EXPORT_PRO &&
            (buf[idx + 1] & 0xF0) == ((byte)TLS_EXPORT_PRO & 0xF0)) {
             validProto = 1;
@@ -8902,7 +8903,6 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
 {
     int ret = 0;
     DtlsMsg* pool;
-    int epochOrder;
 
     WOLFSSL_ENTER("DtlsMsgPoolSend");
 
@@ -8926,6 +8926,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
         }
 
         while (pool != NULL) {
+            int epochOrder;
+
             if (pool->epoch == 0) {
                 DtlsRecordLayerHeader* dtls;
 
@@ -10447,9 +10449,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
     byte tls12minor;
-#ifdef WOLFSSL_DTLS
-    int ret;
-#endif /* WOLFSSL_DTLS */
 
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
@@ -10469,7 +10468,7 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
     else {
 #ifdef WOLFSSL_DTLS
-        ret = GetDtlsRecordHeader(ssl, inOutIdx, rh, size);
+        int ret = GetDtlsRecordHeader(ssl, inOutIdx, rh, size);
         if (ret != 0)
             return ret;
 #endif
@@ -11418,18 +11417,19 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 int MatchDomainName(const char* pattern, int len, const char* str)
 {
     int ret = 0;
-    char p, s;
 
     if (pattern == NULL || str == NULL || len <= 0)
         return 0;
 
     while (len > 0) {
 
-        p = (char)XTOLOWER((unsigned char)*pattern++);
+        char p = (char)XTOLOWER((unsigned char)*pattern++);
         if (p == '\0')
             break;
 
         if (p == '*') {
+            char s;
+
             while (--len > 0 &&
                 (p = (char)XTOLOWER((unsigned char)*pattern++)) == '*') {
             }
@@ -16263,14 +16263,14 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
  * expected sequence number. 0 is special where it is an overflow. */
 static void _DtlsUpdateWindowGTSeq(word32 diff, word32* window)
 {
-    word32 idx, temp, i;
     word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
 
     if (diff == 0 || diff >= DTLS_SEQ_BITS)
         XMEMSET(window, 0, DTLS_SEQ_SZ);
     else {
-        temp = 0;
-        idx = diff / DTLS_WORD_BITS;
+        word32 i;
+        word32 temp = 0;
+        word32 idx = diff / DTLS_WORD_BITS;
         diff %= DTLS_WORD_BITS;
 
         XMEMCPY(oldWindow, window, sizeof(oldWindow));
@@ -18303,14 +18303,13 @@ static byte MaskPadding(const byte* data, int sz, int macSz)
     int i;
     int checkSz = sz - 1;
     byte paddingSz = data[sz - 1];
-    byte mask;
     byte good = ctMaskGT(paddingSz, sz - 1 - macSz);
 
     if (checkSz > TLS_MAX_PAD_SZ)
         checkSz = TLS_MAX_PAD_SZ;
 
     for (i = 0; i < checkSz; i++) {
-        mask = ctMaskLTE(i, paddingSz);
+        byte mask = ctMaskLTE(i, paddingSz);
         good |= mask & (data[sz - 1 - i] ^ paddingSz);
     }
 
@@ -18769,7 +18768,6 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     byte level;
     byte code;
     word32 dataSz = (word32)ssl->curSize;
-    int ivExtra = 0;
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -18787,6 +18785,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     #endif
 
     if (IsEncryptionOn(ssl, 0)) {
+        int ivExtra = 0;
 #ifndef WOLFSSL_AEAD_ONLY
         if (ssl->specs.cipher_type == block) {
             if (ssl->options.tls1_1)
@@ -18858,7 +18857,6 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 
 static int GetInputData(WOLFSSL *ssl, word32 size)
 {
-    int in;
     int inSz;
     int maxLength;
     int usedLength;
@@ -18900,7 +18898,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 
     /* read data from network */
     do {
-        in = wolfSSLReceive(ssl,
+        int in = wolfSSLReceive(ssl,
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      inSz);
@@ -18968,7 +18966,6 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                             int content, word32* padSz)
 {
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
-    int    ivExtra = 0;
     int    ret;
     word32 pad     = 0;
     word32 padByte = 0;
@@ -18982,6 +18979,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
 
 
     if (ssl->specs.cipher_type == block) {
+        int ivExtra = 0;
         if (ssl->options.tls1_1)
             ivExtra = ssl->specs.block_size;
         pad = *(input + msgSz - ivExtra - 1);
@@ -23032,10 +23030,8 @@ int RetrySendAlert(WOLFSSL* ssl)
 /* send alert message */
 int SendAlert(WOLFSSL* ssl, int severity, int type)
 {
-    int ret;
-
     if (ssl->pendingAlert.level != alert_none) {
-        ret = RetrySendAlert(ssl);
+        int ret = RetrySendAlert(ssl);
         if (ret != 0) {
             if (ssl->pendingAlert.level == alert_none ||
                     (ssl->pendingAlert.level != alert_fatal &&
@@ -24740,13 +24736,13 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     #endif /* OPENSSL_EXTRA */
 
         for (i = 0; i < suiteSz; i++) {
-            int j;
-
             if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0
             #ifndef NO_ERROR_STRINGS
                 || XSTRNCMP(name, cipher_names[i].name_iana, sizeof(name)) == 0
             #endif
              ) {
+                int j;
+
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (ctx->method->version.major == DTLS_MAJOR) {
@@ -26929,10 +26925,11 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             ssl->options.haveEMS = 0; /* If no extensions, no EMS */
 #else
         {
-            int allowExt = 0;
             byte pendingEMS = 0;
 
             if ( (i - begin) < helloSz) {
+                int allowExt = 0;
+
                 if (ssl->version.major == SSLv3_MAJOR &&
                     ssl->version.minor >= TLSv1_MINOR) {
 
@@ -36668,7 +36665,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     {
                         byte *tmpRsa;
                         byte mask;
-                        int i;
 
                         /* Add the signature length to idx */
                         args->idx += args->length;
@@ -36703,6 +36699,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ctMaskCopy(~mask, (byte*)&args->output, (byte*)&tmpRsa,
                             sizeof(args->output));
                         if (args->output != NULL) {
+                            int i;
                             /* Use random secret on error */
                             for (i = VERSION_SZ; i < SECRET_LEN; i++) {
                                 ssl->arrays->preMasterSecret[i] =

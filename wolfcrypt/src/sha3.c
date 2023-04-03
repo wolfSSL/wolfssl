@@ -641,12 +641,11 @@ static int InitSha3(wc_Sha3* sha3)
 static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 {
     word32 i;
-    byte l;
-    byte *t;
     word32 blocks;
 
     if (sha3->i > 0) {
-        l = p * 8 - sha3->i;
+        byte *t;
+        byte l = p * 8 - sha3->i;
         if (l > len) {
             l = (byte)len;
         }
@@ -1300,10 +1299,10 @@ int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
 int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
 {
     int ret;
-    byte hash[1];
 
     ret = Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
     if (ret == 0) {
+        byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, 0);
     }
     /* No partial data. */
@@ -1429,10 +1428,10 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
 int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
 {
     int ret;
-    byte hash[1];
 
     ret = Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
     if (ret == 0) {
+        byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, 0);
     }
     /* No partial data. */

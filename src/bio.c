@@ -2057,11 +2057,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     WOLFSSL_BIO *wolfSSL_BIO_new_connect(const char *str)
     {
         WOLFSSL_BIO *bio;
-        const char* port;
         WOLFSSL_ENTER("wolfSSL_BIO_new_connect");
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            port = XSTRSTR(str, ":");
+            const char* port = XSTRSTR(str, ":");
 
             if (port != NULL)
                 bio->port = (word16)XATOI(port + 1);
@@ -2261,8 +2260,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     void wolfSSL_BIO_ssl_shutdown(WOLFSSL_BIO* b)
     {
-        int rc;
-
         WOLFSSL_ENTER("wolfSSL_BIO_ssl_shutdown");
 
         if (b == NULL) {
@@ -2279,7 +2276,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
 
         if (b->ptr != NULL) {
-            rc = wolfSSL_shutdown((WOLFSSL*)b->ptr);
+            int rc = wolfSSL_shutdown((WOLFSSL*)b->ptr);
             if (rc == SSL_SHUTDOWN_NOT_DONE) {
                 /* In this case, call again to give us a chance to read the
                  * close notify alert from the other end. */
@@ -2386,7 +2383,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     long wolfSSL_BIO_set_conn_hostname(WOLFSSL_BIO* b, char* name)
     {
-        size_t currLen = 0;
         size_t newLen = 0;
 
         WOLFSSL_ENTER("wolfSSL_BIO_set_conn_hostname");
@@ -2414,7 +2410,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             }
         }
         else {
-            currLen = XSTRLEN(b->ip);
+            size_t currLen = XSTRLEN(b->ip);
             if (currLen != newLen) {
                 b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
                     DYNAMIC_TYPE_OPENSSL);
