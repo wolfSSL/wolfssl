@@ -1269,12 +1269,10 @@ static int SocketWaitClient(info_t* info)
     int connd;
     struct sockaddr_in clientAddr;
     socklen_t size = sizeof(clientAddr);
-#ifdef WOLFSSL_DTLS
-    char msg[64];
-#endif
 
 #ifdef WOLFSSL_DTLS
     if (info->doDTLS) {
+        char msg[64];
 #ifdef HAVE_PTHREAD
         if (!info->clientOrserverOnly) {
             PTHREAD_CHECK_RET(pthread_mutex_lock(&info->dtls_mutex));

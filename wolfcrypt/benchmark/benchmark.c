@@ -1621,10 +1621,9 @@ typedef enum bench_stat_type {
     void bench_stats_print(void)
     {
         int i;
-        bench_stats_t* bstat;
 
         for (i=0; i<gStatsCount; i++) {
-            bstat = &gStats[i];
+            bench_stats_t* bstat = &gStats[i];
             if (bstat->type == BENCH_STAT_SYM) {
                 printf("%-16s %8.3f %s/s\n", bstat->desc, bstat->perfsec,
                     base2 ? "MB" : "mB");
@@ -6209,7 +6208,7 @@ exit:
 
 void bench_rsaKeyGen(int useDeviceID)
 {
-    int    k, keySz;
+    int    k;
 #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     const int  keySizes[2] = {1024, 2048};
 #else
@@ -6217,7 +6216,7 @@ void bench_rsaKeyGen(int useDeviceID)
 #endif
 
     for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
-        keySz = keySizes[k];
+        int keySz = keySizes[k];
         bench_rsaKeyGen_helper(useDeviceID, keySz);
     }
 }

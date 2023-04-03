@@ -3326,7 +3326,7 @@ int DeriveKeys(WOLFSSL* ssl)
     int    length = 2 * ssl->specs.hash_size +
                     2 * ssl->specs.key_size  +
                     2 * ssl->specs.iv_size;
-    int    rounds = (length + WC_MD5_DIGEST_SIZE - 1 ) / WC_MD5_DIGEST_SIZE, i;
+    int    rounds = (length + WC_MD5_DIGEST_SIZE - 1 ) / WC_MD5_DIGEST_SIZE;
     int    ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3375,6 +3375,8 @@ int DeriveKeys(WOLFSSL* ssl)
         ret = wc_InitSha(sha);
     }
     if (ret == 0) {
+        int i;
+
         XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
         for (i = 0; i < rounds; ++i) {

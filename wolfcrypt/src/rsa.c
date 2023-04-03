@@ -1888,9 +1888,6 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int    ret = BAD_FUNC_ARG;
     word16 i;
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-    byte   invalid = 0;
-#endif
 
     if (output == NULL || pkcsBlockLen < 2 || pkcsBlockLen > 0xFFFF) {
         return BAD_FUNC_ARG;
@@ -1923,6 +1920,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     else {
         unsigned int j;
         word16 pastSep = 0;
+        byte   invalid = 0;
 
         i = 0;
         /* Decrypted with private key - unpad must be constant time. */
@@ -3579,11 +3577,6 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen)
             ret = RSA_BUFFER_E;
         else if (ret >= 0 && pad != NULL) {
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-    !defined(WOLFSSL_NO_MALLOC)
-            signed char c;
-#endif
-
             /* only copy output if not inline */
             if (outPtr == NULL) {
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
@@ -3594,6 +3587,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                     int start = (int)((size_t)pad - (size_t)key->data);
 
                     for (j = 0; j < key->dataLen; j++) {
+                        signed char c;
                         out[i] = key->data[j];
                         c  = ctMaskGTE(j, start);
                         c &= ctMaskLT(i, outLen);

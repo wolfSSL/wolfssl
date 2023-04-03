@@ -1163,7 +1163,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
         /* create secure partition for private key out */
         part = caamFindUnusedPartition();
-        if (part < 0) {
+        if ((int)part < 0) {
             WOLFSSL_MSG("error finding an unused partition for new key");
             return -1;
         }

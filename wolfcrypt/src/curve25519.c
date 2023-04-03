@@ -83,8 +83,8 @@ static WC_INLINE int curve25519_priv_clamp_check(const byte* priv)
 static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
     int endian)
 {
-    int i;
     if (endian == EC25519_BIG_ENDIAN) {
+        int i;
         /* put shared secret key in Big Endian format */
         for (i = 0; i < CURVE25519_KEYSIZE; i++) {
             out[i] = point[CURVE25519_KEYSIZE - i -1];
