@@ -186,15 +186,15 @@ AC_ARG_ENABLE([harden-tls],
 
 if test "x$ENABLED_HARDEN_TLS" != "xno"
 then
-	if test "x$ENABLED_HARDEN_TLS" == "xyes" || test "x$ENABLED_HARDEN_TLS" == "x112"
-	then
-	    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=112"
-	elif test "x$ENABLED_HARDEN_TLS" == "x128"
-	then
-	    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=128"
+    if test "x$ENABLED_HARDEN_TLS" == "xyes" || test "x$ENABLED_HARDEN_TLS" == "x112"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=112"
+    elif test "x$ENABLED_HARDEN_TLS" == "x128"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=128"
     else
-    	AC_MSG_ERROR([Invalid value for --enable-harden-tls])
-	fi
+        AC_MSG_ERROR([Invalid value for --enable-harden-tls])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_ALERTS -DWOLFSSL_CHECK_ALERT_ON_ERR"
 fi
 
