@@ -393,9 +393,6 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 #endif
 
 #ifdef OPENSSL_EXTRA
-    /* Global pointer to constant BN on */
-    static WOLFSSL_BIGNUM* bn_one = NULL;
-
     /* WOLFSSL_NO_OPENSSL_RAND_CB: Allows way to reduce code size for
      *                OPENSSL_EXTRA where RAND callbacks are not used */
     #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
@@ -14180,10 +14177,7 @@ int wolfSSL_Cleanup(void)
         return ret;
 
 #ifdef OPENSSL_EXTRA
-    if (bn_one) {
-        wolfSSL_BN_free(bn_one);
-        bn_one = NULL;
-    }
+    wolfSSL_BN_free_one();
 #endif
 
 #ifndef NO_SESSION_CACHE

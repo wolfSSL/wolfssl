@@ -155,7 +155,7 @@ void wolfSSL_ASN1_item_free(void *items, const WOLFSSL_ASN1_ITEM *tpl)
 }
 
 /* Offset buf if not NULL or NULL. */
-#define bufLenOrNull(buf, len) ((buf != NULL) ? ((buf) + (len)) : NULL)
+#define bufLenOrNull(buf, len) (((buf) != NULL) ? ((buf) + (len)) : NULL)
 
 /* Encode X509 algorithm as DER.
  *
@@ -3246,7 +3246,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
         *secs = 0;
     }
     else if (ret == 1) {
-        const int SECS_PER_DAY = 24 * 60 * 60;
+        const long long SECS_PER_DAY = 24 * 60 * 60;
         long long fromSecs;
         long long toSecs = 0;
 
@@ -3255,9 +3255,9 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
             ret = wolfssl_asn1_time_to_secs(to, &toSecs);
         }
         if (ret == 1) {
-            double diffSecs = (double)(toSecs - fromSecs);
+            long long diffSecs = toSecs - fromSecs;
             *days = (int) (diffSecs / SECS_PER_DAY);
-            *secs = (int) (diffSecs - (((double)*days) * SECS_PER_DAY));
+            *secs = (int) (diffSecs - ((long long)*days * SECS_PER_DAY));
         }
     }
 
@@ -3672,16 +3672,20 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
 
         if (asnTime->type == V_ASN1_UTCTIME) {
             /* Get year from UTC TIME string. */
+            int tm_year;
             if ((ret = wolfssl_utctime_year(asn1TimeBuf, asn1TimeBufLen,
-                    &tm->tm_year)) == 1) {
+                    &tm_year)) == 1) {
+                tm->tm_year = tm_year;
                 /* Month starts after year - 2 characters. */
                 i = 2;
             }
         }
         else if (asnTime->type == V_ASN1_GENERALIZEDTIME) {
             /* Get year from GENERALIZED TIME string. */
+            int tm_year;
             if ((ret = wolfssl_gentime_year(asn1TimeBuf, asn1TimeBufLen,
-                    &tm->tm_year)) == 1) {
+                    &tm_year)) == 1) {
+                tm->tm_year = tm_year;
                 /* Month starts after year - 4 characters. */
                 i = 4;
             }
@@ -3998,7 +4002,7 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
                     WOLFSSL_MSG("NULL tag meant to be always empty!");
                     /* No way to return error - value will not be used. */
                 }
-                /* fall-through */
+                FALL_THROUGH;
             case V_ASN1_OBJECT:
             case V_ASN1_UTCTIME:
             case V_ASN1_GENERALIZEDTIME:
