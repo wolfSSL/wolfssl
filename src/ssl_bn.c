@@ -306,6 +306,9 @@ void wolfSSL_BN_clear(WOLFSSL_BIGNUM* bn)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef OPENSSL_EXTRA
+
+static WOLFSSL_BIGNUM* bn_one = NULL;
+
 /* Return a big number with the value of one.
  *
  * @return  A big number with the value one on success.
@@ -349,6 +352,10 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
     return one;
 }
 
+static void wolfSSL_BN_free_one(void) {
+    wolfSSL_BN_free(bn_one);
+    bn_one = NULL;
+}
 
 /* Create a new big number with the same value as the one passed in.
  *

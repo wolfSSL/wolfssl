@@ -31070,7 +31070,8 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         {positiveDer, sizeof(positiveDer), 65537},
         {primeDer, sizeof(primeDer), 0}
     };
-    static const size_t NUM_TEST_VECTORS = sizeof(testVectors)/sizeof(testVectors[0]);
+    static const size_t NUM_TEST_VECTORS =
+        sizeof(testVectors)/sizeof(testVectors[0]);
 
     /* Check d2i error conditions */
     /* NULL pointer to input. */
@@ -32492,8 +32493,8 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
 {
     int res = TEST_SKIPPED;
 #if (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
-    && !defined(NO_ASN_TIME)
+      defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
+      defined(OPENSSL_ALL)) && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
 
@@ -32890,11 +32891,13 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
                                 V_ASN1_OBJECT, OBJ_nid2obj(nid)), 1);
     AssertIntEQ(EC_POINT_point2oct(group, point, 0, NULL, 0, NULL), 0);
 #ifdef HAVE_COMP_KEY
-    AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
-                                          NULL, 0, NULL)), 0);
+    AssertIntGT((len = EC_POINT_point2oct(
+                                   group, point, POINT_CONVERSION_COMPRESSED,
+                                   NULL, 0, NULL)), 0);
 #else
-    AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
-                                          NULL, 0, NULL)), 0);
+    AssertIntGT((len = EC_POINT_point2oct(
+                                   group, point, POINT_CONVERSION_UNCOMPRESSED,
+                                   NULL, 0, NULL)), 0);
 #endif
     AssertNotNull(der = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
 #ifdef HAVE_COMP_KEY

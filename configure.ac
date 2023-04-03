@@ -8642,18 +8642,12 @@ echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
 # check for supported command to trim option with
-which colrm &> /dev/null
-RESULT=$?
-if test "$RESULT" = "0"; then
+if colrm &> /dev/null; then
     TRIM="colrm 3"
+elif cut &> /dev/null; then
+    TRIM="cut -c1-2"
 else
-    which cut &> /dev/null
-    RESULT=$?
-    if test "$RESULT" = "0"; then
-        TRIM="cut -c1-2"
-    else
-        AC_MSG_ERROR([Could not find colrm or cut to make options file])
-    fi
+    AC_MSG_ERROR([Could not find colrm or cut to make options file])
 fi
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
@@ -8724,7 +8718,7 @@ done < $OPTION_FILE
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
 sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
 
-# workaround for mingw sed that may get "Permission denied" trying to preserver permissions
+# workaround for mingw sed that may get "Permission denied" trying to preserve permissions
 case $host_os in
     mingw*)
         chmod u+w cyassl/options.h ;;
@@ -8735,7 +8729,7 @@ rm cyassl/options.h.bak
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -I$srcdir"
+    CFLAGS="$CFLAGS -I. -I$srcdir"
     if test "$ENABLED_INTEL_QA" = "yes"
     then
         CFLAGS="$CFLAGS $QAT_FLAGS"
