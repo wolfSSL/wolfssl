@@ -152,27 +152,35 @@ void app_main(void)
 
 
     /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
-#if defined(CONFIG_IDF_TARGET_ESP32)
-    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
-            );
-    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-    ESP_LOGI(TAG, "CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
-             );
-    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
-#elif defined(CONFIG_IDF_TARGET_ESP32S3)
-    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
-             );
-    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
-#elif defined(CONFIG_IDF_TARGET_ESP32H2)
-    ESP_LOGI(TAG, "CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ
-             );
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    #define CONFIG_IDF_TARGET_NAME ESP
 #else
-    /* No generic implementation yet */
+    #if defined(CONFIG_IDF_TARGET_ESP32)
+        #define CONFIG_IDF_TARGET_NAME ESP32
+    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        #define CONFIG_IDF_TARGET_NAME ESP32S2
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #define CONFIG_IDF_TARGET_NAME ESP32S3
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        #define CONFIG_IDF_TARGET_NAME ESP32H2
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+        #define CONFIG_IDF_TARGET_NAME ESP32C3
+    #else
+        #error CONFIG_IDF_TARGET " not supported"
+    #endif
+#endif
+
+#define LOG_TARGET_FREQ_INT(target) \
+    ESP_LOGI(TAG, "CONFIG_" #target "_DEFAULT_CPU_FREQ_MHZ = %u MHz", \
+                   CONFIG_##target##_DEFAULT_CPU_FREQ_MHZ \
+            );
+#define LOG_TARGET_FREQ(target) LOG_TARGET_FREQ_INT(target)
+
+    LOG_TARGET_FREQ(CONFIG_IDF_TARGET_NAME);
+
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA)
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
 #endif
 
     /* all platforms: stack high water mark check */
