@@ -4563,8 +4563,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
-    word32 i;
-    for (i = ctrSz-1; i >= 0; i--) {
+    int i;
+    for (i = (int)ctrSz - 1; i >= 0; i--) {
         if (++ctr[i])
             break;
     }

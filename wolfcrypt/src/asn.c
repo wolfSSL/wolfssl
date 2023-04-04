@@ -8095,7 +8095,8 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
     }
     if (ret == 0) {
-        padSz = (word32)((blockSz - ((int)keySz & (blockSz - 1))) & (blockSz - 1));
+        padSz = (word32)((blockSz - ((int)keySz & (blockSz - 1))) &
+            (blockSz - 1));
         /* inner = OCT salt INT itt */
         innerLen = 2 + saltSz + 2 + (itt < 256 ? 1 : 2);
 
@@ -17219,7 +17220,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
             /* check that strLen at index is not past input buffer */
-            if (strLen + (int)idx > sz) {
+            if (strLen + idx > sz) {
                 return BUFFER_E;
             }
 
@@ -17354,12 +17355,12 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
         cert->weOwnAltNames = 1;
 
-        if (length + (int)idx != sz) {
+        if (length + idx != sz) {
             ret = ASN_PARSE_E;
         }
     }
 
-    while ((ret == 0) && ((int)idx < sz)) {
+    while ((ret == 0) && (idx < sz)) {
         ASNGetData dataASN[altNameASN_Length];
 
         /* Clear dynamic data items. */
@@ -18493,7 +18494,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
                 return MEMORY_E;
             }
 
-            entry->name = (char*)XMALLOC((word32)strLength+1, heap, DYNAMIC_TYPE_ALTNAME);
+            entry->name = (char*)XMALLOC((word32)strLength+1, heap,
+                DYNAMIC_TYPE_ALTNAME);
             if (entry->name == NULL) {
                 WOLFSSL_MSG("allocate error");
                 XFREE(entry, heap, DYNAMIC_TYPE_ALTNAME);
