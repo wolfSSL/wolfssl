@@ -1057,23 +1057,34 @@ enum Hash_Sum  {
 
 #if !defined(NO_DES3) || !defined(NO_AES)
 enum Block_Sum {
+#if !defined(NO_AES)
 #ifdef WOLFSSL_AES_128
     AES128CBCb = 414,
     AES128GCMb = 418,
     AES128CCMb = 419
 #endif
 #ifdef WOLFSSL_AES_192
-   ,AES192CBCb = 434,
+    #ifdef WOLFSSL_AES_128
+    ,
+    #endif
+    AES192CBCb = 434,
     AES192GCMb = 438,
     AES192CCMb = 439
 #endif
 #ifdef WOLFSSL_AES_256
-   ,AES256CBCb = 454,
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192)
+    ,
+    #endif
+    AES256CBCb = 454,
     AES256GCMb = 458,
     AES256CCMb = 459
 #endif
+#endif /* !NO_AES */
 #ifndef NO_DES3
-   ,DESb       = 69,
+    #if !defined(NO_AES)
+    ,
+    #endif
+    DESb       = 69,
     DES3b      = 652
 #endif
 };
@@ -1110,13 +1121,23 @@ enum KeyWrap_Sum {
     AES128_WRAP  = 417
 #endif
 #ifdef WOLFSSL_AES_192
-   ,AES192_WRAP  = 437
+    #ifdef WOLFSSL_AES_128
+    ,
+    #endif
+    AES192_WRAP  = 437
 #endif
 #ifdef WOLFSSL_AES_256
-   ,AES256_WRAP  = 457
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192)
+    ,
+    #endif
+    AES256_WRAP  = 457
 #endif
 #ifdef HAVE_PKCS7
-   ,PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+        defined(WOLFSSL_AES_256)
+    ,
+    #endif
+   PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
 #endif
 };
 #endif /* !NO_AES || PKCS7 */
