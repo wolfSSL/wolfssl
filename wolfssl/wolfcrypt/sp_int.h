@@ -666,7 +666,7 @@ typedef struct sp_ecc_ctx {
  */
 #define sp_clamp(a)                                               \
     do {                                                          \
-        int ii;                                                   \
+        unsigned int ii;                                                   \
         for (ii = (a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
         }                                                         \
         (a)->used = ii + 1;                                       \
@@ -818,7 +818,7 @@ typedef sp_int_digit mp_digit;
  */
 
 MP_API int sp_init(sp_int* a);
-MP_API int sp_init_size(sp_int* a, int size);
+MP_API int sp_init_size(sp_int* a, unsigned int size);
 MP_API int sp_init_multi(sp_int* n1, sp_int* n2, sp_int* n3, sp_int* n4,
                          sp_int* n5, sp_int* n6);
 MP_API void sp_free(sp_int* a);

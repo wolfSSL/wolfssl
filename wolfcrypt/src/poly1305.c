@@ -778,7 +778,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
 
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
-            size_t want = (bytes & ~(POLY1305_BLOCK_SIZE - 1));
+            size_t want = ((size_t)bytes & ~(POLY1305_BLOCK_SIZE - 1));
 #if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
             int ret;
             ret = poly1305_blocks(ctx, m, want);
