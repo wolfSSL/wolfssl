@@ -138,7 +138,7 @@ enum {
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
 
-    AES_IV_SIZE         = 16,  /* always block size       */
+    AES_IV_SIZE         = 16   /* always block size       */
 };
 #endif
 
@@ -165,20 +165,20 @@ enum {
     CCM_NONCE_MIN_SZ = 7,
     CCM_NONCE_MAX_SZ = 13,
     CTR_SZ   = 4,
-    AES_IV_FIXED_SZ = 4,
+    AES_IV_FIXED_SZ = 4
 #ifdef WOLFSSL_AES_CFB
-    AES_CFB_MODE = 1,
+   ,AES_CFB_MODE = 1
 #endif
 #ifdef WOLFSSL_AES_OFB
-    AES_OFB_MODE = 2,
+   ,AES_OFB_MODE = 2
 #endif
 #ifdef WOLFSSL_AES_XTS
-    AES_XTS_MODE = 3,
+   ,AES_XTS_MODE = 3
 #endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
-    AES_MAX_ID_LEN      = 32,
-    AES_MAX_LABEL_LEN   = 32,
+   ,AES_MAX_ID_LEN      = 32,
+    AES_MAX_LABEL_LEN   = 32
 #endif
 };
 
