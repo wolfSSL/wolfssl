@@ -177,6 +177,26 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 # enabled
 ENABLED_CERTS="no"
 
+# Implements requirements from RFC9325
+AC_ARG_ENABLE([harden-tls],
+    [AS_HELP_STRING([--enable-harden-tls],[Enable requirements from RFC9325. Possible values are <yes>, <112>, or <128>. <yes> is equivalent to <112>. (default: disabled)])],
+    [ ENABLED_HARDEN_TLS=$enableval ],
+    [ ENABLED_HARDEN_TLS=no ]
+    )
+
+if test "x$ENABLED_HARDEN_TLS" != "xno"
+then
+    if test "x$ENABLED_HARDEN_TLS" == "xyes" || test "x$ENABLED_HARDEN_TLS" == "x112"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=112"
+    elif test "x$ENABLED_HARDEN_TLS" == "x128"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=128"
+    else
+        AC_MSG_ERROR([Invalid value for --enable-harden-tls])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_ALERTS -DWOLFSSL_CHECK_ALERT_ON_ERR"
+fi
 
 # Support for forcing 32-bit mode
 # To force 32-bit instructions use:
@@ -3481,7 +3501,7 @@ AC_ARG_ENABLE([oldtls],
     [ ENABLED_OLD_TLS=yes ]
     )
 
-if test "$ENABLED_CRYPTONLY" = "yes"
+if test "$ENABLED_CRYPTONLY" = "yes" || test "x$ENABLED_HARDEN_TLS" != "xno"
 then
     ENABLED_OLD_TLS=no
 fi

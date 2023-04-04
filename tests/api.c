@@ -64674,6 +64674,77 @@ static int test_extra_alerts_bad_psk(void)
     return TEST_SKIPPED;
 }
 #endif
+
+#if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(HAVE_IO_TESTS_DEPENDENCIES)
+static int test_harden_no_secure_renegotiation_io_cb(WOLFSSL *ssl, char *buf,
+        int sz, void *ctx)
+{
+    static int sentServerHello = FALSE;
+
+    if (!sentServerHello) {
+        byte renegExt[] = { 0xFF, 0x01, 0x00, 0x01, 0x00 };
+        size_t i;
+
+        if (sz < (int)sizeof(renegExt))
+            return WOLFSSL_CBIO_ERR_GENERAL;
+
+        /* Remove SCR from ServerHello */
+        for (i = 0; i < sz - sizeof(renegExt); i++) {
+            if (XMEMCMP(buf + i, renegExt, sizeof(renegExt)) == 0) {
+                /* Found the extension. Change it to something unrecognized. */
+                buf[i+1] = 0x11;
+                break;
+            }
+        }
+        sentServerHello = TRUE;
+    }
+
+    return EmbedSend(ssl, buf, sz, ctx);
+}
+
+static void test_harden_no_secure_renegotiation_ssl_ready(WOLFSSL* ssl)
+{
+    wolfSSL_SSLSetIOSend(ssl, test_harden_no_secure_renegotiation_io_cb);
+}
+
+static void test_harden_no_secure_renegotiation_on_cleanup(WOLFSSL* ssl)
+{
+    WOLFSSL_ALERT_HISTORY h;
+    AssertIntEQ(wolfSSL_get_alert_history(ssl, &h), WOLFSSL_SUCCESS);
+    AssertIntEQ(h.last_rx.code, handshake_failure);
+    AssertIntEQ(h.last_rx.level, alert_fatal);
+}
+
+static int test_harden_no_secure_renegotiation(void)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLSv1_2_client_method;
+    server_cbs.method = wolfTLSv1_2_server_method;
+
+    server_cbs.ssl_ready = test_harden_no_secure_renegotiation_ssl_ready;
+    server_cbs.on_cleanup = test_harden_no_secure_renegotiation_on_cleanup;
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_FAIL);
+    AssertIntEQ(client_cbs.last_err, SECURE_RENEGOTIATION_E);
+    AssertIntEQ(server_cbs.return_code, TEST_FAIL);
+    AssertIntEQ(server_cbs.last_err, SOCKET_ERROR_E);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_harden_no_secure_renegotiation(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -65705,6 +65776,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
+    TEST_DECL(test_harden_no_secure_renegotiation),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */

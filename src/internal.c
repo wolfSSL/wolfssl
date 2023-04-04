@@ -79,6 +79,16 @@
  *     by default.
  *     https://www.rfc-editor.org/rfc/rfc8446#section-5.5
  *     https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
+ * WOLFSSL_HARDEN_TLS
+ *     Implement the recommendations specified in RFC9325. This macro needs to
+ *     be defined to the desired number of bits of security. The currently
+ *     implemented values are 112 and 128 bits. The following macros disable
+ *     certain checks.
+ *     - WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC
+ *     - WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS
+ *     - WOLFSSL_HARDEN_TLS_NO_SCR_CHECK
+ *     - WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK
+ *     - WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES
  */
 
 
@@ -7128,11 +7138,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif
 
-#ifdef HAVE_SECURE_RENEGOTIATION
+#if defined(HAVE_SECURE_RENEGOTIATION) || \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         int useSecureReneg = ssl->ctx->useSecureReneg;
         /* use secure renegotiation by default (not recommend) */
-    #ifdef WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT
+    #if defined(WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT) || \
+        (defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+                !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK))
         useSecureReneg = 1;
     #endif
         if (useSecureReneg) {
@@ -26982,6 +26995,18 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
             if (!pendingEMS && ssl->options.haveEMS)
                 ssl->options.haveEMS = 0;
+        }
+#endif
+
+#if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+        if (ssl->secure_renegotiation == NULL ||
+                !ssl->secure_renegotiation->enabled) {
+            /* If the server does not acknowledge the extension, the client
+             * MUST generate a fatal handshake_failure alert prior to
+             * terminating the connection.
+             * https://www.rfc-editor.org/rfc/rfc9325#name-renegotiation-in-tls-12 */
+            WOLFSSL_MSG("ServerHello did not contain SCR extension");
+            return SECURE_RENEGOTIATION_E;
         }
 #endif
 
