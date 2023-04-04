@@ -112,7 +112,7 @@ enum Ecc_Sum {
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
     ECC_BRAINPOOLP512R1_OID = 110,
-    ECC_SECP521R1_OID = 211,
+    ECC_SECP521R1_OID = 211
 };
 
 
@@ -154,7 +154,7 @@ enum CertType {
     SPHINCS_SMALL_LEVEL1_TYPE,
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
-    ECC_PARAM_TYPE,
+    ECC_PARAM_TYPE
 };
 
 
@@ -202,7 +202,7 @@ enum Ctc_SigType {
     CTC_SPHINCS_FAST_LEVEL5  = 282,
     CTC_SPHINCS_SMALL_LEVEL1 = 287,
     CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286,
+    CTC_SPHINCS_SMALL_LEVEL5 = 286
 };
 
 enum Ctc_Encoding {
@@ -231,15 +231,16 @@ enum Ctc_Misc {
     CTC_GEN_SERIAL_SZ =    16,
     CTC_FILETYPE_ASN1 =     2,
     CTC_FILETYPE_PEM  =     1,
-    CTC_FILETYPE_DEFAULT =  2,
+    CTC_FILETYPE_DEFAULT =  2
+
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
-    CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
+   ,CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
-    CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
+    CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ /* Arbitrary size that should be
                                                  * enough for at least two
                                                  * distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
@@ -270,7 +271,7 @@ enum {
 #endif
 
     PEM_PASS_READ  = 0,
-    PEM_PASS_WRITE = 1,
+    PEM_PASS_WRITE = 1
 };
 
 typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
