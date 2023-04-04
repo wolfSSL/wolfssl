@@ -287,13 +287,13 @@
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
-#ifdef HAVE_C___ATOMIC
-#include <stdatomic.h>
-#endif
-
 #endif /* SINGLE_THREADED */
 #if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
     typedef wolfSSL_Mutex wolfSSL_RwLock;
+#endif
+
+#ifdef HAVE_C___ATOMIC
+#include <stdatomic.h>
 #endif
 
 /* Reference counting. */
