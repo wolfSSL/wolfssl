@@ -45103,6 +45103,7 @@ static int test_wolfSSL_make_cert(void)
     AssertIntEQ(ASN1_STRING_length(entryValue), 2);
     AssertStrEQ((const char*)ASN1_STRING_data(entryValue), "US");
 
+#ifndef WOLFSSL_MULTI_ATTRIB
     /* compare Serial Number */
     AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_serialNumber,
                     -1)), 7);
@@ -45110,6 +45111,7 @@ static int test_wolfSSL_make_cert(void)
     AssertNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
     AssertIntEQ(ASN1_STRING_length(entryValue), XSTRLEN("wolfSSL12345"));
     AssertStrEQ((const char*)ASN1_STRING_data(entryValue), "wolfSSL12345");
+#endif
 
 #ifdef WOLFSSL_MULTI_ATTRIB
     /* get first and second DC and compare result */
