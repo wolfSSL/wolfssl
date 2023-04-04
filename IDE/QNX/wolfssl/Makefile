@@ -1,4 +1,4 @@
-ARTIFACT = wolfCrypt
+ARTIFACT = libwolfssl.so
 
 #Build architecture/variant string, possible values: x86, armv7le, etc...
 PLATFORM ?= armv7le
@@ -12,23 +12,14 @@ TARGET = $(OUTPUT_DIR)/$(ARTIFACT)
 
 #Compiler definitions
 
-CC ?= qcc -Vgcc_nto$(PLATFORM)
-CXX ?= q++ -Vgcc_nto$(PLATFORM)_cxx
+CC = qcc -Vgcc_nto$(PLATFORM)
+CXX = q++ -Vgcc_nto$(PLATFORM)_cxx
 LD = $(CC)
 
-INCLUDES += -I../../../ -I../../../wolfssl/wolfcrypt/port/caam/
-CCFLAGS += -O2 -Wall
+#User defined include/preprocessor flags and libraries
 
-# For debugging print outs build with WOLFSSL_CAAM_PRINT defined
-# CCFLAGS += -DWOLFSSL_CAAM_PRINT -O2 -Wall
-
-# Setting base address for hardware
-
-# For IMX6UL devices
-# CCFLAGS += -DWOLFSSL_CAAM_IMX6UL
-
-# For IMX6Q devices
-CCFLAGS += -DWOLFSSL_CAAM_IMX6Q
+INCLUDES += -I../../..
+INCLUDES += -I./
 
 #Compiler flags for build profiles
 CCFLAGS_release += -O2
@@ -39,15 +30,23 @@ CCFLAGS_profile += -g -O0 -finstrument-functions
 LIBS_profile += -lprofilingS
 
 #Generic compiler flags (which include build type flags)
-CCFLAGS_all += -Wall -fmessage-length=0
+CCFLAGS_all += -DWOLFSSL_USER_SETTINGS -Wall -fmessage-length=0
 CCFLAGS_all += $(CCFLAGS_$(BUILD_PROFILE))
+#Shared library has to be compiled with -fPIC
+CCFLAGS_all += -fPIC
 LDFLAGS_all += $(LDFLAGS_$(BUILD_PROFILE))
 LIBS_all += $(LIBS_$(BUILD_PROFILE))
 DEPS = -Wp,-MMD,$(OUTPUT_DIR)/$(notdir $(@:%.o=%.d)),-MT,$(OUTPUT_DIR)/$(notdir $@)
 
-SRCS = ../../../wolfcrypt/src/port/caam/caam_error.c \
-       ../../../wolfcrypt/src/port/caam/caam_driver.c \
-       ../../../wolfcrypt/src/port/caam/caam_qnx.c
+#Macro to expand files recursively: parameters $1 -  directory, $2 - extension, i.e. cpp
+rwildcard = $(wildcard $(addprefix $1/*.,$2)) $(foreach d,$(wildcard $1/*),$(call rwildcard,$d,$2))
+
+#Source list
+SRCS = $(call rwildcard, src, c)
+SRCS += $(call rwildcard, ../../../src, c)
+SRCS += $(wildcard $(addprefix ../../../wolfcrypt/src/*.,c))
+SRCS += $(wildcard $(addprefix ../../../wolfcrypt/src/port/caam/wolfcaam_*.,c))
+
 
 #Object files list
 OBJS = $(addprefix $(OUTPUT_DIR)/,$(addsuffix .o, $(basename $(SRCS))))
@@ -57,9 +56,11 @@ $(OUTPUT_DIR)/%.o: %.c
 	@mkdir -p $(dir $(OUTPUT_DIR)/$(notdir $@))
 	$(CC) -c $(DEPS) -o $(OUTPUT_DIR)/$(notdir $@) $(INCLUDES) $(CCFLAGS_all) $(CCFLAGS) $<
 
+
 #Linking rule
 $(TARGET):$(OBJS)
-	$(LD) -o $(TARGET) $(LDFLAGS_all) $(LDFLAGS) $(foreach f, $(OBJS), $(OUTPUT_DIR)/$(notdir $(f))) $(LIBS_all) $(LIBS)
+	$(LD) -shared -o $(TARGET) $(LDFLAGS_all) $(LDFLAGS) $(foreach f, $(OBJS), $(OUTPUT_DIR)/$(notdir $(f))) $(LIBS_all) $(LIBS)
+
 
 #Rules section for default compilation and linking
 all: $(TARGET)

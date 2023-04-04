@@ -34,6 +34,8 @@
 #include <sys/ioctl.h>
 #include <devctl.h>
 
+#include <errno.h>
+
 /* for devctl use */
 int caamFd = -1;
 static wolfSSL_Mutex caamMutex;

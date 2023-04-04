@@ -44028,7 +44028,7 @@ WOLFSSL_TEST_SUBROUTINE int blob_test(void)
 
     return ret;
 }
-#endif /* WOLFSSL_IMX6_CAAM_BLOB */
+#endif /* WOLFSSL_CAAM_BLOB */
 
 #ifdef WOLF_CRYPTO_CB
 
