@@ -96,7 +96,7 @@ int get_digit_count(const mp_int* a)
     if (a == NULL)
         return 0;
 
-    return a->used;
+    return (int)a->used;
 }
 
 mp_digit get_digit(const mp_int* a, int n)
@@ -122,7 +122,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 #if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
     unsigned int mask = (unsigned int)0 - copy;
 #else
-    mp_digit mask = (mp_digit)0 - copy;
+    mp_digit mask = (mp_digit)0 - (mp_digit)copy;
 #endif
 
     if (a == NULL || b == NULL)
@@ -130,7 +130,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
     /* Ensure b has enough space to copy a into */
     if (err == MP_OKAY)
-        err = mp_grow(b, a->used + 1);
+        err = mp_grow(b, (int)a->used + 1);
     if (err == MP_OKAY) {
     #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
         unsigned int i;
@@ -144,15 +144,15 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
          * get_digit() returns 0 when index greater than available digit.
          */
         for (i = 0; i < a->used; i++) {
-            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
         for (; i < b->used; i++) {
-            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
-        b->used ^= (a->used ^ b->used) & (int)mask;
+        b->used ^= (a->used ^ b->used) & (mp_digit)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
     defined(WOLFSSL_SP_INT_NEGATIVE)
-        b->sign ^= (a->sign ^ b->sign) & (int)mask;
+        b->sign ^= (a->sign ^ b->sign) & (mp_digit)mask;
 #endif
     }
 
@@ -171,7 +171,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
-    int cnt = digits * sizeof(mp_digit);
+    int cnt = digits * (int)sizeof(mp_digit);
 
     if (rng == NULL) {
         ret = MISSING_RNG_E;
@@ -195,12 +195,12 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
     if (ret == MP_OKAY) {
-        a->used = digits;
+        a->used = (word32)digits;
     }
 #endif
     /* fill the data with random bytes */
     if (ret == MP_OKAY) {
-        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, cnt);
+        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, (word32)cnt);
     }
     if (ret == MP_OKAY) {
 #ifdef USE_INTEGER_HEAP_MATH
@@ -264,7 +264,8 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
         }
         *len = keySz;
         XMEMSET(buf, 0, *len);
-        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
+        err = mp_to_unsigned_bin(mp, buf +
+            (keySz - (word32)mp_unsigned_bin_size(mp)));
     }
 
     return err;

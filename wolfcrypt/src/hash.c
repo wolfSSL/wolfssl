@@ -531,7 +531,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
     word32 dig_size;
 
     /* Validate hash buffer size */
-    dig_size = wc_HashGetDigestSize(hash_type);
+    dig_size = (word32)wc_HashGetDigestSize(hash_type);
     if (hash_len < dig_size) {
         return BUFFER_E;
     }

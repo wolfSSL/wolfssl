@@ -178,7 +178,7 @@ This library provides single precision (SP) integer math functions.
     do {                                                                       \
         ALLOC_SP_INT(n, s, err, h);                                            \
         if ((err) == MP_OKAY) {                                                \
-            (n)->size = (s);                                                   \
+            (n)->size = (unsigned int)(s);                                     \
         }                                                                      \
     }                                                                          \
     while (0)
@@ -4682,7 +4682,7 @@ static void _sp_zero(sp_int* a)
  * @param  [out]  a     SP integer.
  * @param  [in]   size  Number of words to say are available.
  */
-static void _sp_init_size(sp_int* a, int size)
+static void _sp_init_size(sp_int* a, unsigned int size)
 {
     volatile sp_int_minimal* am = (sp_int_minimal *)a;
 
@@ -4702,7 +4702,7 @@ static void _sp_init_size(sp_int* a, int size)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a is NULL.
  */
-int sp_init_size(sp_int* a, int size)
+int sp_init_size(sp_int* a, unsigned int size)
 {
     int err = MP_OKAY;
 
@@ -4998,8 +4998,8 @@ int sp_exch(sp_int* a, sp_int* b)
     ALLOC_SP_INT(t, a->used, err, NULL);
     if (err == MP_OKAY) {
         /* Cache allocated size of a and b. */
-        int asize = a->size;
-        int bsize = b->size;
+        unsigned int asize = a->size;
+        unsigned int bsize = b->size;
         /* Copy all of SP int: t <= a, a <= b, b <= t. */
         XMEMCPY(t, a, MP_INT_SIZEOF(a->used));
         XMEMCPY(a, b, MP_INT_SIZEOF(b->used));
@@ -5030,16 +5030,16 @@ int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
 {
     unsigned int i;
     int err = MP_OKAY;
-    sp_int_digit mask = (sp_int_digit)0 - swap;
+    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
     DECL_SP_INT(t, cnt);
 
     /* Allocate temporary to hold masked xor of a and b. */
     ALLOC_SP_INT(t, cnt, err, NULL);
     if (err == MP_OKAY) {
         /* XOR other fields in sp_int into temp - mask set when swapping. */
-        t->used = (int)((a->used ^ b->used) & mask);
+        t->used = (a->used ^ b->used) & mask;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
-        t->sign = (int)((a->sign ^ b->sign) & mask);
+        t->sign = (a->sign ^ b->sign) & mask;
     #endif
 
         /* XOR requested words into temp - mask set when swapping. */
@@ -5430,13 +5430,13 @@ int sp_cnt_lsb(const sp_int* a)
             /* Done if not all 4 bits are zero. */
             if (cnt != 4) {
                 /* Add checked bits and count in last 4 bits checked. */
-                bc += j + cnt;
+                bc += j + (unsigned int)cnt;
                 break;
             }
         }
     }
 
-    return bc;
+    return (int)bc;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
 
@@ -6758,7 +6758,7 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
     /* Last word only needs to be shifted down. */
     r->dp[i] = a->dp[i] >> 1;
     /* Set used to be all words seen. */
-    r->used = i + 1;
+    r->used = (unsigned int)i + 1;
     /* Remove leading zeros. */
     sp_clamp(r);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -7267,8 +7267,8 @@ int sp_addmod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
     /* Calculate used based on digits used in a and b. */
-    int used = ((a == NULL) || (b == NULL)) ? 1 :
-                   ((a->used >= b->used) ? a->used + 1 : b->used + 1);
+    unsigned int used = ((a == NULL) || (b == NULL)) ? 1 :
+                        ((a->used >= b->used) ? a->used + 1 : b->used + 1);
     DECL_SP_INT(t, used);
 
     /* Validate parameters. */
@@ -7780,7 +7780,7 @@ static int sp_lshb(sp_int* a, int n)
 
     if (a->used != 0) {
         /* Calculate number of digits to shift. */
-        unsigned int s = n >> SP_WORD_SHIFT;
+        unsigned int s = (unsigned int)n >> SP_WORD_SHIFT;
 
         /* Ensure number has enough digits for result. */
         if (a->used + s >= a->size) {
@@ -8757,11 +8757,11 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         w[14] = (sp_int_word)da[3] * db[2];
         w[15] = (sp_int_word)da[3] * db[3];
 
-        r->dp[0] = w[0];
+        r->dp[0] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[1];
         w[0] += (sp_int_digit)w[2];
-        r->dp[1] = w[0];
+        r->dp[1] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[1] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[1];
@@ -8770,7 +8770,7 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         w[0] += (sp_int_digit)w[3];
         w[0] += (sp_int_digit)w[4];
         w[0] += (sp_int_digit)w[5];
-        r->dp[2] = w[0];
+        r->dp[2] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[3] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[3];
@@ -8782,7 +8782,7 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         w[0] += (sp_int_digit)w[7];
         w[0] += (sp_int_digit)w[8];
         w[0] += (sp_int_digit)w[9];
-        r->dp[3] = w[0];
+        r->dp[3] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[6] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[6];
@@ -8795,7 +8795,7 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         w[0] += (sp_int_digit)w[10];
         w[0] += (sp_int_digit)w[11];
         w[0] += (sp_int_digit)w[12];
-        r->dp[4] = w[0];
+        r->dp[4] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[10] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[10];
@@ -8805,18 +8805,18 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
         w[0] += (sp_int_digit)w[12];
         w[0] += (sp_int_digit)w[13];
         w[0] += (sp_int_digit)w[14];
-        r->dp[5] = w[0];
+        r->dp[5] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[13] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[13];
         w[14] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[14];
         w[0] += (sp_int_digit)w[15];
-        r->dp[6] = w[0];
+        r->dp[6] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[15] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[15];
-        r->dp[7] = w[0];
+        r->dp[7] = (sp_int_digit)w[0];
 
         r->used = 8;
         sp_clamp(r);
@@ -12094,9 +12094,10 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
          *    One or more of the top bits is 1 so count.
          */
         for (i = sp_count_bits(e)-2, j = 1; i >= 0; i--, j++) {
-              if ((!sp_is_bit_set(e, i)) || (j == CT_INV_MOD_PRE_CNT)) {
-                  break;
-              }
+            if ((!sp_is_bit_set(e, (unsigned int)i)) ||
+                    (j == CT_INV_MOD_PRE_CNT)) {
+                break;
+            }
         }
         /* 3. Set tmp to product of leading bits. */
         err = sp_copy(pre[j-1], t);
@@ -12110,7 +12111,7 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
          */
         for (; (err == MP_OKAY) && (i >= 0); i--) {
             /* 6.1. bit = e[i] */
-            int bit = sp_is_bit_set(e, i);
+            int bit = sp_is_bit_set(e, (unsigned int)i);
 
             /* 6.2. j += bit
              *      Update count of consequitive 1 bits.
@@ -13231,7 +13232,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     /* Top bit of exponent fixed as 1 for pre-calculated window. */
     preCnt = 1 << (winBits - 1);
     /* Mask for calculating index into pre-computed table. */
-    mask = preCnt - 1;
+    mask = (sp_int_digit)preCnt - 1;
 
     /* Allocate sp_ints for:
      *  - pre-computation table
@@ -14109,11 +14110,11 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         w[8] = (sp_int_word)da[2] * da[3];
         w[9] = (sp_int_word)da[3] * da[3];
 
-        r->dp[0] = w[0];
+        r->dp[0] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[1];
         w[0] += (sp_int_digit)w[1];
-        r->dp[1] = w[0];
+        r->dp[1] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[1] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[1];
@@ -14121,7 +14122,7 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         w[0] += (sp_int_digit)w[2];
         w[0] += (sp_int_digit)w[2];
         w[0] += (sp_int_digit)w[3];
-        r->dp[2] = w[0];
+        r->dp[2] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[2] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[2];
@@ -14132,7 +14133,7 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         w[0] += (sp_int_digit)w[4];
         w[0] += (sp_int_digit)w[5];
         w[0] += (sp_int_digit)w[5];
-        r->dp[3] = w[0];
+        r->dp[3] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[4] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[4];
@@ -14143,7 +14144,7 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         w[0] += (sp_int_digit)w[6];
         w[0] += (sp_int_digit)w[6];
         w[0] += (sp_int_digit)w[7];
-        r->dp[4] = w[0];
+        r->dp[4] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[6] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[6];
@@ -14152,17 +14153,17 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
         w[0] += (sp_int_digit)w[7];
         w[0] += (sp_int_digit)w[8];
         w[0] += (sp_int_digit)w[8];
-        r->dp[5] = w[0];
+        r->dp[5] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[8] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[8];
         w[0] += (sp_int_digit)w[8];
         w[0] += (sp_int_digit)w[9];
-        r->dp[6] = w[0];
+        r->dp[6] = (sp_int_digit)w[0];
         w[0] >>= SP_WORD_SIZE;
         w[9] >>= SP_WORD_SIZE;
         w[0] += (sp_int_digit)w[9];
-        r->dp[7] = w[0];
+        r->dp[7] = (sp_int_digit)w[0];
 
         r->used = 8;
         sp_clamp(r);
@@ -16846,7 +16847,7 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho)
     x *= 1 + y;
 
     /* rho = -1/m mod d, subtract x (unsigned) from 0, assign negative */
-    *rho = (sp_int_digit)((sp_int_digit)0 - (sp_int_sdigit)x);
+    *rho = (sp_int_digit)((sp_int_sdigit)0 - (sp_int_sdigit)x);
 }
 
 /* Calculate the bottom digit of the inverse of negative m.
@@ -16916,7 +16917,7 @@ int sp_mont_norm(sp_int* norm, const sp_int* m)
         }
         /* Smallest number greater than m of form 2^n. */
         _sp_zero(norm);
-        err = sp_set_bit(norm, bits);
+        err = sp_set_bit(norm, (int)bits);
     }
     if (err == MP_OKAY) {
         /* norm = 2^n % m */
@@ -17292,7 +17293,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
             break;
         }
         /* Add character value. */
-        err = _sp_add_d(a, ch, a);
+        err = _sp_add_d(a, (sp_int_digit)ch, a);
         if (err != MP_OKAY) {
             break;
         }
@@ -17467,7 +17468,7 @@ int sp_tohex(const sp_int* a, char* str)
                 d = a->dp[i];
                 /* Write out all nibbles of digit. */
                 for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
-                    *(str++) = (byte)ByteToHex((byte)(d >> j));
+                    *(str++) = (char)ByteToHex((byte)(d >> j));
                 }
             }
         }
@@ -18265,7 +18266,7 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
      * give a (1/4)^t chance of a false prime. */
     if ((err == MP_OKAY) && (!haveRes)) {
         int bits = sp_count_bits(a);
-        word32 baseSz = (bits + 7) / 8;
+        word32 baseSz = ((word32)bits + 7) / 8;
         DECL_SP_INT_ARRAY(ds, a->used + 1, 2);
         DECL_SP_INT_ARRAY(d, a->used * 2 + 1, 2);
 
