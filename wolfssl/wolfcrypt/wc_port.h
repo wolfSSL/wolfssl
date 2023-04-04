@@ -287,6 +287,9 @@
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
+#ifdef HAVE_C___ATOMIC
+#include <stdatomic.h>
+#endif
 
 #endif /* SINGLE_THREADED */
 #if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
@@ -298,7 +301,11 @@ typedef struct wolfSSL_Ref {
 #if !defined(SINGLE_THREADED) && !defined(HAVE_C___ATOMIC)
     wolfSSL_Mutex mutex;
 #endif
+#ifdef HAVE_C___ATOMIC
+    atomic_int count;
+#else
     int count;
+#endif
 } wolfSSL_Ref;
 
 #ifdef SINGLE_THREADED
@@ -325,20 +332,20 @@ typedef struct wolfSSL_Ref {
 
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
-        (ref)->count = 1;                    \
+        atomic_init(&(ref)->count, 1);       \
         *(err) = 0;                          \
     } while(0)
 #define wolfSSL_RefFree(ref)
 #define wolfSSL_RefInc(ref, err)             \
     do {                                     \
-        __atomic_fetch_add(&(ref)->count, 1, \
-            __ATOMIC_RELAXED);               \
+        atomic_fetch_add_explicit(&(ref)->count, 1, \
+                memory_order_relaxed);       \
         *(err) = 0;                          \
     } while(0)
 #define wolfSSL_RefDec(ref, isZero, err)     \
     do {                                     \
-        __atomic_fetch_sub(&(ref)->count, 1, \
-            __ATOMIC_RELAXED);               \
+        atomic_fetch_sub_explicit(&(ref)->count, 1, \
+                memory_order_relaxed);       \
         *(isZero) = ((ref)->count == 0);     \
         *(err) = 0;                          \
     } while(0)
