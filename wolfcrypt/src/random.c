@@ -519,8 +519,8 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 
 static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
-    word32 i;
-    for (i = dataSz - 1; i >= 0; i--) {
+    int i;
+    for (i = (int)dataSz - 1; i >= 0; i--) {
         data[i]++;
         if (data[i] != 0) break;
     }
@@ -618,11 +618,11 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
-        word32 sIdx, dIdx;
+        int sIdx, dIdx;
         word16 carry = 0;
 
         dIdx = dLen - 1;
-        for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
+        for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
             carry += (word16)d[dIdx] + (word16)s[sIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;

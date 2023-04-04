@@ -672,7 +672,7 @@ typedef struct sp_ecc_ctx {
         unsigned int ii;                                          \
         for (ii = (a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
         }                                                         \
-        (a)->used = ii + 1;                                       \
+        (a)->used = (unsigned int)ii + 1;                         \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
