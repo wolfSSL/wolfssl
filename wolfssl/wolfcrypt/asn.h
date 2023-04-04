@@ -1110,13 +1110,23 @@ enum KeyWrap_Sum {
     AES128_WRAP  = 417
 #endif
 #ifdef WOLFSSL_AES_192
-   ,AES192_WRAP  = 437
+    #ifdef WOLFSSL_AES_128
+    ,
+    #endif
+    AES192_WRAP  = 437
 #endif
 #ifdef WOLFSSL_AES_256
-   ,AES256_WRAP  = 457
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192)
+    ,
+    #endif
+    AES256_WRAP  = 457
 #endif
 #ifdef HAVE_PKCS7
-   ,PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+        defined(WOLFSSL_AES_256)
+    ,
+    #endif
+   PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
 #endif
 };
 #endif /* !NO_AES || PKCS7 */
