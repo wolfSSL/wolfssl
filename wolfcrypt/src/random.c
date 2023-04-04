@@ -3393,26 +3393,26 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     /* Espressif */
     #include <esp_idf_version.h>
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
-	#include <esp_random.h>
+        #include <esp_random.h>
     #else
-	#include <esp_system.h>
+        #include <esp_system.h>
     #endif
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-	word32 rand;
-	while (sz > 0) {
-	    word32 len = sizeof(rand);
-	    if (sz < len)
-		len = sz;
-	    /* Get one random 32-bit word from hw RNG */
-	    rand = esp_random( );
-	    XMEMCPY(output, &rand, len);
-	    output += len;
-	    sz -= len;
-	}
+        word32 rand;
+        while (sz > 0) {
+            word32 len = sizeof(rand);
+            if (sz < len)
+                len = sz;
+            /* Get one random 32-bit word from hw RNG */
+            rand = esp_random( );
+            XMEMCPY(output, &rand, len);
+            output += len;
+            sz -= len;
+        }
 
-	return 0;
+        return 0;
     }
 
 #elif defined(WOLFSSL_LINUXKM)
