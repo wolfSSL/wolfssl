@@ -1853,7 +1853,7 @@ int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
     \sa wolfSSL_SetIOWriteCtx
     \sa wolfDTLS_SetChGoodCb
 */
-int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
+int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
 
 /*!
     \ingroup Setup
