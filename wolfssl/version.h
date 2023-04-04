@@ -23,13 +23,21 @@
 #ifndef WOLFSSL_VERSION_H
 #define WOLFSSL_VERSION_H
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifdef HAVE_CONFIG_H
+    #include "config.h"
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+
 #define LIBWOLFSSL_VERSION_STRING "5.6.0"
 #define LIBWOLFSSL_VERSION_HEX 0x05006000
+
+#ifdef HAVE_VERSION_EXTENDED_INFO
+WOLFSSL_API int ShowExtendedSystemInfo(void);
+#endif
 
 #ifdef __cplusplus
 }

@@ -28,9 +28,10 @@
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
+#include <wolfssl/version.h>
+
 #ifndef NO_CRYPT_TEST
 
-#include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
@@ -118,9 +119,14 @@
     #endif
     #include "os/os_time.h"
 #elif defined(WOLFSSL_ESPIDF)
+
     #include <time.h>
     #include <sys/time.h>
     #include <esp_log.h>
+
+    /* there's a conflict with the TAG in sha256.c,
+    ** so we call this one TEST_TAG */
+    static const char* TEST_TAG = "wolfcrypt_test"; /* ESP_LOG() breadcrumb */
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
 
@@ -1736,10 +1742,17 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             printf("wolfCrypt_Init failed %d\n", ret);
             err_sys("Error with wolfCrypt_Init!\n", WC_TEST_RET_ENC_EC(ret));
         }
+#if defined(HAVE_VERSION_EXTENDED_INFO) && !defined(WOLFCRYPT_ONLY)
+        ShowExtendedSystemInfo();
+#endif
 
     #ifdef HAVE_WC_INTROSPECTION
         printf("Math: %s\n", wc_GetMathInfo());
     #endif
+
+#if defined(HAVE_VERSION_EXTENDED_INFO) && !defined(WOLFCRYPT_ONLY)
+        ShowExtendedSystemInfo();
+#endif
 
 #ifdef WC_RNG_SEED_CB
     wc_SetSeed_Cb(wc_GenerateSeed);
@@ -1771,7 +1784,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifdef WOLFSSL_ESPIDF
         /* ESP_LOGI to print takes up a lot less memory than printf */
-        ESP_LOGI("wolfcrypt_test", "Exiting main with return code: % d\n", args.return_code);
+        ESP_LOGI(TEST_TAG, "Exiting main with return code: % d\n",
+                           args.return_code);
 #endif
 
 /* everything else will use printf */

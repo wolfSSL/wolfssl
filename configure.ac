@@ -6615,6 +6615,18 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
      CPPFLAGS="$OLD_CPPFLAGS"
 ])
 
+# Extended Version Info
+AC_ARG_ENABLE([version-extended-info],
+    [AS_HELP_STRING([--enable-version-extended-info],[Enable extended version info (default: enabled)])],
+    [ ENABLED_VERSION_EXTENDED_INFO=$enableval ],
+    [ ENABLED_VERSION_EXTENDED_INFO=yes ]
+    )
+
+if test "$VERSION_EXTENDED_INFO" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_VERSION_EXTENDED_INFO"
+fi
+
 ################################################################################
 # Single Precision option handling                                             #
 ################################################################################
@@ -8166,6 +8178,10 @@ AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
        ENABLED_NULL_CIPHER=yes])
 
+# Extended information (see version.c)
+AS_IF([test "x$ENABLED_VERSION_EXTENDED_INFO" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_VERSION_EXTENDED_INFO"])
+
 # wolfSSH and WPA Supplicant both need Public MP, only enable once.
 # This will let you know if you enabled wolfSSH but have any of the prereqs
 # disabled. Some of these options, disabling them adds things to the FLAGS and
@@ -8532,6 +8548,7 @@ AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
 AM_CONDITIONAL([BUILD_HPKE],[test "x$ENABLED_HPKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
+AM_CONDITIONAL([BUILD_VERSION_EXTENDED_INFO],[test "x$VERSION_EXTENDED_INFO" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -8987,6 +9004,7 @@ echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
 echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
+echo "   * Extended Version Info       $ENABLED_VERSION_EXTENDED_INFO"
 if test "$ENABLED_ARMASM_INLINE" = "yes"
 then
     ENABLED_ARMASM="inline C"
