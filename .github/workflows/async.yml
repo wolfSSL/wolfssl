@@ -10,6 +10,7 @@ jobs:
         config: [
           # Add new configs here
           '--enable-asynccrypt --enable-all --enable-dtls13',
+          '--enable-asynccrypt-sw',
         ]
     name: make check
     runs-on: ubuntu-latest

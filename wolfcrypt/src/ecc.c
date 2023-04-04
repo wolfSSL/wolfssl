@@ -4455,7 +4455,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 
-static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
+int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
                                byte* out, word32* outlen)
 {
     int err = MP_OKAY;
@@ -4749,11 +4749,6 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
                 &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
                 private_key->dp->cofactor);
     #endif
-
-        if (err == WC_PENDING_E) {
-            /* advance state, next call will handle return code processing */
-            private_key->state++;
-        }
     }
     else
 #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
@@ -4770,6 +4765,10 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
     {
         /* use sync in other cases */
         err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen);
+    }
+
+    if (err == WC_PENDING_E) {
+        private_key->state++;
     }
 
 #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
@@ -4826,8 +4825,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                 err = wc_ecc_shared_secret_gen_async(private_key, point,
                     out, outlen);
                 if (err == 0) {
-                    /* advance state and exit early */
-                    private_key->state++;
+                    /* exit early */
                     RESTORE_VECTOR_REGISTERS();
                     return err;
                 }
@@ -8352,6 +8350,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
       if (NitroxEccIsCurveSupported(key))
    #endif
       {
+          word32 keySz = (word32)key->dp->size;
           err = wc_mp_to_bigint_sz(e, &e->raw, keySz);
           if (err == MP_OKAY)
               err = wc_mp_to_bigint_sz(key->pubkey.x, &key->pubkey.x->raw, keySz);
