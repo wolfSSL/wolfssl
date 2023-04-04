@@ -196,17 +196,34 @@ void app_main(void)
 
 
     /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
-    /* not available for C3 at this time */
-#elif defined(CONFIG_IDF_TARGET_ESP32S3)
-    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
-             );
-    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    #define CONFIG_IDF_TARGET_NAME ESP
 #else
-    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+    #if defined(CONFIG_IDF_TARGET_ESP32)
+        #define CONFIG_IDF_TARGET_NAME ESP32
+    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        #define CONFIG_IDF_TARGET_NAME ESP32S2
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #define CONFIG_IDF_TARGET_NAME ESP32S3
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        #define CONFIG_IDF_TARGET_NAME ESP32H2
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+        #define CONFIG_IDF_TARGET_NAME ESP32C3
+    #else
+        #error CONFIG_IDF_TARGET " not supported"
+    #endif
+#endif
+
+#define LOG_TARGET_FREQ_INT(target) \
+    ESP_LOGI(TAG, "CONFIG_" #target "_DEFAULT_CPU_FREQ_MHZ = %u MHz", \
+                   CONFIG_##target##_DEFAULT_CPU_FREQ_MHZ \
             );
+#define LOG_TARGET_FREQ(target) LOG_TARGET_FREQ_INT(target)
+
+    LOG_TARGET_FREQ(CONFIG_IDF_TARGET_NAME);
+
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA)
     ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
 #endif
 
@@ -214,18 +231,10 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
     /* check to see if we are using hardware encryption */
-#if defined(NO_ESP32WROOM32_CRYPT)
-    ESP_LOGI(TAG, "NO_ESP32WROOM32_CRYPT defined! HW acceleration DISABLED.");
+#if defined(WOLFSSL_ESP32_CRYPT)
+    ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT is enabled.");
 #else
-    #if defined(CONFIG_IDF_TARGET_ESP32C3)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-C3"
-    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S2"
-    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S3"
-    #else
-        ESP_LOGI(TAG, "ESP32WROOM32_CRYPT is enabled.");
-    #endif
+    ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT not defined! HW acceleration DISABLED.");
 #endif
 
 

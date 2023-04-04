@@ -30,7 +30,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 
-#ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
+#ifdef WOLFSSL_ESP32_CRYPT_DEBUG
     #undef LOG_LOCAL_LEVEL
     #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #else
@@ -93,16 +93,16 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
 #endif
 
-#ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
+#ifdef WOLFSSL_ESP32_CRYPT_DEBUG
 
     void wc_esp32TimerStart();
     uint64_t  wc_esp32elapsedTime();
 
-#endif /* WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
+#endif /* WOLFSSL_ESP32_CRYPT_DEBUG */
 
 #if (!defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || \
       defined(WOLFSSL_SHA512)) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    defined(WOLFSSL_ESP32_CRYPT_HASH)
 
     /* RAW hash function APIs are not implemented with esp32 hardware acceleration*/
     #define WOLFSSL_NO_HASH_RAW

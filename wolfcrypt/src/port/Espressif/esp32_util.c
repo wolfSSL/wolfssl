@@ -20,7 +20,7 @@
  */
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+#if defined(WOLFSSL_ESP32_CRYPT) && \
   (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_SHA256) ||\
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
 
@@ -81,7 +81,7 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
 
 #endif
 
-#ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
+#ifdef WOLFSSL_ESP32_CRYPT_DEBUG
 
 #include "esp_timer.h"
 #include "esp_log.h"
@@ -100,4 +100,4 @@ uint64_t  wc_esp32elapsedTime()
     return esp_timer_get_time() - startTime;
 }
 
-#endif /*WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
+#endif /*WOLFSSL_ESP32_CRYPT_DEBUG */

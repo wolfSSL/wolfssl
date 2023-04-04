@@ -674,8 +674,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #error nRF51 AES Hardware does not support decrypt
     #endif /* HAVE_AES_DECRYPT */
 
-#elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+#elif defined(WOLFSSL_ESP32_CRYPT_AES)
 
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 
@@ -2663,8 +2662,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
-#elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+#elif defined(WOLFSSL_ESP32_CRYPT_AES)
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
@@ -2950,8 +2948,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         rk = aes->key;
         XMEMCPY(rk, userKey, keylen);
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
-        (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-          defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES))
+        !defined(WOLFSSL_ESP32_CRYPT_AES)
         ByteReverseWords(rk, rk, keylen);
     #endif
 
@@ -3926,8 +3923,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         return ret;
     }
     #endif /* HAVE_AES_DECRYPT */
-#elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+#elif defined(WOLFSSL_ESP32_CRYPT_AES)
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
@@ -4408,8 +4404,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
-    #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+    #elif defined(WOLFSSL_ESP32_CRYPT_AES)
         /* esp32 doesn't support CRT mode by hw.     */
         /* use aes ecnryption plus sw implementation */
         #define NEED_AES_CTR_SOFT

@@ -30,8 +30,9 @@
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
+
+#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -613,7 +614,6 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, word32 Ys, MATH_INT_T* M, MATH_
     return ret;
 }
 
-#endif /* WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) &&
-        * !NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI */
+#endif /* WOLFSSL_ESP32_CRYPT_RSA_PRI */
 
 #endif /* !NO_RSA || HAVE_ECC */

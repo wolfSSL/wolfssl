@@ -19,20 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 #undef WOLFSSL_ESPIDF
-#undef WOLFSSL_ESPWROOM32
 #undef WOLFSSL_ESPWROOM32SE
 
 #define WOLFSSL_ESPIDF
 
 /*
- * choose ONE of these Espressif chips to define for HW acceleration or
- * leave all undefined for a non-accelerated build for other chips:
+ * Define WOLFSSL_ESPWROOM32SE to enable additional support for the external
+ * ATECC608A on the ESP32-WROOM32SE
  *
- * WOLFSSL_ESPWROOM32
- * WOLFSSL_ESPWROOM32SE
+ * #define WOLFSSL_ESPWROOM32SE
  */
 
-/* #define WOLFSSL_ESPWROOM32 */
+/* when you want not to use HW acceleration */
+/* #define NO_ESP32_CRYPT */
+/* #define NO_WOLFSSL_ESP32_CRYPT_HASH*/
+/* #define NO_WOLFSSL_ESP32_CRYPT_AES */
+/* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
 
 /* #define DEBUG_WOLFSSL_VERBOSE */
 
@@ -84,7 +86,8 @@
 #endif
 
 /* rsa primitive specific definition */
-#if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
+#if defined(CONFIG_IDF_TARGET_ESP32) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
     /* Define USE_FAST_MATH and SMALL_STACK                        */
     #define ESP32_USE_RSA_PRIMITIVE
     /* threshold for performance adjustment for hw primitive use   */
@@ -96,7 +99,7 @@
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */
-/* #define WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
+/* #define WOLFSSL_ESP32_CRYPT_DEBUG */
 /* #define WOLFSSL_ATECC508A_DEBUG          */
 
 /* date/time                               */
@@ -104,12 +107,6 @@
 /* enable macro below                      */
 /* #define NO_ASN_TIME */
 /* #define XTIME time */
-
-/* when you want not to use HW acceleration */
-/* #define NO_ESP32WROOM32_CRYPT */
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH*/
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES */
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI */
 
 /* adjust wait-timeout count if you see timeout in rsa hw acceleration */
 #define ESP_RSA_TIMEOUT_CNT    0x249F00

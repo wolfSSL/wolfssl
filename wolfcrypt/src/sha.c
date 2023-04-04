@@ -290,8 +290,7 @@
     !defined(WOLFSSL_QNX_CAAM)
     /* wolfcrypt/src/port/caam/caam_sha.c */
 
-#elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#elif defined(WOLFSSL_ESP32_CRYPT_HASH)
 
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 
@@ -542,8 +541,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->devCtx = NULL;
 #endif
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT_HASH)
     sha->ctx.mode = ESP32_SHA_INIT;
     sha->ctx.isfirstblock = 1;
     sha->ctx.lockDepth = 0; /* keep track of how many times lock is called */
@@ -621,8 +619,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             ByteReverseWords(sha->buffer, sha->buffer, WC_SHA_BLOCK_SIZE);
         #endif
 
-        #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-            !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+        #if defined(WOLFSSL_ESP32_CRYPT_HASH)
             if (sha->ctx.mode == ESP32_SHA_INIT) {
                 esp_sha_try_hw_lock(&sha->ctx);
             }
@@ -676,8 +673,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         ByteReverseWords(local32, local32, WC_SHA_BLOCK_SIZE);
     #endif
 
-    #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if defined(WOLFSSL_ESP32_CRYPT_HASH)
         if (sha->ctx.mode == ESP32_SHA_INIT){
             esp_sha_try_hw_lock(&sha->ctx);
         }
@@ -760,8 +756,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ByteReverseWords(sha->buffer, sha->buffer, WC_SHA_BLOCK_SIZE);
     #endif
 
-    #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if defined(WOLFSSL_ESP32_CRYPT_HASH)
         if (sha->ctx.mode == ESP32_SHA_INIT) {
             esp_sha_try_hw_lock(&sha->ctx);
         }
@@ -801,8 +796,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
                      2 * sizeof(word32));
 #endif
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT_HASH)
     if (sha->ctx.mode == ESP32_SHA_INIT) {
         esp_sha_try_hw_lock(&sha->ctx);
     }
@@ -899,8 +893,7 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     if (sha == NULL || hash == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT_HASH)
     if(sha->ctx.mode == ESP32_SHA_INIT){
         esp_sha_try_hw_lock(&sha->ctx);
     }
@@ -914,8 +907,7 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     if (ret == 0) {
         /* if HW failed, use SW */
         ret = wc_ShaFinal(&tmpSha, hash);
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT_HASH)
         sha->ctx.mode = ESP32_SHA_SW;
 #endif
 
@@ -947,8 +939,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     ret = se050_hash_copy(&src->se050Ctx, &dst->se050Ctx);
 #endif
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT_HASH)
      dst->ctx.mode = src->ctx.mode;
      dst->ctx.isfirstblock = src->ctx.isfirstblock;
      dst->ctx.sha_type = src->ctx.sha_type;

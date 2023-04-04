@@ -34,11 +34,10 @@
 
 
 /* this entire file content is excluded if not using HW hash acceleration */
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#ifdef WOLFSSL_ESP32_CRYPT_HASH
 
 /* TODO this may be chip type dependent: add support for others */
-#include <hal/clk_gate_ll.h> /* ESP32-WROOM */
+#include <hal/clk_gate_ll.h> /* ESP32 */
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
@@ -736,5 +735,5 @@ int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc)
     return 0;
 }
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
-#endif /* WOLFSSL_ESP32WROOM32_CRYPT */
+#endif /* WOLFSSL_ESP32_CRYPT_HASH */
 #endif /* !defined(NO_SHA) ||... */

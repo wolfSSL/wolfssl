@@ -187,10 +187,10 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
     /* check to see if we are using hardware encryption */
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT)
-    ESP_LOGI(TAG, "ESP32WROOM32_CRYPT is enabled.");
+#if defined(WOLFSSL_ESP32_CRYPT)
+    ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT is enabled.");
 #else
-    ESP_LOGI(TAG, "WOLFSSL_ESP32WROOM32_CRYPT not defined! HW acceleration DISABLED.");
+    ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT not defined! HW acceleration DISABLED.");
 #endif
 
 

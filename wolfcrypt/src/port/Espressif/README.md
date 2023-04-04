@@ -1,6 +1,6 @@
 # ESP32 Port
 
-Support for the ESP32-WROOM-32 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512 and RSA primitive including mul, mulmod and exptmod.
+Support for the ESP32 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512 and RSA primitive including mul, mulmod and exptmod.
 
 ## ESP32 Acceleration
 
@@ -8,22 +8,19 @@ For detail about ESP32 HW Acceleration, you can find in [Technical Reference Man
 
 ### Building
 
-To enable hw acceleration :
-
-* Uncomment out `#define WOLFSSL_ESPIDF` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
-* Uncomment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
+HW acceleration is enabled by default on the ESP32 platform
 
 To disable portions of the hardware acceleration you can optionally define:
 
 ```c
 /* Disabled SHA, AES and RSA acceleration */
-#define NO_ESP32WROOM32_CRYPT
+#define NO_ESP32_CRYPT
 /* Disabled AES acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES
+#define NO_WOLFSSL_ESP32_CRYPT_AES
 /* Disabled SHA acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH
+#define NO_WOLFSSL_ESP32_CRYPT_HASH
 /* Disabled RSA Primitive acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
+#define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 ```
 
 ### Coding

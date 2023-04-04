@@ -15,11 +15,10 @@ Including the following examples:
 2. Microchip CryptoAuthentication Library: https://github.com/MicrochipTech/cryptoauthlib
 
 ## Setup
-1. Comment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`\
-   Uncomment out `#define WOLFSSL_ESPWROOM32SE` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`
+1. Uncomment out `#define WOLFSSL_ESPWROOM32SE` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`
     * **Note:** crypt test will fail if enabled `WOLFSSL_ESPWROOM32SE`
-3. wolfSSL under ESP-IDF. Please see [README.md](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md)
-4. CryptoAuthentication Library under ESP-IDF. Please see [README.md](https://github.com/miyazakh/cryptoauthlib_esp_idf/blob/master/README.md)
+2. wolfSSL under ESP-IDF. Please see [README.md](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md)
+3. CryptoAuthentication Library under ESP-IDF. Please see [README.md](https://github.com/miyazakh/cryptoauthlib_esp_idf/blob/master/README.md)
 
 ## Configuration
 1. The `user_settings.h` can be found in `/path/to/esp-idf/components/wolfssl/include/user_settings.h`
