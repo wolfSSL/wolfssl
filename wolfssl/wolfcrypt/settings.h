@@ -347,16 +347,29 @@
         #if defined(ESP32_USE_RSA_PRIMITIVE) && \
             !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
             #define WOLFSSL_ESP32_CRYPT_RSA_PRI
+            #define WOLFSSL_ESP_CRYPT_RSA_PRI 1
             #define WOLFSSL_SMALL_STACK
         #endif
         #ifndef NO_WOLFSSL_ESP32_CRYPT_HASH
             #define WOLFSSL_ESP32_CRYPT_HASH
+            #define WOLFSSL_ESP_CRYPT_HASH 1
         #endif
         #ifndef NO_WOLFSSL_ESP32_CRYPT_AES
             #define WOLFSSL_ESP32_CRYPT_AES
+            #define WOLFSSL_ESP_CRYPT_AES 1
         #endif
    #endif
 #endif
+
+    #ifndef WOLFSSL_ESP_CRYPT_RSA_PRI
+        #define WOLFSSL_ESP_CRYPT_RSA_PRI 0
+    #endif
+    #ifndef WOLFSSL_ESP_CRYPT_HASH
+        #define WOLFSSL_ESP_CRYPT_HASH 0
+    #endif
+    #ifndef WOLFSSL_ESP_CRYPT_AES
+        #define WOLFSSL_ESP_CRYPT_AES 0
+    #endif
 #endif /* WOLFSSL_ESPIDF */
 
 #if defined(WOLFCRYPT_ONLY)
