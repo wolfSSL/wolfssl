@@ -14916,6 +14916,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     session = ClientSessionToSession(session);
 
     if (ssl == NULL || session == NULL) {
+        WOLFSSL_MSG("ssl or session NULL");
         return WOLFSSL_FAILURE;
     }
 
@@ -14956,7 +14957,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
         {
             ret = wolfSSL_DupSession(session, ssl->session, 0);
-            WOLFSSL_MSG("Session duplicate failed");
+            if (ret != WOLFSSL_SUCCESS)
+                WOLFSSL_MSG("Session duplicate failed");
         }
     }
 
@@ -15169,6 +15171,8 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
         if (error == 0) {
             /* Check the session ID hash matches */
             error = clientSession->sessionIDHash != sessionIDHash;
+            if (error != 0)
+                WOLFSSL_MSG("session ID hash don't match");
         }
         if (error == 0) {
             /* Hashes match */
