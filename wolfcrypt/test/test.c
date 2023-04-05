@@ -13607,10 +13607,10 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC) && defined(XREALLOC)
     /* realloc test */
     {
-        byte *c = NULL;
         byte *b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT,
                                  DYNAMIC_TYPE_TMP_BUFFER);
         #ifndef WOLFSSL_NO_REALLOC
+        byte *c = NULL;
         if (b) {
             c = (byte*)XREALLOC(b, MEM_TEST_SZ+sizeof(word32), HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
