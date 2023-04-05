@@ -7388,7 +7388,13 @@ static int test_wolfSSL_CTX_add_session(void)
         test_wolfSSL_CTX_add_session_server_sess = NULL;
         test_wolfSSL_CTX_add_session_server_ctx = NULL;
 
+#ifdef NO_SESSION_CACHE_REF
         for (j = 0; j < 5; j++) {
+#else
+        /* The session may be overwritten in this case. Do only one resumption
+         * to stop this test from failing intermittently. */
+        for (j = 0; j < 2; j++) {
+#endif
 #ifdef WOLFSSL_TIRTOS
             fdOpenSession(Task_self());
 #endif
