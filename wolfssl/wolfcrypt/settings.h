@@ -677,7 +677,6 @@
 #endif
 
 #ifdef WOLFSSL_RIOT_OS
-    #define NO_WRITEV
     #define TFM_NO_ASM
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
