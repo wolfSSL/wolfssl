@@ -584,7 +584,6 @@ static int wolfssl_print_value(WOLFSSL_BIO* bio, mp_int* value,
     int ret = 1;
     int len;
     char line[PRINT_NUM_MAX_VALUE_LINE + 1];
-    word32 v;
 
     /* Get the length of hex encoded value. */
     len = mp_unsigned_bin_size(value);
@@ -599,7 +598,7 @@ static int wolfssl_print_value(WOLFSSL_BIO* bio, mp_int* value,
     }
     if (ret == 1) {
         /* Get 32-bits of value. */
-        v = (word32)value->dp[0];
+        word32 v = (word32)value->dp[0];
         /* Print the line to the string. */
         len = (int)XSNPRINTF(line, sizeof(line), "%s %u (0x%x)\n", name, v,
             v);
@@ -2296,7 +2295,6 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
     int sz = 0;
     RsaKey* key = NULL;
     char line[RSA_PRINT_MAX_HEADER_LINE];
-    int len;
     int i = 0;
     mp_int *num = NULL;
     /* Header strings. */
@@ -2328,7 +2326,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
     }
     if (ret == 1) {
         /* Print header line. */
-        len = XSNPRINTF(line, sizeof(line), "\nRSA %s: (%d bit)\n",
+        int len = XSNPRINTF(line, sizeof(line), "\nRSA %s: (%d bit)\n",
             (!mp_iszero(&key->d)) ? "Private-Key" : "Public-Key", sz);
         if (len >= (int)sizeof(line)) {
             WOLFSSL_ERROR_MSG("Buffer overflow while formatting key preamble");
@@ -4577,7 +4575,6 @@ int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bnCtx)
 int wolfSSL_DSA_print_fp(XFILE fp, WOLFSSL_DSA* dsa, int indent)
 {
     int ret = 1;
-    int pBits;
 
     WOLFSSL_ENTER("wolfSSL_DSA_print_fp");
 
@@ -4586,7 +4583,7 @@ int wolfSSL_DSA_print_fp(XFILE fp, WOLFSSL_DSA* dsa, int indent)
     }
 
     if (ret == 1 && dsa->p != NULL) {
-        pBits = wolfSSL_BN_num_bits(dsa->p);
+        int pBits = wolfSSL_BN_num_bits(dsa->p);
         if (pBits == 0) {
             ret = 0;
         }
@@ -9693,7 +9690,6 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 {
     static const char* hexDigit = "0123456789ABCDEF";
     char* hex = NULL;
-    int id;
     int i;
     int sz = 0;
     int len = 0;
@@ -9713,7 +9709,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
     if (!err) {
         /* Get curve id to look up ordinate size. */
-        id = wc_ecc_get_curve_id(group->curve_idx);
+        int id = wc_ecc_get_curve_id(group->curve_idx);
         /* Get size of ordinate. */
         if ((sz = wc_ecc_get_curve_size_from_id(id)) < 0) {
             err = 1;
@@ -9808,7 +9804,6 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     const WOLFSSL_EC_POINT *point, unsigned char *out, unsigned int *len)
 {
     int res = 1;
-    int ret;
 
     WOLFSSL_ENTER("wolfSSL_ECPoint_i2d");
 
@@ -9830,7 +9825,7 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
 
     if (res == 1) {
         /* DER encode point in uncompressed format. */
-        ret = wc_ecc_export_point_der(group->curve_idx,
+        int ret = wc_ecc_export_point_der(group->curve_idx,
             (ecc_point*)point->internal, out, len);
         /* Check return. When out is NULL, return will be length only error. */
         if ((ret != MP_OKAY) && ((out != NULL) || (ret != LENGTH_ONLY_E))) {
@@ -9965,8 +9960,6 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
     }
     /* Not infinity. */
     else if (!err) {
-        int ret;
-
         /* Validate format. */
         if (form != POINT_CONVERSION_UNCOMPRESSED
         #ifndef HAVE_SELFTEST
@@ -9977,23 +9970,18 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
             err = 1;
         }
 
-    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         if (!err) {
+            int ret;
+
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
             /* Encode as compressed or uncompressed. */
             ret = wc_ecc_export_point_der_ex(group->curve_idx,
                 (ecc_point*)point->internal, buf, &enc_len, compressed);
-            /* Check return. When buf is NULL, return will be length only
-             * error.
-             */
-            if (ret != ((buf != NULL) ? MP_OKAY : LENGTH_ONLY_E)) {
-                err = 1;
-            }
-        }
     #else
-        if (!err) {
             /* Encode uncompressed point in DER format. */
             ret = wc_ecc_export_point_der(group->curve_idx,
                 (ecc_point*)point->internal, buf, &enc_len);
+    #endif /* !HAVE_SELFTEST */
             /* Check return. When buf is NULL, return will be length only
              * error.
              */
@@ -10001,7 +9989,6 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
                 err = 1;
             }
         }
-    #endif /* !HAVE_SELFTEST */
     }
 
     /* On error, return encoding length of 0. */
@@ -11747,7 +11734,8 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
 
     /* Calculate the length of the private key DER encoding using internal EC
      * key. */
-    if ((!err) && ((len = wc_EccKeyDerSize((ecc_key*)key->internal, 0)) <= 0)) {
+    if ((!err) && ((int)(len = wc_EccKeyDerSize((ecc_key*)key->internal, 0)) <=
+           0)) {
         WOLFSSL_MSG("wc_EccKeyDerSize error");
         err = 1;
     }
@@ -13222,8 +13210,6 @@ WOLFSSL_ECDSA_SIG* wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG** sig,
  */
 int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
 {
-    word32 rLen;
-    word32 sLen;
     word32 len = 0;
 
     /* Validate parameter. */
@@ -13233,10 +13219,10 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
          *   top bit set.
          */
         /* Get total length of r including any prepended zero. */
-        rLen = mp_leading_bit((mp_int*)sig->r->internal) +
+        word32 rLen = mp_leading_bit((mp_int*)sig->r->internal) +
                mp_unsigned_bin_size((mp_int*)sig->r->internal);
         /* Get total length of s including any prepended zero. */
-        sLen = mp_leading_bit((mp_int*)sig->s->internal) +
+        word32 sLen = mp_leading_bit((mp_int*)sig->s->internal) +
                mp_unsigned_bin_size((mp_int*)sig->s->internal);
         /* Calculate length of data in sequence. */
         len = 1 + ASN_LEN_SIZE(rLen) + rLen +
@@ -13629,7 +13615,6 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     int err = 0;
     word32 len = 0;
     ecc_key* key = NULL;
-    int ret;
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
     int setGlobalRNG = 0;
@@ -13658,6 +13643,8 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     }
 
     if (!err) {
+        int ret;
+
         /* Get the internal key. */
         key = (ecc_key*)privKey->internal;
         /* Set length into variable of type suitable for wolfSSL API. */

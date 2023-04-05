@@ -558,7 +558,6 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 outIdx = 0;
     word32 i;
-    byte   hb, lb;
 
     if (in == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
@@ -567,8 +566,8 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     for (i = 0; i < inLen; i++) {
-        hb = in[i] >> 4;
-        lb = in[i] & 0x0f;
+        byte hb = in[i] >> 4;
+        byte lb = in[i] & 0x0f;
 
         /* ASCII value */
         hb += '0';

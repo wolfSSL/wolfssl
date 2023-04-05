@@ -19,6 +19,7 @@ MAINTAINERCLEANFILES+= $(FIPS_FILES)
 EXTRA_DIST += src/bio.c
 EXTRA_DIST += src/conf.c
 EXTRA_DIST += src/pk.c
+EXTRA_DIST += src/ssl_asn1.c
 EXTRA_DIST += src/ssl_bn.c
 EXTRA_DIST += src/ssl_misc.c
 EXTRA_DIST += src/x509.c

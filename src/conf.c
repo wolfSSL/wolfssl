@@ -158,7 +158,6 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
     long totalLen = 0;
     char buf[512]; /* Should be more than enough for a single row */
     char* bufEnd = buf + sizeof(buf);
-    int sz;
     int i;
 
     WOLFSSL_ENTER("wolfSSL_TXT_DB_write");
@@ -172,6 +171,7 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
     while (data) {
         char** fields = (char**)data->data.string;
         char* idx = buf;
+        int sz;
 
         if (!fields) {
             WOLFSSL_MSG("Missing row");
@@ -1499,10 +1499,9 @@ static const conf_cmd_tbl* wolfssl_conf_find_cmd(WOLFSSL_CONF_CTX* cctx,
                                          const char* cmd)
 {
     size_t i = 0;
-    size_t cmdlen = 0;
 
     if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
-        cmdlen = XSTRLEN(cmd);
+        size_t cmdlen = XSTRLEN(cmd);
 
         if (cmdlen < 2) {
             WOLFSSL_MSG("bad cmdline command");

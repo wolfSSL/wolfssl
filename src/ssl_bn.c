@@ -50,6 +50,35 @@
  * Constructor/Destructor/Initializer APIs
  ******************************************************************************/
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+/* Set big number to be negative.
+ *
+ * @param [in, out] bn   Big number to make negative.
+ * @param [in]      neg  Whether number is negative.
+ * @return  1 on success.
+ * @return  -1 when bn or internal representation of bn is NULL.
+ */
+static int wolfssl_bn_set_neg(WOLFSSL_BIGNUM* bn, int neg)
+{
+    int ret = 1;
+
+    if (BN_IS_NULL(bn)) {
+        WOLFSSL_MSG("bn NULL error");
+        ret = -1;
+    }
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    else if (neg) {
+        mp_setneg((mp_int*)bn->internal);
+    }
+    else {
+        ((mp_int*)bn->internal)->sign = MP_ZPOS;
+    }
+#endif
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA && !NO_ASN */
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Get the internal representation value into an MP integer.
  *
@@ -277,6 +306,9 @@ void wolfSSL_BN_clear(WOLFSSL_BIGNUM* bn)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef OPENSSL_EXTRA
+
+static WOLFSSL_BIGNUM* bn_one = NULL;
+
 /* Return a big number with the value of one.
  *
  * @return  A big number with the value one on success.
@@ -320,6 +352,10 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
     return one;
 }
 
+static void wolfSSL_BN_free_one(void) {
+    wolfSSL_BN_free(bn_one);
+    bn_one = NULL;
+}
 
 /* Create a new big number with the same value as the one passed in.
  *
@@ -1244,7 +1280,6 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     int sub)
 {
     int ret = 1;
-    int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* w_mp = NULL;
@@ -1275,6 +1310,7 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     }
 
     if (ret == 1) {
+        int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
         if (w > (WOLFSSL_BN_ULONG)MP_MASK) {
             /* Initialize temporary MP integer. */

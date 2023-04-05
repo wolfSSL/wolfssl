@@ -2,7 +2,6 @@
 # wolfssl configuration file
 #
 HOME        = .
-RANDFILE    = $ENV::HOME/.rnd
 
 oid_section = new_oids
 
@@ -37,7 +36,7 @@ crlnumber        = $dir/certs/crl/crlnumber   # the current crl number
 
 crl              = $dir/certs/crl/crl.pem     # The current CRL
 private_key      = $dir/certs/ca-key.pem      # The private key
-RANDFILE         = $dir/certs/private/.rand   # private random number file
+RANDFILE         = $dir/certs/.rnd            # private random number file
 
 x509_extensions  = usr_cert                   # The extensions to add to the cert
 

@@ -193,7 +193,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         return;
     }
     
-#if defined(WOLFSSL_TLS13) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+#if defined(WOLFSSL_TLS13)
     if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1) 
                                                         != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
@@ -309,12 +309,9 @@ void wolfSSL_TLS_client( )
 
 #else
 
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_TLS13)
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
 
-    /* Note 1: TSIP asks client key pair for client authentication.  
-     * Note 2: as of TSIP v1.15, client authentication is not supported by TSIP
-     * for RSA certificate on TLS1.3.
-     */
+    /* Note: TSIP asks client key pair for client authentication. */
 
     /* TSIP specific RSA private key */
     if (tsip_use_PrivateKey_buffer(ssl,

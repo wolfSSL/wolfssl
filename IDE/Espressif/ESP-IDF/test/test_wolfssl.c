@@ -21,7 +21,7 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -1125,7 +1125,7 @@ TEST_CASE("wolfssl aes sha256 rsa multi-thread test ", "[wolfssl]")
     exit_loop = true;
 
     /* wait until rsa test finishes */
-    while(rsa_elapsedTime<=0){ vTaskDelay(1); }
+    while(rsa_elapsedTime==0){ vTaskDelay(1); }
 
     ESP_LOGI(TAG, "Waiting another %llu s. rsa test would take more time to finish.",
                (rsa_elapsedTime+3000)/portTICK_PERIOD_MS);

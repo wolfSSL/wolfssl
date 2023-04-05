@@ -47,7 +47,7 @@
 
 extern struct WOLFSSL_HEAP_HINT* tsip_heap_hint;
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
 /*  get hmac from handshake messages exchanged with server.
  *
  */
@@ -135,9 +135,9 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
     WOLFSSL_LEAVE("tsipTls13GetHmacMessages", ret);
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+
 /* store handshake message for later hash or hmac operation. 
  * 
  */
@@ -211,9 +211,9 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
     WOLFSSL_LEAVE("tsip_StoreMessage", ret);
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
-#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+
 WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
                                                                 int* sz)
 {
@@ -278,7 +278,7 @@ WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
     WOLFSSL_LEAVE("tsip_GetMessageSha256", ret);
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
 
 
 

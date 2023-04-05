@@ -7669,10 +7669,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
     mu = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
     if (mu == NULL)
         err = MEMORY_E;
+    else
   #endif
-    if (err == MP_OKAY) {
         err = mp_init(mu);
-    }
     if (err == MP_OKAY) {
       err = mp_montgomery_calc_normalization(mu, modulus);
 

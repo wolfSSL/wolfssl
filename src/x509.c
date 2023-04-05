@@ -231,10 +231,6 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
         return;
 
     if (x->obj != NULL) {
-        if (x->obj->pathlen != NULL) {
-            wolfSSL_ASN1_INTEGER_free(x->obj->pathlen);
-            x->obj->pathlen = NULL;
-        }
         wolfSSL_ASN1_OBJECT_free(x->obj);
     }
 
@@ -3381,8 +3377,15 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
 
     /* already went through them */
-    if (cert->altNamesNext == NULL)
+    if (cert->altNamesNext == NULL) {
+#ifdef WOLFSSL_MULTICIRCULATE_ALTNAMELIST
+        /* Reset altNames List to head
+         * so that caller can circulate the list again
+         */
+        cert->altNamesNext = cert->altNames;
+#endif
         return NULL;
+    }
 
     ret = cert->altNamesNext->name;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
@@ -10071,7 +10074,6 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
                 return WOLFSSL_FATAL_ERROR;
             }
             totalBytes += ret;
-            wolfSSL_OPENSSL_free(cano_data->data);
             wolfSSL_ASN1_STRING_free(cano_data);
         }
     }
@@ -12112,7 +12114,6 @@ static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
 {
     word32 inIdx = 0;
     word32 outIdx = 0;
-    char c = 0;
 
     if (in == NULL || out == NULL || inSz == 0 || outSz == 0) {
         return BAD_FUNC_ARG;
@@ -12120,7 +12121,7 @@ static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
 
     for (inIdx = 0; inIdx < inSz; inIdx++) {
 
-        c = in[inIdx];
+        char c = in[inIdx];
 
         if (((inIdx == 0) && (c == ' ' || c == '#')) ||
             ((inIdx == (inSz-1)) && (c == ' ')) ||
@@ -12167,7 +12168,7 @@ static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
-    int i, count = 0, len = 0, tmpSz = 0, nameStrSz = 0, escapeSz = 0;
+    int i, count = 0, nameStrSz = 0, escapeSz = 0;
     char* tmp = NULL;
     char* nameStr = NULL;
     const char *buf = NULL;
@@ -12188,6 +12189,9 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     count = wolfSSL_X509_NAME_entry_count(name);
 
     for (i = 0; i < count; i++) {
+        int len;
+        int tmpSz;
+
         /* reverse name order for RFC2253 and DN_REV */
         if ((flags & XN_FLAG_RFC2253) || (flags & XN_FLAG_DN_REV)) {
             ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
@@ -12911,7 +12915,6 @@ int wolfSSL_sk_X509_OBJECT_push(WOLFSSL_STACK* sk, WOLFSSL_X509_OBJECT* obj)
 int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
 {
     int i;
-    WOLFSSL_X509_NAME_ENTRY* ne;
 
     WOLFSSL_ENTER("wolfSSL_X509_NAME_copy");
 
@@ -12941,7 +12944,7 @@ int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
     to->sz = from->sz;
 
     for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-        ne = wolfSSL_X509_NAME_get_entry(from, i);
+        WOLFSSL_X509_NAME_ENTRY* ne = wolfSSL_X509_NAME_get_entry(from, i);
         if (ne != NULL)
             wolfSSL_X509_NAME_add_entry(to, ne, i, 1);
     }
