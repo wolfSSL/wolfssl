@@ -177,6 +177,26 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 # enabled
 ENABLED_CERTS="no"
 
+# Implements requirements from RFC9325
+AC_ARG_ENABLE([harden-tls],
+    [AS_HELP_STRING([--enable-harden-tls],[Enable requirements from RFC9325. Possible values are <yes>, <112>, or <128>. <yes> is equivalent to <112>. (default: disabled)])],
+    [ ENABLED_HARDEN_TLS=$enableval ],
+    [ ENABLED_HARDEN_TLS=no ]
+    )
+
+if test "x$ENABLED_HARDEN_TLS" != "xno"
+then
+    if test "x$ENABLED_HARDEN_TLS" == "xyes" || test "x$ENABLED_HARDEN_TLS" == "x112"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=112"
+    elif test "x$ENABLED_HARDEN_TLS" == "x128"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HARDEN_TLS=128"
+    else
+        AC_MSG_ERROR([Invalid value for --enable-harden-tls])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXTRA_ALERTS -DWOLFSSL_CHECK_ALERT_ON_ERR"
+fi
 
 # Support for forcing 32-bit mode
 # To force 32-bit instructions use:
@@ -2344,35 +2364,40 @@ AC_ARG_ENABLE([caam],
     [ ENABLED_CAAM=$enableval ],
     [ ENABLED_CAAM=no ]
     )
-if test "$ENABLED_CAAM" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_IMX6_CAAM"
-fi
 
-if test "$ENABLED_CAAM" = "qnx"
+if test "$ENABLED_CAAM" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_IMX6_CAAM -DWOLFSSL_QNX_CAAM"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_ECC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CIPHER"
-fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM"
 
-if test "$ENABLED_CAAM" = "seco"
-then
-    SECO_DIR=$trylibsecodir
-    AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_SECO_CAAM -DWOLFSSL_HASH_KEEP"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_ECC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CIPHER"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_HMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_HASH"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CURVE25519"
+    for v in `echo $ENABLED_CAAM | tr "," " "`
+    do
+      case $v in
+        qnx)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QNX_CAAM"
+            ENABLED_CAAM_QNX="yes"
+            ;;
 
-    AC_CHECK_LIB([hsm_lib],[hsm_open_session])
-    AC_CHECK_LIB([seco_nvm_manager],[seco_nvm_manager])
-    LIB_STATIC_ADD="$LIB_STATIC_ADD $SECO_DIR/lib/hsm_lib.a $SECO_DIR/lib/seco_nvm_manager.a"
-    LIB_ADD="$LIB_ADD -lz"
+        imx6q)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6Q_CAAM"
+            ;;
+
+        imx6ul)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6UL_CAAM"
+            ;;
+
+        seco)
+            SECO_DIR=$trylibsecodir
+            AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_SECO_CAAM"
+
+            AC_CHECK_LIB([hsm_lib],[hsm_open_session])
+            AC_CHECK_LIB([seco_nvm_manager],[seco_nvm_manager])
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $SECO_DIR/lib/hsm_lib.a $SECO_DIR/lib/seco_nvm_manager.a"
+            LIB_ADD="$LIB_ADD -lz"
+            ;;
+
+      esac
+    done
 fi
 
 # INTEL AES-NI
@@ -3481,7 +3506,7 @@ AC_ARG_ENABLE([oldtls],
     [ ENABLED_OLD_TLS=yes ]
     )
 
-if test "$ENABLED_CRYPTONLY" = "yes"
+if test "$ENABLED_CRYPTONLY" = "yes" || test "x$ENABLED_HARDEN_TLS" != "xno"
 then
     ENABLED_OLD_TLS=no
 fi
@@ -7369,7 +7394,7 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" = "qnx" || test  "$ENABLED_CAAM" = "seco"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -8512,12 +8537,12 @@ AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx" || test "x$ENABLED_CAAM" = "xseco"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
-AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
+AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
+AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
@@ -8642,18 +8667,12 @@ echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
 # check for supported command to trim option with
-which colrm &> /dev/null
-RESULT=$?
-if test "$RESULT" = "0"; then
+if colrm &> /dev/null; then
     TRIM="colrm 3"
+elif cut &> /dev/null; then
+    TRIM="cut -c1-2"
 else
-    which cut &> /dev/null
-    RESULT=$?
-    if test "$RESULT" = "0"; then
-        TRIM="cut -c1-2"
-    else
-        AC_MSG_ERROR([Could not find colrm or cut to make options file])
-    fi
+    AC_MSG_ERROR([Could not find colrm or cut to make options file])
 fi
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
@@ -8724,7 +8743,7 @@ done < $OPTION_FILE
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
 sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
 
-# workaround for mingw sed that may get "Permission denied" trying to preserver permissions
+# workaround for mingw sed that may get "Permission denied" trying to preserve permissions
 case $host_os in
     mingw*)
         chmod u+w cyassl/options.h ;;
@@ -8735,7 +8754,7 @@ rm cyassl/options.h.bak
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -I$srcdir"
+    CFLAGS="$CFLAGS -I. -I$srcdir"
     if test "$ENABLED_INTEL_QA" = "yes"
     then
         CFLAGS="$CFLAGS $QAT_FLAGS"

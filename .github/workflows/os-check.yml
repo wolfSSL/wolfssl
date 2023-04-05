@@ -14,6 +14,7 @@ jobs:
           '',
           '--enable-all --enable-asn=template',
           '--enable-all --enable-asn=original',
+          '--enable-harden-tls',
         ]
     name: make check
     runs-on: ${{ matrix.os }}

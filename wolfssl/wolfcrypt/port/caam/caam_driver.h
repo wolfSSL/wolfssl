@@ -26,10 +26,28 @@
     int InitCAAM(void);
     #include "caam_qnx.h"
 #endif
+
+
+#ifndef CAAM_BASE
 #if (defined(__INTEGRITY) || defined(INTEGRITY))
     #define CAAM_BASE 0xf2100000
     #define CAAM_PAGE 0xf0100000
+#elif defined(__aarch64__)
+    /* if on an AArch64 system make assumption that it is an i.MX8 QXP */
+    /* use block of memory set aside for job ring 2 */
+    #define CAAM_BASE 0x31400000
+    #define CAAM_PAGE 0x31800000
+#elif defined(WOLFSSL_CAAM_IMX6Q)
+    /* IMX6Q */
+    #define CAAM_BASE 0x02100000
+    #define CAAM_PAGE 0x00100000
+#else
+    /* IMX6UL */
+    #define CAAM_BASE 0x02140000
+    #define CAAM_PAGE 0x00100000
 #endif
+#endif /* !CAAM_BASE */
+
 
 #ifdef WOLFSSL_CAAM_PRINT
     #include <stdio.h>
@@ -262,6 +280,13 @@
 #define CAAM_VERSION_MS  0x0FF8
 #define CAAM_VERSION_LS  0x0FFC
 #define CAAM_CHA_CCBVID  0x0FE4
+
+
+/* high performance AES module includes XTS, GCM */
+#define CAAM_AES_HIGH_PERFORMANCE 0x4
+
+/* low power AES module includes ECB, CBC, CTR, CCM, CMAC, CBC */
+#define CAAM_AES_LOW_POWER 0x3
 
 #define CAAM_SM_CMD  0x0BE4
 #define CAAM_SM_SMPO 0x0FBC

@@ -617,10 +617,9 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
-    word16 carry = 0;
-
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
+        word16 carry = 0;
 
         dIdx = dLen - 1;
         for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
@@ -3164,7 +3163,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #include "nrf_drv_rng.h"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int remaining = sz, length, pos = 0;
+        int remaining = sz, pos = 0;
         word32 err_code;
         byte available;
         static byte initialized = 0;
@@ -3185,6 +3184,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         while (remaining > 0) {
+            int length;
             available = 0;
             nrf_drv_rng_bytes_available(&available); /* void func */
             length = (remaining < available) ? remaining : available;
@@ -3315,9 +3315,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-       defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_QNX_CAAM) || \
-       defined(WOLFSSL_IMXRT1170_CAAM))
+#elif defined(WOLFSSL_CAAM)
 
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
@@ -3577,11 +3575,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <random/rand32.h>
+        #include <zephyr/random/rand32.h>
     #ifndef _POSIX_C_SOURCE
-        #include <posix/time.h>
+        #include <zephyr/posix/time.h>
     #else
-        #include <sys/time.h>
+        #include <time.h>
     #endif
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -3798,14 +3796,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 int wc_hwrng_generate_block(byte *output, word32 sz)
 {
     int fd;
-    int len;
     int ret = 0;
     fd = open("/dev/hwrng", O_RDONLY);
     if (fd == -1)
         return OPEN_RAN_E;
     while(sz)
     {
-        len = (int)read(fd, output, sz);
+        int len = (int)read(fd, output, sz);
         if (len == -1)
         {
             ret = READ_RAN_E;

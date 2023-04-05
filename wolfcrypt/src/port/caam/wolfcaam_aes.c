@@ -39,6 +39,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if (defined(HAVE_AESGCM) && defined(WOLFSSL_CAAM_AESGCM)) || \
+    defined(HAVE_AESCCM)
 /* return 0 on success */
 static int wc_CAAM_AesAeadCommon(Aes* aes, const byte* in, byte* out, word32 sz,
         const byte* nonce, word32 nonceSz, byte* authTag, word32 authTagSz,
@@ -89,8 +91,9 @@ static int wc_CAAM_AesAeadCommon(Aes* aes, const byte* in, byte* out, word32 sz,
 
     /* authInSz must fit into a short (note that only 16 bits are ava in CAAM
      * for AAD size anyway) */
-    arg[0] = ((authInSz & 0xFFFF)  << 16) | dir;
-    arg[1] = ((nonceSz & 0xFF) << 24) | ((authTagSz & 0xFF) << 16) | keySz;
+    arg[0] = ((authInSz & 0xFFFF)  << 16) | (dir & 0xFFFF);
+    arg[1] = ((nonceSz & 0xFF) << 24) | ((authTagSz & 0xFF) << 16) |
+                (keySz & 0xFFFF);
     arg[2] = sz;
     arg[3] = aes->blackKey;
 
@@ -101,6 +104,7 @@ static int wc_CAAM_AesAeadCommon(Aes* aes, const byte* in, byte* out, word32 sz,
 
     return 0;
 }
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 
 #if defined(HAVE_AESCCM)
@@ -227,6 +231,7 @@ int wc_CAAM_AesCcmDecrypt(Aes* aes, const byte* in, byte* out, word32 sz,
 #endif /* HAVE_AESCCM */
 
 
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_CAAM_AESGCM)
 int wc_CAAM_AesGcmEncrypt(Aes* aes, const byte* in, byte* out, word32 sz,
         const byte* nonce, word32 nonceSz, byte* authTag, word32 authTagSz,
         const byte* authIn, word32 authInSz)
@@ -243,6 +248,7 @@ int wc_CAAM_AesGcmDecrypt(Aes* aes, const byte* in, byte* out, word32 sz,
     return wc_CAAM_AesAeadCommon(aes, in, out, sz, nonce, nonceSz,
             (byte*)authTag, authTagSz, authIn, authInSz, CAAM_DEC, CAAM_AESGCM);
 }
+#endif
 
 
 static int wc_CAAM_AesCbcCtrCommon(Aes* aes, byte* out, const byte* in,

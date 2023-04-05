@@ -306,6 +306,9 @@ void wolfSSL_BN_clear(WOLFSSL_BIGNUM* bn)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef OPENSSL_EXTRA
+
+static WOLFSSL_BIGNUM* bn_one = NULL;
+
 /* Return a big number with the value of one.
  *
  * @return  A big number with the value one on success.
@@ -349,6 +352,10 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
     return one;
 }
 
+static void wolfSSL_BN_free_one(void) {
+    wolfSSL_BN_free(bn_one);
+    bn_one = NULL;
+}
 
 /* Create a new big number with the same value as the one passed in.
  *
@@ -1273,7 +1280,6 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     int sub)
 {
     int ret = 1;
-    int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* w_mp = NULL;
@@ -1304,6 +1310,7 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     }
 
     if (ret == 1) {
+        int rc = 0;
 #if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
         if (w > (WOLFSSL_BN_ULONG)MP_MASK) {
             /* Initialize temporary MP integer. */

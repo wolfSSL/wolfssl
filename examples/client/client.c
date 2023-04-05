@@ -782,8 +782,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             err_sys("Client buffer malloc failed");
         }
 doExit:
-        if (tx_buffer) XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (rx_buffer) XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     else {
         err_sys("wolfSSL_connect failed");
@@ -953,7 +953,6 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
     int exitWithRet)
 {
     int ret, err;
-    char buffer[WOLFSSL_MAX_ERROR_SZ];
 
     do {
         err = 0; /* reset error */
@@ -974,6 +973,7 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
     #endif
     );
     if (ret != msgSz) {
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "SSL_write%s msg error %d, %s\n", str, err,
                                         wolfSSL_ERR_error_string(err, buffer));
         if (!exitWithRet) {
@@ -4311,9 +4311,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
         defined(HAVE_EXT_CACHE))
-        if (flatSession) {
-            XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         wolfSSL_SESSION_free(session);
         session = NULL;

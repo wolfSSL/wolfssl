@@ -76,7 +76,6 @@
 void mp_reverse(unsigned char *s, int len)
 {
     int ix, iy;
-    unsigned char t;
 
     if (s == NULL)
         return;
@@ -84,7 +83,7 @@ void mp_reverse(unsigned char *s, int len)
     ix = 0;
     iy = len - 1;
     while (ix < iy) {
-        t = s[ix];
+        unsigned char t = s[ix];
         s[ix] = s[iy];
         s[iy] = t;
         ++ix;
@@ -120,11 +119,6 @@ mp_digit get_digit(const mp_int* a, int n)
 int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 {
     int err = MP_OKAY;
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    unsigned int i;
-#else
-    int i;
-#endif
 #if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
     unsigned int mask = (unsigned int)0 - copy;
 #else
@@ -138,6 +132,11 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
     if (err == MP_OKAY)
         err = mp_grow(b, a->used + 1);
     if (err == MP_OKAY) {
+    #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+        unsigned int i;
+    #else
+        int i;
+    #endif
         /* When mask 0, b is unchanged2
          * When mask all set, b ^ b ^ a = a
          */
@@ -173,9 +172,6 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
     int cnt = digits * sizeof(mp_digit);
-#ifdef USE_INTEGER_HEAP_MATH
-    int i;
-#endif
 
     if (rng == NULL) {
         ret = MISSING_RNG_E;
@@ -208,6 +204,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     }
     if (ret == MP_OKAY) {
 #ifdef USE_INTEGER_HEAP_MATH
+        int i;
         /* Mask down each digit to only bits used */
         for (i = 0; i < a->used; i++) {
             a->dp[i] &= MP_MASK;
@@ -374,7 +371,7 @@ void wc_bigint_free(WC_BIGINT* a)
 int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 {
     int err;
-    word32 x, y;
+    word32 x;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
@@ -388,7 +385,7 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
     err = wc_bigint_alloc(dst, sz);
     if (err == MP_OKAY && sz > 0) {
         /* leading zero pad */
-        y = sz - x;
+        word32 y = sz - x;
         XMEMSET(dst->buf, 0, y);
 
         /* export src as unsigned bin to destination buf */

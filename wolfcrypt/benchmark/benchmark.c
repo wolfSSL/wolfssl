@@ -1621,10 +1621,9 @@ typedef enum bench_stat_type {
     void bench_stats_print(void)
     {
         int i;
-        bench_stats_t* bstat;
 
         for (i=0; i<gStatsCount; i++) {
-            bstat = &gStats[i];
+            bench_stats_t* bstat = &gStats[i];
             if (bstat->type == BENCH_STAT_SYM) {
                 printf("%-16s %8.3f %s/s\n", bstat->desc, bstat->perfsec,
                     base2 ? "MB" : "mB");
@@ -1800,10 +1799,16 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #ifdef HAVE_GET_CYCLES
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,"
+            #ifdef BENCH_DEVID
+                   "HW/SW,"
+            #endif
                WOLFSSL_FIXED_UNITS_PER_SEC ",Cycles per byte,\n");
     #else
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,"
+            #ifdef BENCH_DEVID
+                   "HW/SW,"
+            #endif
                WOLFSSL_FIXED_UNITS_PER_SEC ", \n");
     #endif
 #endif
@@ -1858,10 +1863,13 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
                             bytes_processed, total, persec, total_cycles);
         #else
             (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu,%f,%f,", desc,
-                            BENCH_ASYNC_GET_NAME(useDeviceID),
+                            BENCH_DEVID_GET_NAME(useDeviceID),
                             bytes_processed, total, persec);
         #endif
     #endif
+#elif defined(BENCH_DEVID)
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%s,%f,", desc,
+                            BENCH_DEVID_GET_NAME(useDeviceID), persec);
 #else
         (void)XSNPRINTF(msg, sizeof(msg), "%s,%f,", desc, persec);
 #endif
@@ -1888,7 +1896,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
         (void)XSNPRINTF(msg, sizeof(msg),
                  "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s"
                  ",",
-                 desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType,
+                 desc, BENCH_DEVID_GET_NAME(useDeviceID), blocks, blockType,
                  word[0], total, word[1], persec, blockType);
     #endif /* HAVE_GET_CYCLES */
 #else
@@ -2028,7 +2036,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s %5.3f %s, %s %5.3f ms,"
                         " %.3f %s\n", algo, strength, desc,
-                        desc_extra, BENCH_ASYNC_GET_NAME(useDeviceID),
+                        desc_extra, BENCH_DEVID_GET_NAME(useDeviceID),
                         count, word[0], total, word[1], word[2], milliEach,
                         opsSec, word[3]);
     #endif /* HAVE_GET_CYCLES */
@@ -2253,8 +2261,12 @@ static void* benchmarks_do(void* args)
         bench_aesofb();
 #endif
 #ifdef WOLFSSL_AES_COUNTER
-    if (bench_all || (bench_cipher_algs & BENCH_AES_CTR))
-        bench_aesctr();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CTR)) {
+        bench_aesctr(0);
+    #ifdef BENCH_DEVID
+        bench_aesctr(1);
+    #endif
+    }
 #endif
 #ifdef HAVE_AESCCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_CCM)) {
@@ -3904,11 +3916,17 @@ void bench_aesxts(void)
 
 #ifdef WOLFSSL_AES_COUNTER
 static void bench_aesctr_internal(const byte* key, word32 keySz,
-                                  const byte* iv,  const char* label)
+                                  const byte* iv,  const char* label,
+                                  int useDeviceID)
 {
     Aes    enc;
     double start;
     int    i, count, ret = 0;
+
+    if ((ret = wc_AesInit(&enc, HEAP_HINT,
+        useDeviceID ? devId : INVALID_DEVID)) != 0) {
+        printf("wc_AesInit failed, ret = %d\n", ret);
+    }
 
     wc_AesSetKeyDirect(&enc, key, keySz, iv, AES_ENCRYPTION);
 
@@ -3923,19 +3941,21 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
         }
         count += i;
     } while (bench_stats_check(start));
-    bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(label, useDeviceID, count, bench_size, start, ret);
+
+    wc_AesFree(&enc);
 }
 
-void bench_aesctr(void)
+void bench_aesctr(int useDeviceID)
 {
 #ifdef WOLFSSL_AES_128
-    bench_aesctr_internal(bench_key, 16, bench_iv, "AES-128-CTR");
+    bench_aesctr_internal(bench_key, 16, bench_iv, "AES-128-CTR", useDeviceID);
 #endif
 #ifdef WOLFSSL_AES_192
-    bench_aesctr_internal(bench_key, 24, bench_iv, "AES-192-CTR");
+    bench_aesctr_internal(bench_key, 24, bench_iv, "AES-192-CTR", useDeviceID);
 #endif
 #ifdef WOLFSSL_AES_256
-    bench_aesctr_internal(bench_key, 32, bench_iv, "AES-256-CTR");
+    bench_aesctr_internal(bench_key, 32, bench_iv, "AES-256-CTR", useDeviceID);
 #endif
 }
 #endif /* WOLFSSL_AES_COUNTER */
@@ -5874,7 +5894,7 @@ static void bench_cmac_helper(int keySz, const char* outMsg, int useDeviceID)
         }
         count += i;
     } while (bench_stats_check(start));
-    bench_stats_sym_finish(outMsg, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(outMsg, useDeviceID, count, bench_size, start, ret);
 }
 
 void bench_cmac(int useDeviceID)
@@ -6209,7 +6229,7 @@ exit:
 
 void bench_rsaKeyGen(int useDeviceID)
 {
-    int    k, keySz;
+    int    k;
 #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     const int  keySizes[2] = {1024, 2048};
 #else
@@ -6217,7 +6237,7 @@ void bench_rsaKeyGen(int useDeviceID)
 #endif
 
     for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
-        keySz = keySizes[k];
+        int keySz = keySizes[k];
         bench_rsaKeyGen_helper(useDeviceID, keySz);
     }
 }

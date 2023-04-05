@@ -31070,7 +31070,8 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         {positiveDer, sizeof(positiveDer), 65537},
         {primeDer, sizeof(primeDer), 0}
     };
-    static const size_t NUM_TEST_VECTORS = sizeof(testVectors)/sizeof(testVectors[0]);
+    static const size_t NUM_TEST_VECTORS =
+        sizeof(testVectors)/sizeof(testVectors[0]);
 
     /* Check d2i error conditions */
     /* NULL pointer to input. */
@@ -31228,6 +31229,10 @@ static int test_wolfSSL_a2i_ASN1_INTEGER(void)
     BIO_free(out);
 
     AssertNotNull(fixed = BIO_new(wolfSSL_BIO_s_fixed_mem()));
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, tmp, 1), 1);
+    AssertIntEQ(i2a_ASN1_INTEGER(fixed, ai), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(i2a_ASN1_INTEGER(fixed, ai), 0);
     BIO_free(fixed);
@@ -31953,7 +31958,9 @@ static int test_wolfSSL_ASN1_STRING_print(void)
     BIO_free(bio);
 
     AssertNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
-    AssertIntEQ(BIO_set_write_buf_size(bio, 0), 1);
+    AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(bio, rbuf, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print(bio, asnStr), 0);
     AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print(bio, asnStr), 0);
@@ -32016,6 +32023,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 15);
     AssertStrEQ((char*)rbuf, "Hello wolfSSL!");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 14), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
@@ -32028,6 +32039,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 9);
     AssertStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 8), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
@@ -32039,6 +32054,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     AssertIntEQ(p_len, 28);
     BIO_read(bio, (void*)rbuf, 28);
     AssertStrEQ((char*)rbuf, "OCTET STRING:Hello wolfSSL!");
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 12), 1);
@@ -32054,6 +32073,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 31);
     AssertStrEQ((char*)rbuf, "#48656C6C6F20776F6C6653534C2100");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 30), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
@@ -32065,6 +32088,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     AssertIntEQ(p_len, 35);
     BIO_read(bio, (void*)rbuf, 35);
     AssertStrEQ((char*)rbuf, "#040F48656C6C6F20776F6C6653534C2100");
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 2), 1);
@@ -32224,6 +32251,10 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     BIO_free(bio);
 
     AssertNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
+    AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(bio, buf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
     for (i = 1; i < 20; i++) {
         AssertIntEQ(BIO_set_write_buf_size(bio, i), 1);
         AssertIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
@@ -32492,8 +32523,8 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
 {
     int res = TEST_SKIPPED;
 #if (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
-    && !defined(NO_ASN_TIME)
+      defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
+      defined(OPENSSL_ALL)) && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
 
@@ -32666,6 +32697,10 @@ static int test_wolfSSL_ASN1_TIME_print(void)
     AssertIntEQ(XMEMCMP(buf, "Dec 16 21:17:49 2022 GMT", sizeof(buf) - 1), 0);
 
     /* Test BIO_write fails. */
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, buf, 1), 1);
+    AssertIntEQ(ASN1_TIME_print(fixed, notBefore), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(ASN1_TIME_print(fixed, notBefore), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 23), 1);
@@ -32890,11 +32925,13 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
                                 V_ASN1_OBJECT, OBJ_nid2obj(nid)), 1);
     AssertIntEQ(EC_POINT_point2oct(group, point, 0, NULL, 0, NULL), 0);
 #ifdef HAVE_COMP_KEY
-    AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
-                                          NULL, 0, NULL)), 0);
+    AssertIntGT((len = EC_POINT_point2oct(
+                                   group, point, POINT_CONVERSION_COMPRESSED,
+                                   NULL, 0, NULL)), 0);
 #else
-    AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
-                                          NULL, 0, NULL)), 0);
+    AssertIntGT((len = EC_POINT_point2oct(
+                                   group, point, POINT_CONVERSION_UNCOMPRESSED,
+                                   NULL, 0, NULL)), 0);
 #endif
     AssertNotNull(der = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
 #ifdef HAVE_COMP_KEY
@@ -60717,10 +60754,16 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     XMEMSET(hashBuf, 0, sizeof(hashBuf));
 
     /* Following fields are not important to compare */
+    XMEMSET(sslCopy.buffers.inputBuffer.staticBuffer, 0, STATIC_BUFFER_LEN);
     sslCopy.buffers.inputBuffer.buffer = NULL;
     sslCopy.buffers.inputBuffer.bufferSize = 0;
     sslCopy.buffers.inputBuffer.dynamicFlag = 0;
     sslCopy.buffers.inputBuffer.offset = 0;
+    XMEMSET(sslCopy.buffers.outputBuffer.staticBuffer, 0, STATIC_BUFFER_LEN);
+    sslCopy.buffers.outputBuffer.buffer = NULL;
+    sslCopy.buffers.outputBuffer.bufferSize = 0;
+    sslCopy.buffers.outputBuffer.dynamicFlag = 0;
+    sslCopy.buffers.outputBuffer.offset = 0;
     sslCopy.error = 0;
     sslCopy.curSize = 0;
     sslCopy.keys.curSeq_lo = 0;
@@ -64671,6 +64714,77 @@ static int test_extra_alerts_bad_psk(void)
     return TEST_SKIPPED;
 }
 #endif
+
+#if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(HAVE_IO_TESTS_DEPENDENCIES)
+static int test_harden_no_secure_renegotiation_io_cb(WOLFSSL *ssl, char *buf,
+        int sz, void *ctx)
+{
+    static int sentServerHello = FALSE;
+
+    if (!sentServerHello) {
+        byte renegExt[] = { 0xFF, 0x01, 0x00, 0x01, 0x00 };
+        size_t i;
+
+        if (sz < (int)sizeof(renegExt))
+            return WOLFSSL_CBIO_ERR_GENERAL;
+
+        /* Remove SCR from ServerHello */
+        for (i = 0; i < sz - sizeof(renegExt); i++) {
+            if (XMEMCMP(buf + i, renegExt, sizeof(renegExt)) == 0) {
+                /* Found the extension. Change it to something unrecognized. */
+                buf[i+1] = 0x11;
+                break;
+            }
+        }
+        sentServerHello = TRUE;
+    }
+
+    return EmbedSend(ssl, buf, sz, ctx);
+}
+
+static void test_harden_no_secure_renegotiation_ssl_ready(WOLFSSL* ssl)
+{
+    wolfSSL_SSLSetIOSend(ssl, test_harden_no_secure_renegotiation_io_cb);
+}
+
+static void test_harden_no_secure_renegotiation_on_cleanup(WOLFSSL* ssl)
+{
+    WOLFSSL_ALERT_HISTORY h;
+    AssertIntEQ(wolfSSL_get_alert_history(ssl, &h), WOLFSSL_SUCCESS);
+    AssertIntEQ(h.last_rx.code, handshake_failure);
+    AssertIntEQ(h.last_rx.level, alert_fatal);
+}
+
+static int test_harden_no_secure_renegotiation(void)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLSv1_2_client_method;
+    server_cbs.method = wolfTLSv1_2_server_method;
+
+    server_cbs.ssl_ready = test_harden_no_secure_renegotiation_ssl_ready;
+    server_cbs.on_cleanup = test_harden_no_secure_renegotiation_on_cleanup;
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_FAIL);
+    AssertIntEQ(client_cbs.last_err, SECURE_RENEGOTIATION_E);
+    AssertIntEQ(server_cbs.return_code, TEST_FAIL);
+    AssertIntEQ(server_cbs.last_err, SOCKET_ERROR_E);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_harden_no_secure_renegotiation(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -65702,6 +65816,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
+    TEST_DECL(test_harden_no_secure_renegotiation),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
