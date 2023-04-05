@@ -60754,10 +60754,16 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     XMEMSET(hashBuf, 0, sizeof(hashBuf));
 
     /* Following fields are not important to compare */
+    XMEMSET(sslCopy.buffers.inputBuffer.staticBuffer, 0, STATIC_BUFFER_LEN);
     sslCopy.buffers.inputBuffer.buffer = NULL;
     sslCopy.buffers.inputBuffer.bufferSize = 0;
     sslCopy.buffers.inputBuffer.dynamicFlag = 0;
     sslCopy.buffers.inputBuffer.offset = 0;
+    XMEMSET(sslCopy.buffers.outputBuffer.staticBuffer, 0, STATIC_BUFFER_LEN);
+    sslCopy.buffers.outputBuffer.buffer = NULL;
+    sslCopy.buffers.outputBuffer.bufferSize = 0;
+    sslCopy.buffers.outputBuffer.dynamicFlag = 0;
+    sslCopy.buffers.outputBuffer.offset = 0;
     sslCopy.error = 0;
     sslCopy.curSize = 0;
     sslCopy.keys.curSeq_lo = 0;
