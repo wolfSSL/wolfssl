@@ -293,6 +293,11 @@
 #endif
 
 #ifdef HAVE_C___ATOMIC
+#ifdef __cplusplus
+#define _Atomic volatile
+typedef char _Bool;
+#define __auto_type auto
+#endif
 #include <stdatomic.h>
 #endif
 
