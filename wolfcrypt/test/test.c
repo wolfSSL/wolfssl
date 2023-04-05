@@ -7471,6 +7471,7 @@ WOLFSSL_TEST_SUBROUTINE int des3_test(void)
         DES_key_schedule ks2;
         DES_key_schedule ks3;
         DES_cblock iv4;
+        byte tmp[sizeof(vector)];
 
         XMEMCPY(ks1, key3, sizeof(DES_key_schedule));
         XMEMCPY(ks2, key3 + 8, sizeof(DES_key_schedule));
@@ -7479,17 +7480,22 @@ WOLFSSL_TEST_SUBROUTINE int des3_test(void)
         XMEMSET(plain, 0, sizeof(plain));
         XMEMSET(cipher, 0, sizeof(cipher));
 
+        /* Test in-place encrypt/decrypt */
+        XMEMCPY(tmp, vector, sizeof(vector));
+
         /* Use i as the splitter */
         XMEMCPY(iv4, iv3, sizeof(DES_cblock));
-        DES_ede3_cbc_encrypt(vector, cipher, (long)i, &ks1, &ks2, &ks3,
+        DES_ede3_cbc_encrypt(tmp, tmp, (long)i, &ks1, &ks2, &ks3,
                 &iv4, DES_ENCRYPT);
-        DES_ede3_cbc_encrypt(vector + i, cipher + i, (long)(sizeof(vector) - i),
+        DES_ede3_cbc_encrypt(tmp + i, tmp + i, (long)(sizeof(vector) - i),
                 &ks1, &ks2, &ks3, &iv4, DES_ENCRYPT);
+        XMEMCPY(cipher, tmp, sizeof(cipher));
         XMEMCPY(iv4, iv3, sizeof(DES_cblock));
-        DES_ede3_cbc_encrypt(cipher, plain, (long)i, &ks1, &ks2, &ks3,
+        DES_ede3_cbc_encrypt(tmp, tmp, (long)i, &ks1, &ks2, &ks3,
                 &iv4, DES_DECRYPT);
-        DES_ede3_cbc_encrypt(cipher + i, plain + i, (long)(sizeof(cipher) - i),
+        DES_ede3_cbc_encrypt(tmp + i, tmp + i, (long)(sizeof(cipher) - i),
                 &ks1, &ks2, &ks3, &iv4, DES_DECRYPT);
+        XMEMCPY(plain, tmp, sizeof(plain));
 
         if (XMEMCMP(plain, vector, sizeof(plain)))
             return WC_TEST_RET_ENC_NC;
