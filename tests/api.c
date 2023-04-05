@@ -31230,6 +31230,10 @@ static int test_wolfSSL_a2i_ASN1_INTEGER(void)
 
     AssertNotNull(fixed = BIO_new(wolfSSL_BIO_s_fixed_mem()));
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, tmp, 1), 1);
+    AssertIntEQ(i2a_ASN1_INTEGER(fixed, ai), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(i2a_ASN1_INTEGER(fixed, ai), 0);
     BIO_free(fixed);
 
@@ -31954,7 +31958,9 @@ static int test_wolfSSL_ASN1_STRING_print(void)
     BIO_free(bio);
 
     AssertNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
-    AssertIntEQ(BIO_set_write_buf_size(bio, 0), 1);
+    AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(bio, rbuf, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print(bio, asnStr), 0);
     AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print(bio, asnStr), 0);
@@ -32017,6 +32023,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 15);
     AssertStrEQ((char*)rbuf, "Hello wolfSSL!");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 14), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
@@ -32029,6 +32039,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 9);
     AssertStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 8), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
@@ -32040,6 +32054,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     AssertIntEQ(p_len, 28);
     BIO_read(bio, (void*)rbuf, 28);
     AssertStrEQ((char*)rbuf, "OCTET STRING:Hello wolfSSL!");
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 12), 1);
@@ -32055,6 +32073,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     BIO_read(bio, (void*)rbuf, 31);
     AssertStrEQ((char*)rbuf, "#48656C6C6F20776F6C6653534C2100");
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 30), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
@@ -32066,6 +32088,10 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     AssertIntEQ(p_len, 35);
     BIO_read(bio, (void*)rbuf, 35);
     AssertStrEQ((char*)rbuf, "#040F48656C6C6F20776F6C6653534C2100");
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, rbuf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 2), 1);
@@ -32225,6 +32251,10 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     BIO_free(bio);
 
     AssertNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
+    AssertIntEQ(BIO_set_write_buf_size(bio, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(bio, buf, 1), 1);
+    AssertIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
     for (i = 1; i < 20; i++) {
         AssertIntEQ(BIO_set_write_buf_size(bio, i), 1);
         AssertIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
@@ -32667,6 +32697,10 @@ static int test_wolfSSL_ASN1_TIME_print(void)
     AssertIntEQ(XMEMCMP(buf, "Dec 16 21:17:49 2022 GMT", sizeof(buf) - 1), 0);
 
     /* Test BIO_write fails. */
+    AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
+    /* Ensure there is 0 bytes avaialble to write into. */
+    AssertIntEQ(BIO_write(fixed, buf, 1), 1);
+    AssertIntEQ(ASN1_TIME_print(fixed, notBefore), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
     AssertIntEQ(ASN1_TIME_print(fixed, notBefore), 0);
     AssertIntEQ(BIO_set_write_buf_size(fixed, 23), 1);
