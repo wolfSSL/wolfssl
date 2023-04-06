@@ -4456,12 +4456,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     int     err;
     mp_int* t = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int  *tmp = (mp_int *)XMALLOC(sizeof(*tmp), rsa->heap,
-                                     DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL) {
-        WOLFSSL_ERROR_MSG("Memory allocation failure");
-        return -1;
-    }
+    mp_int  *tmp = NULL;
 #else
     mp_int  tmp[1];
 #endif
@@ -4474,6 +4469,17 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         WOLFSSL_ERROR_MSG("rsa no init error");
         ret = -1;
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 1) {
+        tmp = (mp_int *)XMALLOC(sizeof(*tmp), rsa->heap,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            WOLFSSL_ERROR_MSG("Memory allocation failure");
+            ret = -1;
+        }
+    }
+#endif
 
     if (ret == 1) {
         /* Initialize temp MP integer. */
@@ -4523,7 +4529,8 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     mp_clear(t);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmp, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp != NULL)
+        XFREE(tmp, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
