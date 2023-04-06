@@ -3273,8 +3273,6 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
 #endif /* (ECC || !NO_DSA) && !WOLFSSL_ASN_TEMPLATE */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-#if (!defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)) \
-    || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA))
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || !defined(NO_DSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -3290,7 +3288,6 @@ static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 
     return 0;
 }
-#endif
 #endif
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
@@ -6350,9 +6347,12 @@ enum {
  * @param [in]      input     Buffer holding BER encoded data.
  * @param [in, out] inOutIdx  On in, start of RSA private key.
  *                            On out, start of ASN.1 item after RSA private key.
- * @param [in, out] key       RSA key object.
+ * @param [in, out] key       RSA key object. May be NULL.
+ * @param [out]     keySz     Size of key in bytes. May be NULL.
  * @param [in]      inSz      Number of bytes in buffer.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when input or inOutIdx is NULL.
+ * @return  BAD_FUNC_ARG when key and keySz are NULL.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -6361,14 +6361,14 @@ enum {
  * @return  MP_INIT_E when the unable to initialize an mp_int.
  * @return  ASN_GETINT_E when the unable to convert data to an mp_int.
  */
-int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
-                        word32 inSz)
+static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
+    RsaKey* key, int* keySz, word32 inSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int version, length;
     word32 algId = 0;
 
-    if (inOutIdx == NULL || input == NULL || key == NULL) {
+    if (inOutIdx == NULL || input == NULL || (key == NULL && keySz == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -6383,50 +6383,66 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
-    key->type = RSA_PRIVATE;
+    if (key == NULL) {
+        int i;
 
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    mp_memzero_add("Decode RSA key d", &key->d);
-    mp_memzero_add("Decode RSA key p", &key->p);
-    mp_memzero_add("Decode RSA key q", &key->q);
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
-    !defined(RSA_LOW_MEM)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    mp_memzero_add("Decode RSA key dP", &key->dP);
-    mp_memzero_add("Decode RSA key dQ", &key->dQ);
-    mp_memzero_add("Decode RSA key u", &key->u);
-#endif
-#endif
-
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-        GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0
-#else
-        SkipInt(input, inOutIdx, inSz) < 0 ||
-        SkipInt(input, inOutIdx, inSz) < 0 ||
-        SkipInt(input, inOutIdx, inSz) < 0
-#endif
-       ) {
-            return ASN_RSA_KEY_E;
-       }
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)) \
-    && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    if (GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
-#else
-    if (SkipInt(input, inOutIdx, inSz) < 0 ||
-        SkipInt(input, inOutIdx, inSz) < 0 ||
-        SkipInt(input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
-#endif
-
-#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
-    if (wc_InitRsaHw(key) != 0) {
-        return BAD_STATE_E;
+        /* Modulus */
+        if (GetASNInt(input, inOutIdx, keySz, inSz) < 0) {
+            return ASN_PARSE_E;
+        }
+        *inOutIdx += *keySz;
+        for (i = 1; i < RSA_INTS; i++) {
+            if (SkipInt(input, inOutIdx, inSz) < 0) {
+                return ASN_RSA_KEY_E;
+            }
+        }
     }
-#endif
+    else {
+        key->type = RSA_PRIVATE;
+
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mp_memzero_add("Decode RSA key d", &key->d);
+        mp_memzero_add("Decode RSA key p", &key->p);
+        mp_memzero_add("Decode RSA key q", &key->q);
+    #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+        !defined(RSA_LOW_MEM)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        mp_memzero_add("Decode RSA key dP", &key->dP);
+        mp_memzero_add("Decode RSA key dQ", &key->dQ);
+        mp_memzero_add("Decode RSA key u", &key->u);
+    #endif
+    #endif
+
+        if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
+    #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+            GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->q,  input, inOutIdx, inSz) < 0
+    #else
+            SkipInt(input, inOutIdx, inSz) < 0 ||
+            SkipInt(input, inOutIdx, inSz) < 0 ||
+            SkipInt(input, inOutIdx, inSz) < 0
+    #endif
+           ) {
+                return ASN_RSA_KEY_E;
+           }
+    #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)) \
+        && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        if (GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+    #else
+        if (SkipInt(input, inOutIdx, inSz) < 0 ||
+            SkipInt(input, inOutIdx, inSz) < 0 ||
+            SkipInt(input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+    #endif
+
+    #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+        if (wc_InitRsaHw(key) != 0) {
+            return BAD_STATE_E;
+        }
+    #endif
+    }
 
     return 0;
 #else
@@ -6436,10 +6452,18 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     word32 algId = 0;
 #endif
+    void*      heap = NULL;
+
+    (void)heap;
 
     /* Check validity of parameters. */
-    if (inOutIdx == NULL || input == NULL || key == NULL) {
+    if ((inOutIdx == NULL) || (input == NULL) || ((key == NULL) &&
+            (keySz == NULL))) {
         ret = BAD_FUNC_ARG;
+    }
+
+    if ((ret == 0) && (key != NULL)) {
+        heap = key->heap;
     }
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
@@ -6451,7 +6475,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif
 
-    CALLOC_ASNGETDATA(dataASN, rsaKeyASN_Length, ret, key->heap);
+    CALLOC_ASNGETDATA(dataASN, rsaKeyASN_Length, ret, heap);
 
     if (ret == 0) {
         int i;
@@ -6459,20 +6483,21 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         GetASN_Int8Bit(&dataASN[RSAKEYASN_IDX_VER], &version);
         /* Setup data to store INTEGER data in mp_int's in RSA object. */
     #if defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        /* Extract all public fields. */
-        for (i = 0; i < RSA_PUB_INTS; i++) {
-            GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
-        }
+        #define RSA_ASN_INTS        RSA_PUB_INTS
         /* Not extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    0
     #else
-        /* Extract all private fields. */
-        for (i = 0; i < RSA_INTS; i++) {
-            GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
-        }
+        #define RSA_ASN_INTS        RSA_INTS
         /* Extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    1
     #endif
+        if (key != NULL) {
+            /* Extract all public fields. */
+            for (i = 0; i < RSA_ASN_INTS; i++) {
+                GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i],
+                    GetRsaInt(key, i));
+            }
+        }
         /* Parse BER encoding for RSA private key. */
         ret = GetASN_Items(rsaKeyASN, dataASN, rsaKeyASN_Length,
             RSA_ASN_COMPLETE, input, inOutIdx, inSz);
@@ -6484,7 +6509,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if ((ret == 0) && (version > PKCS1v1)) {
         ret = ASN_PARSE_E;
     }
-    if (ret == 0) {
+    if ((ret == 0) && (key != NULL)) {
     #if !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         /* RSA key object has all private key values. */
         key->type = RSA_PRIVATE;
@@ -6498,11 +6523,78 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
             ret = BAD_STATE_E;
     #endif
     }
+    else if (ret == 0) {
+        /* Not filling in key but do want key size. */
+        *keySz = dataASN[(byte)RSAKEYASN_IDX_N].length;
+        /* Check whether first byte of data is 0x00 and drop it. */
+        if (input[dataASN[(byte)RSAKEYASN_IDX_E].offset - *keySz] == 0) {
+            (*keySz)--;
+        }
+    }
 
-    FREE_ASNGETDATA(dataASN, key->heap);
+    FREE_ASNGETDATA(dataASN, heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
+
+/* Decode RSA private key.
+ *
+ * PKCS #1: RFC 8017, A.1.2 - RSAPrivateKey
+ *
+ * Compiling with WOLFSSL_RSA_PUBLIC_ONLY will result in only the public fields
+ * being extracted.
+ *
+ * @param [in]      input     Buffer holding BER encoded data.
+ * @param [in, out] inOutIdx  On in, start of RSA private key.
+ *                            On out, start of ASN.1 item after RSA private key.
+ * @param [in, out] key       RSA key object.
+ * @param [in]      inSz      Number of bytes in buffer.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
+ *          non-zero length.
+ * @return  MP_INIT_E when the unable to initialize an mp_int.
+ * @return  ASN_GETINT_E when the unable to convert data to an mp_int.
+ */
+int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
+    word32 inSz)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return _RsaPrivateKeyDecode(input, inOutIdx, key, NULL, inSz);
+}
+
+/* Valdidate RSA private key ASN.1 encoding.
+ *
+ * PKCS #1: RFC 8017, A.1.2 - RSAPrivateKey
+ *
+ * Compiling with WOLFSSL_RSA_PUBLIC_ONLY will result in only the public fields
+ * being extracted.
+ *
+ * @param [in]      input     Buffer holding BER encoded data.
+ * @param [in, out] inOutIdx  On in, start of RSA private key.
+ *                            On out, start of ASN.1 item after RSA private key.
+ * @param [in]      inSz      Number of bytes in buffer.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when input, inOutIdx or keySz is NULL.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
+ *          non-zero length.
+ * @return  MP_INIT_E when the unable to initialize an mp_int.
+ * @return  ASN_GETINT_E when the unable to convert data to an mp_int.
+ */
+int wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx, int* keySz,
+     word32 inSz)
+{
+    return _RsaPrivateKeyDecode(input, inOutIdx, NULL, keySz, inSz);
+}
+
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
@@ -31177,14 +31269,17 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     /* Allocate a new parameter set. */
     curve = (ecc_set_type*)XMALLOC(sizeof(*curve), key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
-    if (curve == NULL)
+    if (curve == NULL) {
         ret = MEMORY_E;
+    }
+    else {
+        /* Clear out parameters and set fields to indicate it is custom. */
+        XMEMSET(curve, 0, sizeof(*curve));
+    }
 
     CALLOC_ASNGETDATA(dataASN, eccSpecifiedASN_Length, ret, key->heap);
 
     if (ret == 0) {
-        /* Clear out parameters and set fields to indicate it is custom. */
-        XMEMSET(curve, 0, sizeof(*curve));
         /* Set name to be: "Custom" */
     #ifndef WOLFSSL_ECC_CURVE_STATIC
         curve->name = ecSetCustomName;
