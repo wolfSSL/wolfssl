@@ -23421,9 +23421,14 @@ int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
             ret = BUFFER_E;
         }
         sz = XFTELL(file);
-        XREWIND(file);
+        if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+            ret = BUFFER_E;
+        }
 
-        if (sz <= 0) {
+        if (ret < 0) {
+            /* intentionally left empty. */
+        }
+        else if (sz <= 0) {
             ret = BUFFER_E;
         }
         else if (sz > (long)sizeof(staticBuffer)) {
@@ -23501,9 +23506,14 @@ int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
         if (XFSEEK(file, 0, XSEEK_END) != 0) {
             ret = BUFFER_E;
         }
+    }
+    if (ret == 0) {
         sz = XFTELL(file);
-        XREWIND(file);
-
+        if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+            ret = BUFFER_E;
+        }
+    }
+    if (ret == 0) {
         if (sz <= 0) {
             ret = BUFFER_E;
         }
@@ -23514,21 +23524,21 @@ int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
             else
                 dynamic = 1;
         }
-        if (ret == 0) {
-            if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
-                ret = BUFFER_E;
-            }
-            else {
-                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, der,
-                               0, NULL, NULL);
-            }
+    }
+    if (ret == 0) {
+        if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
+            ret = BUFFER_E;
         }
-
-        XFCLOSE(file);
-        if (dynamic) {
-            XFREE(fileBuf, NULL, DYNAMIC_TYPE_FILE);
+        else {
+            ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, der,
+                           0, NULL, NULL);
         }
     }
+
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    if (dynamic)
+        XFREE(fileBuf, NULL, DYNAMIC_TYPE_FILE);
 
     return ret;
 }

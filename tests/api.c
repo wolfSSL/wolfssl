@@ -601,7 +601,7 @@ static int test_fileAccess(void)
     AssertTrue((f = XFOPEN(derfile, "rb")) != XBADFILE);
     AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
     sz = (size_t) XFTELL(f);
-    XREWIND(f);
+    AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
     AssertTrue(sz == sizeof_server_cert_der_2048);
     AssertTrue((buff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL) ;
     AssertTrue(XFREAD(buff, 1, sz, f) == sz);
@@ -34754,7 +34754,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
         if (buf) {
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -34781,7 +34781,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -34828,7 +34828,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -34867,7 +34867,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -35473,9 +35473,9 @@ static int test_wolfSSL_PEM_PUBKEY(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        AssertIntGE(XFSEEK(file, 0, XSEEK_END), 0);
+        AssertIntEQ(XFSEEK(file, 0, XSEEK_END), 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertIntEQ(XFSEEK(file, 0, XSEEK_SET), 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -44934,7 +44934,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
@@ -44962,7 +44962,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
-        XREWIND(file);
+        AssertTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
@@ -50129,7 +50129,7 @@ static int test_wolfSSL_d2i_and_i2d_DSAparams(void)
     AssertTrue(f != XBADFILE);
     AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
     derInLen = (int)XFTELL(f);
-    XREWIND(f);
+    AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
     AssertNotNull(derIn = (byte*)XMALLOC(derInLen, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
     AssertIntEQ(XFREAD(derIn, 1, derInLen, f), derInLen);
@@ -56349,9 +56349,9 @@ static int test_wolfSSL_RSA_verify(void)
     /* read privete key file */
     fp = XFOPEN(svrKeyFile, "rb");
     AssertTrue((fp != XBADFILE));
-    AssertIntGE(XFSEEK(fp, 0, XSEEK_END), 0);
+    AssertIntEQ(XFSEEK(fp, 0, XSEEK_END), 0);
     sz = XFTELL(fp);
-    XREWIND(fp);
+    AssertIntEQ(XFSEEK(fp, 0, XSEEK_SET), 0);
     AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
     AssertIntEQ(XFREAD(buf, 1, sz, fp), sz);
     XFCLOSE(fp);

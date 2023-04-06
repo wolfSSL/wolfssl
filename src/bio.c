@@ -1429,8 +1429,10 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
     switch (bio->type) {
         #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
-            XREWIND((XFILE)bio->ptr);
-            return 0;
+            if (XFSEEK((XFILE)bio->ptr, 0, XSEEK_SET) != 0)
+                return WOLFSSL_BIO_ERROR;
+            else
+                return 0;
         #endif
 
         case WOLFSSL_BIO_BIO:
