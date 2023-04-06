@@ -23395,7 +23395,7 @@ int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
 #ifndef WOLFSSL_SMALL_STACK
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
-    byte*  fileBuf;
+    byte*  fileBuf = NULL;
     int    ret     = 0;
     XFILE  file    = XBADFILE;
     int    dynamic = 0;
@@ -23486,7 +23486,7 @@ int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
 #ifndef WOLFSSL_SMALL_STACK
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
-    byte*  fileBuf;
+    byte*  fileBuf = NULL;
     int    dynamic = 0;
     int    ret     = 0;
     long   sz      = 0;
