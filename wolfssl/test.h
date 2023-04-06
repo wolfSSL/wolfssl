@@ -2685,9 +2685,9 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
             return BAD_PATH_ERROR;
         }
 
-        LIBCALL_CHECK_RET(fseek(lFile, 0, SEEK_END));
+        LIBCALL_CHECK_RET(XFSEEK(lFile, 0, XSEEK_END));
         fileSz = (int)ftell(lFile);
-        rewind(lFile);
+        LIBCALL_CHECK_RET(XFSEEK(lFile, 0, XSEEK_SET));
         if (fileSz  > 0) {
             *bufLen = (size_t)fileSz;
             *buf = (byte*)malloc(*bufLen);

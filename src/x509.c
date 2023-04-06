@@ -4647,7 +4647,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
         if (XFSEEK(file, 0, XSEEK_END) != 0)
             return NULL;
         sz = XFTELL(file);
-        XREWIND(file);
+        if (XFSEEK(file, 0, XSEEK_SET) != 0)
+            return NULL;
 
         if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
             WOLFSSL_MSG("X509_d2i file size error");
@@ -4706,7 +4707,10 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         return NULL;
     }
     sz = XFTELL(file);
-    XREWIND(file);
+    if (XFSEEK(file, 0, XSEEK_SET) != 0){
+        XFCLOSE(file);
+        return NULL;
+    }
 
     if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
         WOLFSSL_MSG("X509_load_certificate_file size error");
@@ -6624,7 +6628,10 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         return WS_RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE);
     }
     sz = XFTELL(fp);
-    XREWIND(fp);
+    if(XFSEEK(fp, 0, XSEEK_SET) != 0) {
+        XFCLOSE(fp);
+        return WS_RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE);
+    }
 
     if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
         WOLFSSL_MSG("X509_LOOKUP_load_file size error");
@@ -7181,7 +7188,9 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
         return NULL;
     }
     sz = XFTELL(file);
-    XREWIND(file);
+    if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+        return NULL;
+    }
 
     if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
         WOLFSSL_MSG("d2i_X509_fp_ex file size error");
@@ -7345,7 +7354,10 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
             }
         }
         else {
-            XREWIND(fp);
+            if (XFSEEK(fp, 0, XSEEK_SET) != 0) {
+                WOLFSSL_MSG("XFSEEK error");
+                return cnt;
+            }
             crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL);
             if (crl != NULL) {
                 if (wolfSSL_X509_STORE_add_crl(ctx->store, crl) ==

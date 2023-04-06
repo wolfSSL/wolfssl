@@ -1796,19 +1796,20 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #endif
 #else
     /* normal CSV */
+    #ifdef BENCH_DEVID
+        #define BENCH_DEVID_COLUMN_HEADER "HW/SW,"
+    #else
+        #define BENCH_DEVID_COLUMN_HEADER
+    #endif
     #ifdef HAVE_GET_CYCLES
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,"
-            #ifdef BENCH_DEVID
-                   "HW/SW,"
-            #endif
+               BENCH_DEVID_COLUMN_HEADER
                WOLFSSL_FIXED_UNITS_PER_SEC ",Cycles per byte,\n");
     #else
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,"
-            #ifdef BENCH_DEVID
-                   "HW/SW,"
-            #endif
+               BENCH_DEVID_COLUMN_HEADER
                WOLFSSL_FIXED_UNITS_PER_SEC ", \n");
     #endif
 #endif
