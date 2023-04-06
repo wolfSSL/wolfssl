@@ -23484,14 +23484,14 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 #ifdef WOLFSSL_CERT_GEN
 int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte   staticBuffer[1]; /* force XMALLOC */
-#else
+#ifndef WOLFSSL_SMALL_STACK
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
-    byte*  fileBuf = staticBuffer;
+    byte*  fileBuf = NULL;
     int    ret     = 0;
-    XFILE  file    = NULL;
+    XFILE  file    = XBADFILE;
+    int    dynamic = 0;
+    long   sz      = 0;
 
     WOLFSSL_ENTER("wc_PemCertToDer");
 
@@ -23501,49 +23501,53 @@ int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
     else {
         file = XFOPEN(fileName, "rb");
         if (file == XBADFILE) {
-            ret = BUFFER_E;
+            ret = IO_FAILED_E;
         }
     }
 
     if (ret == 0) {
-        int  dynamic = 0;
-        long sz      = 0;
-
         if (XFSEEK(file, 0, XSEEK_END) != 0) {
-            ret = BUFFER_E;
+            ret = IO_FAILED_E;
         }
+    }
+    if (ret == 0) {
         sz = XFTELL(file);
+        if (sz <= 0) {
+            ret = IO_FAILED_E;
+        }
+    }
+    if (ret == 0) {
         if (XFSEEK(file, 0, XSEEK_SET) != 0) {
-            ret = BUFFER_E;
+            ret = IO_FAILED_E;
         }
-
-        if (ret < 0) {
-            /* intentionally left empty. */
-        }
-        else if (sz <= 0) {
-            ret = BUFFER_E;
-        }
-        else if (sz > (long)sizeof(staticBuffer)) {
+    }
+    if (ret == 0) {
+#ifndef WOLFSSL_SMALL_STACK
+        if (sz <= (long)sizeof(staticBuffer))
+            fileBuf = staticBuffer;
+        else
+#endif
+        {
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
             else
                 dynamic = 1;
         }
-
-        if (ret == 0) {
-            if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
-                ret = BUFFER_E;
-            }
-            else {
-                ret = PemToDer(fileBuf, sz, CA_TYPE, der,  0, NULL,NULL);
-            }
-        }
-
-        XFCLOSE(file);
-        if (dynamic)
-            XFREE(fileBuf, NULL, DYNAMIC_TYPE_FILE);
     }
+    if (ret == 0) {
+        if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
+            ret = IO_FAILED_E;
+        }
+        else {
+            ret = PemToDer(fileBuf, sz, CA_TYPE, der,  0, NULL,NULL);
+        }
+    }
+
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    if (dynamic)
+        XFREE(fileBuf, NULL, DYNAMIC_TYPE_FILE);
 
     return ret;
 }
@@ -23571,16 +23575,14 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 /* load pem public key from file into der buffer, return der size or error */
 int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte   staticBuffer[1]; /* force XMALLOC */
-#else
+#ifndef WOLFSSL_SMALL_STACK
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
-    byte*  fileBuf = staticBuffer;
+    byte*  fileBuf = NULL;
     int    dynamic = 0;
     int    ret     = 0;
     long   sz      = 0;
-    XFILE  file    = NULL;
+    XFILE  file    = XBADFILE;
 
     WOLFSSL_ENTER("wc_PemPubKeyToDer");
 
@@ -23590,26 +23592,33 @@ int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
     else {
         file = XFOPEN(fileName, "rb");
         if (file == XBADFILE) {
-            ret = BUFFER_E;
+            ret = IO_FAILED_E;
         }
     }
 
     if (ret == 0) {
         if (XFSEEK(file, 0, XSEEK_END) != 0) {
-            ret = BUFFER_E;
+            ret = IO_FAILED_E;
         }
     }
     if (ret == 0) {
         sz = XFTELL(file);
-        if (XFSEEK(file, 0, XSEEK_SET) != 0) {
-            ret = BUFFER_E;
+        if (sz <= 0) {
+            ret = IO_FAILED_E;
         }
     }
     if (ret == 0) {
-        if (sz <= 0) {
-            ret = BUFFER_E;
+        if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+            ret = IO_FAILED_E;
         }
-        else if (sz > (long)sizeof(staticBuffer)) {
+    }
+    if (ret == 0) {
+#ifndef WOLFSSL_SMALL_STACK
+        if (sz <= (long)sizeof(staticBuffer))
+            fileBuf = staticBuffer;
+        else
+#endif
+        {
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
