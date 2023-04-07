@@ -1106,7 +1106,7 @@ static word64 Entropy_GetSample(void)
  * @param [out] noise    Buffer to hold samples.
  * @param [in]  samples  Number of one byte samples to get.
  */
-static void Entropy_GetNoise(unsigned char* noise, int samples)
+static void Entropy_GetNoise(word64* noise, int samples)
 {
     int i;
 
@@ -1115,7 +1115,7 @@ static void Entropy_GetNoise(unsigned char* noise, int samples)
 
     /* Get as many samples as required. */
     for (i = 0; i < samples; i++) {
-       noise[i] = (byte)Entropy_GetSample();
+       noise[i] = Entropy_GetSample();
     }
 }
 
@@ -1127,7 +1127,7 @@ static void Entropy_GetNoise(unsigned char* noise, int samples)
  * @return  Negative when creating a thread fails - when no high resolution
  * clock available.
  */
-int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
+int wc_Entropy_GetRawEntropy(word64* raw, int cnt)
 {
     int ret = 0;
 
@@ -1327,7 +1327,7 @@ static int Entropy_HealthTest_Proportion(byte noise)
 static int Entropy_HealthTest_Startup(void)
 {
     int ret = 0;
-    byte initial[ENTROPY_INITIAL_COUNT];
+    word64 initial[ENTROPY_INITIAL_COUNT];
     int i;
 
 #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
@@ -1414,7 +1414,7 @@ static wolfSSL_Mutex entropy_mutex;
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
-    byte noise[MAX_NOISE_CNT];
+    word64 noise[MAX_NOISE_CNT];
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
@@ -1459,7 +1459,8 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 
         if (ret == 0) {
             /* Condition noise value down to 32-bytes or less. */
-            ret = Entropy_Condition(entropy, entropy_len, noise, noise_len);
+            ret = Entropy_Condition(entropy, entropy_len, (byte*) noise,
+                                    noise_len);
         }
         if (ret == 0) {
             /* Update buffer pointer and count of bytes left to generate. */

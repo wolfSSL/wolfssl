@@ -263,7 +263,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #define MAX_ENTROPY_BITS    256
 
 /* For generating data for assessment. */
-WOLFSSL_API int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
+WOLFSSL_API int wc_Entropy_GetRawEntropy(unsigned long* raw, int cnt);
 WOLFSSL_API int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
 WOLFSSL_API int wc_Entropy_OnDemandTest(void);
 
