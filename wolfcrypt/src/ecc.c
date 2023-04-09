@@ -8176,6 +8176,7 @@ static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     #if defined(WC_ECC_NONBLOCK) && defined(WC_ECC_NONBLOCK_ONLY)
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
+        int err;
         XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
         err = NOT_COMPILED_IN; /* set default error */
     #endif
@@ -8269,7 +8270,7 @@ static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif
 
-    return 0;
+    return NOT_COMPILED_IN;
 }
 
 #if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
@@ -8710,7 +8711,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
   }
 
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
-  if (err != 0) {
+  if (err != NOT_COMPILED_IN) {
       if (curveLoaded) {
            wc_ecc_curve_free(curve);
            FREE_CURVE_SPECS();
@@ -8720,6 +8721,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    if (!curveLoaded) {
+       err = 0; /* potential for NOT_COMPILED_IN error from SP attempt */
        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
        if (err != 0) {
           return err;
