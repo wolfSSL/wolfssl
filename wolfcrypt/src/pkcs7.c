@@ -11384,6 +11384,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             pkcs7->devId, pkcs7->heap);
 
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    plain = NULL;
+
     if (aadBuffer) {
         XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         aadBuffer = NULL;
