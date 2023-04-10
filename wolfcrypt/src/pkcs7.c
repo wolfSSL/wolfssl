@@ -11336,8 +11336,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     }
 
     /* AES-GCM/CCM does NOT require padding for plaintext content or
-     * AAD inputs RFC 5084 section 3.1 and 3.2 , but we must alloc
-     * full blocks to ensure crypto only gets full blocks*/
+     * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
+     * full blocks to ensure crypto only gets full blocks */
     encryptedOutSz = pkcs7->contentSz;
     encryptedAllocSz = (encryptedOutSz % blockSz) ?
                            encryptedOutSz + blockSz -
@@ -11359,7 +11359,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     }
 
     XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
-    if(encryptedAllocSz - encryptedOutSz) {
+    if ((encryptedAllocSz - encryptedOutSz) > 0) {
         XMEMSET(plain + encryptedOutSz, 0, encryptedAllocSz - encryptedOutSz);
     }
 
@@ -11590,7 +11590,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
     byte  decryptedKey[MAX_ENCRYPTED_KEY_SZ];
 #endif
     int encryptedContentSz = 0;
-    int encryptedAllocSz =0;
+    int encryptedAllocSz = 0;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
 
@@ -11869,8 +11869,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             /* AES-GCM/CCM does NOT require padding for plaintext content or
-             * AAD inputs RFC 5084 section 3.1 and 3.2 , but we must alloc
-             * full blocks to ensure crypto only gets full blocks*/
+             * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
+             * full blocks to ensure crypto only gets full blocks */
             encryptedAllocSz = (encryptedContentSz % expBlockSz) ?
                                    encryptedContentSz + expBlockSz -
                                    (encryptedContentSz % expBlockSz) :
