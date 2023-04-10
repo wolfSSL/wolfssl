@@ -6634,6 +6634,9 @@ static int ecc_sign_hash_sp(const byte* in, word32 inlen, WC_RNG* rng,
     #ifndef WOLFSSL_SP_NO_256
         if (ecc_sets[key->idx].id == ECC_SECP256R1) {
         #ifdef WC_ECC_NONBLOCK
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            int err;
+            #endif
             if (key->nb_ctx) {
                 return sp_ecc_sign_256_nb(&key->nb_ctx->sp_ctx, in, inlen, rng,
                     &key->k, r, s, sign_k, key->heap);
@@ -6661,6 +6664,9 @@ static int ecc_sign_hash_sp(const byte* in, word32 inlen, WC_RNG* rng,
     #ifdef WOLFSSL_SP_384
         if (ecc_sets[key->idx].id == ECC_SECP384R1) {
         #ifdef WC_ECC_NONBLOCK
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            int err;
+            #endif
             if (key->nb_ctx) {
                 return sp_ecc_sign_384_nb(&key->nb_ctx->sp_ctx, in, inlen, rng,
                     &key->k, r, s, sign_k, key->heap);
@@ -6688,6 +6694,9 @@ static int ecc_sign_hash_sp(const byte* in, word32 inlen, WC_RNG* rng,
     #ifdef WOLFSSL_SP_521
         if (ecc_sets[key->idx].id == ECC_SECP521R1) {
         #ifdef WC_ECC_NONBLOCK
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            int err;
+            #endif
             if (key->nb_ctx) {
                 return sp_ecc_sign_521_nb(&key->nb_ctx->sp_ctx, in, inlen, rng,
                     &key->k, r, s, sign_k, key->heap);
