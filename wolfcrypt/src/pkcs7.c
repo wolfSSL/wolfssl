@@ -11718,14 +11718,18 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
-            blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
-            if (ret == 0 && blockKeySz < 0) {
-                ret = blockKeySz;
+            if (ret == 0) {
+                blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
+                if (blockKeySz < 0) {
+                    ret = blockKeySz;
+                }
             }
 
-            expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
-            if (ret == 0 && expBlockSz < 0) {
-                ret = expBlockSz;
+            if (ret == 0) {
+                expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+                if (expBlockSz < 0) {
+                    ret = expBlockSz;
+                }
             }
 
             /* get nonce, stored in OPTIONAL parameter of AlgoID
@@ -11868,7 +11872,21 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
             encryptedContentSz = pkcs7->stream->expected;
+        #else
+            pkiMsgSz = inSz;
         #endif
+
+            if (expBlockSz == 0) {
+                if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+                expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+                if (expBlockSz < 0) {
+                    ret = expBlockSz;
+                    break;
+                }
+            }
 
             /* AES-GCM/CCM does NOT require padding for plaintext content or
              * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
