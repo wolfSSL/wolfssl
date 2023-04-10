@@ -171,15 +171,14 @@ enum {
     RSA_PSS_PAD_TERM = 0xBC,
 #endif
 
-    RSA_PSS_SALT_LEN_DEFAULT  = -1
-
+    RSA_PSS_SALT_LEN_DEFAULT  = -1,
 #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
-   ,RSA_PSS_SALT_LEN_DISCOVER = -2
+    RSA_PSS_SALT_LEN_DISCOVER = -2,
 #endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
-   ,RSA_MAX_ID_LEN      = 32,
-    RSA_MAX_LABEL_LEN   = 32
+    RSA_MAX_ID_LEN      = 32,
+    RSA_MAX_LABEL_LEN   = 32,
 #endif
 };
 

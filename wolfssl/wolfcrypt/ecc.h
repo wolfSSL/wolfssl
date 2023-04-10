@@ -189,11 +189,11 @@ enum {
     ECC_POINT_UNCOMP = 0x04,
 
     /* Shamir's dual add constants */
-    SHAMIR_PRECOMP_SZ = 16
+    SHAMIR_PRECOMP_SZ = 16,
 
 #ifdef WOLF_PRIVATE_KEY_ID
-   ,ECC_MAX_ID_LEN    = 32,
-    ECC_MAX_LABEL_LEN = 32
+    ECC_MAX_ID_LEN    = 32,
+    ECC_MAX_LABEL_LEN = 32,
 #endif
 };
 
@@ -413,7 +413,7 @@ typedef struct {
 enum {
     WC_ECC_FLAG_NONE     = 0x00,
     WC_ECC_FLAG_COFACTOR = 0x01,
-    WC_ECC_FLAG_DEC_SIGN = 0x02
+    WC_ECC_FLAG_DEC_SIGN = 0x02,
 };
 
 /* ECC non-blocking */

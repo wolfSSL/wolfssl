@@ -72,7 +72,7 @@ Block counter is located at index 12.
 
 enum {
     CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
-    CHACHA_MAX_KEY_SZ = 32
+    CHACHA_MAX_KEY_SZ = 32,
 };
 
 typedef struct ChaCha {

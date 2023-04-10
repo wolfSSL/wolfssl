@@ -70,42 +70,42 @@ enum {
     HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum */
 
     IPAD    = 0x36,
-    OPAD    = 0x5C
+    OPAD    = 0x5C,
 
 /* If any hash is not enabled, add the ID here. */
 #ifdef NO_MD5
-   ,WC_MD5     = WC_HASH_TYPE_MD5
+    WC_MD5     = WC_HASH_TYPE_MD5,
 #endif
 #ifdef NO_SHA
-   ,WC_SHA     = WC_HASH_TYPE_SHA
+    WC_SHA     = WC_HASH_TYPE_SHA,
 #endif
 #ifdef NO_SHA256
-   ,WC_SHA256  = WC_HASH_TYPE_SHA256
+    WC_SHA256  = WC_HASH_TYPE_SHA256,
 #endif
 #ifndef WOLFSSL_SHA512
-   ,WC_SHA512  = WC_HASH_TYPE_SHA512
+    WC_SHA512  = WC_HASH_TYPE_SHA512,
     #ifndef WOLFSSL_NOSHA512_224
-   ,WC_SHA512_224  = WC_HASH_TYPE_SHA512_224
+    WC_SHA512_224  = WC_HASH_TYPE_SHA512_224,
     #endif
     #ifndef WOLFSSL_NOSHA512_256
-   ,WC_SHA512_256  = WC_HASH_TYPE_SHA512_256
+    WC_SHA512_256  = WC_HASH_TYPE_SHA512_256,
     #endif
 #endif
 #ifndef WOLFSSL_SHA384
-   ,WC_SHA384  = WC_HASH_TYPE_SHA384
+    WC_SHA384  = WC_HASH_TYPE_SHA384,
 #endif
 #ifndef WOLFSSL_SHA224
-   ,WC_SHA224  = WC_HASH_TYPE_SHA224
+    WC_SHA224  = WC_HASH_TYPE_SHA224,
 #endif
 #ifndef WOLFSSL_SHA3
-   ,WC_SHA3_224 = WC_HASH_TYPE_SHA3_224,
+    WC_SHA3_224 = WC_HASH_TYPE_SHA3_224,
     WC_SHA3_256 = WC_HASH_TYPE_SHA3_256,
     WC_SHA3_384 = WC_HASH_TYPE_SHA3_384,
-    WC_SHA3_512 = WC_HASH_TYPE_SHA3_512
+    WC_SHA3_512 = WC_HASH_TYPE_SHA3_512,
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
-   ,HMAC_MAX_ID_LEN    = 32,
-    HMAC_MAX_LABEL_LEN = 32
+    HMAC_MAX_ID_LEN    = 32,
+    HMAC_MAX_LABEL_LEN = 32,
 #endif
 };
 
