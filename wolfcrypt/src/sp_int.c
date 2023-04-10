@@ -245,7 +245,7 @@ do {                                                                           \
             int n##ii;                                                         \
             (n)[0] = n##d;                                                     \
             (n)[0]->size = (s);                                                \
-            for (n##ii = 1; n##ii < (c); n##ii++) {                            \
+            for (n##ii = 1; n##ii < (int)(c); n##ii++) {                       \
                 (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                     \
                 (n)[n##ii]->size = (s);                                        \
             }                                                                  \
@@ -5037,9 +5037,9 @@ int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
     ALLOC_SP_INT(t, cnt, err, NULL);
     if (err == MP_OKAY) {
         /* XOR other fields in sp_int into temp - mask set when swapping. */
-        t->used = (a->used ^ b->used) & mask;
+        t->used = (a->used ^ b->used) & (unsigned int)mask;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
-        t->sign = (a->sign ^ b->sign) & mask;
+        t->sign = (a->sign ^ b->sign) & (unsigned int)mask;
     #endif
 
         /* XOR requested words into temp - mask set when swapping. */
@@ -7749,7 +7749,7 @@ int sp_lshd(sp_int* a, int s)
         /* Move up digits. */
         XMEMMOVE(a->dp + s, a->dp, a->used * SP_WORD_SIZEOF);
         /* Back fill with zeros. */
-        XMEMSET(a->dp, 0, s * SP_WORD_SIZEOF);
+        XMEMSET(a->dp, 0, (size_t)s * SP_WORD_SIZEOF);
         /* Update used. */
         a->used += (unsigned int)s;
         /* Remove leading zeros. */
@@ -8597,7 +8597,7 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
         }
         for (; k <= (a->used - 1) + (b->used - 1); k++) {
             j = (int)(b->used - 1);
-            i = k - j;
+            i = k - (unsigned int)j;
             for (; (i < a->used) && (j >= 0); i++, j--) {
                 SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
             }
@@ -13240,9 +13240,9 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
      *  - Montgomery form of base
      */
 #ifndef WOLFSSL_SP_NO_MALLOC
-    ALLOC_DYN_SP_INT_ARRAY(t, m->used * 2 + 1, preCnt + 2, err, NULL);
+    ALLOC_DYN_SP_INT_ARRAY(t, m->used * 2 + 1, (size_t)preCnt + 2, err, NULL);
 #else
-    ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, preCnt + 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, (size_t)preCnt + 2, err, NULL);
 #endif
     if (err == MP_OKAY) {
         /* Set variables to use allocate memory. */
@@ -13412,7 +13412,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
                         n <<= winBits;
                         c -= winBits;
                     }
-                    y &= mask;
+                    y &= (int)mask;
                 }
 
                 /* 4.5. Montgomery multiply result by table entry. */
@@ -17751,7 +17751,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
         }
 
         /* Get number of digits required to handle required number of bytes. */
-        digits = (len + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF;
+        digits = ((unsigned int)len + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF;
         /* Ensure result has space. */
         if (r->size < digits) {
             err = MP_VAL;
@@ -17812,7 +17812,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
         fflush(stdout);
 #endif /* SHOW_GEN */
         /* Generate bytes into digit array. */
-        err = wc_RNG_GenerateBlock(rng, (byte*)r->dp, len);
+        err = wc_RNG_GenerateBlock(rng, (byte*)r->dp, (word32)len);
         if (err != 0) {
             err = MP_VAL;
             break;
@@ -18379,7 +18379,7 @@ static WC_INLINE int _sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
     /* Used for swapping sp_ints. */
     sp_int* s;
     /* Determine maximum digit length numbers will reach. */
-    int used = (a->used >= b->used) ? a->used + 1 : b->used + 1;
+    unsigned int used = (a->used >= b->used) ? a->used + 1 : b->used + 1;
     DECL_SP_INT_ARRAY(d, used, 3);
 
     SAVE_VECTOR_REGISTERS(err = _svr_ret;);

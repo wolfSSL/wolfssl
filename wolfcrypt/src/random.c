@@ -370,8 +370,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 {
     int ret = DRBG_FAILURE;
     byte ctr;
-    int i;
-    int len;
+    word32 i;
+    word32 len;
     word32 bits = (outSz * 8); /* reverse byte order */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
@@ -537,8 +537,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     byte data[DRBG_SEED_LEN];
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
-    int i;
-    int len;
+    word32 i;
+    word32 len;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
 #else
@@ -621,9 +621,9 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
         int sIdx, dIdx;
         word16 carry = 0;
 
-        dIdx = dLen - 1;
+        dIdx = (int)dLen - 1;
         for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)d[dIdx] + (word16)s[sIdx];
+            carry += (word16)(d[dIdx] + s[sIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;

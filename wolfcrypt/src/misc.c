@@ -330,7 +330,7 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
         len -= l;
         while (l--) *z++ = 0;
     #endif
-    for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
+        for (w = (volatile word64*)z; len >= sizeof(*w); len -= (word32)sizeof(*w))
         *w++ = 0;
     z = (volatile byte*)w;
 #endif
@@ -559,6 +559,13 @@ WC_MISC_STATIC WC_INLINE int ctMaskSelInt(byte m, int a, int b)
 {
     return (b & (~(signed int)(signed char)m)) |
            (a & ( (signed int)(signed char)m));
+}
+
+/* Constant time - select word32 a when mask is set and word32 b otherwise. */
+WC_MISC_STATIC WC_INLINE word32 ctMaskSelWord32(byte m, word32 a, word32 b)
+{
+    return (((word32)b & (word32)(~(signed int)(signed char)m)) |
+            ((word32)a & (word32)( (signed int)(signed char)m)));
 }
 
 /* Constant time - bit set when a <= b. */
