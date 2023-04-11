@@ -9146,7 +9146,7 @@ int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
     /* pad and store x */
     XMEMSET(buf, 0, ECC_BUFSIZE);
     ret = mp_to_unsigned_bin(point->x, buf +
-                                 (numlen - (word32)mp_unsigned_bin_size(point->x)));
+                             (numlen - (word32)mp_unsigned_bin_size(point->x)));
     if (ret != MP_OKAY)
         goto done;
     XMEMCPY(out+1, buf, numlen);
@@ -14547,8 +14547,9 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
    /* pad and store x */
    XMEMSET(out+1, 0, numlen);
-   ret = mp_to_unsigned_bin(key->pubkey.x,
-                       out+1 + (numlen - (word32)mp_unsigned_bin_size(key->pubkey.x)));
+   ret = mp_to_unsigned_bin(
+       key->pubkey.x,
+       out+1 + (numlen - (word32)mp_unsigned_bin_size(key->pubkey.x)));
    *outLen = 1 + numlen;
 
    return ret;

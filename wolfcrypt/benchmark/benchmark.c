@@ -6207,7 +6207,8 @@ static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
                         goto exit;
                     }
 
-                    ret = wc_MakeRsaKey(&genKey[i], (int)keySz, rsa_e_val, &gRng);
+                    ret = wc_MakeRsaKey(&genKey[i], (int)keySz, rsa_e_val,
+                                        &gRng);
                     if (!bench_async_handle(&ret,
                         BENCH_ASYNC_GET_DEV(&genKey[i]), 0,
                                             &times, &pending)) {

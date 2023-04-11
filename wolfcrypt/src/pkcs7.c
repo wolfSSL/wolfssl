@@ -11877,7 +11877,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             if (expBlockSz == 0) {
-                if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0) {
+                if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0)
+                {
                     ret = ASN_PARSE_E;
                     break;
                 }

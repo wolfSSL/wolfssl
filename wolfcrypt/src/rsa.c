@@ -1930,7 +1930,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         /* Decrypted with private key - unpad must be constant time. */
         for (j = 2; j < pkcsBlockLen; j++) {
            /* Update i if not passed the separator and at separator. */
-            i |= (word16)(~pastSep) & ctMask16Eq(pkcsBlock[j], 0x00) & (word16)(j + 1);
+            i |= (word16)(~pastSep) & ctMask16Eq(pkcsBlock[j], 0x00) &
+                (word16)(j + 1);
             pastSep |= ctMask16Eq(pkcsBlock[j], 0x00);
         }
 
@@ -3375,9 +3376,9 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     #endif /* WOLFSSL_CRYPTOCELL */
 
         key->state = RSA_STATE_ENCRYPT_PAD;
-        ret = wc_RsaPad_ex(in, inLen, out, (word32)sz, pad_value, rng, pad_type, hash,
-                           mgf, label, labelSz, saltLen, mp_count_bits(&key->n),
-                           key->heap);
+        ret = wc_RsaPad_ex(in, inLen, out, (word32)sz, pad_value, rng, pad_type,
+                           hash, mgf, label, labelSz, saltLen,
+                           mp_count_bits(&key->n), key->heap);
         if (ret < 0) {
             break;
         }
@@ -3388,7 +3389,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     case RSA_STATE_ENCRYPT_EXPTMOD:
 
         key->dataLen = outLen;
-        ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key, rng);
+        ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key,
+                             rng);
 
         if (ret >= 0 || ret == WC_PENDING_E) {
             key->state = RSA_STATE_ENCRYPT_RES;

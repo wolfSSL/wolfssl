@@ -1202,7 +1202,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return MP_INIT_E;
             }
-            err = mp_read_unsigned_bin(data->data.mp, (byte*)input + idx, (word32)len);
+            err = mp_read_unsigned_bin(data->data.mp, (byte*)input + idx,
+                                       (word32)len);
             if (err != 0) {
             #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
                 WOLFSSL_MSG_VSNPRINTF("Failed to read mp: %d", err);
@@ -7027,7 +7028,8 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         /* Only support default PKCS #8 format - v0. */
         SetASN_Int8Bit(&dataASN[PKCS8KEYASN_IDX_VER], PKCS8v0);
         /* Set key OID that corresponds to key data. */
-        SetASN_OID(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY], (word32)algoID, oidKeyType);
+        SetASN_OID(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY], (word32)algoID,
+                   oidKeyType);
         if (curveOID != NULL && oidSz > 0) {
             /* ECC key and curveOID set to write. */
             SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE], curveOID, oidSz);
@@ -8203,7 +8205,8 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             /* enc = OBJ enc_alg OCT iv */
             encLen = 2 + (word32)encOidSz + 2 + (word32)blockSz;
             /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
-            pbeLen = (word32)(2 + sizeof(pbes2) + 2 + 2 + (size_t)kdfLen + 2 + (size_t)encLen);
+            pbeLen = (word32)(2 + sizeof(pbes2) + 2 + 2 + (size_t)kdfLen + 2 +
+                              (size_t)encLen);
 
             ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
         }
@@ -8715,8 +8718,9 @@ exit_dc:
 
     if (ret == 0) {
         /* Decrypt the key. */
-        ret = wc_CryptKey(password, passwordSz, salt, (int)saltSz, (int)iterations, id,
-                          key, (int)keySz, version, cbcIv, 0, (int)shaOid);
+        ret = wc_CryptKey(
+            password, passwordSz, salt, (int)saltSz, (int)iterations, id, key,
+            (int)keySz, version, cbcIv, 0, (int)shaOid);
     }
     if (ret == 0) {
         /* Copy the decrypted key into the input (inline). */
@@ -9067,7 +9071,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
          * iteration count, and padded key length. */
-        SetASN_OID(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_OID], (word32)id, oidPBEType);
+        SetASN_OID(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_OID], (word32)id,
+                   oidPBEType);
         if (salt == NULL || saltSz == 0) {
             salt = NULL;
             saltSz = PKCS5_SALT_SZ;
@@ -9075,7 +9080,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         }
         SetASN_Buffer(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT],
                 salt, saltSz);
-        SetASN_Int16Bit(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_ITER], (word16)itt);
+        SetASN_Int16Bit(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_ITER],
+                        (word16)itt);
         pkcs8Sz = (word32)Pkcs8Pad(NULL, (int)inputSz, blockSz);
         SetASN_Buffer(&dataASN[P8ENCPBES1ASN_IDX_ENCDATA], NULL, pkcs8Sz);
 
@@ -9103,7 +9109,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
         if (salt == NULL) {
             /* Generate salt into encoding. */
-            salt = (byte*)dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT].data.buffer.data;
+            salt = (byte*)dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT].
+                data.buffer.data;
             ret = wc_RNG_GenerateBlock(rng, salt, saltSz);
         }
     }
@@ -9116,8 +9123,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         Pkcs8Pad(pkcs8, (int)inputSz, blockSz);
 
         /* Encrypt PKCS#8 key inline. */
-        ret = wc_CryptKey(password, passwordSz, salt, (int)saltSz, itt, id, pkcs8,
-                          (int)pkcs8Sz, version, cbcIv, 1, 0);
+        ret = wc_CryptKey(password, passwordSz, salt, (int)saltSz, itt, id,
+                          pkcs8, (int)pkcs8Sz, version, cbcIv, 1, 0);
     }
     if (ret == 0) {
         /* Returning size on success. */
@@ -14752,19 +14759,21 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
             dataASN[ALGOIDASN_IDX_NULL].noOut = 0;
             /* Include space for extra data of length curveSz.
              * Subtract 1 for sequence and 1 for length encoding. */
-            SetASN_Buffer(&dataASN[ALGOIDASN_IDX_NULL], NULL, (word32)curveSz - 2);
+            SetASN_Buffer(&dataASN[ALGOIDASN_IDX_NULL], NULL,
+                          (word32)curveSz - 2);
         }
 
         /* Calculate size of encoding. */
-        ret = SizeASN_Items(algoIdASN + o, dataASN + o, (int)algoIdASN_Length - (int)o,
-            &sz);
+        ret = SizeASN_Items(algoIdASN + o, dataASN + o,
+                            (int)algoIdASN_Length - (int)o, &sz);
         if (ret == 0 && output != NULL) {
             /* Encode into buffer. */
-            SetASN_Items(algoIdASN + o, dataASN + o, (int)algoIdASN_Length - (int)o,
-                output);
+            SetASN_Items(algoIdASN + o, dataASN + o,
+                         (int)algoIdASN_Length - (int)o, output);
             if (curveSz > 0) {
                 /* Return size excluding curve data. */
-                sz = (int)(dataASN[o].offset - dataASN[ALGOIDASN_IDX_NULL].offset);
+                sz = (int)(dataASN[o].offset -
+                           dataASN[ALGOIDASN_IDX_NULL].offset);
             }
         }
 
@@ -14845,7 +14854,8 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 
     if (ret == 0) {
         /* Set hash OID and type. */
-        SetASN_OID(&dataASN[DIGESTINFOASN_IDX_DIGALGO_OID], (word32)hashOID, oidHashType);
+        SetASN_OID(&dataASN[DIGESTINFOASN_IDX_DIGALGO_OID], (word32)hashOID,
+                   oidHashType);
         /* Set digest. */
         if (digest == out) {
             XMEMCPY(dgst, digest, digSz);
@@ -16747,7 +16757,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         word32 idxDir = idx;
 
         /* Expecting a SEQUENCE using up all data. */
-        if (GetASN_Sequence(input, &idxDir, &strLen, idx + (word32)len, 1) < 0) {
+        if (GetASN_Sequence(input, &idxDir, &strLen, idx + (word32)len, 1) < 0)
+        {
             WOLFSSL_MSG("\tfail: seq length");
             return ASN_PARSE_E;
         }
@@ -18970,12 +18981,13 @@ exit:
 
         if (ret == 0) {
         #if defined(WOLFSSL_CERT_EXT)
-             cert->extCertPoliciesNb = 0;
+            cert->extCertPoliciesNb = 0;
         #endif
 
             /* Strip SEQUENCE OF and check using all data. */
-             if (GetASN_Sequence(input, &idx, &total_length, (word32)sz, 1) < 0) {
-                ret = ASN_PARSE_E;
+            if (GetASN_Sequence(input, &idx, &total_length, (word32)sz, 1) < 0)
+            {
+               ret = ASN_PARSE_E;
             }
         }
 
@@ -19719,7 +19731,8 @@ end:
         XMEMSET(dataExtsASN, 0, sizeof(dataExtsASN));
         /* Parse extensions header. */
         ret = GetASN_Items(certExtHdrASN + offset, dataExtsASN + offset,
-                           (int)(certExtHdrASN_Length - (size_t)offset), 0, input, &idx, (word32)sz);
+                           (int)(certExtHdrASN_Length - (size_t)offset), 0,
+                           input, &idx, (word32)sz);
     }
     /* Parse each extension. */
     while ((ret == 0) && (idx < (word32)sz)) {
@@ -20323,7 +20336,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                 /* Store references to password data. */
                 cert->cPwd =
                         (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
-                cert->cPwdLen = (int)strDataASN[STRATTRASN_IDX_STR].data.ref.length;
+                cert->cPwdLen = (int)strDataASN[STRATTRASN_IDX_STR].
+                    data.ref.length;
             }
             break;
 
@@ -20342,7 +20356,8 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                 /* Store references to serial number. */
                 cert->sNum =
                         (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
-                cert->sNumLen = (int)strDataASN[STRATTRASN_IDX_STR].data.ref.length;
+                cert->sNumLen = (int)strDataASN[STRATTRASN_IDX_STR].
+                    data.ref.length;
                 /* Store serial number if small enough. */
                 if (cert->sNumLen <= EXTERNAL_SERIAL_SIZE) {
                     XMEMCPY(cert->serial, cert->sNum, (size_t)cert->sNumLen);
@@ -23105,7 +23120,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     if (info) {
-        ret = wc_EncryptedInfoParse(info, &headerEnd, (size_t)(bufferEnd - headerEnd));
+        ret = wc_EncryptedInfoParse(info, &headerEnd,
+                                    (size_t)(bufferEnd - headerEnd));
         if (ret < 0)
             return ret;
         if (info->set)
@@ -26288,7 +26304,8 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                 /* Copy data into dynamic vars. */
                 SetRdnItems(namesASN + idx, dataASN + idx, dcOid,
                             sizeof(dcOid), (byte)name->name[j].type,
-                            (byte*)name->name[j].value, (word32)name->name[j].sz);
+                            (byte*)name->name[j].value,
+                            (word32)name->name[j].sz);
             }
             idx += (int)rdnASN_Length;
         }
@@ -27820,7 +27837,8 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     #ifndef NO_RSA
         if (rsaKey) {
             /* signature */
-            ret = wc_RsaSSL_Sign(certSignCtx->encSig, (word32)certSignCtx->encSigSz,
+            ret = wc_RsaSSL_Sign(certSignCtx->encSig,
+                                 (word32)certSignCtx->encSigSz,
                                  sig, sigSz, rsaKey, rng);
         }
     #endif /* !NO_RSA */
@@ -28019,7 +28037,8 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
     /* In place, put body between SEQUENCE and signature. */
     if (ret == 0) {
         /* Set sigature OID and signature data. */
-        SetASN_OID(&dataASN[SIGASN_IDX_SIGALGO_OID], (word32)sigAlgoType, oidSigType);
+        SetASN_OID(&dataASN[SIGASN_IDX_SIGALGO_OID], (word32)sigAlgoType,
+                   oidSigType);
         if (IsSigAlgoECC((word32)sigAlgoType)) {
             /* ECDSA and EdDSA doesn't have NULL tagged item. */
             dataASN[SIGASN_IDX_SIGALGO_NULL].noOut = 1;
@@ -28038,7 +28057,8 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
             XMEMMOVE(buf + seqSz, buf, (size_t)bodySz);
         }
         /* Leave space for body in encoding. */
-        SetASN_ReplaceBuffer(&dataASN[SIGASN_IDX_TBS_SEQ], NULL, (word32)bodySz);
+        SetASN_ReplaceBuffer(&dataASN[SIGASN_IDX_TBS_SEQ], NULL,
+                             (word32)bodySz);
 
         /* Calculate overall size and put in offsets and lengths. */
         ret = SizeASN_Items(sigASN, dataASN, sigASN_Length, &sz);
@@ -28288,11 +28308,12 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Don't write out outer sequence - only doing body. */
         dataASN[X509CERTASN_IDX_SEQ].noOut = 1;
         /* Set version, serial number and signature OID */
-        SetASN_Int8Bit(&dataASN[X509CERTASN_IDX_TBS_VER_INT], (byte)cert->version);
+        SetASN_Int8Bit(&dataASN[X509CERTASN_IDX_TBS_VER_INT],
+                       (byte)cert->version);
         SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_SERIAL], cert->serial,
                 (word32)cert->serialSz);
-        SetASN_OID(&dataASN[X509CERTASN_IDX_TBS_ALGOID_OID], (word32)cert->sigType,
-                oidSigType);
+        SetASN_OID(&dataASN[X509CERTASN_IDX_TBS_ALGOID_OID],
+                   (word32)cert->sigType, oidSigType);
         if (IsSigAlgoECC((word32)cert->sigType)) {
             /* No NULL tagged item with ECDSA and EdDSA signature OIDs. */
             dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS_NULL].noOut = 1;
@@ -30240,8 +30261,10 @@ static int SetDatesFromDcert(Cert* cert, DecodedCert* decoded)
         ret = -1;
     }
     else {
-        XMEMCPY(cert->beforeDate, decoded->beforeDate, (size_t)decoded->beforeDateLen);
-        XMEMCPY(cert->afterDate,  decoded->afterDate,  (size_t)decoded->afterDateLen);
+        XMEMCPY(cert->beforeDate, decoded->beforeDate,
+                (size_t)decoded->beforeDateLen);
+        XMEMCPY(cert->afterDate,  decoded->afterDate,
+                (size_t)decoded->afterDateLen);
 
         cert->beforeDateSz = decoded->beforeDateLen;
         cert->afterDateSz  = decoded->afterDateLen;
@@ -30569,7 +30592,8 @@ int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
                         (int)sizeof(CertName))) {
                 XMEMCPY(cert->sbjRaw,
                         ((DecodedCert*)cert->decodedCert)->subjectRaw,
-                        (size_t)((DecodedCert*)cert->decodedCert)->subjectRawLen);
+                        (size_t)((DecodedCert*)cert->decodedCert)->
+                        subjectRawLen);
             }
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
@@ -30603,7 +30627,8 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
                 /* Copy the subject to the issuer field */
                 XMEMCPY(cert->issRaw,
                         ((DecodedCert*)cert->decodedCert)->subjectRaw,
-                        (size_t)((DecodedCert*)cert->decodedCert)->subjectRawLen);
+                        (size_t)((DecodedCert*)cert->decodedCert)->
+                        subjectRawLen);
             }
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
@@ -32988,7 +33013,8 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         /* Set version = 0 */
         SetASN_Int8Bit(&dataASN[EDKEYASN_IDX_VER], 0);
         /* Set OID. */
-        SetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], (word32)keyType, oidKeyType);
+        SetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], (word32)keyType,
+                   oidKeyType);
         /* Leave space for private key. */
         SetASN_Buffer(&dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY], NULL, privKeyLen);
         /* Don't write out attributes. */
