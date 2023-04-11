@@ -1,21 +1,26 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
-VisualStudioVersion = 16.0.32802.440
+VisualStudioVersion = 16.0.33027.164
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "VisualGDB_wolfssl_test", "VisualGDB_wolfssl_test.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_test_IDF_v5_ESP32S3", "wolfssl_test_IDF_v5_ESP32S3.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{35EEC1E7-13AB-4C74-BFCE-22142A10E1C1}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CD9E73EC-27FB-49E4-B3A3-B0502C20A818}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfSSL", "wolfSSL", "{20662F9E-D386-4839-B855-857D7F922C99}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\..\compileAllExamples.sh = ..\..\..\compileAllExamples.sh
-		README.md = README.md
-		sdkconfig = sdkconfig
-		sdkconfig.defaults = sdkconfig.defaults
-		build\config\sdkconfig.h = build\config\sdkconfig.h
-		..\..\..\..\..\wolfcrypt\test\test.c = ..\..\..\..\..\wolfcrypt\test\test.c
-		..\..\..\..\..\wolfcrypt\test\test.h = ..\..\..\..\..\wolfcrypt\test\test.h
-		..\..\..\..\..\include\user_settings.h = ..\..\..\..\..\include\user_settings.h
-		..\..\..\..\..\..\include\user_settings.h = ..\..\..\..\..\..\include\user_settings.h
+		..\components\wolfssl\CMakeLists.txt = ..\components\wolfssl\CMakeLists.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{89279333-68BD-4E6A-B970-E645967CE5FA}"
+	ProjectSection(SolutionItems) = preProject
+		..\components\wolfssl\include\config.h = ..\components\wolfssl\include\config.h
+		..\components\wolfssl\include\user_settings.h = ..\components\wolfssl\include\user_settings.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{E9586E44-7821-4956-9F72-A79B988B3211}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\user_settings.h = ..\..\..\user_settings.h
 	EndProjectSection
 EndProject
 Global
@@ -38,7 +43,12 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{20662F9E-D386-4839-B855-857D7F922C99} = {CD9E73EC-27FB-49E4-B3A3-B0502C20A818}
+		{89279333-68BD-4E6A-B970-E645967CE5FA} = {20662F9E-D386-4839-B855-857D7F922C99}
+		{E9586E44-7821-4956-9F72-A79B988B3211} = {CD9E73EC-27FB-49E4-B3A3-B0502C20A818}
+	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {A0AC9105-F2CF-44E7-8032-3CD9E77EC9F6}
+		SolutionGuid = {7F8E1DC0-55AD-4DF8-B65A-CD65B60E17F9}
 	EndGlobalSection
 EndGlobal
