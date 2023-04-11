@@ -4974,7 +4974,7 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     int err;
     byte buf[ECC_MAXSIZE_GEN];
 
-    if (rng == NULL || size <= 0 || size + 8 > ECC_MAXSIZE_GEN || k == NULL ||
+    if (rng == NULL || size < 0 || size + 8 > ECC_MAXSIZE_GEN || k == NULL ||
                                                                 order == NULL) {
         return BAD_FUNC_ARG;
     }
