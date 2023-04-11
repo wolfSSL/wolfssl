@@ -99,7 +99,8 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
                 WOLFSSL_MSG("Error with CMAC buffer size");
                 return -1;
             }
-            add = min(sz, (int)(AES_BLOCK_SIZE - cmac->bufferSz));
+            add = (sz < ((int)(AES_BLOCK_SIZE - cmac->bufferSz))) ? sz :
+                   (int)(AES_BLOCK_SIZE - cmac->bufferSz);
             XMEMCPY(&cmac->buffer[cmac->bufferSz], pt, add);
 
             cmac->bufferSz += add;
