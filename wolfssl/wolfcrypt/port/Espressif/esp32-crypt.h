@@ -23,6 +23,7 @@
 #define __ESP32_CRYPT_H__
 
 #include "wolfssl/wolfcrypt/settings.h"
+#include <wolfssl/wolfcrypt/types.h> /* for MATH_INT_T */
 
 #include "esp_idf_version.h"
 #include "esp_types.h"
@@ -53,6 +54,8 @@
 
 #if ESP_IDF_VERSION_MAJOR >= 4
     #include <esp32/rom/ets_sys.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    #include <esp32s3/rom/ets_sys.h>
 #else
     #include <rom/ets_sys.h>
 #endif
@@ -69,6 +72,8 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     #if ESP_IDF_VERSION_MAJOR >= 4
         #include "esp32/rom/aes.h"
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #include "esp32s3/rom/aes.h"
     #else
         #include "rom/aes.h"
     #endif
@@ -105,6 +110,8 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     #if ESP_IDF_VERSION_MAJOR >= 4
         #include "esp32/rom/sha.h"
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+         #include "esp32s3/rom/sha.h"
     #else
         #include "rom/sha.h"
     #endif
@@ -127,7 +134,13 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
          * actual enable/disable only occurs for ref_counts[periph] == 0 */
         int lockDepth; /* see ref_counts[periph] in periph_ctrl.c */
 
+        /* ESP32S3 defines SHA_TYPE to enum, all other ESP32s define it to
+           typedef enum. */
+    #if defined(CONFIG_IDF_TARGET_ESP32S3)
+        SHA_TYPE sha_type;
+    #else
         enum SHA_TYPE sha_type;
+    #endif
     } WC_ESP32SHA;
 
     int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);
@@ -162,13 +175,6 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
         #define ESP_RSA_TIMEOUT_CNT     0x249F00
     #endif
 
-    /* operands can be up to 4096 bits long.
-     * here we store the bits in wolfSSL fp_int struct.
-     * see wolfCrypt tfm.h
-     */
-    struct fp_int;
-
-
     /*
      * The parameter names in the Espressif implementation are arbitrary.
      *
@@ -179,25 +185,25 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     /* Z = (X ^ Y) mod M   : Espressif generic notation    */
     /* Y = (G ^ X) mod P   : wolfSSL DH reference notation */
-    int esp_mp_exptmod(struct fp_int* X,    /* G  */
-                       struct fp_int* Y,    /* X  */
-                              word32 Xbits, /* Ys   typically = fp_count_bits (X) */
-                       struct fp_int* M,    /* P  */
-                       struct fp_int* Z);   /* Y  */
+    int esp_mp_exptmod(MATH_INT_T* X,    /* G  */
+                       MATH_INT_T* Y,    /* X  */
+                       word32 Xbits, /* Ys   typically = mp_count_bits (X) */
+                       MATH_INT_T* M,    /* P  */
+                       MATH_INT_T* Z);   /* Y  */
 
     /* Z = X * Y */
-    int esp_mp_mul(struct fp_int* X,
-                   struct fp_int* Y,
-                   struct fp_int* Z);
+    int esp_mp_mul(MATH_INT_T* X,
+                   MATH_INT_T* Y,
+                   MATH_INT_T* Z);
 
 
     /* Z = X * Y (mod M) */
-    int esp_mp_mulmod(struct fp_int* X,
-                      struct fp_int* Y,
-                      struct fp_int* M,
-                      struct fp_int* Z);
+    int esp_mp_mulmod(MATH_INT_T* X,
+                      MATH_INT_T* Y,
+                      MATH_INT_T* M,
+                      MATH_INT_T* Z);
 
-#endif /* NO_RSA || HAVE_ECC*/
+#endif /* !NO_RSA || HAVE_ECC*/
 
 /* end c++ wrapper */
 #ifdef __cplusplus

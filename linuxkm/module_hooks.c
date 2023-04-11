@@ -234,6 +234,16 @@ static int wolfssl_init(void)
             "] POST succeeded.\n");
 #endif /* HAVE_FIPS */
 
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret < 0) {
+        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
 #ifdef WOLFCRYPT_ONLY
     ret = wolfCrypt_Init();
     if (ret != 0) {
@@ -249,14 +259,7 @@ static int wolfssl_init(void)
 #endif
 
 #ifndef NO_CRYPT_TEST
-
-#ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
-    if (ret == 0)
-#endif
-    {
-        ret = wolfcrypt_test(NULL);
-    }
+    ret = wolfcrypt_test(NULL);
     if (ret < 0) {
         pr_err("wolfcrypt self-test failed with return code %d.\n", ret);
         (void)libwolfssl_cleanup();

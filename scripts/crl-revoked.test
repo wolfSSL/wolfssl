@@ -1,8 +1,6 @@
 #!/bin/bash
 
 #crl.test
-CERT_DIR=certs
-
 # if we can, isolate the network namespace to eliminate port collisions.
 if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
      if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
@@ -18,6 +16,11 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
+# Workaround to not pollute the certs folder with our files that can impact other tests
+RUNNING_DIR=$(mktemp -d)
+cp -rp . $RUNNING_DIR/.
+cd $RUNNING_DIR
+
 revocation_code="-361"
 exit_code=1
 counter=0
@@ -32,6 +35,7 @@ server_pid=$no_pid
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
 ready_file=`pwd`/wolfssl_crl_ready$$
+CERT_DIR=certs
 
 remove_ready_file() {
     if test -e "$ready_file"; then
@@ -64,6 +68,7 @@ trap abort_trap INT TERM
 # instead use "exit <some value>" and this function will run automatically
 restore_file_system() {
     remove_ready_file
+    cd / && rm -rf "$RUNNING_DIR"
 }
 trap restore_file_system EXIT
 

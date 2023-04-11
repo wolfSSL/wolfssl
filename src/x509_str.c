@@ -61,7 +61,6 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
      WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
-    WOLFSSL_X509* x509_cert;
     int ret = 0;
     (void)sk;
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_init");
@@ -83,7 +82,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         ctx->chain  = sk;
         /* Add intermediate certificates from stack to store */
         while (sk != NULL) {
-            x509_cert = sk->data.x509;
+            WOLFSSL_X509* x509_cert = sk->data.x509;
             if (x509_cert != NULL && x509_cert->isCa) {
                 ret = wolfSSL_X509_STORE_add_cert(store, x509_cert);
                 if (ret < 0) {
@@ -195,22 +194,21 @@ int GetX509Error(int e)
  */
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    int ret = 0;
-    int depth = 0;
-    int error;
-#ifndef NO_ASN_TIME
-    byte *afterDate, *beforeDate;
-#endif
-
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx != NULL && ctx->store != NULL && ctx->store->cm != NULL
          && ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
-            ret = wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
-                    ctx->current_cert->derCert->buffer,
-                    ctx->current_cert->derCert->length,
-                    WOLFSSL_FILETYPE_ASN1);
+        int ret = 0;
+        int depth = 0;
+        int error;
+    #ifndef NO_ASN_TIME
+        byte *afterDate, *beforeDate;
+    #endif
 
+        ret = wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
+                ctx->current_cert->derCert->buffer,
+                ctx->current_cert->derCert->length,
+                WOLFSSL_FILETYPE_ASN1);
         /* If there was an error, process it and add it to CTX */
         if (ret < 0) {
             /* Get corresponding X509 error */
@@ -1000,7 +998,6 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     WOLFSSL_CTX* ctx;
     char *name = NULL;
     int ret = WOLFSSL_SUCCESS;
-    int successes = 0;
 #ifdef WOLFSSL_SMALL_STACK
     ReadDirCtx* readCtx = NULL;
 #else
@@ -1044,6 +1041,8 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
     /* Load files in dir */
     if (dir && ret == WOLFSSL_SUCCESS) {
+        int successes = 0;
+
         #ifdef WOLFSSL_SMALL_STACK
             readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -1094,7 +1093,6 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
 int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
 {
-    int i = 0;
     int cnt_ret = 0;
     Signer **table;
 
@@ -1107,6 +1105,7 @@ int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
     table = store->cm->caTable;
     if (table){
         if (wc_LockMutex(&store->cm->caLock) == 0){
+            int i = 0;
             for (i = 0; i < CA_TABLE_SIZE; i++) {
                 Signer* signer = table[i];
                 while (signer) {

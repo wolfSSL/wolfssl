@@ -79,6 +79,7 @@ Error caamAddJob(DESCSTRUCT* desc);
 Error caamDoJob(DESCSTRUCT* desc);
 
 
+
 /******************************************************************************
   Internal CAAM Job Ring and partition functions
   ****************************************************************************/
@@ -571,6 +572,8 @@ Error caamAddJob(DESCSTRUCT* desc)
 
         pt = (unsigned int*)caam.ring.VirtualDesc;
     #if defined(WOLFSSL_CAAM_PRINT)
+        printf("Number of input ring slots available is %d\n",
+            CAAM_READ(baseAddr + CAAM_IRSAR_JR));
         printf("Doing Job :\n");
     #endif
         for (i = 0; i < desc->idx; i = i + 1) {
@@ -584,14 +587,10 @@ Error caamAddJob(DESCSTRUCT* desc)
         pt    = (unsigned int*)caam.ring.VirtualIn;
         pt[0] = (unsigned int)caam.ring.Desc;
 
-        if (CAAM_ADR_SYNC(caam.ring.VirtualDesc,
-                    desc->idx * sizeof(unsigned int)) != 0) {
-            CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
-            return -1;
-        }
-
+        /* Sync both the virtual in and the descriptor */
         if (CAAM_ADR_SYNC(caam.ring.VirtualIn,
-                    CAAM_JOBRING_SIZE * sizeof(unsigned int)) != 0) {
+                    (CAAM_JOBRING_SIZE * sizeof(unsigned int)) +
+                    (desc->idx * sizeof(unsigned int))) != 0) {
             CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
             return -1;
         }
@@ -606,11 +605,6 @@ Error caamAddJob(DESCSTRUCT* desc)
     #endif
     }
     else {
-        #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        printf("SLOT = 0x%08X, IRJAR0 = 0x%08X\n", CAAM_READ(baseAddr + 0x0014),
-                CAAM_READ(baseAddr + CAAM_IRJAR0));
-        printf("Number of job in done queue = 0x%08X\n", CAAM_READ(baseAddr+ 0x103C));
-        #endif
         CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
         return CAAM_WAITING;
     }
@@ -733,37 +727,51 @@ int caamBlob(DESCSTRUCT* desc)
   CAAM AES Operations
   ****************************************************************************/
 
-static void caamAddFIFOL(DESCSTRUCT* desc, void* in, int inSz,
+static void caamAddFIFOLPhy(DESCSTRUCT* desc, unsigned int in, int inSz,
     unsigned int flush)
 {
     /* if size is larger than short type then use extended length option */
     if (inSz > 0xFFFF) {
         desc->desc[desc->idx++] = (CAAM_FIFO_L | flush | FIFOS_EXT |
                                    CAAM_CLASS1 | FIFOL_TYPE_MSG);
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(in, inSz);
+        desc->desc[desc->idx++] = in;
         desc->desc[desc->idx++] = inSz;
     }
     else {
         desc->desc[desc->idx++] = (CAAM_FIFO_L | flush |
                                    CAAM_CLASS1 | FIFOL_TYPE_MSG) + inSz;
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(in, inSz);
+        desc->desc[desc->idx++] = in;
+    }
+}
+
+
+static void caamAddFIFOL(DESCSTRUCT* desc, void* in, int inSz,
+    unsigned int flush)
+{
+    caamAddFIFOLPhy(desc, CAAM_ADR_TO_PHYSICAL(in, inSz), inSz, flush);
+}
+
+
+static void caamAddFIFOSPhy(DESCSTRUCT* desc, unsigned int out, int outSz)
+{
+    /* if size is larger than short type then use extended length option */
+    if (outSz > 0xFFFF) {
+        desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG | FIFOS_EXT;
+        desc->desc[desc->idx++] = out;
+        desc->desc[desc->idx++] = outSz;
+    }
+    else {
+        desc->desc[desc->idx++] = (CAAM_FIFO_S | FIFOS_TYPE_MSG) + outSz;
+        desc->desc[desc->idx++] = out;
     }
 }
 
 
 static void caamAddFIFOS(DESCSTRUCT* desc, void* out, int outSz)
 {
-    /* if size is larger than short type then use extended length option */
-    if (outSz > 0xFFFF) {
-        desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG | FIFOS_EXT;
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(out, outSz);
-        desc->desc[desc->idx++] = outSz;
-    }
-    else {
-        desc->desc[desc->idx++] = (CAAM_FIFO_S | FIFOS_TYPE_MSG) + outSz;
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(out, outSz);
-    }
+    caamAddFIFOSPhy(desc, CAAM_ADR_TO_PHYSICAL(out, outSz), outSz);
 }
+
 
 int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
 {
@@ -1038,35 +1046,28 @@ int caamAead(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 }
 
 
-/* AES operations follow the buffer sequence of KEY -> (IV) -> Input -> Output
- */
-int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
+static int caamAesInternal(DESCSTRUCT* desc,
+    unsigned int keyPhy, int keySz,
+    unsigned int ivPhy,  int ivSz,
+    unsigned int inPhy,  int inSz,
+    unsigned int outPhy, int outSz)
 {
     Value ofst = 0;
     Error err;
-    int ivSz = 0;
-    void *iv = NULL, *key, *in, *out;
-    int keySz;
-    int inSz;
-    int outSz;
-    int idx = 0;
     int state = CAAM_ALG_UPDATE;
 
     if (desc->state != CAAM_ENC && desc->state != CAAM_DEC) {
         return CAAM_ARGS_E;
     }
 
-    keySz = buf[idx].Length;
     if (keySz != 16 && keySz != 24 && keySz != 32) {
         WOLFSSL_MSG("Bad AES key size found");
         return CAAM_ARGS_E;
     }
 
     /* map and copy over key */
-    key = (void*)buf[idx].TheAddress;
     desc->desc[desc->idx++] = (CAAM_KEY | CAAM_CLASS1 | CAAM_NWB) + keySz;
-    desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(key, keySz);
-    idx++;
+    desc->desc[desc->idx++] = keyPhy;
 
     /* get IV if needed by algorithm */
     switch (desc->type) {
@@ -1081,16 +1082,14 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         {
             int maxSz = 16; /* default to CBC/CTR max size */
 
-            ivSz = buf[idx].Length;
             if (ivSz != maxSz) {
                 WOLFSSL_MSG("Invalid AES-CBC IV size\n");
                 return CAAM_ARGS_E;
             }
 
-            iv = (void*)buf[idx].TheAddress;
-            desc->desc[desc->idx++] = (CAAM_LOAD_CTX | CAAM_CLASS1 | ofst) + maxSz;
-            desc->desc[desc->idx++] = (CAAM_ADDRESS)CAAM_ADR_TO_PHYSICAL(iv, ivSz);
-            idx++;
+            desc->desc[desc->idx++] = (CAAM_LOAD_CTX | CAAM_CLASS1 | ofst) +
+                    maxSz;
+            desc->desc[desc->idx++] = ivPhy;
          }
          break;
 
@@ -1103,19 +1102,9 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     desc->desc[desc->idx++] = CAAM_OP | CAAM_CLASS1 | desc->type |
              state | desc->state;
 
-    /* get input */
-    inSz = buf[idx].Length;
-    in   = (void*)buf[idx].TheAddress;
-    idx++;
-
-    /* set output */
-    outSz = buf[idx].Length;
-    out   = (void*)buf[idx].TheAddress;
-    idx++;
-
     /* set input/output in descriptor */
-    caamAddFIFOL(desc, in, inSz, FIFOL_TYPE_LC1);
-    caamAddFIFOS(desc, out, outSz);
+    caamAddFIFOLPhy(desc, inPhy, inSz, FIFOL_TYPE_LC1);
+    caamAddFIFOSPhy(desc, outPhy, outSz);
 
     /* store updated IV */
     switch (desc->type) {
@@ -1123,7 +1112,7 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         case CAAM_AESCTR:
         if (ivSz > 0) {
             desc->desc[desc->idx++] = CAAM_STORE_CTX | CAAM_CLASS1 | ofst | 16;
-            desc->desc[desc->idx++] = (CAAM_ADDRESS)CAAM_ADR_TO_PHYSICAL(iv, ivSz);
+            desc->desc[desc->idx++] = ivPhy;
         }
         break;
     }
@@ -1133,6 +1122,116 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     } while (err == CAAM_WAITING);
 
     return err;
+}
+
+
+/* Scattered memory, does a mapping for each variable. Less performant than
+ * caamAesCombined.
+ * AES operations follow the buffer sequence of KEY -> (IV) -> Input -> Output
+ */
+int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
+{
+    void *iv = NULL, *key, *in, *out;
+    int ivSz = 0, keySz, inSz, outSz;
+    int idx = 0;
+
+    unsigned int keyPhy = 0, inPhy = 0, outPhy = 0, ivPhy = 0;
+
+    /* map and copy over key */
+    key    = (void*)buf[idx].TheAddress;
+    keySz  = buf[idx].Length;
+    keyPhy = CAAM_ADR_TO_PHYSICAL(key, keySz);
+    idx++;
+
+    /* get IV if needed by algorithm */
+    switch (desc->type) {
+        case CAAM_AESECB:
+            break;
+
+        case CAAM_AESCTR:
+        case CAAM_AESCBC:
+        {
+            ivSz  = buf[idx].Length;
+            iv    = (void*)buf[idx].TheAddress;
+            ivPhy = CAAM_ADR_TO_PHYSICAL(iv, ivSz);
+            idx++;
+         }
+         break;
+
+        default:
+            WOLFSSL_MSG("Mode of AES not implemented");
+            return CAAM_ARGS_E;
+    }
+
+    /* get input */
+    inSz  = buf[idx].Length;
+    in    = (void*)buf[idx].TheAddress;
+    inPhy = CAAM_ADR_TO_PHYSICAL(in, inSz);
+    idx++;
+
+    /* set output */
+    outSz  = buf[idx].Length;
+    out    = (void*)buf[idx].TheAddress;
+    outPhy = CAAM_ADR_TO_PHYSICAL(out, outSz);
+    idx++;
+
+    return caamAesInternal(desc, keyPhy, keySz, ivPhy, ivSz, inPhy, inSz,
+            outPhy, outSz);
+}
+
+
+/* When a single buffer is used [key] [in] [iv] [out] for optimization
+ * phyMem is non 0 when the physical memory location is already known
+ */
+int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4],
+    unsigned int phyMem)
+{
+    int idx = 0;
+    unsigned int keyPhy;
+    int keySz, inSz, ivSz = 0, outSz;
+    void* pt;
+
+    keySz = buf[idx].Length;
+    pt    = (void*)buf[idx].TheAddress;
+    idx++;
+
+    /* get IV if needed by algorithm */
+    switch (desc->type) {
+        case CAAM_AESECB:
+            break;
+
+        case CAAM_AESCTR:
+        case CAAM_AESCBC:
+        {
+            ivSz = buf[idx].Length;
+            idx++;
+         }
+         break;
+
+        default:
+            WOLFSSL_MSG("Mode of AES not implemented");
+            return CAAM_ARGS_E;
+    }
+
+    /* get input */
+    inSz = buf[idx].Length;
+    idx++;
+
+    /* set output */
+    outSz = buf[idx].Length;
+    idx++;
+
+    if (phyMem != 0) {
+        keyPhy = phyMem;
+    }
+    else {
+        keyPhy = CAAM_ADR_TO_PHYSICAL(pt, keySz + inSz + ivSz + outSz);
+    }
+
+    return caamAesInternal(desc, keyPhy, keySz,
+            keyPhy + keySz + inSz,ivSz,            /* IV */
+            keyPhy + keySz, inSz,                  /* IN buffer */
+            keyPhy + keySz + inSz + ivSz, outSz);  /* OUT buffer */
 }
 
 
@@ -1163,7 +1262,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
         /* create secure partition for private key out */
         part = caamFindUnusedPartition();
-        if (part < 0) {
+        if ((int)part < 0) {
             WOLFSSL_MSG("error finding an unused partition for new key");
             return -1;
         }
@@ -1745,21 +1844,23 @@ static int SetupJobRing(struct JobRing* r)
     CAAM_SET_JOBRING_ADDR(&r->BaseAddr, &r->JobIn, &r->VirtualIn);
 
     /* register the in/out and sizes of job ring */
-    r->JobOut = r->JobIn + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    r->Desc   = r->JobOut + (2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
+    r->Desc     = r->JobIn + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
+    r->JobOut   = r->Desc + (CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
 
     CAAM_INIT_MUTEX(&caam.ring.jr_lock);
 
-    r->VirtualOut  = r->VirtualIn  + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    r->VirtualDesc = r->VirtualOut + (2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
+    r->VirtualDesc = r->VirtualIn  + (CAAM_JOBRING_SIZE * sizeof(unsigned int));
+    r->VirtualOut  = r->VirtualDesc + (CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
 
     memset(r->VirtualIn,   0, CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    memset(r->VirtualOut,  0, 2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
     memset(r->VirtualDesc, 0, CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
+    memset(r->VirtualOut,  0, 2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
 
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-    printf("Setting JOB IN  0x%08X\n", (unsigned int)caam.ring.JobIn);
-    printf("Setting JOB OUT 0x%08X\n", (unsigned int)caam.ring.JobOut);
+    printf("Setting JOB IN  address 0x%08X, size %d\n",
+        (unsigned int)caam.ring.JobIn, CAAM_JOBRING_SIZE);
+    printf("Setting JOB OUT address 0x%08X, size %d\n",
+        (unsigned int)caam.ring.JobOut, CAAM_JOBRING_SIZE);
     printf("Setting DESC 0x%08X\n", (unsigned int)caam.ring.Desc);
     #endif
 
@@ -1775,6 +1876,10 @@ static int SetupJobRing(struct JobRing* r)
     if (((CAAM_READ(r->BaseAddr + CAAM_STATUS) & 0x00000001) != 0) &&
         (CAAM_READ(r->BaseAddr + JRINTR_JR) != 0)) {
         unsigned int reg;
+
+    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+        printf("Job ring is busy, trying to flush it\n");
+    #endif
 
         /* JRCR job ring command register */
         CAAM_WRITE(r->BaseAddr + JRCR_JR, 0x2); /* park it  */
@@ -1796,28 +1901,52 @@ int InitCAAM(void)
     Error ret;
 
     /* map to memory addresses needed for accessing CAAM */
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using CAAM_BASE 0x%04X\n", CAAM_BASE);
+#endif
     ret = CAAM_SET_BASEADDR(&caam.baseAddr);
     if (ret != 0) {
         return ret;
     }
 
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using base address : 0x%04X\n", caam.baseAddr);
+#endif
     ret = SetupJobRing(&caam.ring);
     if (ret != 0) {
         WOLFSSL_MSG("Error initializing job ring");
         INTERRUPT_Panic();
         return ret;
     }
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using base ring address : 0x%04X\n", caam.ring.BaseAddr);
+#endif
 
     /* get CHA era */
     caam.vrs = CAAM_READ(caam.ring.BaseAddr + CAAM_CHA_CCBVID) >> 24;
-    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        printf("CAAM version = %04X\n",
-            CAAM_READ(caam.ring.BaseAddr + CAAM_VERSION_MS) & 0xFFFF);
-        printf("CAAM era = %d\n", caam.vrs);
-        printf("RNG revision number = %08X\n",
-            CAAM_READ(caam.ring.BaseAddr + CAAM_CRNR_LS));
-        printSecureMemoryInfo();
-    #endif
+#if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+    printf("CAAM version = %04X\n",
+        CAAM_READ(caam.ring.BaseAddr + CAAM_VERSION_MS) & 0xFFFF);
+    printf("CAAM era = %d\n", caam.vrs);
+    printf("RNG revision number = %08X\n",
+        CAAM_READ(caam.ring.BaseAddr + CAAM_CRNR_LS));
+    printSecureMemoryInfo();
+
+    /* Check if CAAM supports AES-GCM */
+    {
+        unsigned int chaVerLS =
+            CAAM_READ(caam.ring.BaseAddr + CAAM_CHA_VERSION_LS);
+        printf("\nCHA support\n");
+        printf("CHA Version LS = %04X\n", chaVerLS);
+        if (!(chaVerLS & CAAM_AES_HIGH_PERFORMANCE)) {
+            printf("High Performance AES module not supported, NO AES-GCM/XTS\n");
+        }
+        if (chaVerLS & CAAM_AES_LOW_POWER) {
+            printf("Low Power AES module found\n");
+        }
+        printf("\n");
+    }
+#endif
 
     /* when on i.MX8 with SECO the SECO has control of this */
     if (caam.vrs < 9) {

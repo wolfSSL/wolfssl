@@ -358,7 +358,7 @@ void WOLFSSL_MSG(const char* msg)
 #endif
 void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 {
-    int i, buflen = (int)length, bufidx;
+    int i, buflen = (int)length;
     char line[(LINE_LEN * 4) + 3]; /* \t00..0F | chars...chars\0 */
 
     if (!loggingEnabled) {
@@ -371,7 +371,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
     }
 
     while (buflen > 0) {
-        bufidx = 0;
+        int bufidx = 0;
         XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "\t");
         bufidx++;
 
@@ -621,10 +621,10 @@ int wc_AddErrorNode(int error, int line, char* reason, char* file)
  */
 void wc_RemoveErrorNode(int relative_idx)
 {
-    int last_idx, abs_idx = get_abs_idx(relative_idx);
-    size_t move_count;
+    int abs_idx = get_abs_idx(relative_idx);
 
     if (abs_idx >= 0) {
+        size_t move_count;
         if (abs_idx >= (int)wc_errors.head_idx) {
             /* removed entry sits "above" head (or is head),
              * move entries below it "up" */
@@ -640,7 +640,7 @@ void wc_RemoveErrorNode(int relative_idx)
         else {
             /* removed entry sits "below" head (wrap around),
              * move entries above it "down" */
-            last_idx = get_abs_idx(-1);
+            int last_idx = get_abs_idx(-1);
             if (last_idx >= abs_idx) {  /* this SHOULD always be true */
                 move_count = (last_idx - abs_idx);
                 if (move_count > 0) {
@@ -693,8 +693,6 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
                                        const char **data, int *flags,
                                        int (*ignore_err)(int err))
 {
-    int ret = 0;
-
     WOLFSSL_ENTER("wc_PeekErrorNodeLineData");
 
     /* No data or flags stored - error display only in Nginx. */
@@ -706,7 +704,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     }
 
     while (1) {
-        ret = wc_PeekErrorNode(0, file, NULL, line);
+        int ret = wc_PeekErrorNode(0, file, NULL, line);
         if (ret == BAD_STATE_E) {
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
@@ -757,7 +755,6 @@ unsigned long wc_GetErrorNodeErr(void)
 void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
                             void *u)
 {
-    struct wc_error_entry *entry;
     size_t i;
 
     WOLFSSL_ENTER("wc_ERR_print_errors_cb");
@@ -768,7 +765,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
     }
 
     for (i = 0; i < wc_errors.count; ++i) {
-        entry = get_entry((int)i);
+        struct wc_error_entry *entry = get_entry((int)i);
         if (entry == NULL)
             break;
         cb(entry->reason, XSTRLEN(entry->reason), u);
@@ -1200,7 +1197,6 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
                                        const char **data, int *flags,
                                        int (*ignore_err)(int err))
 {
-    int ret = 0;
     int idx;
 
     WOLFSSL_ENTER("wc_PeekErrorNodeLineData");
@@ -1215,12 +1211,12 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return BAD_MUTEX_E;
+        return (unsigned long)(0 - BAD_MUTEX_E);
     }
 
     idx = getErrorNodeCurrentIdx();
     while (1) {
-        ret = peekErrorNode(idx, file, NULL, line);
+        int ret = peekErrorNode(idx, file, NULL, line);
         if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
@@ -1248,7 +1244,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return BAD_MUTEX_E;
+        return (unsigned long)(0 - BAD_MUTEX_E);
     }
 
     ret = pullErrorNode(NULL, NULL, NULL);

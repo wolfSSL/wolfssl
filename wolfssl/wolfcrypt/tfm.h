@@ -317,6 +317,55 @@
 #define FP_YES        1   /* yes response */
 #define FP_NO         0   /* no response */
 
+
+#ifdef WOLFSSL_SMALL_STACK
+/*
+ * Dynamic memory allocation of mp_int.
+ */
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)                        \
+    mp_int* name = NULL
+/* Declare a dynamically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)               \
+    mp_int* name = NULL
+/* Allocate an mp_int of minimal size and zero out. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type)             \
+do {                                                        \
+    name = (mp_int*)XMALLOC(sizeof(mp_int), heap, type);    \
+    if (name != NULL) {                                     \
+        XMEMSET(name, 0, sizeof(mp_int));                   \
+    }                                                       \
+}                                                           \
+while (0)
+/* Dispose of dynamically allocated mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type)      \
+    XFREE(name, heap, type)
+/* Must check for mp_int pointer for NULL. */
+#define MP_INT_SIZE_CHECK_NULL
+#else
+/*
+ * Static allocation of mp_int.
+ */
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE(name, bits)            \
+    mp_int name[1]
+/* Declare a statically allocated mp_int. */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)   \
+    mp_int name[1]
+/* Zero out mp_int of minimal size. */
+#define NEW_MP_INT_SIZE(name, bits, heap, type) \
+    XMEMSET(name, 0, sizeof(mp_int))
+/* Dispose of static mp_int. */
+#define FREE_MP_INT_SIZE(name, heap, type)
+#endif
+
+/* Initialize an mp_int. */
+#define INIT_MP_INT_SIZE(name, bits) \
+    mp_init(name)
+/* Type to cast to when using size marcos. */
+#define MP_INT_SIZE     mp_int
+
+
 #ifdef HAVE_WOLF_BIGINT
     /* raw big integer */
     typedef struct WC_BIGINT {
@@ -448,6 +497,8 @@ MP_API void fp_free(fp_int* a);
 #define fp_isword(a, w) \
     (((((a)->used == 1) && ((a)->dp[0] == (w))) || \
                                (((w) == 0) && ((a)->used == 0))) ? FP_YES : FP_NO)
+/* Number of bits used based on used field only. */
+#define fp_bitsused(a)   ((a)->used * DIGIT_BIT)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
@@ -740,6 +791,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_isneg(a)     fp_isneg(a)
 #define mp_setneg(a)    fp_setneg(a)
 #define mp_isword(a, w) fp_isword(a, w)
+#define mp_bitsused(a)  fp_bitsused(a)
 
 #define MP_RADIX_BIN  2
 #define MP_RADIX_OCT  8
@@ -812,7 +864,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     #define mp_dump(desc, a, verbose)
 #endif
 
-#if !defined(NO_DSA) || defined(HAVE_ECC)
+#if defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)
     MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 

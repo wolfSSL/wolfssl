@@ -53,7 +53,7 @@ WOLFSSL_LOCAL int Renesas_cmn_Cleanup(WOLFSSL* ssl)
     int ret = 0;
     WOLFSSL_ENTER("Renesas_cmn_Cleanup");
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_TlsCleanup(ssl);
 #endif
     

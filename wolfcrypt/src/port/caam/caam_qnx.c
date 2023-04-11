@@ -26,6 +26,7 @@
 /* settings.h is only included for wolfSSL version and IAR build warnings
  * wolfssl/wolfcrypt/- path includes other than
  * wolfssl/wolfcrypt/port/caam/caam_* should be avoided!! */
+#undef WC_NO_HARDEN
 #define WC_NO_HARDEN /* silence warning, it is irrelavent here */
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -45,9 +46,21 @@
 #include <sys/neutrino.h>
 #include <sys/resmgr.h>
 #include <devctl.h>
+#include <semaphore.h>
 
 /* virtual address for accessing CAAM addresses */
 uintptr_t virtual_base = 0;
+
+static void* localMemory = NULL;
+static unsigned int localPhy = 0;
+sem_t localMemSem;
+
+/* Can be overriden, variable for how large of a local buffer to have.
+ * This allows for large performance gains when avoiding mapping new memory
+ * for each operation. */
+#ifndef WOLFSSL_CAAM_QNX_MEMORY
+    #define WOLFSSL_CAAM_QNX_MEMORY 250000
+#endif
 
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_PART 7
@@ -92,8 +105,8 @@ int CAAM_SET_BASEADDR(CAAM_ADDRESS* baseAddr)
     void* vaddr;
 
     /* address range for CAAM is CAAM_BASE plus 0x10000 */
-    vaddr = mmap_device_io(0x0000FFFF, CAAM_BASE);
-    if (vaddr == (uintptr_t)MAP_FAILED) {
+    vaddr = (void*)mmap_device_io(0x0000FFFF, CAAM_BASE);
+    if (vaddr == MAP_FAILED) {
         WOLFSSL_MSG("Unable to map virtual memory");
         return -1;
     }
@@ -574,12 +587,14 @@ static int doAEAD(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 {
     int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[6] = {0};
+    CAAM_BUFFER tmp[6];
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0, algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL, *aad = NULL,
                   *tag = NULL;
     int keySz, ivSz = 0, inSz, outSz, aadSz = 0, tagSz = 0;
+
+    memset(tmp, 0, sizeof(tmp));
 
     /* get key info */
     keySz = args[1] & 0xFFFF; /* key size */
@@ -736,16 +751,38 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 {
     int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[6] = {0};
+    CAAM_BUFFER tmp[6];
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0;
     int algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
+    unsigned char *pt = NULL;
     int keySz, ivSz = 0, inSz, outSz;
+    unsigned int phyMem = 0;
+
+    memset(tmp, 0, sizeof(tmp));
 
     /* get key info */
     keySz = args[1] & 0xFFFF; /* key size */
-    key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
+    inSz = args[2]; /* input size */
+    outSz = args[2]; /* output size */
+    if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
+        ivSz = 16;
+    }
+
+    if (keySz + inSz + outSz + ivSz < WOLFSSL_CAAM_QNX_MEMORY) {
+        if (sem_trywait(&localMemSem) == 0) {
+            key = localMemory;
+            phyMem = localPhy;
+        }
+    }
+
+    /* local pre-mapped memory was not used, try to map some memory now */
+    if (key == NULL) {
+        pt = (unsigned char*)CAAM_ADR_MAP(0, keySz + inSz + outSz + ivSz, 0);
+        key = pt;
+    }
+
     if (key == NULL) {
         ret = ECANCELED;
     }
@@ -756,7 +793,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     if (ret == EOK) {
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
             ivSz = 16;
-            iv   = (unsigned char*)CAAM_ADR_MAP(0, ivSz, 0);
+            iv   = key + keySz + inSz;
             if (iv == NULL) {
                 ret = ECANCELED;
             }
@@ -767,8 +804,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* get input buffer */
     if (ret == EOK) {
-        inSz = args[2]; /* input size */
-        in   = (unsigned char*)CAAM_ADR_MAP(0, inSz, 0);
+        in   = key + keySz;
         if (in == NULL) {
             ret = ECANCELED;
         }
@@ -778,8 +814,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* create output buffer to store results */
     if (ret == EOK) {
-        outSz = args[2]; /* output size */
-        out   = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
+        out   = key + keySz + inSz + ivSz;
         if (out == NULL) {
             ret = ECANCELED;
         }
@@ -821,19 +856,18 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         tmp[i].TheAddress = (CAAM_ADDRESS)out;
 
         caamDescInit(&desc, algo, args, tmp, 6);
-        if (caamAes(&desc, tmp, args) != Success) {
+        if (caamAesCombined(&desc, tmp, args, phyMem) != Success) {
             ret = ECANCELED;
         }
     }
 
     /* sync the new IV/MAC and output buffer */
     if (ret == EOK) {
+        CAAM_ADR_SYNC(key, keySz + inSz + ivSz + outSz);
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
-            CAAM_ADR_SYNC(iv, ivSz);
             SETIOV(&out_iovs[1], iv, ivSz);
             outIdx++;
         }
-        CAAM_ADR_SYNC(out, outSz);
         SETIOV(&out_iovs[0], out, outSz);
         outIdx++;
 
@@ -842,14 +876,13 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         }
     }
 
-    if (key != NULL)
-        CAAM_ADR_UNMAP(key, 0, keySz, 0);
-    if (iv != NULL)
-        CAAM_ADR_UNMAP(iv, 0, ivSz, 0);
-    if (in != NULL)
-        CAAM_ADR_UNMAP(in, 0, inSz, 0);
-    if (out != NULL)
-        CAAM_ADR_UNMAP(out, 0, outSz, 0);
+    if (pt != NULL) {
+        CAAM_ADR_UNMAP(pt, 0, keySz + inSz + outSz + ivSz, 0);
+    }
+    else {
+        /* done using local mapped memory */
+        sem_post(&localMemSem);
+    }
 
     return ret;
 }
@@ -876,7 +909,7 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
     if (args[0] == CAAM_BLACK_KEY_SM) {
         privSz = sizeof(unsigned int);
     }
-    
+
     /* private key */
     tmp[0].Length = privSz;
     priv = (unsigned char*)CAAM_ADR_MAP(0, privSz, 0);
@@ -1686,6 +1719,9 @@ int main(int argc, char *argv[])
         WOLFSSL_MSG("unable to start up caam driver!");
         exit(1);
     }
+    localMemory = (unsigned char*)CAAM_ADR_MAP(0, WOLFSSL_CAAM_QNX_MEMORY, 0);
+    localPhy = CAAM_ADR_TO_PHYSICAL(localMemory, WOLFSSL_CAAM_QNX_MEMORY);
+    sem_init(&localMemSem, 1, 1);
 
     dpp = dispatch_create();
     if (dpp == NULL) {
@@ -1729,7 +1765,11 @@ int main(int argc, char *argv[])
         }
     }
 
+    sem_destroy(&localMemSem);
     pthread_mutex_destroy(&sm_mutex);
+    if (localMemory != NULL)
+        CAAM_ADR_UNMAP(localMemory, 0, WOLFSSL_CAAM_QNX_MEMORY, 0);
+
     CleanupCAAM();
     return 0;
 }

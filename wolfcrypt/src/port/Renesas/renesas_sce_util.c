@@ -291,7 +291,7 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
         return MEMORY_E;
     }
     /* initialization */
-    XMEMCPY(sigforSCE, 0, HW_SCE_ECDSA_DATA_BYTE_SIZE);
+    XMEMSET(sigforSCE, 0, HW_SCE_ECDSA_DATA_BYTE_SIZE);
 
     /* r */
     if (sig[offset] == 0x20) {
@@ -945,7 +945,7 @@ WOLFSSL_LOCAL int wc_sce_tls_CertVerify(
         return MEMORY_E;
       }
       /* initialization */
-      XMEMCPY(sigforSCE, 0, HW_SCE_ECDSA_DATA_BYTE_SIZE);
+      XMEMSET(sigforSCE, 0, HW_SCE_ECDSA_DATA_BYTE_SIZE);
 
       if (signature[offset] == 0x20) {
         XMEMCPY(sigforSCE, &signature[offset+1], rs_size);

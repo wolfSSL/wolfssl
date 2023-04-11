@@ -64,6 +64,9 @@
 #if defined(WOLFSSL_RENESAS_SCE)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 #endif
+#if defined(WOLFSSL_RENESAS_RX64_HASH)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-rx64-hw-crypt.h>
+#endif
 #if defined(WOLFSSL_STSAFEA100)
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
@@ -78,9 +81,7 @@
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
-#if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-    defined(WOLFSSL_IMX6UL_CAAM) || defined(WOLFSSL_IMX6_CAAM_BLOB) || \
-    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+#if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 #if defined(WOLFSSL_DEVCRYPTO)
@@ -174,6 +175,16 @@ int wolfCrypt_Init(void)
             ret = -1;/* FATAL ERROR */
             return ret;
         }
+    #endif
+
+    #if defined(WOLFSSL_RENESAS_RX64_HASH)
+    ret = rx64_hw_Open();
+    if( ret != 0 ) {
+        WOLFSSL_MSG("Renesas RX64 HW Open failed");
+        /* not return 1 since WOLFSSL_SUCCESS=1*/
+        ret = -1;/* FATAL ERROR */
+        return ret;
+    }
     #endif
 
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
@@ -345,9 +356,7 @@ int wolfCrypt_Init(void)
         }
 #endif
 
-#if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-    defined(WOLFSSL_IMX6UL_CAAM) || defined(WOLFSSL_IMX6_CAAM_BLOB) || \
-    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+#if defined(WOLFSSL_CAAM)
         if ((ret = wc_caamInit()) != 0) {
             return ret;
         }
@@ -423,6 +432,10 @@ int wolfCrypt_Cleanup(void)
         tsip_Close();
     #endif
 
+    #if defined(WOLFSSL_RENESAS_RX64_HASH)
+        rx64_hw_Close();
+    #endif
+
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_Close();
     #endif
@@ -431,9 +444,7 @@ int wolfCrypt_Cleanup(void)
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
 
-    #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-        defined(WOLFSSL_IMX6_CAAM_BLOB)  || \
-        defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+    #if defined(WOLFSSL_CAAM)
         wc_caamFree();
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
@@ -501,7 +512,11 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
         return BAD_PATH_ERROR;
     }
     fileSz = XFTELL(f);
-    XREWIND(f);
+    if (XFSEEK(f, 0, XSEEK_SET) != 0) {
+        WOLFSSL_MSG("wc_LoadFile file seek error");
+        XFCLOSE(f);
+        return BAD_PATH_ERROR;
+    }
     if (fileSz > 0) {
         *bufLen = fileSz;
         *buf = (byte*)XMALLOC(*bufLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3011,7 +3026,7 @@ time_t stm32_hal_time(time_t *t1)
     RTC_TimeTypeDef time;
     RTC_DateTypeDef date;
 
-    XMEMSET(tm_time, 0, sizeof(struct tm));
+    XMEMSET(&tm_time, 0, sizeof(struct tm));
 
     /* order of GetTime followed by GetDate required here due to STM32 HW
      * requirement */

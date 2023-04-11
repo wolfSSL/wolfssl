@@ -71,7 +71,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #define WOLFSSL_KEY_GEN
 #endif
 #else
-    #include <wolfssl/wolfcrypt/integer.h>
+    #include <wolfssl/wolfcrypt/wolfmath.h>
     #include <wolfssl/wolfcrypt/random.h>
 #endif /* HAVE_FIPS && HAVE_FIPS_VERION 1 */
 #if defined(HAVE_FIPS) && \
@@ -352,6 +352,11 @@ WOLFSSL_API int  wc_RsaEncryptSize(const RsaKey* key);
 /* to avoid asn duplicate symbols @wc_fips */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                         RsaKey* key, word32 inSz);
+#if !defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+WOLFSSL_API int  wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx,
+                                          int* keySz, word32 inSz);
+#endif
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                        RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,

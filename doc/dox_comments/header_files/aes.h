@@ -855,7 +855,8 @@ int wc_AesXtsFree(XtsAes* aes);
 /*!
     \ingroup AES
     \brief Initialize Aes structure. Sets heap hint to be used and ID for use
-    with async hardware
+    with async hardware. It is up to the user to call wc_AesFree on the Aes
+    structure when done.
     \return 0 Success
 
     \param aes aes structure in to initialize
@@ -870,13 +871,41 @@ int wc_AesXtsFree(XtsAes* aes);
 
     //heap hint could be set here if used
 
-    wc_AesInit(&aes, hint, devId);
+    wc_AesInit(&enc, hint, devId);
     \endcode
 
     \sa wc_AesSetKey
     \sa wc_AesSetIV
+    \sa wc_AesFree
 */
 int  wc_AesInit(Aes* aes, void* heap, int devId);
+
+/*!
+    \ingroup AES
+    \brief free resources associated with the Aes structure when applicable.
+    Internally may sometimes be a no-op but still recommended to call in all
+    cases as a general best-practice (IE if application code is ported for use
+    on new environments where the call is applicable).
+    \return no return (void function)
+
+    \param aes aes structure in to free
+
+    _Example_
+    \code
+    Aes enc;
+    void* hint = NULL;
+    int devId = INVALID_DEVID; //if not using async INVALID_DEVID is default
+
+    //heap hint could be set here if used
+
+    wc_AesInit(&enc, hint, devId);
+    // ... do some interesting things ...
+    wc_AesFree(&enc);
+    \endcode
+
+    \sa wc_AesInit
+*/
+int  wc_AesFree(Aes* aes);
 
 /*!
     \ingroup AES

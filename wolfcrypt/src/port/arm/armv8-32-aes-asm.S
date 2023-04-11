@@ -704,8 +704,8 @@ L_AES_set_encrypt_key_start_192:
 	ldrd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r0, [r0, #16]
 	ldr	r1, [r0, #20]
+	ldr	r0, [r0, #16]
 #else
 	ldrd	r0, r1, [r0, #16]
 #endif

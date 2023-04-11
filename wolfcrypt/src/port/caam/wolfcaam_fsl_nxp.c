@@ -405,7 +405,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     word32 sSz = MAX_ECC_BYTES;
     int keySz;
     word32 ecdsel;
-    word32 enc;
+    word32 enc = 0;
     status_t status;
     caam_handle_t hndl;
 
@@ -464,6 +464,9 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         case CAAM_BLACK_KEY_ECB:
             enc = CAAM_PKHA_ENC_PRI_AESECB;
             break;
+        default:
+            WOLFSSL_MSG("unknown/unsupported key type");
+            return BAD_FUNC_ARG;
     }
 
     if ((wc_ptr_t)in % CAAM_BUFFER_ALIGN) {

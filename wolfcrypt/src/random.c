@@ -489,8 +489,6 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
     }
     if (ret == DRBG_SUCCESS) {
         drbg->reseedCtr = 1;
-        drbg->lastBlock = 0;
-        drbg->matchCount = 0;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -541,7 +539,6 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
     int i;
     int len;
-    word32 checkBlock;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
 #else
@@ -590,23 +587,6 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
         if (ret == 0) {
-            XMEMCPY(&checkBlock, digest, sizeof(word32));
-            if (drbg->reseedCtr > 1 && checkBlock == drbg->lastBlock) {
-                if (drbg->matchCount == 1) {
-                    return DRBG_CONT_FAILURE;
-                }
-                else {
-                    if (i == (len-1)) {
-                        len++;
-                    }
-                    drbg->matchCount = 1;
-                }
-            }
-            else {
-                drbg->matchCount = 0;
-                drbg->lastBlock = checkBlock;
-            }
-
             if (out != NULL && outSz != 0) {
                 if (outSz >= OUTPUT_BLOCK_LEN) {
                     XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
@@ -637,10 +617,9 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
-    word16 carry = 0;
-
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
+        word16 carry = 0;
 
         dIdx = dLen - 1;
         for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
@@ -762,8 +741,6 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed, word32 s
                                     sizeof(drbg->V), NULL, 0) == DRBG_SUCCESS) {
 
         drbg->reseedCtr = 1;
-        drbg->lastBlock = 0;
-        drbg->matchCount = 0;
         ret = DRBG_SUCCESS;
     }
 
@@ -1013,8 +990,24 @@ static void Entropy_StopThread(void)
 #ifndef ENTROPY_NUM_WORDS_BITS
     /* Number of bits to count of 64-bit words in state. */
     #define ENTROPY_NUM_WORDS_BITS      14
-#elif ENTROPY_NUM_WORDS_BITS < 8
+#endif
+
+/* Floor of 8 yields pool of 256x 64-bit word samples
+ * 9  -> 512x 64-bit word samples
+ * 10 -> 1,024x 64-bit word samples
+ * 11 -> 2,048x 64-bit word samples
+ * 12 -> 4,096x 64-bit word samples
+ * 13 -> 8,192x 64-bit word samples
+ * 14 -> 16,384x 64-bit word samples
+ * 15 -> 32,768x 64-bit word samples
+ * ... doubling every time up to a maximum of:
+ * 30 -> 1,073,741,824x 64-bit word samples
+ * 1 billion+ samples should be more then sufficient for any use-case
+ */
+#if ENTROPY_NUM_WORDS_BITS < 8
     #error "ENTROPY_NUM_WORDS_BITS must be 8 or more"
+#elif ENTROPY_NUM_WORDS_BITS > 30
+    #error "ENTROPY_NUM_WORDS_BITS must be less than 31"
 #endif
 /* Number of 64-bit words in state. */
 #define ENTROPY_NUM_WORDS               (1 << ENTROPY_NUM_WORDS_BITS)
@@ -1032,7 +1025,7 @@ static void Entropy_StopThread(void)
     /* Upper round of log2(ENTROPY_NUM_UPDATES) */
     #define ENTROPY_NUM_UPDATES_BITS    5
 #elif !defined(ENTROPY_NUM_UPDATES_BITS)
-    #define ENTROP_NUM_UPDATES_BITS     ENTROPY_BLOCK_SZ
+    #define ENTROPY_NUM_UPDATES_BITS     ENTROPY_BLOCK_SZ
 #endif
 /* Amount to shift offset to get better coverage of a block */
 #define ENTROPY_OFFSET_SHIFTING          \
@@ -3170,7 +3163,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #include "nrf_drv_rng.h"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int remaining = sz, length, pos = 0;
+        int remaining = sz, pos = 0;
         word32 err_code;
         byte available;
         static byte initialized = 0;
@@ -3191,6 +3184,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         while (remaining > 0) {
+            int length;
             available = 0;
             nrf_drv_rng_bytes_available(&available); /* void func */
             length = (remaining < available) ? remaining : available;
@@ -3321,9 +3315,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-       defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_QNX_CAAM) || \
-       defined(WOLFSSL_IMXRT1170_CAAM))
+#elif defined(WOLFSSL_CAAM)
 
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
@@ -3583,11 +3575,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <random/rand32.h>
+        #include <zephyr/random/rand32.h>
     #ifndef _POSIX_C_SOURCE
-        #include <posix/time.h>
+        #include <zephyr/posix/time.h>
     #else
-        #include <sys/time.h>
+        #include <time.h>
     #endif
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -3804,14 +3796,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 int wc_hwrng_generate_block(byte *output, word32 sz)
 {
     int fd;
-    int len;
     int ret = 0;
     fd = open("/dev/hwrng", O_RDONLY);
     if (fd == -1)
         return OPEN_RAN_E;
     while(sz)
     {
-        len = (int)read(fd, output, sz);
+        int len = (int)read(fd, output, sz);
         if (len == -1)
         {
             ret = READ_RAN_E;

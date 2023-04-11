@@ -43,7 +43,7 @@ that can be serialized and deserialized in a cross-platform way.
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
 #endif
 
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \
@@ -116,6 +116,7 @@ enum ASN_Tags {
     ASN_APPLICATION       = 0x40,
     ASN_CONTEXT_SPECIFIC  = 0x80,
     ASN_PRIVATE           = 0xC0,
+    ASN_CLASS_MASK        = 0xC0,
 
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
@@ -675,8 +676,8 @@ enum DN_Tags {
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
 #ifdef WOLFSSL_CERT_NAME_ALL
-    ASN_NAME          = 0x2a,   /* name */
-    ASN_GIVEN_NAME    = 0x29,   /* GN */
+    ASN_NAME          = 0x29,   /* name */
+    ASN_GIVEN_NAME    = 0x2a,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
@@ -686,7 +687,7 @@ enum DN_Tags {
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
-    ASN_FAVOURITE_DRINK  = 0x05, /* favouriteDrink */
+    ASN_FAVOURITE_DRINK  = 0x13, /* favouriteDrink */
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 

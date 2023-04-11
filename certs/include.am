@@ -10,6 +10,7 @@ EXTRA_DIST += \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
 	     certs/client-uri-cert.pem \
+	     certs/client-absolute-urn.pem \
 	     certs/client-relative-uri.pem \
 	     certs/client-crl-dist.pem \
 	     certs/client-crl-dist.der \

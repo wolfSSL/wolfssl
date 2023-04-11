@@ -39,7 +39,7 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-#include <wolfssl/wolfcrypt/tfm.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 static const char* const TAG = "wolfssl_mp";
 
@@ -115,12 +115,12 @@ static int esp_mp_hw_lock()
             espmp_CryptHwMutexInit = 1;
         }
         else {
-            ESP_LOGE(TAG, "mp mutx initialization failed.");
+            ESP_LOGE(TAG, "mp mutex initialization failed.");
             return MP_NG;
         }
     }
     else {
-        /* esp aes has already been iniitlized */
+        /* esp aes has already been initialized */
     }
 
     /* lock hardware */
@@ -138,7 +138,7 @@ static int esp_mp_hw_lock()
      */
     DPORT_REG_CLR_BIT(DPORT_RSA_PD_CTRL_REG, DPORT_RSA_PD);
 
-    /* remionder: wait until RSA_CLEAN_REG reads 1
+    /* reminder: wait until RSA_CLEAN_REG reads 1
      *  see esp_mp_hw_wait_clean()
      */
 
@@ -161,9 +161,9 @@ static void esp_mp_hw_unlock( void )
     esp_CryptHwMutexUnLock(&mp_mutex);
 }
 
-/* this is based on an article by Cetin Kaya Koc, A New Algorithm for Inversion*/
-/* mod p^k, June 28 2017.                                                     */
-static int esp_calc_Mdash(mp_int *M, word32 k, mp_digit* md)
+/* this is based on an article by Cetin Kaya Koc,
+ * A New Algorithm for Inversion: mod p^k, June 28 2017 */
+static int esp_calc_Mdash(MATH_INT_T *M, word32 k, mp_digit* md)
 {
     int i;
     int xi;
@@ -199,7 +199,7 @@ static void process_start(word32 reg)
 }
 
 /* wait until done */
-static int wait_uitil_done(word32 reg)
+static int wait_until_done(word32 reg)
 {
     word32 timeout = 0;
     /* wait until done && not timeout */
@@ -221,7 +221,7 @@ static int wait_uitil_done(word32 reg)
 
 /* read data from memory into mp_init          */
 static void esp_memblock_to_mpint(word32 mem_address,
-                                  mp_int* mp,
+                                  MATH_INT_T* mp,
                                   word32 numwords)
 {
     esp_dport_access_read_buffer((uint32_t*)mp->dp, mem_address, numwords);
@@ -230,7 +230,7 @@ static void esp_memblock_to_mpint(word32 mem_address,
 
 /* write mp_init into memory block
  */
-static void esp_mpint_to_memblock(word32 mem_address, const mp_int* mp,
+static void esp_mpint_to_memblock(word32 mem_address, const MATH_INT_T* mp,
                                                       const word32 bits,
                                                       const word32 hwords)
 {
@@ -271,7 +271,7 @@ static word32 bits2words(word32 bits)
 }
 
 /* get rinv */
-static int esp_get_rinv(mp_int *rinv, mp_int *M, word32 exp)
+static int esp_get_rinv(MATH_INT_T *rinv, MATH_INT_T *M, word32 exp)
 {
     int ret = 0;
 
@@ -291,16 +291,18 @@ static int esp_get_rinv(mp_int *rinv, mp_int *M, word32 exp)
 }
 
 /* Z = X * Y;  */
-int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
+int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
 {
     int ret = 0;
-    int neg = (X->sign == Y->sign)? MP_ZPOS : MP_NEG;
-
+    int neg;
     word32 Xs;
     word32 Ys;
     word32 Zs;
     word32 maxWords_sz;
     word32 hwWords_sz;
+
+    /* neg check - X*Y becomes negative */
+    neg = mp_isneg(X) != mp_isneg(Y) ? 1 : 0;
 
     /* ask bits number */
     Xs = mp_count_bits(X);
@@ -356,9 +358,9 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     process_start(RSA_MULT_START_REG);
 
     /* step.4,5 wait until done                       */
-    ret = wait_uitil_done(RSA_INTERRUPT_REG);
+    ret = wait_until_done(RSA_INTERRUPT_REG);
     if (ret != MP_OKAY) {
-        ESP_LOGE(TAG, "wait_uitil_done failed.");
+        ESP_LOGE(TAG, "wait_until_done failed.");
         return ret;
     }
     /* step.6 read the result form MEM_Z              */
@@ -367,16 +369,18 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     /* step.7 clear and release hw                    */
     esp_mp_hw_unlock();
 
-    Z->sign = (Z->used > 0) ? neg : MP_ZPOS;
+    if (!mp_iszero(Z) && neg) {
+        mp_setneg(Z);
+    }
 
     return ret;
 }
 
 /* Z = X * Y (mod M)                                  */
-int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
+int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 {
     int ret = 0;
-    int negcheck = 0;
+    int negcheck;
     word32 Xs;
     word32 Ys;
     word32 Ms;
@@ -384,15 +388,13 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     word32 hwWords_sz;
     word32 zwords;
 
-    mp_int r_inv;
-    mp_int tmpZ;
+    MATH_INT_T r_inv;
+    MATH_INT_T tmpZ;
     mp_digit mp;
 
-    /* neg check */
-    if (X->sign != Y->sign) {
-        /* X*Y becomes negative */
-        negcheck = 1;
-    }
+    /* neg check - X*Y becomes negative */
+    negcheck = mp_isneg(X) != mp_isneg(Y) ? 1 : 0;
+
     /* ask bits number */
     Xs = mp_count_bits(X);
     Ys = mp_count_bits(Y);
@@ -470,7 +472,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     process_start(RSA_MULT_START_REG);
 
     /* step.5,6 wait until done                       */
-    wait_uitil_done(RSA_INTERRUPT_REG);
+    wait_until_done(RSA_INTERRUPT_REG);
     /* step.7 Y to MEM_X                              */
     esp_mpint_to_memblock(RSA_MEM_X_BLOCK_BASE, Y, Ys, hwWords_sz);
 
@@ -478,7 +480,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     process_start(RSA_MULT_START_REG);
 
     /* step.9,11 wait until done                      */
-    wait_uitil_done(RSA_INTERRUPT_REG);
+    wait_until_done(RSA_INTERRUPT_REG);
 
     /* step.12 read the result from MEM_Z             */
     esp_memblock_to_mpint(RSA_MEM_Z_BLOCK_BASE, &tmpZ, zwords);
@@ -488,7 +490,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
 
     /* additional steps                               */
     /* this needs for known issue when Z is greater than M */
-    if (mp_cmp(&tmpZ, M) == FP_GT) {
+    if (mp_cmp(&tmpZ, M) == MP_GT) {
         /*  Z -= M  */
         mp_sub(&tmpZ, M, &tmpZ);
     }
@@ -522,7 +524,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
 .*
 .* Note some DH references may use: Y = (G ^ X) mod P
  */
-int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
+int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, word32 Ys, MATH_INT_T* M, MATH_INT_T* Z)
 {
     int ret = 0;
 
@@ -531,7 +533,7 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     word32 maxWords_sz;
     word32 hwWords_sz;
 
-    mp_int r_inv;
+    MATH_INT_T r_inv;
     mp_digit mp;
 
     /* ask bits number */
@@ -600,7 +602,7 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     process_start(RSA_START_MODEXP_REG);
 
     /* step.5 wait until done                         */
-    wait_uitil_done(RSA_INTERRUPT_REG);
+    wait_until_done(RSA_INTERRUPT_REG);
     /* step.6 read a result form memory               */
     esp_memblock_to_mpint(RSA_MEM_Z_BLOCK_BASE, Z, BITS_TO_WORDS(Ms));
     /* step.7 clear and release hw                    */
@@ -610,6 +612,8 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
 
     return ret;
 }
-#endif /* !NO_RSA || HAVE_ECC */
 
-#endif /* (WOLFSS_ESP32WROOM32_CRYPT) && (NO_WOLFSSL_ESP32WROOM32_CRYPT_RES_PRI)*/
+#endif /* WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) &&
+        * !NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI */
+
+#endif /* !NO_RSA || HAVE_ECC */

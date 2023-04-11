@@ -1446,7 +1446,7 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
         pathLen = (word32)XSTRLEN(path);
         pathBuf = (char*)XMALLOC(pathLen+1, crl->heap,DYNAMIC_TYPE_CRL_MONITOR);
         if (pathBuf) {
-            XSTRNCPY(pathBuf, path, pathLen+1);
+            XMEMCPY(pathBuf, path, pathLen+1);
 
             if (type == WOLFSSL_FILETYPE_PEM) {
                 /* free old path before setting a new one */

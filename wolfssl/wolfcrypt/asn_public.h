@@ -315,8 +315,8 @@ typedef struct WOLFSSL_ASN1_INTEGER {
     unsigned int   dataMax;   /* max size of data buffer */
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
-    int length;
-    int type;
+    int length;   /* Length of DER encoding. */
+    int type;     /* ASN.1 type. Includes negative flag. */
 } WOLFSSL_ASN1_INTEGER;
 
 
@@ -689,10 +689,17 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
          (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     #endif
-    #endif
+    #endif /* !HAVE_USER_RSA */
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
     WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
         int with_header);
+
+    /* For FIPS v1/v2 and selftest rsa.h is replaced. */
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION <= 5)))
+    WOLFSSL_API int wc_RsaPrivateKeyValidate(const byte* input,
+        word32* inOutIdx, int* keySz, word32 inSz);
+    #endif
 #endif
 
 #ifndef NO_DSA

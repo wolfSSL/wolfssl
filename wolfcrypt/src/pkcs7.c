@@ -11009,7 +11009,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 {
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     int ret, idx = 0;
-    int totalSz, encryptedOutSz;
+    int totalSz, encryptedAllocSz, encryptedOutSz;
 
     int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
@@ -11022,6 +11022,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     WC_RNG rng;
     int blockSz, blockKeySz;
+    byte* plain;
     byte* encryptedContent;
 
     Pkcs7EncodedRecip* tmpRecip = NULL;
@@ -11334,11 +11335,38 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
                                          unauthAttribSet);
     }
 
-    /* allocate encrypted content buffer */
+    /* AES-GCM/CCM does NOT require padding for plaintext content or
+     * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
+     * full blocks to ensure crypto only gets full blocks */
     encryptedOutSz = pkcs7->contentSz;
-    encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+    encryptedAllocSz = (encryptedOutSz % blockSz) ?
+                           encryptedOutSz + blockSz -
+                           (encryptedOutSz % blockSz) :
+                           encryptedOutSz;
+
+    /* Copy content to plain buffer (zero-padded) to encrypt in full,
+     * contiguous blocks */
+    plain = (byte*)XMALLOC(encryptedAllocSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (plain == NULL) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+        if (aadBuffer)
+            XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (flatUnauthAttribs)
+            XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return MEMORY_E;
+    }
+
+    XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
+    if ((encryptedAllocSz - encryptedOutSz) > 0) {
+        XMEMSET(plain + encryptedOutSz, 0, encryptedAllocSz - encryptedOutSz);
+    }
+
+    encryptedContent = (byte*)XMALLOC(encryptedAllocSz, pkcs7->heap,
                                       DYNAMIC_TYPE_PKCS7);
     if (encryptedContent == NULL) {
+        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (aadBuffer)
             XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11352,8 +11380,11 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
             pkcs7->cekSz, nonce, nonceSz, aadBuffer, aadBufferSz, authTag,
-            sizeof(authTag), pkcs7->content, encryptedOutSz, encryptedContent,
+            sizeof(authTag), plain, encryptedOutSz, encryptedContent,
             pkcs7->devId, pkcs7->heap);
+
+    XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    plain = NULL;
 
     if (aadBuffer) {
         XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11561,6 +11592,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
     byte  decryptedKey[MAX_ENCRYPTED_KEY_SZ];
 #endif
     int encryptedContentSz = 0;
+    int encryptedAllocSz = 0;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
 
@@ -11839,8 +11871,13 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             /* AES-GCM/CCM does NOT require padding for plaintext content or
-             * AAD inputs RFC 5084 section 3.1 and 3.2 */
-            encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
+             * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc
+             * full blocks to ensure crypto only gets full blocks */
+            encryptedAllocSz = (encryptedContentSz % expBlockSz) ?
+                                   encryptedContentSz + expBlockSz -
+                                   (encryptedContentSz % expBlockSz) :
+                                   encryptedContentSz;
+            encryptedContent = (byte*)XMALLOC(encryptedAllocSz, pkcs7->heap,
                                                             DYNAMIC_TYPE_PKCS7);
             if (ret == 0 && encryptedContent == NULL) {
                 ret = MEMORY_E;
