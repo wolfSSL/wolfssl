@@ -2941,6 +2941,11 @@ int benchmark_init(void)
 
     benchmark_static_init(0);
 
+#ifdef WOLFSSL_STM32_CUBEMX
+    /* enable the peripheral clock */
+    __HAL_RCC_CRYP_CLK_ENABLE();
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     ret = wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory,
                               sizeof(gBenchMemory), WOLFMEM_GENERAL, 1);
@@ -3048,6 +3053,11 @@ int benchmark_free(void)
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("%serror %d with wolfCrypt_Cleanup\n", err_prefix, ret);
     }
+
+#ifdef WOLFSSL_STM32_CUBEMX
+    /* disable the peripheral clock */
+    __HAL_RCC_CRYP_CLK_DISABLE();
+#endif
 
     return ret;
 }
