@@ -38,6 +38,7 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 static const char* TAG = "wolf_hw_aes";
 
@@ -85,6 +86,13 @@ static int esp_aes_hw_InUse()
     /* Enable AES hardware */
     periph_module_enable(PERIPH_AES_MODULE);
 
+#if CONFIG_IDF_TARGET_ESP32S3
+    /* Select working mode. Can be typical or DMA.
+     * 0 => typical
+     * 1 => DMA */
+    DPORT_REG_WRITE(AES_DMA_ENABLE_REG, 0);
+#endif
+
     ESP_LOGV(TAG, "leave esp_aes_hw_InUse");
     return ret;
 }
@@ -106,8 +114,9 @@ static void esp_aes_hw_Leave( void )
 
 /*
  * set key to hardware key registers.
+ * return 0 on success; -1 if mode isn't supported.
  */
-static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
+static int esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 {
     word32 i;
     word32 mode_ = 0;
@@ -124,7 +133,7 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         }
         else {
             ESP_LOGE(TAG, "  >> unexpected error.");
-            return;
+            return -1;
         }
     }
 
@@ -133,26 +142,38 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         DPORT_REG_WRITE(AES_KEY_BASE + (i*4), *(((word32*)ctx->key) + i));
     }
 
-    /* mode
-    *   0       AES-128 Encryption
-    *   1       AES-192 Encryption
-    *   2       AES-256 Encryption
-    *   4       AES-128 Decryption
-    *   5       AES-192 Decryption
-    *   6       AES-256 Decryption
+    /*
+     * ESP32: see table 22-1 in ESP32 Technical Reference
+     * ESP32S3: see table 19-2 in ESP32S3 Technical Reference
+    * mode     Algorithm             ESP32   ESP32S3
+    *   0       AES-128 Encryption     y        y
+    *   1       AES-192 Encryption     y        n
+    *   2       AES-256 Encryption     y        y
+    *   4       AES-128 Decryption     y        y
+    *   5       AES-192 Decryption     y        n
+    *   6       AES-256 Decryption     y        y
     */
     switch(ctx->keylen){
         case 24: mode_ += 1; break;
         case 32: mode_ += 2; break;
         default: break;
     }
-
+#if CONFIG_IDF_TARGET_ESP32S3
+    if (mode_ == 1 || mode_ == 5 || mode_ == 7) {
+       ESP_LOGE(TAG, "  unsupported mode");
+      return -1;
+    }
+#endif
     DPORT_REG_WRITE(AES_MODE_REG, mode_);
     ESP_LOGV(TAG, "  leave esp_aes_hw_Setkey");
+
+    return 0;
 }
 
 /*
  * Process a one block of AES
+ * in: block of 16 bytes (4 x words32) to process
+ * out: result of processing input bytes.
  */
 static void esp_aes_bk(const byte* in, byte* out)
 {
@@ -164,7 +185,27 @@ static void esp_aes_bk(const byte* in, byte* out)
 #endif
 
     ESP_LOGV(TAG, "enter esp_aes_bk");
+#if CONFIG_IDF_TARGET_ESP32S3
+    /* See esp32 - s3 technical reference manual §19.4.3 Operation process
+    ** using CPU working mode. The ESP32-S3 also supports a DMA mode.
+    ** copy text for encrypting/decrypting blocks */
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE, inwords[0]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 4, inwords[1]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 8, inwords[2]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 12, inwords[3]);
 
+    /* start engine */
+    DPORT_REG_WRITE(AES_TRIGGER_REG, 1);
+
+    /* wait until finishing the process */
+    while (DPORT_REG_READ(AES_STATE_REG) != 0)
+    {
+      /* wating for the hardware accelerator to complete operation. */
+    }
+
+    /* read-out blocks */
+    esp_dport_access_read_buffer(outwords, AES_TEXT_OUT_BASE, 4);
+#else
     /* copy text for encrypting/decrypting blocks */
     DPORT_REG_WRITE(AES_TEXT_BASE, inwords[0]);
     DPORT_REG_WRITE(AES_TEXT_BASE + 4, inwords[1]);
@@ -182,6 +223,8 @@ static void esp_aes_bk(const byte* in, byte* out)
 
     /* read-out blocks */
     esp_dport_access_read_buffer(outwords, AES_TEXT_BASE, 4);
+#endif
+
     ESP_LOGV(TAG, "leave esp_aes_bk");
 }
 
@@ -192,6 +235,7 @@ static void esp_aes_bk(const byte* in, byte* out)
 * @param in : a pointer of the input buffer containing plain text to be encrypted
 * @param out: a pointer of the output buffer in which to store the cipher text of
 *             the encrypted message
+* @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
 int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
 {
@@ -199,7 +243,11 @@ int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
     /* lock the hw engine */
     esp_aes_hw_InUse();
     /* load the key into the register */
-    esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_ENCRYPT);
+    if (0 != esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_ENCRYPT)) {
+        /* release hw */
+        esp_aes_hw_Leave();
+        return BAD_FUNC_ARG;
+    }
     /* process a one block of AES */
     esp_aes_bk(in, out);
     /* release hw */
@@ -214,6 +262,7 @@ int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
 * @param in : a pointer of the input buffer containing plain text to be decrypted
 * @param out: a pointer of the output buffer in which to store the cipher text of
 *             the decrypted message
+* @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
 int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 {
@@ -221,7 +270,11 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
     /* lock the hw engine */
     esp_aes_hw_InUse();
     /* load the key into the register */
-    esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
+    if (0 != esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT)) {
+        /* release hw */
+        esp_aes_hw_Leave();
+        return BAD_FUNC_ARG;
+    }
     /* process a one block of AES */
     esp_aes_bk(in, out);
     /* release hw engine */
@@ -239,6 +292,7 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 *             the encrypted message
 * @param in : a pointer of the input buffer containing plain text to be encrypted
 * @param sz : size of input message
+* @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
 int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -254,7 +308,11 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     esp_aes_hw_InUse();
 
-    esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_ENCRYPT);
+    if (0 != esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_ENCRYPT)) {
+        /* release hw */
+        esp_aes_hw_Leave();
+        return BAD_FUNC_ARG;
+    }
 
     while (blocks--) {
           XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
@@ -285,6 +343,7 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 *             the decrypted message
 * @param in : a pointer of the input buffer containing plain text to be decrypted
 * @param sz : size of input message
+* @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
 int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -300,7 +359,11 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     esp_aes_hw_InUse();
 
-    esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
+    if (0 != esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT)) {
+        /* release hw */
+        esp_aes_hw_Leave();
+        return BAD_FUNC_ARG;
+    }
 
     while (blocks--) {
         XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);

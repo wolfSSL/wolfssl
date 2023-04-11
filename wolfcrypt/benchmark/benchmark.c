@@ -66,7 +66,21 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
 #ifdef WOLFSSL_ESPIDF
-    #include <xtensa/hal.h> /* reminder Espressif RISC-V not yet implemented */
+    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        #include "driver/gptimer.h"
+        gptimer_handle_t esp_gptimer = NULL;
+        gptimer_config_t esp_timer_config = {
+                            .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+                            .direction = GPTIMER_COUNT_UP,
+                            .resolution_hz = CONFIG_XTAL_FREQ * 1000000,
+                         };
+    #elif defined(CONFIG_IDF_TARGET_ESP32) || \
+          defined(CONFIG_IDF_TARGET_ESP32S2) || \
+          defined(CONFIG_IDF_TARGET_ESP32S3)
+        #include <xtensa/hal.h>
+    #else
+        #error "CONFIG_IDF_TARGET not implemented"
+    #endif
     #include <esp_log.h>
 #endif
 
@@ -1006,8 +1020,13 @@ static const char* bench_desc_words[][15] = {
         /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
 
         /* the currently observed clock counter value */
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        word64 thisVal = 0;;
+        ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisVal));
+#else
+        /* reminder unsupported CONFIG_IDF_TARGET captured above */
         word64 thisVal = xthal_get_ccount();
-
+#endif
         /* if the current value is less than the previous value,
         ** we likely overflowed at least once.
         */
@@ -1034,8 +1053,12 @@ static const char* bench_desc_words[][15] = {
         _xthal_get_ccount_ex += (thisVal - _xthal_get_ccount_last);
 
         /* all of this took some time, so reset the "last seen" value */
-        _xthal_get_ccount_last = xthal_get_ccount();
-
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
+                                              &_xthal_get_ccount_last));
+#else
+         _xthal_get_ccount_last = xthal_get_ccount();
+#endif
         return _xthal_get_ccount_ex;
     }
 
@@ -4992,7 +5015,7 @@ exit:
 
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
-#endif
+#endif /* WOLFSSL_NOSHA512_224 && !FIPS ... */
 
 #if !defined(WOLFSSL_NOSHA512_256) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
@@ -5086,10 +5109,9 @@ exit:
 
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
+#endif /* WOLFSSL_NOSHA512_256 && !FIPS ... */
 
-#endif
-
-#endif
+#endif /* WOLFSSL_SHA512 */
 
 
 #ifdef WOLFSSL_SHA3
@@ -9096,6 +9118,14 @@ static int string_matches(const char* arg, const char* str)
     #ifdef WOLFSSL_ESPIDF
         int argc = construct_argv();
         char** argv = (char**)__argv;
+
+    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        ESP_ERROR_CHECK(gptimer_new_timer(&esp_timer_config, &esp_gptimer));
+        ESP_LOGI(TAG, "Enable ESP32-C3 timer ");
+        ESP_ERROR_CHECK(gptimer_enable(esp_gptimer));
+        ESP_ERROR_CHECK(gptimer_start(esp_gptimer));
+    #endif
+
     #endif
 
     return wolfcrypt_benchmark_main(argc, argv);
