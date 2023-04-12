@@ -667,12 +667,12 @@ typedef struct sp_ecc_ctx {
  *
  * @param  [in]  a  SP integer to update.
  */
-#define sp_clamp(a)                                                     \
-    do {                                                                \
-        int ii;                                                         \
-        for (ii = (a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) {   \
-        }                                                               \
-        (a)->used = ii + 1;                                             \
+#define sp_clamp(a)                                               \
+    do {                                                          \
+        int ii;                                                   \
+        for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+        }                                                         \
+        (a)->used = (unsigned int)ii + 1;                         \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
@@ -759,7 +759,7 @@ typedef struct sp_ecc_ctx {
 
 /* Calculate the number of words required to support a number of bits. */
 #define MP_BITS_CNT(bits)                                       \
-        (((bits + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
+        ((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
 
 #ifdef WOLFSSL_SMALL_STACK
 /*
@@ -772,13 +772,13 @@ typedef struct sp_ecc_ctx {
 #define DECL_MP_INT_SIZE(name, bits)                                        \
     sp_int* name = NULL
 /* Allocate an mp_int of minimal size and zero out. */
-#define NEW_MP_INT_SIZE(name, bits, heap, type)                             \
-do {                                                                        \
-    name = (mp_int*)XMALLOC(MP_INT_SIZEOF(MP_BITS_CNT(bits)), heap, type);  \
-    if (name != NULL) {                                                     \
-        XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)));                 \
-    }                                                                       \
-}                                                                           \
+#define NEW_MP_INT_SIZE(name, bits, heap, type)                              \
+do {                                                                         \
+    (name) = (mp_int*)XMALLOC(MP_INT_SIZEOF(MP_BITS_CNT(bits)), heap, type); \
+    if ((name) != NULL) {                                                    \
+        XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)));                  \
+    }                                                                        \
+}                                                                            \
 while (0)
 /* Dispose of dynamically allocated mp_int. */
 #define FREE_MP_INT_SIZE(name, heap, type) \
@@ -891,7 +891,7 @@ typedef sp_int_digit mp_digit;
  */
 
 MP_API int sp_init(sp_int* a);
-MP_API int sp_init_size(sp_int* a, int size);
+MP_API int sp_init_size(sp_int* a, unsigned int size);
 MP_API int sp_init_multi(sp_int* n1, sp_int* n2, sp_int* n3, sp_int* n4,
                          sp_int* n5, sp_int* n6);
 MP_API void sp_free(sp_int* a);
