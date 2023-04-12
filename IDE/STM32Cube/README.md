@@ -97,16 +97,19 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32L5 support define `WOLFSSL_STM32L5`.
 * To enable STM32H7 support define `WOLFSSL_STM32H7`.
 * To enable STM32WB support define `WOLFSSL_STM32WB`.
+* To enable STM32U5 support define `WOLFSSL_STM32U5`.
+* To enable STM32H5 support define `WOLFSSL_STM32H5`.
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
-The PKA acceleration for ECC is avaialble on some U5, L5 and WB55 chips.
+The PKA acceleration for ECC is available on some U5, L5 and WB55 chips.
 This is enabled with `WOLFSSL_STM32_PKA`. You can see some of the benchmarks [here](STM32_Benchmarks.md).
 
 To disable hardware crypto acceleration you can define:
 
 * `NO_STM32_HASH`
 * `NO_STM32_CRYPTO`
+* `NO_STM32_RNG`
 
 To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 
