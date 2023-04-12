@@ -916,6 +916,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     #include "os/os_time.h"
+    typedef long time_t;
+    extern time_t mynewt_time(time_t* timer);
     #define XTIME(t1)       mynewt_time((t1))
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
