@@ -528,11 +528,15 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
     word32 data_len, byte* hash, word32 hash_len)
 {
     int ret = HASH_TYPE_E; /* Default to hash type error */
-    word32 dig_size;
+    int dig_size;
 
     /* Validate hash buffer size */
-    dig_size = (word32)wc_HashGetDigestSize(hash_type);
-    if (hash_len < dig_size) {
+    dig_size = wc_HashGetDigestSize(hash_type);
+    if (dig_size < 0) {
+        return dig_size;
+    }
+
+    if (hash_len < (word32)dig_size) {
         return BUFFER_E;
     }
 

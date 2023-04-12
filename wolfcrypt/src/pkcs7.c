@@ -3820,7 +3820,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
 
     /* compare generated to hash in messageDigest attribute */
     if ((innerAttribSz != digestSz) ||
-        (XMEMCMP(attrib->value + idx, digestBuf, (word32)digestSz) != 0)) {
+        (XMEMCMP(attrib->value + idx, digestBuf, (size_t)digestSz) != 0)) {
         WOLFSSL_MSG("Content digest does not match messageDigest attrib value");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
