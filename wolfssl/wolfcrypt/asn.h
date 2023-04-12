@@ -858,9 +858,17 @@ enum ECC_TYPES
 #ifndef WC_ASN_NAME_MAX
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
         defined(WOLFSSL_CERT_EXT)
-        #define WC_ASN_NAME_MAX 330
+        #ifdef WOLFSSL_MULTI_ATTRIB
+            #define WC_ASN_NAME_MAX 360
+        #else
+            #define WC_ASN_NAME_MAX 330
+        #endif
     #else
-        #define WC_ASN_NAME_MAX 256
+        #ifdef WOLFSSL_MULTI_ATTRIB
+            #define WC_ASN_NAME_MAX 330
+        #else
+            #define WC_ASN_NAME_MAX 256
+        #endif
     #endif
 #endif
 
