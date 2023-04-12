@@ -71,6 +71,13 @@
 #define STM32_HASH_REG_SIZE  4
 #define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
 
+#if (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
+    defined(WOLFSSL_STM32H7)) && !defined(NO_STM32_HASH_FIFO_WORKAROUND)
+    /* workaround for hash FIFO to write one extra to finalize */
+    #undef  STM32_HASH_FIFO_WORKAROUND
+    #define STM32_HASH_FIFO_WORKAROUND
+#endif
+
 
 /* STM32 Hash Context */
 typedef struct {

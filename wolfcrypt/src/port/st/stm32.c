@@ -312,6 +312,13 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     }
 
     if (wroteToFifo) {
+    #ifdef STM32_HASH_FIFO_WORKAROUND
+        /* If we wrote a block send one more 32-bit to FIFO to trigger start.
+         * The save/restore feature cannot leave 16 deep FIFO filled. */
+        wc_Stm32_Hash_Data(stmCtx, 4);
+        stmCtx->fifoBytes += 4;
+    #endif
+
         /* make sure hash operation is done */
         ret = wc_Stm32_Hash_WaitDone(stmCtx);
 
@@ -868,7 +875,10 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, size);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, size);
-#ifndef WOLFSSL_SP_MATH
+
+#if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+    ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        defined(WOLFSSL_SP_INT_NEGATIVE))
         /* if k is negative, we compute the multiplication with abs(-k)
          * with result (x, y) and modify the result to (x, -y)
          */
