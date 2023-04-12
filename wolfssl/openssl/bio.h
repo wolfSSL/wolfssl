@@ -79,6 +79,8 @@
 #define BIO_puts      wolfSSL_BIO_puts
 
 #define BIO_should_retry                wolfSSL_BIO_should_retry
+#define BIO_should_write                wolfSSL_BIO_should_write
+#define BIO_should_read                 wolfSSL_BIO_should_read
 
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
