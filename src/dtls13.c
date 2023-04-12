@@ -301,6 +301,12 @@ static int Dtls13EncryptDecryptRecordNumber(WOLFSSL* ssl, byte* seq,
     byte mask[DTLS13_RN_MASK_SIZE];
     int ret;
 
+#ifdef HAVE_NULL_CIPHER
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_cipher_null)
+        return 0;
+#endif /*HAVE_NULL_CIPHER */
+
     ret = Dtls13GetRnMask(ssl, ciphertext, mask, dir);
     if (ret != 0)
         return ret;
@@ -2265,6 +2271,15 @@ int Dtls13SetRecordNumberKeys(WOLFSSL* ssl, enum encrypt_side side)
         return 0;
     }
 #endif /* HAVE_CHACHA */
+
+#ifdef HAVE_NULL_CIPHER
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_cipher_null) {
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Skipping Record Number key provisioning with null cipher");
+#endif /* WOLFSSL_DEBUG_TLS */
+        return 0;
+    }
+#endif /* HAVE_NULL_CIPHER */
 
     return NOT_COMPILED_IN;
 }
