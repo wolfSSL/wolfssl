@@ -11877,15 +11877,17 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             if (expBlockSz == 0) {
-                if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0)
-                {
-                    ret = ASN_PARSE_E;
-                    break;
-                }
-                expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
-                if (expBlockSz < 0) {
-                    ret = expBlockSz;
-                    break;
+        #ifndef NO_PKCS7_STREAM
+                wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
+        #endif
+                if (encOID == 0)
+                    expBlockSz = 1;
+                else {
+                    expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+                    if (expBlockSz < 0) {
+                        ret = expBlockSz;
+                        break;
+                    }
                 }
             }
 
