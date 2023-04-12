@@ -8,6 +8,7 @@
 * [STM32F777](#stm32f777)
 * [STM32U585](#stm32u585)
 * [STM32H563ZI](#stm32h563zi)
+* [STM32G071RB](#stm32g071rb)
 
 ## STM32H753ZI
 
@@ -758,3 +759,49 @@ ECDSA [      SECP256R1]   256   verify        66 ops took 1.012 sec, avg 15.333 
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
+
+## STM32G071RB
+
+STM32G0 is a Cortex M0+ at up to 64MHz. The STM32G071RB has 128KB Flash and 36KB RAM.
+
+### STM32G071RB Benchmarks (SP Math Small with ARM Thumb Assembly)
+
+Build options used:
+* `WOLFSSL_HAVE_SP_RSA`
+* `WOLFSSL_SP_ARM_THUMB_ASM`
+* `WOLFSSL_SP_SMALL`
+* `WOLFSSL_SP_MATH`
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.0
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        205 KB took 1.043 seconds,  196.357 KB/s
+AES-128-CBC-enc            358 KB took 1.008 seconds,  355.556 KB/s
+AES-128-CBC-dec            358 KB took 1.051 seconds,  341.009 KB/s
+AES-192-CBC-enc            333 KB took 1.063 seconds,  313.076 KB/s
+AES-192-CBC-dec            307 KB took 1.023 seconds,  300.293 KB/s
+AES-256-CBC-enc            282 KB took 1.004 seconds,  280.478 KB/s
+AES-256-CBC-dec            282 KB took 1.043 seconds,  269.990 KB/s
+SHA-256                    486 KB took 1.020 seconds,  476.863 KB/s
+HMAC-SHA256                486 KB took 1.028 seconds,  473.152 KB/s
+RSA     2048   public        12 ops took 1.043 sec, avg 86.917 ms, 11.505 ops/sec
+RSA     2048  private         2 ops took 6.482 sec, avg 3241.000 ms, 0.309 ops/sec
+ECC   [      SECP256R1]   256  key gen        10 ops took 1.122 sec, avg 112.200 ms, 8.913 ops/sec
+ECDHE [      SECP256R1]   256    agree         4 ops took 1.000 sec, avg 250.000 ms, 4.000 ops/sec
+ECDSA [      SECP256R1]   256     sign         8 ops took 1.227 sec, avg 153.375 ms, 6.520 ops/sec
+ECDSA [      SECP256R1]   256   verify         4 ops took 1.396 sec, avg 349.000 ms, 2.865 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+Without `WOLFSSL_SP_SMALL` (larger version):
+
+```
+RSA     2048   public        14 ops took 1.016 sec, avg 72.571 ms, 13.780 ops/sec
+RSA     2048  private         2 ops took 5.447 sec, avg 2723.500 ms, 0.367 ops/sec
+```
+
