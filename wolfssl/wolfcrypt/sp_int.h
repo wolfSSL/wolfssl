@@ -96,7 +96,12 @@ extern "C" {
     #error "Size of unsigned int not detected"
 #endif
 
-#if !defined(NO_64BIT) && ULONG_MAX == 18446744073709551615ULL && \
+#if defined(WOLF_C89) && !defined(NO_64BIT) && ULONG_MAX == 18446744073709551615UL
+    #define SP_ULONG_BITS    64
+
+    typedef unsigned long sp_uint64;
+    typedef          long  sp_int64;
+#elif !defined(WOLF_C89) && !defined(NO_64BIT) && ULONG_MAX == 18446744073709551615ULL && \
         4294967295UL != 18446744073709551615ULL /* verify pre-processor supports
                                                 * 64-bit ULL types */
     #define SP_ULONG_BITS    64
@@ -122,7 +127,14 @@ extern "C" {
 #endif
 
 #ifdef ULLONG_MAX
-    #if ULLONG_MAX == 18446744073709551615ULL
+    #if defined(WOLF_C89) && ULLONG_MAX == 18446744073709551615UL
+        #define SP_ULLONG_BITS    64
+
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint64;
+            typedef          long long  sp_int64;
+        #endif
+    #elif !defined(WOLF_C89) && ULLONG_MAX == 18446744073709551615ULL
         #define SP_ULLONG_BITS    64
 
         #if SP_ULLONG_BITS > SP_ULONG_BITS

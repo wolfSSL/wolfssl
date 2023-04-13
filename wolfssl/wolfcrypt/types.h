@@ -174,17 +174,29 @@ decouple library dependencies with standard string, memory and so on.
         typedef unsigned long long word64;
     #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long sword64;
         typedef unsigned long word64;
     #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long long sword64;
         typedef unsigned long long word64;
     #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long long sword64;
         typedef unsigned long long word64;
     #endif
@@ -971,7 +983,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_PB_BUFFER  = 1003,
         DYNAMIC_TYPE_SNIFFER_TICKET_ID  = 1004,
         DYNAMIC_TYPE_SNIFFER_NAMED_KEY  = 1005,
-        DYNAMIC_TYPE_SNIFFER_KEY        = 1006,
+        DYNAMIC_TYPE_SNIFFER_KEY        = 1006
     };
 
     /* max error buffer string size */
