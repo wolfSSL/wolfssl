@@ -9598,7 +9598,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* HAVE_HKDF */
 
-                #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+                #if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
                     defined(WOLFSSL_AES_DIRECT)
                 case EVP_PKEY_CMAC:
                     if (key->cmacCtx != NULL) {

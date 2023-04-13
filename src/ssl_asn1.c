@@ -550,6 +550,7 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
     XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+#if defined(OPENSSL_EXTRA)
 /* Reset the data of ASN.1 INTEGER object back to empty fixed array.
  *
  * @param [in] a  ASN.1 INTEGER object.
@@ -578,6 +579,7 @@ static void wolfssl_asn1_integer_reset_data(WOLFSSL_ASN1_INTEGER* a)
     /* Set type to positive INTEGER. */
     a->type = V_ASN1_INTEGER;
 }
+#endif /* OPENSSL_EXTRA */
 
 /* Setup ASN.1 INTEGER object to handle data of required length.
  *
@@ -1924,7 +1926,7 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
  * ASN1_SK_OBJECT APIs
  ******************************************************************************/
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && !defined(NO_ASN)
 /* Create a new WOLFSSL_ASN1_OBJECT stack.
  *
  * @return  New WOLFSSL_ASN1_OBJECT stack on success.
@@ -1997,7 +1999,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJECT_pop(
     return (WOLFSSL_ASN1_OBJECT*)wolfssl_sk_pop_type(sk, STACK_TYPE_OBJ);
 }
 
-#endif /* OPENSSL_EXTRA && !NO_ASN */
+#endif /* (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) && !NO_ASN */
 
 /*******************************************************************************
  * ASN1_STRING APIs
