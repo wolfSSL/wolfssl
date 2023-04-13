@@ -153,7 +153,8 @@ enum {
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h"
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+#elif (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
    !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h"
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)

@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 
 #include "FreeRTOS.h"
@@ -62,6 +63,8 @@ int sce_crypt_Sha_AesCbcGcm_multitest();
 int sce_crypt_sha_multitest();
 int sce_crypt_test();
 
+extern User_SCEPKCbInfo guser_PKCbInfo;
+
 #if defined(HAVE_AES_CBC)
 
 #if defined(WOLFSSL_AES_128)
@@ -76,6 +79,9 @@ int sce_crypt_test();
 
 #endif
 
+#if !defined(NO_RSA)
+    sce_rsa2048_wrapped_pair_key_t g_wrapped_pair_key;
+#endif
 typedef struct tagInfo
 {
     sce_aes_wrapped_key_t aes_key;
@@ -379,9 +385,8 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
         ret = -3;
         goto out;
     } else {
-        XMEMCPY(&userContext.sce_wrapped_key_aes256, aes256_key,
-                                sizeof(sce_aes_wrapped_key_t));
-        userContext.aes256_installedkey_set = 1;
+        userContext.sce_wrapped_key_aes256 = (void*)aes256_key;
+        userContext.flags2.bits.aes256_installedkey_set = 1;
         enc->ctx.keySize = (word32)enc->keylen;
     }
 
@@ -576,9 +581,8 @@ static int sce_aesgcm128_test(int prnt, sce_aes_wrapped_key_t* aes128_key)
         ret = -3;
         goto out;
     } else {
-        XMEMCPY(&userContext.sce_wrapped_key_aes128, aes128_key,
-                                sizeof(sce_aes_wrapped_key_t));
-        userContext.aes128_installedkey_set = 1;
+        userContext.sce_wrapped_key_aes128 = aes128_key;
+        userContext.flags2.bits.aes128_installedkey_set = 1;
         enc->ctx.keySize = (word32)enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -634,6 +638,170 @@ static void tskAes128_Gcm_Test(void *pvParam)
 
 #endif
 
+#if !defined(NO_RSA)
+
+/* testing rsa sign/verify w/ rsa 2048 bit key */
+#define TEST_STRING     "Everyone gets Friday off."
+#define TEST_STRING2    "Everyone gets Friday ofv."
+#define TEST_STRING_SZ   25
+#define RSA_TEST_BYTES   256 /* up to 2048-bit key */
+
+static int sce_rsa_test(int prnt, int keySize)
+{
+    int ret = 0;
+    
+    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_RNG rng;
+    const char inStr [] = TEST_STRING;
+    const char inStr2[] = TEST_STRING2;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 outSz = RSA_TEST_BYTES;
+    
+    byte *in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (key == NULL || in == NULL || out == NULL ||
+        in2 == NULL || out2 == NULL) {
+        ret = -1;
+        goto out;
+    }
+    
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof *key);
+    XMEMCPY(in, inStr, inLen);
+    XMEMCPY(in2, inStr2, inLen);
+    XMEMSET(out,  0, outSz);
+    XMEMSET(out2, 0, outSz);
+    
+    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    if (ret != 0) {
+        goto out;
+    }
+    
+    if ((ret = wc_InitRng(&rng)) != 0)
+        goto out;
+    
+    /* make ras key by SCE */
+    if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
+        goto out;
+    }
+    
+    ret = wc_RsaPublicEncrypt(in, inLen, out, outSz, key, &rng);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = wc_RsaPrivateDecrypt(out, keySize/8, out2, outSz, key);
+    if (ret != 0) {
+        ret = -1;
+        goto out;
+    }
+    if (XMEMCMP(in, out2, inLen) != 0) {
+        ret = -2;
+        goto out;
+    }
+
+out:
+    if (key != NULL) {
+        wc_FreeRsaKey(key);
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in != NULL) {
+        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in2 != NULL) {
+        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (out != NULL) {
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (out2 != NULL) {
+        XFREE(out2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    
+    return ret;
+}
+
+static int sce_rsa_SignVerify_test(int prnt, int keySize)
+{
+    int ret = 0;
+    
+    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_RNG rng;
+    const char inStr [] = TEST_STRING;
+    const char inStr2[] = TEST_STRING2;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 outSz = RSA_TEST_BYTES;
+
+    byte *in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    (void) prnt;
+
+    if (key == NULL || in == NULL || out == NULL) {
+        ret = -1;
+        goto out;
+    }
+    
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof *key);
+    XMEMCPY(in, inStr, inLen);
+    XMEMCPY(in2, inStr2, inLen);
+
+    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    if (ret != 0) {
+        goto out;
+    }
+    
+    if ((ret = wc_InitRng(&rng)) != 0)
+        goto out;
+    
+    /* make ras key by SCE */
+    if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
+        goto out;
+    }
+    
+    guser_PKCbInfo.flags2.bits.message_type = 0;
+    ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
+    if (ret < 0) {
+        goto out;
+    }
+
+    /* this should fail */
+    ret = wc_RsaSSL_Verify(in2, inLen, out, keySize/8, key);
+    if (ret != FSP_ERR_CRYPTO_SCE_AUTHENTICATION) {
+        ret = -1;
+        goto out;
+    }
+    /* this should succeed */
+    ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
+    if (ret != 0) {
+        ret = -1;
+        goto out;
+    }
+
+  out:
+    if (key != NULL) {
+        wc_FreeRsaKey(key);
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in != NULL) {
+        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in2 != NULL) {
+        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (out != NULL) {
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    
+    return ret;
+}
+#endif
+
 int sce_crypt_test()
 {
     int ret = 0;
@@ -641,20 +809,56 @@ int sce_crypt_test()
 
     /* Generate AES sce Key */
     sce_error_code = R_SCE_AES128_WrappedKeyGenerate(&g_user_aes128_key_index1);
-    
+
     if (sce_error_code == FSP_SUCCESS)
         sce_error_code = R_SCE_AES128_WrappedKeyGenerate(
                                                 &g_user_aes128_key_index2);
-                        
+
     if (sce_error_code == FSP_SUCCESS)
         sce_error_code = R_SCE_AES256_WrappedKeyGenerate(
                                                 &g_user_aes256_key_index1);
-    
+
     if (sce_error_code == FSP_SUCCESS)
         sce_error_code = R_SCE_AES256_WrappedKeyGenerate(
                                                 &g_user_aes256_key_index2);
-                            
-    if (sce_error_code == FSP_SUCCESS) {
+   
+   if (sce_error_code == FSP_SUCCESS) {
+       #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+        /* set up Crypt Call back */
+       
+        Clr_CallbackCtx(&guser_PKCbInfo);
+
+        ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &guser_PKCbInfo);
+
+        if ( ret > 0)
+            ret = 0;
+
+        if (ret == 0) {
+            printf(" sce_rsa_test(1024)");
+            ret = sce_rsa_test(1, 1024);
+            RESULT_STR(ret)
+        }
+        if (ret == 0) {
+            printf(" sce_rsa_SignVerify_test(1024)");
+            ret = sce_rsa_SignVerify_test(1, 1024);
+            RESULT_STR(ret)
+        }
+        
+        Clr_CallbackCtx(&guser_PKCbInfo);
+        
+        if (ret == 0) {
+            printf(" sce_rsa_test(2048)");
+            ret = sce_rsa_test(1, 2048);
+            RESULT_STR(ret)
+        }
+        
+        if (ret == 0 && sce_error_code == FSP_SUCCESS) {
+            printf(" sce_rsa_SignVerify_test(2048)");
+            ret = sce_rsa_SignVerify_test(1, 2048);
+            RESULT_STR(ret)
+        }
+
+       #endif /* WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
 
    #ifndef NO_SHA256
         printf(" sha256_test()");
@@ -675,7 +879,7 @@ int sce_crypt_test()
             ret = sce_aesgcm128_test(1, &g_user_aes128_key_index1);
 
         }
-        
+
         if (ret == 0) {
 
             ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1);

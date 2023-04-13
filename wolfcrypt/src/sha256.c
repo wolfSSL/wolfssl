@@ -214,7 +214,8 @@ on the specific device platform.
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
-    (!defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)) && \
+    ((!defined(WOLFSSL_RENESAS_SCEPROTECT) && !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) \
+      || defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)) && \
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(WOLFSSL_RENESAS_RX64_HASH)
 
@@ -796,7 +797,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+#elif (defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_sce_sha.c */
@@ -1752,7 +1753,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP)) || \
     (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
-    (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+    ((defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)) || \
     defined(WOLFSSL_RENESAS_RX64_HASH) || \
     defined(WOLFSSL_HASH_KEEP)
@@ -1932,7 +1933,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+#elif (defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_sce_sha.c */

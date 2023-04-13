@@ -20,7 +20,7 @@
  */
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -168,6 +168,8 @@ WOLFSSL_LOCAL void wc_sce_Close()
     }
 }
 
+#ifndef WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY
+
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
 /* Verify Server Key Exchange while doing ECDH key exchange */
 static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig,
@@ -220,11 +222,11 @@ static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig
 
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
-            cbInfo->pk_key_set = 0;
+            cbInfo->flags1.bits.pk_key_set = 0;
         }
         else {
             ret = WOLFSSL_SUCCESS;
-            cbInfo->pk_key_set = 1;
+            cbInfo->flags1.bits.pk_key_set = 1;
         }
     }
     else {
@@ -358,7 +360,7 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 
-    if (cbInfo->pk_key_set == 1) {
+    if (cbInfo->flags1.bits.pk_key_set == 1) {
         if ((ret = wc_sce_hw_lock()) == 0) {
             /* Generate ECC PUblic key pair */
             ret = R_SCE_TLS_ECC_secp256r1_EphemeralWrappedKeyPairGenerate(
@@ -404,6 +406,7 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     return ret;
 }
 #endif
+
 /* Return tls cipher suite enumeration that is supported by SCE library */
 static uint32_t GetSceCipherSuite(
                     uint8_t cipherSuiteFirst,
@@ -780,7 +783,7 @@ WOLFSSL_LOCAL int wc_sce_generateSessionKey(WOLFSSL *ssl,
              dec->aes->devId = devId;
 
             /* marked as session key is set */
-            cbInfo->session_key_set = 1;
+            cbInfo->flags1.bits.session_key_set = 1;
         }
         /* unlock hw */
         wc_sce_hw_unlock();
@@ -1134,8 +1137,8 @@ WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
         return -1;
     }
     gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx] = (User_SCEPKCbInfo*)user_ctx;
-    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->pk_key_set = 0;
-    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->session_key_set = 0;
+    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->flags1.bits.pk_key_set = 0;
+    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->flags1.bits.session_key_set = 0;
 
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
     wolfSSL_SetRsaEncCtx(ssl, user_ctx);
@@ -1151,5 +1154,6 @@ WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 
     return 0;
 }
+#endif /*  !WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
 
-#endif /* WOLFSSL_RENESAS_SCEPROTECT */
+#endif /* WOLFSSL_RENESAS_SCEPROTECT || WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */

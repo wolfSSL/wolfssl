@@ -34,10 +34,30 @@ extern "C" {
 
 #define MAX_SCE_CBINDEX 5
 
+typedef void* renesas_sce_wrappedkey;
+
+/* related to TLS */
+struct sce_flags1 {
+    uint8_t pk_key_set:1;
+    uint8_t session_key_set:1;
+};
+
+/* Crypt Only */
+struct sce_flags2 {
+    uint8_t aes256_installedkey_set:1;
+    uint8_t aes128_installedkey_set:1;
+    uint8_t rsapri2048_installedkey_set:1;
+    uint8_t rsapub2048_installedkey_set:1;
+    uint8_t rsapri1024_installedkey_set:1;
+    uint8_t rsapub1024_installedkey_set:1;
+    uint8_t message_type:1;/*message 0, hashed 1*/
+};
+
 typedef struct tagUser_SCEPKCbInfo {
     /* unique number for each session */
     int devId;
-    
+   #if defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+        !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     /* out from R_SCE_TLS_ServerKeyExchangeVerify */
     uint32_t encrypted_ephemeral_ecdh_public_key[SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ];
     /* out from R_SCE_TLS_ECC_secp256r1_EphemeralWrappedKeyPairGenerate */
@@ -48,17 +68,34 @@ typedef struct tagUser_SCEPKCbInfo {
     uint8_t     sce_clientRandom[SCE_TLS_CLIENTRANDOM_SZ];
     uint8_t     sce_serverRandom[SCE_TLS_SERVERRANDOM_SZ];
     uint8_t     sce_cipher;
+
+   #endif
     
     /* installed key handling */
-    sce_aes_wrapped_key_t   sce_wrapped_key_aes256;
-    uint8_t aes256_installedkey_set:1;
-    sce_aes_wrapped_key_t   sce_wrapped_key_aes128;
-    uint8_t aes128_installedkey_set:1;
+    /* aes */
+    renesas_sce_wrappedkey   sce_wrapped_key_aes256;
+    renesas_sce_wrappedkey   sce_wrapped_key_aes128;
     
+   #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    /* rsa */
+    renesas_sce_wrappedkey   sce_wrapped_key_rsapri2048;
+    renesas_sce_wrappedkey   sce_wrapped_key_rsapub2048;
+    renesas_sce_wrappedkey   sce_wrapped_key_rsapri1024;
+    renesas_sce_wrappedkey   sce_wrapped_key_rsapub1024;
+   #endif
+    
+    /* key status flags */
     /* flag whether encrypted ec key is set */
-    uint8_t pk_key_set:1;
-    uint8_t session_key_set:1;
-
+    union {
+        uint8_t chr;
+        struct sce_flags1 bits;
+    } flags1;
+    
+    union {
+        uint8_t chr;
+        struct sce_flags2 bits;
+    } flags2
+    
 } User_SCEPKCbInfo;
 
 typedef struct tagSCE_PKCbInfo {
@@ -138,7 +175,9 @@ typedef wolfssl_SCE_Hash wc_Sha256;
 
 #endif /* NO_SHA */
 
-
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+        !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPT_ONLY)
+        
 WOLFSSL_LOCAL int     wc_sce_tls_RootCertVerify(
             const   uint8_t* cert,         uint32_t cert_len,
             uint32_t  key_n_start,        uint32_t key_n_len,
@@ -220,5 +259,19 @@ WOLFSSL_API void wc_sce_inform_user_keys(
 WOLFSSL_API void wc_sce_set_callbacks(struct WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wc_sce_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx);
 WOLFSSL_API void wc_sce_inform_cert_sign(const uint8_t *sign);
-    
+
+/* rsa */
+struct RsaKey;
+struct WC_RNG;
+WOLFSSL_API int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
+    word32 outLen, int type, struct RsaKey* key, struct WC_RNG* rng, void* ctx);
+WOLFSSL_API int  wc_sce_MakeRsaKey(int size, void* ctx);
+WOLFSSL_API int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
+                    word32* outLen, struct RsaKey* key, void* ctx);
+WOLFSSL_API int  wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
+                    word32* outLen,struct RsaKey* key, void* ctx);
+
+#endif  /* WOLFSSL_RENESAS_SCEPROTECT && 
+         * !WOLFSSL_RENESAS_SCEPROTECT_CRYPT_ONLY */
+
 #endif  /* __RENESAS_SCE_CRYPT_H__ */

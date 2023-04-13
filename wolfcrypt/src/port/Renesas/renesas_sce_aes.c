@@ -26,7 +26,8 @@
 
 #ifndef NO_AES
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+#if (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+     defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_AES)
 
 #include <wolfssl/wolfcrypt/wc_port.h>
@@ -151,9 +152,10 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
             XMEMSET((void*)cipherBuf, 0, sz + delta);
             XMEMSET((void*)authTag,   0, authTagSz);
         }
-
+        
+      #if defined(WOLFSSL_RENESAS_SCEPROTECT)
        if (ret == 0 &&
-           info->session_key_set == 1) {
+           info->flags1.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -174,13 +176,20 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
             }
 
         }
-        else if (info->aes256_installedkey_set == 1 || info->aes128_installedkey_set == 1) {
+        else 
+       #else
+        if (ret == 0)
+       #endif
+        if (info->flags2.bits.aes256_installedkey_set == 1 ||
+            info->flags2.bits.aes128_installedkey_set == 1) {
             if (aes->ctx.keySize == 32) {
-                XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes256,
+                XMEMCPY(&key_client_aes, 
+                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
                     sizeof(sce_aes_wrapped_key_t));
             }
             else {
-                XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes128,
+                XMEMCPY(&key_client_aes, 
+                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
                     sizeof(sce_aes_wrapped_key_t));
             }
             iv_l = iv;
@@ -339,9 +348,9 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
             XMEMCPY(cipherBuf, in, sz);
             XMEMCPY(aTagBuf, authTag, authTagSz);
         }
-
+       #if defined(WOLFSSL_RENESAS_SCEPROTECT)
         if (ret == 0 &&
-            info->session_key_set == 1) {
+            info->flags1.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -361,13 +370,20 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
         }
-        else if (info->aes256_installedkey_set == 1 || info->aes128_installedkey_set == 1) {
+        else 
+       #else
+        if (ret == 0)
+       #endif
+        if (info->flags2.bits.aes256_installedkey_set == 1 ||
+            info->flags2.bits.aes128_installedkey_set == 1) {
             if (aes->ctx.keySize == 32) {
-                XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes256,
+                XMEMCPY(&key_server_aes, 
+                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
                     sizeof(sce_aes_wrapped_key_t));
             }
             else {
-                XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes128,
+                XMEMCPY(&key_server_aes, 
+                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
                     sizeof(sce_aes_wrapped_key_t));
             }
             iv_l = iv;

@@ -21,9 +21,10 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) \
+    || defined(WOLFSSL_RENESAS_TSIP_TLS)
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
   #define cmn_hw_lock    wc_sce_hw_lock
   #define cmn_hw_unlock  wc_sce_hw_unlock
@@ -128,7 +129,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx*      cbInfo = (TsipUserCtx*)ctx;
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
 #endif
 
@@ -221,7 +223,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         #endif /* HAVE_ECC */
     }
-#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 
@@ -230,13 +233,13 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->cipher.type == WC_CIPHER_AES_GCM) {
 
             if (info->cipher.enc &&
-                (cbInfo->session_key_set == 1 ||
-                 (cbInfo->aes256_installedkey_set == 1 &&
+                (cbInfo->flags1.bits.session_key_set == 1 ||
+                 (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                   info->cipher.aesgcm_enc.aes->keylen == 32) ||
-                 (cbInfo->aes128_installedkey_set == 1 &&
+                 (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                   info->cipher.aesgcm_enc.aes->keylen == 16))) {
 
-                if (cbInfo->aes256_installedkey_set == 1 &&
+                if (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                   info->cipher.aesgcm_enc.aes->keylen == 32) {
 
                     XMEMCPY(&info->cipher.aesgcm_enc.aes->ctx.sce_wrapped_key,
@@ -245,7 +248,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_enc.aes->ctx.keySize = 32;
 
                 }
-                else if (cbInfo->aes128_installedkey_set == 1 &&
+                else if (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                     info->cipher.aesgcm_enc.aes->keylen == 16) {
 
                     XMEMCPY(&info->cipher.aesgcm_enc.aes->ctx.sce_wrapped_key,
@@ -268,13 +271,13 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         (void*)ctx);
 
             }
-            else if (cbInfo->session_key_set == 1 ||
-                      (cbInfo->aes256_installedkey_set == 1 &&
+            else if (cbInfo->flags1.bits.session_key_set == 1 ||
+                      (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                        info->cipher.aesgcm_dec.aes->keylen == 32) ||
-                      (cbInfo->aes128_installedkey_set == 1 &&
+                      (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                        info->cipher.aesgcm_dec.aes->keylen == 16)) {
 
-                if (cbInfo->aes256_installedkey_set == 1 &&
+                if (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                   info->cipher.aesgcm_dec.aes->keylen == 32) {
 
                     XMEMCPY(&info->cipher.aesgcm_dec.aes->ctx.sce_wrapped_key,
@@ -283,7 +286,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_dec.aes->ctx.keySize = 32;
 
                 }
-                else if (cbInfo->aes128_installedkey_set == 1 &&
+                else if (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                     info->cipher.aesgcm_dec.aes->keylen == 16) {
 
                     XMEMCPY(&info->cipher.aesgcm_dec.aes->ctx.sce_wrapped_key,
@@ -309,14 +312,14 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_AESGCM */
     #ifdef HAVE_AES_CBC
         if ((info->cipher.type == WC_CIPHER_AES_CBC) &&
-            (cbInfo->session_key_set == 1 ||
-            (cbInfo->aes256_installedkey_set == 1 &&
+            (cbInfo->flags1.bits.session_key_set == 1 ||
+            (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                 info->cipher.aescbc.aes->keylen == 32) ||
-            (cbInfo->aes128_installedkey_set == 1 &&
+            (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                 info->cipher.aescbc.aes->keylen == 16))) {
 
                 if (info->cipher.enc) {
-                    if (cbInfo->aes256_installedkey_set == 1 &&
+                    if (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                        info->cipher.aescbc.aes->keylen == 32) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes256,
@@ -324,7 +327,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.aes->ctx.keySize = 32;
 
                     }
-                    else if (cbInfo->aes128_installedkey_set == 1 &&
+                    else if (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                        info->cipher.aescbc.aes->keylen == 16) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes128,
@@ -339,14 +342,14 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.sz);
                 }
                 else {
-                    if (cbInfo->aes256_installedkey_set == 1 &&
+                    if (cbInfo->flags2.bits.aes256_installedkey_set == 1 &&
                        info->cipher.aescbc.aes->keylen == 32) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes256,
                                 sizeof(sce_aes_wrapped_key_t));
                         info->cipher.aescbc.aes->ctx.keySize = 32;
 
-                    }  else if (cbInfo->aes128_installedkey_set == 1 &&
+                    }  else if (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
                        info->cipher.aescbc.aes->keylen == 16) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes128,
@@ -364,6 +367,48 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_AES_CBC */
     #endif /* !NO_AES || !NO_DES3 */
     }
+    #if !defined(NO_RSA) && defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    else if (info->algo_type == WC_ALGO_TYPE_PK) {
+        
+       #if !defined(NO_RSA)
+        if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
+            ret = wc_sce_MakeRsaKey(info->pk.rsakg.size, (void*)ctx);
+        }
+        
+        if (info->pk.type == WC_PK_TYPE_RSA) {
+            if (info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
+                info->pk.rsa.type == RSA_PUBLIC_ENCRYPT  )
+                {
+                    ret = wc_sce_RsaFunction(info->pk.rsa.in,
+                                    info->pk.rsa.inLen,
+                                    info->pk.rsa.out,
+                                    info->pk.rsa.outLen,
+                                    info->pk.rsa.type,
+                                    info->pk.rsa.key,
+                                    info->pk.rsa.rng,
+                                    (void*)ctx);
+            }
+            else if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT /* sign */){
+               ret = wc_sce_RsaSign(info->pk.rsa.in,
+                                    info->pk.rsa.inLen,
+                                    info->pk.rsa.out,
+                                    info->pk.rsa.outLen,
+                                    info->pk.rsa.key,
+                                    (void*)ctx);
+            }
+            else if (info->pk.rsa.type == RSA_PUBLIC_DECRYPT /* verify */) {
+                ret = wc_sce_RsaVerify(info->pk.rsa.in,
+                                    info->pk.rsa.inLen,
+                                    info->pk.rsa.out,
+                                    info->pk.rsa.outLen,
+                                    info->pk.rsa.key,
+                                    (void*)ctx);
+            }
+        
+        }
+       #endif /* NO_RSA && WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
+    }
+    #endif /* NO_RSA */
 #endif /* TSIP or SCE */
 
     (void)devIdArg;
@@ -385,7 +430,8 @@ int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_usable(ssl, session_key_generated);
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
         ret = wc_sce_usable(ssl, session_key_generated);
     #endif
 
@@ -408,11 +454,18 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
 
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
- #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+ #elif defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
  #endif
 
-    if (cbInfo == NULL || ssl == NULL) {
+    if (cbInfo == NULL
+   #if !defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) && \
+       !defined(HAVE_RENESAS_SYNC)
+        || ssl == NULL) {
+   #else
+     ) {
+   #endif
+        printf("invaid devid\n");
         return INVALID_DEVID;
     }
     /* need exclusive control because of static variable */
@@ -456,6 +509,10 @@ void wc_CryptoCb_CleanupRenesasCmn(int* id)
 }
 
 #endif /* WOLF_CRYPTO_CB */
+#endif /* WOLFSSL_RENESAS_SCEPROTECT || WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY
+	   /* WOLFSSL_RENESAS_TSIP_TLS*/
+
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
 
 /* Renesas Security Library Common Method
  * Check CA index if CA can be used for SCE/TSIP because
@@ -679,11 +736,14 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
 
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
+    
+    if (cbInfo->session_key_set == 1) {
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
- #endif
 
-    if (cbInfo->session_key_set == 1) {
+
+    if (cbInfo->flags1.bits.session_key_set == 1) {
+ #endif
         ret = 0;
 
         wolfSSL_CTX_SetTlsFinishedCb(ssl->ctx, Renesas_cmn_TlsFinished);
