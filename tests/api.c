@@ -65849,6 +65849,74 @@ static int test_dtls13_bad_epoch_ch(void)
 #endif
 
 
+#if defined(HAVE_NULL_CIPHER) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS13)
+static byte* test_find_string(const char *string,
+    byte *buf, int buf_size)
+{
+    int string_size, i;
+
+    string_size = XSTRLEN(string);
+    for (i = 0; i < buf_size - string_size - 1; i++) {
+        if (XSTRCMP((char*)&buf[i], string) == 0)
+            return &buf[i];
+    }
+    return NULL;
+}
+
+static int test_wolfSSL_dtls13_null_cipher(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char *test_str = "test";
+    int ret, test_str_size;
+    byte buf[255], *ptr;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-SHA256-SHA256";
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+    if (ret != 0)
+        return TEST_FAIL;
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    if (ret != 0)
+        return TEST_FAIL;
+    test_str_size = XSTRLEN("test") + 1;
+    ret = wolfSSL_write(ssl_c, test_str, test_str_size);
+    if (ret != test_str_size)
+        return TEST_FAIL;
+    ret = wolfSSL_read(ssl_s, buf, sizeof(buf));
+    if (ret != test_str_size || XSTRCMP((char*)buf, test_str) != 0)
+        return TEST_FAIL;
+
+    ret = wolfSSL_write(ssl_c, test_str, test_str_size);
+    if (ret != test_str_size)
+        return TEST_FAIL;
+
+    /* check that the packet was sent cleartext */
+    ptr = test_find_string(test_str, test_ctx.s_buff, test_ctx.s_len);
+    if (ptr == NULL)
+        return TEST_FAIL;
+    /* modify the message */
+    *ptr = 'H';
+    /* bad messages should be ignored in DTLS */
+    ret = wolfSSL_read(ssl_s, buf, sizeof(buf));
+    if (ret != -1 || ssl_s->error != WANT_READ)
+        return TEST_FAIL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return TEST_SUCCESS;
+}
+#else
+static int test_wolfSSL_dtls13_null_cipher(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66886,6 +66954,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_dtls13_bad_epoch_ch),
+    TEST_DECL(test_wolfSSL_dtls13_null_cipher),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
