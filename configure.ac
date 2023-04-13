@@ -537,24 +537,6 @@ fi
 
 # MATH LIBRARY SELECTION
 
-# no math library
-AC_ARG_ENABLE([nomath],
-    [AS_HELP_STRING([--enable-nomath],[Enable no math library (default: disabled)])],
-    [ ENABLED_NOMATH=$enableval ],
-    [ ENABLED_NOMATH="no" ]
-    )
-
-if test "$ENABLED_NOMATH" = "yes"
-then
-    DEF_SP_MATH="no"
-    DEF_FAST_MATH="no"
-    ENABLED_SP_MATH_DEFAULT=no
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MATH"
-    ENABLED_HEAPMATH="no"
-    ENABLED_SP="no"
-    ENABLED_SP_MATH_ALL="no"
-fi
-
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
@@ -690,7 +672,7 @@ AC_ARG_ENABLE([heapmath],
     [ ENABLED_HEAPMATH=$enableval ],
     [ ENABLED_HEAPMATH=no]
     )
-if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_NOMATH" = "xno" && test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" && test "x$ENABLED_SP_MATH" = "xno")
+if test "x$ENABLED_HEAPMATH" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
     ENABLED_HEAPMATH="yes"
@@ -7946,6 +7928,10 @@ AS_IF([test "x$ENABLED_16BIT" = "xyes" && \
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
+AS_IF([test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" &&
+    test "x$ENABLED_HEAPMATH" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"])
+
 AS_IF([test "x$ENABLED_CERTS" = "xno"],
       [AM_CFLAGS="$AM_CFLAGS -DNO_CERTS"])
 

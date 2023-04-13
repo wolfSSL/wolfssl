@@ -2036,10 +2036,8 @@ extern void uITRON4_free(void *p) ;
          *      Constant time: Not supported
          *      Enable:        USE_INTEGER_HEAP_MATH
          */
-    #elif defined(WOLFSSL_NO_MATH)
-        /*  5) No math library compiled in
-         *      Does not support any public key operations or algorithms that
-         *      require the math library.
+    #elif defined(NO_BIG_INT)
+        /*  5) No big integer math libraries
          */
     #else
         /* default is SP Math. */
