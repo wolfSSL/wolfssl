@@ -6455,8 +6455,6 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 #endif
     void*      heap = NULL;
 
-    (void)heap;
-
     /* Check validity of parameters. */
     if ((inOutIdx == NULL) || (input == NULL) || ((key == NULL) &&
             (keySz == NULL))) {
@@ -6476,6 +6474,7 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
 #endif
 
+    (void)heap;
     CALLOC_ASNGETDATA(dataASN, rsaKeyASN_Length, ret, heap);
 
     if (ret == 0) {

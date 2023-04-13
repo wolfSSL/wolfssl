@@ -11887,7 +11887,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                     if (expBlockSz < 0) {
                         ret = expBlockSz;
                         break;
-                    }
+                    } else if (expBlockSz == 0)
+                        expBlockSz = 1;
                 }
             }
 

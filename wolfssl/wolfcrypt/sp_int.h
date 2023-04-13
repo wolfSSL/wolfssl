@@ -796,7 +796,7 @@ while (0)
 /* Declare a dynamically allocated mp_int. */
 #define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
     unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
-    sp_int* name = (sp_int*)name##d
+    sp_int* (name) = (sp_int*)name##d
 #else
 /* Declare a dynamically allocated mp_int. */
 #define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
@@ -806,7 +806,7 @@ while (0)
 /* Declare a statically allocated mp_int. */
 #define DECL_MP_INT_SIZE(name, bits)                            \
     unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
-    sp_int* name = (sp_int*)name##d
+    sp_int* (name) = (sp_int*)name##d
 /* Zero out mp_int of minimal size. */
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
     XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)))
