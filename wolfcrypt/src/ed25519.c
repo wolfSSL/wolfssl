@@ -53,14 +53,15 @@
 #endif
 
 #if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_VERIFY)
-    /* set a static message string for Sig No Collisions Message SNC */
+    /* Set a static message string for "Sig No Collisions Message SNC".
+    ** Note this is a static string per spec, see:
+    ** https://datatracker.ietf.org/doc/rfc8032/
+    */
     #define ED25519CTX_SNC_MESSAGE "SigEd25519 no Ed25519 collisions"
+    #define ED25519CTX_SIZE 32 /* 32 chars: fixed length of SNC Message. */
 
-    /* reminder the sizeof includes n+1 terminator; we don't want for size: */
-    #define ED25519CTX_SIZE (int)(sizeof(ED25519CTX_SNC_MESSAGE) / \
-                                  sizeof(ED25519CTX_SNC_MESSAGE[0]) - 1)
-
-    /* ED25519CTX_SIZE is typically 32 for the above message */
+    /* The 32 bytes of ED25519CTX_SIZE is used elsewhere, but we need one
+    ** more char for saving the line ending in our ed25519Ctx[] here: */
     static const byte ed25519Ctx[ED25519CTX_SIZE + 1] = ED25519CTX_SNC_MESSAGE;
 #endif
 

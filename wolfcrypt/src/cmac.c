@@ -216,7 +216,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
 {
     int ret;
     const byte* subKey;
-    word32 remainder = 0;
+    word32 remainder;
 
     if (cmac == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
