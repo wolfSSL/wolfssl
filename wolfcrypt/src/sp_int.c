@@ -127,7 +127,7 @@ This library provides single precision (SP) integer math functions.
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT(n, s)               \
             byte    n##d[MP_INT_SIZEOF(s)];     \
-            sp_int* n = (sp_int*)n##d
+            sp_int* (n) = (sp_int*)n##d
     #else
         /* Declare a variable on the stack. */
         #define DECL_SP_INT(n, s)               \

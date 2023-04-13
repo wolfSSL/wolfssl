@@ -1441,7 +1441,7 @@ static int xil_mpi_import(mp_int *mpi,
 #ifdef WOLFSSL_SP_MATH_ALL
     #define DECLARE_CURVE_SPECS(intcount)                               \
         unsigned char spec_ints[MP_INT_SIZEOF(MP_BITS_CNT(              \
-            MAX_ECC_BITS_USE)) * intcount];                             \
+            MAX_ECC_BITS_USE)) * (intcount)];                           \
         ecc_curve_spec curve_lcl;                                       \
         ecc_curve_spec* curve = &curve_lcl;                             \
         XMEMSET(curve, 0, sizeof(ecc_curve_spec));                      \
