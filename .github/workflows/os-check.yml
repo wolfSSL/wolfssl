@@ -15,6 +15,10 @@ jobs:
           '--enable-all --enable-asn=template',
           '--enable-all --enable-asn=original',
           '--enable-harden-tls',
+          '--enable-tls13 --enable-session-ticket --enable-dtls --enable-dtls13
+           --enable-opensslextra --enable-sessioncerts 
+           CPPFLAGS=''-DWOLFSSL_DTLS_NO_HVR_ON_RESUME -DHAVE_EXT_CACHE 
+           -DWOLFSSL_TICKET_HAVE_ID -DHAVE_EX_DATA -DSESSION_CACHE_DYNAMIC_MEM'' ',
         ]
     name: make check
     runs-on: ${{ matrix.os }}

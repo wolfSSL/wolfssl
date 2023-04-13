@@ -1157,6 +1157,8 @@ static byte* PKCS12_ConcatonateContent(WC_PKCS12* pkcs12,byte* mergedData,
     byte* oldContent;
     word32 oldContentSz;
 
+    (void)pkcs12;
+
     if (mergedData == NULL || in == NULL)
         return NULL;
 

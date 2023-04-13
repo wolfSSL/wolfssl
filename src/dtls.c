@@ -359,7 +359,7 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
 static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
                                int* resume)
 {
-    WOLFSSL_SESSION* sess;
+    const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
     if (ssl->options.sessionCacheOff)
@@ -371,21 +371,21 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 
         if (ssl->ctx->get_sess_cb != NULL) {
             int unused;
-            sess =
+            WOLFSSL_SESSION* extSess =
                 ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
                                       &unused);
-            if (sess != NULL) {
+            if (extSess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
                 /* This logic is only for TLS <= 1.2 tickets. Don't accept
                  * TLS 1.3. */
-                if (IsAtLeastTLSv1_3(sess->version))
-                    wolfSSL_FreeSession(ssl->ctx, sess);
+                if (IsAtLeastTLSv1_3(extSess->version))
+                    wolfSSL_FreeSession(ssl->ctx, extSess);
                 else
 #endif
                 {
                     *resume = 1;
-                    wolfSSL_FreeSession(ssl->ctx, sess);
+                    wolfSSL_FreeSession(ssl->ctx, extSess);
                     return 0;
                 }
             }
@@ -394,7 +394,8 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
             return 0;
     }
 #endif
-    ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow, 1);
+    ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
+            ssl->options.side);
     if (ret == 0 && sess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
@@ -480,7 +481,7 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                 /* Decode the identity. */
                 switch (current->decryptRet) {
                     case PSK_DECRYPT_NONE:
-                        ret = DoClientTicket_ex(ssl, current);
+                        ret = DoClientTicket_ex(ssl, current, 0);
                         break;
                     case PSK_DECRYPT_OK:
                         ret = WOLFSSL_TICKET_RET_OK;

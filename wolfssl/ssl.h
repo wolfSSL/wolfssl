@@ -1235,6 +1235,7 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* 
 WOLFSSL_API long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm);
+WOLFSSL_API void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm);
 WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char* id, int len, int newSession);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
@@ -5166,6 +5167,7 @@ WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
 #define TLS1_3_VERSION                   0x0304
 #define DTLS1_VERSION                    0xFEFF
 #define DTLS1_2_VERSION                  0xFEFD
+#define DTLS1_3_VERSION                  0xFEFC
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -5667,7 +5667,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         /* Decode the identity. */
         switch (current->decryptRet) {
             case PSK_DECRYPT_NONE:
-                ret = DoClientTicket_ex(ssl, current);
+                ret = DoClientTicket_ex(ssl, current, 1);
+                /* psk->sess may be set. Need to clean up later. */
                 break;
             case PSK_DECRYPT_OK:
                 ret = WOLFSSL_TICKET_RET_OK;
@@ -5685,13 +5686,26 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             return ret;
         #endif
 
+        if (ret != WOLFSSL_TICKET_RET_OK && current->sess_free_cb != NULL) {
+            current->sess_free_cb(ssl, current->sess,
+                    &current->sess_free_cb_ctx);
+            current->sess = NULL;
+            XMEMSET(&current->sess_free_cb_ctx, 0,
+                    sizeof(psk_sess_free_cb_ctx));
+        }
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == 0) {
-                if (DoClientTicketCheck(ssl, current, ssl->timeout, suite) != 0)
-                    continue;
-
-                DoClientTicketFinalize(ssl, current->it);
-             }
+            ret = DoClientTicketCheck(ssl, current, ssl->timeout, suite);
+            if (ret == 0)
+                DoClientTicketFinalize(ssl, current->it, current->sess);
+            if (current->sess_free_cb != NULL) {
+                current->sess_free_cb(ssl, current->sess,
+                        &current->sess_free_cb_ctx);
+                current->sess = NULL;
+                XMEMSET(&current->sess_free_cb_ctx, 0,
+                        sizeof(psk_sess_free_cb_ctx));
+            }
+            if (ret != 0)
+                continue;
 
             /* SERVER: using secret in session ticket for peer auth. */
             ssl->options.peerAuthGood = 1;
@@ -10306,16 +10320,12 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #else
     extSz = EXTS_SZ;
 #endif
-    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
-        /* Lifetime | Age Add | Ticket session ID | Extensions */
-        length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
-                 ID_LEN + extSz;
-    }
-    else {
-        /* Lifetime | Age Add | Ticket | Extensions */
-        length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
-                 ssl->session->ticketLen + extSz;
-    }
+    /* Lifetime | Age Add | Ticket session ID | Extensions */
+    length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ;
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
+        length += ID_LEN + extSz;
+    else
+        length += ssl->session->ticketLen + extSz;
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
 
