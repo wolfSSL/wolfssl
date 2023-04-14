@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_CAAM) && defined(HAVE_ECC)
+#if defined(WOLFSSL_CAAM) && defined(HAVE_ECC) && defined(WOLFSSL_CAAM_ECC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -286,7 +286,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
 {
     const ecc_set_type* dp;
     word32 args[4] = {0};
-    CAAM_BUFFER buf[9]  = {0};
+    CAAM_BUFFER buf[9];
     int ret, keySz;
     word32 ecdsel = 0;
     byte r[MAX_ECC_BYTES] = {0};
@@ -402,7 +402,7 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
 {
     const ecc_set_type* dp;
     word32 args[4] = {0};
-    CAAM_BUFFER buf[9] = {0};
+    CAAM_BUFFER buf[9];
     int ret;
     int keySz;
     word32 idx = 0;
@@ -528,7 +528,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
 {
     const ecc_set_type* dp;
     word32 args[4] = {0};
-    CAAM_BUFFER buf[9]  = {0};
+    CAAM_BUFFER buf[9];
     int ret, keySz;
     word32 ecdsel = 0; /* ecc parameters in hardware */
     word32 idx    = 0;

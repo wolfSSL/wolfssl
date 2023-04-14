@@ -689,10 +689,17 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
          (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     #endif
-    #endif
+    #endif /* !HAVE_USER_RSA */
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
     WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
         int with_header);
+
+    /* For FIPS v1/v2 and selftest rsa.h is replaced. */
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION <= 5)))
+    WOLFSSL_API int wc_RsaPrivateKeyValidate(const byte* input,
+        word32* inOutIdx, int* keySz, word32 inSz);
+    #endif
 #endif
 
 #ifndef NO_DSA

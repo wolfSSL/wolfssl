@@ -51,7 +51,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 {
     int  err;
     int  keyLeft, ivLeft, i;
-    int  digestLeft, store;
+    int  store;
     int  keyOutput = 0;
     int  diestLen;
     byte digest[WC_MAX_DIGEST_SIZE];
@@ -96,7 +96,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     keyLeft = keyLen;
     ivLeft  = ivLen;
     while (keyOutput < (keyLen + ivLen)) {
-        digestLeft = diestLen;
+        int digestLeft = diestLen;
         /* D_(i - 1) */
         if (keyOutput) { /* first time D_0 is empty */
             err = wc_HashUpdate(hash, hashT, digest, diestLen);
@@ -176,9 +176,8 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType, void* heap, int devId)
 {
-    word32 i = 1;
     int    hLen;
-    int    j, ret;
+    int    ret;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  buffer;
     Hmac*  hmac;
@@ -213,11 +212,13 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
 
     ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
+        word32 i = 1;
         /* use int hashType here, since HMAC FIPS uses the old unique value */
         ret = wc_HmacSetKey(hmac, hashType, passwd, pLen);
 
         while (ret == 0 && kLen) {
             int currentLen;
+            int j;
 
             ret = wc_HmacUpdate(hmac, salt, sLen);
             if (ret != 0)

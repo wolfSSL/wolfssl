@@ -1853,7 +1853,7 @@ int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
     \sa wolfSSL_SetIOWriteCtx
     \sa wolfDTLS_SetChGoodCb
 */
-int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
+int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
 
 /*!
     \ingroup Setup
@@ -6368,6 +6368,9 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
     memory SESSION_CACHE.
     \param idx the index of the WOLFSSL_X509 certificate.
 
+    Note that it is the user's responsibility to free the returned memory
+    by calling wolfSSL_FreeX509().
+
     _Example_
     \code
     WOLFSSL_X509_CHAIN* chain = &session->chain;
@@ -6377,9 +6380,10 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
     prt = wolfSSL_get_chain_X509(chain, idx);
 
     if(ptr != NULL){
-        //ptr contains the cert at the index specified
+        // ptr contains the cert at the index specified
+        wolfSSL_FreeX509(ptr);
     } else {
-	    // ptr is NULL
+        // ptr is NULL
     }
     \endcode
 

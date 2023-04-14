@@ -370,7 +370,7 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     esp_mp_hw_unlock();
 
     if (!mp_iszero(Z) && neg) {
-        mp_setneg(mpi);
+        mp_setneg(Z);
     }
 
     return ret;

@@ -101,7 +101,6 @@ int wc_Sha512GetHash(wc_Sha512* sha, byte* hash)
 
 int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 {
-    cy_en_crypto_status_t res;
     if ((!dst) || (!src))
         return BAD_FUNC_ARG;
     Cy_Crypto_Core_MemCpy(crypto_base, dst, src, sizeof(wc_Sha512));
@@ -158,7 +157,6 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
 
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
-    cy_en_crypto_status_t res;
     if ((!dst) || (!src))
         return BAD_FUNC_ARG;
     Cy_Crypto_Core_MemCpy(crypto_base, dst, src, sizeof(wc_Sha256));

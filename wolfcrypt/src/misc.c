@@ -181,18 +181,18 @@ WC_MISC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
 {
-    word32 count, i;
+    word32 i;
 
 #ifdef WOLFSSL_USE_ALIGN
     if ((((size_t)in & 0x3) == 0) &&
         (((size_t)out & 0x3) == 0))
-    {
 #endif
-        count = byteCount/(word32)sizeof(word32);
+    {
+        word32 count = byteCount/(word32)sizeof(word32);
         for (i = 0; i < count; i++)
             out[i] = ByteReverseWord32(in[i]);
-#ifdef WOLFSSL_USE_ALIGN
     }
+#ifdef WOLFSSL_USE_ALIGN
     else {
         byte *in_bytes = (byte *)in;
         byte *out_bytes = (byte *)out;
@@ -330,8 +330,12 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
         len -= l;
         while (l--) *z++ = 0;
     #endif
-    for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
-        *w++ = 0;
+        for (w = (volatile word64*)z;
+             len >= sizeof(*w);
+             len -= (word32)sizeof(*w))
+        {
+            *w++ = 0;
+        }
     z = (volatile byte*)w;
 #endif
 
@@ -384,25 +388,25 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 /* converts a 32 bit integer to 24 bit */
 WC_MISC_STATIC WC_INLINE void c32to24(word32 in, word24 out)
 {
-    out[0] = (in >> 16) & 0xff;
-    out[1] = (in >>  8) & 0xff;
-    out[2] =  in & 0xff;
+    out[0] = (byte)((in >> 16) & 0xff);
+    out[1] = (byte)((in >>  8) & 0xff);
+    out[2] =  (byte)(in        & 0xff);
 }
 
 /* convert 16 bit integer to opaque */
 WC_MISC_STATIC WC_INLINE void c16toa(word16 wc_u16, byte* c)
 {
-    c[0] = (wc_u16 >> 8) & 0xff;
-    c[1] =  wc_u16 & 0xff;
+    c[0] = (byte)((wc_u16 >> 8) & 0xff);
+    c[1] =  (byte)(wc_u16       & 0xff);
 }
 
 /* convert 32 bit integer to opaque */
 WC_MISC_STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
 {
-    c[0] = (wc_u32 >> 24) & 0xff;
-    c[1] = (wc_u32 >> 16) & 0xff;
-    c[2] = (wc_u32 >>  8) & 0xff;
-    c[3] =  wc_u32 & 0xff;
+    c[0] = (byte)((wc_u32 >> 24) & 0xff);
+    c[1] = (byte)((wc_u32 >> 16) & 0xff);
+    c[2] = (byte)((wc_u32 >>  8) & 0xff);
+    c[3] =  (byte)(wc_u32        & 0xff);
 }
 #endif
 
@@ -410,14 +414,16 @@ WC_MISC_STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
 /* convert a 24 bit integer into a 32 bit one */
 WC_MISC_STATIC WC_INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
 {
-    *wc_u32 = ((word32)wc_u24[0] << 16) | (wc_u24[1] << 8) | wc_u24[2];
+    *wc_u32 = ((word32)wc_u24[0] << 16) |
+              ((word32)wc_u24[1] << 8) |
+               (word32)wc_u24[2];
 }
 
 
 /* convert opaque to 24 bit integer */
 WC_MISC_STATIC WC_INLINE void ato24(const byte* c, word32* wc_u24)
 {
-    *wc_u24 = ((word32)c[0] << 16) | (c[1] << 8) | c[2];
+    *wc_u24 = ((word32)c[0] << 16) | ((word32)c[1] << 8) | c[2];
 }
 
 /* convert opaque to 16 bit integer */
@@ -429,7 +435,10 @@ WC_MISC_STATIC WC_INLINE void ato16(const byte* c, word16* wc_u16)
 /* convert opaque to 32 bit integer */
 WC_MISC_STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
 {
-    *wc_u32 = ((word32)c[0] << 24) | ((word32)c[1] << 16) | (c[2] << 8) | c[3];
+    *wc_u32 = ((word32)c[0] << 24) |
+              ((word32)c[1] << 16) |
+              ((word32)c[2] << 8) |
+               (word32)c[3];
 }
 
 
@@ -474,31 +483,31 @@ WC_MISC_STATIC WC_INLINE int ByteToHexStr(byte in, char* out)
 /* Constant time - mask set when a > b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
 {
-    return (byte)((((word32)a - b - 1) >> 31) - 1);
+    return (byte)((((word32)a - (word32)b - 1) >> 31) - 1);
 }
 
 /* Constant time - mask set when a >= b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGTE(int a, int b)
 {
-    return (byte)((((word32)a - b    ) >> 31) - 1);
+    return (byte)((((word32)a - (word32)b) >> 31) - 1);
 }
 
 /* Constant time - mask set when a >= b. */
 WC_MISC_STATIC WC_INLINE int ctMaskIntGTE(int a, int b)
 {
-    return (int)((((word32)a - b    ) >> 31) - 1);
+    return (int)((((word32)a - (word32)b) >> 31) - 1);
 }
 
 /* Constant time - mask set when a < b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskLT(int a, int b)
 {
-    return (byte)((((word32)b - a - 1) >> 31) - 1);
+    return (byte)((((word32)b - (word32)a - 1) >> 31) - 1);
 }
 
 /* Constant time - mask set when a <= b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskLTE(int a, int b)
 {
-    return (byte)((((word32)b - a    ) >> 31) - 1);
+    return (byte)((((word32)b - (word32)a) >> 31) - 1);
 }
 
 /* Constant time - mask set when a == b. */
@@ -510,25 +519,25 @@ WC_MISC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
 /* Constant time - sets 16 bit integer mask when a > b */
 WC_MISC_STATIC WC_INLINE word16 ctMask16GT(int a, int b)
 {
-    return (word16)((((word32)a - b - 1) >> 31) - 1);
+    return (word16)((((word32)a - (word32)b - 1) >> 31) - 1);
 }
 
 /* Constant time - sets 16 bit integer mask when a >= b */
 WC_MISC_STATIC WC_INLINE word16 ctMask16GTE(int a, int b)
 {
-    return (word16)((((word32)a - b    ) >> 31) - 1);
+    return (word16)((((word32)a - (word32)b) >> 31) - 1);
 }
 
 /* Constant time - sets 16 bit integer mask when a < b. */
 WC_MISC_STATIC WC_INLINE word16 ctMask16LT(int a, int b)
 {
-    return (word16)((((word32)b - a - 1) >> 31) - 1);
+    return (word16)((((word32)b - (word32)a - 1) >> 31) - 1);
 }
 
 /* Constant time - sets 16 bit integer mask when a <= b. */
 WC_MISC_STATIC WC_INLINE word16 ctMask16LTE(int a, int b)
 {
-    return (word16)((((word32)b - a    ) >> 31) - 1);
+    return (word16)((((word32)b - (word32)a) >> 31) - 1);
 }
 
 /* Constant time - sets 16 bit integer mask when a == b. */
@@ -556,10 +565,17 @@ WC_MISC_STATIC WC_INLINE int ctMaskSelInt(byte m, int a, int b)
            (a & ( (signed int)(signed char)m));
 }
 
+/* Constant time - select word32 a when mask is set and word32 b otherwise. */
+WC_MISC_STATIC WC_INLINE word32 ctMaskSelWord32(byte m, word32 a, word32 b)
+{
+    return (((word32)b & (word32)(~(signed int)(signed char)m)) |
+            ((word32)a & (word32)( (signed int)(signed char)m)));
+}
+
 /* Constant time - bit set when a <= b. */
 WC_MISC_STATIC WC_INLINE byte ctSetLTE(int a, int b)
 {
-    return (byte)(((word32)a - b - 1) >> 31);
+    return (byte)(((word32)a - (word32)b - 1) >> 31);
 }
 
 /* Constant time - conditionally copy size bytes from src to dst if mask is set

@@ -1627,7 +1627,10 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
             XFCLOSE(file);
             return -1;
         }
-        XREWIND(file);
+        if(XFSEEK(file, 0, XSEEK_SET) != 0) {
+            XFCLOSE(file);
+            return -1;
+        }
 
         loadBuf = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_FILE);
         if (loadBuf == NULL) {

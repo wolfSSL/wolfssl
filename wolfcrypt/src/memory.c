@@ -242,7 +242,6 @@ void wc_MemZero_Check(void* addr, size_t len)
                     memZero[i].name, memZero[i].addr, j);
                 fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
                 abort();
-                break;
             }
         }
         /* Update next index to write to. */
@@ -602,7 +601,6 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
 
     /* divide into chunks of memory and add them to available list */
     while (ava >= (heap->sizeList[0] + padSz + memSz)) {
-        int i;
         /* creating only IO buffers from memory passed in, max TLS is 16k */
         if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
             if ((ret = create_memory_buckets(pt, ava,
@@ -622,6 +620,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
             ava -= ret;
         }
         else {
+            int i;
             /* start at largest and move to smaller buckets */
             for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
                 if ((heap->sizeList[i] + padSz + memSz) <= ava) {
@@ -1054,7 +1053,6 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 {
     void* res = 0;
     wc_Memory* pt = NULL;
-    word32 prvSz;
     int    i;
 
     /* check for testing heap hint was set */
@@ -1120,7 +1118,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 res = pt->buffer;
 
                 /* copy over original information and free ptr */
-                prvSz = ((wc_Memory*)((byte*)ptr - padSz -
+                word32 prvSz = ((wc_Memory*)((byte*)ptr - padSz -
                                                sizeof(wc_Memory)))->sz;
                 prvSz = (prvSz > pt->sz)? pt->sz: prvSz;
                 XMEMCPY(pt->buffer, ptr, prvSz);

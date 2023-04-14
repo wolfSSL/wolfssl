@@ -306,6 +306,12 @@
 #endif
 
 
+#ifdef WOLFSSL_HARDEN_TLS
+    #if WOLFSSL_HARDEN_TLS != 112 && WOLFSSL_HARDEN_TLS != 128
+        #error "WOLFSSL_HARDEN_TLS must be defined either to 112 or 128 bits of security."
+    #endif
+#endif
+
 #if defined(_WIN32) && !defined(_M_X64) && \
     defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
 
@@ -671,7 +677,6 @@
 #endif
 
 #ifdef WOLFSSL_RIOT_OS
-    #define NO_WRITEV
     #define TFM_NO_ASM
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
@@ -1356,7 +1361,8 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
-    defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5)
+    defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
+    defined(WOLFSSL_STM32H5)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1411,6 +1417,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32g0xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
             #include "stm32u5xx_hal.h"
+        #elif defined(WOLFSSL_STM32H5)
+            #include "stm32h5xx_hal.h"
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -1462,7 +1470,8 @@ extern void uITRON4_free(void *p) ;
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 ||
           WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB ||
-          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 || WOLFSSL_STM32U5 */
+          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 || WOLFSSL_STM32U5 ||
+          WOLFSSL_STM32H5 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
@@ -1576,6 +1585,14 @@ extern void uITRON4_free(void *p) ;
     #define XSTRNCAT(pstr_dest, pstr_cat, len_max) \
                     ((CPU_CHAR *)Str_Cat_N((CPU_CHAR *)(pstr_dest), \
                      (const CPU_CHAR *)(pstr_cat),(CPU_SIZE_T)(len_max)))
+    #ifndef XATOI /* if custom XATOI is not already defined */
+        #define XATOI(s) atoi((s))
+    #endif
+    #if defined(USE_WOLF_STRTOK)
+        #define XSTRTOK(s1, d, ptr) wc_strtok((s1), (d), (ptr))
+    #else
+        #define XSTRTOK(s1, d, ptr) strtok_r((s1), (d), (ptr))
+    #endif
     #define XMEMSET(pmem, data_val, size) \
                     ((void)Mem_Set((void *)(pmem), \
                     (CPU_INT08U) (data_val), \
@@ -1601,7 +1618,8 @@ extern void uITRON4_free(void *p) ;
         #define XSNPRINTF snprintf
     #endif
 
-    #define XMEMMOVE XMEMCPY
+    #define XMEMMOVE(pdest, psrc, size) ((void)Mem_Move((void *)(pdest), \
+                     (void *)(psrc), (CPU_SIZE_T)(size)))
 
     #if (OS_CFG_MUTEX_EN == DEF_DISABLED)
         #define SINGLE_THREADED
@@ -1748,9 +1766,9 @@ extern void uITRON4_free(void *p) ;
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
-    #include <zephyr.h>
-    #include <sys/printk.h>
-    #include <sys/util.h>
+    #include <zephyr/kernel.h>
+    #include <zephyr/sys/printk.h>
+    #include <zephyr/sys/util.h>
     #include <stdlib.h>
 
     #define WOLFSSL_DH_CONST
@@ -1776,29 +1794,86 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-/* if defined turn on all CAAM support */
-#ifdef WOLFSSL_IMX6_CAAM
-    #undef  WOLFSSL_IMX6_CAAM_RNG
-    #define WOLFSSL_IMX6_CAAM_RNG
+/* Setting supported CAAM algorithms */
+#ifdef WOLFSSL_IMX6Q_CAAM
+    #undef  WOLFSSL_CAAM
+    #define WOLFSSL_CAAM
 
-    #undef  WOLFSSL_IMX6_CAAM_BLOB
-    #define WOLFSSL_IMX6_CAAM_BLOB
-
-#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS)
-    /* large performance gain with HAVE_AES_ECB defined */
-    #undef HAVE_AES_ECB
-    #define HAVE_AES_ECB
-
-    /* @TODO used for now until plugging in caam aes use with qnx */
-    #undef WOLFSSL_AES_DIRECT
-    #define WOLFSSL_AES_DIRECT
+    /* hardware does not support AES-GCM and ECC
+     * has the low power AES module only (no high power with GCM) */
+    #define WOLFSSL_LP_ONLY_CAAM_AES
+    #define WOLFSSL_NO_CAAM_ECC
 #endif
+
+#ifdef WOLFSSL_SECO_CAAM
+    #define WOLFSSL_CAAM
+
+    #define WOLFSSL_HASH_KEEP
+    #define WOLFSSL_NO_CAAM_BLOB
 #endif
 
 #ifdef WOLFSSL_IMXRT1170_CAAM
     #define WOLFSSL_CAAM
-    #define WOLFSSL_CAAM_HASH
+
+    #define WOLFSSL_NO_CAAM_BLOB
+#endif
+
+/* OS specific support so far */
+#ifdef WOLFSSL_QNX_CAAM
+    /* shim layer for QNX hashing not yet implemented */
+    #define WOLFSSL_NO_CAAM_HASH
+#endif
+
+#ifdef WOLFSSL_CAAM
+    /* switch for all AES type algos */
+    #undef  WOLFSSL_CAAM_CIPHER
     #define WOLFSSL_CAAM_CIPHER
+    #ifdef WOLFSSL_CAAM_CIPHER
+        #ifndef WOLFSSL_LP_ONLY_CAAM_AES
+            /* GCM and XTS mode are only available in the high power module */
+            #define WOLFSSL_CAAM_AESGCM
+            #define WOLFSSL_CAAM_AESXTS
+        #endif
+        #define WOLFSSL_CAAM_AESCCM
+        #define WOLFSSL_CAAM_AESCTR
+        #define WOLFSSL_CAAM_AESCBC
+        #define WOLFSSL_CAAM_CMAC
+    #endif /* WOLFSSL_CAAM_CIPHER */
+    #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS) || \
+            defined(WOLFSSL_CMAC)
+        /* large performance gain with HAVE_AES_ECB defined */
+        #undef HAVE_AES_ECB
+        #define HAVE_AES_ECB
+
+        /* @TODO used for now until plugging in caam aes use with qnx */
+        #undef WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
+    #endif
+
+    /* switch for all hashing algos */
+    #ifndef WOLFSSL_NO_CAAM_HASH
+        #define WOLFSSL_CAAM_HASH
+    #endif
+    #if defined(WOLFSSL_DEVCRYPTO_HMAC)
+        /* HMAC is throught the devcrypto calls */
+        #define WOLFSSL_CAAM_HMAC
+    #endif
+
+    /* public key operations */
+    #ifndef WOLFSSL_NO_CAAM_ECC
+        #undef  WOLFSSL_CAAM_ECC
+        #define WOLFSSL_CAAM_ECC
+    #endif
+
+    /* so far curve25519 support was only done with the SECO */
+    #ifdef WOLFSSL_SECO_CAAM
+        #define WOLFSSL_CAAM_CURVE25519
+    #endif
+
+    /* Blob support */
+    #ifndef WOLFSSL_NO_CAAM_BLOB
+        #define WOLFSSL_CAAM_BLOB
+    #endif
 #endif
 
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
@@ -1924,6 +1999,9 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SP_INT_DIGIT_ALIGN
     #define WOLFSSL_SP_INT_DIGIT_ALIGN
 #endif
+#ifdef __APPLE__
+    #define WOLFSSL_SP_NO_DYN_STACK
+#endif
 
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
@@ -2007,13 +2085,32 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
     #else
-        #if FIPS_VERSION_GE(2,0)
+        #if defined(WOLFSSL_HARDEN_TLS) && \
+            !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
+            /* Using guidance from section 5.6.1
+             * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+            #if WOLFSSL_HARDEN_TLS >= 128
+                #define ECC_MIN_KEY_SZ 256
+            #elif WOLFSSL_HARDEN_TLS >= 112
+                #define ECC_MIN_KEY_SZ 224
+            #endif
+        #elif FIPS_VERSION_GE(2,0)
             /* FIPSv2 and ready (for now) includes 192-bit support */
             #define ECC_MIN_KEY_SZ 192
         #else
             #define ECC_MIN_KEY_SZ 224
         #endif
     #endif
+#endif
+
+#if defined(WOLFSSL_HARDEN_TLS) && ECC_MIN_KEY_SZ < 224 && \
+    !defined(WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK)
+    /* Implementations MUST NOT negotiate cipher suites offering less than
+     * 112 bits of security.
+     * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+     * Using guidance from section 5.6.1
+     * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+    #error "For 112 bits of security ECC needs at least 224 bit keys"
 #endif
 
 /* ECC Configs */
@@ -2965,6 +3062,23 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)
 #error "Dynamic session cache currently does not support persistent session cache."
+#endif
+
+#ifdef WOLFSSL_HARDEN_TLS
+    #if defined(HAVE_TRUNCATED_HMAC) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC)
+        #error "Truncated HMAC Extension not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.6"
+    #endif
+    #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS)
+        #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
+    #endif
+    #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_SECURE_RENEGOTIATION) && \
+        !defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
+        #error "TLS 1.2 requires at least HAVE_SERVER_RENEGOTIATION_INFO to send the secure renegotiation extension https://www.rfc-editor.org/rfc/rfc9325#section-3.5"
+    #endif
+    #if !defined(WOLFSSL_EXTRA_ALERTS) || !defined(WOLFSSL_CHECK_ALERT_ON_ERR)
+        #error "RFC9325 requires some additional alerts to be sent"
+    #endif
+    /* Ciphersuite check done in internal.h */
 #endif
 
 #ifdef __cplusplus

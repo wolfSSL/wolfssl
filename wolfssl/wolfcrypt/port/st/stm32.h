@@ -35,10 +35,15 @@
 #ifdef HASH_DIGEST
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
-    #define HASH_CR_SIZE 54
-    #define HASH_MAX_DIGEST 32
+    #if defined(WOLFSSL_STM32H5)
+        #define HASH_CR_SIZE    103
+        #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
+    #else
+        #define HASH_CR_SIZE    54
+        #define HASH_MAX_DIGEST 32
+    #endif
 #else
-    #define HASH_CR_SIZE 50
+    #define HASH_CR_SIZE    50
     #define HASH_MAX_DIGEST 20
 #endif
 
@@ -46,8 +51,12 @@
 #if !defined(HASH_ALGOMODE_HASH) && defined(HASH_AlgoMode_HASH)
     #define HASH_ALGOMODE_HASH HASH_AlgoMode_HASH
 #endif
-#if !defined(HASH_DATATYPE_8B) && defined(HASH_DataType_8b)
-    #define HASH_DATATYPE_8B HASH_DataType_8b
+#if !defined(HASH_DATATYPE_8B)
+    #if defined(HASH_DataType_8b)
+        #define HASH_DATATYPE_8B HASH_DataType_8b
+    #elif defined(HASH_BYTE_SWAP)
+        #define HASH_DATATYPE_8B HASH_BYTE_SWAP
+    #endif
 #endif
 #ifndef HASH_STR_NBW
     #define HASH_STR_NBW HASH_STR_NBLW
@@ -61,6 +70,13 @@
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
 #define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
+
+#if (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
+    defined(WOLFSSL_STM32H7)) && !defined(NO_STM32_HASH_FIFO_WORKAROUND)
+    /* workaround for hash FIFO to write one extra to finalize */
+    #undef  STM32_HASH_FIFO_WORKAROUND
+    #define STM32_HASH_FIFO_WORKAROUND
+#endif
 
 
 /* STM32 Hash Context */
@@ -120,7 +136,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     /* Detect newer CubeMX crypto HAL (HAL_CRYP_Encrypt / HAL_CRYP_Decrypt) */
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
         (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
-         defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5))
+         defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5)) || \
+         defined(WOLFSSL_STM32H5)
         #define STM32_HAL_V2
     #endif
 

@@ -76,7 +76,6 @@
 void mp_reverse(unsigned char *s, int len)
 {
     int ix, iy;
-    unsigned char t;
 
     if (s == NULL)
         return;
@@ -84,7 +83,7 @@ void mp_reverse(unsigned char *s, int len)
     ix = 0;
     iy = len - 1;
     while (ix < iy) {
-        t = s[ix];
+        unsigned char t = s[ix];
         s[ix] = s[iy];
         s[iy] = t;
         ++ix;
@@ -97,7 +96,7 @@ int get_digit_count(const mp_int* a)
     if (a == NULL)
         return 0;
 
-    return a->used;
+    return (int)a->used;
 }
 
 mp_digit get_digit(const mp_int* a, int n)
@@ -120,15 +119,10 @@ mp_digit get_digit(const mp_int* a, int n)
 int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 {
     int err = MP_OKAY;
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    unsigned int i;
-#else
-    int i;
-#endif
 #if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
     unsigned int mask = (unsigned int)0 - copy;
 #else
-    mp_digit mask = (mp_digit)0 - copy;
+    mp_digit mask = (mp_digit)0 - (mp_digit)copy;
 #endif
 
     if (a == NULL || b == NULL)
@@ -136,8 +130,13 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
     /* Ensure b has enough space to copy a into */
     if (err == MP_OKAY)
-        err = mp_grow(b, a->used + 1);
+        err = mp_grow(b, (int)a->used + 1);
     if (err == MP_OKAY) {
+    #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+        unsigned int i;
+    #else
+        int i;
+    #endif
         /* When mask 0, b is unchanged2
          * When mask all set, b ^ b ^ a = a
          */
@@ -145,15 +144,15 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
          * get_digit() returns 0 when index greater than available digit.
          */
         for (i = 0; i < a->used; i++) {
-            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
         for (; i < b->used; i++) {
-            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
-        b->used ^= (a->used ^ b->used) & (int)mask;
+        b->used ^= (a->used ^ b->used) & (unsigned int)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
     defined(WOLFSSL_SP_INT_NEGATIVE)
-        b->sign ^= (a->sign ^ b->sign) & (int)mask;
+        b->sign ^= (a->sign ^ b->sign) & (unsigned int)mask;
 #endif
     }
 
@@ -172,10 +171,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
-    int cnt = digits * sizeof(mp_digit);
-#ifdef USE_INTEGER_HEAP_MATH
-    int i;
-#endif
+    int cnt = digits * (int)sizeof(mp_digit);
 
     if (rng == NULL) {
         ret = MISSING_RNG_E;
@@ -199,15 +195,16 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
     if (ret == MP_OKAY) {
-        a->used = digits;
+        a->used = (word32)digits;
     }
 #endif
     /* fill the data with random bytes */
     if (ret == MP_OKAY) {
-        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, cnt);
+        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, (word32)cnt);
     }
     if (ret == MP_OKAY) {
 #ifdef USE_INTEGER_HEAP_MATH
+        int i;
         /* Mask down each digit to only bits used */
         for (i = 0; i < a->used; i++) {
             a->dp[i] &= MP_MASK;
@@ -267,7 +264,8 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
         }
         *len = keySz;
         XMEMSET(buf, 0, *len);
-        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
+        err = mp_to_unsigned_bin(mp, buf +
+            (keySz - (word32)mp_unsigned_bin_size(mp)));
     }
 
     return err;
@@ -374,7 +372,7 @@ void wc_bigint_free(WC_BIGINT* a)
 int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 {
     int err;
-    word32 x, y;
+    word32 x;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
@@ -388,7 +386,7 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
     err = wc_bigint_alloc(dst, sz);
     if (err == MP_OKAY && sz > 0) {
         /* leading zero pad */
-        y = sz - x;
+        word32 y = sz - x;
         XMEMSET(dst->buf, 0, y);
 
         /* export src as unsigned bin to destination buf */

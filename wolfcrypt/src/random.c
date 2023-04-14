@@ -373,8 +373,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 {
     int ret = DRBG_FAILURE;
     byte ctr;
-    int i;
-    int len;
+    word32 i;
+    word32 len;
     word32 bits = (outSz * 8); /* reverse byte order */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
@@ -523,7 +523,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
-    for (i = dataSz - 1; i >= 0; i--) {
+    for (i = (int)dataSz - 1; i >= 0; i--) {
         data[i]++;
         if (data[i] != 0) break;
     }
@@ -540,8 +540,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     byte data[DRBG_SEED_LEN];
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
-    int i;
-    int len;
+    word32 i;
+    word32 len;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
 #else
@@ -620,14 +620,13 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
-    word16 carry = 0;
-
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
+        word16 carry = 0;
 
-        dIdx = dLen - 1;
-        for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)d[dIdx] + (word16)s[sIdx];
+        dIdx = (int)dLen - 1;
+        for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
+            carry += (word16)(d[dIdx] + s[sIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;
@@ -783,7 +782,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     while (seedIdx < seedSz - SEED_BLOCK_SZ) {
         if (ConstantCompare(seed + seedIdx,
                             seed + seedIdx + scratchSz,
-                            scratchSz) == 0) {
+                            (int)scratchSz) == 0) {
 
             ret = DRBG_CONT_FAILURE;
         }
@@ -3167,7 +3166,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #include "nrf_drv_rng.h"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int remaining = sz, length, pos = 0;
+        int remaining = sz, pos = 0;
         word32 err_code;
         byte available;
         static byte initialized = 0;
@@ -3188,6 +3187,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         while (remaining > 0) {
+            int length;
             available = 0;
             nrf_drv_rng_bytes_available(&available); /* void func */
             length = (remaining < available) ? remaining : available;
@@ -3318,9 +3318,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-       defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_QNX_CAAM) || \
-       defined(WOLFSSL_IMXRT1170_CAAM))
+#elif defined(WOLFSSL_CAAM)
 
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
@@ -3580,11 +3578,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <random/rand32.h>
+        #include <zephyr/random/rand32.h>
     #ifndef _POSIX_C_SOURCE
-        #include <posix/time.h>
+        #include <zephyr/posix/time.h>
     #else
-        #include <sys/time.h>
+        #include <time.h>
     #endif
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -3758,7 +3756,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 break;
             }
 
-            sz     -= len;
+            sz     -= (word32)len;
             output += len;
 
             if (sz) {
@@ -3801,14 +3799,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 int wc_hwrng_generate_block(byte *output, word32 sz)
 {
     int fd;
-    int len;
     int ret = 0;
     fd = open("/dev/hwrng", O_RDONLY);
     if (fd == -1)
         return OPEN_RAN_E;
     while(sz)
     {
-        len = (int)read(fd, output, sz);
+        int len = (int)read(fd, output, sz);
         if (len == -1)
         {
             ret = READ_RAN_E;

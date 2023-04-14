@@ -648,7 +648,12 @@ static void test_harness(void* vargs)
         args->return_code = 1;
         return;
     }
-    rewind(file);
+    if (fseek(file, 0, SEEK_SET) < 0) {
+        fprintf(stderr, "error %d fseeking %s\n", errno, fname);
+        fclose(file);
+        args->return_code = 1;
+        return;
+    }
 
     script = (char*)malloc(sz+1);
     if (script == 0) {

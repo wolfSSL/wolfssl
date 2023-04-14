@@ -65,16 +65,4 @@
 
 /* check kernel and yield to same priority threads waiting */
 #define CAAM_CPU_CHILL() sched_yield()
-
-#ifdef __aarch64__
-    /* if on an AArch64 system make assumption that it is an i.MX8 QXP */
-    /* use block of memory set aside for job ring 2 */
-    #define CAAM_BASE 0x31400000
-    #define CAAM_PAGE 0x31800000
-#else
-    /* IMX6UL */
-    #define CAAM_BASE 0x02140000
-    #define CAAM_PAGE 0x00100000
-#endif
-
 #endif /* CAAM_QNX_H */
