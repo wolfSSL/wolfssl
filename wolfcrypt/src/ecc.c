@@ -251,7 +251,7 @@ enum {
 
     ECC_STATE_VERIFY_DECODE,
     ECC_STATE_VERIFY_DO,
-    ECC_STATE_VERIFY_RES,
+    ECC_STATE_VERIFY_RES
 };
 
 
@@ -1344,6 +1344,7 @@ enum ecc_curve_load_mask {
     ECC_CURVE_FIELD_ALL     = 0x3B,
     ECC_CURVE_FIELD_COUNT   = 5,
 #endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(ecc_curve_load_mask)
 };
 
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)

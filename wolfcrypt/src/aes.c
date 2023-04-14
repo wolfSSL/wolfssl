@@ -5398,10 +5398,10 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
     a = (z8[1] >> 56) & 0xf;
 
     /* Rotate z by 4-bits */
-    n3 = z8[1] & 0xf0f0f0f0f0f0f0f0ULL;
-    n2 = z8[1] & 0x0f0f0f0f0f0f0f0fULL;
-    n1 = z8[0] & 0xf0f0f0f0f0f0f0f0ULL;
-    n0 = z8[0] & 0x0f0f0f0f0f0f0f0fULL;
+    n3 = z8[1] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n2 = z8[1] & W64LIT(0x0f0f0f0f0f0f0f0fU);
+    n1 = z8[0] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n0 = z8[0] & W64LIT(0x0f0f0f0f0f0f0f0fU);
     z8[1] = (n3 >> 4) | (n2 << 12) | (n0 >> 52);
     z8[0] = (n1 >> 4) | (n0 << 12);
 

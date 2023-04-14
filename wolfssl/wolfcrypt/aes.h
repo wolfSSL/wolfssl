@@ -138,7 +138,7 @@ enum {
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
 
-    AES_IV_SIZE         = 16,  /* always block size       */
+    AES_IV_SIZE         = 16  /* always block size       */
 };
 #endif
 
@@ -180,6 +180,8 @@ enum {
     AES_MAX_ID_LEN      = 32,
     AES_MAX_LABEL_LEN   = 32,
 #endif
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(AES)
 };
 
 

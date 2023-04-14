@@ -65,7 +65,7 @@
  */
 typedef enum {
     SRP_CLIENT_SIDE  = 0,
-    SRP_SERVER_SIDE  = 1,
+    SRP_SERVER_SIDE  = 1
 } SrpSide;
 
 /**
@@ -75,7 +75,7 @@ typedef enum {
         SRP_TYPE_SHA    = 1,
         SRP_TYPE_SHA256 = 2,
         SRP_TYPE_SHA384 = 3,
-        SRP_TYPE_SHA512 = 4,
+        SRP_TYPE_SHA512 = 4
 } SrpType;
 
 
