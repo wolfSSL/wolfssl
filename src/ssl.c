@@ -32701,7 +32701,7 @@ int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh)
     return WOLFSSL_SUCCESS;
 }
 #endif
-
+#ifndef NO_SESSION_CACHE
 int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 {
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
@@ -32775,7 +32775,7 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 
     return 0;
 }
-
+#endif /* !NO_SESSION_CACHE */
 #ifndef NO_BIO
 BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s)
 {
