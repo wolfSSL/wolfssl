@@ -7591,6 +7591,24 @@ static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
     }
     return NULL;
 }
+static void twcase_get_sessionCb_cleanup(void)
+{
+    int i;
+    int cnt = 0;
+
+    /* If  twcase_get_sessionCb sets *ref = 1, the application is responsible
+     * for freeing sessions */
+
+    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if(server_sessionCache.entries[i].value != NULL) {
+            wolfSSL_SESSION_free(server_sessionCache.entries[i].value);
+            cnt++;
+        }
+    }
+
+    fprintf(stderr, "\t\ttwcase_get_sessionCb_cleanup freed %d sessions\n",
+            cnt);
+}
 
 static void twcase_cache_intOff_extOff(WOLFSSL_CTX* ctx)
 {
@@ -8010,6 +8028,7 @@ static int test_wolfSSL_CTX_add_session_ext(void)
             wolfSSL_SESSION_free(twcase_server_first_session_ptr);
             wolfSSL_CTX_free(twcase_server_current_ctx_ptr);
         }
+        twcase_get_sessionCb_cleanup();
         XMEMSET(&server_sessionCache.entries, 0,
                 sizeof(server_sessionCache.entries));
         fprintf(stderr, "\tEnd %s\n", params[i].tls_version);
