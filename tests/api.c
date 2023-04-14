@@ -7533,12 +7533,12 @@ static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
     if (sess == NULL)
         return;
     /*
-    This example uses a hash table.
-    Steps you should take for a non-demo code:
-    acquire a lock for the file named according to the session id
-    remove the file
-    release the lock
-    */
+     * This example uses a hash table.
+     * Steps you should take for a non-demo code:
+     * - acquire a lock for the file named according to the session id
+     * - remove the file
+     * - release the lock
+     */
     if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
         return;
     }
@@ -7568,17 +7568,19 @@ static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
     int i;
 
     /*
-    This example uses a hash table.
-    Steps you should take for a non-demo code:
-    acquire a lock for the file named according to the session id in the 2nd arg
-    read and decrypt contents of file and create a new SSL_SESSION
-    object release the lock
-    set the integer referenced by the fourth parameter to 0
-    return the new session object
-    */
+     * This example uses a hash table.
+     * Steps you should take for a non-demo code:
+     * - acquire a lock for the file named according to the session id in the
+     *   2nd arg
+     * - read and decrypt contents of file and create a new SSL_SESSION
+     * - object release the lock
+     * - return the new session object
+     */
     fprintf(stderr, "\t\ttwcase_get_session_called %d\n",
             ++twcase_get_session_called);
-    *ref = 0;
+    /* This callback want to retain a copy of the object. If we want wolfSSL to
+     * be responsible for the pointer then set to 0. */
+    *ref = 1;
 
     for(i = 0; i < SESSION_CACHE_SIZE; i++) {
         if(server_sessionCache.entries[i].key != NULL &&
