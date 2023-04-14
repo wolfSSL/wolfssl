@@ -122,6 +122,12 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+    /* With a true C89-dialect compiler (simulate with gcc -std=c89 -Wall
+     * -Wextra -pedantic), a trailing comma on the last value in an enum
+     * definition is a syntax error.  We use this macro to accommodate that
+     * without disrupting clean flow/syntax when some enum values are
+     * preprocessor-gated.
+     */
     #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
         #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _wolf_ ## prefix ## _enum_dummy_last_element
     #else
