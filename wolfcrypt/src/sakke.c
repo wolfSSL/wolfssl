@@ -2228,10 +2228,19 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
     mp_proj* t2 = key->tmp.p3;
     mp_int* t3 = &key->tmp.m2;
     mp_int* prime = &key->params.prime;
-    mp_int* t[] = { &key->tmp.m1, t3 };
+    mp_int* t[]
+#ifndef WOLF_C89
+        = { &key->tmp.m1, t3 }
+#endif
+        ;
     int i;
     mp_digit mp = 0;
     SakkeKeyParams* params = &key->params;
+
+#ifdef WOLF_C89
+    t[0] = &key->tmp.m1;
+    t[1] = t3;
+#endif
 
     (void)table;
     (void)len;
@@ -2575,15 +2584,34 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
 {
     int err;
 #ifdef WC_NO_CACHE_RESISTANT
-    mp_proj* c[2] = { r, key->tmp.p2 };
-#else
-    mp_proj* c[3] = { r, key->tmp.p3, key->tmp.p2 };
+    mp_proj* c[2]
+#ifndef WOLF_C89
+        = { r, key->tmp.p2 }
 #endif
+        ;
+#else
+    mp_proj* c[3]
+#ifndef WOLF_C89
+        = { r, key->tmp.p3, key->tmp.p2 }
+#endif
+        ;
+#endif /* WC_NO_CACHE_RESISTANT */
     mp_int* t1 = &key->tmp.m1;
     mp_int* t2 = &key->tmp.m2;
     mp_int* by = key->tmp.p1->z;
     mp_int* prime = &key->params.prime;
     int i;
+
+#ifdef WOLF_C89
+#ifdef WC_NO_CACHE_RESISTANT
+    c[0] = r;
+    c[1] = key->tmp.p2;
+#else
+    c[0] = r;
+    c[1] = key->tmp.p3;
+    c[2] = key->tmp.p2;
+#endif /* WC_NO_CACHE_RESISTANT */
+#endif /* WOLF_C89 */
 
     /* Set the working value to the base in PF_p[q] */
     err = mp_montgomery_calc_normalization(c[0]->x, prime);
