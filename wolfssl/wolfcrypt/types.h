@@ -112,14 +112,20 @@ decouple library dependencies with standard string, memory and so on.
         /* if a version is available, pivot on the version, otherwise guess it's
          * allowed, subject to override.
          */
-        #if !defined(__STDC__) \
+        #if !defined(WOLF_C89) && (!defined(__STDC__)                \
             || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
             || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
-            || (defined(__cplusplus) && (__cplusplus >= 201103L))
+            || (defined(__cplusplus) && (__cplusplus >= 201103L)))
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
         #else
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
         #endif
+    #endif
+
+    #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _wolf_ ## prefix ## _enum_dummy_last_element
+    #else
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix)
     #endif
 
     /* helpers for stringifying the expanded value of a macro argument rather
