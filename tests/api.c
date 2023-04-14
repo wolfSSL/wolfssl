@@ -7907,7 +7907,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         /* cache hit */
                         /* DTLS accesses cache once for stateless parsing and
                          * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
 
                         /* (D)TLSv1.3 creates a new ticket,
                          * updates both internal and external cache */
@@ -7919,7 +7923,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         /* non (D)TLSv1.3 case, no update */
                         /* DTLS accesses cache once for stateless parsing and
                          * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
                         AssertIntEQ(twcase_new_session_called, 0);
                         /* Called on session added in
                          * twcase_server_sess_ctx_pre_shutdown */
@@ -7943,7 +7951,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         /* cache hit */
                         /* DTLS accesses cache once for stateless parsing and
                          * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
                         AssertIntEQ(twcase_new_session_called, 0);
                         /* Called on session added in
                          * twcase_server_sess_ctx_pre_shutdown */
@@ -7969,7 +7981,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         /* cache hit */
                         /* DTLS accesses cache once for stateless parsing and
                          * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
                         AssertIntEQ(twcase_new_session_called, 0);
                         /* Called on session added in
                          * twcase_server_sess_ctx_pre_shutdown */
