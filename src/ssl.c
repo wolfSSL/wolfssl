@@ -14626,23 +14626,8 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
 
     len = min(SERVER_ID_LEN, (word32)len);
 
-#ifdef HAVE_EXT_CACHE
-    if (ssl->ctx->get_sess_cb != NULL) {
-        int copy = 0;
-        WOLFSSL_MSG("Calling external session cache");
-        ret = ssl->ctx->get_sess_cb(ssl, (byte*)id, len, &copy);
-        if (ret != NULL) {
-            WOLFSSL_MSG("Session found in external cache");
-            return ret;
-        }
-        WOLFSSL_MSG("Session not found in external cache");
-    }
-
-    if (ssl->ctx->internalCacheLookupOff) {
-        WOLFSSL_MSG("Internal cache turned off");
-        return NULL;
-    }
-#endif
+    /* Do not access ssl->ctx->get_sess_cb from here. It is using a different
+     * set of ID's */
 
     row = HashObject(id, len, &error) % CLIENT_SESSION_ROWS;
     if (error != 0) {
