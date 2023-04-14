@@ -7912,7 +7912,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
 #else
+#ifndef WOLFSSL_ASYNC_CRYPT
                         AssertIntEQ(twcase_get_session_called, 1);
+#else
+                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#endif
 #endif
 
                         /* (D)TLSv1.3 creates a new ticket,
