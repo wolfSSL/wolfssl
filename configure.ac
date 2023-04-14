@@ -3960,11 +3960,6 @@ if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
     enable_pwdbased=no
-    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
-    then
-        # DH and ECC need bigint
-        AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
-    fi
 else
     if test "$ENABLED_ASN" = "template"; then
         ENABLED_ASN="yes"
@@ -4007,10 +4002,11 @@ then
     AC_MSG_ERROR([please disable ecc if disabling asn.])
 fi
 
-# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
+# No Big Int (ASN, DSA, RSA, DH, ECC and compatibility layer need bigint)
 if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = "no" && \
    test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
-   test "$ENABLED_RSA" = "no"
+   test "$ENABLED_RSA" = "no" && test "$ENABLED_OPENSSLEXTRA" = "no" && \
+   test "$ENABLED_OPENSSLALL" ="yes"
 then
     ENABLED_SP_MATH_ALL="no"
     ENABLED_FASTMATH="no"
