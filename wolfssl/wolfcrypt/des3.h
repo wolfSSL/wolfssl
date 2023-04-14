@@ -49,7 +49,7 @@
 enum {
     DES_KEY_SIZE        =  8,  /* des                     */
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         =  8,  /* should be the same as DES_BLOCK_SIZE */
+    DES_IV_SIZE         =  8   /* should be the same as DES_BLOCK_SIZE */
 };
 
 

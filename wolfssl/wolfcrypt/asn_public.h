@@ -112,7 +112,7 @@ enum Ecc_Sum {
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
     ECC_BRAINPOOLP512R1_OID = 110,
-    ECC_SECP521R1_OID = 211,
+    ECC_SECP521R1_OID = 211
 };
 
 
@@ -154,7 +154,7 @@ enum CertType {
     SPHINCS_SMALL_LEVEL1_TYPE,
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
-    ECC_PARAM_TYPE,
+    ECC_PARAM_TYPE
 };
 
 
@@ -202,7 +202,7 @@ enum Ctc_SigType {
     CTC_SPHINCS_FAST_LEVEL5  = 282,
     CTC_SPHINCS_SMALL_LEVEL1 = 287,
     CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286,
+    CTC_SPHINCS_SMALL_LEVEL5 = 286
 };
 
 enum Ctc_Encoding {
@@ -243,6 +243,7 @@ enum Ctc_Misc {
                                                  * enough for at least two
                                                  * distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(Ctc_Misc)
 };
 
 /* DER buffer */
@@ -270,7 +271,7 @@ enum {
 #endif
 
     PEM_PASS_READ  = 0,
-    PEM_PASS_WRITE = 1,
+    PEM_PASS_WRITE = 1
 };
 
 typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);

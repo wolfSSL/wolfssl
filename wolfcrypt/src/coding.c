@@ -45,7 +45,7 @@ enum {
     BAD         = 0xFF,  /* invalid encoding */
     PAD         = '=',
     BASE64_MIN  = 0x2B,
-    BASE16_MIN  = 0x30,
+    BASE16_MIN  = 0x30
 };
 
 

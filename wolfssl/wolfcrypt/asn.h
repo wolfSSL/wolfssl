@@ -154,7 +154,7 @@ enum ASN_Tags {
 
     /* OneAsymmetricKey Fields */
     ASN_ASYMKEY_ATTRS     = 0x00,
-    ASN_ASYMKEY_PUBKEY    = 0x01,
+    ASN_ASYMKEY_PUBKEY    = 0x01
 };
 
 /* NOTE: If ASN_UTC_TIME_SIZE or ASN_GENERALIZED_TIME_SIZE are ever modified
@@ -188,7 +188,7 @@ enum ASNItem_DataType {
     /* Big number as a positive or negative mp_int. */
     ASN_DATA_TYPE_MP_POS_NEG     = 9,
     /* ASN.1 CHOICE. A 0 terminated list of tags that are valid. */
-    ASN_DATA_TYPE_CHOICE         = 10,
+    ASN_DATA_TYPE_CHOICE         = 10
 };
 
 /* A template entry describing an ASN.1 item. */
@@ -1002,7 +1002,7 @@ enum Misc_ASN {
     PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
     PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
 
-    COUNTRY_CODE_LEN   = 2,        /* RFC 3739 */
+    COUNTRY_CODE_LEN   = 2         /* RFC 3739 */
 };
 
 #ifndef WC_MAX_NAME_ENTRIES
@@ -1109,7 +1109,7 @@ enum Key_Sum {
     SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
     SPHINCS_SMALL_LEVEL1k  = 287, /* 1 3 9999 6 7 10 */
     SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
-    SPHINCS_SMALL_LEVEL5k  = 286, /* 1 3 9999 6 9 7 */
+    SPHINCS_SMALL_LEVEL5k  = 286  /* 1 3 9999 6 9 7 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1134,14 +1134,14 @@ enum Key_Agree {
     dhSinglePass_stdDH_sha224kdf_scheme = 188,
     dhSinglePass_stdDH_sha256kdf_scheme = 189,
     dhSinglePass_stdDH_sha384kdf_scheme = 190,
-    dhSinglePass_stdDH_sha512kdf_scheme = 191,
+    dhSinglePass_stdDH_sha512kdf_scheme = 191
 };
 
 
 
 enum KDF_Sum {
     PBKDF2_OID = 660,
-    MGF1_OID = 652,
+    MGF1_OID = 652
 };
 
 
@@ -1193,8 +1193,9 @@ enum CertificatePolicy_Sum {
     CP_FPKI_COMMON_AUTH_OID = 426, /* 2.16.840.1.101.3.2.1.3.13 */
     CP_FPKI_PIV_AUTH_OID    = 453, /* 2.16.840.1.101.3.2.1.3.40 */
     CP_FPKI_PIV_AUTH_HW_OID = 454, /* 2.16.840.1.101.3.2.1.3.41 */
-    CP_FPKI_PIVI_AUTH_OID   = 458  /* 2.16.840.1.101.3.2.1.3.45 */
+    CP_FPKI_PIVI_AUTH_OID   = 458, /* 2.16.840.1.101.3.2.1.3.45 */
 #endif /* WOLFSSL_FPKI */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(CertificatePolicy_Sum)
 };
 
 enum SepHardwareName_Sum {
@@ -1205,8 +1206,9 @@ enum AuthInfo_Sum {
     AIA_OCSP_OID      = 116, /* 1.3.6.1.5.5.7.48.1, id-ad-ocsp */
     AIA_CA_ISSUER_OID = 117, /* 1.3.6.1.5.5.7.48.2, id-ad-caIssuers */
     #ifdef WOLFSSL_SUBJ_INFO_ACC
-    AIA_CA_REPO_OID   = 120  /* 1.3.6.1.5.5.7.48.5, id-ad-caRepository */
+    AIA_CA_REPO_OID   = 120, /* 1.3.6.1.5.5.7.48.5, id-ad-caRepository */
     #endif /* WOLFSSL_SUBJ_INFO_ACC */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(AuthInfo_Sum)
 };
 
 #define ID_PKIX(num) (67+(num)) /* 1.3.6.1.5.5.7.num, id-pkix num */
@@ -1252,7 +1254,7 @@ enum VerifyType {
     VERIFY_OCSP = 3,
     VERIFY_NAME = 4,
     VERIFY_SKIP_DATE = 5,
-    VERIFY_OCSP_CERT = 6,
+    VERIFY_OCSP_CERT = 6
 };
 
 #ifdef WOLFSSL_CERT_EXT
@@ -1274,7 +1276,7 @@ enum CsrAttrType {
     INITIALS_OID = 132,
     SURNAME_OID = 93,
     NAME_OID = 130,
-    GIVEN_NAME_OID = 131,
+    GIVEN_NAME_OID = 131
 };
 #endif
 
@@ -1357,7 +1359,7 @@ enum SignatureState {
     SIG_STATE_HASH,
     SIG_STATE_KEY,
     SIG_STATE_DO,
-    SIG_STATE_CHECK,
+    SIG_STATE_CHECK
 };
 
 
@@ -1467,7 +1469,7 @@ enum CertSignState {
     CERTSIGN_STATE_BEGIN,
     CERTSIGN_STATE_DIGEST,
     CERTSIGN_STATE_ENCODE,
-    CERTSIGN_STATE_DO,
+    CERTSIGN_STATE_DO
 };
 
 struct CertSignCtx {
@@ -2250,7 +2252,7 @@ enum cert_enums {
     SPHINCS_FAST_LEVEL5_KEY  = 26,
     SPHINCS_SMALL_LEVEL1_KEY = 27,
     SPHINCS_SMALL_LEVEL3_KEY = 28,
-    SPHINCS_SMALL_LEVEL5_KEY = 29,
+    SPHINCS_SMALL_LEVEL5_KEY = 29
 };
 
 #endif /* WOLFSSL_CERT_GEN */
@@ -2535,7 +2537,7 @@ enum PBESTypes {
 
     PBES2              = 13,       /* algo ID */
     PBES1_MD5_DES      = 3,
-    PBES1_SHA1_DES     = 10,
+    PBES1_SHA1_DES     = 10
 };
 
 enum PKCSTypes {
@@ -2545,7 +2547,7 @@ enum PKCSTypes {
     PKCS8v0             =   0,     /* default PKCS#8 version */
     PKCS8v1             =   1,     /* PKCS#8 version including public key */
     PKCS1v0             =   0,     /* default PKCS#1 version */
-    PKCS1v1             =   1,     /* Multi-prime version */
+    PKCS1v1             =   1     /* Multi-prime version */
 };
 
 #endif /* !NO_ASN || !NO_PWDBASED */

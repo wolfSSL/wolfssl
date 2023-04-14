@@ -180,6 +180,8 @@ enum {
     RSA_MAX_ID_LEN      = 32,
     RSA_MAX_LABEL_LEN   = 32,
 #endif
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(RSA)
 };
 
 #ifdef WC_RSA_NONBLOCK

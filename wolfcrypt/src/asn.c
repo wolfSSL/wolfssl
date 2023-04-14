@@ -6332,6 +6332,7 @@ enum {
     RSAKEYASN_IDX_DQ,
     RSAKEYASN_IDX_U,
 #endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(RSAKEYASN_IDX)
 };
 
 /* Number of items in ASN.1 template for an RSA private key. */
@@ -6628,6 +6629,7 @@ enum {
     PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ,
 #endif
     PKCS8KEYASN_IDX_PKEY_DATA,
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(PKCS8KEYASN_IDX)
 };
 
 /* Number of items in ASN.1 template for a PKCS #8 key. */
@@ -8060,7 +8062,7 @@ enum {
     PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_NULL,
     PBES2PARAMSASN_IDX_ENCS_SEQ,
     PBES2PARAMSASN_IDX_ENCS_OID,
-    PBES2PARAMSASN_IDX_ENCS_PARAMS,
+    PBES2PARAMSASN_IDX_ENCS_PARAMS
 };
 
 /* Number of items in ASN.1 template for PBES2 parameters. */
@@ -8077,7 +8079,7 @@ static const ASNItem pbes1ParamsASN[] = {
 };
 enum {
     PBES1PARAMSASN_IDX_SALT = 0,
-    PBES1PARAMSASN_IDX_ITER,
+    PBES1PARAMSASN_IDX_ITER
 };
 
 /* Number of items in ASN.1 template for PBES1 parameters. */
@@ -8444,7 +8446,7 @@ enum {
     PKCS8DECASN_IDX_ENCALGO_OID,
     PKCS8DECASN_IDX_ENCALGO_PARAMS,
     PKCS8DECASN_IDX_ENCCONTENT,
-    PKCS8DECASN_IDX_ENCDATA,
+    PKCS8DECASN_IDX_ENCDATA
 };
 
 /* Number of items in ASN.1 template for PKCS #8/#7 encrypted key. */
@@ -8815,7 +8817,7 @@ enum {
     P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SEQ,
     P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT,
     P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_ITER,
-    P8ENCPBES1ASN_IDX_ENCDATA,
+    P8ENCPBES1ASN_IDX_ENCDATA
 };
 
 #define p8EncPbes1ASN_Length (sizeof(p8EncPbes1ASN) / sizeof(ASNItem))
@@ -9251,7 +9253,7 @@ enum {
     RSAPUBLICKEYASN_IDX_PUBKEY,
     RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
     RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N,
-    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E,
+    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E
 };
 
 /* Number of items in ASN.1 template for an RSA public key. */
@@ -9619,7 +9621,7 @@ enum {
     DHPARAMASN_IDX_SEQ = 0,
     DHPARAMASN_IDX_PRIME,
     DHPARAMASN_IDX_BASE,
-    DHPARAMASN_IDX_PRIVLEN,
+    DHPARAMASN_IDX_PRIVLEN
 };
 
 /* Number of items in ASN.1 template for DH key. */
@@ -9669,7 +9671,7 @@ enum {
     DHKEYPKCS8ASN_IDX_PKEY_STR,
     DHKEYPKCS8ASN_IDX_PKEY_INT,
     DHKEYPKCS8ASN_IDX_PUBKEY_STR,
-    DHKEYPKCS8ASN_IDX_PUBKEY_INT,
+    DHKEYPKCS8ASN_IDX_PUBKEY_INT
 };
 
 #define dhKeyPkcs8ASN_Length (sizeof(dhKeyPkcs8ASN) / sizeof(ASNItem))
@@ -10255,7 +10257,7 @@ enum {
     DSAKEYASN_IDX_Q,
     DSAKEYASN_IDX_G,
     DSAKEYASN_IDX_Y,
-    DSAKEYASN_IDX_X,
+    DSAKEYASN_IDX_X
 };
 
 /* Number of items in ASN.1 template for DSA private key. */
@@ -10291,7 +10293,7 @@ enum {
     DSAPUBKEYASN_IDX_ALGOID_PARAMS_Q,
     DSAPUBKEYASN_IDX_ALGOID_PARAMS_G,
     DSAPUBKEYASN_IDX_PUBKEY_STR,
-    DSAPUBKEYASN_IDX_PUBKEY_Y,
+    DSAPUBKEYASN_IDX_PUBKEY_Y
 };
 
 /* Number of items in ASN.1 template for PublicKeyInfo with DSA. */
@@ -10463,7 +10465,7 @@ enum {
     DSAKEYOCTASN_IDX_Q,
     DSAKEYOCTASN_IDX_G,
     DSAKEYOCTASN_IDX_PKEY_STR,
-    DSAKEYOCTASN_IDX_X,
+    DSAKEYOCTASN_IDX_X
 };
 
 /* Number of items in ASN.1 template for a DSA key (OCTET_STRING version). */
@@ -11331,7 +11333,7 @@ static const ASNItem rsaCertKeyASN[] = {
 };
 enum {
     RSACERTKEYASN_IDX_STR = 0,
-    RSACERTKEYASN_IDX_SEQ,
+    RSACERTKEYASN_IDX_SEQ
 };
 
 /* Number of items in ASN.1 template for header before RSA key in cert. */
@@ -11434,7 +11436,7 @@ static const ASNItem eccCertKeyASN[] = {
 enum {
     ECCCERTKEYASN_IDX_OID = 0,
     ECCCERTKEYASN_IDX_PARAMS,
-    ECCCERTKEYASN_IDX_SUBJPUBKEY,
+    ECCCERTKEYASN_IDX_SUBJPUBKEY
 };
 
 /* Number of items in ASN.1 template for header before ECC key in cert. */
@@ -12235,7 +12237,7 @@ enum {
     RDNASN_IDX_SET = 0,
     RDNASN_IDX_ATTR_SEQ,
     RDNASN_IDX_ATTR_TYPE,
-    RDNASN_IDX_ATTR_VAL,
+    RDNASN_IDX_ATTR_VAL
 };
 
 /* Number of items in ASN.1 template for an RDN. */
@@ -13427,7 +13429,7 @@ static const ASNItem certNameASN[] = {
 };
 enum {
     CERTNAMEASN_IDX_OID = 0,
-    CERTNAMEASN_IDX_NAME,
+    CERTNAMEASN_IDX_NAME
 };
 
 /* Number of items in ASN.1 template for certificate name. */
@@ -14010,7 +14012,7 @@ static const ASNItem dateASN[] = {
 };
 enum {
     DATEASN_IDX_UTC = 0,
-    DATEASN_IDX_GT,
+    DATEASN_IDX_GT
 };
 
 /* Number of items in ASN.1 template for a date. */
@@ -14831,7 +14833,7 @@ enum {
     DIGESTINFOASN_IDX_DIGALGO_SEQ,
     DIGESTINFOASN_IDX_DIGALGO_OID,
     DIGESTINFOASN_IDX_DIGALGO_NULL,
-    DIGESTINFOASN_IDX_DIGEST,
+    DIGESTINFOASN_IDX_DIGEST
 };
 
 /* Number of items in ASN.1 template for DigestInfo for RSA. */
@@ -16601,7 +16603,7 @@ enum {
     OTHERNAMEASN_IDX_FASCN,
     OTHERNAMEASN_IDX_HWN_SEQ,
     OTHERNAMEASN_IDX_HWN_TYPE,
-    OTHERNAMEASN_IDX_HWN_NUM,
+    OTHERNAMEASN_IDX_HWN_NUM
 };
 
 /* Number of items in ASN.1 template for OtherName of an X.509 certificate. */
@@ -16901,7 +16903,7 @@ static const ASNItem altNameASN[] = {
     { 0, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 0 }
 };
 enum {
-    ALTNAMEASN_IDX_GN = 0,
+    ALTNAMEASN_IDX_GN = 0
 };
 
 /* Number of items in ASN.1 template for GeneralName. */
@@ -17513,7 +17515,7 @@ static const ASNItem basicConsASN[] = {
 enum {
     BASICCONSASN_IDX_SEQ = 0,
     BASICCONSASN_IDX_CA,
-    BASICCONSASN_IDX_PLEN,
+    BASICCONSASN_IDX_PLEN
 };
 
 /* Number of items in ASN.1 template for BasicContraints. */
@@ -17721,7 +17723,7 @@ enum {
     CRLDISTASN_IDX_DP_DISTPOINT_FN_GN,
     CRLDISTASN_IDX_DP_DISTPOINT_RN, /* Relative name */
     CRLDISTASN_IDX_DP_REASONS,
-    CRLDISTASN_IDX_DP_CRLISSUER,
+    CRLDISTASN_IDX_DP_CRLISSUER
 };
 
 /* Number of items in ASN.1 template for CRL distribution points. */
@@ -17908,7 +17910,7 @@ static const ASNItem accessDescASN[] = {
 enum {
     ACCESSDESCASN_IDX_SEQ = 0,
     ACCESSDESCASN_IDX_METH,
-    ACCESSDESCASN_IDX_LOC,
+    ACCESSDESCASN_IDX_LOC
 };
 
 /* Number of items in ASN.1 template for the access description. */
@@ -18063,7 +18065,7 @@ enum {
     AUTHKEYIDASN_IDX_SEQ = 0,
     AUTHKEYIDASN_IDX_KEYID,
     AUTHKEYIDASN_IDX_ISSUER,
-    AUTHKEYIDASN_IDX_SERIAL,
+    AUTHKEYIDASN_IDX_SERIAL
 };
 
 /* Number of items in ASN.1 template for AuthorityKeyIdentifier. */
@@ -18211,7 +18213,7 @@ static const ASNItem keyUsageASN[] = {
 /* STR */ { 0, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
-    KEYUSAGEASN_IDX_STR = 0,
+    KEYUSAGEASN_IDX_STR = 0
 };
 
 /* Number of items in ASN.1 template for KeyUsage. */
@@ -18273,7 +18275,7 @@ static const ASNItem keyPurposeIdASN[] = {
 /* OID */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
 };
 enum {
-    KEYPURPOSEIDASN_IDX_OID = 0,
+    KEYPURPOSEIDASN_IDX_OID = 0
 };
 
 /* Number of items in ASN.1 template for KeyPurposeId. */
@@ -18475,7 +18477,7 @@ enum {
     SUBTREEASN_IDX_SEQ = 0,
     SUBTREEASN_IDX_BASE,
     SUBTREEASN_IDX_MIN,
-    SUBTREEASN_IDX_MAX,
+    SUBTREEASN_IDX_MAX
 };
 
 /* Number of items in ASN.1 template for GeneralSubtree. */
@@ -18695,7 +18697,7 @@ static const ASNItem nameConstraintsASN[] = {
 enum {
     NAMECONSTRAINTSASN_IDX_SEQ = 0,
     NAMECONSTRAINTSASN_IDX_PERMIT,
-    NAMECONSTRAINTSASN_IDX_EXCLUDE,
+    NAMECONSTRAINTSASN_IDX_EXCLUDE
 };
 
 /* Number of items in ASN.1 template for NameConstraints. */
@@ -18864,7 +18866,7 @@ exit:
     enum {
         POLICYINFOASN_IDX_SEQ = 0,
         POLICYINFOASN_IDX_ID,
-        POLICYINFOASN_IDX_QUALI,
+        POLICYINFOASN_IDX_QUALI
     };
 
     /* Number of items in ASN.1 template for PolicyInformation. */
@@ -19581,7 +19583,7 @@ static const ASNItem certExtHdrASN[] = {
 };
 enum {
     CERTEXTHDRASN_IDX_EXTTAG = 0,
-    CERTEXTHDRASN_IDX_EXTSEQ,
+    CERTEXTHDRASN_IDX_EXTSEQ
 };
 
 /* Number of itesm in ASN.1 template for extensions. */
@@ -19603,7 +19605,7 @@ enum {
     CERTEXTASN_IDX_SEQ = 0,
     CERTEXTASN_IDX_OID,
     CERTEXTASN_IDX_CRIT,
-    CERTEXTASN_IDX_VAL,
+    CERTEXTASN_IDX_VAL
 };
 
 /* Number of items in ASN.1 template for Extension. */
@@ -19934,6 +19936,7 @@ enum {
     X509CERTASN_IDX_SIGALGO_PARAMS,
 #endif
     X509CERTASN_IDX_SIGNATURE,
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(X509CERTASN_IDX)
 };
 
 /* Number of items in ASN template for an X509 certificate. */
@@ -20284,7 +20287,7 @@ static const ASNItem reqAttrASN[] = {
 enum {
     REQATTRASN_IDX_SEQ = 0,
     REQATTRASN_IDX_TYPE,
-    REQATTRASN_IDX_VALS,
+    REQATTRASN_IDX_VALS
 };
 
 /* Number of items in ASN.1 template for certificate request Attribute. */
@@ -20295,7 +20298,7 @@ static const ASNItem strAttrASN[] = {
     { 0, 0, 0, 0, 0 },
 };
 enum {
-    STRATTRASN_IDX_STR = 0,
+    STRATTRASN_IDX_STR = 0
 };
 
 /* Number of items in ASN.1 template for a string choice. */
@@ -20521,7 +20524,7 @@ enum {
     CERTREQASN_IDX_INFO_SIGALGO_SEQ,
     CERTREQASN_IDX_INFO_SIGALGO_OID,
     CERTREQASN_IDX_INFO_SIGALGO_NULL,
-    CERTREQASN_IDX_INFO_SIGNATURE,
+    CERTREQASN_IDX_INFO_SIGNATURE
 };
 
 /* Number of items in ASN.1 template for a certificate request. */
@@ -24501,7 +24504,7 @@ enum {
     ECCPUBLICKEYASN_IDX_ALGOID_OID,
     ECCPUBLICKEYASN_IDX_ALGOID_CURVEID,
     ECCPUBLICKEYASN_IDX_ALGOID_PARAMS,
-    ECCPUBLICKEYASN_IDX_PUBKEY,
+    ECCPUBLICKEYASN_IDX_PUBKEY
 };
 
 /* Number of items in ASN.1 template for ECC public key. */
@@ -24756,7 +24759,7 @@ enum {
     EDPUBKEYASN_IDX_SEQ = 0,
     EDPUBKEYASN_IDX_ALGOID_SEQ,
     EDPUBKEYASN_IDX_ALGOID_OID,
-    EDPUBKEYASN_IDX_PUBKEY,
+    EDPUBKEYASN_IDX_PUBKEY
 };
 
 /* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
@@ -25455,7 +25458,7 @@ static const ASNItem ekuASN[] = {
 };
 enum {
     EKUASN_IDX_SEQ = 0,
-    EKUASN_IDX_OID,
+    EKUASN_IDX_OID
 };
 
 /* OIDs corresponding to extended key usage. */
@@ -26295,7 +26298,7 @@ static const ASNItem nameASN[] = {
     { 0, ASN_SEQUENCE, 1, 1, 0 },
 };
 enum {
-    NAMEASN_IDX_SEQ = 0,
+    NAMEASN_IDX_SEQ = 0
 };
 
 /* Number of items in ASN.1 template for the SEQUENCE around the RDNs. */
@@ -26767,8 +26770,7 @@ enum {
     CERTEXTSASN_IDX_CUSTOM_SEQ,
     CERTEXTSASN_IDX_CUSTOM_OID,
     CERTEXTSASN_IDX_CUSTOM_STR,
-    CERTEXTSASN_IDX_START_CUSTOM,
-
+    CERTEXTSASN_IDX_START_CUSTOM
 };
 
 /* Number of items in ASN.1 template for certificate extensions. We multiply
@@ -28028,7 +28030,7 @@ enum {
     SIGASN_IDX_SIGALGO_SEQ,
     SIGASN_IDX_SIGALGO_OID,
     SIGASN_IDX_SIGALGO_NULL,
-    SIGASN_IDX_SIGNATURE,
+    SIGASN_IDX_SIGNATURE
 };
 
 /* Number of items in ASN.1 template for a Certificate. */
@@ -29152,7 +29154,7 @@ enum {
     CERTREQBODYASN_IDX_EXT_SEQ,
     CERTREQBODYASN_IDX_EXT_OID,
     CERTREQBODYASN_IDX_EXT_SET,
-    CERTREQBODYASN_IDX_EXT_BODY,
+    CERTREQBODYASN_IDX_EXT_BODY
 };
 
 /* Number of items in ASN.1 template for Certificate Request body. */
@@ -30920,7 +30922,7 @@ static const ASNItem dsaSigASN[] = {
 enum {
     DSASIGASN_IDX_SEQ = 0,
     DSASIGASN_IDX_R,
-    DSASIGASN_IDX_S,
+    DSASIGASN_IDX_S
 };
 
 #define dsaSigASN_Length (sizeof(dsaSigASN) / sizeof(ASNItem))
@@ -31334,7 +31336,7 @@ enum {
     ECCSPECIFIEDASN_IDX_BASE,
     ECCSPECIFIEDASN_IDX_ORDER,
     ECCSPECIFIEDASN_IDX_COFACTOR,
-    ECCSPECIFIEDASN_IDX_HASH_SEQ,
+    ECCSPECIFIEDASN_IDX_HASH_SEQ
 };
 
 /* Number of items in ASN.1 template for SpecifiedECDomain. */
@@ -31542,7 +31544,7 @@ enum {
     ECCKEYASN_IDX_CURVEID,
     ECCKEYASN_IDX_CURVEPARAMS,
     ECCKEYASN_IDX_PUBKEY,
-    ECCKEYASN_IDX_PUBKEY_VAL,
+    ECCKEYASN_IDX_PUBKEY_VAL
 };
 
 /* Number of items in ASN.1 template for ECC private key. */
@@ -32638,7 +32640,7 @@ enum {
     EDKEYASN_IDX_PKEY,
     EDKEYASN_IDX_PKEY_CURVEPKEY,
     EDKEYASN_IDX_ATTRS,
-    EDKEYASN_IDX_PUBKEY,
+    EDKEYASN_IDX_PUBKEY
 };
 
 /* Number of items in ASN.1 template for Ed25519 and Ed448 private key. */
@@ -35193,7 +35195,7 @@ static const ASNItem nameHashASN[] = {
 };
 enum {
     NAMEHASHASN_IDX_OID = 0,
-    NAMEHASHASN_IDX_NAME,
+    NAMEHASHASN_IDX_NAME
 };
 
 /* Number of items in ASN.1 template for certificate name hash. */

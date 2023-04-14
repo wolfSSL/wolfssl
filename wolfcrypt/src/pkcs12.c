@@ -60,7 +60,7 @@ enum {
     WC_PKCS12_ENCRYPTED_DATA = 656,
 
     WC_PKCS12_DATA_OBJ_SZ = 11,
-    WC_PKCS12_MAC_SALT_SZ = 8,
+    WC_PKCS12_MAC_SALT_SZ = 8
 };
 
 static const byte WC_PKCS12_ENCRYPTED_OID[] =
