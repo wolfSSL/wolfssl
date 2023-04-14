@@ -34836,6 +34836,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it,
             const WOLFSSL_SESSION* sess)
     {
+        ssl->session->haveAltSessionID = 1;
+        XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
         if (sess != NULL) {
             byte bogusID[ID_LEN];
             byte bogusIDSz = ssl->session->sessionIDSz;
@@ -34850,8 +34852,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #ifdef WOLFSSL_TICKET_HAVE_ID
         else {
-            ssl->session->haveAltSessionID = 1;
-            XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
             if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
                 WOLFSSL_MSG("Found session matching the session id"
                             " found in the ticket");

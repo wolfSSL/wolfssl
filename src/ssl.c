@@ -15576,7 +15576,16 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #endif
 
 #ifdef HAVE_EX_DATA
-    if (cacheSession->ownExData) {
+    if (overwrite) {
+        /* Figure out who owns the ex_data */
+        if (cacheSession->ownExData) {
+            /* Prioritize cacheSession copy */
+            XMEMCPY(&addSession->ex_data, &cacheSession->ex_data,
+                    sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        }
+        /* else will be copied in wolfSSL_DupSession call */
+    }
+    else if (cacheSession->ownExData) {
         crypto_ex_cb_free_data(cacheSession, crypto_ex_cb_ctx_session,
                                &cacheSession->ex_data);
         cacheSession->ownExData = 0;
