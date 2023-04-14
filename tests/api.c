@@ -7805,6 +7805,8 @@ static int test_wolfSSL_CTX_add_session_ext(void)
             callback_functions client_cb;
             callback_functions server_cb;
 
+            (void)dtls;
+
             /* Test five cache configurations */
             twcase_client_first_session_ptr = NULL;
             twcase_server_first_session_ptr = NULL;
