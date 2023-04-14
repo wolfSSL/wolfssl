@@ -34837,10 +34837,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             const WOLFSSL_SESSION* sess)
     {
         if (sess != NULL) {
+            byte bogusID[ID_LEN];
+            byte bogusIDSz = ssl->session->sessionIDSz;
+            XMEMCPY(bogusID, ssl->session->sessionID, ID_LEN);
             /* Failure here should not interupt the resumption. We already have
              * all the cipher material we need in `it` */
             WOLFSSL_MSG("Copying in session from passed in arg");
             (void)wolfSSL_DupSession(sess, ssl->session, 1);
+            /* Restore the fake ID */
+            XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
+            ssl->session->sessionIDSz= bogusIDSz;
         }
 #ifdef WOLFSSL_TICKET_HAVE_ID
         else {

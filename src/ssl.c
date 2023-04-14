@@ -15205,7 +15205,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     /* Let's copy over the altSessionID for local cache purposes */
     if (ret == WOLFSSL_SUCCESS && session->haveAltSessionID) {
         ssl->session->haveAltSessionID = 1;
-        XMEMCPY(ssl->session->altSessionID, session->altSessionID, ID_LEN);
+        XMEMMOVE(ssl->session->altSessionID, session->altSessionID, ID_LEN);
     }
 
     if (sessRow != NULL) {
@@ -15583,7 +15583,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     }
 #endif
 
-    EvictSessionFromCache(cacheSession);
+    if (!overwrite)
+        EvictSessionFromCache(cacheSession);
 
     cacheSession->type = WOLFSSL_SESSION_TYPE_CACHE;
     cacheSession->cacheRow = row;
@@ -15834,8 +15835,13 @@ void AddSession(WOLFSSL* ssl)
 #else
             0,
 #endif
+#ifdef NO_SESSION_CACHE_REF
+            NULL
+#else
             (ssl->options.side == WOLFSSL_CLIENT_END) ?
-                    &ssl->clientSession : NULL);
+                    &ssl->clientSession : NULL
+#endif
+                    );
 
 #ifdef HAVE_EXT_CACHE
     if (error == 0 && ssl->ctx->new_sess_cb != NULL) {

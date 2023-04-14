@@ -7910,9 +7910,7 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         /* (D)TLSv1.3 creates a new ticket,
                          * updates both internal and external cache */
                         AssertIntEQ(twcase_new_session_called, 1);
-                        /* Called on session added in
-                         * twcase_server_sess_ctx_pre_shutdown and by wolfSSL */
-                        AssertIntEQ(twcase_remove_session_called, 2);
+                        AssertIntEQ(twcase_remove_session_called, 1);
 
                     }
                     else {
@@ -7936,7 +7934,7 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         AssertIntEQ(twcase_new_session_called, 1);
                         /* Called on session added in
                          * twcase_server_sess_ctx_pre_shutdown and by wolfSSL */
-                        AssertIntEQ(twcase_remove_session_called, 2);
+                        AssertIntEQ(twcase_remove_session_called, 1);
                     }
                     else {
                         /* non (D)TLSv1.3 case */
@@ -7962,7 +7960,7 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                         AssertIntEQ(twcase_new_session_called, 1);
                         /* Called on session added in
                          * twcase_server_sess_ctx_pre_shutdown and by wolfSSL */
-                        AssertIntEQ(twcase_remove_session_called, 2);
+                        AssertIntEQ(twcase_remove_session_called, 1);
                     }
                     else {
                         /* non (D)TLSv1.3 case */
@@ -45438,14 +45436,10 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Both should have been allocated */
     AssertIntEQ(clientSessRemCountMalloc, 1);
     AssertIntEQ(serverSessRemCountMalloc, 1);
-#if (!defined(WOLFSSL_TLS13) || !defined(HAVE_SESSION_TICKET)) && \
-        defined(NO_SESSION_CACHE_REF)
-    /* Client session should not be added to cache so this should be free'd when
-     * the SSL object was being free'd */
-    AssertIntEQ(clientSessRemCountFree, 1);
-#else
-    /* Client session is in cache due to requiring a persistent reference */
+    /* This should not be called yet. Session wasn't evicted from cache yet. */
     AssertIntEQ(clientSessRemCountFree, 0);
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+        !defined(NO_SESSION_CACHE_REF)
     /* Force a cache lookup */
     AssertNotNull(SSL_SESSION_get_ex_data(clientSess, serverSessRemIdx));
     /* Force a cache update */
