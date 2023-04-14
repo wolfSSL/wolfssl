@@ -14963,7 +14963,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 
     /* init to avoid clang static analyzer false positive */
     row = 0;
-    error = TlsSessionCacheGetAndRdLock(id, &sess, &row, ssl->options.side);
+    error = TlsSessionCacheGetAndRdLock(id, &sess, &row, (byte)ssl->options.side);
     error = (error == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     if (error != WOLFSSL_SUCCESS || sess == NULL) {
         WOLFSSL_MSG("Get Session from cache failed");
@@ -15548,8 +15548,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifdef SESSION_CACHE_DYNAMIC_MEM
     cacheSession = sessRow->Sessions[idx];
     if (cacheSession == NULL) {
-        cacheSession = (WOLFSSL_SESSION*) XMALLOC(sizeof(WOLFSSL_SESSION), sessRow->heap,
-                                                  DYNAMIC_TYPE_SESSION);
+        cacheSession = (WOLFSSL_SESSION*) XMALLOC(sizeof(WOLFSSL_SESSION),
+                                         sessRow->heap, DYNAMIC_TYPE_SESSION);
         if (cacheSession == NULL) {
             return MEMORY_E;
         }
@@ -21665,11 +21665,13 @@ int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     /* Session cache is global */
     (void)ctx;
 
-    id = session->sessionID;
-    idSz = session->sessionIDSz;
     if (session->haveAltSessionID) {
         id = session->altSessionID;
         idSz = ID_LEN;
+    }
+    else {
+        id = session->sessionID;
+        idSz = session->sessionIDSz;
     }
 
     error = AddSessionToCache(ctx, session, id, idSz,
