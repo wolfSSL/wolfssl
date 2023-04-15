@@ -10135,7 +10135,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += length;
 
     #ifndef NO_SESSION_CACHE
-    	AddSession(ssl);
+        AddSession(ssl);
     #endif
 
     /* Always encrypted. */
