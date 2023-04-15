@@ -76,8 +76,8 @@ enum {
     MAX_TLS13_HKDF_LABEL_SZ = 47 + WC_MAX_DIGEST_SIZE
 };
 
-WOLFSSL_API int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
-                             byte* ikm, int ikmLen, int digest);
+WOLFSSL_API int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt,
+                          word32 saltLen, byte* ikm, word32 ikmLen, int digest);
 
 WOLFSSL_API int wc_Tls13_HKDF_Expand_Label(byte* okm, word32 okmLen,
                              const byte* prk, word32 prkLen,

@@ -88,7 +88,7 @@ enum {
     WC_FFDHE_3072 = 257,
     WC_FFDHE_4096 = 258,
     WC_FFDHE_6144 = 259,
-    WC_FFDHE_8192 = 260,
+    WC_FFDHE_8192 = 260
 };
 
 /* DH Private Key size up to 8192 bit */

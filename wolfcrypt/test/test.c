@@ -4845,7 +4845,7 @@ WOLFSSL_TEST_SUBROUTINE int hash_test(void)
 
     for (i = 0; i < (int)(sizeof(typesHashBad)/sizeof(*typesHashBad)); i++) {
         ret = wc_Hash(typesHashBad[i], data, sizeof(data), out, sizeof(out));
-        if (ret != BAD_FUNC_ARG && ret != BUFFER_E)
+        if ((ret != BAD_FUNC_ARG) && (ret != BUFFER_E) && (ret != HASH_TYPE_E))
             return WC_TEST_RET_ENC_I(i);
     }
 

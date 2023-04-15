@@ -34,9 +34,13 @@
  * designs.
  */
 
-#include <wolfssl/wolfcrypt/wolfmath.h>
+#ifndef USE_INTEGER_HEAP_MATH
 
-#ifdef USE_INTEGER_HEAP_MATH
+    /* Some platforms (like FIPS) may only include integer.h for math. */
+    /* Handle variations of fast math, integer and sp math */
+    #include <wolfssl/wolfcrypt/wolfmath.h>
+
+#else
 
 #include <wolfssl/wolfcrypt/random.h>
 

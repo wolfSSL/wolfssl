@@ -141,7 +141,7 @@ enum PKCS7_STATE {
     WC_PKCS7_DECRYPT_PWRI,
     WC_PKCS7_DECRYPT_ORI,
 
-    WC_PKCS7_DECRYPT_DONE,
+    WC_PKCS7_DECRYPT_DONE
 
 };
 
@@ -158,11 +158,12 @@ enum Pkcs7_Misc {
     MAX_RECIP_SZ          = MAX_VERSION_SZ +
                             MAX_SEQ_SZ + WC_ASN_NAME_MAX + MAX_SN_SZ +
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ,
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(Pkcs7_Misc)
 };
 
 enum Cms_Options {
     CMS_SKID = 1,
-    CMS_ISSUER_AND_SERIAL_NUMBER = 2,
+    CMS_ISSUER_AND_SERIAL_NUMBER = 2
 };
 #define DEGENERATE_SID 3
 

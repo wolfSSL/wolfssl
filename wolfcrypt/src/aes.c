@@ -2893,7 +2893,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         aes->left = 0;
     #endif
 
-        aes->keylen = keylen;
+        aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
 
     #ifdef WOLFSSL_AESNI
@@ -4564,7 +4564,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
-    for (i = ctrSz-1; i >= 0; i--) {
+    for (i = (int)ctrSz - 1; i >= 0; i--) {
         if (++ctr[i])
             break;
     }
@@ -4683,12 +4683,12 @@ static void GenerateM0(Aes* aes)
 #elif defined(GCM_TABLE_4BIT)
 
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
-static WC_INLINE void Shift4_M0(byte *r8, byte* z8)
+static WC_INLINE void Shift4_M0(byte *r8, byte *z8)
 {
     int i;
     for (i = 15; i > 0; i--)
-        r8[i] = (z8[i-1] << 4) | (z8[i] >> 4);
-    r8[0] = z8[0] >> 4;
+        r8[i] = (byte)(z8[i-1] << 4) | (byte)(z8[i] >> 4);
+    r8[0] = (byte)(z8[0] >> 4);
 }
 #endif
 
@@ -5398,10 +5398,10 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
     a = (z8[1] >> 56) & 0xf;
 
     /* Rotate z by 4-bits */
-    n3 = z8[1] & 0xf0f0f0f0f0f0f0f0ULL;
-    n2 = z8[1] & 0x0f0f0f0f0f0f0f0fULL;
-    n1 = z8[0] & 0xf0f0f0f0f0f0f0f0ULL;
-    n0 = z8[0] & 0x0f0f0f0f0f0f0f0fULL;
+    n3 = z8[1] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n2 = z8[1] & W64LIT(0x0f0f0f0f0f0f0f0fU);
+    n1 = z8[0] & W64LIT(0xf0f0f0f0f0f0f0f0U);
+    n0 = z8[0] & W64LIT(0x0f0f0f0f0f0f0f0fU);
     z8[1] = (n3 >> 4) | (n2 << 12) | (n0 >> 52);
     z8[0] = (n1 >> 4) | (n0 << 12);
 
@@ -7165,7 +7165,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
      * the pairwise bytes in the strings.
      */
-    res = ConstantCompare(authTag, Tprime, authTagSz);
+    res = ConstantCompare(authTag, Tprime, (int)authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.
      */
@@ -8571,7 +8571,7 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 {
     int ret = 0;
 
-    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize(ivSz)) {
+    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize((int)ivSz)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8599,7 +8599,7 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 {
     int ret = 0;
 
-    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize(ivSz) ||
+    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize((int)ivSz) ||
         (ivFixed == NULL && ivFixedSz != 0) ||
         (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
 

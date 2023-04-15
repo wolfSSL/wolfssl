@@ -3820,7 +3820,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
 
     /* compare generated to hash in messageDigest attribute */
     if ((innerAttribSz != digestSz) ||
-        (XMEMCMP(attrib->value + idx, digestBuf, (word32)digestSz) != 0)) {
+        (XMEMCMP(attrib->value + idx, digestBuf, (size_t)digestSz) != 0)) {
         WOLFSSL_MSG("Content digest does not match messageDigest attrib value");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11718,14 +11718,18 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
-            blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
-            if (ret == 0 && blockKeySz < 0) {
-                ret = blockKeySz;
+            if (ret == 0) {
+                blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
+                if (blockKeySz < 0) {
+                    ret = blockKeySz;
+                }
             }
 
-            expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
-            if (ret == 0 && expBlockSz < 0) {
-                ret = expBlockSz;
+            if (ret == 0) {
+                expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+                if (expBlockSz < 0) {
+                    ret = expBlockSz;
+                }
             }
 
             /* get nonce, stored in OPTIONAL parameter of AlgoID
@@ -11868,7 +11872,25 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
             encryptedContentSz = pkcs7->stream->expected;
+        #else
+            pkiMsgSz = inSz;
         #endif
+
+            if (expBlockSz == 0) {
+        #ifndef NO_PKCS7_STREAM
+                wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
+        #endif
+                if (encOID == 0)
+                    expBlockSz = 1;
+                else {
+                    expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+                    if (expBlockSz < 0) {
+                        ret = expBlockSz;
+                        break;
+                    } else if (expBlockSz == 0)
+                        expBlockSz = 1;
+                }
+            }
 
             /* AES-GCM/CCM does NOT require padding for plaintext content or
              * AAD inputs RFC 5084 section 3.1 and 3.2, but we must alloc

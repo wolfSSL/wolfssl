@@ -164,22 +164,25 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
 static void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 {
     word32 digest[HASH_MAX_DIGEST/sizeof(word32)];
+    int i = 0, sz;
 
-    /* get digest result */
-    digest[0] = HASH->HR[0];
-    digest[1] = HASH->HR[1];
-    digest[2] = HASH->HR[2];
-    digest[3] = HASH->HR[3];
-    if (digestSize >= 20) {
-        digest[4] = HASH->HR[4];
+    if (digestSize > HASH_MAX_DIGEST)
+        digestSize = HASH_MAX_DIGEST;
+
+    sz = digestSize;
+    while (sz > 0) {
+        /* first 20 bytes come from instance HR */
+        if (i < 5) {
+            digest[i] = HASH->HR[i];
+        }
     #ifdef HASH_DIGEST
-        if (digestSize >= 28) {
-            digest[5] = HASH_DIGEST->HR[5];
-            digest[6] = HASH_DIGEST->HR[6];
-            if (digestSize == 32)
-                digest[7] = HASH_DIGEST->HR[7];
+        /* reset comes from HASH_DIGEST */
+        else {
+            digest[i] = HASH_DIGEST->HR[i];
         }
     #endif
+        i++;
+        sz -= 4;
     }
 
     ByteReverseWords(digest, digest, digestSize);
@@ -202,10 +205,13 @@ static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
     int timeout = 0;
     (void)stmCtx;
 
-    /* wait until hash digest is complete */
+    /* wait until not busy and hash digest / input block are complete */
     while ((HASH->SR & HASH_SR_BUSY) &&
         #ifdef HASH_IMR_DCIE
             (HASH->SR & HASH_SR_DCIS) == 0 &&
+        #endif
+        #ifdef HASH_IMR_DINIE
+            (HASH->SR & HASH_SR_DINIS) == 0 &&
         #endif
         ++timeout < STM32_HASH_TIMEOUT) {
     };
@@ -306,6 +312,13 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     }
 
     if (wroteToFifo) {
+    #ifdef STM32_HASH_FIFO_WORKAROUND
+        /* If we wrote a block send one more 32-bit to FIFO to trigger start.
+         * The save/restore feature cannot leave 16 deep FIFO filled. */
+        wc_Stm32_Hash_Data(stmCtx, 4);
+        stmCtx->fifoBytes += 4;
+    #endif
+
         /* make sure hash operation is done */
         ret = wc_Stm32_Hash_WaitDone(stmCtx);
 
@@ -862,7 +875,10 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, size);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, size);
-#ifndef WOLFSSL_SP_MATH
+
+#if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+    ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        defined(WOLFSSL_SP_INT_NEGATIVE))
         /* if k is negative, we compute the multiplication with abs(-k)
          * with result (x, y) and modify the result to (x, -y)
          */
