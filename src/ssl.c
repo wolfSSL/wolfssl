@@ -14495,7 +14495,7 @@ void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
     XMEMSET(id, 0, ID_LEN);
     WOLFSSL_ENTER("wolfSSL_flush_sessions");
     for (i = 0; i < SESSION_ROWS; ++i) {
-        if (SESSION_ROW_WR_LOCK(i) != 0) {
+        if (SESSION_ROW_WR_LOCK(&SessionCache[i]) != 0) {
             WOLFSSL_MSG("Session cache mutex lock failed");
             return;
         }
@@ -14520,7 +14520,7 @@ void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 #endif
             }
         }
-        SESSION_ROW_UNLOCK(i);
+        SESSION_ROW_UNLOCK(&SessionCache[i]);
     }
 }
 
