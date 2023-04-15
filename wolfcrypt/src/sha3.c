@@ -645,7 +645,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 
     if (sha3->i > 0) {
         byte *t;
-        byte l = p * 8 - sha3->i;
+        byte l = (byte)(p * 8 - sha3->i);
         if (l > len) {
             l = (byte)len;
         }
@@ -692,7 +692,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         data += p * 8;
     }
     XMEMCPY(sha3->t, data, len);
-    sha3->i += len;
+    sha3->i += (byte)len;
 
     return 0;
 }

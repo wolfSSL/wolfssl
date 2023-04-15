@@ -811,6 +811,11 @@ while (0)
 #define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
     unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
     sp_int* (name) = (sp_int*)name##d
+#elif defined(__cplusplus)
+/* C++ doesn't tolerate parentheses around "name" (-Wparentheses) */
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
+    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
+    sp_int* name = (sp_int*)name##d
 #else
 /* Declare a dynamically allocated mp_int. */
 #define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \

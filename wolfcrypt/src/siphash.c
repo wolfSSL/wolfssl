@@ -258,7 +258,7 @@ int wc_SipHashUpdate(SipHash* sipHash, const unsigned char* in, word32 inSz)
         if (sipHash->cacheCnt > 0) {
             byte len = SIPHASH_BLOCK_SIZE - sipHash->cacheCnt;
             if (len > inSz) {
-                len = inSz;
+                len = (byte)inSz;
             }
             XMEMCPY(sipHash->cache + sipHash->cacheCnt, in, len);
             in += len;
@@ -285,7 +285,7 @@ int wc_SipHashUpdate(SipHash* sipHash, const unsigned char* in, word32 inSz)
         if (inSz > 0) {
             /* Cache remaining message bytes less than a block. */
             XMEMCPY(sipHash->cache, in, inSz);
-            sipHash->cacheCnt = inSz;
+            sipHash->cacheCnt = (byte)inSz;
         }
     }
 

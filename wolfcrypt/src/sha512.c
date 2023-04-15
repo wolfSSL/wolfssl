@@ -1073,7 +1073,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #else
 
-static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, int digestSz)
+static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
 {
 #ifdef LITTLE_ENDIAN_ORDER
     word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
@@ -1099,7 +1099,7 @@ int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
     return Sha512FinalRaw(sha512, hash, WC_SHA512_DIGEST_SIZE);
 }
 
-static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, int digestSz,
+static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
                                int (*initfp)(wc_Sha512*))
 {
     int ret;
