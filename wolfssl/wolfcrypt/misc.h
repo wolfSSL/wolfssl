@@ -42,48 +42,48 @@ masking and clearing memory logic.
 #define WC_MISC_STATIC
 
 WOLFSSL_LOCAL
-word32 rotlFixed(word32, word32);
+word32 rotlFixed(word32 x, word32 y);
 WOLFSSL_LOCAL
-word32 rotrFixed(word32, word32);
+word32 rotrFixed(word32 x, word32 y);
 
 #ifdef WC_RC2
 WOLFSSL_LOCAL
-word16 rotlFixed16(word16, word16);
+word16 rotlFixed16(word16 x, word16 y);
 WOLFSSL_LOCAL
-word16 rotrFixed16(word16, word16);
+word16 rotrFixed16(word16 x, word16 y);
 #endif
 
 WOLFSSL_LOCAL
-word32 ByteReverseWord32(word32);
+word32 ByteReverseWord32(word32 value);
 WOLFSSL_LOCAL
-void   ByteReverseWords(word32*, const word32*, word32);
+void   ByteReverseWords(word32* out, const word32* in, word32 byteCount);
 
 WOLFSSL_LOCAL
 void XorWordsOut(wolfssl_word* r, const wolfssl_word* a, const wolfssl_word* b,
                  word32 n);
 WOLFSSL_LOCAL
-void xorbufout(void*, const void*, const void*, word32);
+void xorbufout(void* out, const void* buf, const void* mask, word32 count);
 WOLFSSL_LOCAL
-void XorWords(wolfssl_word*, const wolfssl_word*, word32);
+void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n);
 WOLFSSL_LOCAL
-void xorbuf(void*, const void*, word32);
+void xorbuf(void* buf, const void* mask, word32 count);
 
 WOLFSSL_LOCAL
-void ForceZero(void*, word32);
+void ForceZero(void* mem, word32 len);
 
 WOLFSSL_LOCAL
-int ConstantCompare(const byte*, const byte*, int);
+int ConstantCompare(const byte* a, const byte* b, int length);
 
 #ifdef WORD64_AVAILABLE
 WOLFSSL_LOCAL
-word64 rotlFixed64(word64, word64);
+word64 rotlFixed64(word64 x, word64 y);
 WOLFSSL_LOCAL
-word64 rotrFixed64(word64, word64);
+word64 rotrFixed64(word64 x, word64 y);
 
 WOLFSSL_LOCAL
-word64 ByteReverseWord64(word64);
+word64 ByteReverseWord64(word64 value);
 WOLFSSL_LOCAL
-void   ByteReverseWords64(word64*, const word64*, word32);
+void   ByteReverseWords64(word64* out, const word64* in, word32 byteCount);
 #endif /* WORD64_AVAILABLE */
 
 #ifndef WOLFSSL_HAVE_MIN
