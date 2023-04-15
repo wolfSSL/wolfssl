@@ -815,7 +815,7 @@ while (0)
 /* Declare a dynamically allocated mp_int. */
 #define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
     unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
-    sp_int* name = (sp_int*)name##d
+    sp_int* (name) = (sp_int*)name##d
 #endif
 /* Declare a statically allocated mp_int. */
 #define DECL_MP_INT_SIZE(name, bits)                            \
