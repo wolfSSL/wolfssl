@@ -7519,7 +7519,7 @@ void bench_eccEncrypt(int curveId)
     for (i = 0; i < (int)sizeof(msg); i++) {
         msg[i] = (byte)i;
     }
-    
+
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < ntimes; i++) {
