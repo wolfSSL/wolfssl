@@ -1629,6 +1629,9 @@ static int InitSha256(wc_Sha256* sha256)
     #else
         (void)devId;
     #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_IMXRT1170_CAAM
+     ret = wc_CAAM_HashInit(&sha224->hndl, &sha224->ctx, WC_HASH_TYPE_SHA224);
+#endif
 
     #ifdef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
         if (sha224->ctx.mode != ESP32_SHA_INIT) {

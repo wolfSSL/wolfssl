@@ -106,8 +106,8 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
 
-    void wc_esp32TimerStart();
-    uint64_t  wc_esp32elapsedTime();
+    void wc_esp32TimerStart(void);
+    uint64_t  wc_esp32elapsedTime(void);
 
 #endif /* WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
 
@@ -141,13 +141,6 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
     typedef struct
     {
-        /* NOTE:
-        **
-        ** There's a known Espressif byte alignment issue. See:
-        ** https://github.com/wolfSSL/wolfssl/issues/5948
-        **
-        ** To avoid problems, list the largest types first.
-        */
         ESP32_MODE mode; /* an ESP32_MODE value; typically 0 init, 1 HW, 2 SW */
 
         /* see esp_rom/include/esp32/rom/sha.h */

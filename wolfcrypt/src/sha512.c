@@ -26,11 +26,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* TODO where best to put this? */
-#define USE_SHA_SOFTWARE_IMPL
-
-
-
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
 /* determine if we are using Espressif SHA hardware acceleration */
@@ -928,7 +923,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
             else {
                 ret = esp_sha512_process(sha512);
             }
-#endif
+    #endif
             if (ret != 0)
                 break;
         } /* while (len >= WC_SHA512_BLOCK_SIZE) */
@@ -1102,7 +1097,6 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
     #endif
 
-
     return 0;
 }
 
@@ -1222,9 +1216,6 @@ void wc_Sha512Free(wc_Sha512* sha512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
-
-
-
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_KCAPI_HASH)
 /* Apply SHA512 transformation to the data                */
@@ -1596,8 +1587,9 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 {
     int ret = 0;
 
-    if (src == NULL || dst == NULL)
+    if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -1613,8 +1605,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-#if  defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
-    esp_sha512_ctx_copy(src, dst);
+#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+    if (ret == 0) {
+        ret = esp_sha512_ctx_copy(src, dst);
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS

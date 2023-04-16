@@ -54,6 +54,10 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_IMXRT1170_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
+#endif
+
 #undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
@@ -946,14 +950,14 @@ void wc_ShaFree(wc_Sha* sha)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
 
-/* */
+/* wc_ShaGetHash get hash value */
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
     wc_Sha* tmpSha;
 #else
-    wc_Sha  tmpSha[1];
+    wc_Sha  tmpSha[sizeof(wc_Sha)];
 #endif
 
     if (sha == NULL || hash == NULL) {
@@ -966,22 +970,21 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     if (tmpSha == NULL) {
         return MEMORY_E;
     }
-#endif
-
-    /* copy this sha into tmpSha */
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
-        wc_ShaFree(tmpSha); /* TODO move outside brackets? */
     }
-
-#ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    /* Here tmpSha is a local array and does not need alloc/free */
+    ret = wc_ShaCopy(sha, (wc_Sha*)&tmpSha);
+    if (ret == 0) {
+        ret = wc_ShaFinal((wc_Sha*)&tmpSha, hash);
+    }
 #endif
 
     return ret;
 }
-
 
 int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 {

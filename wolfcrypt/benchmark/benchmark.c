@@ -68,8 +68,8 @@
 #ifdef WOLFSSL_ESPIDF
     #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         #include "driver/gptimer.h"
-        gptimer_handle_t esp_gptimer = NULL;
-        gptimer_config_t esp_timer_config = {
+        static gptimer_handle_t esp_gptimer = NULL;
+        static gptimer_config_t esp_timer_config = {
                             .clk_src = GPTIMER_CLK_SRC_DEFAULT,
                             .direction = GPTIMER_COUNT_UP,
                             .resolution_hz = CONFIG_XTAL_FREQ * 1000000,
@@ -1015,18 +1015,18 @@ static const char* bench_desc_words[][15] = {
     ** the Espressif `unsigned xthal_get_ccount()` which is known to overflow
     ** at least once during full benchmark tests.
     */
-    word64 xthal_get_ccount_ex()
+    uint64_t xthal_get_ccount_ex()
     {
         /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
 
         /* the currently observed clock counter value */
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-        word64 thisVal = 0;;
+    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        uint64_t thisVal = 0;
         ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisVal));
-#else
+    #else
         /* reminder unsupported CONFIG_IDF_TARGET captured above */
-        word64 thisVal = xthal_get_ccount();
-#endif
+        uint64_t thisVal = xthal_get_ccount();
+    #endif
         /* if the current value is less than the previous value,
         ** we likely overflowed at least once.
         */
@@ -1053,12 +1053,12 @@ static const char* bench_desc_words[][15] = {
         _xthal_get_ccount_ex += (thisVal - _xthal_get_ccount_last);
 
         /* all of this took some time, so reset the "last seen" value */
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
                                               &_xthal_get_ccount_last));
-#else
+    #else
          _xthal_get_ccount_last = xthal_get_ccount();
-#endif
+    #endif
         return _xthal_get_ccount_ex;
     }
 
@@ -7516,9 +7516,10 @@ void bench_eccEncrypt(int curveId)
     if (ret != 0)
         goto exit;
 
-    for (i = 0; i < (int)sizeof(msg); i++)
+    for (i = 0; i < (int)sizeof(msg); i++) {
         msg[i] = (byte)i;
-
+    }
+    
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < ntimes; i++) {
