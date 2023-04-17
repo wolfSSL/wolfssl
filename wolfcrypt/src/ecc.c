@@ -4925,22 +4925,6 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
                                 ECC_CURVE_FIELD_BF);
     }
 
-    /* x must be in the range [0, p-1] */
-    if (err == MP_OKAY) {
-        if (mp_cmp(p->x, curve->prime) != MP_LT)
-            err = ECC_OUT_OF_RANGE_E;
-    }
-    /* y must be in the range [0, p-1] */
-    if (err == MP_OKAY) {
-        if (mp_cmp(p->y, curve->prime) != MP_LT)
-            err = ECC_OUT_OF_RANGE_E;
-    }
-    /* z must be 1 */
-    if (err == MP_OKAY) {
-        if (!mp_isone(p->z))
-            err = ECC_BAD_ARG_E;
-    }
-
     if (err == MP_OKAY) {
         err = wc_ecc_is_point(p, curve->Af, curve->Bf, curve->prime);
     }
@@ -9283,7 +9267,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
 
 /* is ecc point on curve described by dp ? */
-int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
+static int _ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 {
 #if !defined(WOLFSSL_SP_MATH)
    int err;
@@ -9417,6 +9401,44 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #endif
    return WC_KEY_SIZE_E;
 #endif
+}
+
+int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
+{
+    int err = MP_OKAY;
+
+    /* Validate parameters. */
+    if ((ecp == NULL) || (a == NULL) || (b == NULL) || (prime == NULL)) {
+        err = BAD_FUNC_ARG;
+    }
+
+    if (err == MP_OKAY) {
+        /* x must be in the range [0, p-1] */
+        if ((mp_cmp(ecp->x, prime) != MP_LT) || mp_isneg(ecp->x)) {
+            err = ECC_OUT_OF_RANGE_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* y must be in the range [0, p-1] */
+        if ((mp_cmp(ecp->y, prime) != MP_LT) || mp_isneg(ecp->y)) {
+            err = ECC_OUT_OF_RANGE_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* z must be one, that is point must be in affine form. */
+        if (!mp_isone(ecp->z)) {
+            err = ECC_BAD_ARG_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* Check x and y are valid for curve equation. */
+        err = _ecc_is_point(ecp, a, b, prime);
+    }
+
+    return err;
 }
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
@@ -9889,14 +9911,16 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* SP 800-56Ar3, section 5.6.2.3.4, process step 2 */
     /* Qx must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT) {
+        if ((mp_cmp(key->pubkey.x, curve->prime) != MP_LT) ||
+                mp_isneg(key->pubkey.x)) {
             err = ECC_OUT_OF_RANGE_E;
         }
     }
 
     /* Qy must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT) {
+        if ((mp_cmp(key->pubkey.y, curve->prime) != MP_LT) ||
+                mp_isneg(key->pubkey.y)) {
             err = ECC_OUT_OF_RANGE_E;
         }
     }
@@ -9905,7 +9929,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* SP 800-56Ar3, section 5.6.2.3.4, process step 3 */
     /* make sure point is actually on curve */
     if (err == MP_OKAY)
-        err = wc_ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
+        err = _ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
 
     if (!partial) {
         /* SP 800-56Ar3, section 5.6.2.3.3, process step 4 */
