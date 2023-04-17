@@ -15155,11 +15155,6 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         }
     }
 
-    if (ret == WOLFSSL_SUCCESS && SslSessionCacheOff(ssl, session)) {
-        WOLFSSL_MSG("Session cache off");
-        ret = WOLFSSL_FAILURE;
-    }
-
     if (ret == WOLFSSL_SUCCESS && ssl->options.side != WOLFSSL_NEITHER_END &&
             (byte)ssl->options.side != session->side) {
         WOLFSSL_MSG("Setting session for wrong role");
