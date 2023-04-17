@@ -3215,8 +3215,10 @@ enum PskDecryptReturn {
 #ifdef HAVE_SESSION_TICKET
 typedef struct psk_sess_free_cb_ctx {
     word32 row;
+#ifdef HAVE_EXT_CACHE
     int extCache;
     int freeSess;
+#endif
 } psk_sess_free_cb_ctx;
 typedef void (psk_sess_free_cb)(const WOLFSSL* ssl, const WOLFSSL_SESSION* sess,
         psk_sess_free_cb_ctx* freeCtx);

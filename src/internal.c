@@ -34836,8 +34836,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it,
             const WOLFSSL_SESSION* sess)
     {
+#ifdef WOLFSSL_TICKET_HAVE_ID
         ssl->session->haveAltSessionID = 1;
         XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
+#endif
         if (sess != NULL) {
             byte bogusID[ID_LEN];
             byte bogusIDSz = ssl->session->sessionIDSz;
@@ -34993,6 +34995,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     static void FreeSessionFromCacheOrExt(const WOLFSSL* ssl,
             const WOLFSSL_SESSION* sess, psk_sess_free_cb_ctx* freeCtx)
     {
+        (void)ssl;
+        (void)sess;
 #ifdef HAVE_EXT_CACHE
         if (freeCtx->extCache) {
             if (freeCtx->freeSess)
