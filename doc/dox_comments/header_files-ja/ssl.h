@@ -4036,7 +4036,7 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
 
 /*!
     \ingroup CertsKeys 
-    \brief  この関数は、証明書のチェーンからのピアのwolfssl_x509_209_Certificateをインデックス（IDX）で取得します。
+    \brief  この関数は、証明書のチェーンからのピアのWOLFSSL_X509構造体をインデックス（IDX）で取得します。
     \return pointer  WOLFSSL_X509構造体へのポインタを返します。
     \param chain  動的メモリsession_cacheの場合に使用されるWOLFSSL_X509_CHAINへのポインタ。
 
@@ -4047,11 +4047,12 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
     WOLFSSL_X509_CHAIN* chain = &session->chain;
     int idx = 999; // set idx
     ...
-    WOLFSSL_X509_CHAIN ptr;
+    WOLFSSL_X509* ptr;
     prt = wolfSSL_get_chain_X509(chain, idx);
 
     if(ptr != NULL){
         //ptr contains the cert at the index specified
+        wolfSSL_FreeX509(ptr);
     } else {
 	    // ptr is NULL
     }
