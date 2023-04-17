@@ -99,6 +99,15 @@ jobs:
           ${{ toJSON(matrix) }}
           EOF
 
+      - name: Print computed job run ID
+        run: |
+          SHA_SUM=$(sha256sum << 'END_OF_HEREDOC' | cut -d " " -f 1
+          ${{ toJSON(github) }}
+          END_OF_HEREDOC
+          )
+          echo "our_job_run_id=$SHA_SUM" >> $GITHUB_ENV
+          echo Our job run ID is $SHA_SUM
+
       - name: Checkout wolfSSL
         uses: actions/checkout@v3
         with:
@@ -264,7 +273,7 @@ jobs:
         if: ${{ failure() && steps.testing.outcome == 'failure' }}
         uses: actions/upload-artifact@v3
         with:
-          name: hostap-logs
+          name: hostap-logs-${{ env.our_job_run_id }}
           path: hostap/tests/hwsim/logs.zip
           retention-days: 5
 
