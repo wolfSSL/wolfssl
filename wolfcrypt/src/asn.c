@@ -1202,6 +1202,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return MP_INIT_E;
             }
+            FALL_THROUGH;
+        case ASN_DATA_TYPE_MP_INITED:
             err = mp_read_unsigned_bin(data->data.mp, (byte*)input + idx,
                                        (word32)len);
             if (err != 0) {
@@ -1532,7 +1534,8 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         if (asn[i].tag == ASN_INTEGER) {
             /* Check validity of first byte. */
             err = GetASN_Integer(input, idx, len,
-                    data[i].dataType == ASN_DATA_TYPE_MP);
+                    data[i].dataType == ASN_DATA_TYPE_MP ||
+                    data[i].dataType == ASN_DATA_TYPE_MP_INITED);
             if (err != 0)
                 return err;
             if (len > 1 && input[idx] == 0) {
@@ -1861,6 +1864,17 @@ void GetASN_ExpBuffer(ASNGetData *dataASN, const byte* data, word32 length)
 void GetASN_MP(ASNGetData *dataASN, mp_int* num)
 {
     dataASN->dataType = ASN_DATA_TYPE_MP;
+    dataASN->data.mp  = num;
+}
+
+/* Setup ASN data item to get a number into an mp_int that is initialized.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      Multi-precision number object.
+ */
+void GetASN_MP_Inited(ASNGetData *dataASN, mp_int* num)
+{
+    dataASN->dataType = ASN_DATA_TYPE_MP_INITED;
     dataASN->data.mp  = num;
 }
 
@@ -3239,7 +3253,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 
 #if (defined(HAVE_ECC) || !defined(NO_DSA)) && !defined(WOLFSSL_ASN_TEMPLATE)
 static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
-    word32 maxIdx)
+    word32 maxIdx, int initNum)
 {
     word32 idx = *inOutIdx;
     int    ret;
@@ -3252,8 +3266,10 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
     if (((input[idx] & 0x80) == 0x80) && (input[idx - 1] != 0x00))
         return MP_INIT_E;
 
-    if (mp_init(mpi) != MP_OKAY)
-        return MP_INIT_E;
+    if (initNum) {
+        if (mp_init(mpi) != MP_OKAY)
+            return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(mpi, input + idx, (word32)length) != 0) {
         mp_clear(mpi);
@@ -31207,6 +31223,12 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
+    return DecodeECC_DSA_Sig_Ex(sig, sigLen, r, s, 1);
+}
+
+int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
+    int init)
+{
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int    len = 0;
@@ -31227,11 +31249,11 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     }
 #endif
 
-    if (GetIntPositive(r, sig, &idx, sigLen) < 0) {
+    if (GetIntPositive(r, sig, &idx, sigLen, init) < 0) {
         return ASN_ECC_KEY_E;
     }
 
-    if (GetIntPositive(s, sig, &idx, sigLen) < 0) {
+    if (GetIntPositive(s, sig, &idx, sigLen, init) < 0) {
         mp_clear(r);
         return ASN_ECC_KEY_E;
     }
@@ -31254,8 +31276,14 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 
     /* Clear dynamic data and set mp_ints to put r and s into. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_MP(&dataASN[DSASIGASN_IDX_R], r);
-    GetASN_MP(&dataASN[DSASIGASN_IDX_S], s);
+    if (init) {
+        GetASN_MP(&dataASN[DSASIGASN_IDX_R], r);
+        GetASN_MP(&dataASN[DSASIGASN_IDX_S], s);
+    }
+    else {
+        GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_R], r);
+        GetASN_MP_Inited(&dataASN[DSASIGASN_IDX_S], s);
+    }
 
     /* Decode the DSA signature. */
     ret = GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 0, sig, &idx,

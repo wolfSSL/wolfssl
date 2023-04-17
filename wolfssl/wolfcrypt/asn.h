@@ -185,10 +185,12 @@ enum ASNItem_DataType {
     ASN_DATA_TYPE_REPLACE_BUFFER = 7,
     /* Big number as an mp_int. */
     ASN_DATA_TYPE_MP             = 8,
+    /* Big number as an mp_int that has already been initialized. */
+    ASN_DATA_TYPE_MP_INITED      = 9,
     /* Big number as a positive or negative mp_int. */
-    ASN_DATA_TYPE_MP_POS_NEG     = 9,
+    ASN_DATA_TYPE_MP_POS_NEG     = 10,
     /* ASN.1 CHOICE. A 0 terminated list of tags that are valid. */
-    ASN_DATA_TYPE_CHOICE         = 10
+    ASN_DATA_TYPE_CHOICE         = 11
 };
 
 /* A template entry describing an ASN.1 item. */
@@ -311,6 +313,7 @@ WOLFSSL_LOCAL void GetASN_Buffer(ASNGetData *dataASN, byte* data,
 WOLFSSL_LOCAL void GetASN_ExpBuffer(ASNGetData *dataASN, const byte* data,
     word32 length);
 WOLFSSL_LOCAL void GetASN_MP(ASNGetData *dataASN, mp_int* num);
+WOLFSSL_LOCAL void GetASN_MP_Inited(ASNGetData *dataASN, mp_int* num);
 WOLFSSL_LOCAL void GetASN_MP_PosNeg(ASNGetData *dataASN, mp_int* num);
 WOLFSSL_LOCAL void GetASN_Choice(ASNGetData *dataASN, const byte* options);
 WOLFSSL_LOCAL void GetASN_Boolean(ASNGetData *dataASN, byte* num);
@@ -398,6 +401,17 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define GetASN_MP(dataASN, num)                                        \
     do {                                                               \
         (dataASN)->dataType = ASN_DATA_TYPE_MP;                        \
+        (dataASN)->data.mp  = num;                                     \
+    } while (0)
+
+/* Setup ASN data item to get a number into an mp_int that is initialized.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] num      Multi-precision number object.
+ */
+#define GetASN_MP_Inited(dataASN, num)                                 \
+    do {                                                               \
+        (dataASN)->dataType = ASN_DATA_TYPE_MP_INITED;                 \
         (dataASN)->data.mp  = num;                                     \
     } while (0)
 
@@ -2201,6 +2215,8 @@ WOLFSSL_LOCAL int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
         byte* r, word32* rLen, byte* s, word32* sLen);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
+    WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen,
+                                       mp_int* r, mp_int* s, int init);
 #endif
 #ifndef NO_DSA
 WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,
