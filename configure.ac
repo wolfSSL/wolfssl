@@ -536,6 +536,7 @@ fi
 
 
 # MATH LIBRARY SELECTION
+
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
@@ -671,7 +672,7 @@ AC_ARG_ENABLE([heapmath],
     [ ENABLED_HEAPMATH=$enableval ],
     [ ENABLED_HEAPMATH=no]
     )
-if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" && test "x$ENABLED_SP_MATH" = "xno")
+if test "x$ENABLED_HEAPMATH" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
     ENABLED_HEAPMATH="yes"
@@ -3959,11 +3960,6 @@ if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
     enable_pwdbased=no
-    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
-    then
-        # DH and ECC need bigint
-        AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
-    fi
 else
     if test "$ENABLED_ASN" = "template"; then
         ENABLED_ASN="yes"
@@ -4006,10 +4002,11 @@ then
     AC_MSG_ERROR([please disable ecc if disabling asn.])
 fi
 
-# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
+# No Big Int (ASN, DSA, RSA, DH, ECC and compatibility layer need bigint)
 if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = "no" && \
    test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
-   test "$ENABLED_RSA" = "no"
+   test "$ENABLED_RSA" = "no" && test "$ENABLED_OPENSSLEXTRA" = "no" && \
+   test "$ENABLED_OPENSSLALL" ="yes"
 then
     ENABLED_SP_MATH_ALL="no"
     ENABLED_FASTMATH="no"
@@ -7927,6 +7924,10 @@ AS_IF([test "x$ENABLED_16BIT" = "xyes" && \
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
+AS_IF([test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" &&
+    test "x$ENABLED_HEAPMATH" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"])
+
 AS_IF([test "x$ENABLED_CERTS" = "xno"],
       [AM_CFLAGS="$AM_CFLAGS -DNO_CERTS"])
 

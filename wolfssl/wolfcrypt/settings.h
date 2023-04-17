@@ -2037,6 +2037,9 @@ extern void uITRON4_free(void *p) ;
          *      Constant time: Not supported
          *      Enable:        USE_INTEGER_HEAP_MATH
          */
+    #elif defined(NO_BIG_INT)
+        /*  5) No big integer math libraries
+         */
     #else
         /* default is SP Math. */
         #define WOLFSSL_SP_MATH_ALL
@@ -2140,8 +2143,9 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_KEY_IMPORT
         #define HAVE_ECC_KEY_IMPORT
     #endif
-    /* The ECC key export requires mp_int */
-    #if !defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT)
+    /* The ECC key export requires mp_int or SP */
+    #if (!defined(NO_ECC_KEY_EXPORT) && defined(WOLFSSL_SP_MATH)) || \
+        (!defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT))
         #undef HAVE_ECC_KEY_EXPORT
         #define HAVE_ECC_KEY_EXPORT
     #endif

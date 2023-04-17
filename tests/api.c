@@ -53065,6 +53065,7 @@ static int test_tls13_apis(void)
     wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
 #endif
     serverSsl = wolfSSL_new(serverCtx);
+    AssertNotNull(serverSsl);
 #endif
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
