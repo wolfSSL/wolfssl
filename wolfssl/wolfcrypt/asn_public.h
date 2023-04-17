@@ -351,7 +351,6 @@ typedef struct NameAttrib {
 #endif /* WOLFSSL_MULTI_ATTRIB */
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#ifdef WOLFSSL_CERT_GEN
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {
     byte*  oid;
@@ -362,13 +361,12 @@ typedef struct CertOidField {
 } CertOidField;
 
 typedef struct CertExtension {
-    const char* oid;
-    byte        crit;
-    const byte* val;
-    int         valSz;
+    char* oid;
+    byte  crit;
+    byte* val;
+    int   valSz;
 } CertExtension;
 #endif
-#endif /* WOLFSSL_CERT_GEN */
 
 #if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef struct CertName {
@@ -422,11 +420,8 @@ typedef struct CertName {
 } CertName;
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
 
-#ifdef WOLFSSL_CERT_GEN
-
 #ifndef NUM_CUSTOM_EXT
 #define NUM_CUSTOM_EXT 16
-#endif
 
 /* for user to fill for certificate generation */
 typedef struct Cert {
@@ -434,10 +429,13 @@ typedef struct Cert {
     byte     serial[CTC_SERIAL_SIZE];   /* serial number */
     int      serialSz;                  /* serial size */
     int      sigType;                   /* signature algo type */
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) \
+ || defined(OPENSSL_EXTRA_X509_SMALL)
     CertName issuer;                    /* issuer info */
+    CertName subject;                   /* subject info */
+#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     int      daysValid;                 /* validity days */
     int      selfSigned;                /* self signed flag */
-    CertName subject;                   /* subject info */
     int      isCA;                      /* is this going to be a CA */
     byte     pathLen;                   /* max depth of valid certification
                                          * paths that include this cert */
@@ -492,7 +490,7 @@ typedef struct Cert {
     char     challengePw[CTC_NAME_SIZE];
     char     unstructuredName[CTC_NAME_SIZE];
     int      challengePwPrintableString; /* encode as PrintableString */
-#endif
+#endif /* WOLFSSL_CERT_REQ */
 #ifdef WOLFSSL_CUSTOM_OID
     /* user oid and value to go in req extensions */
     CertOidField extCustom;
@@ -500,7 +498,7 @@ typedef struct Cert {
     /* Extensions to go into X.509 certificates */
     CertExtension customCertExt[NUM_CUSTOM_EXT];
     int customCertExtCount;
-#endif
+#endif /* WOLFSSL_CUSTOM_OID */
     void*   decodedCert;      /* internal DecodedCert allocated from heap */
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */

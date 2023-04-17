@@ -109,6 +109,7 @@ struct WOLFSSL_X509_EXTENSION {
 #define GEN_URI         6
 #define GEN_IPADD       7
 #define GEN_RID         8
+#define GEN_IA5         9
 
 #define GENERAL_NAME       WOLFSSL_GENERAL_NAME
 

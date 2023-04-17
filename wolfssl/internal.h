@@ -4802,6 +4802,10 @@ struct WOLFSSL_X509 {
     byte             authKeyIdSet:1;
     byte             authKeyIdCrit:1;
     byte             issuerSet:1;
+#ifdef WOLFSSL_CUSTOM_OID
+    CertExtension    custom_exts[NUM_CUSTOM_EXT];
+    int              customExtCount;
+#endif /* WOLFSSL_CUSTOM_OID */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef WOLFSSL_CERT_REQ
     byte             isCSR:1;
