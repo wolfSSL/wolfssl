@@ -7842,6 +7842,9 @@ static int test_wolfSSL_CTX_add_session_ext(void)
             client_cb.method  = params[i].client_meth;
             server_cb.method  = params[i].server_meth;
 
+            if (dtls)
+                client_cb.doUdp = server_cb.doUdp = 1;
+
             /* Setup internal and external cache */
             switch (j) {
                 case 0:
@@ -7923,19 +7926,11 @@ static int test_wolfSSL_CTX_add_session_ext(void)
             switch (j) {
                 case 0:
                     if (tls13) {
-                        /* (D)TLSv1.3 case */
+                        /* (D)TLSv1.3 stateful case */
                         /* cache hit */
                         /* DTLS accesses cache once for stateless parsing and
                          * once for stateful parsing */
-#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
                         AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
-#else
-#ifndef WOLFSSL_ASYNC_CRYPT
-                        AssertIntEQ(twcase_get_session_called, 1);
-#else
-                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
-#endif
-#endif
 
                         /* (D)TLSv1.3 creates a new ticket,
                          * updates both internal and external cache */
@@ -7990,8 +7985,6 @@ static int test_wolfSSL_CTX_add_session_ext(void)
                     if (tls13) {
                         /* (D)TLSv1.3 case */
                         /* cache hit */
-                        /* DTLS accesses cache once for stateless parsing and
-                         * once for stateful parsing */
                         AssertIntEQ(twcase_get_session_called, 1);
                         /* (D)TLSv1.3 creates a new ticket,
                          * updates both internal and external cache */
