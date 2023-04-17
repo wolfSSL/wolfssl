@@ -1725,12 +1725,14 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
     #endif
 #endif
 
+#define WOLFSSL_AES_TOUCH_LINES
 
 #ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_AES_SMALL_TABLES
 /* load 4 Te Tables into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i,j;
 
@@ -1741,11 +1743,15 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTe(void)
         }
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #else
 /* load sbox into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i;
 
@@ -1753,8 +1759,119 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
         x &= Tsbox[i];
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #endif
+#endif
+
+#ifdef WOLFSSL_AES_TOUCH_LINES
+#if WC_CACHE_LINE_SZ == 128
+    #define WC_CACHE_LINE_BITS 5
+    #define WC_CACHE_LINE_MASK_HI 0xe0
+    #define WC_CACHE_LINE_MASK_LO 0x1f
+    #define WC_CACHE_LINE_ADD     0x20
+#elif WC_CACHE_LINE_SZ == 64
+    #define WC_CACHE_LINE_BITS 4
+    #define WC_CACHE_LINE_MASK_HI 0xf0
+    #define WC_CACHE_LINE_MASK_LO 0x0f
+    #define WC_CACHE_LINE_ADD     0x10
+#elif WC_CACHE_LINE_SZ == 32
+    #define WC_CACHE_LINE_BITS 3
+    #define WC_CACHE_LINE_MASK_HI 0xf8
+    #define WC_CACHE_LINE_MASK_LO 0x07
+    #define WC_CACHE_LINE_ADD     0x08
+#elif WC_CACHE_LINE_SZ = 16
+    #define WC_CACHE_LINE_BITS 2
+    #define WC_CACHE_LINE_MASK_HI 0xfc
+    #define WC_CACHE_LINE_MASK_LO 0x03
+    #define WC_CACHE_LINE_ADD     0x04
+#else
+    #error Cache line size not supported
+#endif
+
+static word32 GetTable(const word32* t, byte o)
+{
+#if WC_CACHE_LINE_SZ == 64
+    word32 e;
+    byte hi = o & 0xf0;
+    byte lo = o & 0x0f;
+
+    e  = t[lo + 0x00] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x10] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x20] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x30] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x40] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x50] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x60] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x70] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x80] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x90] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xa0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xb0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xc0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xd0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xe0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xf0] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+
+    return e;
+#else
+    word32 e = 0;
+    int i;
+    byte hi = o & WC_CACHE_LINE_MASK_HI;
+    byte lo = o & WC_CACHE_LINE_MASK_LO;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e |= t[lo + i] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+        hi -= WC_CACHE_LINE_ADD;
+    }
+
+    return e;
+#endif
+}
+static byte GetTable8(const byte* t, byte o)
+{
+#if WC_CACHE_LINE_SZ == 64
+    byte e;
+    byte hi = o & 0xf0;
+    byte lo = o & 0x0f;
+
+    e  = t[lo + 0x00] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x10] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x20] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x30] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x40] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x50] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x60] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x70] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x80] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0x90] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xa0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xb0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xc0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xd0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xe0] & ((word32)0 - (((word32)hi - 0x01) >> 31)); hi -= 0x10;
+    e |= t[lo + 0xf0] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+
+    return e;
+#else
+    byte e = 0;
+    int i;
+    byte hi = o & WC_CACHE_LINE_MASK_HI;
+    byte lo = o & WC_CACHE_LINE_MASK_LO;
+
+    for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+        e |= t[lo + i] & ((word32)0 - (((word32)hi - 0x01) >> 31));
+        hi -= WC_CACHE_LINE_ADD;
+    }
+
+    return e;
+#endif
+}
+#else
+#define GetTable(t, o)  t[o]
+#define GetTable8(t, o) t[o]
 #endif
 
 /* Software AES - ECB Encrypt */
@@ -1865,24 +1982,32 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 
 #ifndef WOLFSSL_AES_NO_UNROLL
 /* Unroll the loop. */
-#define ENC_ROUND_T_S(o)                                            \
-    t0 = Te[0][GETBYTE(s0, 3)] ^ Te[1][GETBYTE(s1, 2)] ^            \
-         Te[2][GETBYTE(s2, 1)] ^ Te[3][GETBYTE(s3, 0)] ^ rk[(o)+4]; \
-    t1 = Te[0][GETBYTE(s1, 3)] ^ Te[1][GETBYTE(s2, 2)] ^            \
-         Te[2][GETBYTE(s3, 1)] ^ Te[3][GETBYTE(s0, 0)] ^ rk[(o)+5]; \
-    t2 = Te[0][GETBYTE(s2, 3)] ^ Te[1][GETBYTE(s3, 2)] ^            \
-         Te[2][GETBYTE(s0, 1)] ^ Te[3][GETBYTE(s1, 0)] ^ rk[(o)+6]; \
-    t3 = Te[0][GETBYTE(s3, 3)] ^ Te[1][GETBYTE(s0, 2)] ^            \
-         Te[2][GETBYTE(s1, 1)] ^ Te[3][GETBYTE(s2, 0)] ^ rk[(o)+7]
-#define ENC_ROUND_S_T(o)                                            \
-    s0 = Te[0][GETBYTE(t0, 3)] ^ Te[1][GETBYTE(t1, 2)] ^            \
-         Te[2][GETBYTE(t2, 1)] ^ Te[3][GETBYTE(t3, 0)] ^ rk[(o)+0]; \
-    s1 = Te[0][GETBYTE(t1, 3)] ^ Te[1][GETBYTE(t2, 2)] ^            \
-         Te[2][GETBYTE(t3, 1)] ^ Te[3][GETBYTE(t0, 0)] ^ rk[(o)+1]; \
-    s2 = Te[0][GETBYTE(t2, 3)] ^ Te[1][GETBYTE(t3, 2)] ^            \
-         Te[2][GETBYTE(t0, 1)] ^ Te[3][GETBYTE(t1, 0)] ^ rk[(o)+2]; \
-    s3 = Te[0][GETBYTE(t3, 3)] ^ Te[1][GETBYTE(t0, 2)] ^            \
-         Te[2][GETBYTE(t1, 1)] ^ Te[3][GETBYTE(t2, 0)] ^ rk[(o)+3]
+#define ENC_ROUND_T_S(o)                                                       \
+    t0 = GetTable(Te[0], GETBYTE(s0, 3)) ^ GetTable(Te[1], GETBYTE(s1, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s2, 1)) ^ GetTable(Te[3], GETBYTE(s3, 0)) ^   \
+         rk[(o)+4];                                                            \
+    t1 = GetTable(Te[0], GETBYTE(s1, 3)) ^ GetTable(Te[1], GETBYTE(s2, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s3, 1)) ^ GetTable(Te[3], GETBYTE(s0, 0)) ^   \
+         rk[(o)+5];                                                            \
+    t2 = GetTable(Te[0], GETBYTE(s2, 3)) ^ GetTable(Te[1], GETBYTE(s3, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s0, 1)) ^ GetTable(Te[3], GETBYTE(s1, 0)) ^   \
+         rk[(o)+6];                                                            \
+    t3 = GetTable(Te[0], GETBYTE(s3, 3)) ^ GetTable(Te[1], GETBYTE(s0, 2)) ^   \
+         GetTable(Te[2], GETBYTE(s1, 1)) ^ GetTable(Te[3], GETBYTE(s2, 0)) ^   \
+         rk[(o)+7]
+#define ENC_ROUND_S_T(o)                                                       \
+    s0 = GetTable(Te[0], GETBYTE(t0, 3)) ^ GetTable(Te[1], GETBYTE(t1, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t2, 1)) ^ GetTable(Te[3], GETBYTE(t3, 0)) ^   \
+         rk[(o)+0];                                                            \
+    s1 = GetTable(Te[0], GETBYTE(t1, 3)) ^ GetTable(Te[1], GETBYTE(t2, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t3, 1)) ^ GetTable(Te[3], GETBYTE(t0, 0)) ^   \
+         rk[(o)+1];                                                            \
+    s2 = GetTable(Te[0], GETBYTE(t2, 3)) ^ GetTable(Te[1], GETBYTE(t3, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t0, 1)) ^ GetTable(Te[3], GETBYTE(t1, 0)) ^   \
+         rk[(o)+2];                                                            \
+    s3 = GetTable(Te[0], GETBYTE(t3, 3)) ^ GetTable(Te[1], GETBYTE(t0, 2)) ^   \
+         GetTable(Te[2], GETBYTE(t1, 1)) ^ GetTable(Te[3], GETBYTE(t2, 0)) ^   \
+         rk[(o)+3]
 
                        ENC_ROUND_T_S( 0);
     ENC_ROUND_S_T( 8); ENC_ROUND_T_S( 8);
@@ -1903,28 +2028,28 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 
     for (;;) {
         t0 =
-            Te[0][GETBYTE(s0, 3)] ^
-            Te[1][GETBYTE(s1, 2)] ^
-            Te[2][GETBYTE(s2, 1)] ^
-            Te[3][GETBYTE(s3, 0)] ^
+            GetTable(Te[0], GETBYTE(s0, 3)) ^
+            GetTable(Te[1], GETBYTE(s1, 2)) ^
+            GetTable(Te[2], GETBYTE(s2, 1)) ^
+            GetTable(Te[3], GETBYTE(s3, 0)) ^
             rk[4];
         t1 =
-            Te[0][GETBYTE(s1, 3)] ^
-            Te[1][GETBYTE(s2, 2)] ^
-            Te[2][GETBYTE(s3, 1)] ^
-            Te[3][GETBYTE(s0, 0)] ^
+            GetTable(Te[0], GETBYTE(s1, 3)) ^
+            GetTable(Te[1], GETBYTE(s2, 2)) ^
+            GetTable(Te[2], GETBYTE(s3, 1)) ^
+            GetTable(Te[3], GETBYTE(s0, 0)) ^
             rk[5];
         t2 =
-            Te[0][GETBYTE(s2, 3)] ^
-            Te[1][GETBYTE(s3, 2)] ^
-            Te[2][GETBYTE(s0, 1)] ^
-            Te[3][GETBYTE(s1, 0)] ^
+            GetTable(Te[0], GETBYTE(s2, 3)) ^
+            GetTable(Te[1], GETBYTE(s3, 2)) ^
+            GetTable(Te[2], GETBYTE(s0, 1)) ^
+            GetTable(Te[3], GETBYTE(s1, 0)) ^
             rk[6];
         t3 =
-            Te[0][GETBYTE(s3, 3)] ^
-            Te[1][GETBYTE(s0, 2)] ^
-            Te[2][GETBYTE(s1, 1)] ^
-            Te[3][GETBYTE(s2, 0)] ^
+            GetTable(Te[0], GETBYTE(s3, 3)) ^
+            GetTable(Te[1], GETBYTE(s0, 2)) ^
+            GetTable(Te[2], GETBYTE(s1, 1)) ^
+            GetTable(Te[3], GETBYTE(s2, 0)) ^
             rk[7];
 
         rk += 8;
@@ -1933,28 +2058,28 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
         }
 
         s0 =
-            Te[0][GETBYTE(t0, 3)] ^
-            Te[1][GETBYTE(t1, 2)] ^
-            Te[2][GETBYTE(t2, 1)] ^
-            Te[3][GETBYTE(t3, 0)] ^
+            GetTable(Te[0], GETBYTE(t0, 3)) ^
+            GetTable(Te[1], GETBYTE(t1, 2)) ^
+            GetTable(Te[2], GETBYTE(t2, 1)) ^
+            GetTable(Te[3], GETBYTE(t3, 0)) ^
             rk[0];
         s1 =
-            Te[0][GETBYTE(t1, 3)] ^
-            Te[1][GETBYTE(t2, 2)] ^
-            Te[2][GETBYTE(t3, 1)] ^
-            Te[3][GETBYTE(t0, 0)] ^
+            GetTable(Te[0], GETBYTE(t1, 3)) ^
+            GetTable(Te[1], GETBYTE(t2, 2)) ^
+            GetTable(Te[2], GETBYTE(t3, 1)) ^
+            GetTable(Te[3], GETBYTE(t0, 0)) ^
             rk[1];
         s2 =
-            Te[0][GETBYTE(t2, 3)] ^
-            Te[1][GETBYTE(t3, 2)] ^
-            Te[2][GETBYTE(t0, 1)] ^
-            Te[3][GETBYTE(t1, 0)] ^
+            GetTable(Te[0], GETBYTE(t2, 3)) ^
+            GetTable(Te[1], GETBYTE(t3, 2)) ^
+            GetTable(Te[2], GETBYTE(t0, 1)) ^
+            GetTable(Te[3], GETBYTE(t1, 0)) ^
             rk[2];
         s3 =
-            Te[0][GETBYTE(t3, 3)] ^
-            Te[1][GETBYTE(t0, 2)] ^
-            Te[2][GETBYTE(t1, 1)] ^
-            Te[3][GETBYTE(t2, 0)] ^
+            GetTable(Te[0], GETBYTE(t3, 3)) ^
+            GetTable(Te[1], GETBYTE(t0, 2)) ^
+            GetTable(Te[2], GETBYTE(t1, 1)) ^
+            GetTable(Te[3], GETBYTE(t2, 0)) ^
             rk[3];
     }
 #endif
@@ -1965,28 +2090,28 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
      */
 
     s0 =
-        (Te[2][GETBYTE(t0, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t1, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t2, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t3, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t0, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t1, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t2, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t3, 0)) & 0x000000ff) ^
         rk[0];
     s1 =
-        (Te[2][GETBYTE(t1, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t2, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t3, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t0, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t1, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t2, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t3, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t0, 0)) & 0x000000ff) ^
         rk[1];
     s2 =
-        (Te[2][GETBYTE(t2, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t3, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t0, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t1, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t2, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t3, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t0, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t1, 0)) & 0x000000ff) ^
         rk[2];
     s3 =
-        (Te[2][GETBYTE(t3, 3)] & 0xff000000) ^
-        (Te[3][GETBYTE(t0, 2)] & 0x00ff0000) ^
-        (Te[0][GETBYTE(t1, 1)] & 0x0000ff00) ^
-        (Te[1][GETBYTE(t2, 0)] & 0x000000ff) ^
+        (GetTable(Te[2], GETBYTE(t3, 3)) & 0xff000000) ^
+        (GetTable(Te[3], GETBYTE(t0, 2)) & 0x00ff0000) ^
+        (GetTable(Te[0], GETBYTE(t1, 1)) & 0x0000ff00) ^
+        (GetTable(Te[1], GETBYTE(t2, 0)) & 0x000000ff) ^
         rk[3];
 #else
 #ifndef WC_NO_CACHE_RESISTANT
@@ -1997,25 +2122,25 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     /* Two rounds at a time */
     for (rk += 4; r > 1; r--, rk += 4) {
         t0 =
-            ((word32)Tsbox[GETBYTE(s0, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s1, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s2, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s3, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 0)));
         t1 =
-            ((word32)Tsbox[GETBYTE(s1, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s2, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s3, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s0, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 0)));
         t2 =
-            ((word32)Tsbox[GETBYTE(s2, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s3, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s0, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s1, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 0)));
         t3 =
-            ((word32)Tsbox[GETBYTE(s3, 3)] << 24) ^
-            ((word32)Tsbox[GETBYTE(s0, 2)] << 16) ^
-            ((word32)Tsbox[GETBYTE(s1, 1)] <<  8) ^
-            ((word32)Tsbox[GETBYTE(s2, 0)]);
+            ((word32)GetTable8(Tsbox, GETBYTE(s3, 3)) << 24) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s0, 2)) << 16) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s1, 1)) <<  8) ^
+            ((word32)GetTable8(Tsbox, GETBYTE(s2, 0)));
 
         s0 =
             (col_mul(t0, 3, 2, 0, 1) << 24) ^
@@ -2044,25 +2169,25 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     }
 
     t0 =
-        ((word32)Tsbox[GETBYTE(s0, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s1, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s2, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s3, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 0)));
     t1 =
-        ((word32)Tsbox[GETBYTE(s1, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s2, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s3, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s0, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 0)));
     t2 =
-        ((word32)Tsbox[GETBYTE(s2, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s3, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s0, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s1, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 0)));
     t3 =
-        ((word32)Tsbox[GETBYTE(s3, 3)] << 24) ^
-        ((word32)Tsbox[GETBYTE(s0, 2)] << 16) ^
-        ((word32)Tsbox[GETBYTE(s1, 1)] <<  8) ^
-        ((word32)Tsbox[GETBYTE(s2, 0)]);
+        ((word32)GetTable8(Tsbox, GETBYTE(s3, 3)) << 24) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s0, 2)) << 16) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s1, 1)) <<  8) ^
+        ((word32)GetTable8(Tsbox, GETBYTE(s2, 0)));
     s0 = t0 ^ rk[0];
     s1 = t1 ^ rk[1];
     s2 = t2 ^ rk[2];
@@ -2111,6 +2236,7 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd(void)
 /* load Td Table4 into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 {
+#ifndef WOLFSSL_AES_TOUCH_LINES
     word32 x = 0;
     int i;
 
@@ -2118,6 +2244,9 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
         x &= (word32)Td4[i];
     }
     return x;
+#else
+    return 0;
+#endif
 }
 #endif
 
@@ -2204,23 +2333,23 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #ifndef WOLFSSL_AES_NO_UNROLL
 /* Unroll the loop. */
 #define DEC_ROUND_T_S(o)                                            \
-    t0 = Td[0][GETBYTE(s0, 3)] ^ Td[1][GETBYTE(s3, 2)] ^            \
-         Td[2][GETBYTE(s2, 1)] ^ Td[3][GETBYTE(s1, 0)] ^ rk[(o)+4]; \
-    t1 = Td[0][GETBYTE(s1, 3)] ^ Td[1][GETBYTE(s0, 2)] ^            \
-         Td[2][GETBYTE(s3, 1)] ^ Td[3][GETBYTE(s2, 0)] ^ rk[(o)+5]; \
-    t2 = Td[0][GETBYTE(s2, 3)] ^ Td[1][GETBYTE(s1, 2)] ^            \
-         Td[2][GETBYTE(s0, 1)] ^ Td[3][GETBYTE(s3, 0)] ^ rk[(o)+6]; \
-    t3 = Td[0][GETBYTE(s3, 3)] ^ Td[1][GETBYTE(s2, 2)] ^            \
-         Td[2][GETBYTE(s1, 1)] ^ Td[3][GETBYTE(s0, 0)] ^ rk[(o)+7]
+    t0 = GetTable(Td[0], GETBYTE(s0, 3)) ^ GetTable(Td[1], GETBYTE(s3, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s2, 1)) ^ GetTable(Td[3], GETBYTE(s1, 0)) ^ rk[(o)+4]; \
+    t1 = GetTable(Td[0], GETBYTE(s1, 3)) ^ GetTable(Td[1], GETBYTE(s0, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s3, 1)) ^ GetTable(Td[3], GETBYTE(s2, 0)) ^ rk[(o)+5]; \
+    t2 = GetTable(Td[0], GETBYTE(s2, 3)) ^ GetTable(Td[1], GETBYTE(s1, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s0, 1)) ^ GetTable(Td[3], GETBYTE(s3, 0)) ^ rk[(o)+6]; \
+    t3 = GetTable(Td[0], GETBYTE(s3, 3)) ^ GetTable(Td[1], GETBYTE(s2, 2)) ^            \
+         GetTable(Td[2], GETBYTE(s1, 1)) ^ GetTable(Td[3], GETBYTE(s0, 0)) ^ rk[(o)+7]
 #define DEC_ROUND_S_T(o)                                            \
-    s0 = Td[0][GETBYTE(t0, 3)] ^ Td[1][GETBYTE(t3, 2)] ^            \
-         Td[2][GETBYTE(t2, 1)] ^ Td[3][GETBYTE(t1, 0)] ^ rk[(o)+0]; \
-    s1 = Td[0][GETBYTE(t1, 3)] ^ Td[1][GETBYTE(t0, 2)] ^            \
-         Td[2][GETBYTE(t3, 1)] ^ Td[3][GETBYTE(t2, 0)] ^ rk[(o)+1]; \
-    s2 = Td[0][GETBYTE(t2, 3)] ^ Td[1][GETBYTE(t1, 2)] ^            \
-         Td[2][GETBYTE(t0, 1)] ^ Td[3][GETBYTE(t3, 0)] ^ rk[(o)+2]; \
-    s3 = Td[0][GETBYTE(t3, 3)] ^ Td[1][GETBYTE(t2, 2)] ^            \
-         Td[2][GETBYTE(t1, 1)] ^ Td[3][GETBYTE(t0, 0)] ^ rk[(o)+3]
+    s0 = GetTable(Td[0], GETBYTE(t0, 3)) ^ GetTable(Td[1], GETBYTE(t3, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t2, 1)) ^ GetTable(Td[3], GETBYTE(t1, 0)) ^ rk[(o)+0]; \
+    s1 = GetTable(Td[0], GETBYTE(t1, 3)) ^ GetTable(Td[1], GETBYTE(t0, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t3, 1)) ^ GetTable(Td[3], GETBYTE(t2, 0)) ^ rk[(o)+1]; \
+    s2 = GetTable(Td[0], GETBYTE(t2, 3)) ^ GetTable(Td[1], GETBYTE(t1, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t0, 1)) ^ GetTable(Td[3], GETBYTE(t3, 0)) ^ rk[(o)+2]; \
+    s3 = GetTable(Td[0], GETBYTE(t3, 3)) ^ GetTable(Td[1], GETBYTE(t2, 2)) ^            \
+         GetTable(Td[2], GETBYTE(t1, 1)) ^ GetTable(Td[3], GETBYTE(t0, 0)) ^ rk[(o)+3]
 
                        DEC_ROUND_T_S( 0);
     DEC_ROUND_S_T( 8); DEC_ROUND_T_S( 8);
@@ -2242,28 +2371,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
     for (;;) {
         t0 =
-            Td[0][GETBYTE(s0, 3)] ^
-            Td[1][GETBYTE(s3, 2)] ^
-            Td[2][GETBYTE(s2, 1)] ^
-            Td[3][GETBYTE(s1, 0)] ^
+            GetTable(Td[0], GETBYTE(s0, 3)) ^
+            GetTable(Td[1], GETBYTE(s3, 2)) ^
+            GetTable(Td[2], GETBYTE(s2, 1)) ^
+            GetTable(Td[3], GETBYTE(s1, 0)) ^
             rk[4];
         t1 =
-            Td[0][GETBYTE(s1, 3)] ^
-            Td[1][GETBYTE(s0, 2)] ^
-            Td[2][GETBYTE(s3, 1)] ^
-            Td[3][GETBYTE(s2, 0)] ^
+            GetTable(Td[0], GETBYTE(s1, 3)) ^
+            GetTable(Td[1], GETBYTE(s0, 2)) ^
+            GetTable(Td[2], GETBYTE(s3, 1)) ^
+            GetTable(Td[3], GETBYTE(s2, 0)) ^
             rk[5];
         t2 =
-            Td[0][GETBYTE(s2, 3)] ^
-            Td[1][GETBYTE(s1, 2)] ^
-            Td[2][GETBYTE(s0, 1)] ^
-            Td[3][GETBYTE(s3, 0)] ^
+            GetTable(Td[0], GETBYTE(s2, 3)) ^
+            GetTable(Td[1], GETBYTE(s1, 2)) ^
+            GetTable(Td[2], GETBYTE(s0, 1)) ^
+            GetTable(Td[3], GETBYTE(s3, 0)) ^
             rk[6];
         t3 =
-            Td[0][GETBYTE(s3, 3)] ^
-            Td[1][GETBYTE(s2, 2)] ^
-            Td[2][GETBYTE(s1, 1)] ^
-            Td[3][GETBYTE(s0, 0)] ^
+            GetTable(Td[0], GETBYTE(s3, 3)) ^
+            GetTable(Td[1], GETBYTE(s2, 2)) ^
+            GetTable(Td[2], GETBYTE(s1, 1)) ^
+            GetTable(Td[3], GETBYTE(s0, 0)) ^
             rk[7];
 
         rk += 8;
@@ -2272,28 +2401,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         }
 
         s0 =
-            Td[0][GETBYTE(t0, 3)] ^
-            Td[1][GETBYTE(t3, 2)] ^
-            Td[2][GETBYTE(t2, 1)] ^
-            Td[3][GETBYTE(t1, 0)] ^
+            GetTable(Td[0], GETBYTE(t0, 3)) ^
+            GetTable(Td[1], GETBYTE(t3, 2)) ^
+            GetTable(Td[2], GETBYTE(t2, 1)) ^
+            GetTable(Td[3], GETBYTE(t1, 0)) ^
             rk[0];
         s1 =
-            Td[0][GETBYTE(t1, 3)] ^
-            Td[1][GETBYTE(t0, 2)] ^
-            Td[2][GETBYTE(t3, 1)] ^
-            Td[3][GETBYTE(t2, 0)] ^
+            GetTable(Td[0], GETBYTE(t1, 3)) ^
+            GetTable(Td[1], GETBYTE(t0, 2)) ^
+            GetTable(Td[2], GETBYTE(t3, 1)) ^
+            GetTable(Td[3], GETBYTE(t2, 0)) ^
             rk[1];
         s2 =
-            Td[0][GETBYTE(t2, 3)] ^
-            Td[1][GETBYTE(t1, 2)] ^
-            Td[2][GETBYTE(t0, 1)] ^
-            Td[3][GETBYTE(t3, 0)] ^
+            GetTable(Td[0], GETBYTE(t2, 3)) ^
+            GetTable(Td[1], GETBYTE(t1, 2)) ^
+            GetTable(Td[2], GETBYTE(t0, 1)) ^
+            GetTable(Td[3], GETBYTE(t3, 0)) ^
             rk[2];
         s3 =
-            Td[0][GETBYTE(t3, 3)] ^
-            Td[1][GETBYTE(t2, 2)] ^
-            Td[2][GETBYTE(t1, 1)] ^
-            Td[3][GETBYTE(t0, 0)] ^
+            GetTable(Td[0], GETBYTE(t3, 3)) ^
+            GetTable(Td[1], GETBYTE(t2, 2)) ^
+            GetTable(Td[2], GETBYTE(t1, 1)) ^
+            GetTable(Td[3], GETBYTE(t0, 0)) ^
             rk[3];
     }
 #endif
@@ -2307,28 +2436,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #endif
 
     s0 =
-        ((word32)Td4[GETBYTE(t0, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t3, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t2, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t1, 0)]) ^
+        ((word32)GetTable8(Td4, GETBYTE(t0, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(t3, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(t2, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(t1, 0))) ^
         rk[0];
     s1 =
-        ((word32)Td4[GETBYTE(t1, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t0, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t3, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t2, 0)]) ^
+        ((word32)GetTable8(Td4, GETBYTE(t1, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(t0, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(t3, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(t2, 0))) ^
         rk[1];
     s2 =
-        ((word32)Td4[GETBYTE(t2, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t1, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t0, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t3, 0)]) ^
+        ((word32)GetTable8(Td4, GETBYTE(t2, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(t1, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(t0, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(t3, 0))) ^
         rk[2];
     s3 =
-        ((word32)Td4[GETBYTE(t3, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(t2, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(t1, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(t0, 0)]) ^
+        ((word32)GetTable8(Td4, GETBYTE(t3, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(t2, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(t1, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(t0, 0))) ^
         rk[3];
 #else
 #ifndef WC_NO_CACHE_RESISTANT
@@ -2338,28 +2467,28 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     r *= 2;
     for (rk += 4; r > 1; r--, rk += 4) {
         t0 =
-            ((word32)Td4[GETBYTE(s0, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s3, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s2, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s1, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 0))) ^
             rk[0];
         t1 =
-            ((word32)Td4[GETBYTE(s1, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s0, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s3, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s2, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 0))) ^
             rk[1];
         t2 =
-            ((word32)Td4[GETBYTE(s2, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s1, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s0, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s3, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 0))) ^
             rk[2];
         t3 =
-            ((word32)Td4[GETBYTE(s3, 3)] << 24) ^
-            ((word32)Td4[GETBYTE(s2, 2)] << 16) ^
-            ((word32)Td4[GETBYTE(s1, 1)] <<  8) ^
-            ((word32)Td4[GETBYTE(s0, 0)]) ^
+            ((word32)GetTable8(Td4, GETBYTE(s3, 3)) << 24) ^
+            ((word32)GetTable8(Td4, GETBYTE(s2, 2)) << 16) ^
+            ((word32)GetTable8(Td4, GETBYTE(s1, 1)) <<  8) ^
+            ((word32)GetTable8(Td4, GETBYTE(s0, 0))) ^
             rk[3];
 
         s0 =
@@ -2385,25 +2514,25 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     }
 
     t0 =
-        ((word32)Td4[GETBYTE(s0, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s3, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s2, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s1, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s0, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 0)));
     t1 =
-        ((word32)Td4[GETBYTE(s1, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s0, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s3, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s2, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s1, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 0)));
     t2 =
-        ((word32)Td4[GETBYTE(s2, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s1, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s0, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s3, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s2, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s3, 0)));
     t3 =
-        ((word32)Td4[GETBYTE(s3, 3)] << 24) ^
-        ((word32)Td4[GETBYTE(s2, 2)] << 16) ^
-        ((word32)Td4[GETBYTE(s1, 1)] <<  8) ^
-        ((word32)Td4[GETBYTE(s0, 0)]);
+        ((word32)GetTable8(Td4, GETBYTE(s3, 3)) << 24) ^
+        ((word32)GetTable8(Td4, GETBYTE(s2, 2)) << 16) ^
+        ((word32)GetTable8(Td4, GETBYTE(s1, 1)) <<  8) ^
+        ((word32)GetTable8(Td4, GETBYTE(s0, 0)));
     s0 = t0 ^ rk[0];
     s1 = t1 ^ rk[1];
     s2 = t2 ^ rk[2];
@@ -2978,15 +3107,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp  = rk[3];
                 rk[4] = rk[0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[5] = rk[1] ^ rk[4];
@@ -3012,15 +3141,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[ 5];
                 rk[ 6] = rk[ 0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[ 7] = rk[ 1] ^ rk[ 6];
@@ -3047,15 +3176,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[ 7];
                 rk[ 8] = rk[ 0] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 2)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 1)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 0)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 3)] & 0x000000ff) ^
+                    (GetTable(Te[2], GETBYTE(temp, 2)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 1)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 0)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 3)) & 0x000000ff) ^
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 3)]) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3))) ^
             #endif
                     rcon[i];
                 rk[ 9] = rk[ 1] ^ rk[ 8];
@@ -3066,15 +3195,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
                 temp = rk[11];
                 rk[12] = rk[ 4] ^
             #ifndef WOLFSSL_AES_SMALL_TABLES
-                    (Te[2][GETBYTE(temp, 3)] & 0xff000000) ^
-                    (Te[3][GETBYTE(temp, 2)] & 0x00ff0000) ^
-                    (Te[0][GETBYTE(temp, 1)] & 0x0000ff00) ^
-                    (Te[1][GETBYTE(temp, 0)] & 0x000000ff);
+                    (GetTable(Te[2], GETBYTE(temp, 3)) & 0xff000000) ^
+                    (GetTable(Te[3], GETBYTE(temp, 2)) & 0x00ff0000) ^
+                    (GetTable(Te[0], GETBYTE(temp, 1)) & 0x0000ff00) ^
+                    (GetTable(Te[1], GETBYTE(temp, 0)) & 0x000000ff);
             #else
-                    ((word32)Tsbox[GETBYTE(temp, 3)] << 24) ^
-                    ((word32)Tsbox[GETBYTE(temp, 2)] << 16) ^
-                    ((word32)Tsbox[GETBYTE(temp, 1)] <<  8) ^
-                    ((word32)Tsbox[GETBYTE(temp, 0)]);
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 3)) << 24) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 2)) << 16) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 1)) <<  8) ^
+                    ((word32)GetTable8(Tsbox, GETBYTE(temp, 0)));
             #endif
                 rk[13] = rk[ 5] ^ rk[12];
                 rk[14] = rk[ 6] ^ rk[13];
@@ -3109,25 +3238,25 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             for (i = 1; i < aes->rounds; i++) {
                 rk += 4;
                 rk[0] =
-                    Td[0][Te[1][GETBYTE(rk[0], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[0], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[0], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[0], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[0], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[0], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[0], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[0], 0)) & 0xff);
                 rk[1] =
-                    Td[0][Te[1][GETBYTE(rk[1], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[1], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[1], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[1], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[1], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[1], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[1], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[1], 0)) & 0xff);
                 rk[2] =
-                    Td[0][Te[1][GETBYTE(rk[2], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[2], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[2], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[2], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[2], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[2], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[2], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[2], 0)) & 0xff);
                 rk[3] =
-                    Td[0][Te[1][GETBYTE(rk[3], 3)] & 0xff] ^
-                    Td[1][Te[1][GETBYTE(rk[3], 2)] & 0xff] ^
-                    Td[2][Te[1][GETBYTE(rk[3], 1)] & 0xff] ^
-                    Td[3][Te[1][GETBYTE(rk[3], 0)] & 0xff];
+                    GetTable(Td[0], GetTable(Te[1], GETBYTE(rk[3], 3)) & 0xff) ^
+                    GetTable(Td[1], GetTable(Te[1], GETBYTE(rk[3], 2)) & 0xff) ^
+                    GetTable(Td[2], GetTable(Te[1], GETBYTE(rk[3], 1)) & 0xff) ^
+                    GetTable(Td[3], GetTable(Te[1], GETBYTE(rk[3], 0)) & 0xff);
             }
         #endif
         }
