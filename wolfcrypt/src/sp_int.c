@@ -17825,12 +17825,12 @@ int sp_radix_size(const sp_int* a, int radix, int* size)
             *size = 1 + 1;
         }
         else {
-            DECL_SP_INT(t, a->used + 1);
+            DECL_SP_INT(t, a->used);
 
             /* Temporary to be divided by 10. */
-            ALLOC_SP_INT(t, a->used + 1, err, NULL);
+            ALLOC_SP_INT(t, a->used, err, NULL);
             if (err == MP_OKAY) {
-                t->size = a->used + 1;
+                t->size = a->used;
                 err = sp_copy(a, t);
             }
 
