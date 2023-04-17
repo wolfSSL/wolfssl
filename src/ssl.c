@@ -15136,6 +15136,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     SessionRow* sessRow = NULL;
     int ret = WOLFSSL_SUCCESS;
+    word32 now;
 
     session = ClientSessionToSession(session);
 
@@ -15210,7 +15211,20 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (LowResTimer() < (ssl->session->bornOn + ssl->session->timeout)) {
+    now = LowResTimer();
+#if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    if (now >= (ssl->session->bornOn + ssl->session->timeout)) {
+        ret = WOLFSSL_FAILURE;  /* session timed out */
+    }
+    else
+#endif
+    {
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        if (now >= (ssl->session->bornOn + ssl->session->timeout)) {
+            WOLFSSL_MSG("Session is expired but return success for "
+                        "OpenSSL compatibility");
+        }
+#endif
         ssl->options.resuming = 1;
         ssl->options.haveEMS = ssl->session->haveEMS;
 
@@ -15229,15 +15243,6 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
 #endif
         ret = WOLFSSL_SUCCESS;
-    }
-    else {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
-        WOLFSSL_MSG("Session is expired but return success for "
-                    "OpenSSL compatibility");
-        ret = WOLFSSL_SUCCESS;
-#else
-        ret = WOLFSSL_FAILURE;  /* session timed out */
-#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
     }
     return ret;
 }
