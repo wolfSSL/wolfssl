@@ -1081,6 +1081,48 @@ size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 }
 #endif /* USE_WOLF_STRLCAT */
 
+#ifdef USE_WOLF_STRCASECMP
+int wc_strcasecmp(const char *s1, const char *s2)
+{
+    char c1, c2;
+    for (;
+         ;
+         ++s1, ++s2)
+    {
+        c1 = *s1;
+        if ((c1 >= 'a') && (c1 <= 'z'))
+            c1 -= ('a' - 'A');
+        c2 = *s2;
+        if ((c2 >= 'a') && (c2 <= 'z'))
+            c2 -= ('a' - 'A');
+        if ((c1 != c2) || (c1 == 0))
+            break;
+    }
+    return (c1 - c2);
+}
+#endif /* USE_WOLF_STRCASECMP */
+
+#ifdef USE_WOLF_STRNCASECMP
+int wc_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+    char c1, c2;
+    for (c1 = 0, c2 = 0;
+         n > 0;
+         --n, ++s1, ++s2)
+    {
+        c1 = *s1;
+        if ((c1 >= 'a') && (c1 <= 'z'))
+            c1 -= ('a' - 'A');
+        c2 = *s2;
+        if ((c2 >= 'a') && (c2 <= 'z'))
+            c2 -= ('a' - 'A');
+        if ((c1 != c2) || (c1 == 0))
+            break;
+    }
+    return (c1 - c2);
+}
+#endif /* USE_WOLF_STRNCASECMP */
+
 #if !defined(SINGLE_THREADED) && !defined(HAVE_C___ATOMIC)
 void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)
 {
