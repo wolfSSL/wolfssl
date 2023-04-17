@@ -4084,7 +4084,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         ssl->options.tls13MiddleBoxCompat = 1;
     }
 #else
-    if (ssl->session->sessionIDSz > 0)
+    if (ssl->options.resuming && ssl->session->sessionIDSz > 0)
         args->length += ssl->session->sessionIDSz;
 #endif
 
@@ -4229,10 +4229,16 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     if (ssl->session->sessionIDSz > 0) {
         /* Session resumption for old versions of protocol. */
-        args->output[args->idx++] = ID_LEN;
-        XMEMCPY(args->output + args->idx, ssl->session->sessionID,
-            ssl->session->sessionIDSz);
-        args->idx += ID_LEN;
+        if (ssl->options.resuming) {
+            args->output[args->idx++] = ID_LEN;
+            XMEMCPY(args->output + args->idx, ssl->session->sessionID,
+                ssl->session->sessionIDSz);
+            args->idx += ID_LEN;
+        }
+        else {
+            /* Not resuming, zero length session ID */
+            args->output[args->idx++] = 0;
+        }
     }
     else {
     #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
