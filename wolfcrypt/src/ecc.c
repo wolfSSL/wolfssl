@@ -8018,12 +8018,17 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             /* default to invalid signature */
             *res = 0;
 
+            /* Decode ASN.1 ECDSA signature. */
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
             /* Note, DecodeECC_DSA_Sig() calls mp_init() on r and s.
              * If either of those don't allocate correctly, none of
              * the rest of this function will execute, and everything
              * gets cleaned up at the end. */
-            /* decode DSA header */
             err = DecodeECC_DSA_Sig(sig, siglen, r, s);
+        #else
+            /* r and s are initialized. */
+            err = DecodeECC_DSA_Sig_Ex(sig, siglen, r, s, 0);
+        #endif
             if (err < 0) {
                 break;
             }
