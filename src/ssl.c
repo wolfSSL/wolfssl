@@ -21193,6 +21193,8 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
 {
     WOLFSSL_SESSION* ret = NULL;
 
+    WOLFSSL_ENTER("wolfSSL_NewSession");
+
     ret = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), heap,
             DYNAMIC_TYPE_SESSION);
     if (ret != NULL) {
@@ -21579,6 +21581,7 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 
     (void)ctx;
 
+    WOLFSSL_ENTER("wolfSSL_FreeSession");
 
     if (session->ref.count > 0) {
         int ret;
@@ -21590,6 +21593,8 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
         }
         wolfSSL_RefFree(&session->ref);
     }
+
+    WOLFSSL_MSG("wolfSSL_FreeSession full free");
 
 #ifdef HAVE_EX_DATA
     if (session->ownExData) {
