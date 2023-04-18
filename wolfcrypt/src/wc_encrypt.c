@@ -411,7 +411,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     WOLFSSL_ENTER("wc_CryptKey");
 
     if (length < 0)
-        ret = BAD_LENGTH_E;
+        return BAD_LENGTH_E;
 
     switch (id) {
     #ifndef NO_DES3

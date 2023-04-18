@@ -1085,10 +1085,7 @@ size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 int wc_strcasecmp(const char *s1, const char *s2)
 {
     char c1, c2;
-    for (;
-         ;
-         ++s1, ++s2)
-    {
+    for (;;++s1, ++s2) {
         c1 = *s1;
         if ((c1 >= 'a') && (c1 <= 'z'))
             c1 -= ('a' - 'A');
@@ -1106,10 +1103,7 @@ int wc_strcasecmp(const char *s1, const char *s2)
 int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 {
     char c1, c2;
-    for (c1 = 0, c2 = 0;
-         n > 0;
-         --n, ++s1, ++s2)
-    {
+    for (c1 = 0, c2 = 0; n > 0; --n, ++s1, ++s2) {
         c1 = *s1;
         if ((c1 >= 'a') && (c1 <= 'z'))
             c1 -= ('a' - 'A');

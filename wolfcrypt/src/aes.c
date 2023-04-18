@@ -10405,7 +10405,7 @@ static WC_INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
 
     bytes = sizeof(word32);
     for (i = 0; i < sizeof(word32); i++) {
-        inOutCtr[i+sizeof(word32)] = (value >> ((bytes - 1) * 8)) & 0xFF;
+        inOutCtr[i+sizeof(word32)] = (byte)(value >> ((bytes - 1) * 8));
         bytes--;
     }
 }

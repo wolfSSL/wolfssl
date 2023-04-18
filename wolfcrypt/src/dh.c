@@ -2944,7 +2944,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         /* force magnitude */
         buf[0] |= 0xC0;
         /* force even */
-        buf[bufSz - 1] &= (byte)~1U;
+        buf[bufSz - 1] &= 0xfe;
 
         if (mp_init_multi(tmp, tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
