@@ -15140,8 +15140,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 
     session = ClientSessionToSession(session);
 
-    if (ssl == NULL || session == NULL) {
-        WOLFSSL_MSG("ssl or session NULL");
+    if (ssl == NULL || session == NULL || !session->isSetup) {
+        WOLFSSL_MSG("ssl or session NULL or not set up");
         return WOLFSSL_FAILURE;
     }
 
@@ -15767,7 +15767,7 @@ void SetupSession(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     session->peerVerifyRet = (byte)ssl->peerVerifyRet;
 #endif
-    /* Setup done */
+    session->isSetup = 1;
 }
 
 void AddSession(WOLFSSL* ssl)
@@ -25865,6 +25865,8 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     if (sess != NULL) {
         *sess = s;
     }
+
+    s->isSetup = 1;
 
     *p += idx;
 
