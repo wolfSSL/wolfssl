@@ -8434,7 +8434,7 @@ int sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
 #else
     if ((err == MP_OKAY) && (r != m)) {
         err = sp_div(a, m, NULL, r);
-        if ((!sp_iszero(r)) && (r->sign != m->sign)) {
+        if ((err == MP_OKAY) && (!sp_iszero(r)) && (r->sign != m->sign)) {
             err = sp_add(r, m, r);
         }
     }
