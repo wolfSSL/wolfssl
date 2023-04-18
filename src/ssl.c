@@ -15163,6 +15163,10 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
+        if (ssl->session == session) {
+            WOLFSSL_MSG("ssl->session and session same");
+        }
+        else
 #ifdef HAVE_STUNNEL
         /* stunnel depends on the ex_data not being duplicated. Copy OpenSSL
          * behaviour for now. */
@@ -15184,9 +15188,10 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
 
     /* Let's copy over the altSessionID for local cache purposes */
-    if (ret == WOLFSSL_SUCCESS && session->haveAltSessionID) {
+    if (ret == WOLFSSL_SUCCESS && session->haveAltSessionID &&
+            ssl->session != session) {
         ssl->session->haveAltSessionID = 1;
-        XMEMMOVE(ssl->session->altSessionID, session->altSessionID, ID_LEN);
+        XMEMCPY(ssl->session->altSessionID, session->altSessionID, ID_LEN);
     }
 
     if (sessRow != NULL) {
