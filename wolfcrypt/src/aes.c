@@ -4483,7 +4483,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
             !defined(XTRANSFORM_AESCTRBLOCK)
             if (in != out && sz >= AES_BLOCK_SIZE) {
-                int blocks = sz / AES_BLOCK_SIZE;
+                word32 blocks = sz / AES_BLOCK_SIZE;
                 byte* counter = (byte*)aes->reg;
                 byte* c = out;
                 while (blocks--) {
@@ -4646,14 +4646,14 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
     sz <<= 3;
 
     /* copy over the words of the sz into the destination buffer */
-    buf[0] = (szHi >> 24) & 0xff;
-    buf[1] = (szHi >> 16) & 0xff;
-    buf[2] = (szHi >>  8) & 0xff;
-    buf[3] = szHi & 0xff;
-    buf[4] = (sz >> 24) & 0xff;
-    buf[5] = (sz >> 16) & 0xff;
-    buf[6] = (sz >>  8) & 0xff;
-    buf[7] = sz & 0xff;
+    buf[0] = (byte)(szHi >> 24);
+    buf[1] = (byte)(szHi >> 16);
+    buf[2] = (byte)(szHi >>  8);
+    buf[3] = (byte)szHi;
+    buf[4] = (byte)(sz >> 24);
+    buf[5] = (byte)(sz >> 16);
+    buf[6] = (byte)(sz >>  8);
+    buf[7] = (byte)sz;
 }
 
 
@@ -5386,7 +5386,7 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
         z8[1] ^= m8[1];
 
         /* Cache top byte for remainder calculations - lost in rotate. */
-        a = z8[1] >> 56;
+        a = (byte)(z8[1] >> 56);
 
         /* Rotate Z by 8-bits */
         z8[1] = (z8[0] >> 56) | (z8[1] << 8);
@@ -8555,7 +8555,7 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
             ret = AesGcmFinal_C(aes, calcTag, authTagSz);
             if (ret == 0) {
                 /* Check calculated tag matches the one passed in. */
-                if (ConstantCompare(authTag, calcTag, authTagSz) != 0) {
+                if (ConstantCompare(authTag, calcTag, (int)authTagSz) != 0) {
                     ret = AES_GCM_AUTH_E;
                 }
             }
@@ -8988,22 +8988,22 @@ static WARN_UNUSED_RESULT int roll_auth(
     /* encode the length in */
     if (inSz <= 0xFEFF) {
         authLenSz = 2;
-        out[0] ^= ((inSz & 0xFF00) >> 8);
-        out[1] ^=  (inSz & 0x00FF);
+        out[0] ^= (byte)(inSz >> 8);
+        out[1] ^= (byte)inSz;
     }
-    else if (inSz <= 0xFFFFFFFF) {
+    else {
         authLenSz = 6;
-        out[0] ^= 0xFF; out[1] ^= 0xFE;
-        out[2] ^= ((inSz & 0xFF000000) >> 24);
-        out[3] ^= ((inSz & 0x00FF0000) >> 16);
-        out[4] ^= ((inSz & 0x0000FF00) >>  8);
-        out[5] ^=  (inSz & 0x000000FF);
+        out[0] ^= 0xFF;
+        out[1] ^= 0xFE;
+        out[2] ^= (byte)(inSz >> 24);
+        out[3] ^= (byte)(inSz >> 16);
+        out[4] ^= (byte)(inSz >>  8);
+        out[5] ^= (byte)inSz;
     }
     /* Note, the protocol handles auth data up to 2^64, but we are
      * using 32-bit sizes right now, so the bigger data isn't handled
-     * else if (inSz <= 0xFFFFFFFFFFFFFFFF) {} */
-    else
-        return BAD_LENGTH_E;
+     * else {}
+     */
 
     /* start fill out the rest of the first block */
     remainder = AES_BLOCK_SIZE - authLenSz;
@@ -9104,7 +9104,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -9122,13 +9122,13 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
-    B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * (((byte)authTagSz - 2) / 2))
-         + (lenSz - 1);
+    B[0] = (byte)((authInSz > 0 ? 64 : 0)
+                  + (8 * (((byte)authTagSz - 2) / 2))
+                  + (lenSz - 1));
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B[AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -9283,7 +9283,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+    if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -9385,13 +9385,13 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     o = out;
     oSz = inSz;
 
-    B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * (((byte)authTagSz - 2) / 2))
-         + (lenSz - 1);
+    B[0] = (byte)((authInSz > 0 ? 64 : 0)
+                  + (8 * (((byte)authTagSz - 2) / 2))
+                  + (lenSz - 1));
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B[AES_BLOCK_SIZE - 1 - i] = (byte)((inSz >> ((8 * i) & mask)) & mask);
     }
 
     ret = wc_AesEncrypt(aes, B, A);
@@ -9445,7 +9445,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     xorbuf(A, B, authTagSz);
 
-    if (ConstantCompare(A, authTag, authTagSz) != 0) {
+    if (ConstantCompare(A, authTag, (int)authTagSz) != 0) {
         /* If the authTag check fails, don't keep the decrypted data.
          * Unfortunately, you need the decrypted data to calculate the
          * check value. */
@@ -9626,7 +9626,7 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
     if (ret == 0)
         ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
-        XMEMCPY(aes->id, id, len);
+        XMEMCPY(aes->id, id, (size_t)len);
         aes->idLen = len;
         aes->labelLen = 0;
     }
@@ -9637,12 +9637,12 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
 int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 {
     int ret = 0;
-    int labelLen = 0;
+    size_t labelLen = 0;
 
     if (aes == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = (int)XSTRLEN(label);
+        labelLen = XSTRLEN(label);
         if (labelLen == 0 || labelLen > AES_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
@@ -9651,7 +9651,7 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
         ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
         XMEMCPY(aes->label, label, labelLen);
-        aes->labelLen = labelLen;
+        aes->labelLen = (int)labelLen;
         aes->idLen = 0;
     }
 
@@ -10032,7 +10032,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     #ifdef WOLFSSL_AES_CFB
     /* check if more input needs copied over to aes->reg */
     if (aes->left && sz && mode == AES_CFB_MODE) {
-        int size = min(aes->left, sz);
+        word32 size = min(aes->left, sz);
         XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, in, size);
     }
     #endif
@@ -10155,7 +10155,7 @@ static void shiftLeftArray(byte* ary, byte shift)
         for (i = 0; i < AES_BLOCK_SIZE - 1; i++) {
             byte carry = ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift));
             carry >>= (WOLFSSL_BIT_SIZE - shift);
-            ary[i] = (ary[i] << shift) + carry;
+            ary[i] = (byte)((ary[i] << shift) + carry);
         }
         ary[i] = ary[i] << shift;
     }
@@ -10400,12 +10400,12 @@ int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Initialize key wrap counter with value */
 static WC_INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
 {
-    int i;
+    word32 i;
     word32 bytes;
 
     bytes = sizeof(word32);
-    for (i = 0; i < (int)sizeof(word32); i++) {
-        inOutCtr[i+sizeof(word32)] = (value >> ((bytes - 1) * 8)) & 0xFF;
+    for (i = 0; i < sizeof(word32); i++) {
+        inOutCtr[i+sizeof(word32)] = (byte)(value >> ((bytes - 1) * 8));
         bytes--;
     }
 }
@@ -10495,7 +10495,7 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
 
-    return inSz + KEYWRAP_BLOCK_SIZE;
+    return (int)(inSz + KEYWRAP_BLOCK_SIZE);
 }
 
 /* perform AES key wrap (RFC3394), return out sz on success, negative on err */
@@ -10611,7 +10611,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
         return BAD_KEYWRAP_IV_E;
 
-    return inSz - KEYWRAP_BLOCK_SIZE;
+    return (int)(inSz - KEYWRAP_BLOCK_SIZE);
 }
 
 int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
@@ -10809,7 +10809,7 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
             byte tmpC;
 
             tmpC   = (pt[j] >> 7) & 0x01;
-            pt[j+AES_BLOCK_SIZE] = ((pt[j] << 1) + carry) & 0xFF;
+            pt[j+AES_BLOCK_SIZE] = (byte)((pt[j] << 1) + carry);
             carry  = tmpC;
         }
         if (carry) {
@@ -10912,7 +10912,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {
@@ -11049,7 +11049,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {
@@ -11073,7 +11073,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 byte tmpC;
 
                 tmpC   = (tmp[j] >> 7) & 0x01;
-                tmp2[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                tmp2[j] = (byte)((tmp[j] << 1) + carry);
                 carry  = tmpC;
             }
             if (carry) {

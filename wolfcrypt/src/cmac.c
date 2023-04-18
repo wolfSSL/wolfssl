@@ -342,7 +342,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
 
     XMEMSET(a, 0, aSz);
     ret = wc_AesCmacGenerate(a, &aSz, in, inSz, key, keySz);
-    compareRet = ConstantCompare(check, a, min(checkSz, aSz));
+    compareRet = ConstantCompare(check, a, (int)min(checkSz, aSz));
 
     if (ret == 0)
         ret = compareRet ? 1 : 0;

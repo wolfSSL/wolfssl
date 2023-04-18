@@ -69,7 +69,7 @@
 
 enum {
     Ed448    = 0,
-    Ed448ph  = 1,
+    Ed448ph  = 1
 };
 
 #ifndef WC_ED448KEY_TYPE_DEFINED

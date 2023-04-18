@@ -78,6 +78,8 @@ enum {
     WC_SHA3_384_BLOCK_SIZE = 104,
     WC_SHA3_512_BLOCK_SIZE = 72,
 #endif
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_SHA3)
 };
 
 #ifndef NO_OLD_WC_NAMES

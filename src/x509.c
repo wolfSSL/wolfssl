@@ -307,7 +307,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
         wolfSSL_ASN1_STRING_free(&ret->value);
     }
 
-    ret->crit = crit;
+    if (err == 0) {
+        ret->crit = crit;
+    }
 
     if (err == 0) {
         ret->obj = wolfSSL_ASN1_OBJECT_dup(obj);

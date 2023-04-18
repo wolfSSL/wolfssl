@@ -488,7 +488,7 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
     void* heap)
 {
     int ret;
-    size_t fileSz;
+    ssize_t fileSz;
     XFILE f;
 
     if (fname == NULL || buf == NULL || bufLen == NULL) {
@@ -512,13 +512,18 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
         return BAD_PATH_ERROR;
     }
     fileSz = XFTELL(f);
+    if (fileSz < 0) {
+        WOLFSSL_MSG("wc_LoadFile ftell error");
+        XFCLOSE(f);
+        return BAD_PATH_ERROR;
+    }
     if (XFSEEK(f, 0, XSEEK_SET) != 0) {
         WOLFSSL_MSG("wc_LoadFile file seek error");
         XFCLOSE(f);
         return BAD_PATH_ERROR;
     }
     if (fileSz > 0) {
-        *bufLen = fileSz;
+        *bufLen = (size_t)fileSz;
         *buf = (byte*)XMALLOC(*bufLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (*buf == NULL) {
             WOLFSSL_MSG("wc_LoadFile memory error");
@@ -727,13 +732,13 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             ret = BAD_PATH_ERROR;
             break;
         }
-        XSTRNCPY(ctx->name, path, pathLen + 1);
+        XSTRNCPY(ctx->name, path, (size_t)pathLen + 1);
         ctx->name[pathLen] = '/';
 
         /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
          * of earlier check it is known that dnameLen is less than
          * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
-        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, (size_t)dnameLen + 1);
         if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
@@ -852,12 +857,12 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             ret = BAD_PATH_ERROR;
             break;
         }
-        XSTRNCPY(ctx->name, path, pathLen + 1);
+        XSTRNCPY(ctx->name, path, (size_t)pathLen + 1);
         ctx->name[pathLen] = '/';
         /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
          * of earlier check it is known that dnameLen is less than
          * MAX_FILENAME_SZ - (pathLen + 2) so that dnameLen +1 will fit */
-        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, (size_t)dnameLen + 1);
 
         if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
@@ -1075,6 +1080,42 @@ size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
     return dstLen + wc_strlcpy(dst + dstLen, src, dstSize - dstLen);
 }
 #endif /* USE_WOLF_STRLCAT */
+
+#ifdef USE_WOLF_STRCASECMP
+int wc_strcasecmp(const char *s1, const char *s2)
+{
+    char c1, c2;
+    for (;;++s1, ++s2) {
+        c1 = *s1;
+        if ((c1 >= 'a') && (c1 <= 'z'))
+            c1 -= ('a' - 'A');
+        c2 = *s2;
+        if ((c2 >= 'a') && (c2 <= 'z'))
+            c2 -= ('a' - 'A');
+        if ((c1 != c2) || (c1 == 0))
+            break;
+    }
+    return (c1 - c2);
+}
+#endif /* USE_WOLF_STRCASECMP */
+
+#ifdef USE_WOLF_STRNCASECMP
+int wc_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+    char c1, c2;
+    for (c1 = 0, c2 = 0; n > 0; --n, ++s1, ++s2) {
+        c1 = *s1;
+        if ((c1 >= 'a') && (c1 <= 'z'))
+            c1 -= ('a' - 'A');
+        c2 = *s2;
+        if ((c2 >= 'a') && (c2 <= 'z'))
+            c2 -= ('a' - 'A');
+        if ((c1 != c2) || (c1 == 0))
+            break;
+    }
+    return (c1 - c2);
+}
+#endif /* USE_WOLF_STRNCASECMP */
 
 #if !defined(SINGLE_THREADED) && !defined(HAVE_C___ATOMIC)
 void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)

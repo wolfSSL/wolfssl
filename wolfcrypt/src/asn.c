@@ -11318,21 +11318,23 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
     if (ret == 0) {
     #ifdef HAVE_OCSP
-        ret = CalcHashId(source + *srcIdx, length, cert->subjectKeyHash);
+        ret = CalcHashId(source + *srcIdx, (word32)length,
+                         cert->subjectKeyHash);
     }
     if (ret == 0) {
     #endif
-        publicKey = (byte*)XMALLOC(length, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        publicKey = (byte*)XMALLOC((size_t)length, cert->heap,
+                                   DYNAMIC_TYPE_PUBLIC_KEY);
         if (publicKey == NULL) {
             ret = MEMORY_E;
         }
         else {
-            XMEMCPY(publicKey, &source[*srcIdx], length);
+            XMEMCPY(publicKey, &source[*srcIdx], (size_t)length);
             cert->publicKey = publicKey;
             cert->pubKeyStored = 1;
-            cert->pubKeySize   = length;
+            cert->pubKeySize   = (word32)length;
 
-            *srcIdx += length;
+            *srcIdx += (word32)length;
         }
     }
 
@@ -14627,7 +14629,6 @@ word32 SetOthername(void *name, byte *output)
         output += SetHeader(CTC_UTF8, nameSz, output);
 
         XMEMCPY(output, nameStr, nameSz);
-        output += nameSz;
     }
 
     return len;
@@ -26708,7 +26709,8 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         case ED25519_KEY:
-            ret = wc_Ed25519PublicKeyToDer(ed25519Key, output, outLen, 1);
+            ret = wc_Ed25519PublicKeyToDer(ed25519Key, output,
+                                           (word32)outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -26716,7 +26718,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif
     #ifdef HAVE_ED448
         case ED448_KEY:
-            ret = wc_Ed448PublicKeyToDer(ed448Key, output, outLen, 1);
+            ret = wc_Ed448PublicKeyToDer(ed448Key, output, (word32)outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -27956,7 +27958,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
 
             ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
             if (ret == 0)
-                ret = outSz;
+                ret = (int)outSz;
         }
     #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
 
@@ -27966,7 +27968,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
 
             ret = wc_ed448_sign_msg(buf, sz, sig, &outSz, ed448Key, NULL, 0);
             if (ret == 0)
-                ret = outSz;
+                ret = (int)outSz;
         }
     #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
 

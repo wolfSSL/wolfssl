@@ -283,7 +283,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        info->keySz, hashType)) != 0) {
+                                        (int)info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -349,7 +349,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        info->keySz, hashType)) != 0) {
+                                        (int)info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -396,7 +396,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                       int length, int version, byte* cbcIv, int enc, int shaOid)
 {
     int typeH = WC_HASH_TYPE_NONE;
-    int derivedLen = 0;
+    word32 derivedLen = 0;
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key = NULL;
@@ -409,6 +409,9 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     (void)enc;
 
     WOLFSSL_ENTER("wc_CryptKey");
+
+    if (length < 0)
+        return BAD_LENGTH_E;
 
     switch (id) {
     #ifndef NO_DES3
@@ -512,13 +515,13 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #ifndef NO_HMAC
             case PKCS5v2:
                 ret = wc_PBKDF2(key, (byte*)password, passwordSz,
-                                salt, saltSz, iterations, derivedLen, typeH);
+                                salt, saltSz, iterations, (int)derivedLen, typeH);
                 break;
     #endif
     #ifndef NO_SHA
             case PKCS5:
                 ret = wc_PBKDF1(key, (byte*)password, passwordSz,
-                                salt, saltSz, iterations, derivedLen, typeH);
+                                salt, saltSz, iterations, (int)derivedLen, typeH);
                 break;
     #endif
     #ifdef HAVE_PKCS12
@@ -541,7 +544,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 unicodePasswd[idx++] = 0x00;
 
                 ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
-                                    iterations, derivedLen, typeH, 1);
+                                    iterations, (int)derivedLen, typeH, 1);
                 if (id != PBE_SHA1_RC4_128) {
                     ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
                                     saltSz, iterations, 8, typeH, 2);
@@ -577,10 +580,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 }
                 if (ret == 0) {
                     if (enc) {
-                        wc_Des_CbcEncrypt(&des, input, input, length);
+                        wc_Des_CbcEncrypt(&des, input, input, (word32)length);
                     }
                     else {
-                        wc_Des_CbcDecrypt(&des, input, input, length);
+                        wc_Des_CbcDecrypt(&des, input, input, (word32)length);
                     }
                 }
                 break;
@@ -608,10 +611,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 }
                 if (ret == 0) {
                     if (enc) {
-                        ret = wc_Des3_CbcEncrypt(&des, input, input, length);
+                        ret = wc_Des3_CbcEncrypt(&des, input, input, (word32)length);
                     }
                     else {
-                        ret = wc_Des3_CbcDecrypt(&des, input, input, length);
+                        ret = wc_Des3_CbcDecrypt(&des, input, input, (word32)length);
                     }
                 }
                 wc_Des3Free(&des);
@@ -625,7 +628,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 Arc4    dec;
 
                 wc_Arc4SetKey(&dec, key, derivedLen);
-                wc_Arc4Process(&dec, input, input, length);
+                wc_Arc4Process(&dec, input, input, (word32)length);
                 break;
             }
     #endif
@@ -661,9 +664,9 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 }
                 if (ret == 0) {
                     if (enc)
-                        ret = wc_AesCbcEncrypt(aes, input, input, length);
+                        ret = wc_AesCbcEncrypt(aes, input, input, (word32)length);
                     else
-                        ret = wc_AesCbcDecrypt(aes, input, input, length);
+                        ret = wc_AesCbcDecrypt(aes, input, input, (word32)length);
                 }
                 if (free_aes)
                     wc_AesFree(aes);
