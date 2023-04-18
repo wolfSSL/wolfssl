@@ -33317,7 +33317,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)
 {
-    word16 nameLen;
+    word16 nameLen = 0; /* TLSX_ALPN_GetRequest() can fail, so better initialize */
 
     if (ssl != NULL && data != NULL && len != NULL) {
         TLSX_ALPN_GetRequest(ssl->extensions, (void **)data, &nameLen);
