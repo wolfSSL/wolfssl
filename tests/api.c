@@ -7484,8 +7484,8 @@ static hashTable server_sessionCache;
 
 static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
 {
-    (void)ssl;
     int i;
+    (void)ssl;
     /*
      * This example uses a hash table.
      * Steps you should take for a non-demo code:
@@ -7505,8 +7505,8 @@ static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
     if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
         return 0;
     }
-    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
-        if(server_sessionCache.entries[i].value == NULL) {
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].value == NULL) {
             if (sess->haveAltSessionID == 1)
                 server_sessionCache.entries[i].key = sess->altSessionID;
             else
@@ -7526,9 +7526,9 @@ static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
 
 static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
 {
+    int i;
     (void)ctx;
     (void)sess;
-    int i;
 
     if (sess == NULL)
         return;
@@ -7542,8 +7542,8 @@ static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
     if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
         return;
     }
-    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
-        if(server_sessionCache.entries[i].key != NULL &&
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].key != NULL &&
            XMEMCMP(server_sessionCache.entries[i].key,
                    sess->sessionID, SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
             wolfSSL_SESSION_free(server_sessionCache.entries[i].value);
@@ -7562,10 +7562,10 @@ static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
 static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
                                   const unsigned char *id, int len, int *ref)
 {
+    int i;
     (void)ssl;
     (void)id;
     (void)len;
-    int i;
 
     /*
      * This example uses a hash table.
@@ -7582,8 +7582,8 @@ static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
      * be responsible for the pointer then set to 0. */
     *ref = 1;
 
-    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
-        if(server_sessionCache.entries[i].key != NULL &&
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].key != NULL &&
            XMEMCMP(server_sessionCache.entries[i].key, id,
                    SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
            return server_sessionCache.entries[i].value;
@@ -7599,8 +7599,8 @@ static void twcase_get_sessionCb_cleanup(void)
     /* If  twcase_get_sessionCb sets *ref = 1, the application is responsible
      * for freeing sessions */
 
-    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
-        if(server_sessionCache.entries[i].value != NULL) {
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].value != NULL) {
             wolfSSL_SESSION_free(server_sessionCache.entries[i].value);
             cnt++;
         }
