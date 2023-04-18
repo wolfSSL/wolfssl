@@ -172,6 +172,8 @@ The TLS v1.3 client/server examples over UART are paired with these host-side ap
 
 To use this example you will need to use the STM32Cube interface to enable an additional USART and enable DMA for the RX with defaults. Enabling DMA for the USART requires adding the USART RX DMA in the STM32Cube tool. Under Connectivity click on your TLS USART# and goto DMA Settings and "Add" one for USART#_RX with default options.
 
+On some boards, such as U5, there is GPDMA support. In this case when you click on "DMA Settings" you will be given a button to take you to GPDMA1 configuration. Click it. You can then enable a channel (any of the ones from 0 to 11 should be fine.) as "Standard Request Mode" and set the "Request Configuration" section's "Request" to USART#_RX. In the "System Core" tab, find NVIC and click on it. Make sure that the GPDMA1 global interrupt for your channel is enabled as well as USARTx global interrupt.
+
 Then set the TLS_UART macro to the correct `huart#` instance. This USART will be used as a TLS transport.
 
 ```c
