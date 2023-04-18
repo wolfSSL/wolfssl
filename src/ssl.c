@@ -14475,6 +14475,47 @@ int wolfSSL_Cleanup(void)
     return ret;
 }
 
+void SetupSession(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION* session = ssl->session;
+
+    WOLFSSL_ENTER("SetupSession");
+
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL &&
+            !session->haveAltSessionID) {
+        /* Make sure the session ID is available when the user calls any
+         * get_session API */
+        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        session->sessionIDSz = ssl->arrays->sessionIDSz;
+    }
+    session->side = (byte)ssl->options.side;
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
+        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
+    session->haveEMS = ssl->options.haveEMS;
+#ifdef OPENSSL_EXTRA
+    /* If using compatibility layer then check for and copy over session context
+     * id. */
+    if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
+        XMEMCPY(ssl->session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
+        session->sessionCtxSz = ssl->sessionCtxSz;
+    }
+#endif
+    session->timeout = ssl->timeout;
+    session->bornOn  = LowResTimer();
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+    session->version = ssl->version;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
+    session->cipherSuite0 = ssl->options.cipherSuite0;
+    session->cipherSuite = ssl->options.cipherSuite;
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    session->peerVerifyRet = (byte)ssl->peerVerifyRet;
+#endif
+    session->isSetup = 1;
+}
 
 #ifndef NO_SESSION_CACHE
 
@@ -15726,48 +15767,6 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #endif
 
     return ret;
-}
-
-void SetupSession(WOLFSSL* ssl)
-{
-    WOLFSSL_SESSION* session = ssl->session;
-
-    WOLFSSL_ENTER("SetupSession");
-
-    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL &&
-            !session->haveAltSessionID) {
-        /* Make sure the session ID is available when the user calls any
-         * get_session API */
-        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
-        session->sessionIDSz = ssl->arrays->sessionIDSz;
-    }
-    session->side = (byte)ssl->options.side;
-    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
-        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
-    session->haveEMS = ssl->options.haveEMS;
-#ifdef OPENSSL_EXTRA
-    /* If using compatibility layer then check for and copy over session context
-     * id. */
-    if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
-        XMEMCPY(ssl->session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
-        session->sessionCtxSz = ssl->sessionCtxSz;
-    }
-#endif
-    session->timeout = ssl->timeout;
-    session->bornOn  = LowResTimer();
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
-    session->version = ssl->version;
-#endif
-#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
-                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
-    session->cipherSuite0 = ssl->options.cipherSuite0;
-    session->cipherSuite = ssl->options.cipherSuite;
-#endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    session->peerVerifyRet = (byte)ssl->peerVerifyRet;
-#endif
-    session->isSetup = 1;
 }
 
 void AddSession(WOLFSSL* ssl)
