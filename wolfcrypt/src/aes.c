@@ -2676,6 +2676,24 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             return BAD_FUNC_ARG;
         }
 
+    #if !defined(WOLFSSL_AES_128)
+        if (keylen == 16) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
+    #if !defined(WOLFSSL_AES_192)
+        if (keylen == 24) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
+    #if !defined(WOLFSSL_AES_256)
+        if (keylen == 32) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
 
