@@ -14613,7 +14613,6 @@ word32 SetOthername(void *name, byte *output)
         output += SetHeader(CTC_UTF8, nameSz, output);
 
         XMEMCPY(output, nameStr, nameSz);
-        output += nameSz;
     }
 
     return len;
