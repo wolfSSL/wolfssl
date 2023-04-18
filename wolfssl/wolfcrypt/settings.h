@@ -1877,6 +1877,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifdef _MSC_VER
+    #ifndef HAVE_SSIZE_T
+        #include <BaseTsd.h>
+        typedef SSIZE_T ssize_t;
+    #endif
+#endif
+
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
 #if defined(WOLFSSL_IMXRT_DCP) && !defined(SINGLE_THREADED)
     #undef WOLFSSL_CRYPT_HW_MUTEX
