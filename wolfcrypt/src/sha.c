@@ -584,8 +584,6 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
     ret = wolfAsync_DevCtxInit(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA,
                                                             sha->heap, devId);
-#else
-    (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_IMXRT1170_CAAM
    ret = wc_CAAM_HashInit(&sha->hndl, &sha->ctx, WC_HASH_TYPE_SHA);
@@ -864,9 +862,10 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     else {
         ret = esp_sha_digest_process(sha, 1);
     }
-#elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
-    /* The ESP32C3 is different; SW crypto here. Not yet implemented  */
-    ret = XTRANSFORM(sha, (const byte*)local);
+/*
+** The #if defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW) also falls
+** though here to SW, as it's not yet implemented for HW.
+*/
 #else
     ret = XTRANSFORM(sha, (const byte*)local);
 #endif
@@ -957,7 +956,7 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 #ifdef WOLFSSL_SMALL_STACK
     wc_Sha* tmpSha;
 #else
-    wc_Sha  tmpSha[sizeof(wc_Sha)];
+    wc_Sha  tmpSha[1];
 #endif
 
     if (sha == NULL || hash == NULL) {
@@ -970,17 +969,15 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     if (tmpSha == NULL) {
         return MEMORY_E;
     }
+#endif
+
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#else
-    /* Here tmpSha is a local array and does not need alloc/free */
-    ret = wc_ShaCopy(sha, (wc_Sha*)&tmpSha);
-    if (ret == 0) {
-        ret = wc_ShaFinal((wc_Sha*)&tmpSha, hash);
-    }
 #endif
 
     return ret;

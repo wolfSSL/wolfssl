@@ -1457,10 +1457,10 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     sha384->devCtx = NULL;
 #endif
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
-        if (sha384->ctx.mode != ESP32_SHA_INIT) {
-            ESP_LOGV("SHA384", "Set ctx mode from prior value: "
-                               "%d", sha384->ctx.mode);
-        }
+    if (sha384->ctx.mode != ESP32_SHA_INIT) {
+        ESP_LOGV("SHA384", "Set ctx mode from prior value: "
+                           "%d", sha384->ctx.mode);
+    }
     /* We know this is a fresh, uninitialized item, so set to INIT */
     sha384->ctx.mode = ESP32_SHA_INIT;
 #endif
