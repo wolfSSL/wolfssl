@@ -488,7 +488,7 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
     void* heap)
 {
     int ret;
-    long int fileSz;
+    ssize_t fileSz;
     XFILE f;
 
     if (fname == NULL || buf == NULL || bufLen == NULL) {
