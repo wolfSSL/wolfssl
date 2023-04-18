@@ -19953,6 +19953,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
 
+        if (sz <= 0)
+            return;
+
         XMEMSET(key, 0, sizeof(key));
         XMEMCPY(key, *ks1, DES_BLOCK_SIZE);
         XMEMCPY(&key[DES_BLOCK_SIZE], *ks2, DES_BLOCK_SIZE);
@@ -19980,12 +19983,20 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                     ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
                 #endif
                     (void)ret; /* ignore return codes for processing */
+                    XMEMCPY(ivec, output+blk*DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+                }
+                else {
+                    XMEMCPY(ivec, output+(blk-1)*DES_BLOCK_SIZE, DES_BLOCK_SIZE);
                 }
             }
         }
         else {
             if (wc_Des3_SetKey(&des, key, (const byte*)ivec,
                     DES_DECRYPTION) == 0) {
+                if(lb_sz)
+                    XMEMCPY(ivec, input+sz-lb_sz, DES_BLOCK_SIZE);
+                else
+                    XMEMCPY(ivec, input+(blk-1)*DES_BLOCK_SIZE, DES_BLOCK_SIZE);
                 ret = wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
