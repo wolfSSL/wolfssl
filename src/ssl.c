@@ -15739,23 +15739,8 @@ void AddSession(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("AddSession");
 
-    if (SslSessionCacheOff(ssl, session)) {
-        WOLFSSL_MSG("Cache off");
-        return;
-    }
-
-    if (ssl->options.haveSessionId == 0) {
-        WOLFSSL_MSG("Don't have session id");
-        return;
-    }
-
-#if defined(HAVE_SESSION_TICKET) && !defined(OPENSSL_EXTRA)
-    /* For the compat layer generate a session object to use */
-    if (ssl->options.side == WOLFSSL_SERVER_END && ssl->options.useTicket == 1) {
-        WOLFSSL_MSG("Using tickets instead of cache");
-        return;
-    }
-#endif
+    /* Always populate the session object so that it can be used to resume a
+     * session. Even if the session cache is off. */
 
     if (session->haveAltSessionID) {
         id = session->altSessionID;
@@ -15798,6 +15783,13 @@ void AddSession(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     session->peerVerifyRet = (byte)ssl->peerVerifyRet;
 #endif
+    /* Setup done */
+
+    if (SslSessionCacheOff(ssl, session)) {
+        WOLFSSL_MSG("Cache off");
+        return;
+    }
+
     /* Do this last so that if it fails, the rest of the session is setup. Do
      * this only for the client because if the server doesn't have an ID at
      * this point, it won't on resumption. */
@@ -15817,8 +15809,6 @@ void AddSession(WOLFSSL* ssl)
         id = ssl->session->altSessionID;
         idSz = ID_LEN;
     }
-    /* Setup done */
-
 
     /* Try to add the session to internal cache or external cache
     if a new_sess_cb is set. Its ok if we don't succeed. */
