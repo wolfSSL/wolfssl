@@ -4171,6 +4171,7 @@ WOLFSSL_LOCAL int wolfSSL_RAND_Init(void);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
+WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
 WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ctx,

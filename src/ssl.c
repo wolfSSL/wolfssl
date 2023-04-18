@@ -15728,35 +15728,19 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     return ret;
 }
 
-void AddSession(WOLFSSL* ssl)
+void SetupSession(WOLFSSL* ssl)
 {
-    int    error = 0;
-    const byte* id = NULL;
-    byte idSz = 0;
     WOLFSSL_SESSION* session = ssl->session;
 
-    (void)error;
+    WOLFSSL_ENTER("SetupSession");
 
-    WOLFSSL_ENTER("AddSession");
-
-    /* Always populate the session object so that it can be used to resume a
-     * session. Even if the session cache is off. */
-
-    if (session->haveAltSessionID) {
-        id = session->altSessionID;
-        idSz = ID_LEN;
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL &&
+            !session->haveAltSessionID) {
+        /* Make sure the session ID is available when the user calls any
+         * get_session API */
+        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        session->sessionIDSz = ssl->arrays->sessionIDSz;
     }
-    else {
-        if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
-            /* Make sure the session ID is available when the user calls any
-             * get_session API */
-            XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
-            session->sessionIDSz = ssl->arrays->sessionIDSz;
-        }
-        id = session->sessionID;
-        idSz = session->sessionIDSz;
-    }
-
     session->side = (byte)ssl->options.side;
     if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
         XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
@@ -15784,14 +15768,34 @@ void AddSession(WOLFSSL* ssl)
     session->peerVerifyRet = (byte)ssl->peerVerifyRet;
 #endif
     /* Setup done */
+}
+
+void AddSession(WOLFSSL* ssl)
+{
+    int    error = 0;
+    const byte* id = NULL;
+    byte idSz = 0;
+    WOLFSSL_SESSION* session = ssl->session;
+
+    (void)error;
+
+    WOLFSSL_ENTER("AddSession");
 
     if (SslSessionCacheOff(ssl, session)) {
         WOLFSSL_MSG("Cache off");
         return;
     }
 
-    /* Do this last so that if it fails, the rest of the session is setup. Do
-     * this only for the client because if the server doesn't have an ID at
+    if (session->haveAltSessionID) {
+        id = session->altSessionID;
+        idSz = ID_LEN;
+    }
+    else {
+        id = session->sessionID;
+        idSz = session->sessionIDSz;
+    }
+
+    /* Do this only for the client because if the server doesn't have an ID at
      * this point, it won't on resumption. */
     if (idSz == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
         WC_RNG* rng = NULL;

@@ -21301,8 +21301,9 @@ int SendFinished(WOLFSSL* ssl)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
+        SetupSession(ssl);
 #ifndef NO_SESSION_CACHE
-        AddSession(ssl);    /* just try */
+        AddSession(ssl);
 #endif
         if (ssl->options.side == WOLFSSL_SERVER_END) {
         #ifdef OPENSSL_EXTRA
@@ -30622,6 +30623,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     *inOutIdx += length;
     if (length > 0) {
         ssl->timeout = lifetime;
+        SetupSession(ssl);
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);
 #endif

@@ -10134,6 +10134,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     #endif
     *inOutIdx += length;
 
+    SetupSession(ssl);
     #ifndef NO_SESSION_CACHE
         AddSession(ssl);
     #endif
@@ -10388,6 +10389,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->options.haveSessionId = 1;
 
+    SetupSession(ssl);
     /* Only add to cache when support built in and when the ticket contains
      * an ID. Otherwise we have no way to actually retrieve the ticket from the
      * cache. */
