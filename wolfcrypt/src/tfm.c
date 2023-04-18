@@ -1010,6 +1010,13 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
    }
 
    bmax = ((unsigned int)b + DIGIT_BIT - 1) / DIGIT_BIT;
+
+   /* If a is negative and bmax is larger than FP_SIZE, then the
+    * result can't fit within c. Just return. */
+   if (c->sign == FP_NEG && bmax > FP_SIZE) {
+      return;
+   }
+
   /* zero digits above the last digit of the modulus */
    for (x = bmax; x < (unsigned int)c->used; x++) {
     c->dp[x] = 0;
