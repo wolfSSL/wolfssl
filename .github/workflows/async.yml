@@ -23,3 +23,9 @@ jobs:
           ./configure ${{ matrix.config }}
           make check
 
+      - name: Print errors 
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi
