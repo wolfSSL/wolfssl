@@ -817,10 +817,11 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         else {
             ret = esp_sha_process(sha, (const byte*)local);
         }
-    #elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
-        /* The ESP32C3 is different; SW crypto here. Not yet implemented  */
-        ret = XTRANSFORM(sha, (const byte*)local);
     #else
+        /*
+        ** The #if defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW) also falls
+        ** though here to SW, as it's not yet implemented for HW.
+        */
         ret = XTRANSFORM(sha, (const byte*)local);
     #endif
         if (ret != 0) {
