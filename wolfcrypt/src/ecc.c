@@ -8284,12 +8284,12 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    ecc_point  lcl_mG;
    ecc_point  lcl_mQ;
 #endif
-   DECL_MP_INT_SIZE_DYN(v, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
    DECL_MP_INT_SIZE_DYN(w, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    DECL_MP_INT_SIZE_DYN(e_lcl, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
 #endif
    mp_int*    e;
+   mp_int*    v = NULL;      /* Will be w. */
    mp_int*    u1 = NULL;     /* Will be e. */
    mp_int*    u2 = NULL;     /* Will be w. */
 
@@ -8371,12 +8371,6 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
-   NEW_MP_INT_SIZE(v, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
-#ifdef MP_INT_SIZE_CHECK_NULL
-   if (v == NULL) {
-       err = MEMORY_E;
-   }
-#endif
    NEW_MP_INT_SIZE(w, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
    if (w == NULL) {
@@ -8387,8 +8381,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY) {
        u1 = e;
        u2 = w;
-
-       err = INIT_MP_INT_SIZE(v, ECC_KEY_MAX_BITS(key));
+       v = w;
    }
    if (err == MP_OKAY) {
        err = INIT_MP_INT_SIZE(w, ECC_KEY_MAX_BITS(key));
@@ -8503,10 +8496,8 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    wc_ecc_del_point_ex(mQ, key->heap);
 
    mp_clear(e);
-   mp_clear(v);
    mp_clear(w);
    FREE_MP_INT_SIZE(w, key->heap, DYNAMIC_TYPE_ECC);
-   FREE_MP_INT_SIZE(v, key->heap, DYNAMIC_TYPE_ECC);
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    FREE_MP_INT_SIZE(e_lcl, key->heap, DYNAMIC_TYPE_ECC);
 #endif

@@ -20275,24 +20275,27 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             cert->extensionsSz  = (int)GetASNItem_Length(
                     dataASN[X509CERTASN_IDX_TBS_EXT], cert->source);
             cert->extensionsIdx = dataASN[X509CERTASN_IDX_TBS_EXT].offset;
-
-            /* Decode the extension data starting at [3]. */
-            ret = DecodeCertExtensions(cert);
-            if (criticalExt != NULL) {
-                if (ret == ASN_CRIT_EXT_E) {
-                    /* Return critical extension not recognized. */
-                    *criticalExt = ret;
-                    ret = 0;
-                }
-                else {
-                    /* No critical extension error. */
-                    *criticalExt = 0;
-                }
-            }
-        }
-        if (ret == 0) {
             /* Advance past extensions. */
             cert->srcIdx = dataASN[X509CERTASN_IDX_SIGALGO_SEQ].offset;
+        }
+    }
+
+    /* Dispose of memory before allocating for extension decoding. */
+    FREE_ASNGETDATA(dataASN, cert->heap);
+
+    if ((ret == 0) && (!done) && (cert->extensions != NULL)) {
+        /* Decode the extension data starting at [3]. */
+        ret = DecodeCertExtensions(cert);
+        if (criticalExt != NULL) {
+            if (ret == ASN_CRIT_EXT_E) {
+                /* Return critical extension not recognized. */
+                *criticalExt = ret;
+                ret = 0;
+            }
+            else {
+                /* No critical extension error. */
+                *criticalExt = 0;
+            }
         }
     }
 
@@ -20301,7 +20304,6 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         ret = badDate;
     }
 
-    FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 }
 
@@ -21408,6 +21410,8 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         }
     }
 
+    FREE_ASNGETDATA(dataASN, heap);
+
     if (ret == 0) {
         /* Check signature. */
         ret = ConfirmSignature(sigCtx, tbs, tbsSz, pubKey, pubKeySz, pubKeyOID,
@@ -21422,7 +21426,6 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if (sigCtx != NULL)
         XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
 #endif
-    FREE_ASNGETDATA(dataASN, heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
