@@ -38,6 +38,7 @@
      * but individual components can be turned off.
      */
     #define WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
+    static const char* TAG = "wc_sha_512";
 #else
     #undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #endif
@@ -616,6 +617,10 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 {
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+    if (sha512->ctx.mode != ESP32_SHA_INIT) {
+        ESP_LOGV(TAG, "Set ctx mode from prior value: "
+                      "%d", sha512->ctx.mode);
+    }
     /* We know this is a fresh, uninitialized item, so set to INIT */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
@@ -1458,7 +1463,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 #endif
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
     if (sha384->ctx.mode != ESP32_SHA_INIT) {
-        ESP_LOGV("SHA384", "Set ctx mode from prior value: "
+        ESP_LOGV(TAG, "Set ctx mode from prior value: "
                            "%d", sha384->ctx.mode);
     }
     /* We know this is a fresh, uninitialized item, so set to INIT */

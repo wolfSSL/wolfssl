@@ -72,10 +72,11 @@
     /* Although we have hardware acceleration,
     ** we may need to fall back to software */
     #define USE_SHA_SOFTWARE_IMPL
-
+    static const char* TAG = "wc_sha";
 #elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
     /* The ESP32C3 is different; HW crypto here. Not yet implemented.
     ** We'll be using software for RISC-V at this time */
+    static const char* TAG = "wc_sha-c3";
 #else
     #undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #endif
@@ -569,7 +570,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #ifdef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
     if (sha->ctx.mode != ESP32_SHA_INIT) {
         /* it may be interesting to see old values during debugging */
-        ESP_LOGV("SHA", "Set ctx mode from prior value: %d", sha->ctx.mode);
+        ESP_LOGV(TAG, "Set ctx mode from prior value: %d", sha->ctx.mode);
     }
     /* We know this is a fresh, uninitialized item, so set to INIT */
     sha->ctx.mode = ESP32_SHA_INIT;
@@ -652,20 +653,20 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 
         #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
             if (sha->ctx.mode == ESP32_SHA_INIT) {
-                ESP_LOGV("sha", "wc_ShaUpdate try hardware");
+                ESP_LOGV(TAG, "wc_ShaUpdate try hardware");
                 esp_sha_try_hw_lock(&sha->ctx);
             }
             if (sha->ctx.mode == ESP32_SHA_SW) {
-                ESP_LOGI("sha", "wc_ShaUpdate process software");
+                ESP_LOGI(TAG, "wc_ShaUpdate process software");
                 ret = XTRANSFORM(sha, (const byte*)local);
             }
             else {
-                ESP_LOGV("sha", "wc_ShaUpdate process hardware");
+                ESP_LOGV(TAG, "wc_ShaUpdate process hardware");
                 esp_sha_process(sha, (const byte*)local);
             }
         #elif defined (WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
-           ESP_LOGI("sha", "wc_ShaUpdate not implemented for ESP32C3");
-           ret = XTRANSFORM(sha, (const byte*)local);
+            ESP_LOGI(TAG, "wc_ShaUpdate not implemented for ESP32C3");
+            ret = XTRANSFORM(sha, (const byte*)local);
         #else
             ret = XTRANSFORM(sha, (const byte*)local);
         #endif
