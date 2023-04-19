@@ -362,36 +362,38 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
+    int copy;
+
     if (ssl->options.sessionCacheOff)
         return 0;
     if (sessionID.size != ID_LEN)
         return 0;
 #ifdef HAVE_EXT_CACHE
-    {
 
-        if (ssl->ctx->get_sess_cb != NULL) {
-            int copy;
-            WOLFSSL_SESSION* extSess =
-                ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
-                                      &copy);
-            if (extSess != NULL) {
+    if (ssl->ctx->get_sess_cb != NULL) {
+        WOLFSSL_SESSION* extSess =
+            ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
+                                  &copy);
+        if (extSess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
-        /* This logic is only for TLS <= 1.2 tickets. Don't accept
-         * TLS 1.3. */
-        if (!IsAtLeastTLSv1_3(extSess->version))
+                           defined(HAVE_SESSION_TICKET))
+            /* This logic is only for TLS <= 1.2 tickets. Don't accept
+             * TLS 1.3. */
+            if (!IsAtLeastTLSv1_3(extSess->version))
 #endif
-        {
-            if (!copy)
-                wolfSSL_FreeSession(ssl->ctx, extSess);
-            *resume = 1;
-            return 0;
+            {
+                if (!copy)
+                    wolfSSL_FreeSession(ssl->ctx, extSess);
+                *resume = 1;
+                return 0;
+            }
         }
-
-        if (ssl->ctx->internalCacheLookupOff)
-            return 0;
     }
 #endif
+
+    if (ssl->ctx->internalCacheLookupOff)
+        return 0;
+
     ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
             ssl->options.side);
     if (ret == 0 && sess != NULL) {
