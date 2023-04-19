@@ -34,6 +34,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifdef WOLFSSL_CAAM
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 /* TODO: Consider linked list with mutex */
 #ifndef MAX_CRYPTO_DEVID_CALLBACKS

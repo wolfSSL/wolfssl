@@ -11111,6 +11111,10 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
 void InitDecodedCert(DecodedCert* cert,
                      const byte* source, word32 inSz, void* heap)
 {
+#if !defined(NO_CERTS)
+    int devId = INVALID_DEVID;
+#endif
+
     if (cert != NULL) {
         XMEMSET(cert, 0, sizeof(DecodedCert));
 
@@ -11145,7 +11149,10 @@ void InitDecodedCert(DecodedCert* cert,
     #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
     #ifndef NO_CERTS
-        InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
+    #ifdef WOLF_CRYPTO_CB
+        devId = wc_CryptoCb_DefaultDevID();
+    #endif
+        InitSignatureCtx(&cert->sigCtx, heap, devId);
     #endif
     }
 }
@@ -20908,6 +20915,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     byte          tag;
     const byte*   sigParams = NULL;
     word32        sigParamsSz = 0;
+    int           devId = INVALID_DEVID;
 
 
     if (cert == NULL) {
@@ -20919,7 +20927,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if (sigCtx == NULL)
         return MEMORY_E;
 #endif
-    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+#ifdef WOLF_CRYPTO_CB
+    devId = wc_CryptoCb_DefaultDevID();
+#endif
+    InitSignatureCtx(sigCtx, heap, devId);
 
     /* Certificate SEQUENCE */
     if (GetSequence(cert, &idx, &len, certSz) < 0)
@@ -21251,6 +21262,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     word32 sigParamsSz = 0;
     const byte* caName = NULL;
     word32 caNameLen = 0;
+    int devId = INVALID_DEVID;
 
     (void)req;
     (void)heap;
@@ -21270,7 +21282,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
 #endif
 
-    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+#ifdef WOLF_CRYPTO_CB
+    devId = wc_CryptoCb_DefaultDevID();
+#endif
+    InitSignatureCtx(sigCtx, heap, devId);
 
     if ((ret == 0) && (!req)) {
         /* Clear dynamic data for certificate items. */
@@ -34425,7 +34440,12 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         if (ca) {
             SignatureCtx sigCtx;
-            InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
+            int devId = INVALID_DEVID;
+
+        #ifdef WOLF_CRYPTO_CB
+            devId = wc_CryptoCb_DefaultDevID();
+        #endif
+            InitSignatureCtx(&sigCtx, heap, devId);
 
             /* ConfirmSignature is blocking here */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
@@ -34556,8 +34576,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     #endif
         if (ca) {
             SignatureCtx sigCtx;
+            int devId = INVALID_DEVID;
+
             /* Initialize he signature context. */
-            InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
+        #ifdef WOLF_CRYPTO_CB
+            devId = wc_CryptoCb_DefaultDevID();
+        #endif
+            InitSignatureCtx(&sigCtx, heap, devId);
 
             /* TODO: ConfirmSignature is blocking here */
             /* Check the signature of the response CA public key. */
@@ -35596,6 +35621,8 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         word32 tbsSz, const byte* signature, word32 sigSz,
                         word32 signatureOID, Signer *ca, void* heap)
 {
+    int devId = INVALID_DEVID;
+
     /* try to confirm/verify signature */
 #ifndef IGNORE_KEY_EXTENSIONS
     if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
@@ -35605,7 +35632,10 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
-    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+#ifdef WOLF_CRYPTO_CB
+    devId = wc_CryptoCb_DefaultDevID();
+#endif
+    InitSignatureCtx(sigCtx, heap, devId);
     if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
                          signatureOID, NULL, 0, NULL) != 0) {
