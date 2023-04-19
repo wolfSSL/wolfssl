@@ -879,11 +879,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 
     XMEMCPY(hash, (byte *)&sha->digest[0], WC_SHA_DIGEST_SIZE);
 
-    {
-        int initret = InitSha(sha); /* reset state */
-        if (initret < 0)
-            ret = initret;
-    }
+    (void)InitSha(sha); /* reset state */
 
     return ret;
 }
