@@ -61,7 +61,7 @@ Block counter is located at index 12.
 
 /* Size of ChaCha chunks */
 #define CHACHA_CHUNK_WORDS 16
-#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * sizeof(word32))
+#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * (word32)sizeof(word32))
 
 #ifdef WOLFSSL_X86_64_BUILD
 #if defined(USE_INTEL_SPEEDUP) && !defined(NO_CHACHA_ASM)

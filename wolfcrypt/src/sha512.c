@@ -498,7 +498,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     static int (*Transform_Sha512_p)(wc_Sha512* sha512) = _Transform_Sha512;
     static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
     static int transform_check = 0;
-    static int intel_flags;
+    static word32 intel_flags;
     static int Transform_Sha512_is_vectorized = 0;
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
@@ -866,7 +866,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 #if defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (Transform_Sha512_Len_p != NULL) {
-        word32 blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
+        word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
 
         if (blocksLen > 0) {
             sha512->data = data;

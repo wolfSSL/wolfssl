@@ -9612,7 +9612,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 {
     int err = 0;
-    int flags = key->flags;
+    word32 flags = key->flags;
 
     /* If flags not set default to cofactor and dec/sign */
     if ((flags & (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN)) == 0) {
@@ -9629,7 +9629,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
         word32 sigLen, digestLen;
         int dynRng = 0, res = 0;
 
-        sigLen = wc_ecc_sig_size(key);
+        sigLen = (word32)wc_ecc_sig_size(key);
         digestLen = WC_SHA256_DIGEST_SIZE;
         sig = (byte*)XMALLOC(sigLen + digestLen, NULL, DYNAMIC_TYPE_ECC);
         if (sig == NULL)

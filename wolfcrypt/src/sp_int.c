@@ -5031,7 +5031,7 @@ int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
     unsigned int i;
     int err = MP_OKAY;
     sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
-    DECL_SP_INT(t, cnt);
+    DECL_SP_INT(t, (size_t)cnt);
 
     /* Allocate temporary to hold masked xor of a and b. */
     ALLOC_SP_INT(t, cnt, err, NULL);
@@ -6251,7 +6251,7 @@ static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
         /* Sum digits of sum. */
         t = (t >> SP_WORD_SIZE) + (t & SP_MASK);
         /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
-        tt = (t * SP_DIV_3_CONST) >> SP_WORD_SIZE;
+        tt = (sp_int_digit)((t * SP_DIV_3_CONST) >> SP_WORD_SIZE);
         /* Subtract trial division. */
         tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
     #else
@@ -6283,7 +6283,7 @@ static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
             /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
-            tt = (t * SP_DIV_3_CONST) >> SP_WORD_SIZE;
+            tt = (sp_int_digit)((t * SP_DIV_3_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
     #else
@@ -6344,7 +6344,7 @@ static void _sp_div_10(const sp_int* a, sp_int* r, sp_int_digit* rem)
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
             /* Get top digit after multipling by (2^SP_WORD_SIZE) / 10. */
-            tt = (t * SP_DIV_10_CONST) >> SP_WORD_SIZE;
+            tt = (sp_int_digit)((t * SP_DIV_10_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 10);
     #else
@@ -6370,7 +6370,7 @@ static void _sp_div_10(const sp_int* a, sp_int* r, sp_int_digit* rem)
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
             /* Get top digit after multipling by (2^SP_WORD_SIZE) / 10. */
-            tt = (t * SP_DIV_10_CONST) >> SP_WORD_SIZE;
+            tt = (sp_int_digit)((t * SP_DIV_10_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 10);
     #else
@@ -6434,7 +6434,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
             /* Get top digit after multipling. */
-            tt = (t * m) >> SP_WORD_SIZE;
+            tt = (sp_int_digit)((t * m) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
         #else
@@ -6461,7 +6461,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
             /* Get top digit after multipling. */
-            tt = (t * m) >> SP_WORD_SIZE;
+            tt = (sp_int_digit)((t * m) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
         #else
@@ -8157,8 +8157,8 @@ int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem)
     sp_int* tr = NULL;
     sp_int* trial = NULL;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    int signA = MP_ZPOS;
-    int signD = MP_ZPOS;
+    word32 signA = MP_ZPOS;
+    word32 signD = MP_ZPOS;
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
     /* Intermediates will always be less than or equal to dividend. */
     DECL_SP_INT_ARRAY(td, (a == NULL) ? 1 : a->used + 1, 4);
@@ -11320,7 +11320,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    int sign = MP_ZPOS;
+    word32 sign = MP_ZPOS;
 #endif
 
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
@@ -17321,7 +17321,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    int sign = MP_ZPOS;
+    word32 sign = MP_ZPOS;
 #endif
 
     if ((a == NULL) || (in == NULL)) {
@@ -18538,7 +18538,7 @@ int sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     /* Determine maximum digit length numbers will reach. */
-    int used = ((a == NULL) || (b == NULL)) ? 1 :
+    word32 used = ((a == NULL) || (b == NULL)) ? 1 :
         (a->used >= b->used ? a->used + 1: b->used + 1);
     DECL_SP_INT_ARRAY(t, used, 2);
 

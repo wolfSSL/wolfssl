@@ -219,7 +219,7 @@ static WC_INLINE int blake2b_compress(
     word64* m,
     word64* v)
 {
-  int i;
+  word64 i;
 
   for( i = 0; i < 16; ++i )
     m[i] = load64( block + i * sizeof( m[i] ) );
@@ -339,7 +339,7 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
 {
   int ret = 0;
   byte buffer[BLAKE2B_OUTBYTES];
-  int     i;
+  word64    i;
 #ifdef WOLFSSL_SMALL_STACK
   word64* m;
   word64* v;

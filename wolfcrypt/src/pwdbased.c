@@ -53,7 +53,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     int  keyLeft, ivLeft, i;
     int  store;
     int  keyOutput = 0;
-    int  diestLen;
+    int  digestLen;
     byte digest[WC_MAX_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     wc_HashAlg* hash = NULL;
@@ -75,7 +75,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     err = wc_HashGetDigestSize(hashT);
     if (err < 0)
         return err;
-    diestLen = err;
+    digestLen = err;
 
     /* initialize hash */
 #ifdef WOLFSSL_SMALL_STACK
@@ -96,20 +96,20 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     keyLeft = keyLen;
     ivLeft  = ivLen;
     while (keyOutput < (keyLen + ivLen)) {
-        int digestLeft = diestLen;
+        int digestLeft = digestLen;
         /* D_(i - 1) */
         if (keyOutput) { /* first time D_0 is empty */
-            err = wc_HashUpdate(hash, hashT, digest, diestLen);
+            err = wc_HashUpdate(hash, hashT, digest, (word32)digestLen);
             if (err != 0) break;
         }
 
         /* data */
-        err = wc_HashUpdate(hash, hashT, passwd, passwdLen);
+        err = wc_HashUpdate(hash, hashT, passwd, (word32)passwdLen);
         if (err != 0) break;
 
         /* salt */
         if (salt) {
-            err = wc_HashUpdate(hash, hashT, salt, saltLen);
+            err = wc_HashUpdate(hash, hashT, salt, (word32)saltLen);
             if (err != 0) break;
         }
 
@@ -118,7 +118,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
         /* count */
         for (i = 1; i < iterations; i++) {
-            err = wc_HashUpdate(hash, hashT, digest, diestLen);
+            err = wc_HashUpdate(hash, hashT, digest, (word32)digestLen);
             if (err != 0) break;
 
             err = wc_HashFinal(hash, hashT, digest);
@@ -128,8 +128,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         if (err != 0) break;
 
         if (keyLeft) {
-            store = min(keyLeft, diestLen);
-            XMEMCPY(&key[keyLen - keyLeft], digest, store);
+            store = (int)min((word32)keyLeft, (word32)digestLen);
+            XMEMCPY(&key[keyLen - keyLeft], digest, (size_t)store);
 
             keyOutput  += store;
             keyLeft    -= store;
@@ -137,10 +137,10 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         }
 
         if (ivLeft && digestLeft) {
-            store = min(ivLeft, digestLeft);
+            store = (int)min((word32)ivLeft, (word32)digestLeft);
             if (iv != NULL)
                 XMEMCPY(&iv[ivLen - ivLeft],
-                        &digest[diestLen - digestLeft], store);
+                        &digest[digestLen - digestLeft], (size_t)store);
             keyOutput += store;
             ivLeft    -= store;
         }
@@ -214,13 +214,13 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     if (ret == 0) {
         word32 i = 1;
         /* use int hashType here, since HMAC FIPS uses the old unique value */
-        ret = wc_HmacSetKey(hmac, hashType, passwd, pLen);
+        ret = wc_HmacSetKey(hmac, hashType, passwd, (word32)pLen);
 
         while (ret == 0 && kLen) {
             int currentLen;
             int j;
 
-            ret = wc_HmacUpdate(hmac, salt, sLen);
+            ret = wc_HmacUpdate(hmac, salt, (word32)sLen);
             if (ret != 0)
                 break;
 
@@ -241,17 +241,17 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
             if (ret != 0)
                 break;
 
-            currentLen = min(kLen, hLen);
-            XMEMCPY(output, buffer, currentLen);
+            currentLen = (int)min((word32)kLen, (word32)hLen);
+            XMEMCPY(output, buffer, (size_t)currentLen);
 
             for (j = 1; j < iterations; j++) {
-                ret = wc_HmacUpdate(hmac, buffer, hLen);
+                ret = wc_HmacUpdate(hmac, buffer, (word32)hLen);
                 if (ret != 0)
                     break;
                 ret = wc_HmacFinal(hmac, buffer);
                 if (ret != 0)
                     break;
-                xorbuf(output, buffer, currentLen);
+                xorbuf(output, buffer, (word32)currentLen);
             }
 
             /* check ret from inside for loop */
@@ -359,7 +359,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     word32 u, v, dLen, pLen, iLen, sLen, totalLen;
     int    dynamic = 0;
     int    ret = 0;
-    int    i;
+    word32 i;
     byte   *D, *S, *P, *I;
 #ifdef WOLFSSL_SMALL_STACK
     byte   staticBuffer[1]; /* force dynamic usage */
@@ -398,14 +398,14 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         return ret;
     if (ret == 0)
         return BAD_STATE_E;
-    u = ret;
+    u = (word32)ret;
 
     ret = wc_HashGetBlockSize(hashT);
     if (ret < 0)
         return ret;
     if (ret == 0)
         return BAD_STATE_E;
-    v = ret;
+    v = (word32)ret;
 
 #ifdef WOLFSSL_SMALL_STACK
     Ai = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -423,11 +423,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     XMEMSET(B,  0, WC_MAX_BLOCK_SIZE);
 
     dLen = v;
-    sLen = v * ((saltLen + v - 1) / v);
+    sLen = v * (((word32)saltLen + v - 1) / v);
 
     /* with passLen checked at the top of the function for >= 0 then passLen
      * must be 1 or greater here and is always 'true' */
-    pLen = v * ((passLen + v - 1) / v);
+    pLen = v * (((word32)passLen + v - 1) / v);
     iLen = sLen + pLen;
 
     totalLen = dLen + sLen + pLen;
@@ -451,10 +451,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     XMEMSET(D, id, dLen);
 
-    for (i = 0; i < (int)sLen; i++)
-        S[i] = salt[i % saltLen];
-    for (i = 0; i < (int)pLen; i++)
-        P[i] = passwd[i % passLen];
+    for (i = 0; i < sLen; i++)
+        S[i] = salt[i % (word32)saltLen];
+    for (i = 0; i < pLen; i++)
+        P[i] = passwd[i % (word32)passLen];
 
 #ifdef WOLFSSL_SMALL_STACK
     if (((B1 = (mp_int *)XMALLOC(sizeof(*B1), heap, DYNAMIC_TYPE_TMP_BUFFER))
@@ -475,8 +475,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         if (ret < 0)
             break;
 
-        for (i = 0; i < (int)v; i++)
-            B[i] = Ai[i % u];
+        for (i = 0; i < v; i++)
+            B[i] = Ai[(word32)i % u];
 
         if (mp_init(B1) != MP_OKAY)
             ret = MP_INIT_E;
@@ -490,7 +490,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
             break;
         }
 
-        for (i = 0; i < (int)iLen; i += v) {
+        for (i = 0; i < iLen; i += v) {
             int    outSz;
 
             if (mp_init_multi(i1, res, NULL, NULL, NULL, NULL) != MP_OKAY) {
@@ -511,8 +511,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                     XMEMCPY(I + i, tmp + 1, v);
                 }
                 else if (outSz < (int)v) {
-                    XMEMSET(I + i, 0, v - outSz);
-                    ret = mp_to_unsigned_bin(res, I + i + v - outSz);
+                    XMEMSET(I + i, 0, v - (word32)outSz);
+                    ret = mp_to_unsigned_bin(res, I + i + v - (word32)outSz);
                 }
                 else
                     ret = mp_to_unsigned_bin(res, I + i);
@@ -528,10 +528,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
             break;
         }
 
-        currentLen = min(kLen, (int)u);
+        currentLen = min((word32)kLen, u);
         XMEMCPY(output, Ai, currentLen);
         output += currentLen;
-        kLen   -= currentLen;
+        kLen   -= (int)currentLen;
         mp_clear(B1);
     }
 

@@ -200,7 +200,7 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
         return ECC_BAD_ARG_E;
 
     /* random number for private key */
-    ret = wc_RNG_GenerateBlock(rng, key, keysize);
+    ret = wc_RNG_GenerateBlock(rng, key, (word32)keysize);
     if (ret == 0) {
         /* Clamp the private key */
         ret = curve25519_priv_clamp(key);

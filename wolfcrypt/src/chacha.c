@@ -77,7 +77,7 @@ Public domain.
     #endif
 
     static int cpuidFlagsSet = 0;
-    static int cpuidFlags = 0;
+    static word32 cpuidFlags = 0;
 #endif
 
 #ifdef BIG_ENDIAN_ORDER
@@ -234,7 +234,7 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 x[CHACHA_CHUNK_WORDS],
  *
  * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
  */
-static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], int nrounds)
+static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], word32 nrounds)
 {
     word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
