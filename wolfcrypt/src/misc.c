@@ -256,42 +256,60 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 #ifndef WOLFSSL_NO_XOR_OPS
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
 of wolfssl_words, placing the result in <*r>. */
-WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word* r,
-                         const wolfssl_word* a, const wolfssl_word* b, word32 n)
+WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
+                       const wolfssl_word** a, const wolfssl_word** b, word32 n)
 {
     word32 i;
 
-    for (i = 0; i < n; i++) r[i] = a[i] ^ b[i];
+    for (i = 0; i < n; i++)
+        *((*r)++) = *((*a)++) ^ *((*b)++);
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
 counts, placing the result in <*buf>. */
 
-WC_MISC_STATIC WC_INLINE void xorbufout(void*out, const void* buf,
+WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
                                         const void* mask, word32 count)
 {
-    if (((wc_ptr_t)out | (wc_ptr_t)buf | (wc_ptr_t)mask | count) %
-                                                         WOLFSSL_WORD_SIZE == 0)
-        XorWordsOut( (wolfssl_word*)out, (wolfssl_word*)buf,
-                     (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
-    else {
-        word32 i;
-        byte*       o = (byte*)out;
-        byte*       b = (byte*)buf;
-        const byte* m = (const byte*)mask;
+    word32      i;
+    byte*       o;
+    byte*       b;
+    const byte* m;
 
-        for (i = 0; i < count; i++) o[i] = b[i] ^ m[i];
+    o = (byte*)out;
+    b = (byte*)buf;
+    m = (const byte*)mask;
+
+
+    if (((wc_ptr_t)o) % WOLFSSL_WORD_SIZE ==
+            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE &&
+            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
+                        ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
+        /* Alignment checks out. Possible to XOR words. */
+        /* Move alignment so that it lines up with a
+         * WOLFSSL_WORD_SIZE boundary */
+        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+            *(o++) = *(b++) ^ *(m++);
+            count--;
+        }
+        XorWordsOut( (wolfssl_word**)&o, (const wolfssl_word**)&b,
+                     (const wolfssl_word**)&m, count / WOLFSSL_WORD_SIZE);
+        count %= WOLFSSL_WORD_SIZE;
     }
+
+    for (i = 0; i < count; i++)
+        o[i] = b[i] ^ m[i];
 }
 
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
 of wolfssl_words, placing the result in <*r>. */
-WC_MISC_STATIC WC_INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a,
+WC_MISC_STATIC WC_INLINE void XorWords(wolfssl_word** r, const wolfssl_word** a,
                                        word32 n)
 {
     word32 i;
 
-    for (i = 0; i < n; i++) r[i] ^= a[i];
+    for (i = 0; i < n; i++)
+        *((*r)++) ^= *((*a)++);
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
@@ -299,16 +317,29 @@ counts, placing the result in <*buf>. */
 
 WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    if (((wc_ptr_t)buf | (wc_ptr_t)mask | count) % WOLFSSL_WORD_SIZE == 0)
-        XorWords( (wolfssl_word*)buf,
-                  (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
-    else {
-        word32 i;
-        byte*       b = (byte*)buf;
-        const byte* m = (const byte*)mask;
+    word32      i;
+    byte*       b;
+    const byte* m;
 
-        for (i = 0; i < count; i++) b[i] ^= m[i];
+    b = (byte*)buf;
+    m = (const byte*)mask;
+
+    if (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
+            ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
+        /* Alignment checks out. Possible to XOR words. */
+        /* Move alignment so that it lines up with a
+         * WOLFSSL_WORD_SIZE boundary */
+        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+            *(b++) ^= *(m++);
+            count--;
+        }
+        XorWords( (wolfssl_word**)&b,
+                  (const wolfssl_word**)&m, count / WOLFSSL_WORD_SIZE);
+        count %= WOLFSSL_WORD_SIZE;
     }
+
+    for (i = 0; i < count; i++)
+        b[i] ^= m[i];
 }
 #endif
 
@@ -585,7 +616,7 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
 {
     int i;
     for (i = 0; i < size; ++i) {
-        *(dst + i) ^= (*(dst + i) ^ *(src + i)) & mask;
+        dst[i] ^= (dst[i] ^ src[i]) & mask;
     }
 }
 

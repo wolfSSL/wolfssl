@@ -3829,8 +3829,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++)
-                temp_block[i] ^= iv[i];
+            xorbuf(temp_block, iv, AES_BLOCK_SIZE);
 
             ret = wc_AesEncrypt(aes, temp_block, out + offset);
             if (ret != 0)
@@ -3869,8 +3868,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             wc_AesDecrypt(aes, in + offset, out + offset);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++)
-                (out + offset)[i] ^= iv[i];
+            xorbuf(out + offset, iv, AES_BLOCK_SIZE);
 
             /* store IV for next block */
             XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
@@ -4455,9 +4453,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* Software AES - CTR Encrypt */
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            byte* tmp;
             byte scratch[AES_BLOCK_SIZE];
             int ret;
+            word32 processed;
 
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
@@ -4473,12 +4471,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #endif
 
             /* consume any unused bytes left in aes->tmp */
-            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-            while (aes->left && sz) {
-               *(out++) = *(in++) ^ *(tmp++);
-               aes->left--;
-               sz--;
-            }
+            processed = min(aes->left, sz);
+            xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left,
+                      processed);
+            out += processed;
+            in += processed;
+            aes->left -= processed;
+            sz -= processed;
 
         #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
             !defined(XTRANSFORM_AESCTRBLOCK)
@@ -4545,13 +4544,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 }
                 IncrementAesCounter((byte*)aes->reg);
 
-                aes->left = AES_BLOCK_SIZE;
-                tmp = (byte*)aes->tmp;
-
-                while (sz--) {
-                    *(out++) = *(in++) ^ *(tmp++);
-                    aes->left--;
-                }
+                aes->left = AES_BLOCK_SIZE - sz;
+                xorbufout(out, in, aes->tmp, sz);
             }
 
         #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -9924,6 +9918,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
     byte*  reg = NULL;
 #endif
     int ret = 0;
+    word32 processed;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
@@ -9936,18 +9931,17 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
 #endif
 
     /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-    while (aes->left && sz) {
-        *(out) = *(in++) ^ *(tmp++);
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
-            *(reg++) = *out;
-        }
-    #endif
-        out++;
-        aes->left--;
-        sz--;
+    processed = min(aes->left, sz);
+    xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left, processed);
+#ifdef WOLFSSL_AES_CFB
+    if (mode == AES_CFB_MODE) {
+        XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, out, processed);
     }
+#endif
+    aes->left -= processed;
+    out += processed;
+    in += processed;
+    sz -= processed;
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
@@ -9990,16 +9984,13 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
         reg = (byte*)aes->reg;
     #endif
 
-        while (sz--) {
-            *(out) = *(in++) ^ *(tmp++);
-        #ifdef WOLFSSL_AES_CFB
-            if (mode == AES_CFB_MODE) {
-                *(reg++) = *out;
-            }
-        #endif
-            out++;
-            aes->left--;
+        xorbufout(out, in, tmp, sz);
+    #ifdef WOLFSSL_AES_CFB
+        if (mode == AES_CFB_MODE) {
+            XMEMCPY(reg, out, sz);
         }
+    #endif
+        aes->left -= sz;
     }
     RESTORE_VECTOR_REGISTERS();
 
@@ -10022,8 +10013,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
 static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
-    byte*  tmp;
     int ret = 0;
+    word32 processed;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
@@ -10038,12 +10029,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     #endif
 
     /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-    while (aes->left && sz) {
-        *(out++) = *(in++) ^ *(tmp++);
-        aes->left--;
-        sz--;
-    }
+    processed = min(aes->left, sz);
+    xorbufout(out, in, (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left, processed);
+    aes->left -= processed;
+    out += processed;
+    in += processed;
+    sz -= processed;
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
@@ -10086,13 +10077,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
         }
     #endif
 
-        aes->left = AES_BLOCK_SIZE;
-        tmp = (byte*)aes->tmp;
-
-        while (sz--) {
-            *(out++) = *(in++) ^ *(tmp++);
-            aes->left--;
-        }
+        aes->left = AES_BLOCK_SIZE - sz;
+        xorbufout(out, in, aes->tmp, sz);
     }
     RESTORE_VECTOR_REGISTERS();
 
