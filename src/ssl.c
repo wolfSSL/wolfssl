@@ -15258,39 +15258,34 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif /* OPENSSL_EXTRA */
 
     now = LowResTimer();
-#if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
+
     if (now >= (ssl->session->bornOn + ssl->session->timeout)) {
-        ret = WOLFSSL_FAILURE;  /* session timed out */
+#if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        return WOLFSSL_FAILURE;  /* session timed out */
+#else /* defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) */
+        WOLFSSL_MSG("Session is expired but return success for "
+                    "OpenSSL compatibility");
+#endif
     }
-    else
-#endif
-    {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
-        if (now >= (ssl->session->bornOn + ssl->session->timeout)) {
-            WOLFSSL_MSG("Session is expired but return success for "
-                        "OpenSSL compatibility");
-        }
-#endif
-        ssl->options.resuming = 1;
-        ssl->options.haveEMS = ssl->session->haveEMS;
+    ssl->options.resuming = 1;
+    ssl->options.haveEMS = ssl->session->haveEMS;
 
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
-        ssl->version              = ssl->session->version;
-        if (IsAtLeastTLSv1_3(ssl->version))
-            ssl->options.tls1_3 = 1;
+                           defined(HAVE_SESSION_TICKET))
+    ssl->version              = ssl->session->version;
+    if (IsAtLeastTLSv1_3(ssl->version))
+        ssl->options.tls1_3 = 1;
 #endif
 #if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
-                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
-        ssl->options.cipherSuite0 = ssl->session->cipherSuite0;
-        ssl->options.cipherSuite  = ssl->session->cipherSuite;
+                    (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
+    ssl->options.cipherSuite0 = ssl->session->cipherSuite0;
+    ssl->options.cipherSuite  = ssl->session->cipherSuite;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
+    ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
 #endif
-        ret = WOLFSSL_SUCCESS;
-    }
-    return ret;
+
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -15597,6 +15592,14 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         cacheSession = (WOLFSSL_SESSION*) XMALLOC(sizeof(WOLFSSL_SESSION),
                                          sessRow->heap, DYNAMIC_TYPE_SESSION);
         if (cacheSession == NULL) {
+        #ifdef HAVE_SESSION_TICKET
+            XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
+            if (preallocNonce != NULL)
+                XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+        #endif
+        #endif
+            SESSION_ROW_UNLOCK(sessRow);
             return MEMORY_E;
         }
         XMEMSET(cacheSession, 0, sizeof(WOLFSSL_SESSION));

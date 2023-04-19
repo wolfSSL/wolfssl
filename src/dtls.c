@@ -377,22 +377,17 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
             if (extSess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
-                /* This logic is only for TLS <= 1.2 tickets. Don't accept
-                 * TLS 1.3. */
-                if (IsAtLeastTLSv1_3(extSess->version)) {
-                    if (!copy)
-                        wolfSSL_FreeSession(ssl->ctx, extSess);
-                }
-                else
+        /* This logic is only for TLS <= 1.2 tickets. Don't accept
+         * TLS 1.3. */
+        if (!IsAtLeastTLSv1_3(extSess->version))
 #endif
-                {
-                    *resume = 1;
-                    if (!copy)
-                        wolfSSL_FreeSession(ssl->ctx, extSess);
-                    return 0;
-                }
-            }
+        {
+            if (!copy)
+                wolfSSL_FreeSession(ssl->ctx, extSess);
+            *resume = 1;
+            return 0;
         }
+
         if (ssl->ctx->internalCacheLookupOff)
             return 0;
     }
