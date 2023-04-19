@@ -236,7 +236,7 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
 #endif
 
@@ -255,7 +255,7 @@ WOLFSSL_API int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512_224GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif /* OPENSSL_EXTRA */
@@ -276,7 +276,7 @@ WOLFSSL_API int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512_256GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif /* OPENSSL_EXTRA */

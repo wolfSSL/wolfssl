@@ -228,7 +228,7 @@ typedef struct WOLFSSL_DIST_POINT WOLFSSL_DIST_POINT;
 
 typedef struct WOLFSSL_CONF_CTX     WOLFSSL_CONF_CTX;
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || defined(HAVE_CURL)
 
 struct WOLFSSL_OBJ_NAME {
     int type;
@@ -2628,11 +2628,12 @@ enum { /* ssl Constants */
 
 
 /* extra begins */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 enum {  /* ERR Constants */
     ERR_TXT_STRING = 1
 };
-
+#endif
+#ifdef OPENSSL_EXTRA
 /* bio misc */
 enum {
     WOLFSSL_BIO_ERROR = -1,
@@ -4760,10 +4761,10 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_X509_OBJECT_get0_X509_CRL(WOLFSSL_X509_OBJ
 WOLFSSL_API void wolfSSL_sk_X509_pop_free(WOLF_STACK_OF(WOLFSSL_X509)* sk, void (*f) (WOLFSSL_X509*));
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
 WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names);
 WOLFSSL_API int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names);
-#endif /* OPENSSL_EXTRA && HAVE_ECC */
+#endif /* (OPENSSL_EXTRA || HAVE_CURL) && HAVE_ECC */
 
 #if defined(OPENSSL_ALL) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \

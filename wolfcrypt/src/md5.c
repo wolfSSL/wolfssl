@@ -557,7 +557,7 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
     return ret;
 }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 /* Apply MD5 transformation to the data                   */
 /* @param md5  a pointer to wc_MD5 structure              */
 /* @param data data to be applied MD5 transformation      */

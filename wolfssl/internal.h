@@ -3475,9 +3475,11 @@ struct WOLFSSL_CTX {
     short       minDilithiumKeySz;/* minimum Dilithium key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+    word32            disabledCurves;   /* curves disabled by user */
+#endif
 #ifdef OPENSSL_EXTRA
     byte              sessionCtx[ID_LEN]; /* app session context ID */
-    word32            disabledCurves;   /* curves disabled by user */
     const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
     unsigned int         alpn_cli_protos_len;
     byte              sessionCtxSz;
@@ -5224,7 +5226,9 @@ struct WOLFSSL {
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
-    word32            disabledCurves;    /* curves disabled by user */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+    word32            disabledCurves;   /* curves disabled by user */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     unsigned long    peerVerifyRet;
@@ -5840,7 +5844,7 @@ WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_LOCAL int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
                                             word16 named_curve);
 #else

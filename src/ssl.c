@@ -18906,8 +18906,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return wolfSSL_OpenSSL_version();
 #endif
     }
+#endif /* OPENSSL_EXTRA */
 
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 #ifndef NO_MD5
     int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
     {
@@ -19704,6 +19706,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
+#endif
+
+#ifdef OPENSSL_EXTRA
 
     unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
                                 int key_len, const unsigned char* d, int n,
@@ -20082,11 +20087,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) || \
+    defined(HAVE_CURL)
     void wolfSSL_ERR_clear_error(void)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
         wc_ClearErrorNodes();
+    #endif
     }
 #endif
 
@@ -33421,16 +33429,15 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
     return (curve_id <= WOLFSSL_ECC_MAX &&
             ssl->disabledCurves &&
             ssl->disabledCurves & (1 << curve_id));
 }
-#endif
 
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_ECC) || \
+#if (defined(HAVE_ECC) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
 static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
 {
@@ -33607,7 +33614,8 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
     }
     return set_curves_list(ssl, NULL, names);
 }
-#endif /* OPENSSL_EXTRA && (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+#endif /* OPENSSL_EXTRA || HAVE_CURL */
 
 #ifdef OPENSSL_EXTRA
 /* Sets a callback for when sending and receiving protocol messages.

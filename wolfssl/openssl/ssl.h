@@ -1564,7 +1564,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE ||
           OPENSSL_ALL || HAVE_LIGHTY */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
 #define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list
 #define SSL_set1_curves_list            wolfSSL_set1_curves_list
 #endif

@@ -33,7 +33,7 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 
 #if !defined(HAVE_PKCS7) && \
       ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
@@ -46,6 +46,8 @@
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
+
+#ifdef OPENSSL_EXTRA
 
 #ifndef NO_AES
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
@@ -417,16 +419,6 @@ int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
     else {
         return WOLFSSL_FAILURE;
     }
-}
-
-
-int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
-                                     const WOLFSSL_EVP_MD* type,
-                                     WOLFSSL_ENGINE *impl)
-{
-    (void) impl;
-    WOLFSSL_ENTER("wolfSSL_EVP_DigestInit_ex");
-    return wolfSSL_EVP_DigestInit(ctx, type);
 }
 
 #ifdef DEBUG_WOLFSSL_EVP
@@ -3342,6 +3334,7 @@ int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len
     WOLFSSL_ENTER("EVP_SignUpdate(");
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
+#endif /* OPENSSL_EXTRA */
 
 static const struct s_ent {
     const enum wc_HashType macType;
@@ -3424,6 +3417,7 @@ static enum wc_HashType EvpMd2MacType(const WOLFSSL_EVP_MD *md)
     return WC_HASH_TYPE_NONE;
 }
 
+#ifdef OPENSSL_EXTRA
 static const WOLFSSL_EVP_MD* wolfSSL_macType2EVP_md(enum wc_HashType type)
 {
     const struct s_ent *ent ;
@@ -4039,6 +4033,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     ForceZero(digest, sizeof(digest));
     return ret;
 }
+
 int wolfSSL_EVP_DigestVerifyInit(WOLFSSL_EVP_MD_CTX *ctx,
                                  WOLFSSL_EVP_PKEY_CTX **pctx,
                                  const WOLFSSL_EVP_MD *type,
@@ -4734,6 +4729,17 @@ void wolfSSL_EVP_init(void)
     /* Does nothing. */
 }
 
+#endif /* OPENSSL_EXTRA */
+
+int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+                                     const WOLFSSL_EVP_MD* type,
+                                     WOLFSSL_ENGINE *impl)
+{
+    (void) impl;
+    WOLFSSL_ENTER("wolfSSL_EVP_DigestInit_ex");
+    return wolfSSL_EVP_DigestInit(ctx, type);
+}
+
 /* this function makes the assumption that out buffer is big enough for digest*/
 int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
                               unsigned int* outSz, const WOLFSSL_EVP_MD* evp,
@@ -5058,11 +5064,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 
 
+#ifdef OPENSSL_EXTRA
     /* returns WOLFSSL_SUCCESS on success */
     int wolfSSL_EVP_MD_CTX_copy(WOLFSSL_EVP_MD_CTX *out, const WOLFSSL_EVP_MD_CTX *in)
     {
         return wolfSSL_EVP_MD_CTX_copy_ex(out, in);
     }
+#endif
 
     /* returns digest size */
     int wolfSSL_EVP_MD_CTX_size(const WOLFSSL_EVP_MD_CTX *ctx) {
@@ -5073,6 +5081,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(ctx)));
     }
 
+#ifdef OPENSSL_EXTRA
     /* Deep copy of EVP_MD hasher
      * return WOLFSSL_SUCCESS on success */
     static int wolfSSL_EVP_MD_Copy_Hasher(WOLFSSL_EVP_MD_CTX* des,
@@ -5223,6 +5232,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
         return wolfSSL_EVP_MD_Copy_Hasher(out, (WOLFSSL_EVP_MD_CTX*)in);
     }
+#endif
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
     {
@@ -5351,6 +5361,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
     }
 
+#ifdef OPENSSL_EXTRA
     #ifndef NO_AES
 
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
@@ -5666,13 +5677,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         WOLFSSL_ENTER("wolfSSL_EVP_enc_null");
         return EVP_NULL;
     }
+#endif
 
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
         int ret = WOLFSSL_SUCCESS;
         WOLFSSL_ENTER("wolfSSL_EVP_MD_CTX_cleanup");
+    #ifdef OPENSSL_EXTRA
         if (ctx->pctx != NULL)
             wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
+    #endif
 
         if (ctx->isHMAC) {
             wc_HmacFree(&ctx->hash.hmac);
@@ -5770,6 +5784,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return ret;
     }
 
+#ifdef OPENSSL_EXTRA
     void wolfSSL_EVP_CIPHER_CTX_init(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_init");
@@ -7776,7 +7791,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         WOLFSSL_MSG("wolfSSL_EVP_Cipher success");
         return ret;
     }
-
+#endif
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_DigestInit(WOLFSSL_EVP_MD_CTX* ctx,
                                const WOLFSSL_EVP_MD* md)
@@ -8158,6 +8173,7 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
     return NULL;
 }
 
+#ifdef OPENSSL_EXTRA
 static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
 {
     if(pkey == NULL)
@@ -8874,6 +8890,7 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
 #endif
 
 
+#endif
 int wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD* type)
 {
     WOLFSSL_MSG("wolfSSL_EVP_MD_block_size");
@@ -9024,6 +9041,7 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
     return BAD_FUNC_ARG;
 }
 
+#ifdef OPENSSL_EXTRA
 int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
 {
     int ret = BAD_FUNC_ARG;
@@ -9465,6 +9483,7 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
 
 
 
+#endif /* OPENSSL_EXTRA */
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

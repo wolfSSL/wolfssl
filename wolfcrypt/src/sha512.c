@@ -1221,8 +1221,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
-
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_KCAPI_HASH)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) \
+    && !defined(WOLFSSL_KCAPI_HASH)
 /* Apply SHA512 transformation to the data                */
 /* @param sha  a pointer to wc_Sha512 structure           */
 /* @param data data to be applied SHA512 transformation   */
@@ -1715,7 +1715,7 @@ int wc_Sha512_224GetFlags(wc_Sha512* sha, word32* flags)
 }
 #endif /* WOLFSSL_HASH_FLAGS */
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
 {
     return wc_Sha512Transform(sha, data);
@@ -1784,7 +1784,7 @@ int wc_Sha512_256GetFlags(wc_Sha512* sha, word32* flags)
 }
 #endif /* WOLFSSL_HASH_FLAGS */
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 {
     return wc_Sha512Transform(sha, data);
