@@ -63,6 +63,17 @@
 #define FREERTOS_TCP
 
 
+/*-- Compiler related definitions  ---------------------------------------------
+ *
+ *  CC-RX is C99 compliant, but may not provide the features wolfSSL requires.
+ *  This section defines macros for such cases to avoid build-time or run-time
+ *  failures.
+ *
+ *----------------------------------------------------------------------------*/
+
+/* CC-RX does not support variable length array */
+#define WOLFSSL_SP_NO_DYN_STACK
+
 
 
 /*-- Cipher related definitions  -----------------------------------------------
