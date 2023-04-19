@@ -556,7 +556,6 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 {
     int ret = 0;
-    (void)devId;
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -584,7 +583,9 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
     ret = wolfAsync_DevCtxInit(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA,
                                                             sha->heap, devId);
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#else
+    (void)devId;
+# endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_IMXRT1170_CAAM
    ret = wc_CAAM_HashInit(&sha->hndl, &sha->ctx, WC_HASH_TYPE_SHA);
 #endif

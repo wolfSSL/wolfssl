@@ -291,7 +291,7 @@ int esp_sha_init_ctx(WC_ESP32SHA* ctx)
 
     /* reminder: always start isfirstblock = 1 (true) when using HW engine */
     /* we're always on the first block at init time (not zero-based!) */
-    ctx->isfirstblock = 1;
+    ctx->isfirstblock = true;
     ctx->lockDepth = 0; /* new objects will always start with lock depth = 0 */
 
     return 0; /* Always return success. We assume all issues handled, above. */
@@ -873,7 +873,7 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
 
     if (sha->isfirstblock) {
         REG_WRITE(SHA_START_REG, 1);
-        sha->isfirstblock = 0;
+        sha->isfirstblock = false;
 
         ESP_LOGV(TAG, "      set sha->isfirstblock = 0");
 
@@ -922,7 +922,7 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
                 break;
         }
 
-        sha->isfirstblock = 0;
+        sha->isfirstblock = false;
         ESP_LOGV(TAG, "      set sha->isfirstblock = 0");
 
     #if defined(DEBUG_WOLFSSL)
@@ -1070,7 +1070,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
         return -1;
     }
 #if CONFIG_IDF_TARGET_ESP32S3
-    if (ctx->isfirstblock == 1) {
+    if (ctx->isfirstblock == true) {
         /* no hardware use yet. Nothing to do yet */
         return 0;
     }
@@ -1136,7 +1136,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
             return -1;
     }
 
-    if (ctx->isfirstblock == 1) {
+    if (ctx->isfirstblock == true) {
         /* no hardware use yet. Nothing to do yet */
         return 0;
     }
