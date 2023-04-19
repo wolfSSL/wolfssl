@@ -222,7 +222,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 x[CHACHA_CHUNK_WORDS],
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         x[i] = PLUS(x[i], state[i]);
+#ifdef BIG_ENDIAN_ORDER
         x[i] = LITTLE32(x[i]);
+#endif
     }
 }
 

@@ -9914,21 +9914,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
     Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
     byte*  tmp = NULL;
-#ifdef WOLFSSL_AES_CFB
-    byte*  reg = NULL;
-#endif
     int ret = 0;
     word32 processed;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
-
-#ifdef WOLFSSL_AES_CFB
-    if (aes->left && sz) {
-        reg = (byte*)aes->reg + AES_BLOCK_SIZE - aes->left;
-    }
-#endif
 
     /* consume any unused bytes left in aes->tmp */
     processed = min(aes->left, sz);
@@ -9980,14 +9971,11 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
         }
     #endif
-    #ifdef WOLFSSL_AES_CFB
-        reg = (byte*)aes->reg;
-    #endif
 
         xorbufout(out, in, tmp, sz);
     #ifdef WOLFSSL_AES_CFB
         if (mode == AES_CFB_MODE) {
-            XMEMCPY(reg, out, sz);
+            XMEMCPY(aes->reg, out, sz);
         }
     #endif
         aes->left -= sz;
