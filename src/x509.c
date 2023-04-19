@@ -13618,13 +13618,21 @@ static int regenX509REQDerBuffer(WOLFSSL_X509* x509)
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
         WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext_sk)
 {
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+
     if (!req || !ext_sk) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
 
+    /* It is not an error if the stack is empty. */
+    ext = ext_sk->data.ext;
+    if (ext == NULL) {
+        return WOLFSSL_SUCCESS;
+    }
+
     while (ext_sk) {
-        WOLFSSL_X509_EXTENSION* ext = ext_sk->data.ext;
+        ext = ext_sk->data.ext;
 
         if (wolfSSL_X509_add_ext(req, ext, -1) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_X509_add_ext error");

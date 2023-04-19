@@ -43377,6 +43377,8 @@ static int test_othername_and_SID_ext(void) {
     AssertNotNull(sid_ext = X509_EXTENSION_create_by_OBJ(NULL, sid_oid, 0,
                                                          sid_data));
     AssertNotNull(exts = sk_X509_EXTENSION_new_null());
+    /* Ensure an empty stack doesn't raise an error. */
+    AssertIntEQ(X509_REQ_add_extensions(x509, exts), 1);
     AssertIntEQ(sk_X509_EXTENSION_push(exts, san_ext), 1);
     AssertIntEQ(sk_X509_EXTENSION_push(exts, sid_ext), 2);
     AssertIntEQ(X509_REQ_add_extensions(x509, exts), 1);
