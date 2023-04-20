@@ -15177,7 +15177,6 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     SessionRow* sessRow = NULL;
     int ret = WOLFSSL_SUCCESS;
-    word32 now;
 
     session = ClientSessionToSession(session);
 
@@ -15257,9 +15256,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
 #endif /* OPENSSL_EXTRA */
 
-    now = LowResTimer();
-
-    if (now >= (ssl->session->bornOn + ssl->session->timeout)) {
+    if (LowResTimer() >= (ssl->session->bornOn + ssl->session->timeout)) {
 #if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
         return WOLFSSL_FAILURE;  /* session timed out */
 #else /* defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) */
