@@ -364,8 +364,9 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
+#ifdef HAVE_EXT_CACHE
     int copy;
-
+#endif
     *resume = FALSE;
 
     if (ssl->options.sessionCacheOff)
@@ -392,10 +393,10 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
                 return 0;
         }
     }
-#endif
-
     if (ssl->ctx->internalCacheLookupOff)
         return 0;
+#endif
+
 
     ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
             ssl->options.side);
