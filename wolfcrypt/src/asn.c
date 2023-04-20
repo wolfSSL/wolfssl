@@ -36325,7 +36325,6 @@ end:
         ret = PaseCRL_CheckSignature(dcrl, buff, cm);
     }
 
-    (void)verify;
     FREE_ASNGETDATA(dataASN, dcrl->heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
