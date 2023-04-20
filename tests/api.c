@@ -51107,6 +51107,8 @@ static int test_CheckCertSignature(void)
 #if !defined(NO_FILESYSTEM)
     wolfSSL_CertManagerFree(cm);
     AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
+    wolfSSL_CertManagerSetDevID(cm, INAVLID_DEVID);
+    wolfSSL_CertManagerSetDevID(NULL, INAVLID_DEVID);
 #ifndef NO_RSA
     AssertNotNull(fp = XFOPEN("./certs/server-cert.der", "rb"));
     AssertIntGT((certSz = (int)XFREAD(cert, 1, sizeof(cert), fp)), 0);
