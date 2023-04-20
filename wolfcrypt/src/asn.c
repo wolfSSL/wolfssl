@@ -3111,7 +3111,8 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 }
 
 
-#if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS12)
+#if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS8) || \
+     defined(HAVE_PKCS12)
 /* Set small integer, 32 bits or less. DER encoding with no leading 0s
  * returns total amount written including ASN tag and length byte on success */
 int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
@@ -3155,7 +3156,7 @@ int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
 
     return len + 2; /* size of integer bytes plus ASN TAG and length byte */
 }
-#endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* !WOLFSSL_ASN_TEMPLATE || HAVE_PKCS8 || HAVE_PKCS12 */
 #endif /* !NO_PWDBASED */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -11762,7 +11763,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
                 }
                 /* Get the pubic key parameters. */
                 ret = DecodeRsaPssParams(source + seqIdx,
-                    seqLen + srcIdx - seqIdx, &hash, &mgf, &saltLen);
+                    (word32)seqLen + srcIdx - seqIdx, &hash, &mgf, &saltLen);
                 if (ret != 0) {
                     return ASN_PARSE_E;
                 }
@@ -11785,7 +11786,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
                     WOLFSSL_MSG("RSA PSS: sig salt length too small");
                     return ASN_PARSE_E;
                 }
-                srcIdx += seqLen;
+                srcIdx += (word32)seqLen;
             }
             FALL_THROUGH;
     #endif /* WC_RSA_PSS */
@@ -16104,7 +16105,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         sigCtx->saltLen, 0);
                 #else
                     ret = wc_RsaPSS_CheckPadding_ex2(sigCtx->digest,
-                        sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
+                        (word32)sigCtx->digestSz, sigCtx->out, (word32)ret, sigCtx->hash,
                         sigCtx->saltLen, wc_RsaEncryptSize(sigCtx->key.rsa) * 8,
                         sigCtx->heap);
                 #endif

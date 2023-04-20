@@ -352,8 +352,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     byte digest1[SRP_MAX_DIGEST_SIZE];
     byte digest2[SRP_MAX_DIGEST_SIZE];
     byte pad = 0;
-    int i, r;
-    int j = 0;
+    int r;
+    word32 i, j = 0;
 
     if (!srp || !N || !g || !salt || nSz < gSz)
         return BAD_FUNC_ARG;
@@ -497,7 +497,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, v);
     if (!r) r = *size < (word32)mp_unsigned_bin_size(v) ? BUFFER_E : MP_OKAY;
     if (!r) r = mp_to_unsigned_bin(v, verifier);
-    if (!r) *size = mp_unsigned_bin_size(v);
+    if (!r) *size = (word32)mp_unsigned_bin_size(v);
 
     mp_clear(v);
 #ifdef WOLFSSL_SMALL_STACK
@@ -579,7 +579,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
     if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
-    modulusSz = mp_unsigned_bin_size(&srp->N);
+    modulusSz = (word32)mp_unsigned_bin_size(&srp->N);
     if (*size < modulusSz)
         return BUFFER_E;
 
@@ -640,7 +640,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
     /* extract public key to buffer */
     XMEMSET(pub, 0, modulusSz);
     if (!r) r = mp_to_unsigned_bin(pubkey, pub);
-    if (!r) *size = mp_unsigned_bin_size(pubkey);
+    if (!r) *size = (word32)mp_unsigned_bin_size(pubkey);
 
     mp_clear(pubkey);
 #ifdef WOLFSSL_SMALL_STACK
@@ -667,10 +667,10 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     srp->keySz = 2 * digestSz;
 
     for (i = j = 0; j < srp->keySz; i++) {
-        counter[0] = (i >> 24) & 0xFF;
-        counter[1] = (i >> 16) & 0xFF;
-        counter[2] = (i >>  8) & 0xFF;
-        counter[3] =  i        & 0xFF;
+        counter[0] = (byte)(i >> 24);
+        counter[1] = (byte)(i >> 16);
+        counter[2] = (byte)(i >>  8);
+        counter[3] = (byte) i;
 
         r = SrpHashInit(&hash, srp->type, srp->heap);
         if (!r) r = SrpHashUpdate(&hash, secret, size);
@@ -761,7 +761,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         goto out;
 
     digestSz = SrpHashSize(srp->type);
-    secretSz = mp_unsigned_bin_size(&srp->N);
+    secretSz = (word32)mp_unsigned_bin_size(&srp->N);
 
     if ((secretSz < clientPubKeySz) || (secretSz < serverPubKeySz)) {
         r = BAD_FUNC_ARG;
@@ -879,7 +879,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     if ((r = mp_to_unsigned_bin(s, secret)))
         goto out;
-    if ((r = srp->keyGenFunc_cb(srp, secret, mp_unsigned_bin_size(s))))
+    if ((r = srp->keyGenFunc_cb(srp, secret, (word32)mp_unsigned_bin_size(s))))
         goto out;
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */

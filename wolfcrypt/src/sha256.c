@@ -1134,7 +1134,7 @@ static int InitSha256(wc_Sha256* sha256)
             /* get number of blocks */
             /* 64-1 = 0x3F (~ Inverted = 0xFFFFFFC0) */
             /* len (masked by 0xFFFFFFC0) returns block aligned length */
-            blocksLen = len & ~(WC_SHA256_BLOCK_SIZE-1);
+            blocksLen = len & ~((word32)WC_SHA256_BLOCK_SIZE-1);
             if (blocksLen > 0) {
                 /* Byte reversal and alignment handled in function if required */
                 XTRANSFORM_LEN(sha256, data, blocksLen);
