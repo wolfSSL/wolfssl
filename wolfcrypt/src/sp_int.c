@@ -8157,8 +8157,8 @@ int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem)
     sp_int* tr = NULL;
     sp_int* trial = NULL;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    word32 signA = MP_ZPOS;
-    word32 signD = MP_ZPOS;
+    unsigned int signA = MP_ZPOS;
+    unsigned int signD = MP_ZPOS;
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
     /* Intermediates will always be less than or equal to dividend. */
     DECL_SP_INT_ARRAY(td, (a == NULL) ? 1 : a->used + 1, 4);
@@ -11320,7 +11320,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    word32 sign = MP_ZPOS;
+    unsigned int sign = MP_ZPOS;
 #endif
 
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
@@ -17321,7 +17321,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    word32 sign = MP_ZPOS;
+    unsigned int sign = MP_ZPOS;
 #endif
 
     if ((a == NULL) || (in == NULL)) {
@@ -18538,7 +18538,7 @@ int sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     /* Determine maximum digit length numbers will reach. */
-    word32 used = ((a == NULL) || (b == NULL)) ? 1 :
+    unsigned int used = ((a == NULL) || (b == NULL)) ? 1 :
         (a->used >= b->used ? a->used + 1: b->used + 1);
     DECL_SP_INT_ARRAY(t, used, 2);
 

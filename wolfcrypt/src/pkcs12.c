@@ -213,7 +213,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
     word32 oid;
     word32 localIdx = *idx;
     int ret;
-    word32 size = 0;
+    int size = 0;
     byte tag;
 
     safe = (AuthenticatedSafe*)XMALLOC(sizeof(AuthenticatedSafe), pkcs12->heap,
@@ -242,7 +242,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         freeSafe(safe, pkcs12->heap);
         return ASN_PARSE_E;
     }
-    if (GetLength(input, &localIdx, (int *)&size, maxIdx) <= 0) {
+    if (GetLength(input, &localIdx, &size, maxIdx) <= 0) {
         freeSafe(safe, pkcs12->heap);
         return ASN_PARSE_E;
     }
@@ -265,7 +265,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
                 freeSafe(safe, pkcs12->heap);
                 return ASN_PARSE_E;
             }
-            if (GetLength(input, &localIdx, (int *)&size, maxIdx) <= 0) {
+            if (GetLength(input, &localIdx, &size, maxIdx) <= 0) {
                 freeSafe(safe, pkcs12->heap);
                 return ASN_PARSE_E;
             }
@@ -273,18 +273,18 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
             break;
     }
 
-    safe->dataSz = size;
-    safe->data = (byte*)XMALLOC(size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+    safe->dataSz = (word32)size;
+    safe->data = (byte*)XMALLOC((size_t)size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
     if (safe->data == NULL) {
         freeSafe(safe, pkcs12->heap);
         return MEMORY_E;
     }
-    XMEMCPY(safe->data, input + localIdx, size);
+    XMEMCPY(safe->data, input + localIdx, (size_t)size);
     *idx = localIdx;
 
     localIdx = 0;
     input = safe->data;
-    size = safe->dataSz;
+    size = (int)safe->dataSz;
 
 #ifdef ASN_BER_TO_DER
      if (pkcs12->indefinite) {
@@ -316,15 +316,15 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
      * through the ContentInfo's and add them to our
      * AuthenticatedSafe struct */
     {
-        word32 CISz;
-        ret = GetSequence(input, &localIdx, (int *)&CISz, size);
+        int CISz;
+        ret = GetSequence(input, &localIdx, &CISz, (word32)size);
         if (ret < 0) {
             freeSafe(safe, pkcs12->heap);
             return ASN_PARSE_E;
         }
-        CISz += localIdx;
-        while (localIdx < CISz) {
-            word32 curSz = 0;
+        CISz += (int)localIdx;
+        while (localIdx < (word32)CISz) {
+            int curSz = 0;
             word32 curIdx;
             ContentInfo* ci = NULL;
 
@@ -332,7 +332,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
             printf("\t\tlooking for Content Info.... ");
         #endif
 
-            if ((ret = GetSequence(input, &localIdx, (int *)&curSz, size)) < 0) {
+            if ((ret = GetSequence(input, &localIdx, &curSz, (word32)size)) < 0) {
                 freeSafe(safe, pkcs12->heap);
                 return ret;
             }
@@ -345,7 +345,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
             curIdx = localIdx;
             if ((ret = GetObjectId(input, &localIdx, &oid, oidIgnoreType,
-                                                           size)) < 0) {
+                                                           (word32)size)) < 0) {
                 WOLFSSL_LEAVE("Get object id failed", ret);
                 freeSafe(safe, pkcs12->heap);
                 return ret;
@@ -360,7 +360,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
             }
 
             ci->type   = (int)oid;
-            ci->dataSz = curSz - (localIdx-curIdx);
+            ci->dataSz = (word32)curSz - (localIdx-curIdx);
             ci->data   = (byte*)input + localIdx;
             localIdx  += ci->dataSz;
 
