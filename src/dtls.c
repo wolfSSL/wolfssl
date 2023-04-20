@@ -335,6 +335,8 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     int ret = 0;
     int tlsxFound;
 
+    *resume = FALSE;
+
     ret = FindExtByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts,
                          &tlsxFound);
     if (ret != 0)
@@ -364,12 +366,14 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     int ret;
     int copy;
 
+    *resume = FALSE;
+
     if (ssl->options.sessionCacheOff)
         return 0;
     if (sessionID.size != ID_LEN)
         return 0;
-#ifdef HAVE_EXT_CACHE
 
+#ifdef HAVE_EXT_CACHE
     if (ssl->ctx->get_sess_cb != NULL) {
         WOLFSSL_SESSION* extSess =
             ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
@@ -402,9 +406,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
          * TLS 1.3. */
         if (!IsAtLeastTLSv1_3(sess->version))
 #endif
-        {
-            *resume = 1;
-        }
+            *resume = TRUE;
         TlsSessionCacheUnlockRow(sessRow);
     }
 
