@@ -1832,10 +1832,17 @@ if(WOLFSSL_USER_SETTINGS_ASM)
     if(WOLFSSL_USER_SETTINGS)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS_ASM")
         # Create user_settings_asm.h for use in assembly files (e.g. .S files).
-        execute_process(COMMAND
-        $ENV{SHELL} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
-        "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
-        RESULT_VARIABLE USER_SETTINGS_ASM_RET)
+        if(WIN32)
+            execute_process(COMMAND
+            $ENV{SHELL} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+            "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
+            RESULT_VARIABLE USER_SETTINGS_ASM_RET)
+        else()
+            execute_process(COMMAND
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+            "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
+            RESULT_VARIABLE USER_SETTINGS_ASM_RET)
+        endif()
         if (NOT USER_SETTINGS_ASM_RET EQUAL 0)
             message(FATAL_ERROR
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh failed.")
