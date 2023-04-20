@@ -381,12 +381,11 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
              * TLS 1.3. */
             if (!IsAtLeastTLSv1_3(extSess->version))
 #endif
-            {
-                if (!copy)
-                    wolfSSL_FreeSession(ssl->ctx, extSess);
-                *resume = 1;
+                *resume = TRUE;
+            if (!copy)
+                wolfSSL_FreeSession(ssl->ctx, extSess);
+            if (*resume)
                 return 0;
-            }
         }
     }
 #endif
