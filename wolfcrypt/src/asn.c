@@ -21467,6 +21467,109 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 #endif /* WOLFSSL_SMALL_CERT_VERIFY */
 #endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
+#if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
+/* ASN.1 DER decode instruction. */
+typedef struct DecodeInstr {
+    /* Tag expected. */
+    byte tag;
+    /* Operation to perform: step in or go over */
+    byte op:1;
+    /* ASN.1 item is optional. */
+    byte optional:1;
+} DecodeInstr;
+
+/* Step into ASN.1 item. */
+#define DECODE_INSTR_IN    0
+/* Step over ASN.1 item. */
+#define DECODE_INSTR_OVER  1
+
+/* Get the public key data from the DER encoded X.509 certificate.
+ *
+ * Assumes data has previously been parsed for complete validity.
+ *
+ * @param [in]  cert      DER encoded X.509 certificate data.
+ * @param [in]  certSz    Length of DER encoding.
+ * @param [out] pubKey    Public key data. (From the BIT_STRING.)
+ * @param [out] pubKeySz  Length of public key data in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cert, pubKey or pubKeySz is NULL.
+ * @return  ASN_PARSE_E when certificate encoding is invalid.
+ */
+int wc_CertGetPubKey(const byte* cert, word32 certSz,
+    const unsigned char** pubKey, word32* pubKeySz)
+{
+    int ret = 0;
+    int l;
+    word32 o = 0;
+    int i;
+    static DecodeInstr ops[] = {
+        /* Outer SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_IN  , 0 },
+        /* TBSCertificate: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_IN  , 0 },
+        /* Version: [0] */
+        { ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_X509_CERT_VERSION,
+          DECODE_INSTR_OVER, 1 },
+        /* CertificateSerialNumber: INT  */
+        { ASN_INTEGER,                    DECODE_INSTR_OVER, 0 },
+        /* AlgorithmIdentifier: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_OVER, 0 },
+        /* issuer: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_OVER, 0 },
+        /* Validity: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_OVER, 0 },
+        /* subject: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_OVER, 0 },
+        /* subjectPublicKeyInfo SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_IN  , 0 },
+        /* AlgorithmIdentifier: SEQ */
+        { ASN_SEQUENCE | ASN_CONSTRUCTED, DECODE_INSTR_OVER, 0 },
+        /* PublicKey: BIT_STRING  */
+        { ASN_BIT_STRING,                 DECODE_INSTR_IN  , 0 },
+    };
+
+    /* Validate parameters. */
+    if ((cert == NULL) || (pubKey == NULL) || (pubKeySz == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Process each instruction to take us to public key data. */
+    for (i = 0; (ret == 0) && (i < (int)(sizeof(ops) / sizeof(*ops))); i++) {
+        DecodeInstr op = ops[i];
+
+        /* Check the current ASN.1 item has the expected tag. */
+        if (cert[o] != op.tag) {
+            /* If not optional then error, otherwise skip op. */
+            if (!op.optional) {
+                ret = ASN_PARSE_E;
+            }
+        }
+        else {
+            /* Move past tag. */
+            o++;
+            /* Get the length of ASN.1 item and move past length encoding. */
+            if (GetLength(cert, &o, &l, certSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            /* Skip data if required. */
+            else if (op.op == DECODE_INSTR_OVER) {
+                o += l;
+            }
+        }
+    }
+
+    if (ret == 0) {
+        /* Return the public key data and length.
+         * Skip first byte of BIT_STRING data: unused bits. */
+        *pubKey = cert + o + 1;
+        *pubKeySz = l - 1;
+    }
+
+    return ret;
+}
+#endif
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     int    ret = 0;
