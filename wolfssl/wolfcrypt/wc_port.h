@@ -139,7 +139,12 @@
     /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef SINGLE_THREADED
+        #ifndef CONFIG_PTHREAD_IPC
+            #error "Need CONFIG_PTHREAD_IPC for threading"
+        #endif
         #include <zephyr/kernel.h>
+        #include <zephyr/posix/posix_types.h>
+        #include <zephyr/posix/pthread.h>
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
 
@@ -513,11 +518,14 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFILE      struct fs_file_t*
     #define STAT       struct fs_dirent
 
-    XFILE z_fs_open(const char* filename, const char* perm);
+    /* These are our wrappers for opening and closing files to
+     * make the API more POSIX like. */
+    XFILE z_fs_open(const char* filename, const char* mode);
     int z_fs_close(XFILE file);
 
     #define XFOPEN              z_fs_open
     #define XFCLOSE             z_fs_close
+    #define XFFLUSH             fs_sync
     #define XFSEEK              fs_seek
     #define XFTELL              fs_tell
     #define XFREWIND            fs_rewind
@@ -527,6 +535,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END           FS_SEEK_END
     #define XBADFILE            NULL
     #define XFGETS(b,s,f)       -2 /* Not ported yet */
+
+    #define XSTAT               fs_stat
+    #define XS_ISREG(s)         (s == FS_DIR_ENTRY_FILE)
+    #define SEPARATOR_CHAR      ':'
 
 #elif defined(WOLFSSL_TELIT_M2MB)
     #define XFILE                    INT32
@@ -655,12 +667,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XREAD       read
         #define XCLOSE      close
 
-    #elif defined(WOLFSSL_ZEPHYR)
-        #ifndef XSTAT
-        #define XSTAT       fs_stat
-        #endif
-        #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
-        #define SEPARATOR_CHAR ':'
     #elif defined(WOLFSSL_TELIT_M2MB)
         #ifndef XSTAT
         #define XSTAT       m2mb_fs_stat

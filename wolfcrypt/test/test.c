@@ -43777,6 +43777,9 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void)
 {
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
+#endif
+#if defined(WOLFSSL_PTHREADS) || (!defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_USER_MUTEX) && defined(WOLFSSL_STATIC_MEMORY))
     int ret;
 #endif
 #if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_USER_MUTEX)

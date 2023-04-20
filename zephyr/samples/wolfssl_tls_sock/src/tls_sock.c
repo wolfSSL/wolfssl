@@ -30,8 +30,8 @@
 #endif
 
 #define BUFFER_SIZE           2048
-#define STATIC_MEM_SIZE       (96*1024)
-#define THREAD_STACK_SIZE     (12*1024)
+#define STATIC_MEM_SIZE       (192*1024)
+#define THREAD_STACK_SIZE     (24*1024)
 #define MAX_SEND_SIZE         256
 
 /* The stack to use in the server's thread. */
@@ -64,6 +64,15 @@ static const char msgHTTPIndex[] =
     "</body>\n"
     "</html>\n";
 
+/* DO NOT use this in production. You should implement a way
+ * to get the current date. */
+static int verifyIgnoreDateError(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    if (store->error == ASN_BEFORE_DATE_E)
+        return 1; /* override error */
+    else
+        return preverify;
+}
 
 /* Create a new wolfSSL client with a server CA certificate. */
 static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
@@ -81,8 +90,11 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
 
     if (ret == 0) {
         /* Load client certificates into WOLFSSL_CTX */
-        if (wolfSSL_CTX_load_verify_buffer(client_ctx, ca_cert_der_2048,
-                sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1) !=
+        if (wolfSSL_CTX_load_verify_buffer_ex(client_ctx, ca_cert_der_2048,
+                sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1, 0,
+                /* DO NOT use this in production. You should
+                 * implement a way to get the current date. */
+                WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) !=
                 WOLFSSL_SUCCESS) {
             printf("ERROR: failed to load CA certificate\n");
             ret = -1;
@@ -96,6 +108,11 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
             ret = -1;
         }
     }
+
+    if (ret == 0)
+        wolfSSL_set_verify(client_ssl,
+            WOLFSSL_VERIFY_PEER|WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+            verifyIgnoreDateError);
 
     if (ret == 0) {
         /* Return newly created wolfSSL context and object */
@@ -169,6 +186,10 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
             ret = -1;
         }
     }
+
+    if (ret == 0)
+        wolfSSL_set_verify(server_ssl, WOLFSSL_VERIFY_PEER,
+            verifyIgnoreDateError);
 
     if (ret == 0) {
         /* Return newly created wolfSSL context and object */

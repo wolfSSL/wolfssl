@@ -97,8 +97,11 @@
     #endif
 #endif
 
-#ifdef NO_STDIO_FILESYSTEM
-#define fflush(...) do {} while (0)
+#if defined(WOLFSSL_ZEPHYR) || defined(NO_STDIO_FILESYSTEM) || !defined(XFFLUSH)
+/* fflush in Zephyr doesn't work on stdout and stderr. Use
+ * CONFIG_LOG_MODE_IMMEDIATE compilation option instead. */
+#undef XFFLUSH
+#define XFFLUSH(...) do {} while (0)
 #endif
 
 /* Macro to disable benchmark */
@@ -359,7 +362,7 @@
             printf("%s%s L%d error %d for \"%s\"\n",          \
                     err_prefix, __FILE__, __LINE__,           \
                     errno, #__VA_ARGS__);                     \
-            fflush(stdout);                                   \
+            XFFLUSH(stdout);                                  \
             _exit(1);                                         \
         }                                                     \
     } while(0)
@@ -373,7 +376,7 @@
             printf("%s%s L%d error %d for \"%s\"\n",                 \
                    err_prefix, __FILE__, __LINE__,                   \
                    _pthread_ret, #__VA_ARGS__);                      \
-            fflush(stdout);                                          \
+            XFFLUSH(stdout);                                         \
             _exit(1);                                                \
         }                                                            \
     } while(0)
@@ -1948,7 +1951,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     }
 
 #ifndef WOLFSSL_SGX
-    fflush(stdout);
+    XFFLUSH(stdout);
 #endif
 
     /* Add to thread stats */
@@ -2081,7 +2084,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     }
 
 #ifndef WOLFSSL_SGX
-    fflush(stdout);
+    XFFLUSH(stdout);
 #endif
 
     /* Add to thread stats */
@@ -9125,6 +9128,9 @@ static int string_matches(const char* arg, const char* str)
         ESP_ERROR_CHECK(gptimer_enable(esp_gptimer));
         ESP_ERROR_CHECK(gptimer_start(esp_gptimer));
     #endif
+    #elif defined(MAIN_NO_ARGS)
+        int argc = 0;
+        char** argv = NULL;
 
     #endif
 

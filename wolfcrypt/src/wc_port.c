@@ -915,13 +915,48 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
 #endif /* !NO_FILESYSTEM */
 
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_ZEPHYR)
-XFILE z_fs_open(const char* filename, const char* perm)
+XFILE z_fs_open(const char* filename, const char* mode)
 {
     XFILE file;
+    fs_mode_t flags = 0;
+
+    if (mode == NULL)
+        return NULL;
+
+    /* Parse mode */
+    switch (*mode++) {
+        case 'r':
+            flags |= FS_O_READ;
+            break;
+        case 'w':
+            flags |= FS_O_WRITE|FS_O_CREATE;
+            break;
+        case 'a':
+            flags |= FS_O_APPEND|FS_O_CREATE;
+            break;
+        default:
+            return NULL;
+    }
+
+    /* Ignore binary flag */
+    if (*mode == 'b')
+        mode++;
+    if (*mode == '+') {
+        flags |= FS_O_READ;
+        /* Don't add write flag if already appending */
+        if (!(flags & FS_O_APPEND))
+            flags |= FS_O_RDWR;
+    }
+    /* Ignore binary flag */
+    if (*mode == 'b')
+        mode++;
+    /* Incorrect mode string */
+    if (*mode != '\0')
+        return NULL;
 
     file = (XFILE)XMALLOC(sizeof(*file), NULL, DYNAMIC_TYPE_FILE);
     if (file != NULL) {
-        if (fs_open(file, filename) != 0) {
+        if (fs_open(file, filename, flags) != 0) {
             XFREE(file, NULL, DYNAMIC_TYPE_FILE);
             file = NULL;
         }
