@@ -236,7 +236,7 @@ static void sp_2048_to_bin_72(sp_digit* r, byte* a)
     }
     j = 2055 / 8 - 1;
     a[j] = 0;
-    for (i=0; i<72 && j>=0; i++) {
+    for (i=0; i<71 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
         a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
@@ -4130,8 +4130,8 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
     err = mp_grow(r, (2048 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
 #if DIGIT_BIT == 29
-        XMEMCPY(r->dp, a, sizeof(sp_digit) * 72);
-        r->used = 72;
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 71);
+        r->used = 71;
         mp_clamp(r);
 #elif DIGIT_BIT < 29
         int i;
@@ -4139,7 +4139,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 72; i++) {
+        for (i = 0; i < 71; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
@@ -4164,7 +4164,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 72; i++) {
+        for (i = 0; i < 71; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 29 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
@@ -8302,7 +8302,7 @@ static void sp_3072_to_bin_112(sp_digit* r, byte* a)
     }
     j = 3079 / 8 - 1;
     a[j] = 0;
-    for (i=0; i<112 && j>=0; i++) {
+    for (i=0; i<110 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
         a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
@@ -11706,8 +11706,8 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
     err = mp_grow(r, (3072 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
 #if DIGIT_BIT == 28
-        XMEMCPY(r->dp, a, sizeof(sp_digit) * 112);
-        r->used = 112;
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 110);
+        r->used = 110;
         mp_clamp(r);
 #elif DIGIT_BIT < 28
         int i;
@@ -11715,7 +11715,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 112; i++) {
+        for (i = 0; i < 110; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
@@ -11740,7 +11740,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 112; i++) {
+        for (i = 0; i < 110; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 28 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
@@ -15818,7 +15818,7 @@ static void sp_4096_to_bin_162(sp_digit* r, byte* a)
     }
     j = 4103 / 8 - 1;
     a[j] = 0;
-    for (i=0; i<162 && j>=0; i++) {
+    for (i=0; i<158 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
         a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
@@ -19231,8 +19231,8 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
     err = mp_grow(r, (4096 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
 #if DIGIT_BIT == 26
-        XMEMCPY(r->dp, a, sizeof(sp_digit) * 162);
-        r->used = 162;
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 158);
+        r->used = 158;
         mp_clamp(r);
 #elif DIGIT_BIT < 26
         int i;
@@ -19240,7 +19240,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 162; i++) {
+        for (i = 0; i < 158; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
@@ -19265,7 +19265,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 162; i++) {
+        for (i = 0; i < 158; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 26 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
@@ -44528,8 +44528,8 @@ static int sp_1024_to_mp(const sp_digit* a, mp_int* r)
     err = mp_grow(r, (1024 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
 #if DIGIT_BIT == 25
-        XMEMCPY(r->dp, a, sizeof(sp_digit) * 42);
-        r->used = 42;
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 41);
+        r->used = 41;
         mp_clamp(r);
 #elif DIGIT_BIT < 25
         int i;
@@ -44537,7 +44537,7 @@ static int sp_1024_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 42; i++) {
+        for (i = 0; i < 41; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
@@ -44562,7 +44562,7 @@ static int sp_1024_to_mp(const sp_digit* a, mp_int* r)
         int s = 0;
 
         r->dp[0] = 0;
-        for (i = 0; i < 42; i++) {
+        for (i = 0; i < 41; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 25 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
