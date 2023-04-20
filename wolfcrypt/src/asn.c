@@ -43,7 +43,11 @@
 /*
 ASN Options:
  * NO_ASN_TIME_CHECK: Disables ASN time checks (avoiding the ASN_BEFORE_DATE_E
- * and ASN_AFTER_DATE_E errors).
+ * and ASN_AFTER_DATE_E errors). Safer ways to avoid date errors would be to
+ * set the WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY flag when calling the _ex versions of
+ * cert loading functions or to define the WOLFSSL_NO_OCSP_DATE_CHECK macro to
+ * skip OCSP date errors. Defining NO_ASN_TIME_CHECK will skip ALL date checks
+ * and could pose a security risk.
  * NO_ASN_TIME: Disables time parts of the ASN code for systems without an RTC
     or wishing to save space.
  * IGNORE_NAME_CONSTRAINTS: Skip ASN name checks.
