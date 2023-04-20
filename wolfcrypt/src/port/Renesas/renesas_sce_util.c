@@ -20,7 +20,8 @@
  */
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

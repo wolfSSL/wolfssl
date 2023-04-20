@@ -3374,20 +3374,21 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   labelSz, sz);
         }
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-           /* SCE needs warpped key which is passed via 
+           /* SCE needs warpped key which is passed via
             * user ctx object of crypt-call back.
             */
            #ifdef WOLF_CRYPTO_CB
             if (key->devId != INVALID_DEVID) {
                 /* SCE supports 1024 and 2048 bits */
-                ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, rsa_type, key, rng);
+                ret = wc_CryptoCb_Rsa(in, inLen, out,
+                                    outLen, rsa_type, key, rng);
                 if (ret != CRYPTOCB_UNAVAILABLE)
                     return ret;
                 /* fall-through when unavailable */
                 ret = 0; /* reset error code and try using software */
             }
            #endif
-    
+
     #endif /* WOLFSSL_SE050 */
 
         key->state = RSA_STATE_ENCRYPT_PAD;
@@ -3535,14 +3536,15 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
            #ifdef WOLF_CRYPTO_CB
             if (key->devId != INVALID_DEVID) {
-                ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, rsa_type, key, rng);
+                ret = wc_CryptoCb_Rsa(in, inLen, out,
+                            outLen, rsa_type, key, rng);
                 if (ret != CRYPTOCB_UNAVAILABLE)
                     return ret;
                 /* fall-through when unavailable */
                 ret = 0; /* reset error code and try using software */
             }
            #endif
-    
+
     #endif /* WOLFSSL_CRYPTOCELL */
 
 

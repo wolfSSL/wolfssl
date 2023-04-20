@@ -21,10 +21,12 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) \
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) 
+    || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) \
     || defined(WOLFSSL_RENESAS_TSIP_TLS)
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
   #define cmn_hw_lock    wc_sce_hw_lock
   #define cmn_hw_unlock  wc_sce_hw_unlock
@@ -349,8 +351,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                                 sizeof(sce_aes_wrapped_key_t));
                         info->cipher.aescbc.aes->ctx.keySize = 32;
 
-                    }  else if (cbInfo->flags2.bits.aes128_installedkey_set == 1 &&
-                       info->cipher.aescbc.aes->keylen == 16) {
+                    }  else if (cbInfo->flags2.bits.aes128_installedkey_set 
+                       == 1 && info->cipher.aescbc.aes->keylen == 16) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes128,
                                 sizeof(sce_aes_wrapped_key_t));
@@ -454,7 +456,8 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
 
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
- #elif defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+ #elif defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+       defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
  #endif
 

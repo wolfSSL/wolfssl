@@ -2960,13 +2960,13 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
         ret = wc_Sha256Update(&sha, (byte*)large_input,
             (word32)sizeof(large_input));
         if (ret != 0)
-        	ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         }
     ret = wc_Sha256Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     if (XMEMCMP(hash, large_digest, WC_SHA256_DIGEST_SIZE) != 0)
-    	ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
 
