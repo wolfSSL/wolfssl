@@ -2023,6 +2023,8 @@ WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);
 #endif /* IGNORE_NAME_CONSTRAINTS */
 WOLFSSL_ASN_API void InitDecodedCert(DecodedCert* cert, const byte* source,
                                      word32 inSz, void* heap);
+WOLFSSL_LOCAL void InitDecodedCert_ex(DecodedCert* cert, const byte* source,
+                                     word32 inSz, void* heap, int devId);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert* cert);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
                                void* cm);
