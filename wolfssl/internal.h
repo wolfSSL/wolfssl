@@ -1337,6 +1337,10 @@ enum {
         /* Integer/heap maths - support 4096-bit. */
         #define ENCRYPT_BASE_BITS  4096
     #endif
+#elif defined(HAVE_CURVE448)
+    #define ENCRYPT_BASE_BITS    (456 * 2)
+#elif defined(HAVE_CURVE25519)
+    #define ENCRYPT_BASE_BITS    (256 * 2)
 #else
     /* No secret from public key operation but PSK key plus length used. */
     #define ENCRYPT_BASE_BITS  ((MAX_PSK_ID_LEN + 2) * 8)

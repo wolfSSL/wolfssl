@@ -5221,23 +5221,13 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
-        DerBuffer* leaf = ssl->buffers.certificate;
-        DecodedCert* cert = (DecodedCert*)XMALLOC(sizeof(*cert),
-                                     ssl->heap, DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            ret = MEMORY_E;
+        const unsigned char* pubKey;
+        word32 pubKeySz;
 
+        ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
+            ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            InitDecodedCert(cert, leaf->buffer, leaf->length, ssl->heap);
-            ret = DecodeToKey(cert, 0);
-        }
-        if (ret == 0) {
-            ret = wc_ed25519_import_public(cert->publicKey, cert->pubKeySize,
-                                                                           key);
-        }
-        if (cert != NULL) {
-            FreeDecodedCert(cert);
-            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+            ret = wc_ed25519_import_public(pubKey, pubKeySz, key);
         }
     }
 
@@ -5555,23 +5545,13 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
 
     /* Public key required for signing. */
     if (key != NULL && !key->pubKeySet) {
-        DerBuffer* leaf = ssl->buffers.certificate;
-        DecodedCert* cert = (DecodedCert*)XMALLOC(sizeof(*cert), ssl->heap,
-            DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            ret = MEMORY_E;
+        const unsigned char* pubKey;
+        word32 pubKeySz;
 
+        ret = wc_CertGetPubKey(ssl->buffers.certificate->buffer,
+            ssl->buffers.certificate->length, &pubKey, &pubKeySz);
         if (ret == 0) {
-            InitDecodedCert(cert, leaf->buffer, leaf->length, ssl->heap);
-            ret = DecodeToKey(cert, 0);
-        }
-        if (ret == 0) {
-            ret = wc_ed448_import_public(cert->publicKey, cert->pubKeySize,
-                key);
-        }
-        if (cert != NULL) {
-            FreeDecodedCert(cert);
-            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+            ret = wc_ed448_import_public(pubKey, pubKeySz, key);
         }
     }
 

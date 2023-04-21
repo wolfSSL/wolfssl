@@ -2045,6 +2045,11 @@ WOLFSSL_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
 #endif
+#if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
+WOLFSSL_LOCAL int wc_CertGetPubKey(const byte* cert, word32 certSz,
+    const unsigned char** pubKey, word32* pubKeySz);
+#endif
 
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz,
