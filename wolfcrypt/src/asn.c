@@ -20084,6 +20084,12 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     byte version;
     word32 idx;
     word32 serialSz;
+    const unsigned char* issuer = NULL;
+    word32 issuerSz = 0;
+    const unsigned char* subject = NULL;
+    word32 subjectSz = 0;
+    word32 pubKeyOffset = 0;
+    word32 pubKeyEnd = 0;
     int done = 0;
 
     CALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, cert->heap);
@@ -20116,6 +20122,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     if (ret == 0) {
         int i;
 
+        pubKeyOffset = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
         /* Set fields extracted from data. */
         cert->version = version;
         cert->serialSz = (int)serialSz;
@@ -20147,41 +20154,26 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->afterDate = GetASNItem_Addr(dataASN[i], cert->source);
         cert->afterDateLen = (int)GetASNItem_Length(dataASN[i], cert->source);
 
-        /* Get the issuer name and calculate hash. */
-        idx = dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].offset;
-        ret = GetCertName(cert, cert->issuer, cert->issuerHash, ISSUER,
-                          cert->source, &idx,
-                          dataASN[X509CERTASN_IDX_TBS_VALIDITY_SEQ].offset);
+        /* Get the issuer name. */
+        issuer = cert->source + dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].offset;
+        issuerSz = dataASN[X509CERTASN_IDX_TBS_VALIDITY_SEQ].offset -
+            dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].offset;
     }
     if (ret == 0) {
-        /* Get the subject name and calculate hash. */
-        idx = dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].offset;
-        ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
-                          cert->source, &idx,
-                          dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset);
+        /* Get the subject name. */
+        subject = cert->source +
+            dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].offset;
+        subjectSz = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset -
+            dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].offset;
     }
-    if (ret == 0) {
-        /* Determine if self signed by comparing issuer and subject hashes. */
-    #ifdef WOLFSSL_CERT_REQ
-        if (cert->isCSR)
-            cert->selfSigned = 1;
-        else
-    #endif
-        {
-            cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
-                                       KEYID_SIZE) == 0 ? 1 : 0;
+    if ((ret == 0) && (stopAtPubKey)) {
+        /* Return any bad date error through badDateRet and return offset of
+         * subjectPublicKeyInfo.
+         */
+        if (badDateRet != NULL) {
+            *badDateRet = badDate;
         }
-
-        if (stopAtPubKey) {
-            /* Return any bad date error through badDateRet and return offset of
-             * subjectPublicKeyInfo.
-             */
-            if (badDateRet != NULL) {
-                *badDateRet = badDate;
-            }
-            ret = (int)dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
-            done = 1;
-        }
+        done = 1;
     }
 
     if ((ret == 0) && (!done)) {
@@ -20251,11 +20243,8 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         #endif
     }
     if ((ret == 0) && (!done)) {
-        /* Parse the public key. */
-        idx = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
-        ret = GetCertKey(cert, cert->source, &idx,
-                dataASN[X509CERTASN_IDX_TBS_ISSUERUID].offset);
-        if ((ret == 0) && stopAfterPubKey) {
+        pubKeyEnd = dataASN[X509CERTASN_IDX_TBS_ISSUERUID].offset;
+        if (stopAfterPubKey) {
             /* Return any bad date error through badDateRed and return offset
              * after subjectPublicKeyInfo.
              */
@@ -20290,7 +20279,42 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     /* Dispose of memory before allocating for extension decoding. */
     FREE_ASNGETDATA(dataASN, cert->heap);
 
-    if ((ret == 0) && (!done) && (cert->extensions != NULL)) {
+    if ((ret == 0) && (issuer != NULL)) {
+        idx = 0;
+        /* Put issuer into cert and calculate hash. */
+        ret = GetCertName(cert, cert->issuer, cert->issuerHash, ISSUER, issuer,
+            &idx, issuerSz);
+    }
+    if ((ret == 0) && (subject != NULL)) {
+        idx = 0;
+        /* Put subject into cert and calculate hash. */
+        ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
+            subject, &idx, subjectSz);
+    }
+    if (ret == 0) {
+        /* Determine if self signed by comparing issuer and subject hashes. */
+    #ifdef WOLFSSL_CERT_REQ
+        if (cert->isCSR) {
+            cert->selfSigned = 1;
+        }
+        else
+    #endif
+        {
+            cert->selfSigned = (XMEMCMP(cert->issuerHash, cert->subjectHash,
+                                        KEYID_SIZE) == 0);
+        }
+        if (stopAtPubKey) {
+            ret = pubKeyOffset;
+        }
+    }
+
+    if ((ret == 0) && (!stopAtPubKey)) {
+        /* Parse the public key. */
+        idx = pubKeyOffset;
+        ret = GetCertKey(cert, cert->source, &idx, pubKeyEnd);
+    }
+    if ((ret == 0) && (!stopAtPubKey) && (!stopAfterPubKey) &&
+            (cert->extensions != NULL)) {
         /* Decode the extension data starting at [3]. */
         ret = DecodeCertExtensions(cert);
         if (criticalExt != NULL) {
@@ -21260,6 +21284,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     word32 sigParamsSz = 0;
     const byte* caName = NULL;
     word32 caNameLen = 0;
+#ifndef NO_SKID
+    const byte* akiData = NULL;
+    word32 akiLen = 0;
+#endif
 
     (void)req;
     (void)heap;
@@ -21269,17 +21297,6 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
 
     ALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, heap);
-#ifdef WOLFSSL_SMALL_STACK
-    if (ret == 0) {
-        sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-        if (sigCtx == NULL) {
-            ret = MEMORY_E;
-        }
-    }
-#endif
-
-    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
 
     if ((ret == 0) && (!req)) {
         /* Clear dynamic data for certificate items. */
@@ -21379,16 +21396,22 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif
     }
 
+#ifndef NO_SKID
+    if ((ret == 0) && (pubKey == NULL) && !req) {
+        akiData = dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data;
+        akiLen = dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.length;
+    }
+#endif
+
+    FREE_ASNGETDATA(dataASN, heap);
+
     /* If no public passed, then find the CA. */
     if ((ret == 0) && (pubKey == NULL)) {
 #ifndef NO_SKID
         /* Find the AKI extension in list of extensions and get hash. */
-        if ((!req) &&
-                (dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data != NULL)) {
+        if ((!req) && (akiData != NULL)) {
             /* TODO: test case */
-            ret = GetAKIHash(dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data,
-                             dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.length,
-                             hash, &extAuthKeyIdSet, heap);
+            ret = GetAKIHash(akiData, akiLen, hash, &extAuthKeyIdSet, heap);
         }
 
         /* Get the CA by hash one was found. */
@@ -21417,22 +21440,32 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         }
     }
 
-    FREE_ASNGETDATA(dataASN, heap);
-
     if (ret == 0) {
-        /* Check signature. */
-        ret = ConfirmSignature(sigCtx, tbs, tbsSz, pubKey, pubKeySz, pubKeyOID,
-                sig, sigSz, sigOID, sigParams, sigParamsSz, NULL);
-        if (ret != 0) {
-            WOLFSSL_MSG("Confirm signature failed");
+    #ifdef WOLFSSL_SMALL_STACK
+        sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap,
+            DYNAMIC_TYPE_SIGNATURE);
+        if (sigCtx == NULL) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0)
+    #endif
+        {
+            InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+
+            /* Check signature. */
+            ret = ConfirmSignature(sigCtx, tbs, tbsSz, pubKey, pubKeySz,
+                pubKeyOID, sig, sigSz, sigOID, sigParams, sigParamsSz, NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("Confirm signature failed");
+            }
+
+            FreeSignatureCtx(sigCtx);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+        #endif
         }
     }
 
-    FreeSignatureCtx(sigCtx);
-#ifdef WOLFSSL_SMALL_STACK
-    if (sigCtx != NULL)
-        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
-#endif
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }

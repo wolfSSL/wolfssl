@@ -11063,6 +11063,30 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         echInOutIdx = *inOutIdx;
 #endif
         ret = DoTls13ClientHello(ssl, input, inOutIdx, size);
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+                (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
+        if ((ssl->options.resuming || !ssl->options.verifyPeer ||
+               !IsAtLeastTLSv1_2(ssl) || IsAtLeastTLSv1_3(ssl->version))
+        #ifdef WOLFSSL_DTLS13
+               && (!ssl->options.dtls)
+        #endif
+               ) {
+        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+            if (ret != WC_PENDING_E && ret != OCSP_WANT_READ)
+        #endif
+            {
+                ssl->options.cacheMessages = 0;
+                if ((ssl->hsHashes != NULL) &&
+                        (ssl->hsHashes->messages != NULL)) {
+                    ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
+                    XFREE(ssl->hsHashes->messages, ssl->heap,
+                        DYNAMIC_TYPE_HASHES);
+                    ssl->hsHashes->messages = NULL;
+                }
+            }
+        }
+    #endif
 #if defined(HAVE_ECH)
         if (ret == 0) {
             echX = TLSX_Find(ssl->extensions, TLSX_ECH);
