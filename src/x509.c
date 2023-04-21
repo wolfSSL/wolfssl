@@ -7028,7 +7028,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
             WOLFSSL_CERT_MANAGER* cm = lookup->store->cm;
 
             if (cm->crl == NULL) {
-                if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
+                if (wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK)
+                    != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Enable CRL failed");
                     goto end;
                 }
@@ -12440,7 +12441,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
 
     for (i = 0; i < num; i++) {
         name = wolfSSL_X509_NAME_dup(wolfSSL_sk_X509_NAME_value(sk, i));
-        if (name == NULL || 0 != wolfSSL_sk_X509_NAME_push(copy, name)) {
+        if (name == NULL || WOLFSSL_SUCCESS != wolfSSL_sk_X509_NAME_push(copy, name)) {
             WOLFSSL_MSG("Memory error");
             wolfSSL_sk_X509_NAME_pop_free(copy, wolfSSL_X509_NAME_free);
             return NULL;

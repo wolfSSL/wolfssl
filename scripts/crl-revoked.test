@@ -22,6 +22,7 @@ cp -rp . $RUNNING_DIR/.
 cd $RUNNING_DIR
 
 revocation_code="-361"
+revocation_code_openssl="23"
 exit_code=1
 counter=0
 # need a unique resume port since may run the same time as testsuite
@@ -112,7 +113,7 @@ run_test() {
     server_result=$?
 
     case  "$capture_out" in
-    *$revocation_code*)
+    *"$revocation_code"*|*"$revocation_code_openssl"*)
         # only exit with zero on detection of the expected error code
         echo ""
         echo "Successful Revocation!!!!"
@@ -178,7 +179,7 @@ run_hashdir_test() {
   server_result=$?
 
   case  "$capture_out" in
-    *$revocation_code*)
+    *"$revocation_code"*|*"$revocation_code_openssl"*)
         # only exit with zero on detection of the expected error code
         echo ""
         echo "Successful Revocation!!!! with hash dir"

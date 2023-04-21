@@ -4509,7 +4509,10 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_WANT_WRITE;        /* convert to OpenSSL type */
     else if (ssl->error == ZERO_RETURN || ssl->options.shutdownDone)
         return WOLFSSL_ERROR_ZERO_RETURN;       /* convert to OpenSSL type */
-    return ssl->error;
+#if defined(WOLFSSL_HAPROXY)
+    return GetX509Error(ssl->error);
+#endif
+    return (ssl->error);
 }
 
 
@@ -8152,7 +8155,8 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
         return BAD_FUNC_ARG;
 
     if (cm->crl == NULL) {
-        if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK) !=
+                                         WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Enable CRL failed");
             return WOLFSSL_FATAL_ERROR;
         }
@@ -8209,7 +8213,14 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
     WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
     if (cm == NULL)
         return BAD_FUNC_ARG;
-
+#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
+    if (options == 0) {
+        /* Turn off doing Leaf CRL check */
+        cm->crlEnabled = 0;
+        /* Turn off all checks */
+        cm->crlCheckAll = 0;
+    }
+#endif
     #ifdef HAVE_CRL
         if (cm->crl == NULL) {
             cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
@@ -8228,10 +8239,15 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
             cm->crl->crlIOCb = EmbedCrlLookup;
         #endif
         }
-
-        cm->crlEnabled = 1;
-        if (options & WOLFSSL_CRL_CHECKALL)
-            cm->crlCheckAll = 1;
+#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
+        if ((options & WOLFSSL_CRL_CHECKALL) ||
+            (options & WOLFSSL_CRL_CHECK))
+#endif
+        {
+            cm->crlEnabled = 1;
+            if (options & WOLFSSL_CRL_CHECKALL)
+                cm->crlCheckAll = 1;
+        }
     #else
         ret = NOT_COMPILED_IN;
     #endif
@@ -9431,7 +9447,8 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
         return BAD_FUNC_ARG;
 
     if (cm->crl == NULL) {
-        if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK)
+            != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Enable CRL failed");
             return WOLFSSL_FATAL_ERROR;
         }
@@ -9448,7 +9465,8 @@ int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
         return BAD_FUNC_ARG;
 
     if (cm->crl == NULL) {
-        if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK)
+            != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Enable CRL failed");
             return WOLFSSL_FATAL_ERROR;
         }
@@ -14494,12 +14512,17 @@ void SetupSession(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("SetupSession");
 
-    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL &&
-            !session->haveAltSessionID) {
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
         /* Make sure the session ID is available when the user calls any
          * get_session API */
-        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
-        session->sessionIDSz = ssl->arrays->sessionIDSz;
+        if (!session->haveAltSessionID) {
+            XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+            session->sessionIDSz = ssl->arrays->sessionIDSz;
+        }
+        else {
+            XMEMCPY(session->sessionID, session->altSessionID, ID_LEN);
+            session->sessionIDSz = ID_LEN;
+        }
     }
     session->side = (byte)ssl->options.side;
     if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
@@ -14904,7 +14927,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     if (SslSessionCacheOff(ssl, ssl->session))
         return WOLFSSL_FAILURE;
 
-    if (ssl->options.haveSessionId == 0)
+    if (ssl->options.haveSessionId == 0 && !ssl->session->haveAltSessionID)
         return WOLFSSL_FAILURE;
 
 #ifdef HAVE_SESSION_TICKET
@@ -14913,7 +14936,8 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif
 
     XMEMSET(bogusID, 0, sizeof(bogusID));
-    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL
+            && !ssl->session->haveAltSessionID)
         id = ssl->arrays->sessionID;
     else if (ssl->session->haveAltSessionID) {
         id = ssl->session->altSessionID;
@@ -23116,8 +23140,9 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     /* Nginx looks for this error to know to stop parsing certificates.
      * Same for HAProxy. */
-    if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE)
-        || (err & 0xFFFFFFL) == -ASN_NO_PEM_HEADER)
+    if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE) ||
+       ((err & 0xFFFFFFL) == -ASN_NO_PEM_HEADER) ||
+       ((err & 0xFFFL) == PEM_R_NO_START_LINE ))
         return PEM_R_NO_START_LINE;
     if (err == ((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))
         return SSL_R_HTTP_REQUEST;
@@ -31248,6 +31273,9 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
     if (ssl->ctx) {
         wolfSSL_CTX_free(ssl->ctx);
+#if defined(WOLFSSL_HAPROXY)
+        wolfSSL_CTX_free(ssl->initial_ctx);
+#endif
     }
     ssl->ctx = ctx;
 
@@ -31450,6 +31478,12 @@ const byte* wolfSSL_SESSION_get_id(const WOLFSSL_SESSION* sess,
         WOLFSSL_MSG("Bad func args. Please provide idLen");
         return NULL;
     }
+#ifdef HAVE_SESSION_TICKET
+    if (sess->haveAltSessionID) {
+        *idLen = ID_LEN;
+        return sess->altSessionID;
+    }
+#endif
     *idLen = sess->sessionIDSz;
     return sess->sessionID;
 }

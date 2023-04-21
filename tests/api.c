@@ -7820,7 +7820,9 @@ static hashTable server_sessionCache;
 static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
 {
     int i;
+    unsigned int len;
     (void)ssl;
+
     /*
      * This example uses a hash table.
      * Steps you should take for a non-demo code:
@@ -7842,11 +7844,7 @@ static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
     }
     for (i = 0; i < SESSION_CACHE_SIZE; i++) {
         if (server_sessionCache.entries[i].value == NULL) {
-            if (sess->haveAltSessionID == 1)
-                server_sessionCache.entries[i].key = sess->altSessionID;
-            else
-                server_sessionCache.entries[i].key = sess->sessionID;
-
+            server_sessionCache.entries[i].key = SSL_SESSION_get_id(sess, &len);
             server_sessionCache.entries[i].value = sess;
             server_sessionCache.length++;
             break;
@@ -33083,7 +33081,8 @@ static int test_wolfSSL_X509_STORE(void)
                     SSL_FILETYPE_PEM)));
     ExpectIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
     ExpectIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
-    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), CRL_CERT_REVOKED);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+                WOLFSSL_X509_V_ERR_CERT_REVOKED);
     X509_CRL_free(crl);
     crl = NULL;
     X509_STORE_free(store);
