@@ -2607,6 +2607,11 @@ extern void uITRON4_free(void *p) ;
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
+/* Disable time checking if no timer */
+#if defined(NO_ASN_TIME)
+    #define NO_ASN_TIME_CHECK
+#endif
+
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL
     #define CURVE25519_SMALL
