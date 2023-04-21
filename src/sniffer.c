@@ -831,6 +831,7 @@ static void FreeSnifferSession(SnifferSession* session)
 #endif
     }
     XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+    XMEMSET(session, 0, sizeof(SnifferSession));
 }
 
 
@@ -855,6 +856,7 @@ void ssl_FreeSniffer(void)
             FreeSnifferSession(removeSession);
         }
     }
+    XMEMSET(SessionTable, 0, sizeof(SessionTable));
     SessionCount = 0;
 
     /* Then server (wolfSSL_CTX) */
