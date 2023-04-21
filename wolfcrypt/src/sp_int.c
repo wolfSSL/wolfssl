@@ -16552,8 +16552,8 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp)
         a->dp[i] = 0;
     }
 
-    /* Special case when modulus is 1 digit. */
-    if (m->used == 1) {
+    /* Special case when modulus is 1 digit or less. */
+    if (m->used <= 1) {
         /* mu = (mp * DigitMask(a, i)) & WORD_MASK */
         mu = mp * a->dp[0];
         /* a += mu * m */

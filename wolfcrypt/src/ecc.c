@@ -227,9 +227,17 @@ ECC Curve Sizes:
 #else
 #define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
 #endif
+#if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
+    (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
 #define ECC_KEY_MAX_BITS(key)                                       \
-    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE    \
-                                          : (unsigned)((key)->dp->size * 8))
+    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
+        ((unsigned)((key)->dp->size * 8)))
+#else
+/* Add one bit for cases when order is a bit greater than prime. */
+#define ECC_KEY_MAX_BITS(key)                                       \
+    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
+        ((unsigned)((key)->dp->size * 8 + 1)))
+#endif
 
 /* forward declarations */
 static int  wc_ecc_new_point_ex(ecc_point** point, void* heap);
