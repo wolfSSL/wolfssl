@@ -20937,7 +20937,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif
 
     if (cm != NULL ) {
-        devId = (WOLFSSL_CERT_MANAGER*)cm->devId;
+        devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
     }
     InitSignatureCtx(sigCtx, heap, devId);
 
@@ -21292,7 +21292,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif
 
     if (cm != NULL ) {
-        devId = (WOLFSSL_CERT_MANAGER*)cm->devId;
+        devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
     }
     InitSignatureCtx(sigCtx, heap, devId);
 
@@ -34322,7 +34322,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     (void)heap;
 
     if (cm != NULL) {
-        devId = (WOLFSSL_CERT_MANAGER*)cm->devId;
+        devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
     }
 
     if (GetSequence(source, &idx, &length, size) < 0)
@@ -34458,12 +34458,10 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         if (ca) {
             SignatureCtx sigCtx;
-            int devId = INVALID_DEVID;
 
             if (cm != NULL) {
-                devId = (WOLFSSL_CERT_MANAGER*)cm->devId;
+                devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
             }
-
             InitSignatureCtx(&sigCtx, heap, devId);
 
             /* ConfirmSignature is blocking here */
@@ -34498,7 +34496,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int devId = INVALID_DEVID;
 
     if (cm != NULL) {
-        devId = (WOLFSSL_CERT_MANAGER*)cm->devId;
+        devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
     }
 #endif
 
@@ -34600,12 +34598,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     #endif
         if (ca) {
             SignatureCtx sigCtx;
-            int devId = INVALID_DEVID;
 
             /* Initialize he signature context. */
-        #ifdef WOLF_CRYPTO_CB
-            devId = wc_CryptoCb_DefaultDevID();
-        #endif
             InitSignatureCtx(&sigCtx, heap, devId);
 
             /* TODO: ConfirmSignature is blocking here */
@@ -35643,10 +35637,8 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 
 int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         word32 tbsSz, const byte* signature, word32 sigSz,
-                        word32 signatureOID, Signer *ca, void* heap)
+                        word32 signatureOID, Signer *ca, void* heap, int devId)
 {
-    int devId = INVALID_DEVID;
-
     /* try to confirm/verify signature */
 #ifndef IGNORE_KEY_EXTENSIONS
     if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
@@ -35656,9 +35648,6 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
-#ifdef WOLF_CRYPTO_CB
-    devId = wc_CryptoCb_DefaultDevID();
-#endif
     InitSignatureCtx(sigCtx, heap, devId);
     if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
@@ -35684,6 +35673,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
 static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
 {
     int ret = 0;
+    int devId = INVALID_DEVID;
     Signer* ca = NULL;
     SignatureCtx sigCtx;
 
@@ -35722,10 +35712,14 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
 
     if (ret == 0) {
         WOLFSSL_MSG("Found CRL issuer CA");
+        if (cm != NULL ) {
+            devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
+        }
+
         /* Verify CRL signature with CA. */
         ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, ca, dcrl->heap);
+           dcrl->signatureOID, ca, dcrl->heap, devId);
     }
 
     return ret;
@@ -36174,6 +36168,7 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     SignatureCtx sigCtx;
     int          ret = 0;
     int          len;
+    int          devId = INVALID_DEVID;
     word32       idx = 0;
 
     WOLFSSL_MSG("ParseCRL");
@@ -36243,9 +36238,12 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     }
 
     WOLFSSL_MSG("Found CRL issuer CA");
+    if (cm != NULL ) {
+        devId = ((WOLFSSL_CERT_MANAGER*)cm)->devId;
+    }
     ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, ca, dcrl->heap);
+           dcrl->signatureOID, ca, dcrl->heap, devId);
 
 end:
     return ret;
