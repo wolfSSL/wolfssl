@@ -5667,7 +5667,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         /* Decode the identity. */
         switch (current->decryptRet) {
             case PSK_DECRYPT_NONE:
-                ret = DoClientTicket_ex(ssl, current);
+                ret = DoClientTicket_ex(ssl, current, 1);
+                /* psk->sess may be set. Need to clean up later. */
                 break;
             case PSK_DECRYPT_OK:
                 ret = WOLFSSL_TICKET_RET_OK;
@@ -5685,11 +5686,26 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             return ret;
         #endif
 
+        if (ret != WOLFSSL_TICKET_RET_OK && current->sess_free_cb != NULL) {
+            current->sess_free_cb(ssl, current->sess,
+                    &current->sess_free_cb_ctx);
+            current->sess = NULL;
+            XMEMSET(&current->sess_free_cb_ctx, 0,
+                    sizeof(psk_sess_free_cb_ctx));
+        }
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            if (DoClientTicketCheck(ssl, current, ssl->timeout, suite) != 0)
+            ret = DoClientTicketCheck(ssl, current, ssl->timeout, suite);
+            if (ret == 0)
+                DoClientTicketFinalize(ssl, current->it, current->sess);
+            if (current->sess_free_cb != NULL) {
+                current->sess_free_cb(ssl, current->sess,
+                        &current->sess_free_cb_ctx);
+                current->sess = NULL;
+                XMEMSET(&current->sess_free_cb_ctx, 0,
+                        sizeof(psk_sess_free_cb_ctx));
+            }
+            if (ret != 0)
                 continue;
-
-            DoClientTicketFinalize(ssl, current->it);
 
             /* SERVER: using secret in session ticket for peer auth. */
             ssl->options.peerAuthGood = 1;
@@ -10023,10 +10039,6 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 #endif
     const byte* nonce;
     byte        nonceLength;
-#ifndef NO_SESSION_CACHE
-    const byte* id;
-    byte idSz;
-#endif
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_DO);
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
@@ -10122,16 +10134,9 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     #endif
     *inOutIdx += length;
 
+    SetupSession(ssl);
     #ifndef NO_SESSION_CACHE
-    AddSession(ssl);
-    id = ssl->session->sessionID;
-    idSz = ssl->session->sessionIDSz;
-    if (ssl->session->haveAltSessionID) {
-        id = ssl->session->altSessionID;
-        idSz = ID_LEN;
-    }
-    AddSessionToCache(ssl->ctx, ssl->session, id, idSz, NULL,
-        ssl->session->side, 1, &ssl->clientSession);
+        AddSession(ssl);
     #endif
 
     /* Always encrypted. */
@@ -10316,12 +10321,15 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #else
     extSz = EXTS_SZ;
 #endif
-
-    /* Lifetime | Age Add | Ticket | Extensions */
-    length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
-             ssl->session->ticketLen + extSz;
+    /* Lifetime | Age Add | Ticket session ID | Extensions */
+    length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ;
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
+        length += ID_LEN + extSz;
+    else
+        length += ssl->session->ticketLen + extSz;
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
+
     sendSz = idx + length + MAX_MSG_EXTRA;
 
     /* Check buffers are big enough and grow if needed. */
@@ -10346,11 +10354,26 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     output[idx++] = ssl->session->ticketNonce.data[0];
 
     /* length */
-    c16toa(ssl->session->ticketLen, output + idx);
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        c16toa(ID_LEN, output + idx);
+    }
+    else {
+        c16toa(ssl->session->ticketLen, output + idx);
+    }
+
     idx += LENGTH_SZ;
     /* ticket */
-    XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
-    idx += ssl->session->ticketLen;
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        if (ssl->session->haveAltSessionID)
+            XMEMCPY(output + idx, ssl->session->altSessionID, ID_LEN);
+        else
+            XMEMCPY(output + idx, ssl->session->sessionID, ID_LEN);
+        idx += ID_LEN;
+    }
+    else {
+        XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
+        idx += ssl->session->ticketLen;
+    }
 
 #ifdef WOLFSSL_EARLY_DATA
     extSz = 0;
@@ -10366,6 +10389,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->options.haveSessionId = 1;
 
+    SetupSession(ssl);
     /* Only add to cache when support built in and when the ticket contains
      * an ID. Otherwise we have no way to actually retrieve the ticket from the
      * cache. */

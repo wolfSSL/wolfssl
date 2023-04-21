@@ -335,6 +335,8 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     int ret = 0;
     int tlsxFound;
 
+    *resume = FALSE;
+
     ret = FindExtByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts,
                          &tlsxFound);
     if (ret != 0)
@@ -359,42 +361,45 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
 static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
                                int* resume)
 {
-    WOLFSSL_SESSION* sess;
+    const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
+#ifdef HAVE_EXT_CACHE
+    int copy;
+#endif
+    *resume = FALSE;
+
     if (ssl->options.sessionCacheOff)
         return 0;
     if (sessionID.size != ID_LEN)
         return 0;
-#ifdef HAVE_EXT_CACHE
-    {
 
-        if (ssl->ctx->get_sess_cb != NULL) {
-            int unused;
-            sess =
-                ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
-                                      &unused);
-            if (sess != NULL) {
+#ifdef HAVE_EXT_CACHE
+    if (ssl->ctx->get_sess_cb != NULL) {
+        WOLFSSL_SESSION* extSess =
+            ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
+                                  &copy);
+        if (extSess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
-                /* This logic is only for TLS <= 1.2 tickets. Don't accept
-                 * TLS 1.3. */
-                if (IsAtLeastTLSv1_3(sess->version))
-                    wolfSSL_FreeSession(ssl->ctx, sess);
-                else
+                           defined(HAVE_SESSION_TICKET))
+            /* This logic is only for TLS <= 1.2 tickets. Don't accept
+             * TLS 1.3. */
+            if (!IsAtLeastTLSv1_3(extSess->version))
 #endif
-                {
-                    *resume = 1;
-                    wolfSSL_FreeSession(ssl->ctx, sess);
-                    return 0;
-                }
-            }
+                *resume = TRUE;
+            if (!copy)
+                wolfSSL_FreeSession(ssl->ctx, extSess);
+            if (*resume)
+                return 0;
         }
-        if (ssl->ctx->internalCacheLookupOff)
-            return 0;
     }
+    if (ssl->ctx->internalCacheLookupOff)
+        return 0;
 #endif
-    ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow, 1);
+
+
+    ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
+            ssl->options.side);
     if (ret == 0 && sess != NULL) {
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
@@ -402,9 +407,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
          * TLS 1.3. */
         if (!IsAtLeastTLSv1_3(sess->version))
 #endif
-        {
-            *resume = 1;
-        }
+            *resume = TRUE;
         TlsSessionCacheUnlockRow(sessRow);
     }
 
@@ -480,7 +483,7 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                 /* Decode the identity. */
                 switch (current->decryptRet) {
                     case PSK_DECRYPT_NONE:
-                        ret = DoClientTicket_ex(ssl, current);
+                        ret = DoClientTicket_ex(ssl, current, 0);
                         break;
                     case PSK_DECRYPT_OK:
                         ret = WOLFSSL_TICKET_RET_OK;

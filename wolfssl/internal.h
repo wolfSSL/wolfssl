@@ -3212,6 +3212,18 @@ enum PskDecryptReturn {
     PSK_DECRYPT_FAIL,
 };
 
+#ifdef HAVE_SESSION_TICKET
+typedef struct psk_sess_free_cb_ctx {
+    word32 row;
+#ifdef HAVE_EXT_CACHE
+    int extCache;
+    int freeSess;
+#endif
+} psk_sess_free_cb_ctx;
+typedef void (psk_sess_free_cb)(const WOLFSSL* ssl, const WOLFSSL_SESSION* sess,
+        psk_sess_free_cb_ctx* freeCtx);
+#endif
+
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {
     word16               identityLen;             /* Length of identity */
@@ -3224,6 +3236,11 @@ typedef struct PreSharedKey {
     byte                 hmac;                    /* HMAC algorithm     */
 #ifdef HAVE_SESSION_TICKET
     InternalTicket*      it;                      /* ptr to ticket      */
+    const WOLFSSL_SESSION* sess; /* ptr to session either from external cache or
+                                  * into SessionCache. Work around so that we
+                                  * don't call into the cache more than once */
+    psk_sess_free_cb* sess_free_cb;               /* callback to free sess */
+    psk_sess_free_cb_ctx sess_free_cb_ctx;        /* info for sess_free_cb */
 #endif
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */
@@ -4063,6 +4080,8 @@ struct WOLFSSL_SESSION {
     byte               haveAltSessionID:1;
 #ifdef HAVE_EX_DATA
     byte               ownExData:1;
+#endif
+#if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
     Rem_Sess_Cb        rem_sess_cb;
 #endif
     void*              heap;
@@ -4138,6 +4157,7 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+    byte               isSetup:1;
 };
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
@@ -4152,9 +4172,10 @@ WOLFSSL_LOCAL int wolfSSL_RAND_Init(void);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
+WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
-WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ssl,
+WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ctx,
     WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
     int side, word16 useTicket, ClientSession** clientCacheEntry);
 #ifndef NO_CLIENT_CACHE
@@ -4165,8 +4186,11 @@ WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
 WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void TlsSessionCacheUnlockRow(word32 row);
-WOLFSSL_LOCAL int TlsSessionCacheGetAndLock(const byte *id,
-    WOLFSSL_SESSION **sess, word32 *lockedRow, byte readOnly);
+WOLFSSL_LOCAL int TlsSessionCacheGetAndRdLock(const byte *id,
+    const WOLFSSL_SESSION **sess, word32 *lockedRow, byte side);
+WOLFSSL_LOCAL int TlsSessionCacheGetAndWrLock(const byte *id,
+    WOLFSSL_SESSION **sess, word32 *lockedRow, byte side);
+WOLFSSL_LOCAL void EvictSessionFromCache(WOLFSSL_SESSION* session);
 /* WOLFSSL_API to test it in tests/api.c */
 WOLFSSL_API int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
@@ -5767,13 +5791,15 @@ WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDecryptTicket(const WOLFSSL* ssl, const byte* input,
         word32 len, InternalTicket **it);
 /* Return 0 when check successful. <0 on failure. */
-WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it);
+WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it,
+                                          const WOLFSSL_SESSION* sess);
 
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int DoClientTicketCheck(const WOLFSSL* ssl,
         const PreSharedKey* psk, sword64 timeout, const byte* suite);
 WOLFSSL_LOCAL void CleanupClientTickets(PreSharedKey* psk);
-WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk);
+WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
+                                    int retainSess);
 #endif
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
@@ -6292,8 +6318,9 @@ typedef struct CRYPTO_EX_cb_ctx {
     WOLFSSL_CRYPTO_EX_dup* dup_func;
     struct CRYPTO_EX_cb_ctx* next;
 } CRYPTO_EX_cb_ctx;
-extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
-WOLFSSL_LOCAL void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
+/* use wolfSSL_API visibility to be able to clear in tests/api.c */
+WOLFSSL_API extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
+WOLFSSL_API void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
 WOLFSSL_LOCAL void crypto_ex_cb_setup_new_data(void *new_obj,
         CRYPTO_EX_cb_ctx* cb_ctx, WOLFSSL_CRYPTO_EX_DATA* ex_data);
 WOLFSSL_LOCAL void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
