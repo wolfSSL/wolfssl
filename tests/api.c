@@ -65539,6 +65539,114 @@ static int test_harden_no_secure_renegotiation(void)
 }
 #endif
 
+#if defined(HAVE_OCSP) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+static int test_override_alt_cert_chain_cert_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    printf("preverify: %d\n", preverify);
+    printf("store->error: %d\n", store->error);
+    printf("error reason: %s\n", wolfSSL_ERR_reason_error_string(store->error));
+    if (store->error == OCSP_INVALID_STATUS) {
+        printf("Overriding OCSP error\n");
+        return 1;
+    }
+#ifndef WOLFSSL_ALT_CERT_CHAINS
+    else if ((store->error == ASN_NO_SIGNER_E ||
+              store->error == ASN_SELF_SIGNED_E
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
+            || store->error == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+#endif
+            ) && store->error_depth == store->totalCerts - 1) {
+        printf("Overriding no signer error only for root cert\n");
+        return 1;
+    }
+#endif
+    else
+        return preverify;
+}
+
+static int test_override_alt_cert_chain_ocsp_cb(void* ioCtx, const char* url,
+        int urlSz, unsigned char* request, int requestSz,
+        unsigned char** response)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+    (void)response;
+    return -1;
+}
+
+static void test_override_alt_cert_chain_client_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER,
+            test_override_alt_cert_chain_cert_cb);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_override_alt_cert_chain_ocsp_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "not a url"),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_override_alt_cert_chain_client_ctx_ready2(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_override_alt_cert_chain_ocsp_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "not a url"),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_override_alt_cert_chain_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx,
+            "./certs/intermediate/server-chain-alt.pem"), WOLFSSL_SUCCESS);
+}
+
+static int test_override_alt_cert_chain(void)
+{
+    size_t i;
+    struct test_params {
+        ctx_callback client_ctx_cb;
+        ctx_callback server_ctx_cb;
+        int result;
+    } params[] = {
+        {test_override_alt_cert_chain_client_ctx_ready,
+                test_override_alt_cert_chain_server_ctx_ready, TEST_SUCCESS},
+        {test_override_alt_cert_chain_client_ctx_ready2,
+                test_override_alt_cert_chain_server_ctx_ready, TEST_FAIL},
+    };
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        callback_functions client_cbs, server_cbs;
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        printf("test config: %d\n", (int)i);
+
+        client_cbs.ctx_ready = params[i].client_ctx_cb;
+        server_cbs.ctx_ready = params[i].server_ctx_cb;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertIntEQ(client_cbs.return_code, params[i].result);
+        AssertIntEQ(server_cbs.return_code, params[i].result);
+    }
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_override_alt_cert_chain(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -66575,6 +66683,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
     TEST_DECL(test_harden_no_secure_renegotiation),
+    TEST_DECL(test_override_alt_cert_chain),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */

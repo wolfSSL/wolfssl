@@ -13695,10 +13695,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->peerVerifyRet = 0;
                     #endif
                             args->verifyErr = 0;
-                        }
 
-                        /* do not add to certificate manager */
-                        skipAddCA = 1;
+                            /* do not add to certificate manager */
+                            skipAddCA = 1;
+                        }
                     }
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
 
@@ -13711,7 +13711,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = ssl->error = 0;
                     }
 
-
+                #ifdef WOLFSSL_ALT_CERT_CHAINS
+                    if (ret != 0 && args->dCert->isCA) {
+                        /* do not add to certificate manager */
+                        skipAddCA = 1;
+                    }
+                #endif
 
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA &&
@@ -13745,13 +13750,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                     /* Handle error codes */
+                    ssl->error = ret; /* Report SSL error or clear error if
+                                       * callback overrides. */
                     if (ret != 0) {
                         if (!ssl->options.verifyNone) {
                             WOLFSSL_ERROR_VERBOSE(ret);
                             DoCertFatalAlert(ssl, ret);
                         }
-                        ssl->error = ret; /* Report SSL error */
-
                         if (args->lastErr == 0) {
                             args->lastErr = ret; /* save error from last time */
                             ret = 0; /* reset error */
