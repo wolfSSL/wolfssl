@@ -1854,7 +1854,7 @@ message("Generating user options header...")
 if (${CMAKE_DISABLE_SOURCE_CHANGES})
     set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "${CMAKE_DISABLE_SOURCE_CHANGES}")
 else()
-    set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "no")
+    set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "yes")
 endif()
 add_option("WOLFSSL_BUILD_OUT_OF_TREE"
     "Don't generate files in the source tree (default: ${WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT})"
