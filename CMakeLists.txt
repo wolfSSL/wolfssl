@@ -1833,10 +1833,6 @@ if(WOLFSSL_USER_SETTINGS)
     endif()
 endif()
 
-# TODO: Applying definitions to everything like this, rather than
-#       individual targets, is discouraged in CMake.
-add_definitions(${WOLFSSL_DEFINITIONS})
-
 add_option("WOLFSSL_CONFIG_H"
     "Enable generation of config.h and define HAVE_CONFIG_H (default: enabled)"
     "yes" "yes;no")
@@ -1932,6 +1928,7 @@ target_compile_definitions(wolfssl PRIVATE "BUILDING_WOLFSSL")
 if(${BUILD_SHARED_LIBS})
     target_compile_definitions(wolfssl PUBLIC "WOLFSSL_DLL")
 endif()
+target_compile_definitions(wolfssl PUBLIC ${WOLFSSL_DEFINITIONS})
 
 ####################################################
 # Include Directories
