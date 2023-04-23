@@ -1333,15 +1333,11 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn,
         /* Get length in bits of encoded number. */
         numBits = wolfSSL_BN_num_bits(bn);
         /* Leading zero required if most-significant byte has top bit set. */
-        if ((numBits % 8) == 7) {
+        if ((numBits > 0) && (numBits % 8) == 0) {
             firstByte = 0x80;
         }
         /* Get length of header based on length of number. */
         length = SetASNInt(len, firstByte, NULL);
-        if (firstByte != 0) {
-            /* Add one for leading zero. */
-            length++;
-        }
         /* Add number of bytes to encode number. */
         length += len;
 
@@ -1359,9 +1355,6 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn,
             a->data[idx] = 0;
         }
         else {
-            if (firstByte != 0) {
-                a->data[idx++] = 0;
-            }
             /* Add encoded number. */
             len = wolfSSL_BN_bn2bin(bn, a->data + idx);
             if (len < 0) {

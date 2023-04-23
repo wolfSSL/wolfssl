@@ -31421,22 +31421,25 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     ASN1_INTEGER* ai;
-    ASN1_INTEGER* a2;
-    BIGNUM* a;
+    ASN1_INTEGER* ai2;
+    BIGNUM* bn;
+    BIGNUM* bn2;
 
     ai = ASN1_INTEGER_new();
     AssertNotNull(ai);
+    bn2 = BN_new();
+    AssertNotNull(bn2);
 
     /* Invalid parameter testing. */
-    AssertNull(a = ASN1_INTEGER_to_BN(NULL, NULL));
-    AssertNull(a2 = BN_to_ASN1_INTEGER(NULL, NULL));
+    AssertNull(bn = ASN1_INTEGER_to_BN(NULL, NULL));
+    AssertNull(ai2 = BN_to_ASN1_INTEGER(NULL, NULL));
 
     /* at the moment hard setting since no set function */
     ai->data[0] = 0xff; /* No DER encoding. */
     ai->length = 1;
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    BN_free(a);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    BN_free(bn);
 #else
     AssertNull(ASN1_INTEGER_to_BN(ai, NULL));
 #endif
@@ -31447,8 +31450,8 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     ai->length = 3;
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
     /* Interpreted as a number 0x020403. */
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    BN_free(a);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    BN_free(bn);
 #else
     AssertNull(ASN1_INTEGER_to_BN(ai, NULL));
 #endif
@@ -31457,37 +31460,47 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x03;
     ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, NULL));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, NULL));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai->data[1] = 0x01; /* length of integer */
-    ai->data[2] = 0xff;
-    ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    ai->data[1] = 0x02; /* length of integer */
+    ai->data[2] = 0x00; /* padding byte to ensure positive */
+    ai->data[3] = 0xff;
+    ai->length = 4;
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x00;
     ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x01;
     ai->length = 3;
     ai->negative = 1;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
-    BN_free(a);
-    ASN1_INTEGER_free(a2);
+    BN_free(bn2);
+    BN_free(bn);
+    ASN1_INTEGER_free(ai2);
     ASN1_INTEGER_free(ai);
 
     res = TEST_RES_CHECK(1);
