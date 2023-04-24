@@ -12753,7 +12753,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_KEY_get0_private_key(const WOLFSSL_EC_KEY *key)
  * @return  0 on failure.
  */
 int wolfSSL_EC_KEY_set_private_key(WOLFSSL_EC_KEY *key,
-                                   const WOLFSSL_BIGNUM *priv_key)
+    const WOLFSSL_BIGNUM *priv_key)
 {
     int ret = 1;
 
@@ -12762,6 +12762,13 @@ int wolfSSL_EC_KEY_set_private_key(WOLFSSL_EC_KEY *key,
     /* Validate parameters. */
     if ((key == NULL) || (priv_key == NULL)) {
         WOLFSSL_MSG("Bad arguments");
+        ret = 0;
+    }
+
+    /* Check for obvious invalid values. */
+    if (wolfSSL_BN_is_negative(priv_key) || wolfSSL_BN_is_zero(priv_key) ||
+            wolfSSL_BN_is_one(priv_key)) {
+        WOLFSSL_MSG("Invalid private key value");
         ret = 0;
     }
 
