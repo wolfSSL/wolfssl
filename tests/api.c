@@ -358,6 +358,12 @@
 #endif
 #include <wolfssl/certs_test.h>
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 typedef struct testVector {
     const char* input;
     const char* output;
@@ -27393,25 +27399,30 @@ static int test_wc_ecc_mulmod(void)
     }
 
     if (ret == 0) {
-        ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+        ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+                            &key3.pubkey, wc_ecc_key_get_priv(&key2),
+                            wc_ecc_key_get_priv(&key3), 1);
     }
 
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+        ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey,
+                            wc_ecc_key_get_priv(&key2),
+                            wc_ecc_key_get_priv(&key3), 1);
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, NULL, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), NULL, &key3.pubkey,
+                                wc_ecc_key_get_priv(&key2),
+                                wc_ecc_key_get_priv(&key3), 1);
         }
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, NULL, &key2.k,
-                                                            &key3.k, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, NULL,
+                                wc_ecc_key_get_priv(&key2),
+                                wc_ecc_key_get_priv(&key3), 1);
         }
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey,
-                                                            &key2.k, NULL, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+                                &key3.pubkey, wc_ecc_key_get_priv(&key2), NULL,
+                                1);
         }
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;

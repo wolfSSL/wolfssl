@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#openssl.test
+# openssl.test
 
 # Enviornment variables used:
 # OPENSSL            (openssl app to use)
@@ -409,6 +409,14 @@ OIFS=$IFS # store old separator to reset
 #
 # Start
 #
+echo
+echo "wolfSSL configuration:"
+./config.status --config
+echo
+echo "OpenSSL version:"
+$OPENSSL version -a
+echo
+
 ps -p $PPID >/dev/null 2>&1
 if [ "$?" = "1" ]
 then
@@ -494,51 +502,86 @@ esac
 
 if [ "$wolf_certs" != "" ]
 then
+    echo
+    # Check if RSA certificates supported in wolfSSL
+    wolf_rsa=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-cert.pem" 2>&1`
+    case $wolf_rsa in
+    *"ca file"*)
+        echo "wolfSSL does not support RSA"
+        wolf_rsa=""
+        ;;
+    *)
+        ;;
+    esac
+    if [ "$wolf_rsa" != "" ]; then
+        echo "wolfSSL supports RSA"
+    fi
     # Check if ECC certificates supported in wolfSSL
-    wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/ca-ecc-cert.pem" 2>&1`
+    wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1`
     case $wolf_ecc in
     *"ca file"*)
+        echo "wolfSSL does not support ECDSA"
         wolf_ecc=""
         ;;
     *)
         ;;
     esac
+    if [ "$wolf_ecc" != "" ]; then
+        echo "wolfSSL supports ECDSA"
+    fi
     # Check if Ed25519 certificates supported in wolfSSL
     wolf_ed25519=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1`
     case $wolf_ed25519 in
     *"ca file"*)
+        echo "wolfSSL does not support Ed25519"
         wolf_ed25519=""
         ;;
     *)
         ;;
     esac
+    if [ "$wolf_ed25519" != "" ]; then
+        echo "wolfSSL supports Ed25519"
+    fi
     # Check if Ed25519 certificates supported in OpenSSL
     openssl_ed25519=`$OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1`
     case $openssl_ed25519 in
     *"unable to load"*)
+        echo "OpenSSL does not support Ed25519"
         wolf_ed25519=""
         ;;
     *)
         ;;
     esac
+    if [ "$wolf_ed25519" != "" ]; then
+        echo "OpenSSL supports Ed25519"
+    fi
     # Check if Ed448 certificates supported in wolfSSL
     wolf_ed448=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1`
     case $wolf_ed448 in
     *"ca file"*)
+        echo "wolfSSL does not support Ed448"
         wolf_ed448=""
         ;;
     *)
         ;;
     esac
+    if [ "$wolf_ed448" != "" ]; then
+        echo "wolfSSL supports Ed448"
+    fi
     # Check if Ed448 certificates supported in OpenSSL
     openssl_ed448=`$OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1`
     case $openssl_ed448 in
     *"unable to load"*)
+        echo "OpenSSL does not support Ed448"
         wolf_ed448=""
         ;;
     *)
         ;;
     esac
+    if [ "$wolf_ed448" != "" ]; then
+        echo "OpenSSL supports Ed448"
+    fi
+    echo
 fi
 
 openssl_tls13=`$OPENSSL s_client -help 2>&1`
@@ -664,7 +707,7 @@ if [ "$wolf_ecdsa" != "" -a "$wolf_ecc" != "" ]
 then
     cert_file="${CERT_DIR}/server-ecc.pem"
     key_file="${CERT_DIR}/ecc-key.pem"
-    ca_file="${CERT_DIR}/client-ca.pem"
+    ca_file="${CERT_DIR}/client-ecc-cert.pem"
 
     openssl_suite="ECDH[E]-ECDSA"
     start_openssl_server
@@ -727,7 +770,7 @@ then
     tls13_psk_openssl_port=$server_port
     tls13_psk_openssl_pid=$server_pid
 
-    psk="-s"
+    psk="-s --openssl-psk"
     wolfssl_suite="TLSv1.3_PSK"
     start_wolfssl_server
     tls13_psk_wolfssl_port=$server_port
@@ -977,8 +1020,8 @@ do
         *ECDHE-ECDSA*|*ECDH-ECDSA*)
             if [ "$wolf_ecc" != "" ]
             then
-                cert="${CERT_DIR}/client-cert.pem"
-                key="${CERT_DIR}/client-key.pem"
+                cert="${CERT_DIR}/client-ecc-cert.pem"
+                key="${CERT_DIR}/ecc-client-key.pem"
                 caCert="${CERT_DIR}/ca-ecc-cert.pem"
 
                 port=$ecdsa_openssl_port
@@ -1090,7 +1133,7 @@ do
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$tls13_psk_openssl_port
-                psk="-s"
+                psk="-s --openssl-psk"
                 # OpenSSL doesn't support DH for key exchange so do no PSK
                 # DHE when ECC not supported
                 if [ "$wolf_ecc" = "" ]
