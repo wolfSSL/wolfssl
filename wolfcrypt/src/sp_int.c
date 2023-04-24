@@ -13341,7 +13341,7 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(OPENSSL_ALL)
 #if (defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)) && \
     defined(NO_DH)
-    if ((!done) && (err == MP_OKAY))
+    if ((!done) && (err == MP_OKAY)) {
         /* Use non-constant time version - fastest. */
         err = sp_exptmod_nct(b, e, m, r);
     }
