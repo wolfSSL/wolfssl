@@ -9733,6 +9733,10 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
                 *idx += (dateLen + 1);
             }
 
+            if (*idx > pkiMsgSz) {
+                return ASN_PARSE_E;
+            }
+
             /* may have OPTIONAL OtherKeyAttribute */
             localIdx = *idx;
             if ((*idx < kekIdSz) && GetASNTag(pkiMsg, &localIdx, &tag,
@@ -9743,6 +9747,10 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
 
                 /* skip it */
                 *idx += length;
+            }
+
+            if (*idx > pkiMsgSz) {
+                return ASN_PARSE_E;
             }
 
             /* get KeyEncryptionAlgorithmIdentifier */
