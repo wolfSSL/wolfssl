@@ -2442,7 +2442,6 @@ struct WOLFSSL_CRL {
 struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
     void*           heap;                /* heap helper */
-    int             devId;               /* used for crypto call back */
 #ifdef WOLFSSL_TRUST_PEER_CERT
     TrustedPeerCert* tpTable[TP_TABLE_SIZE]; /* table of trusted peer certs */
     wolfSSL_Mutex   tpLock;                  /* trusted peer list lock */

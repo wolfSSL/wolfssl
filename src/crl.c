@@ -289,7 +289,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
     CRL_Entry* crle;
     int        foundEntry = 0;
     int        ret = 0;
-    int        devId = INVALID_DEVID;
 
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex failed");
@@ -352,11 +351,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                     return ASN_CRL_NO_SIGNER_E;
                 }
 
-                if (crl->cm != NULL) {
-                    devId = crl->cm->devId;
-                }
                 ret = VerifyCRL_Signature(&sigCtx, tbs, tbsSz, sig, sigSz,
-                                          sigOID, ca, crl->heap, devId);
+                                          sigOID, ca, crl->heap);
 
                 XFREE(sig, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);

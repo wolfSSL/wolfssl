@@ -5028,15 +5028,6 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CTX_GetCertManager(WOLFSSL_CTX* ctx)
 }
 
 
-/* Takes a devId to use for all cert manager operations, i.e. verify */
-void wolfSSL_CertManagerSetDevID(WOLFSSL_CERT_MANAGER* cm, int devId)
-{
-    if (cm) {
-        cm->devId = devId;
-    }
-}
-
-
 WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
 {
     WOLFSSL_CERT_MANAGER* cm;
@@ -5846,7 +5837,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
         return MEMORY_E;
     }
 
-    InitDecodedCert_ex(cert, der->buffer, der->length, cm->heap, cm->devId);
+    InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
         FreeDecodedCert(cert);
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
@@ -5975,7 +5966,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     }
 #endif
 
-    InitDecodedCert_ex(cert, der->buffer, der->length, cm->heap, cm->devId);
+    InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     ret = ParseCert(cert, CA_TYPE, verify, cm);
     WOLFSSL_MSG("\tParsed new CA");
 
@@ -8268,14 +8259,13 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         #endif
             return ret;
         }
-        InitDecodedCert_ex(cert, der->buffer, der->length, cm->heap,
-            cm->devId);
+        InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 #else
         ret = NOT_COMPILED_IN;
 #endif
     }
     else {
-        InitDecodedCert_ex(cert, buff, (word32)sz, cm->heap, cm->devId);
+        InitDecodedCert(cert, buff, (word32)sz, cm->heap);
     }
 
     if (ret == 0)
@@ -8526,7 +8516,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert_ex(cert, der, sz, cm->heap, cm->devId);
+    InitDecodedCert(cert, der, sz, cm->heap);
 
     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
@@ -9356,7 +9346,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert_ex(cert, der, sz, cm->heap, cm->devId);
+    InitDecodedCert(cert, der, sz, cm->heap);
 
     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
