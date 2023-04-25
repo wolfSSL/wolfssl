@@ -77,8 +77,8 @@
 
 /* bitmap flag for attributes */
 #define WOLFSSL_NO_ATTRIBUTES 0x1
-#define WOLFSSL_CONTENT_ATTRIBUTE 0x2
-#define WOLFSSL_TIME_ATTRIBUTE    0x4
+#define WOLFSSL_CONTENT_TYPE_ATTRIBUTE 0x2
+#define WOLFSSL_SIGNING_TIME_ATTRIBUTE 0x4
 #define WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE 0x8
 
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */

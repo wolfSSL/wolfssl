@@ -1946,7 +1946,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 
         cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
-        if ((pkcs7->defaultSignedAttribs & WOLFSSL_CONTENT_ATTRIBUTE) ||
+        if ((pkcs7->defaultSignedAttribs & WOLFSSL_CONTENT_TYPE_ATTRIBUTE) ||
             pkcs7->defaultSignedAttribs == 0) {
             cannedAttribs[idx].oid     = contentTypeOid;
             cannedAttribs[idx].oidSz   = contentTypeOidSz;
@@ -1956,7 +1956,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         }
 
     #ifndef NO_ASN_TIME
-        if ((pkcs7->defaultSignedAttribs & WOLFSSL_TIME_ATTRIBUTE) ||
+        if ((pkcs7->defaultSignedAttribs & WOLFSSL_SIGNING_TIME_ATTRIBUTE) ||
             pkcs7->defaultSignedAttribs == 0) {
             cannedAttribs[idx].oid     = signingTimeOid;
             cannedAttribs[idx].oidSz   = signingTimeOidSz;
@@ -2875,8 +2875,9 @@ int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag)
     }
 
     /* check for unknown flags */
-    if (flag & ~(WOLFSSL_CONTENT_ATTRIBUTE | WOLFSSL_TIME_ATTRIBUTE |
-            WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE | WOLFSSL_NO_ATTRIBUTES)) {
+    if (flag & ~(WOLFSSL_CONTENT_TYPE_ATTRIBUTE |
+                WOLFSSL_SIGNING_TIME_ATTRIBUTE |
+                WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE | WOLFSSL_NO_ATTRIBUTES)) {
         WOLFSSL_MSG("Unknown attribute flags found");
         return BAD_FUNC_ARG;
     }
