@@ -1152,9 +1152,12 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
 
 #ifdef WOLF_CRYPTO_CB
     if (sha512->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, hash);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        byte localHash[WC_SHA512_DIGEST_SIZE];
+        ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, localHash);
+        if (ret != CRYPTOCB_UNAVAILABLE) {
+            XMEMCPY(hash, localHash, digestSz);
             return ret;
+        }
         /* fall-through when unavailable */
     }
 #endif
