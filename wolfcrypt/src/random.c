@@ -2858,8 +2858,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return RAN_BLOCK_E;
     }
 
-#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
-    defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+#elif !defined(WOLFSSL_CAAM) && \
+    (defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
+     defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS))
     /*
      * Fallback to USE_TEST_GENSEED if a FREESCALE platform did not match any
      * of the TRNG/RNGA/RNGB support
