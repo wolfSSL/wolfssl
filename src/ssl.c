@@ -5027,7 +5027,6 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CTX_GetCertManager(WOLFSSL_CTX* ctx)
     return cm;
 }
 
-
 WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
 {
     WOLFSSL_CERT_MANAGER* cm;
@@ -8516,7 +8515,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert(cert, der, sz, cm->heap);
+    InitDecodedCert(cert, der, sz, NULL);
 
     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
@@ -9346,7 +9345,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert(cert, der, sz, cm->heap);
+    InitDecodedCert(cert, der, sz, NULL);
 
     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
@@ -20495,8 +20494,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
      * len   Length of the X509 DER data.
      * returns the new certificate on success, otherwise NULL.
      */
-    static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len,
-        void* heap, int devId)
+    static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
     {
         int          ret;
     #ifdef WOLFSSL_SMALL_STACK
@@ -20516,7 +20514,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
          */
-        InitDecodedCert_ex(cert, (byte*)in, len, heap, devId);
+        InitDecodedCert(cert, (byte*)in, len, NULL);
         if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) == 0) {
         /* Check if x509 was not previously initialized by wolfSSL_X509_new() */
             if (x509->dynamicMemory != TRUE)
@@ -20546,8 +20544,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             else if (ssl->session->chain.count > 0) {
                 if (DecodeToX509(&ssl->peerCert,
                         ssl->session->chain.certs[0].buffer,
-                        ssl->session->chain.certs[0].length,
-                        ssl->heap, ssl->devId) == 0) {
+                        ssl->session->chain.certs[0].length) == 0) {
                     ret = wolfSSL_X509_dup(&ssl->peerCert);
                 }
             }
@@ -20647,8 +20644,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
             return NULL;
         }
         ret = DecodeToX509(x509, ssl->session->chain.certs[i].buffer,
-                             ssl->session->chain.certs[i].length,
-                             ssl->heap, ssl->devId);
+                             ssl->session->chain.certs[i].length);
 #if !defined(WOLFSSL_QT)
         if (ret == 0 && i == ssl->session->chain.count-1) {
             /* On the last element in the chain try to add the CA chain

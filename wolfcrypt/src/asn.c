@@ -34445,7 +34445,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         if (ca) {
             SignatureCtx sigCtx;
-
             InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
 
             /* ConfirmSignature is blocking here */
