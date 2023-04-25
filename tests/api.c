@@ -59993,8 +59993,8 @@ static int test_wolfSSL_EC_KEY_private_key(void)
     AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     AssertNotNull(priv = wolfSSL_BN_new());
     AssertNotNull(priv2 = wolfSSL_BN_new());
-    AssertIntNE(BN_set_word(priv, 1), 0);
-    AssertIntNE(BN_set_word(priv2, 1), 0);
+    AssertIntNE(BN_set_word(priv, 2), 0);
+    AssertIntNE(BN_set_word(priv2, 2), 0);
 
     AssertNull(wolfSSL_EC_KEY_get0_private_key(NULL));
     /* No private key set. */
