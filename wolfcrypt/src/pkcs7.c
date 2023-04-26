@@ -1929,7 +1929,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         return BAD_FUNC_ARG;
     }
 
-    if (pkcs7->skipDefaultSignedAttribs == 0) {
+    if (pkcs7->defaultSignedAttribs != WOLFSSL_NO_ATTRIBUTES) {
         hashSz = wc_HashGetDigestSize(esd->hashType);
         if (hashSz < 0)
             return hashSz;
@@ -1946,23 +1946,34 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 
         cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
-        cannedAttribs[idx].oid     = contentTypeOid;
-        cannedAttribs[idx].oidSz   = contentTypeOidSz;
-        cannedAttribs[idx].value   = contentType;
-        cannedAttribs[idx].valueSz = contentTypeSz;
-        idx++;
+        if ((pkcs7->defaultSignedAttribs & WOLFSSL_CONTENT_TYPE_ATTRIBUTE) ||
+            pkcs7->defaultSignedAttribs == 0) {
+            cannedAttribs[idx].oid     = contentTypeOid;
+            cannedAttribs[idx].oidSz   = contentTypeOidSz;
+            cannedAttribs[idx].value   = contentType;
+            cannedAttribs[idx].valueSz = contentTypeSz;
+            idx++;
+        }
+
     #ifndef NO_ASN_TIME
-        cannedAttribs[idx].oid     = signingTimeOid;
-        cannedAttribs[idx].oidSz   = signingTimeOidSz;
-        cannedAttribs[idx].value   = signingTime;
-        cannedAttribs[idx].valueSz = timeSz;
-        idx++;
+        if ((pkcs7->defaultSignedAttribs & WOLFSSL_SIGNING_TIME_ATTRIBUTE) ||
+            pkcs7->defaultSignedAttribs == 0) {
+            cannedAttribs[idx].oid     = signingTimeOid;
+            cannedAttribs[idx].oidSz   = signingTimeOidSz;
+            cannedAttribs[idx].value   = signingTime;
+            cannedAttribs[idx].valueSz = timeSz;
+            idx++;
+        }
     #endif
-        cannedAttribs[idx].oid     = messageDigestOid;
-        cannedAttribs[idx].oidSz   = messageDigestOidSz;
-        cannedAttribs[idx].value   = esd->contentDigest;
-        cannedAttribs[idx].valueSz = hashSz + 2;  /* ASN.1 heading */
-        idx++;
+
+        if ((pkcs7->defaultSignedAttribs & WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE) ||
+            pkcs7->defaultSignedAttribs == 0) {
+            cannedAttribs[idx].oid     = messageDigestOid;
+            cannedAttribs[idx].oidSz   = messageDigestOidSz;
+            cannedAttribs[idx].value   = esd->contentDigest;
+            cannedAttribs[idx].valueSz = hashSz + 2;  /* ASN.1 heading */
+            idx++;
+        }
 
         esd->signedAttribsCount += cannedAttribsCount;
         esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
@@ -1976,15 +1987,9 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
     /* add custom signed attributes if set */
     if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
-    #ifdef NO_ASN_TIME
         esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
                                   esd->signedAttribsCount,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-    #else
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
-                                  esd->signedAttribsCount,
-                                  pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-    #endif
     }
 
 #ifdef NO_ASN_TIME
@@ -2839,13 +2844,48 @@ int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
  * Returns 0 on success, negative upon error. */
 int wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7)
 {
-    if (pkcs7 == NULL)
+    return wc_PKCS7_SetDefaultSignedAttribs(pkcs7, WOLFSSL_NO_ATTRIBUTES);
+}
+
+
+/* By default, SignedData bundles have the following signed attributes attached:
+ *     contentType (1.2.840.113549.1.9.3)
+ *     signingTime (1.2.840.113549.1.9.5)
+ *     messageDigest (1.2.840.113549.1.9.4)
+ *
+ * Calling this API before wc_PKCS7_EncodeSignedData() allows control over which
+ * default attributes are added.
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ *
+ * Returns 0 on success, negative upon error. */
+int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag)
+{
+    if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    pkcs7->skipDefaultSignedAttribs = 1;
+    if (flag & WOLFSSL_NO_ATTRIBUTES) {
+        if (flag ^ WOLFSSL_NO_ATTRIBUTES) {
+            WOLFSSL_MSG("Error, can not have additional flags with no "
+                "attributes flag set");
+            return BAD_FUNC_ARG;
+        }
+        pkcs7->defaultSignedAttribs = 0;
+    }
 
+    /* check for unknown flags */
+    if (flag & ~(WOLFSSL_CONTENT_TYPE_ATTRIBUTE |
+                WOLFSSL_SIGNING_TIME_ATTRIBUTE |
+                WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE | WOLFSSL_NO_ATTRIBUTES)) {
+        WOLFSSL_MSG("Unknown attribute flags found");
+        return BAD_FUNC_ARG;
+    }
+
+    pkcs7->defaultSignedAttribs |= flag;
     return 0;
 }
+
 
 /* return codes: >0: Size of signed PKCS7 output buffer, negative: error */
 int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)

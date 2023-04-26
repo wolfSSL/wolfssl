@@ -75,6 +75,12 @@
     #define MAX_UNAUTH_ATTRIBS_SZ 7
 #endif
 
+/* bitmap flag for attributes */
+#define WOLFSSL_NO_ATTRIBUTES 0x1
+#define WOLFSSL_CONTENT_TYPE_ATTRIBUTE 0x2
+#define WOLFSSL_SIGNING_TIME_ATTRIBUTE 0x4
+#define WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE 0x8
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,  /* 1.2.840.113549.1.7   */
@@ -312,7 +318,7 @@ struct PKCS7 {
 #endif
     word32 state;
 
-    word16 skipDefaultSignedAttribs:1; /* skip adding default signed attribs */
+    word16 defaultSignedAttribs; /* set which default signed attribs */
 
     byte version; /* 1 for RFC 2315 and 3 for RFC 4108 */
     PKCS7SignerInfo* signerInfo;
@@ -361,6 +367,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 /* CMS/PKCS#7 SignedData */
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
+WOLFSSL_API int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
