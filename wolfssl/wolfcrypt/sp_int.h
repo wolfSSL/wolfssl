@@ -764,7 +764,7 @@ typedef struct sp_ecc_ctx {
  * Must have at least one digit.
  */
 #define MP_INT_SIZEOF(cnt)                                              \
-    (sizeof(sp_int) - (SP_INT_DIGITS - (((cnt) == 0) ? 1 : (cnt))) *    \
+    (sizeof(sp_int_minimal) + (((cnt) <= 1) ? 0 : ((cnt) - 1)) *        \
      sizeof(sp_int_digit))
 /* The address of the next sp_int after one with 'cnt' digits. */
 #define MP_INT_NEXT(t, cnt) \

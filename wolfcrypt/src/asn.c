@@ -20112,6 +20112,12 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Parse the X509 certificate. */
         ret = GetASN_Items(x509CertASN, dataASN, x509CertASN_Length, 1,
                            cert->source, &cert->srcIdx, cert->maxIdx);
+#ifdef WOLFSSL_CLANG_TIDY
+        /* work around clang-tidy false positive re cert->source. */
+        if ((ret == 0) && (cert->source == NULL)) {
+            ret = ASN_PARSE_E;
+        }
+#endif
     }
     /* Check version is valid/supported - can't be negative. */
     if ((ret == 0) && (version > MAX_X509_VERSION)) {
@@ -20304,7 +20310,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                                         KEYID_SIZE) == 0);
         }
         if (stopAtPubKey) {
-            ret = pubKeyOffset;
+            ret = (int)pubKeyOffset;
         }
     }
 
