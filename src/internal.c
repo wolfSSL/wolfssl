@@ -5189,9 +5189,17 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
+#ifdef NO_BIG_INT
+    {
+        WOLFSSL_MSG("Need ECC sign callback when compiled with NO_BIG_INT");
+        ret = NOT_COMPILED_IN;
+        (void)key;
+    }
+#else
     {
         ret = wc_ecc_sign_hash(in, inSz, out, outSz, ssl->rng, key);
     }
+#endif
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5245,9 +5253,17 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     if (!ssl->ctx->EccVerifyCb || ret == CRYPTOCB_UNAVAILABLE)
     #endif
 #endif /* HAVE_PK_CALLBACKS  */
+#ifdef NO_BIG_INT
+    {
+        WOLFSSL_MSG("Need ECC verify callback when compiled with NO_BIG_INT");
+        ret = NOT_COMPILED_IN;
+        (void)key;
+    }
+#else
     {
         ret = wc_ecc_verify_hash(in, inSz, out, outSz, &ssl->eccVerifyRes, key);
     }
+#endif
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5308,19 +5324,26 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     }
     else
 #endif
+#ifdef NO_BIG_INT
     {
-#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)) && \
-    !defined(HAVE_SELFTEST)
+        WOLFSSL_MSG("Need ECC shared secret callback when compiled with NO_BIG_INT");
+        ret = NOT_COMPILED_IN;
+    }
+#else
+    {
+    #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+        !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)) && \
+        !defined(HAVE_SELFTEST)
         ret = wc_ecc_set_rng(priv_key, ssl->rng);
         if (ret == 0)
-#endif
+    #endif
         {
             PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
             PRIVATE_KEY_LOCK();
         }
     }
+#endif /* NO_BIG_INT */
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5387,9 +5410,16 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     }
     else
 #endif
+#ifdef NO_BIG_INT
+    {
+        WOLFSSL_MSG("ECC gen key callback neeeded with NO_BIT_INT");
+        ret = NOT_COMPILED_IN;
+    }
+#else
     {
         ret = wc_ecc_make_key_ex(ssl->rng, keySz, key, ecc_curve);
     }
+#endif
 
     /* make sure the curve is set for TLS */
     if (ret == 0 && key->dp) {
@@ -26676,7 +26706,8 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 
 #if !defined(NO_CERTS)
 
-#if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
+#if !defined(NO_BIG_INT) && defined(WOLF_PRIVATE_KEY_ID) && \
+    !defined(NO_CHECK_PRIVATE_KEY)
 /* Create a private key for a device.
  *
  * pkey    Key object.
@@ -30112,7 +30143,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                                           defined(HAVE_CURVE448)
                 case ecc_diffie_hellman_kea:
                 {
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) && !defined(NO_BIG_INT)
                     ecc_key* peerKey;
                 #endif
 
@@ -30141,7 +30172,13 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     {
                     }
             #endif /* HAVE_PK_CALLBACKS */
-
+            #ifdef NO_BIG_INT
+                    {
+                        WOLFSSL_MSG("ECC shared secret callback neeeded with"
+                            "NO_BIT_INT");
+                        ERROR_OUT(NOT_COMPILED_IN, exit_scke);
+                    }
+            #else
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
                         if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
@@ -30205,7 +30242,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, peerKey);
                 #endif /* HAVE_ECC */
-
+            #endif /* NO_BIG_INT */
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
@@ -30557,6 +30594,13 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
+                #ifdef NO_BIG_INT
+                    {
+                        WOLFSSL_MSG("ECC shared secret callback neeeded with"
+                            "NO_BIT_INT");
+                        ERROR_OUT(NOT_COMPILED_IN, exit_scke);
+                    }
+                #else
 
                     /* Place ECC key in output buffer, leaving room for size */
                     PRIVATE_KEY_UNLOCK();
@@ -30566,8 +30610,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     if (ret != 0) {
                         ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
                     }
-
                     break;
+                #endif /* NO_BIG_INT */
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
             #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \

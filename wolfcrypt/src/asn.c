@@ -681,7 +681,9 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
     word32 sz = 0;
     word32 len;
     word32 dataLen;
+#ifndef NO_BIG_INT
     int    length;
+#endif
 
 #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
     WOLFSSL_ENTER("SizeASN_Items");
@@ -711,12 +713,14 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
                 break;
         #endif
 
+        #ifndef NO_BIG_INT
             case ASN_DATA_TYPE_MP:
                 /* Calculate the size of the MP integer data. */
                 length = mp_unsigned_bin_size(data[i].data.mp);
                 length += mp_leading_bit(data[i].data.mp) ? 1 : 0;
                 len = (word32)SizeASNHeader((word32)length) + (word32)length;
                 break;
+        #endif /* NO_BIG_INT */
 
             case ASN_DATA_TYPE_REPLACE_BUFFER:
                 /* Buffer is put in directly - use the length. */
@@ -876,8 +880,10 @@ static void SetASN_Num(word32 n, int bits, byte* out, byte tag)
 int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
 {
     int    i;
+#ifndef NO_BIG_INT
     int    length;
     int    err;
+#endif
     word32 sz;
     word32 idx;
     byte*  out;
@@ -929,6 +935,7 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                 break;
         #endif
 
+        #ifndef NO_BIG_INT
             /* Write out the length and data of a multi-precision number. */
             case ASN_DATA_TYPE_MP:
                 /* Get length in bytes. */
@@ -948,6 +955,7 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                     return MP_TO_E;
                 }
                 break;
+        #endif
 
             case ASN_DATA_TYPE_REPLACE_BUFFER:
                 if (data[i].data.buffer.data == NULL) {
@@ -1212,6 +1220,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             }
             break;
 
+    #ifndef NO_BIG_INT
         case ASN_DATA_TYPE_MP:
         case ASN_DATA_TYPE_MP_POS_NEG:
             /* Initialize mp_int and read in big-endian byte array. */
@@ -1268,6 +1277,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             (void)zeroPadded;
         #endif
             break;
+    #endif /* NO_BIG_INT */
 
         case ASN_DATA_TYPE_CHOICE:
             /* Check if tag matched any of the choices specified. */
@@ -1345,6 +1355,9 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
     #endif
     }
 
+#ifdef NO_BIG_INT
+    (void)zeroPadded;
+#endif
     return 0;
 }
 
@@ -2866,6 +2879,7 @@ const char* GetSigName(int oid) {
 }
 
 
+#if !defined(NO_BIG_INT)
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7) || \
     defined(OPENSSL_EXTRA)
 #if !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_CERTS) || \
@@ -2992,6 +3006,7 @@ static int SetASNIntRSA(void* n, byte* output)
 }
 #endif /* !NO_RSA && HAVE_USER_RSA && WOLFSSL_CERT_GEN */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* NO_BIG_INT */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for an INTEGER. */
@@ -3214,6 +3229,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
 }
 #endif
 
+#ifndef NO_BIG_INT
 /* Decode small integer, 32 bits or less.
  *
  * mp_int is initialized.
@@ -3308,6 +3324,7 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
     return 0;
 }
 #endif /* (ECC || !NO_DSA) && !WOLFSSL_ASN_TEMPLATE */
+#endif /* NO_BIG_INT */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || !defined(NO_DSA)
@@ -7145,7 +7162,8 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 
 #endif /* HAVE_PKCS8 */
 
-#if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
+#if !defined(NO_BIG_INT) && \
+    (defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY))
 /* check that the private key is a pair for the public key
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -16776,11 +16794,17 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (!sigCtx->pkCbEcc || ret == CRYPTOCB_UNAVAILABLE)
                 #endif /* WOLFSSL_RENESAS_SCEPROTECT */
                 #endif /* HAVE_PK_CALLBACKS */
+                #ifdef NO_BIG_INT
+                    {
+                        ret = NOT_COMPILED_IN;
+                    }
+                #else
                     {
                         ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
                             (word32)sigCtx->digestSz, &sigCtx->verify,
                             sigCtx->key.ecc);
                     }
+                #endif
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -23172,6 +23196,7 @@ void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
+#ifndef NO_BIG_INT
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7)
 int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz)
@@ -23219,6 +23244,7 @@ int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     return i;
 }
 #endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* NO_BIG_INT */
 
 #endif /* !NO_CERTS */
 
@@ -31619,6 +31645,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
 #if defined(HAVE_ECC) || !defined(NO_DSA)
+#ifndef NO_BIG_INT
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for DSA signature.
@@ -31956,6 +31983,7 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
+#endif /* NO_BIG_INT */
 #endif
 
 

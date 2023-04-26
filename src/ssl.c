@@ -8926,7 +8926,7 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 
 #endif /* NO_FILESYSTEM */
 
-#ifndef NO_CHECK_PRIVATE_KEY
+#if !defined(NO_CHECK_PRIVATE_KEY) && !defined(NO_BIG_INT)
 /* Check private against public in certificate for match
  *
  * Returns WOLFSSL_SUCCESS on good private key

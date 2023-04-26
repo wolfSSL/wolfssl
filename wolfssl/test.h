@@ -3651,10 +3651,40 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
 
     ret = wc_ecc_init(new_key);
     if (ret == 0) {
+    #ifndef NO_BIG_INT
         WC_RNG *rng = wolfSSL_GetRNG(ssl);
 
         /* create new key */
         ret = wc_ecc_make_key_ex(rng, keySz, new_key, ecc_curve);
+    #else
+
+        /* no math library to make a key, load in an example key */
+        if (ecc_curve != ECC_SECP256R1 && keySz != 32) {
+            ret = -1; /* only supporting the canned ecc key in this case */
+        }
+        else {
+            word32 idx = 0;
+            const unsigned char ecc_pk_der[] =
+            {
+                    0x30, 0x77, 0x02, 0x01, 0x01, 0x04, 0x20, 0xF8, 0xCF, 0x92,
+                    0x6B, 0xBD, 0x1E, 0x28, 0xF1, 0xA8, 0xAB, 0xA1, 0x23, 0x4F,
+                    0x32, 0x74, 0x18, 0x88, 0x50, 0xAD, 0x7E, 0xC7, 0xEC, 0x92,
+                    0xF8, 0x8F, 0x97, 0x4D, 0xAF, 0x56, 0x89, 0x65, 0xC7, 0xA0,
+                    0x0A, 0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01,
+                    0x07, 0xA1, 0x44, 0x03, 0x42, 0x00, 0x04, 0x55, 0xBF, 0xF4,
+                    0x0F, 0x44, 0x50, 0x9A, 0x3D, 0xCE, 0x9B, 0xB7, 0xF0, 0xC5,
+                    0x4D, 0xF5, 0x70, 0x7B, 0xD4, 0xEC, 0x24, 0x8E, 0x19, 0x80,
+                    0xEC, 0x5A, 0x4C, 0xA2, 0x24, 0x03, 0x62, 0x2C, 0x9B, 0xDA,
+                    0xEF, 0xA2, 0x35, 0x12, 0x43, 0x84, 0x76, 0x16, 0xC6, 0x56,
+                    0x95, 0x06, 0xCC, 0x01, 0xA9, 0xBD, 0xF6, 0x75, 0x1A, 0x42,
+                    0xF7, 0xBD, 0xA9, 0xB2, 0x36, 0x22, 0x5F, 0xC7, 0x5D, 0x7F,
+                    0xB4
+            };
+            const int sizeof_ecc_pk_der = sizeof(ecc_pk_der);
+            ret = wc_EccPrivateKeyDecode(ecc_pk_der, &idx, new_key,
+                sizeof_ecc_pk_der);
+        }
+    #endif
 
     #ifdef TEST_PK_PRIVKEY
         if (ret == 0 && new_key != key) {
@@ -3704,12 +3734,33 @@ static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     ret = wc_ecc_init(&myKey);
     if (ret == 0) {
         ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
+    #ifndef NO_BIG_INT
         if (ret == 0) {
             WC_RNG *rng = wolfSSL_GetRNG(ssl);
 
             WOLFSSL_PKMSG("PK ECC Sign: Curve ID %d\n", myKey.dp->id);
             ret = wc_ecc_sign_hash(in, inSz, out, outSz, rng, &myKey);
         }
+    #else
+        /* using canned signature when no math library compiled in */
+        if (ret == 0) {
+            byte cannedSig[] = {
+                0x30, 0x46, 0x02, 0x21, 0x00, 0xC9, 0x64, 0xE2,
+                0xFA, 0x5C, 0x52, 0x97, 0xB0, 0x2C, 0xAB, 0x88,
+                0x89, 0x43, 0x63, 0xCA, 0xC3, 0x0B, 0xD7, 0x6E,
+                0xCF, 0xC1, 0xDA, 0x5B, 0x50, 0x96, 0xEA, 0x35,
+                0x7A, 0x7C, 0xAB, 0x58, 0xD2, 0x02, 0x21, 0x00,
+                0xF3, 0x22, 0xE6, 0x0A, 0x10, 0xE8, 0xD0, 0x6E,
+                0xD9, 0x13, 0x69, 0x0B, 0xF6, 0x5E, 0xBB, 0xBE,
+                0xB9, 0xF4, 0x19, 0xFF, 0x0A, 0x27, 0x64, 0xCE,
+                0x9B, 0x1A, 0x43, 0x23, 0xD2, 0xB4, 0xF9, 0xE3
+            };
+            *outSz = sizeof(cannedSig);
+            XMEMCPY(out, cannedSig, *outSz);
+        }
+        (void)in;
+        (void)inSz;
+    #endif
         wc_ecc_free(&myKey);
     }
 
@@ -3740,8 +3791,18 @@ static WC_INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     ret = wc_ecc_init(&myKey);
     if (ret == 0) {
         ret = wc_EccPublicKeyDecode(key, &idx, &myKey, keySz);
+    #ifndef NO_BIG_INT
         if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
+    #else
+        /* always returning success in this example on verify since no math
+           library was compiled in */
+        *result = 1;
+        (void)sig;
+        (void)sigSz;
+        (void)hash;
+        (void)hashSz;
+    #endif
         wc_ecc_free(&myKey);
     }
 
@@ -3811,16 +3872,29 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         ret = BAD_FUNC_ARG;
     }
 
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+#ifndef NO_BIG_INT
+    #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
                                                          !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(privKey, wolfSSL_GetRNG(ssl));
     }
-#endif
+    #endif
 
     /* generate shared secret and return it */
     if (ret == 0) {
         ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+#else
+    /* using a canned shared secret when no math library compiled in */
+    if (ret == 0) {
+        byte cannedSharedSecret[] = {
+            0x87, 0xBC, 0x6D, 0xE1, 0xC3, 0x4B, 0x3B, 0xE8,
+            0xEB, 0x4E, 0x5E, 0xC8, 0x35, 0x0B, 0x57, 0xF5,
+            0x9A, 0x16, 0x1E, 0x75, 0xB8, 0xAB, 0x81, 0xCD,
+            0x66, 0xE3, 0xFC, 0x68, 0xC3, 0xE9, 0x1D, 0xE3
+        };
+        *outlen = sizeof(cannedSharedSecret);
+        XMEMCPY(out, cannedSharedSecret, *outlen);
+#endif /* NO_BIG_INT */
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E) {
@@ -3828,7 +3902,6 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         }
     #endif
     }
-
 #ifdef TEST_PK_PRIVKEY
     if (cbInfo && cbInfo->hasKeyGen) {
         wc_ecc_free(&cbInfo->keyGen.ecc);

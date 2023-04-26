@@ -244,8 +244,10 @@ typedef struct ASNSetData {
         word16  u16;
         /* 32-bit integer value. */
         word32  u32;
+    #ifndef NO_BIG_INT
         /* Big number as an mp_int. */
         mp_int* mp;
+    #endif
         /* Buffer as data pointer and length. */
         struct {
             /* Data to write out. */
@@ -276,8 +278,10 @@ typedef struct ASNGetData {
         word16*     u16;
         /* Pointer to 32-bit integer. */
         word32*     u32;
+    #ifndef NO_BIG_INT
         /* Pointer to mp_int for big number. */
         mp_int*     mp;
+    #endif
         /* List of possible tags. Useful for CHOICE ASN.1 items. */
         const byte* choice;
         /* Buffer to copy into. */
@@ -2193,8 +2197,10 @@ WOLFSSL_LOCAL int GetSet_ex(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                               int* version, word32 maxIdx);
+#ifndef NO_BIG_INT
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                          word32 maxIdx);
+#endif /* NO_BIG_INT */
 
 #ifdef HAVE_OID_ENCODING
     WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
@@ -2251,11 +2257,13 @@ WOLFSSL_LOCAL int GetNameHash_ex(const byte* source, word32* idx, byte* hash,
 WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                                      const byte* pubKey, word32 pubKeySz, enum Key_Sum ks);
+#ifndef NO_BIG_INT
 WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g);
 #ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
                         DhKey* key, word32 inSz);
 #endif
+#endif /* NO_BIG_INT */
 WOLFSSL_LOCAL int FlattenAltNames(byte* output, word32 outputSz,
                                   const DNS_entry* names);
 
@@ -2266,6 +2274,7 @@ WOLFSSL_LOCAL int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
 
 #if defined(HAVE_ECC) || !defined(NO_DSA)
     /* ASN sig helpers */
+    #ifndef NO_BIG_INT
     WOLFSSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
                                       mp_int* s);
     WOLFSSL_LOCAL int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen,
@@ -2276,6 +2285,7 @@ WOLFSSL_LOCAL int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
                                        mp_int* r, mp_int* s);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s, int init);
+    #endif
 #endif
 #ifndef NO_DSA
 WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,

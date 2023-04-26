@@ -8231,8 +8231,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_CERTS" = "xno" || \
-   test "x$ENABLED_ASN" = "xno"
+if test "x$ENABLED_LEANPSK" = "xyes" ||  test "x$ENABLED_ASN" = "xno"
 then
    ENABLED_CERTS=no
    ENABLED_ASN=no

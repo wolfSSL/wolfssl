@@ -534,9 +534,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef HAVE_ECC
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_test(void);
+    #ifndef NO_BIG_INT
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
         (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_encrypt_test(void);
+    #endif
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
@@ -1505,6 +1507,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(HAVE_ECC)
+    #ifndef NO_BIG_INT
     PRIVATE_KEY_UNLOCK();
     if ( (ret = ecc_test()) != 0)
         TEST_FAIL("ECC      test failed!\n", ret);
@@ -1517,6 +1520,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             TEST_FAIL("ECC Enc  test failed!\n", ret);
         else
             TEST_PASS("ECC Enc  test passed!\n");
+    #endif
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
@@ -14656,7 +14660,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ECC256)
     #ifdef HAVE_ECC
         /* cert files to be used in rsa cert gen test, check if RSA enabled */
-        #ifdef HAVE_ECC_KEY_IMPORT
+        #if defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_BIG_INT)
             static const char* eccKeyDerFile = CERT_ROOT "ecc-key.der";
         #endif
 #endif
@@ -14722,7 +14726,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         #endif
     #endif
     #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ASN_CRYPT)
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ASN_CRYPT) && \
+        !defined(NO_BIG_INT)
         static const char* eccCaKeyPemFile  = CERT_WRITE_TEMP_DIR "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_WRITE_TEMP_DIR "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_WRITE_TEMP_DIR "ecc-key.der";
@@ -24276,6 +24281,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 #endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
 
 #ifdef HAVE_ECC
+#ifndef NO_BIG_INT
 
 /* size to use for ECC key gen tests */
 #ifndef ECC_KEYGEN_SIZE
@@ -24689,8 +24695,9 @@ static wc_test_ret_t ecc_test_vector(int keySize)
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
-#if defined(HAVE_ECC_SIGN) && (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
-                               defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) \
+#if !defined(NO_BIG_INT) && defined(HAVE_ECC_SIGN) && \
+        (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+         defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) \
     && (!defined(FIPS_VERSION_GE) || FIPS_VERSION_GE(5,3))
 #if defined(HAVE_ECC256)
 static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
@@ -26208,7 +26215,8 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(NO_BIG_INT)
 static wc_test_ret_t ecc_point_test(void)
 {
     wc_test_ret_t ret;
@@ -26700,7 +26708,7 @@ done:
 }
 #endif
 
-#if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+#if !defined(NO_BIG_INT) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
@@ -26798,7 +26806,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     TEST_SLEEP();
 
     #if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_CRYPTOCELL) && \
-       !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+       !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_BIG_INT)
     ret = ecc_ssh_test(key, rng);
     if (ret < 0)
         goto done;
@@ -26862,6 +26870,7 @@ done:
     return ret;
 }
 #endif /* !NO_ECC256 || HAVE_ALL_CURVES */
+#endif /* NO_BIG_INT */
 
 #if defined(WOLFSSL_CERT_EXT) && \
     (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
@@ -27959,7 +27968,8 @@ exit:
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    (!defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES))
+    (!defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES)) && \
+    !defined(NO_BIG_INT)
 /* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
 static wc_test_ret_t ecc_test_allocator(WC_RNG* rng)
 {
@@ -28478,8 +28488,10 @@ static wc_test_ret_t ecc_test_nonblock(WC_RNG* rng)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 {
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = 0;
+#ifndef NO_BIG_INT
     WC_RNG rng;
+#endif
 
 #if defined(WOLFSSL_CERT_EXT) && \
     (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
@@ -28488,6 +28500,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         return ret;
 #endif
 
+#ifndef NO_BIG_INT
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
@@ -28557,12 +28570,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif
 #if !defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES)
+#ifndef NO_BIG_INT
     ret = ecc_def_curve_test(&rng);
     if (ret < 0) {
         printf("Default\n");
         goto done;
     }
 #endif
+#endif /* NO_BIG_INT */
 #endif /* !NO_ECC256 */
 #if (defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 320
     ret = ecc_test_curve(&rng, 40, ECC_CURVE_DEF);
@@ -28621,8 +28636,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif
 
-#if defined(HAVE_ECC_SIGN) && (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
-                               defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) \
+#if !defined(NO_BIG_INT) && defined(HAVE_ECC_SIGN) && \
+        (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+         defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) \
     && (!defined(FIPS_VERSION_GE) || FIPS_VERSION_GE(5,3))
     #ifdef HAVE_ECC256
     ret = ecc_test_deterministic_k(&rng);
@@ -28704,6 +28720,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 
 done:
     wc_FreeRng(&rng);
+#endif
 
     return ret;
 }
