@@ -416,3 +416,6 @@ user_settings_asm.h
 
 # auto-created CMake backups
 **/CMakeLists.txt.old
+
+# mktemp folders
+**/tmp.*
