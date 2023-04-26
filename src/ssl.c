@@ -7590,7 +7590,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #endif
 
         WOLFSSL_MSG("Checking cert signature type");
-        InitDecodedCert(cert, der->buffer, der->length, heap);
+        InitDecodedCert_ex(cert, der->buffer, der->length, heap, devId);
 
         if (DecodeToKey(cert, 0) < 0) {
             WOLFSSL_MSG("Decode to key failed");
@@ -9831,7 +9831,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
 
     size = cert->length;
     buff = cert->buffer;
-    InitDecodedCert(der, buff, size, heap);
+    InitDecodedCert_ex(der, buff, size, heap, devId);
     if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
         FreeDecodedCert(der);
     #ifdef WOLFSSL_SMALL_STACK
@@ -20619,7 +20619,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 ret = wolfSSL_X509_dup(&ssl->peerCert);
 #ifdef SESSION_CERTS
             else if (ssl->session->chain.count > 0) {
-                if (DecodeToX509(&ssl->peerCert, ssl->session->chain.certs[0].buffer,
+                if (DecodeToX509(&ssl->peerCert,
+                        ssl->session->chain.certs[0].buffer,
                         ssl->session->chain.certs[0].length) == 0) {
                     ret = wolfSSL_X509_dup(&ssl->peerCert);
                 }

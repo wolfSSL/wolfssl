@@ -11118,6 +11118,21 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
 void InitDecodedCert(DecodedCert* cert,
                      const byte* source, word32 inSz, void* heap)
 {
+    InitDecodedCert_ex(cert, source, inSz, heap, INVALID_DEVID);
+}
+
+
+/* Initialize decoded certificate object with buffer of DER encoding.
+ *
+ * @param [in, out] cert    Decoded certificate object.
+ * @param [in]      source  Buffer containing DER encoded certificate.
+ * @param [in]      inSz    Size of DER data in buffer in bytes.
+ * @param [in]      heap    Dynamic memory hint.
+ * @param [in]      devId   Crypto callback ID to use.
+ */
+void InitDecodedCert_ex(DecodedCert* cert,
+                     const byte* source, word32 inSz, void* heap, int devId)
+{
     if (cert != NULL) {
         XMEMSET(cert, 0, sizeof(DecodedCert));
 
@@ -11152,7 +11167,7 @@ void InitDecodedCert(DecodedCert* cert,
     #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
     #ifndef NO_CERTS
-        InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
+        InitSignatureCtx(&cert->sigCtx, heap, devId);
     #endif
     }
 }
@@ -20958,6 +20973,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if (sigCtx == NULL)
         return MEMORY_E;
 #endif
+
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
 
     /* Certificate SEQUENCE */
@@ -24653,7 +24669,8 @@ void wc_SetCert_Free(Cert* cert)
     }
 }
 
-static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
+static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
+    int devId)
 {
     int ret;
 
@@ -24671,8 +24688,8 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
         else {
             XMEMSET(cert->decodedCert, 0, sizeof(DecodedCert));
 
-            InitDecodedCert((DecodedCert*)cert->decodedCert, der, derSz,
-                    cert->heap);
+            InitDecodedCert_ex((DecodedCert*)cert->decodedCert, der, derSz,
+                    cert->heap, devId);
             ret = ParseCertRelative((DecodedCert*)cert->decodedCert,
                     CERT_TYPE, 0, NULL);
             if (ret >= 0) {
@@ -30226,7 +30243,7 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30467,7 +30484,8 @@ static int SetAltNamesFromDcert(Cert* cert, DecodedCert* decoded)
 #ifndef NO_FILESYSTEM
 
 /* Set Alt Names from der cert, return 0 on success */
-static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
+static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz,
+    int devId)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -30486,7 +30504,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert(decoded, der, (word32)derSz, NULL);
+    InitDecodedCert_ex(decoded, der, (word32)derSz, NULL, devId);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
@@ -30666,7 +30684,7 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
 #ifndef NO_FILESYSTEM
 
 /* Set cn name from der buffer, return 0 on success */
-static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
+static int SetNameFromCert(CertName* cn, const byte* der, int derSz, int devId)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -30685,7 +30703,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert(decoded, der, (word32)derSz, NULL);
+    InitDecodedCert_ex(decoded, der, (word32)derSz, NULL, devId);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
@@ -30717,7 +30735,8 @@ int wc_SetIssuer(Cert* cert, const char* issuerFile)
     ret = wc_PemCertToDer_ex(issuerFile, &der);
     if (ret == 0) {
         cert->selfSigned = 0;
-        ret = SetNameFromCert(&cert->issuer, der->buffer, (int)der->length);
+        ret = SetNameFromCert(&cert->issuer, der->buffer, (int)der->length,
+            INVALID_DEVID);
 
         FreeDer(&der);
     }
@@ -30738,7 +30757,8 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 
     ret = wc_PemCertToDer_ex(subjectFile, &der);
     if (ret == 0) {
-        ret = SetNameFromCert(&cert->subject, der->buffer, (int)der->length);
+        ret = SetNameFromCert(&cert->subject, der->buffer, (int)der->length,
+            INVALID_DEVID);
 
         FreeDer(&der);
     }
@@ -30761,7 +30781,8 @@ int wc_SetAltNames(Cert* cert, const char* file)
 
     ret = wc_PemCertToDer_ex(file, &der);
     if (ret == 0) {
-        ret = SetAltNamesFromCert(cert, der->buffer, (int)der->length);
+        ret = SetAltNamesFromCert(cert, der->buffer, (int)der->length,
+            INVALID_DEVID);
 
         FreeDer(&der);
     }
@@ -30788,7 +30809,7 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30815,7 +30836,7 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30842,7 +30863,7 @@ int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30876,7 +30897,7 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30913,7 +30934,7 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -30940,7 +30961,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
         /* Check if decodedCert is cached */
         if (cert->der != der) {
             /* Allocate cache for the decoded cert */
-            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz);
+            ret = wc_SetCert_LoadDer(cert, der, (word32)derSz, INVALID_DEVID);
         }
 
         if (ret >= 0) {
@@ -34440,7 +34461,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int    sigLength;
     const byte*   sigParams = NULL;
     word32        sigParamsSz = 0;
-
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
 
@@ -34708,6 +34728,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     #endif
         if (ca) {
             SignatureCtx sigCtx;
+
             /* Initialize he signature context. */
             InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
 
