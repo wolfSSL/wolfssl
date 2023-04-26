@@ -831,7 +831,6 @@ static void FreeSnifferSession(SnifferSession* session)
 #endif
     }
     XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-    XMEMSET(session, 0, sizeof(SnifferSession));
 }
 
 
