@@ -16555,9 +16555,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 }
                 break;
             case ASN_DIR_TYPE:
-                name = cert->altDirNames;
-
             #ifndef WOLFSSL_NO_ASN_STRICT
+                name = cert->altDirNames;
+            #endif
+
                 /* RFC 5280 section 4.2.1.10
                     "Restrictions of the form directoryName MUST be
                     applied to the subject field .... and to any names
@@ -16570,7 +16571,6 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     subjectDnsName.len = cert->subjectRawLen;
                     subjectDnsName.name = (char *)cert->subjectRaw;
                 }
-            #endif
                 break;
             default:
                 /* Other types of names are ignored for now.
