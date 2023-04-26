@@ -9065,7 +9065,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     int ret = 0;
     int sz = 0;
     int version;
-    int id;
+    int id = -1;
     int blockSz = 0;
     word32 pkcs8Sz = 0;
 
