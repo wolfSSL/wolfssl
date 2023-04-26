@@ -60917,6 +60917,7 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
 static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 {
+    const word16 sendCountMax = 100;
     byte b[150]; /* buffer for the messages to send */
     size_t idx = 0;
     size_t msg_offset = 0;
@@ -60944,7 +60945,7 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
     /* fragment contents */
     idx += 100;
 
-    for (; ret > 0; msg_number++) {
+    for (; ret > 0 && msg_number < sendCountMax; msg_number++) {
         byte sendBuf[150];
         int sendSz = sizeof(sendBuf);
         struct timespec delay;
@@ -60993,9 +60994,10 @@ static int test_wolfSSL_dtls_fragments(void)
         AssertFalse(func_cb_server.return_code);
 
         /* The socket should be closed by the server resulting in a
-         * socket error or reading a close notify alert */
+         * socket error, fatal error or reading a close notify alert */
         if (func_cb_client.last_err != SOCKET_ERROR_E &&
-                func_cb_client.last_err != WOLFSSL_ERROR_ZERO_RETURN) {
+                func_cb_client.last_err != WOLFSSL_ERROR_ZERO_RETURN &&
+                func_cb_client.last_err != FATAL_ERROR) {
             AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
         }
         /* Check the server returned an error indicating the msg buffer
