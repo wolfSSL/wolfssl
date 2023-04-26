@@ -33786,7 +33786,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     localIdx = 0;
     if (GetDateInfo(single->status->thisDateAsn, &localIdx, NULL,
                     (byte*)&single->status->thisDateParsed.type,
-                    &single->status->thisDateParsed.length, size) < 0)
+                    &single->status->thisDateParsed.length, size - idx) < 0)
         return ASN_PARSE_E;
 
     if (idx + localIdx >= size)
@@ -33822,7 +33822,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         localIdx = 0;
         if (GetDateInfo(single->status->nextDateAsn, &localIdx, NULL,
                         (byte*)&single->status->nextDateParsed.type,
-                        &single->status->nextDateParsed.length, size) < 0)
+                        &single->status->nextDateParsed.length, size - idx) < 0)
             return ASN_PARSE_E;
 
         if (idx + localIdx >= size)
