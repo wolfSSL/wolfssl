@@ -274,7 +274,7 @@ while (0)
                 int n##ii;                                                     \
                 (n)[0] = (sp_int*)n##d;                                        \
                 ((sp_int_minimal*)(n)[0])->size = (s);                         \
-                for (n##ii = 1; n##ii < (c); n##ii++) {                        \
+                for (n##ii = 1; n##ii < (int)(c); n##ii++) {                   \
                     (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
                     ((sp_int_minimal*)(n)[n##ii])->size = (s);                 \
                 }                                                              \
@@ -292,7 +292,7 @@ while (0)
             }                                                                  \
             if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
-                for (n##ii = 0; n##ii < (c); n##ii++) {                        \
+                for (n##ii = 0; n##ii < (int)(c); n##ii++) {                   \
                     (n)[n##ii] = &n##d[n##ii];                                 \
                     (n)[n##ii]->size = (s);                                    \
                 }                                                              \
