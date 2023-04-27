@@ -61308,6 +61308,7 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
     XMEMSET(&delay, 0, sizeof(delay));
     delay.tv_nsec = 100000000; /* wait 0.1 seconds */
     tcp_set_nonblocking(&fd); /* So that read doesn't block */
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
     test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
     while (!test_AEAD_done && ret > 0) {
         counter++;
