@@ -1012,7 +1012,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     mp_init(&gen_k);
     mp_init(&order_mp);
 
-    size = mp_unsigned_bin_size(key->pubkey.x);
+    size = wc_ecc_size(key);
 
     status = stm32_get_from_mp_int(Keybin, &key->k, size);
     if (status != MP_OKAY)
