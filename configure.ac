@@ -8634,8 +8634,8 @@ fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" > "${output_objdir}/.build_params" &&
-        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> "${output_objdir}/.build_params" ||
+    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" | sed 's/\\/\\\\/g' > "${output_objdir}/.build_params" &&
+        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" | sed 's/\\/\\\\/g' >> "${output_objdir}/.build_params" ||
         AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
 else
     rm -f "${output_objdir}/.build_params"
@@ -8680,8 +8680,9 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
     opt_type=$(echo $option | $TRIM )
     case "$opt_type" in
     -D)
-        RHS_only=$(echo $option | sed 's/^-D//')
-        noequalsign=$(echo $RHS_only | sed 's/=/ /')
+        option=$(echo "$option" | tr -d '\\')
+        RHS_only=$(echo "$option" | sed 's/^-D//')
+        noequalsign=$(echo "$RHS_only" | tr '=' ' ')
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
             if test "$verbose" = "yes"; then
@@ -8697,7 +8698,9 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
             echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
         fi
 
-        noarg=$(echo "$RHS_only" | sed 's/=.*//')
+        # note need to use both autotools-style [] quoting and shell-style ''
+        # quoting for sed script with [] character set expression here.
+        noarg=$(echo "$RHS_only" | sed ['s/\(([^=)]*)\)\{0,1\}=.*//'])
         echo "#undef  $noarg" >> $OPTION_FILE
         echo "#define $noequalsign" >> $OPTION_FILE
 
