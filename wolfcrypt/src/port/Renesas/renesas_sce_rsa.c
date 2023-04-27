@@ -36,12 +36,13 @@
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 
 /* Make Rsa key for SCE and set it to callback ctx
+ * Assumes to be called by Crypt Callback
  *
  * size   desired keylenth, in bits. supports 1024 or 2048 bits
  * ctx    Callback context including pointer to hold generated key
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int  wc_sce_MakeRsaKey(int size, void* ctx)
+WOLFSSL_LOCAL int wc_sce_MakeRsaKey(int size, void* ctx)
 {
     fsp_err_t        ret;
     User_SCEPKCbInfo *info = (User_SCEPKCbInfo*)ctx;
@@ -118,8 +119,8 @@ WOLFSSL_LOCAL int  wc_sce_MakeRsaKey(int size, void* ctx)
                                     sizeof(sce_rsa1024_public_wrapped_key_t));
                 XFREE(wrapped_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                 
-                info->flags2.bits.rsapri1024_installedkey_set = 1;
-                info->flags2.bits.rsapub1024_installedkey_set = 1;
+                info->keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
+                info->keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
             }
             else if (size == 2048) {
                 if (info->sce_wrapped_key_rsapri2048 != NULL) {
@@ -160,8 +161,8 @@ WOLFSSL_LOCAL int  wc_sce_MakeRsaKey(int size, void* ctx)
                             sizeof(sce_rsa2048_public_wrapped_key_t));
                 XFREE(wrapped_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                 
-                info->flags2.bits.rsapri2048_installedkey_set = 1;
-                info->flags2.bits.rsapub2048_installedkey_set = 1;
+                info->keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
+                info->keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
                 
             }
         }
@@ -175,6 +176,7 @@ WOLFSSL_LOCAL int  wc_sce_MakeRsaKey(int size, void* ctx)
 }
 
 /* Perform rsa encryption/decryption by SCE
+ * Assumes to be called by Crypt Callback
  *
  * in     Buffer to hold plain text
  * inLen  Length of plain text in bytes
@@ -185,7 +187,7 @@ WOLFSSL_LOCAL int  wc_sce_MakeRsaKey(int size, void* ctx)
  * ctx    Callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
                     word32 outLen, int type, struct RsaKey* key, 
                     struct WC_RNG* rng, void* ctx)
 {
@@ -207,13 +209,14 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
     
     keySize = 0;
-    if (info->flags2.bits.rsapri2048_installedkey_set == 1 ||
-        info->flags2.bits.rsapub2048_installedkey_set == 1 )
+    if (info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1 ||
+        info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1 )
         keySize = 2048;
-    else
+    else if (info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1 ||
+             info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1 )
         keySize = 1024;
-        
-    if (keySize != 2048 && keySize != 1024) {
+    
+    if (keySize == 0) {
         WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
                                                         "1024 or 2048 bits.");
         return BAD_FUNC_ARG;
@@ -228,7 +231,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             cipher.data_length = outLen;
 
             if (keySize == 1024) {
-                if(info->flags2.bits.rsapub1024_installedkey_set == 1)
+                if(info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1)
                     ret = R_SCE_RSAES_PKCS1024_Encrypt(&plain, &cipher,
                         (sce_rsa1024_public_wrapped_key_t*)
                             info->sce_wrapped_key_rsapub1024);
@@ -238,7 +241,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
                 }
             }
             else {
-                if(info->flags2.bits.rsapub2048_installedkey_set == 1)
+                if(info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1)
                     ret = R_SCE_RSAES_PKCS2048_Encrypt(&plain, &cipher,
                             (sce_rsa2048_public_wrapped_key_t*)
                                 info->sce_wrapped_key_rsapub2048);
@@ -255,7 +258,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             cipher.data_length = inLen;
             
             if (keySize == 1024) {
-                if(info->flags2.bits.rsapri1024_installedkey_set == 1)
+                if(info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1)
                     ret = R_SCE_RSAES_PKCS1024_Decrypt(&cipher, &plain,
                             (sce_rsa1024_private_wrapped_key_t*)
                                 info->sce_wrapped_key_rsapri1024);
@@ -265,7 +268,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
                 }
             }
             else {
-                if(info->flags2.bits.rsapri2048_installedkey_set == 1)
+                if(info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1)
                     ret = R_SCE_RSAES_PKCS2048_Decrypt(&cipher, &plain,
                             (sce_rsa2048_private_wrapped_key_t*)
                                 info->sce_wrapped_key_rsapri2048);
@@ -282,7 +285,8 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
 }
 
 /* Perform Rsa sign by SCE
- *
+ * Assumes to be called by Crypt Callback
+ * 
  * in     Buffer to hold plaintext
  * inLen  Length of plaintext in bytes
  * out    Buffer to hold generated signature
@@ -292,7 +296,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
  
-WOLFSSL_LOCAL int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
                     word32* outLen, struct RsaKey* key, void* ctx)
 {
     int ret;
@@ -311,13 +315,14 @@ WOLFSSL_LOCAL int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
     }
     
     keySize = 0;
-    if (info->flags2.bits.rsapri2048_installedkey_set == 1 ||
-        info->flags2.bits.rsapub2048_installedkey_set == 1 )
+    if (info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1 ||
+        info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1 )
         keySize = 2048;
-    else
+    else if (info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1 ||
+             info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1 )
         keySize = 1024;
         
-    if (keySize != 2048 && keySize != 1024) {
+    if (keySize == 0) {
         WOLFSSL_MSG("keySize is invalid, neither 1024 or 2048 bits.");
         return BAD_FUNC_ARG;
     }
@@ -325,7 +330,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
     message_hash.pdata = in;
     message_hash.data_length = inLen;
     message_hash.data_type = 
-            info->flags2.bits.message_type;/* message 0, hash 1 */
+            info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
     signature.pdata = out;
     signature.data_length = outLen;
     
@@ -354,7 +359,8 @@ WOLFSSL_LOCAL int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
 }
 
 /* Perform Rsa verify by SCE
- *
+ * Assumes to be called by Crypt Callback
+ * 
  * in     Buffer to hold plaintext
  * inLen  Length of plaintext in bytes
  * out    Buffer to hold generated signature
@@ -364,7 +370,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
  
-WOLFSSL_LOCAL int  wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
                     word32* outLen,struct RsaKey* key, void* ctx)
 {
     int ret;
@@ -383,13 +389,14 @@ WOLFSSL_LOCAL int  wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
     }
     
     keySize = 0;
-    if (info->flags2.bits.rsapri2048_installedkey_set == 1 ||
-        info->flags2.bits.rsapub2048_installedkey_set == 1 )
+    if (info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1 ||
+        info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1 )
         keySize = 2048;
-    else
+    else if (info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1 ||
+             info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1 )
         keySize = 1024;
         
-    if (keySize != 2048 && keySize != 1024) {
+    if (keySize == 0) {
         WOLFSSL_MSG("keySize is invalid, neither 1024 or 2048 bits.");
         return BAD_FUNC_ARG;
     }
@@ -398,7 +405,7 @@ WOLFSSL_LOCAL int  wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
     message_hash.pdata = in;
     message_hash.data_length = inLen;
     message_hash.data_type = 
-            info->flags2.bits.message_type;/* message 0, hash 1 */
+            info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
     
     signature.pdata = out;
     signature.data_length = outLen;

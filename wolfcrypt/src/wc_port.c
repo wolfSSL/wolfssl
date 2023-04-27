@@ -61,7 +61,8 @@
 #if defined(WOLFSSL_RENESAS_TSIP)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
-#if defined(WOLFSSL_RENESAS_SCE)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 #endif
 #if defined(WOLFSSL_RENESAS_RX64_HASH)

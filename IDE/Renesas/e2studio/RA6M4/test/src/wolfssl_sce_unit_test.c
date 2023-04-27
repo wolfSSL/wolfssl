@@ -386,7 +386,7 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
         goto out;
     } else {
         userContext.sce_wrapped_key_aes256 = (void*)aes256_key;
-        userContext.flags2.bits.aes256_installedkey_set = 1;
+        userContext.keyflgs_crypt.bits.aes256_installedkey_set = 1;
         enc->ctx.keySize = (word32)enc->keylen;
     }
 
@@ -582,7 +582,7 @@ static int sce_aesgcm128_test(int prnt, sce_aes_wrapped_key_t* aes128_key)
         goto out;
     } else {
         userContext.sce_wrapped_key_aes128 = aes128_key;
-        userContext.flags2.bits.aes128_installedkey_set = 1;
+        userContext.keyflgs_crypt.bits.aes128_installedkey_set = 1;
         enc->ctx.keySize = (word32)enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -656,11 +656,15 @@ static int sce_rsa_test(int prnt, int keySize)
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
+    byte *in = NULL;
+    byte *in2 = NULL;
+    byte *out= NULL;
+    byte *out2 = NULL;
     
-    byte *in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (key == NULL || in == NULL || out == NULL ||
         in2 == NULL || out2 == NULL) {
@@ -682,8 +686,11 @@ static int sce_rsa_test(int prnt, int keySize)
     
     if ((ret = wc_InitRng(&rng)) != 0)
         goto out;
-    
-    /* make ras key by SCE */
+
+    if ((ret = wc_RsaSetRNG(key, &rng)) != 0)
+        goto out;
+
+    /* make rsa key by SCE */
     if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
         goto out;
     }
@@ -694,7 +701,7 @@ static int sce_rsa_test(int prnt, int keySize)
     }
 
     ret = wc_RsaPrivateDecrypt(out, keySize/8, out2, outSz, key);
-    if (ret != 0) {
+    if (ret < 0) {
         ret = -1;
         goto out;
     }
@@ -703,6 +710,7 @@ static int sce_rsa_test(int prnt, int keySize)
         goto out;
     }
 
+    ret = 0;
 out:
     if (key != NULL) {
         wc_FreeRsaKey(key);
@@ -735,10 +743,14 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
 
-    byte *in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *in = NULL;
+    byte *in2 = NULL;
+    byte *out= NULL;
 
+    in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    
     (void) prnt;
 
     if (key == NULL || in == NULL || out == NULL) {
@@ -759,12 +771,15 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
     if ((ret = wc_InitRng(&rng)) != 0)
         goto out;
     
-    /* make ras key by SCE */
+    if ((ret = wc_RsaSetRNG(key, &rng)) != 0)
+        goto out;
+
+    /* make rsa key by SCE */
     if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
         goto out;
     }
     
-    guser_PKCbInfo.flags2.bits.message_type = 0;
+    guser_PKCbInfo.keyflgs_crypt.bits.message_type = 0;
     ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
     if (ret < 0) {
         goto out;
@@ -778,11 +793,11 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
     }
     /* this should succeed */
     ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
-    if (ret != 0) {
+    if (ret < 0) {
         ret = -1;
         goto out;
     }
-
+    ret = 0;
   out:
     if (key != NULL) {
         wc_FreeRsaKey(key);
@@ -834,10 +849,25 @@ int sce_crypt_test()
             ret = 0;
 
         if (ret == 0) {
+            printf(" sce_rsa_test(512)(this will be done"
+            " by SW because SCE doesn't support 512 bits key size.)");
+            ret = sce_rsa_test(1, 512);
+            RESULT_STR(ret)
+        }
+        
+        if (ret == 0) {
             printf(" sce_rsa_test(1024)");
             ret = sce_rsa_test(1, 1024);
             RESULT_STR(ret)
         }
+        
+        if (ret == 0) {
+            printf(" sce_rsa_SignVerify_test(512)(this will be done"
+            " by SW because SCE doesn't support 512 bits key size.)");
+            ret = sce_rsa_SignVerify_test(1, 512);
+            RESULT_STR(ret)
+        }
+        
         if (ret == 0) {
             printf(" sce_rsa_SignVerify_test(1024)");
             ret = sce_rsa_SignVerify_test(1, 1024);

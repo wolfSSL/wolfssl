@@ -155,7 +155,7 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
         
       #if defined(WOLFSSL_RENESAS_SCEPROTECT)
        if (ret == 0 &&
-           info->flags1.bits.session_key_set == 1) {
+           info->keyflgs_tls.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -176,28 +176,29 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
             }
 
         }
-        else 
+        else {
        #else
-        if (ret == 0)
+        if (ret == 0) {
        #endif
-        if (info->flags2.bits.aes256_installedkey_set == 1 ||
-            info->flags2.bits.aes128_installedkey_set == 1) {
-            if (aes->ctx.keySize == 32) {
-                XMEMCPY(&key_client_aes, 
-                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
-                    sizeof(sce_aes_wrapped_key_t));
+            if (info->keyflgs_crypt.bits.aes256_installedkey_set == 1 ||
+                info->keyflgs_crypt.bits.aes128_installedkey_set == 1) {
+                if (aes->ctx.keySize == 32) {
+                    XMEMCPY(&key_client_aes, 
+                        (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
+                        sizeof(sce_aes_wrapped_key_t));
+                }
+                else {
+                    XMEMCPY(&key_client_aes, 
+                        (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
+                        sizeof(sce_aes_wrapped_key_t));
+                }
+                iv_l = iv;
+                ivSz_l = ivSz;
             }
             else {
-                XMEMCPY(&key_client_aes, 
-                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
-                    sizeof(sce_aes_wrapped_key_t));
+                WOLFSSL_MSG("AES key for SCE is not set.");
+                ret = -1;
             }
-            iv_l = iv;
-            ivSz_l = ivSz;
-        }
-        else {
-            WOLFSSL_MSG("AES key for SCE is not set.");
-            ret = -1;
         }
 
         if (ret == 0) {
@@ -350,7 +351,7 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
         }
        #if defined(WOLFSSL_RENESAS_SCEPROTECT)
         if (ret == 0 &&
-            info->flags1.bits.session_key_set == 1) {
+            info->keyflgs_tls.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -370,30 +371,31 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
         }
-        else 
+        else {
        #else
-        if (ret == 0)
+        if (ret == 0) {
        #endif
-        if (info->flags2.bits.aes256_installedkey_set == 1 ||
-            info->flags2.bits.aes128_installedkey_set == 1) {
-            if (aes->ctx.keySize == 32) {
-                XMEMCPY(&key_server_aes, 
-                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
-                    sizeof(sce_aes_wrapped_key_t));
+            if (info->keyflgs_crypt.bits.aes256_installedkey_set == 1 ||
+                info->keyflgs_crypt.bits.aes128_installedkey_set == 1) {
+                if (aes->ctx.keySize == 32) {
+                    XMEMCPY(&key_server_aes, 
+                        (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes256,
+                        sizeof(sce_aes_wrapped_key_t));
+                }
+                else {
+                    XMEMCPY(&key_server_aes, 
+                        (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
+                        sizeof(sce_aes_wrapped_key_t));
+                }
+                iv_l = iv;
+                ivSz_l = ivSz;
             }
             else {
-                XMEMCPY(&key_server_aes, 
-                    (sce_aes_wrapped_key_t*)info->sce_wrapped_key_aes128,
-                    sizeof(sce_aes_wrapped_key_t));
+                WOLFSSL_MSG("AES key for SCE is not set.");
+                ret = -1;
             }
-            iv_l = iv;
-            ivSz_l = ivSz;
         }
-        else {
-            WOLFSSL_MSG("AES key for SCE is not set.");
-            ret = -1;
-        }
-
+        
         if (ret == 0) {
             /* since key_index has iv and ivSz in it, no need to pass them init
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.

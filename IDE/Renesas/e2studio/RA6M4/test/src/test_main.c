@@ -135,7 +135,7 @@ void Clr_CallbackCtx(User_SCEPKCbInfo *g)
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (g->sce_wrapped_key_aes128 != NULL)
-        XFREE(g->sce_wrapped_key_aes256,
+        XFREE(g->sce_wrapped_key_aes128,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             
    #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
@@ -220,6 +220,8 @@ void sce_test(void)
         printf("wolfCrypt_Cleanup failed %d\n", ret);
     }
 
+    Clr_CallbackCtx(&guser_PKCbInfo);
+
 #elif defined(BENCHMARK)  && \
         (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
         defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY))
@@ -253,7 +255,7 @@ void sce_test(void)
                    (uint32_t *)DIRECT_KEY_ADDRESS_256, 
                    HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
             p1->type = SCE_KEY_INDEX_TYPE_AES256;
-            guser_PKCbInfo.flags2.bits.aes256_installedkey_set = 1;
+            guser_PKCbInfo.keyflgs_crypt.bits.aes256_installedkey_set = 1;
 
             /* aes 128 */
             memcpy(p2->value,
@@ -261,13 +263,16 @@ void sce_test(void)
                        HW_SCE_AES128_KEY_INDEX_WORD_SIZE*4);
 
             p2->type = SCE_KEY_INDEX_TYPE_AES128;
-            guser_PKCbInfo.flags2.bits.aes128_installedkey_set = 1;
+            guser_PKCbInfo.keyflgs_crypt.bits.aes128_installedkey_set = 1;
         }
     #endif
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
     
+    /* free */
+    Clr_CallbackCtx(&guser_PKCbInfo);
+
 #elif defined(TLS_CLIENT)
     #include "hal_data.h"
     #include "r_sce.h"

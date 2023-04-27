@@ -223,11 +223,11 @@ static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig
 
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
-            cbInfo->flags1.bits.pk_key_set = 0;
+            cbInfo->keyflgs_tls.bits.pk_key_set = 0;
         }
         else {
             ret = WOLFSSL_SUCCESS;
-            cbInfo->flags1.bits.pk_key_set = 1;
+            cbInfo->keyflgs_tls.bits.pk_key_set = 1;
         }
     }
     else {
@@ -361,7 +361,7 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 
-    if (cbInfo->flags1.bits.pk_key_set == 1) {
+    if (cbInfo->keyflgs_tls.bits.pk_key_set == 1) {
         if ((ret = wc_sce_hw_lock()) == 0) {
             /* Generate ECC PUblic key pair */
             ret = R_SCE_TLS_ECC_secp256r1_EphemeralWrappedKeyPairGenerate(
@@ -784,7 +784,7 @@ WOLFSSL_LOCAL int wc_sce_generateSessionKey(WOLFSSL *ssl,
              dec->aes->devId = devId;
 
             /* marked as session key is set */
-            cbInfo->flags1.bits.session_key_set = 1;
+            cbInfo->keyflgs_tls.bits.session_key_set = 1;
         }
         /* unlock hw */
         wc_sce_hw_unlock();
@@ -1138,8 +1138,8 @@ WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
         return -1;
     }
     gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx] = (User_SCEPKCbInfo*)user_ctx;
-    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->flags1.bits.pk_key_set = 0;
-    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->flags1.bits.session_key_set = 0;
+    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->keyflgs_tls.bits.pk_key_set = 0;
+    gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->keyflgs_tls.bits.session_key_set = 0;
 
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
     wolfSSL_SetRsaEncCtx(ssl, user_ctx);

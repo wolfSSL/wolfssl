@@ -36,14 +36,14 @@ extern "C" {
 
 typedef void* renesas_sce_wrappedkey;
 
-/* related to TLS */
-struct sce_flags1 {
+/* flsgas related to TLS */
+struct sce_keyflgs_tls {
     uint8_t pk_key_set:1;
     uint8_t session_key_set:1;
 };
 
-/* Crypt Only */
-struct sce_flags2 {
+/* flags Crypt Only */
+struct sce_keyflgs_cryt {
     uint8_t aes256_installedkey_set:1;
     uint8_t aes128_installedkey_set:1;
     uint8_t rsapri2048_installedkey_set:1;
@@ -88,13 +88,14 @@ typedef struct tagUser_SCEPKCbInfo {
     /* flag whether encrypted ec key is set */
     union {
         uint8_t chr;
-        struct sce_flags1 bits;
-    } flags1;
-    
+        struct sce_keyflgs_tls bits;
+    } keyflgs_tls;
+    /* key status flags */
+    /* flags shows status if wrapped keys are installed */
     union {
         uint8_t chr;
-        struct sce_flags2 bits;
-    } flags2
+        struct sce_keyflgs_cryt bits;
+    } keyflgs_crypt;
     
 } User_SCEPKCbInfo;
 
