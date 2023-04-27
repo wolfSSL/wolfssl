@@ -30,6 +30,8 @@
         #endif
     #else
         static unsigned int *wolfcrypt_linuxkm_fpu_states = NULL;
+        #define WC_FPU_COUNT_MASK 0x7fffffffU
+        #define WC_FPU_SAVED_MASK 0x80000000U
     #endif
 
     static WARN_UNUSED_RESULT inline int am_in_hard_interrupt_handler(void)
@@ -223,8 +225,10 @@
                                */
             ((unsigned char *)wolfcrypt_linuxkm_fpu_states[processor_id])[PAGE_SIZE-1] = 1;
 #else /* !LINUXKM_SIMD_IRQ */
-            if (wolfcrypt_linuxkm_fpu_states[processor_id] != 0) {
-                if (wolfcrypt_linuxkm_fpu_states[processor_id] == ~0U) {
+            if (wolfcrypt_linuxkm_fpu_states[processor_id] != 0U) {
+                if ((wolfcrypt_linuxkm_fpu_states[processor_id] & WC_FPU_COUNT_MASK)
+                    == WC_FPU_COUNT_MASK)
+                {
                     preempt_enable();
                     pr_err("save_vector_registers_x86 recursion register overflow for "
                            "cpu id %d.\n", processor_id);
@@ -234,11 +238,28 @@
                     return 0;
                 }
             }
-            kernel_fpu_begin();
-            preempt_enable(); /* kernel_fpu_begin() does its own
-                               * preempt_disable().  decrement ours.
-                               */
-            wolfcrypt_linuxkm_fpu_states[processor_id] = 1;
+
+            /* if kernel_fpu_begin() won't actually save the reg file (because
+             * it was already saved and invalidated, or because we're in a
+             * kernel thread), don't call kernel_fpu_begin() here, nor call
+             * kernel_fpu_end() in cleanup.  this avoids pointless overhead.  in
+             * kernels >=5.17.12 (from changes to irq_fpu_usable() in linux
+             * commit 59f5ede3bc0f, backported somewhere >5.17.5), this also
+             * fixes register corruption.
+             */
+            if ((current->flags & PF_KTHREAD) ||
+                test_thread_flag(TIF_NEED_FPU_LOAD))
+            {
+                wolfcrypt_linuxkm_fpu_states[processor_id] =
+                    WC_FPU_SAVED_MASK + 1U; /* set msb 1 to inhibit kernel_fpu_end() at cleanup. */
+                /* keep preempt_disable()d from above. */
+            } else {
+              kernel_fpu_begin();
+              preempt_enable(); /* kernel_fpu_begin() does its own
+                                 * preempt_disable().  decrement ours.
+                                 */
+              wolfcrypt_linuxkm_fpu_states[processor_id] = 1U; /* set msb 0 to trigger kernel_fpu_end() at cleanup. */
+            }
 #endif /* !LINUXKM_SIMD_IRQ */
 
             return 0;
@@ -287,19 +308,29 @@
             kernel_fpu_end();
         }
 #else /* !LINUXKM_SIMD_IRQ */
-        if (wolfcrypt_linuxkm_fpu_states[processor_id] == 0)
+        if ((wolfcrypt_linuxkm_fpu_states[processor_id] & WC_FPU_COUNT_MASK) == 0U)
         {
             pr_err("restore_vector_registers_x86 called for cpu id %d "
                    "without saved context.\n", processor_id);
             return;
         }
 
-        if (--wolfcrypt_linuxkm_fpu_states[processor_id] > 0) {
-            preempt_enable(); /* preempt_disable count will still be nonzero after this decrement. */
+        if ((--wolfcrypt_linuxkm_fpu_states[processor_id] & WC_FPU_COUNT_MASK) > 0U) {
+            preempt_enable(); /* preempt_disable count may still be nonzero
+                               * after this decrement, but any remaining
+                               * count(s) aren't ours.
+                               */
             return;
         }
 
-        kernel_fpu_end();
+        if (wolfcrypt_linuxkm_fpu_states[processor_id] == 0U) {
+            kernel_fpu_end();
+        } else {
+            preempt_enable(); /* preempt_disable count will still be nonzero
+                               * after this decrement.
+                               */
+            wolfcrypt_linuxkm_fpu_states[processor_id] = 0U;
+        }
 #endif /* !LINUXKM_SIMD_IRQ */
 
         return;

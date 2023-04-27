@@ -24,6 +24,10 @@
     #include <config.h>
 #endif
 
+#ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_NEED_LINUX_CURRENT
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 /* check old macros @wc_fips */
