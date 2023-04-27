@@ -436,7 +436,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
     \ingroup ED25519 
     \brief  この関数は、ed25519秘密鍵をバッファからのみインポートします。
     \return 0  ED25519キーのインポートに成功しました。
-    \return BAD_FUNC_ARG  INまたはKEYがNULLに評価された場合、またはPRIVSZがED25519_KEY_SIZEよりも小さい場合に返されます。
+    \return BAD_FUNC_ARG  privまたはkeyがNULLに評価された場合、またはprivSzがED25519_KEY_SIZEと異なる場合に返されます。
     \param [in]  秘密鍵を含むバッファへのPRIVポインタ。
     \param [in]  秘密鍵のPrivsz長さ。
     \param [in]  公開鍵を含むバッファへのPubポインタ。
@@ -465,7 +465,7 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     \ingroup ED25519 
     \brief  この関数は、一対のバッファからパブリック/プライベートED25519キーペアをインポートします。この関数は圧縮キーと非圧縮キーの両方を処理します。
     \return 0  ED25519_KEYのインポートに成功しました。
-    \return BAD_FUNC_ARG  INまたはKEYがNULLに評価された場合、またはいずれかのPROVSZがED25519_SEY_SIZEまたはPUBSZよりも小さい場合は、ED25519_PUB_KEY_SIZEよりも小さい場合に返されます。
+    \return BAD_FUNC_ARG  privまたはkeyがNULLに評価された場合、privSzがED25519_KEY_SIZEと異なるあるいはED25519_PRV_KEY_SIZEとも異なる場合、pubSzがED25519_PUB_KEY_SIZEよりも小さい場合に返されます。
     \param [in]  秘密鍵を含むバッファへのPRIVポインタ。
     \param [in]  秘密鍵のPrivsz長さ。
     \param [in]  公開鍵を含むバッファへのPubポインタ。
@@ -491,6 +491,40 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
 
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed25519_key* key);
+
+/*!
+    \ingroup ED25519
+    \brief この関数は一対のバッファからEd25519公開鍵/秘密鍵ペアをインポートします。この関数は圧縮キーと非圧縮キーの両方を処理します。公開鍵はtrusted引数により信頼されていないとされた場合には秘密鍵に対して検証されます。
+    \return 0 ed25519_keyのインポートに成功しました。
+    \return BAD_FUNC_ARG Returned if privあるいはkeyがNULLに評価された場合、privSzがED25519_KEY_SIZEともED25519_PRV_KEY_SIZEとも異なる場合、pubSzがED25519_PUB_KEY_SIZEより小さい場合に返されます。
+    \param [in] priv 秘密鍵を保持するバッファへのポインター
+    \param [in] privSz 秘密鍵バッファのサイズ
+    \param [in] pub 公開鍵を保持するバッファへのポインター
+    \param [in] pubSz 公開鍵バッファのサイズ
+    \param [in,out] key インポートされた公開鍵/秘密鍵を保持するed25519_keyオブジェクトへのポインター
+    \param [in] trusted 公開鍵が信頼できるか否か。
+    _Example_
+    \code
+    int ret;
+    byte priv[] = { initialize with 32 byte private key };
+    byte pub[]  = { initialize with the corresponding public key };
+    ed25519_key key;
+    wc_ed25519_init_key(&key);
+    ret = wc_ed25519_import_private_key(priv, sizeof(priv), pub, sizeof(pub),
+            &key, 1);
+    if (ret != 0) {
+        // error importing key
+    }
+    \endcode
+    \sa wc_ed25519_import_public
+    \sa wc_ed25519_import_public_ex
+    \sa wc_ed25519_import_private_only
+    \sa wc_ed25519_import_private_key
+    \sa wc_ed25519_export_private
+*/
+
+int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz, ed25519_key* key, int trusted);
 
 /*!
     \ingroup ED25519 
@@ -524,7 +558,7 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
     \ingroup ED25519 
     \brief  この関数は、ED25519_Key構造体からの秘密鍵のみをエクスポートします。秘密鍵をバッファアウトに格納し、outlenにこのバッファに書き込まれたバイトを設定します。
     \return 0  秘密鍵のエクスポートに成功したら返されます。
-    \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
+    \return BAD_FUNC_ARG  いずれかの入力値がNULLに評価された場合に返されます。
     \return BUFFER_E  提供されたバッファーが秘密鍵を保存するのに十分な大きさでない場合に返されます。
     \param [in]  秘密鍵をエクスポートするためのED25519_Key構造体へのキーポインタ。
     \param [out]  秘密鍵を保存するバッファへのポインタ。
@@ -551,7 +585,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
     \ingroup ED25519 
     \brief  この関数は、ED25519_Key構造体からキーペアをエクスポートします。キーペアをバッファOUTに格納し、ounterenでこのバッファに書き込まれたバイトを設定します。
     \return 0  キーペアのエクスポートに成功したら返されます。
-    \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
+    \return BAD_FUNC_ARG  いずれかの入力値がNULLに評価された場合に返されます。
     \return BUFFER_E  提供されているバッファーがキーペアを保存するのに十分な大きさでない場合に返されます。
     \param [in]  キーペアをエクスポートするためのED25519_Key構造体へのキーポインタ。
     \param [out]  キーペアを保存するバッファへのポインタ。
@@ -582,7 +616,7 @@ int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
     \ingroup ED25519 
     \brief  この関数は、ED25519_KEY構造体とは別にプライベートキーと公開鍵をエクスポートします。秘密鍵をバッファーPrivに格納し、PRIVSZでこのバッファに書き込まれたバイトを設定します。公開鍵をバッファPUBに格納し、Pubszでこのバッファに書き込まれたバイトを設定します。
     \return 0  キーペアのエクスポートに成功したら返されます。
-    \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
+    \return BAD_FUNC_ARG  いずれかの入力値がNULLに評価された場合に返されます。
     \return BUFFER_E  提供されているバッファーがキーペアを保存するのに十分な大きさでない場合に返されます。
     \param [in]  キーペアをエクスポートするためのED25519_Key構造体へのキーポインタ。
     \param [out]  秘密鍵を保存するバッファへのPRIVポインタ。
@@ -616,7 +650,8 @@ int wc_ed25519_export_key(ed25519_key* key,
     \ingroup ED25519 
     \brief  この関数は、ED25519_KEY構造体の公開鍵をチェックします。
     \return 0  プライベートキーと公開鍵が一致した場合に返されます。
-    \return BAD_FUNC_ARGS  与えられたキーがNULLの場合に返されます。
+    \return BAD_FUNC_ARG  与えられた鍵がNULLの場合に返されます。
+    \return PUBLIC_KEY_E 公開鍵が参照できないか無効の場合に返されます。
     _Example_
     \code
     int ret;
@@ -640,7 +675,7 @@ int wc_ed25519_check_key(ed25519_key* key);
     \ingroup ED25519 
     \brief  この関数は、ED25519  -  32バイトのサイズを返します。
     \return ED25519_KEY_SIZE  有効な秘密鍵のサイズ（32バイト）。
-    \return BAD_FUNC_ARGS  与えられたキーがNULLの場合に返されます。
+    \return BAD_FUNC_ARG  与えられたキーがNULLの場合に返されます。
     _Example_
     \code
     int keySz;
