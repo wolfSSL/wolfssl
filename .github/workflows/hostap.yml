@@ -12,6 +12,8 @@ jobs:
             wolf_extra_config: --disable-tls13
           - build_id: hostap-build2
             wolf_extra_config: --enable-brainpool --enable-wpas-dpp
+          - build_id: hostap-build-suiteb192
+            wolf_extra_config: --disable-tls13
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     runs-on: ubuntu-20.04
@@ -71,6 +73,15 @@ jobs:
             hostap_cherry_pick: 5679ec5c3dda25a0547a5f66407fd9b0b55fd04a,
             osp_ref: ad5b52a49b3cc2a5bfb47ccc1d6a5137132e9446,
             build_id: hostap-build2
+          },
+          # Test SUITEB192 patch
+          {
+            hostap_ref: hostap_2_10,
+            hostap_cherry_pick: 5679ec5c3dda25a0547a5f66407fd9b0b55fd04a,
+            remove_teap: true,
+            suiteb192: 219cf3e244d2f677bcab8d18ab685ae9fae7b80c,
+            # TLS 1.3 does not work for this version
+            build_id: hostap-build-suiteb192
           },
         ]
         # parallelize the tests to be able to run all tests within 10 minutes
@@ -179,6 +190,20 @@ jobs:
         working-directory: hostap
         run: git cherry-pick -n -X theirs ${{ matrix.config.hostap_cherry_pick }}
 
+      - if: ${{ matrix.config.suiteb192 }}
+        name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+          ref: ${{ matrix.config.suiteb192 }}
+
+      - if: ${{ matrix.config.suiteb192 }}
+        name: Apply patch file
+        working-directory: hostap
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/hostap-patches/Support-for-SUITEB192.patch
+
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP
         uses: actions/checkout@v3
@@ -216,6 +241,11 @@ jobs:
             LIBS += -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
           EOF
 
+      - if: ${{ matrix.config.suiteb192 }}
+        name: Add CONFIG_SUITEB192 wpa_supplicant config file 
+        run: |
+          echo "CONFIG_SUITEB192=y" >> hostap/wpa_supplicant/.config
+
       - name: Build hostap
         working-directory: hostap/tests/hwsim/
         run: ./build.sh
@@ -241,6 +271,12 @@ jobs:
         id: testing
         working-directory: hostap/tests/hwsim/
         run: |
+          if [ ${{ matrix.config.suiteb192 }} = "219cf3e244d2f677bcab8d18ab685ae9fae7b80c" ]; then
+            TEST_FILE=$GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests_suiteb192
+          else
+            TEST_FILE=$GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests
+          fi
+
           # Run tests in increments of 50 to cut down on the uploaded log size.
           while mapfile -t -n 50 ary && ((${#ary[@]})); do
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')
@@ -260,7 +296,7 @@ jobs:
             if [ "$HWSIM_RES" -ne "0" ]; then
               exit $HWSIM_RES
             fi
-          done < $GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests
+          done < $TEST_FILE
 
       - name: Change failure log permissions
         if: ${{ failure() && steps.testing.outcome == 'failure' }}

@@ -1,0 +1,13 @@
+suite_b_192	
+suite_b_192_radius
+suite_b_192_radius_and_p256_cert
+suite_b_192_pmkid_failure
+suite_b_192_mic_failure
+suite_b_192_rsa
+suite_b_192_rsa_ecdhe
+suite_b_192_rsa_dhe
+suite_b_192_rsa_insufficient_key
+suite_b_192_rsa_radius
+suite_b_192_rsa_ecdhe_radius_rsa2048_client
+suite_b_192_rsa_dhe_radius_rsa2048_client
+suite_b_192_pmksa_caching_roam
