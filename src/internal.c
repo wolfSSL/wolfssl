@@ -10095,6 +10095,9 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     if (tmp == NULL)
         return MEMORY_E;
 
+    /* Zeroize new buffer memory */
+    ForceZero(tmp, size + ssl->buffers.outputBuffer.length + align);
+
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         tmp += align - hdrSz;
