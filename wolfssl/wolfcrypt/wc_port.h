@@ -516,7 +516,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include <zephyr/fs/fs.h>
 
     #define XFILE      struct fs_file_t*
-    #define STAT       struct fs_dirent
 
     /* These are our wrappers for opening and closing files to
      * make the API more POSIX like. */
@@ -537,6 +536,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS(b,s,f)       -2 /* Not ported yet */
 
     #define XSTAT               fs_stat
+    #define XSTAT_TYPE          struct fs_dirent
     #define XS_ISREG(s)         (s == FS_DIR_ENTRY_FILE)
     #define SEPARATOR_CHAR      ':'
 
