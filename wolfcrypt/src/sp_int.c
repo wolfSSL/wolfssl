@@ -3638,7 +3638,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "li	%[o], 0			\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        :                                                \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
@@ -3764,7 +3763,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "cntlzw	%[n], %[a]	\n\t"                    \
         : [n] "=r" (vn)                                  \
         : [a] "r" (va)                                   \
-        :                                                \
     )
 
 #define SP_INT_ASM_AVAILABLE
