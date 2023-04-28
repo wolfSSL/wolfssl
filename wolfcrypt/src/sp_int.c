@@ -1245,7 +1245,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : [a] "r" (va), [b] "r" (vb), [c] "r" (vc)       \
         : "cc"                                           \
     )
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH >= 7)
 /* Count leading zeros - instruction only available on ARMv7 and newer. */
 #define SP_ASM_LZCNT(va, vn)                             \
     __asm__ __volatile__ (                               \
