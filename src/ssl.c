@@ -7394,7 +7394,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info,
                                    verify);
             if (ret == ASN_NO_PEM_HEADER) { /* Additional chain is optional */
-                unsigned long pemErr;
+                unsigned long pemErr = 0;
                 CLEAR_ASN_NO_PEM_HEADER_ERROR(pemErr);
                 ret = 0;
             }
@@ -8938,7 +8938,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                        (ret == ASN_NO_PEM_HEADER))) {
                     /* Do not fail here if a certificate fails to load,
                        continue to next file */
-                    unsigned long err;
+                    unsigned long err = 0;
                     CLEAR_ASN_NO_PEM_HEADER_ERROR(err);
     #if defined(WOLFSSL_QT)
                     ret = WOLFSSL_SUCCESS;

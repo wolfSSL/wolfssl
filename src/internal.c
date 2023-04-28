@@ -10461,7 +10461,7 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
-    byte tls12minor;
+    byte tls12minor = 0;
 
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
