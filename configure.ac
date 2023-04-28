@@ -4016,6 +4016,26 @@ else
     ENABLED_BIGNUM="yes"
 fi
 
+case $host_os in
+*linux* | *darwin* | *freebsd*)
+    DEF_ASN_PRINT="yes"
+    ;;
+*)
+    DEF_ASN_PRINT="no"
+    ;;
+esac
+
+AC_ARG_ENABLE([asn-print],
+    [AS_HELP_STRING([--enable-asn-print],[Enable ASN Print API (default: enabled)])],
+    [ ENABLED_ASN_PRINT=$enableval ],
+    [ ENABLED_ASN_PRINT=$DEF_ASN_PRINT ]
+    )
+
+if test "$ENABLED_ASN_PRINT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_PRINT"
+fi
+
 
 # AES
 AC_ARG_ENABLE([aes],
@@ -8496,6 +8516,7 @@ AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes"] && [test "x$ENABLED_ASN_PRINT" = "xyes"] && [test "x$ENABLED_ASN" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])

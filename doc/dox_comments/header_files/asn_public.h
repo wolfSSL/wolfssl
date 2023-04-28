@@ -2167,3 +2167,148 @@ int wc_SetUnknownExtCallback(DecodedCert* cert,
 int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes the ASN.1 print options.
+
+    \return  0 on success.
+    \return  BAD_FUNC_ARG when asn1 is NULL.
+
+    \param opts  The ASN.1 options for printing.
+
+    _Example_
+    \code
+    Asn1PrintOptions opt;
+
+    // Initialize ASN.1 print options before use.
+    wc_Asn1PrintOptions_Init(&opt);
+    \endcode
+
+    \sa wc_Asn1PrintOptions_Set
+    \sa wc_Asn1_PrintAll
+*/
+int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets a print option into an ASN.1 print options object.
+
+    \return  0 on success.
+    \return  BAD_FUNC_ARG when asn1 is NULL.
+    \return  BAD_FUNC_ARG when val is out of range for option.
+ 
+    \param opts  The ASN.1 options for printing.
+    \param opt   An option to set value for.
+    \param val   The value to set.
+
+    _Example_
+    \code
+    Asn1PrintOptions opt;
+
+    // Initialize ASN.1 print options before use.
+    wc_Asn1PrintOptions_Init(&opt);
+    // Set the number of indents when printing tag name to be 1.
+    wc_Asn1PrintOptions_Set(&opt, ASN1_PRINT_OPT_INDENT, 1);
+    \endcode
+
+    \sa wc_Asn1PrintOptions_Init
+    \sa wc_Asn1_PrintAll
+*/
+int wc_Asn1PrintOptions_Set(Asn1PrintOptions* opts, enum Asn1PrintOpt opt,
+    word32 val);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes an ASN.1 parsing object.
+
+    \return  0 on success.
+    \return  BAD_FUNC_ARG when asn1 is NULL.
+
+    \param asn1  ASN.1 parse object.
+
+    _Example_
+    \code
+    Asn1 asn1;
+
+    // Initialize ASN.1 parse object before use.
+    wc_Asn1_Init(&asn1);
+    \endcode
+
+    \sa wc_Asn1_SetFile
+    \sa wc_Asn1_PrintAll
+ */
+int wc_Asn1_Init(Asn1* asn1);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the file to use when printing into an ASN.1
+    parsing object.
+
+    \return  0 on success.
+    \return  BAD_FUNC_ARG when asn1 is NULL.
+    \return  BAD_FUNC_ARG when file is XBADFILE.
+
+    \param asn1  The ASN.1 parse object.
+    \param file  File to print to.
+
+    _Example_
+    \code
+    Asn1 asn1;
+
+    // Initialize ASN.1 parse object before use.
+    wc_Asn1_Init(&asn1);
+    // Set standard out to be the file descriptor to write to.
+    wc_Asn1_SetFile(&asn1, stdout);
+    \endcode
+
+    \sa wc_Asn1_Init
+    \sa wc_Asn1_PrintAll
+ */
+int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
+
+/*!
+    \ingroup ASN
+
+    \brief Print all ASN.1 items.
+
+    \return  0 on success.
+    \return  BAD_FUNC_ARG when asn1 or opts is NULL.
+    \return  ASN_LEN_E when ASN.1 item's length too long.
+    \return  ASN_DEPTH_E when end offset invalid.
+    \return  ASN_PARSE_E when not all of an ASN.1 item parsed.
+
+    \param asn1  The ASN.1 parse object.
+    \param opts  The ASN.1 print options.
+    \param data  Buffer containing BER/DER data to print.
+    \param len   Length of data to print in bytes.
+
+    \code
+    Asn1PrintOptions opts;
+    Asn1 asn1;
+    unsigned char data[] = { Initialize with DER/BER data };
+    word32 len = sizeof(data);
+
+    // Initialize ASN.1 print options before use.
+    wc_Asn1PrintOptions_Init(&opt);
+    // Set the number of indents when printing tag name to be 1.
+    wc_Asn1PrintOptions_Set(&opt, ASN1_PRINT_OPT_INDENT, 1);
+
+    // Initialize ASN.1 parse object before use.
+    wc_Asn1_Init(&asn1);
+    // Set standard out to be the file descriptor to write to.
+    wc_Asn1_SetFile(&asn1, stdout);
+    // Print all ASN.1 items in buffer with the specified print options.
+    wc_Asn1_PrintAll(&asn1, &opts, data, len);
+    \endcode
+
+    \sa wc_Asn1_Init
+    \sa wc_Asn1_SetFile
+ */
+int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
+    word32 len);
+

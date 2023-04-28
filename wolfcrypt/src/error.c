@@ -583,6 +583,12 @@ const char* wc_GetErrorString(int error)
     case ENTROPY_APT_E:
         return "Entropy Adaptive Proportion Test failed";
 
+    case ASN_DEPTH_E:
+        return "Invalid ASN.1 - depth check";
+
+    case ASN_LEN_E:
+        return "ASN.1 length invalid";
+
     default:
         return "unknown error number";
 
