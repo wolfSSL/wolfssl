@@ -1,3 +1,4 @@
+ARG DOCKER_BASE_IMAGE=ubuntu
 FROM ubuntu as BUILDER
 
 ARG DEPS_WOLFSSL="build-essential autoconf libtool zlib1g-dev libuv1-dev libpam0g-dev git libpcap-dev libcurl4-openssl-dev bsdmainutils netcat iputils-ping bubblewrap"
@@ -15,8 +16,11 @@ RUN DUMMY=${DUMMY} git clone --depth=1 --single-branch --branch=master http://gi
 # install wolfCLU
 RUN git clone --depth=1 --single-branch --branch=main http://github.com/wolfssl/wolfCLU && cd wolfCLU && ./autogen.sh && ./configure && make -j $NUM_CPU && make install
 
-FROM ubuntu
+FROM ${DOCKER_BASE_IMAGE}
+USER root
 COPY --from=BUILDER /usr/local/lib/libwolfssl.so /usr/local/lib/
 COPY --from=BUILDER /usr/local/bin/wolfssl* /usr/local/bin/
 RUN ldconfig
-ENTRYPOINT ["/usr/local/bin/wolfssl"]
+CMD ["/usr/local/bin/wolfssl"]
+LABEL org.opencontainers.image.source=https://github.com/wolfssl/wolfssl
+LABEL org.opencontainers.image.description="Simple wolfCLU in a container"
