@@ -20913,7 +20913,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             if (args->ivSz > 0) {
                 XMEMCPY(output + args->idx, args->iv,
                                         min(args->ivSz, MAX_IV_SZ));
-                args->idx += args->ivSz;
+                args->idx += min(args->ivSz, MAX_IV_SZ);
             }
             XMEMCPY(output + args->idx, input, inSz);
             args->idx += inSz;
