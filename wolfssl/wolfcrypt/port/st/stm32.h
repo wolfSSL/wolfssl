@@ -74,8 +74,20 @@
 #if (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
     defined(WOLFSSL_STM32H7)) && !defined(NO_STM32_HASH_FIFO_WORKAROUND)
     /* workaround for hash FIFO to write one extra to finalize */
+    /* RM: Message Data Feeding: Data are entered into the HASH
+     * one 32-bit word at a time, by writing them into the HASH_DIN register.
+     * The current contents of the HASH_DIN register are transferred to the
+     * 16 words input FIFO each time the register is written with new data.
+     * Hence HASH_DIN and the FIFO form a seventeen 32-bit words length FIFO. */
+    #undef  STM32_HASH_BUFFER_SIZE
+    #define STM32_HASH_BUFFER_SIZE 17
+
     #undef  STM32_HASH_FIFO_WORKAROUND
     #define STM32_HASH_FIFO_WORKAROUND
+#endif
+
+#ifndef STM32_HASH_BUFFER_SIZE
+#define STM32_HASH_BUFFER_SIZE STM32_HASH_FIFO_SIZE
 #endif
 
 
@@ -88,11 +100,13 @@ typedef struct {
     uint32_t HASH_CSR[HASH_CR_SIZE];
 
     /* Hash state / buffers */
-    word32 buffer[STM32_HASH_FIFO_SIZE]; /* partial word buffer */
+    word32 buffer[STM32_HASH_BUFFER_SIZE]; /* partial word buffer */
     word32 buffLen; /* partial word remain */
     word32 loLen;   /* total update bytes
                  (only lsb 6-bits is used for nbr valid bytes in last word) */
+#ifdef STM32_HASH_FIFO_WORKAROUND
     int    fifoBytes; /* number of currently filled FIFO bytes */
+#endif
 } STM32_HASH_Context;
 
 
