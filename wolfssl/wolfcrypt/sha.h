@@ -201,7 +201,7 @@ WOLFSSL_API void wc_ShaFree(wc_Sha* sha);
 
 WOLFSSL_API int wc_ShaGetHash(wc_Sha* sha, byte* hash);
 WOLFSSL_API int wc_ShaCopy(wc_Sha* src, wc_Sha* dst);
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_ShaTransform(wc_Sha* sha, const unsigned char* data);
 #endif
 

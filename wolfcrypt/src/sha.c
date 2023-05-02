@@ -884,7 +884,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 /* Apply SHA1 transformation to the data                  */
 /* @param sha  a pointer to wc_Sha structure              */
 /* @param data data to be applied SHA1 transformation     */
