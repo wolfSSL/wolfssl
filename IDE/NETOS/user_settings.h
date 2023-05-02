@@ -459,7 +459,6 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 /* Seed Source */
-/* Seed Source */
 #if 1
     extern int my_rng_generate_seed(unsigned char* output, int sz);
     #undef CUSTOM_RAND_GENERATE_SEED

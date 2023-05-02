@@ -235,7 +235,7 @@ int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
 
 /* Used to register a find device function. Useful for cases where the
  * device ID in the struct may not have been set but still wanting to use
- * a specifice crypto callback device ID. The find callback is global and
+ * a specific crypto callback device ID. The find callback is global and
  * not thread safe. */
 void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 {

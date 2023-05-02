@@ -758,6 +758,22 @@ static int wolfssl_pb_print(const char* msg, ...)
 }
 #endif /* WOLFSSL_PB */
 
+
+#if defined(WOLF_CRYPTO_CB) && !defined(HAVE_HASHDRBG) && \
+    !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Enable support for RNG with crypto callback */
+static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
+{
+    int rc = CRYPTOCB_UNAVAILABLE;
+    if (info->algo_type == WC_ALGO_TYPE_RNG) {
+        rc = wc_GenerateSeed(&info->rng.rng->seed, info->rng.out, info->rng.sz);
+    }
+    (void)ctx;
+    (void)thisDevId;
+    return rc;
+}
+#endif
+
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
 #define TEST_SLEEP()
@@ -924,6 +940,16 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     }
 #endif
 #endif
+
+#if defined(WOLF_CRYPTO_CB) && !defined(HAVE_HASHDRBG) && \
+    !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    if (devId == INVALID_DEVID) {
+        /* for testing RNG with crypto callback register function */
+        devId = 100; /* any value beside -2 (INVALID_DEVID) */
+        wc_CryptoCb_RegisterDevice(devId, rng_crypto_cb, NULL);
+    }
+#endif
+
 
 #ifdef HAVE_SELFTEST
     if ( (ret = wolfCrypt_SelfTest()) != 0)
@@ -8561,6 +8587,7 @@ EVP_TEST_END:
         }
         #endif
     #endif
+#endif /* WOLFSSL_AES_256 */
 
   out:
 
@@ -8580,7 +8607,6 @@ EVP_TEST_END:
 #endif
 #endif
 
-#endif /* WOLFSSL_AES_256 */
         return ret;
     }
 
@@ -8776,6 +8802,7 @@ EVP_TEST_END:
             goto out;
         }
     #endif
+#endif /* WOLFSSL_AES_256 */
 
       out:
 
@@ -8794,8 +8821,6 @@ EVP_TEST_END:
         XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
 #endif
-
-#endif /* WOLFSSL_AES_256 */
 
         return ret;
     }
@@ -13244,7 +13269,6 @@ exit:
     return ret;
 }
 
-
 static int random_rng_test(void)
 {
     WC_RNG localRng;
@@ -13277,6 +13301,7 @@ static int random_rng_test(void)
         if (rng == NULL)
             return WC_TEST_RET_ENC_ERRNO;
 
+        rng->devId = devId;
         ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
 
         wc_rng_free(rng);
@@ -44565,7 +44590,12 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif
 
     if (info->algo_type == WC_ALGO_TYPE_RNG) {
-    #ifndef WC_NO_RNG
+    #if defined(WOLF_CRYPTO_CB) && !defined(HAVE_HASHDRBG) && \
+        !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+        /* if RNG only supports crypto callback, just use seed */
+        ret = wc_GenerateSeed(&info->rng.rng->seed,
+            info->rng.out, info->rng.sz);
+    #elif !defined(WC_NO_RNG)
         /* set devId to invalid, so software is used */
         info->rng.rng->devId = INVALID_DEVID;
 
@@ -45172,6 +45202,7 @@ static int myCryptoCbFind(int currentId, int algoType)
 WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
 {
     int ret = 0;
+    int origDevId = devId;
     myCryptoDevCtx myCtx;
 
     /* example data for callback */
@@ -45272,8 +45303,8 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
         ret = cmac_test();
 #endif
 
-    /* reset devId */
-    devId = INVALID_DEVID;
+    /* restore devId */
+    devId = origDevId;
 
     return ret;
 }
