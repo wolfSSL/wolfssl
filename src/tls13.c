@@ -10946,7 +10946,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             byte type, word32 size, word32 totalSz)
 {
-    int ret = 0;
+    int ret = 0, tmp;
     word32 inIdx = *inOutIdx;
     int alertType = invalid_alert;
 #if defined(HAVE_ECH)
@@ -11186,7 +11186,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (type == client_hello && ssl->options.dtls)
             DtlsSetSeqNumForReply(ssl);
 #endif
-        SendAlert(ssl, alert_fatal, alertType);
+        tmp = SendAlert(ssl, alert_fatal, alertType);
+        /* propagate socket error instead of tls error to be sure the error is
+         * not ignored by DTLS code */
+        if (tmp == SOCKET_ERROR_E)
+            ret = SOCKET_ERROR_E;
     }
 
     if (ret == 0 && ssl->options.tls1_3) {
