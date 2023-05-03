@@ -6724,31 +6724,31 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     #ifdef HAVE_FFDHE_2048
         case WOLFSSL_FFDHE_2048:
             params = wc_Dh_ffdhe2048_Get();
-            kse->keyLen = 29;
+            pvtSz = 29;
             break;
     #endif
     #ifdef HAVE_FFDHE_3072
         case WOLFSSL_FFDHE_3072:
             params = wc_Dh_ffdhe3072_Get();
-            kse->keyLen = 34;
+            pvtSz = 34;
             break;
     #endif
     #ifdef HAVE_FFDHE_4096
         case WOLFSSL_FFDHE_4096:
             params = wc_Dh_ffdhe4096_Get();
-            kse->keyLen = 39;
+            pvtSz = 39;
             break;
     #endif
     #ifdef HAVE_FFDHE_6144
         case WOLFSSL_FFDHE_6144:
             params = wc_Dh_ffdhe6144_Get();
-            kse->keyLen = 46;
+            pvtSz = 46;
             break;
     #endif
     #ifdef HAVE_FFDHE_8192
         case WOLFSSL_FFDHE_8192:
             params = wc_Dh_ffdhe8192_Get();
-            kse->keyLen = 52;
+            pvtSz = 52;
             break;
     #endif
         default:
@@ -6757,19 +6757,16 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (params == NULL)
         return BAD_FUNC_ARG;
     pSz = params->p_len;
-    pvtSz = kse->keyLen;
 #else
-    kse->keyLen = wc_DhGetNamedKeyMinSize(kse->group);
-    if (kse->keyLen == 0) {
+    pvtSz = wc_DhGetNamedKeyMinSize(kse->group);
+    if (pvtSz == 0) {
         return BAD_FUNC_ARG;
     }
     ret = wc_DhGetNamedKeyParamSize(kse->group, &pSz, NULL, NULL);
     if (ret != 0) {
         return BAD_FUNC_ARG;
     }
-    pvtSz = kse->keyLen;
 #endif
-    kse->pubKeyLen = pSz;
 
     /* Trigger Key Generation */
     if (kse->pubKey == NULL || kse->privKey == NULL) {
@@ -6794,14 +6791,14 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Allocate space for the private and public key */
         if (ret == 0 && kse->pubKey == NULL) {
-            kse->pubKey = (byte*)XMALLOC(kse->pubKeyLen, ssl->heap,
+            kse->pubKey = (byte*)XMALLOC(pSz, ssl->heap,
                 DYNAMIC_TYPE_PUBLIC_KEY);
             if (kse->pubKey == NULL)
                 ret = MEMORY_E;
         }
 
         if (ret == 0 && kse->privKey == NULL) {
-            kse->privKey = (byte*)XMALLOC(kse->keyLen, ssl->heap,
+            kse->privKey = (byte*)XMALLOC(pvtSz, ssl->heap,
                 DYNAMIC_TYPE_PRIVATE_KEY);
             if (kse->privKey == NULL)
                 ret = MEMORY_E;
@@ -6810,6 +6807,8 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         if (ret == 0) {
         #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_DH_EXTRA)
             ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_DH, kse->key);
+            kse->pubKeyLen = pSz;
+            kse->keyLen = pvtSz;
             if (ret == 0) {
                 ret = wc_DhExportKeyPair(dhKey,
                     (byte*)kse->privKey, &kse->keyLen, /* private */
@@ -6823,6 +6822,8 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 /* For async this is called once and when event is done, the
                  *   provided buffers will be populated.
                  * Final processing is zero pad below. */
+                kse->pubKeyLen = pSz;
+                kse->keyLen = pvtSz;
                 ret = DhGenKeyPair(ssl, dhKey,
                     (byte*)kse->privKey, &kse->keyLen, /* private */
                     kse->pubKey, &kse->pubKeyLen /* public */
