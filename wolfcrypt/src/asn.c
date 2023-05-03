@@ -96,12 +96,20 @@ ASN Options:
  * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
 */
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+    #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+        extern int wc_InitRsaHw(RsaKey* key);
+    #endif
+#endif
+
 #ifndef NO_ASN
+
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/md2.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/aes.h>
@@ -166,13 +174,6 @@ ASN Options:
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
-#endif
-
-#ifndef NO_RSA
-    #include <wolfssl/wolfcrypt/rsa.h>
-#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
-extern int wc_InitRsaHw(RsaKey* key);
-#endif
 #endif
 
 #ifndef NO_DSA
@@ -9517,56 +9518,6 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 
     return ret;
-}
-
-/* import RSA public key elements (n, e) into RsaKey structure (key) */
-int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
-                             word32 eSz, RsaKey* key)
-{
-    if (n == NULL || e == NULL || key == NULL)
-        return BAD_FUNC_ARG;
-
-    key->type = RSA_PUBLIC;
-
-    if (mp_init(&key->n) != MP_OKAY)
-        return MP_INIT_E;
-
-    if (mp_read_unsigned_bin(&key->n, n, nSz) != 0) {
-        mp_clear(&key->n);
-        return ASN_GETINT_E;
-    }
-#ifdef HAVE_WOLF_BIGINT
-    if ((int)nSz > 0 && wc_bigint_from_unsigned_bin(&key->n.raw, n, nSz) != 0) {
-        mp_clear(&key->n);
-        return ASN_GETINT_E;
-    }
-#endif /* HAVE_WOLF_BIGINT */
-
-    if (mp_init(&key->e) != MP_OKAY) {
-        mp_clear(&key->n);
-        return MP_INIT_E;
-    }
-
-    if (mp_read_unsigned_bin(&key->e, e, eSz) != 0) {
-        mp_clear(&key->n);
-        mp_clear(&key->e);
-        return ASN_GETINT_E;
-    }
-#ifdef HAVE_WOLF_BIGINT
-    if ((int)eSz > 0 && wc_bigint_from_unsigned_bin(&key->e.raw, e, eSz) != 0) {
-        mp_clear(&key->n);
-        mp_clear(&key->e);
-        return ASN_GETINT_E;
-    }
-#endif /* HAVE_WOLF_BIGINT */
-
-#ifdef WOLFSSL_XILINX_CRYPT
-    if (wc_InitRsaHw(key) != 0) {
-        return BAD_STATE_E;
-    }
-#endif
-
-    return 0;
 }
 #endif /* HAVE_USER_RSA */
 #endif /* !NO_RSA */
@@ -37021,6 +36972,62 @@ int wc_MIME_free_hdrs(MimeHdr* head)
 #undef ERROR_OUT
 
 #endif /* !NO_ASN */
+
+/* Functions that parse, but are not using ASN.1 */
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+    (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH))
+/* import RSA public key elements (n, e) into RsaKey structure (key) */
+/* this function does not use any ASN.1 parsing */
+int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
+                             word32 eSz, RsaKey* key)
+{
+    if (n == NULL || e == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    key->type = RSA_PUBLIC;
+
+    if (mp_init(&key->n) != MP_OKAY)
+        return MP_INIT_E;
+
+    if (mp_read_unsigned_bin(&key->n, n, nSz) != 0) {
+        mp_clear(&key->n);
+        return ASN_GETINT_E;
+    }
+#ifdef HAVE_WOLF_BIGINT
+    if ((int)nSz > 0 && wc_bigint_from_unsigned_bin(&key->n.raw, n, nSz) != 0) {
+        mp_clear(&key->n);
+        return ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
+
+    if (mp_init(&key->e) != MP_OKAY) {
+        mp_clear(&key->n);
+        return MP_INIT_E;
+    }
+
+    if (mp_read_unsigned_bin(&key->e, e, eSz) != 0) {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        return ASN_GETINT_E;
+    }
+#ifdef HAVE_WOLF_BIGINT
+    if ((int)eSz > 0 && wc_bigint_from_unsigned_bin(&key->e.raw, e, eSz) != 0) {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        return ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
+
+#ifdef WOLFSSL_XILINX_CRYPT
+    if (wc_InitRsaHw(key) != 0) {
+        return BAD_STATE_E;
+    }
+#endif
+
+    return 0;
+}
+#endif /* !NO_RSA && !HAVE_USER_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
+
 
 #ifdef WOLFSSL_SEP
 

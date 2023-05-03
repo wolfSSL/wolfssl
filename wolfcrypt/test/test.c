@@ -13301,7 +13301,9 @@ static int random_rng_test(void)
         if (rng == NULL)
             return WC_TEST_RET_ENC_ERRNO;
 
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
         rng->devId = devId;
+    #endif
         ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
 
         wc_rng_free(rng);
