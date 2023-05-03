@@ -6516,7 +6516,7 @@ exit_rsa_pub:
                                           BENCH_ASYNC_GET_DEV(&rsaKey[i]),
                                           1, &times, ntimes, &pending)) {
                         ret = wc_RsaSSL_Sign(message, len, enc[i],
-                                                rsaKeySz/8, &rsaKey[i], &gRng);
+                                            rsaKeySz/8, &rsaKey[i], GLOBAL_RNG);
                         if (!bench_async_handle(&ret,
                                            BENCH_ASYNC_GET_DEV(&rsaKey[i]),
                                            1, &times, &pending)) {
@@ -7371,7 +7371,7 @@ exit_ecdhe:
                     }
 
                     ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i],
-                                           &x[i], &gRng, &genKey[i]);
+                                           &x[i], GLOBAL_RNG, &genKey[i]);
 
                     if (!bench_async_handle(&ret,
                                 BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,

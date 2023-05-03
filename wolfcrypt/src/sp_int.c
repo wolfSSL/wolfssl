@@ -5605,7 +5605,7 @@ int sp_cnt_lsb(const sp_int* a)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_ASN_TEMPLATE) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_ASN))
 /* Determine if the most significant byte of the encoded multi-precision number
  * has the top bit set.
