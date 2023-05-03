@@ -332,6 +332,10 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
 {
     int ret = 0;
 
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    int neg = (X->sign == Y->sign) ? MP_ZPOS : MP_NEG;
+#endif
+
 #if CONFIG_IDF_TARGET_ESP32S3
 
     int BitsInX = mp_count_bits(X);
@@ -345,10 +349,6 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     int WordsForOperand = bits2words(MinXYBits);
     int WordsForResult = bits2words(BitsInX + BitsInY);
 
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    int neg;
-    neg = (X->sign == Y->sign) ? MP_ZPOS : MP_NEG;
-#endif
     /* Make sure we are within capabilities of hardware. */
     if ( (WordsForOperand * BITS_IN_ONE_WORD) > ESP_HW_MULTI_RSAMAX_BITS ) {
         ESP_LOGW(TAG, "exceeds max bit length(2048)");
