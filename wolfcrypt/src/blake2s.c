@@ -69,7 +69,7 @@ static const byte blake2s_sigma[10][16] =
 
 static WC_INLINE int blake2s_set_lastnode( blake2s_state *S )
 {
-  S->f[1] = ~0;
+  S->f[1] = ~0U;
   return 0;
 }
 
@@ -78,7 +78,7 @@ static WC_INLINE int blake2s_set_lastblock( blake2s_state *S )
 {
   if( S->last_node ) blake2s_set_lastnode( S );
 
-  S->f[0] = ~0;
+  S->f[0] = ~0U;
   return 0;
 }
 
@@ -215,7 +215,7 @@ static WC_INLINE int blake2s_compress(
     word32* m,
     word32* v)
 {
-  int i;
+  word32 i;
 
   for( i = 0; i < 16; ++i )
     m[i] = load32( block + i * sizeof( m[i] ) );
@@ -332,7 +332,7 @@ int blake2s_update( blake2s_state *S, const byte *in, word32 inlen )
 int blake2s_final( blake2s_state *S, byte *out, byte outlen )
 {
   int ret = 0;
-  int     i;
+  word32    i;
   byte buffer[BLAKE2S_BLOCKBYTES];
 #ifdef WOLFSSL_SMALL_STACK
   word32* m;

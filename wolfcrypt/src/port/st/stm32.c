@@ -164,22 +164,25 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
 static void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 {
     word32 digest[HASH_MAX_DIGEST/sizeof(word32)];
+    int i = 0, sz;
 
-    /* get digest result */
-    digest[0] = HASH->HR[0];
-    digest[1] = HASH->HR[1];
-    digest[2] = HASH->HR[2];
-    digest[3] = HASH->HR[3];
-    if (digestSize >= 20) {
-        digest[4] = HASH->HR[4];
+    if (digestSize > HASH_MAX_DIGEST)
+        digestSize = HASH_MAX_DIGEST;
+
+    sz = digestSize;
+    while (sz > 0) {
+        /* first 20 bytes come from instance HR */
+        if (i < 5) {
+            digest[i] = HASH->HR[i];
+        }
     #ifdef HASH_DIGEST
-        if (digestSize >= 28) {
-            digest[5] = HASH_DIGEST->HR[5];
-            digest[6] = HASH_DIGEST->HR[6];
-            if (digestSize == 32)
-                digest[7] = HASH_DIGEST->HR[7];
+        /* reset comes from HASH_DIGEST */
+        else {
+            digest[i] = HASH_DIGEST->HR[i];
         }
     #endif
+        i++;
+        sz -= 4;
     }
 
     ByteReverseWords(digest, digest, digestSize);
@@ -202,10 +205,13 @@ static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
     int timeout = 0;
     (void)stmCtx;
 
-    /* wait until hash digest is complete */
+    /* wait until not busy and hash digest / input block are complete */
     while ((HASH->SR & HASH_SR_BUSY) &&
         #ifdef HASH_IMR_DCIE
             (HASH->SR & HASH_SR_DCIS) == 0 &&
+        #endif
+        #ifdef HASH_IMR_DINIE
+            (HASH->SR & HASH_SR_DINIS) == 0 &&
         #endif
         ++timeout < STM32_HASH_TIMEOUT) {
     };
@@ -228,7 +234,7 @@ static void wc_Stm32_Hash_Data(STM32_HASH_Context* stmCtx, word32 len)
     if (len > stmCtx->buffLen)
         len = stmCtx->buffLen;
 
-    /* calculate number of 32-bit blocks */
+    /* calculate number of 32-bit blocks - round up */
     blocks = ((len + STM32_HASH_REG_SIZE-1) / STM32_HASH_REG_SIZE);
 #ifdef DEBUG_STM32_HASH
     printf("STM DIN %d blocks\n", blocks);
@@ -262,17 +268,16 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     byte* local = (byte*)stmCtx->buffer;
     int wroteToFifo = 0;
     const word32 fifoSz = (STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE);
-
-    if (blockSize > fifoSz)
-        blockSize = fifoSz;
+    word32 chunkSz;
 
 #ifdef DEBUG_STM32_HASH
     printf("STM Hash Update: algo %x, len %d, blockSz %d\n",
         algo, len, blockSize);
 #endif
+    (void)blockSize;
 
     /* check that internal buffLen is valid */
-    if (stmCtx->buffLen > blockSize) {
+    if (stmCtx->buffLen > (word32)sizeof(stmCtx->buffer)) {
         return BUFFER_E;
     }
 
@@ -282,26 +287,40 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     /* restore hash context or init as new hash */
     wc_Stm32_Hash_RestoreContext(stmCtx, algo);
 
+    chunkSz = fifoSz;
+#ifdef STM32_HASH_FIFO_WORKAROUND
+    /* if FIFO already has bytes written then fill remainder first */
+    if (stmCtx->fifoBytes > 0) {
+        chunkSz -= stmCtx->fifoBytes;
+        stmCtx->fifoBytes = 0;
+    }
+#endif
+
     /* write blocks to FIFO */
     while (len) {
-        word32 fillBlockSz = blockSize, add;
-
-        /* if FIFO already has bytes written then fill remainder first */
-        if (stmCtx->fifoBytes > 0) {
-            fillBlockSz -= stmCtx->fifoBytes;
-            stmCtx->fifoBytes = 0;
-        }
-
-        add = min(len, fillBlockSz - stmCtx->buffLen);
+        word32 add = min(len, chunkSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
 
         stmCtx->buffLen += add;
         data            += add;
         len             -= add;
 
-        if (len > 0 && stmCtx->buffLen == fillBlockSz) {
+    #ifdef STM32_HASH_FIFO_WORKAROUND
+        /* We cannot leave the FIFO full and do save/restore
+         * the last must be large enough to flush block from FIFO */
+        if (stmCtx->buffLen + len <= fifoSz * 2) {
+            chunkSz = fifoSz + STM32_HASH_REG_SIZE;
+        }
+    #endif
+
+        if (len >= 0 && stmCtx->buffLen == chunkSz) {
             wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
             wroteToFifo = 1;
+        #ifdef STM32_HASH_FIFO_WORKAROUND
+            if (chunkSz > fifoSz)
+                stmCtx->fifoBytes = chunkSz - fifoSz;
+            chunkSz = fifoSz;
+        #endif
         }
     }
 
@@ -862,7 +881,10 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, size);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, size);
-#ifndef WOLFSSL_SP_MATH
+
+#if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+    ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        defined(WOLFSSL_SP_INT_NEGATIVE))
         /* if k is negative, we compute the multiplication with abs(-k)
          * with result (x, y) and modify the result to (x, -y)
          */
@@ -996,7 +1018,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     mp_init(&gen_k);
     mp_init(&order_mp);
 
-    size = mp_unsigned_bin_size(key->pubkey.x);
+    size = wc_ecc_size(key);
 
     status = stm32_get_from_mp_int(Keybin, &key->k, size);
     if (status != MP_OKAY)

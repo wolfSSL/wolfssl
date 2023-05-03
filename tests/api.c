@@ -342,7 +342,7 @@
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
-    defined(HAVE_ECH)
+    defined(HAVE_ECH) || defined(HAVE_EX_DATA)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -7447,6 +7447,592 @@ static int test_wolfSSL_CTX_add_session(void)
 
     return res;
 }
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+     defined(SESSION_CERTS) && defined(HAVE_SESSION_TICKET) && \
+    !defined(TITAN_SESSION_CACHE) && \
+    !defined(HUGE_SESSION_CACHE) && \
+    !defined(BIG_SESSION_CACHE) && \
+    !defined(MEDIUM_SESSION_CACHE)
+
+/* twcase - prefix for test_wolfSSL_CTX_add_session_ext */
+/* Sessions to restore/store */
+static WOLFSSL_SESSION* twcase_server_first_session_ptr;
+static WOLFSSL_SESSION* twcase_client_first_session_ptr;
+static WOLFSSL_CTX*     twcase_server_current_ctx_ptr;
+static int twcase_new_session_called    = 0;
+static int twcase_remove_session_called = 0;
+static int twcase_get_session_called    = 0;
+
+/* Test default, SESSIONS_PER_ROW*SESSION_ROWS = 3*11, see ssl.c */
+#define SESSION_CACHE_SIZE 33
+
+typedef struct {
+    const byte* key;  /* key, altSessionID, session ID, NULL if empty */
+    WOLFSSL_SESSION* value;
+} hashTable_entry;
+
+typedef struct {
+    hashTable_entry entries[SESSION_CACHE_SIZE];  /* hash slots */
+    size_t capacity;                     /* size of entries */
+    size_t length;                       /* number of items in the hash table */
+    wolfSSL_Mutex htLock;                /* lock */
+}hashTable;
+
+static hashTable server_sessionCache;
+
+static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
+{
+    int i;
+    (void)ssl;
+    /*
+     * This example uses a hash table.
+     * Steps you should take for a non-demo code:
+     * - acquire a lock for the file named according to the session id
+     * - open the file
+     * - encrypt and write the SSL_SESSION object to the file
+     * - release the lock
+     *
+     * Return:
+     *  0: The callback does not wish to hold a reference of the sess
+     *  1: The callback wants to hold a reference of the sess. The callback is
+     *     now also responsible for calling wolfSSL_SESSION_free() on sess.
+     */
+    if (sess == NULL)
+        return 0;
+
+    if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
+        return 0;
+    }
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].value == NULL) {
+            if (sess->haveAltSessionID == 1)
+                server_sessionCache.entries[i].key = sess->altSessionID;
+            else
+                server_sessionCache.entries[i].key = sess->sessionID;
+
+            server_sessionCache.entries[i].value = sess;
+            server_sessionCache.length++;
+            break;
+        }
+    }
+    ++twcase_new_session_called;
+    wc_UnLockMutex(&server_sessionCache.htLock);
+    fprintf(stderr, "\t\ttwcase_new_session_called %d\n",
+            twcase_new_session_called);
+    return 1;
+}
+
+static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
+{
+    int i;
+    (void)ctx;
+    (void)sess;
+
+    if (sess == NULL)
+        return;
+    /*
+     * This example uses a hash table.
+     * Steps you should take for a non-demo code:
+     * - acquire a lock for the file named according to the session id
+     * - remove the file
+     * - release the lock
+     */
+    if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
+        return;
+    }
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].key != NULL &&
+           XMEMCMP(server_sessionCache.entries[i].key,
+                   sess->sessionID, SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
+            wolfSSL_SESSION_free(server_sessionCache.entries[i].value);
+            server_sessionCache.entries[i].value = NULL;
+            server_sessionCache.entries[i].key = NULL;
+            server_sessionCache.length--;
+            break;
+        }
+    }
+    ++twcase_remove_session_called;
+    wc_UnLockMutex(&server_sessionCache.htLock);
+    fprintf(stderr, "\t\ttwcase_remove_session_called %d\n",
+            twcase_remove_session_called);
+}
+
+static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
+                                  const unsigned char *id, int len, int *ref)
+{
+    int i;
+    (void)ssl;
+    (void)id;
+    (void)len;
+
+    /*
+     * This example uses a hash table.
+     * Steps you should take for a non-demo code:
+     * - acquire a lock for the file named according to the session id in the
+     *   2nd arg
+     * - read and decrypt contents of file and create a new SSL_SESSION
+     * - object release the lock
+     * - return the new session object
+     */
+    fprintf(stderr, "\t\ttwcase_get_session_called %d\n",
+            ++twcase_get_session_called);
+    /* This callback want to retain a copy of the object. If we want wolfSSL to
+     * be responsible for the pointer then set to 0. */
+    *ref = 1;
+
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].key != NULL &&
+           XMEMCMP(server_sessionCache.entries[i].key, id,
+                   SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
+           return server_sessionCache.entries[i].value;
+        }
+    }
+    return NULL;
+}
+static void twcase_get_sessionCb_cleanup(void)
+{
+    int i;
+    int cnt = 0;
+
+    /* If  twcase_get_sessionCb sets *ref = 1, the application is responsible
+     * for freeing sessions */
+
+    for (i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if (server_sessionCache.entries[i].value != NULL) {
+            wolfSSL_SESSION_free(server_sessionCache.entries[i].value);
+            cnt++;
+        }
+    }
+
+    fprintf(stderr, "\t\ttwcase_get_sessionCb_cleanup freed %d sessions\n",
+            cnt);
+}
+
+static void twcase_cache_intOff_extOff(WOLFSSL_CTX* ctx)
+{
+    /* off - Disable internal cache */
+    AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
+    AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
+#endif
+    /* off - Donot setup external cache */
+
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOn_extOff(WOLFSSL_CTX* ctx)
+{
+   /* on - internal cache is on by default*/
+   /* off - Donot setup external cache */
+   /* Require both peers to provide certs */
+   wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOff_extOn(WOLFSSL_CTX* ctx)
+{
+   /* off - Disable internal cache */
+   AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
+   AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
+#endif
+   /* on - Enable external cache */
+   wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+   wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+   wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+   /* Require both peers to provide certs */
+   wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOn_extOn(WOLFSSL_CTX* ctx)
+{
+    /* on - internal cache is on by default */
+    /* on - Enable external cache */
+    wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+    wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+static void twcase_cache_intOn_extOn_noTicket(WOLFSSL_CTX* ctx)
+{
+    /* on - internal cache is on by default */
+    /* on - Enable external cache */
+    wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+    wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+    wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TICKET);
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+static void twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION** sess;
+    if (wolfSSL_is_server(ssl))
+        sess = &twcase_server_first_session_ptr;
+    else
+        return;
+
+    if (*sess == NULL) {
+        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+        /* Now save the session in the internal store to make it available
+         * for lookup. For TLS 1.3, we can't save the session without
+         * WOLFSSL_TICKET_HAVE_ID because there is no way to retrieve the
+         * session from cache. */
+        if (wolfSSL_is_server(ssl)
+#ifndef WOLFSSL_TICKET_HAVE_ID
+                && wolfSSL_version(ssl) != TLS1_3_VERSION
+                && wolfSSL_version(ssl) != DTLS1_3_VERSION
+#endif
+                ) {
+            AssertIntEQ(wolfSSL_CTX_add_session(wolfSSL_get_SSL_CTX(ssl),
+                    *sess), WOLFSSL_SUCCESS);
+        }
+    }
+    /* Save CTX to be able to decrypt tickets */
+    if (twcase_server_current_ctx_ptr == NULL) {
+        AssertNotNull(twcase_server_current_ctx_ptr = wolfSSL_get_SSL_CTX(ssl));
+        AssertIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
+                    WOLFSSL_SUCCESS);
+    }
+#ifdef SESSION_CERTS
+#ifndef WOLFSSL_TICKET_HAVE_ID
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
+#endif
+    {
+        /* With WOLFSSL_TICKET_HAVE_ID the peer certs should be available
+         * for all connections. TLS 1.3 only has tickets so if we don't
+         * include the session id in the ticket then the certificates
+         * will not be available on resumption. */
+        WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+        AssertNotNull(peer);
+        wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+    }
+#endif
+}
+
+static void twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION** sess;
+    sess = &twcase_client_first_session_ptr;
+    if (*sess == NULL) {
+        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+    }
+    else {
+        /* If we have a session retrieved then remaining connections should be
+         * resuming on that session */
+        AssertIntEQ(wolfSSL_session_reused(ssl), 1);
+    }
+
+#ifdef SESSION_CERTS
+#ifndef WOLFSSL_TICKET_HAVE_ID
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
+#endif
+    {
+
+        WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+        AssertNotNull(peer);
+        wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+#ifdef OPENSSL_EXTRA
+        AssertNotNull(wolfSSL_SESSION_get0_peer(*sess));
+#endif
+    }
+#endif
+}
+static void twcase_client_set_sess_ssl_ready(WOLFSSL* ssl)
+{
+    /* Set the session to reuse for the client */
+    AssertNotNull(ssl);
+    AssertNotNull(twcase_client_first_session_ptr);
+    AssertIntEQ(wolfSSL_set_session(ssl,twcase_client_first_session_ptr),
+                WOLFSSL_SUCCESS);
+}
+#endif
+
+static int test_wolfSSL_CTX_add_session_ext(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+     defined(SESSION_CERTS) && defined(HAVE_SESSION_TICKET) && \
+    !defined(TITAN_SESSION_CACHE) && \
+    !defined(HUGE_SESSION_CACHE) && \
+    !defined(BIG_SESSION_CACHE) && \
+    !defined(MEDIUM_SESSION_CACHE)
+    /* Test the default 33 sessions */
+
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3" },
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3" },
+#endif
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2" },
+#endif
+#endif
+#if !defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+        !defined(NO_DES3))
+        { wolfTLSv1_1_client_method, wolfTLSv1_1_server_method, "TLSv1_1" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_client_method, wolfDTLSv1_server_method, "DTLSv1_0" },
+#endif
+#endif
+    };
+
+    const int paramsLen = sizeof(params)/sizeof(*params);
+    int i, j;
+
+    /* Clear cache before starting */
+    wolfSSL_CTX_flush_sessions(NULL, -1);
+
+    XMEMSET(&server_sessionCache, 0, sizeof(hashTable));
+    if (wc_InitMutex(&server_sessionCache.htLock) != 0)
+        return BAD_MUTEX_E;
+    server_sessionCache.capacity = SESSION_CACHE_SIZE;
+
+    for (i = 0; i < paramsLen; i++) {
+        fprintf(stderr, "\tBegin %s\n", params[i].tls_version);
+        for (j = 0; j < 5; j++) {
+            int tls13 = XSTRSTR(params[i].tls_version, "TLSv1_3") != NULL;
+            int dtls = XSTRSTR(params[i].tls_version, "DTLS") != NULL;
+            callback_functions client_cb;
+            callback_functions server_cb;
+
+            (void)dtls;
+
+            /* Test five cache configurations */
+            twcase_client_first_session_ptr = NULL;
+            twcase_server_first_session_ptr = NULL;
+            twcase_server_current_ctx_ptr = NULL;
+            twcase_new_session_called    = 0;
+            twcase_remove_session_called = 0;
+            twcase_get_session_called    = 0;
+
+            /* connection 1 - first connection */
+            fprintf(stderr, "\tconnect: %s: j=%d, methodsLen=%d\n",
+                    params[i].tls_version, j, paramsLen);
+
+            XMEMSET(&client_cb, 0, sizeof(callback_functions));
+            XMEMSET(&server_cb, 0, sizeof(callback_functions));
+            client_cb.method  = params[i].client_meth;
+            server_cb.method  = params[i].server_meth;
+
+            if (dtls)
+                client_cb.doUdp = server_cb.doUdp = 1;
+
+            /* Setup internal and external cache */
+            switch (j) {
+                case 0:
+                    /* SSL_OP_NO_TICKET stateful ticket case */
+                    server_cb.ctx_ready = twcase_cache_intOn_extOn_noTicket;
+                    break;
+                case 1:
+                    server_cb.ctx_ready = twcase_cache_intOn_extOn;
+                    break;
+                case 2:
+                    server_cb.ctx_ready = twcase_cache_intOff_extOn;
+                    break;
+                case 3:
+                    server_cb.ctx_ready = twcase_cache_intOn_extOff;
+                    break;
+                case 4:
+                    server_cb.ctx_ready = twcase_cache_intOff_extOff;
+                    break;
+            }
+            client_cb.ctx_ready = twcase_cache_intOff_extOff;
+
+            /* Add session to internal cache and save SSL session for testing */
+            server_cb.on_result = twcase_server_sess_ctx_pre_shutdown;
+            /* Save client SSL session for testing */
+            client_cb.on_result = twcase_client_sess_ctx_pre_shutdown;
+            server_cb.ticNoInit = 1; /* Use default builtin */
+            /* Don't free/release ctx */
+            server_cb.ctx = twcase_server_current_ctx_ptr;
+            server_cb.isSharedCtx = 1;
+
+            test_wolfSSL_client_server_nofail(&client_cb, &server_cb);
+
+            AssertTrue(client_cb.return_code);
+            AssertTrue(server_cb.return_code);
+            AssertIntEQ(twcase_get_session_called, 0);
+            switch (j) {
+                case 0:
+                case 1:
+                case 2:
+                    /* cache cannot be searched with out a connection */
+                    /* Add a new session */
+                    AssertIntEQ(twcase_new_session_called, 1);
+                    /* In twcase_server_sess_ctx_pre_shutdown
+                     * wolfSSL_CTX_add_session which evicts the existing session
+                     * in cache and adds it back in */
+                    AssertIntLE(twcase_remove_session_called, 1);
+                    break;
+                case 3:
+                case 4:
+                    /* no external cache  */
+                    AssertIntEQ(twcase_new_session_called, 0);
+                    AssertIntEQ(twcase_remove_session_called, 0);
+                    break;
+            }
+
+            /* connection 2 - session resume */
+            fprintf(stderr, "\tresume: %s: j=%d, methodsLen=%d\n",
+                    params[i].tls_version, j, paramsLen);
+            twcase_new_session_called    = 0;
+            twcase_remove_session_called = 0;
+            twcase_get_session_called    = 0;
+            server_cb.on_result = 0;
+            client_cb.on_result = 0;
+            server_cb.ticNoInit = 1; /* Use default builtin */
+
+            server_cb.ctx = twcase_server_current_ctx_ptr;
+
+            /* try session resumption */
+            client_cb.ssl_ready = twcase_client_set_sess_ssl_ready;
+
+            test_wolfSSL_client_server_nofail(&client_cb, &server_cb);
+
+            AssertTrue(client_cb.return_code);
+            AssertTrue(server_cb.return_code);
+
+            /* Clear cache before checking */
+            wolfSSL_CTX_flush_sessions(NULL, -1);
+
+            switch (j) {
+                case 0:
+                    if (tls13) {
+                        /* (D)TLSv1.3 stateful case */
+                        /* cache hit */
+                        /* DTLS accesses cache once for stateless parsing and
+                         * once for stateful parsing */
+                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+
+                        /* (D)TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(twcase_new_session_called, 1);
+                        AssertIntEQ(twcase_remove_session_called, 1);
+
+                    }
+                    else {
+                        /* non (D)TLSv1.3 case, no update */
+                        /* DTLS accesses cache once for stateless parsing and
+                         * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
+                        AssertIntEQ(twcase_new_session_called, 0);
+                        /* Called on session added in
+                         * twcase_server_sess_ctx_pre_shutdown */
+                        AssertIntEQ(twcase_remove_session_called, 1);
+                    }
+                    break;
+                case 1:
+                    if (tls13) {
+                        /* (D)TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(twcase_get_session_called, 1);
+                        /* (D)TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(twcase_new_session_called, 1);
+                        /* Called on session added in
+                         * twcase_server_sess_ctx_pre_shutdown and by wolfSSL */
+                        AssertIntEQ(twcase_remove_session_called, 1);
+                    }
+                    else {
+                        /* non (D)TLSv1.3 case */
+                        /* cache hit */
+                        /* DTLS accesses cache once for stateless parsing and
+                         * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
+                        AssertIntEQ(twcase_new_session_called, 0);
+                        /* Called on session added in
+                         * twcase_server_sess_ctx_pre_shutdown */
+                        AssertIntEQ(twcase_remove_session_called, 1);
+                    }
+                    break;
+                case 2:
+                    if (tls13) {
+                        /* (D)TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(twcase_get_session_called, 1);
+                        /* (D)TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(twcase_new_session_called, 1);
+                        /* Called on session added in
+                         * twcase_server_sess_ctx_pre_shutdown and by wolfSSL */
+                        AssertIntEQ(twcase_remove_session_called, 1);
+                    }
+                    else {
+                        /* non (D)TLSv1.3 case */
+                        /* cache hit */
+                        /* DTLS accesses cache once for stateless parsing and
+                         * once for stateful parsing */
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+                        AssertIntEQ(twcase_get_session_called, !dtls ? 1 : 2);
+#else
+                        AssertIntEQ(twcase_get_session_called, 1);
+#endif
+                        AssertIntEQ(twcase_new_session_called, 0);
+                        /* Called on session added in
+                         * twcase_server_sess_ctx_pre_shutdown */
+                        AssertIntEQ(twcase_remove_session_called, 1);
+                    }
+                    break;
+                case 3:
+                case 4:
+                    /* no external cache */
+                    AssertIntEQ(twcase_get_session_called, 0);
+                    AssertIntEQ(twcase_new_session_called, 0);
+                    AssertIntEQ(twcase_remove_session_called, 0);
+                    break;
+            }
+            wolfSSL_SESSION_free(twcase_client_first_session_ptr);
+            wolfSSL_SESSION_free(twcase_server_first_session_ptr);
+            wolfSSL_CTX_free(twcase_server_current_ctx_ptr);
+        }
+        twcase_get_sessionCb_cleanup();
+        XMEMSET(&server_sessionCache.entries, 0,
+                sizeof(server_sessionCache.entries));
+        fprintf(stderr, "\tEnd %s\n", params[i].tls_version);
+    }
+    wc_FreeMutex(&server_sessionCache.htLock);
+    res = TEST_RES_CHECK(1);
+#endif
+
+    return res;
+}
+
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
 /* canned export of a session using older version 3 */
@@ -30835,22 +31421,25 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     ASN1_INTEGER* ai;
-    ASN1_INTEGER* a2;
-    BIGNUM* a;
+    ASN1_INTEGER* ai2;
+    BIGNUM* bn;
+    BIGNUM* bn2;
 
     ai = ASN1_INTEGER_new();
     AssertNotNull(ai);
+    bn2 = BN_new();
+    AssertNotNull(bn2);
 
     /* Invalid parameter testing. */
-    AssertNull(a = ASN1_INTEGER_to_BN(NULL, NULL));
-    AssertNull(a2 = BN_to_ASN1_INTEGER(NULL, NULL));
+    AssertNull(bn = ASN1_INTEGER_to_BN(NULL, NULL));
+    AssertNull(ai2 = BN_to_ASN1_INTEGER(NULL, NULL));
 
     /* at the moment hard setting since no set function */
     ai->data[0] = 0xff; /* No DER encoding. */
     ai->length = 1;
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    BN_free(a);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    BN_free(bn);
 #else
     AssertNull(ASN1_INTEGER_to_BN(ai, NULL));
 #endif
@@ -30861,8 +31450,8 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     ai->length = 3;
 #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
     /* Interpreted as a number 0x020403. */
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    BN_free(a);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    BN_free(bn);
 #else
     AssertNull(ASN1_INTEGER_to_BN(ai, NULL));
 #endif
@@ -30871,37 +31460,47 @@ static int test_wolfSSL_ASN1_INTEGER_BN(void)
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x03;
     ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, NULL));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, NULL));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, NULL));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai->data[1] = 0x01; /* length of integer */
-    ai->data[2] = 0xff;
-    ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    ai->data[1] = 0x02; /* length of integer */
+    ai->data[2] = 0x00; /* padding byte to ensure positive */
+    ai->data[3] = 0xff;
+    ai->length = 4;
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x00;
     ai->length = 3;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
     ai->data[1] = 0x01; /* length of integer */
     ai->data[2] = 0x01;
     ai->length = 3;
     ai->negative = 1;
-    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, a));
-    AssertNotNull(a2 = BN_to_ASN1_INTEGER(a, a2));
-    AssertIntEQ(ASN1_INTEGER_cmp(ai, a2), 0);
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(ai, bn));
+    AssertNotNull(ai2 = BN_to_ASN1_INTEGER(bn, ai2));
+    AssertIntEQ(ASN1_INTEGER_cmp(ai, ai2), 0);
+    AssertNotNull(bn2 = ASN1_INTEGER_to_BN(ai2, bn2));
+    AssertIntEQ(BN_cmp(bn, bn2), 0);
 
-    BN_free(a);
-    ASN1_INTEGER_free(a2);
+    BN_free(bn2);
+    BN_free(bn);
+    ASN1_INTEGER_free(ai2);
     ASN1_INTEGER_free(ai);
 
     res = TEST_RES_CHECK(1);
@@ -43264,6 +43863,144 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
     return res;
 }
 
+/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+static int test_GENERAL_NAME_set0_othername(void) {
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+    const char * cert_fname = "./certs/server-cert.der";
+    const char * key_fname = "./certs/server-key.der";
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* upn_oid = NULL;
+    ASN1_UTF8STRING *utf8str = NULL;
+    ASN1_TYPE *value = NULL;
+    X509_EXTENSION * ext = NULL;
+
+    byte* pt = NULL;
+    byte der[4096];
+    int derSz = 0;
+    EVP_PKEY* priv = NULL;
+    FILE* f = NULL;
+
+    AssertNotNull(f = fopen(cert_fname, "rb"));
+    AssertNotNull(x509 = d2i_X509_fp(f, NULL));
+    fclose(f);
+    AssertNotNull(gn = GENERAL_NAME_new());
+    AssertNotNull(upn_oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    AssertNotNull(utf8str = ASN1_UTF8STRING_new());
+    AssertIntEQ(ASN1_STRING_set(utf8str, "othername@wolfssl.com", -1), 1);
+    AssertNotNull(value = ASN1_TYPE_new());
+    ASN1_TYPE_set(value, V_ASN1_UTF8STRING, utf8str);
+    AssertIntEQ(GENERAL_NAME_set0_othername(gn, upn_oid, value), 1);
+    AssertNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    AssertIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    AssertNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    AssertIntEQ(X509_add_ext(x509, ext, -1), 1);
+    AssertNotNull(f = fopen(key_fname, "rb"));
+    AssertIntGT(derSz = (int)fread(der, 1, sizeof(der), f), 0);
+    fclose(f);
+    pt = der;
+    AssertNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                        (const unsigned char**)&pt, derSz));
+    AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    ASN1_OBJECT_free(upn_oid);
+    X509_EXTENSION_free(ext);
+    X509_free(x509);
+    EVP_PKEY_free(priv);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+static int test_othername_and_SID_ext(void) {
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+
+    const char* csr_fname = "./certs/csr.signed.der";
+    const char* key_fname = "./certs/server-key.der";
+
+    byte der[4096];
+    int derSz = 0;
+    X509_REQ* x509 = NULL;
+    STACK_OF(X509_EXTENSION) *exts = NULL;
+
+    X509_EXTENSION * san_ext = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* upn_oid = NULL;
+    ASN1_UTF8STRING *utf8str = NULL;
+    ASN1_TYPE *value = NULL;
+
+    /* SID extension. SID data format explained here:
+     * https://blog.qdsecurity.se/2022/05/27/manually-injecting-a-sid-in-a-certificate/
+     */
+    uint8_t SidExtension[] = {
+    48, 64, 160, 62, 6,  10, 43, 6,  1,  4,  1,  130, 55, 25, 2,  1,  160,
+    48, 4,  46,  83, 45, 49, 45, 53, 45, 50, 49, 45,  50, 56, 52, 51, 57,
+    48, 55, 52,  49, 56, 45, 51, 57, 50, 54, 50, 55,  55, 52, 50, 49, 45,
+    51, 56, 49,  53, 57, 57, 51, 57, 55, 50, 45, 52,  54, 48, 49};
+    X509_EXTENSION *sid_ext = NULL;
+    ASN1_OBJECT* sid_oid = NULL;
+    ASN1_OCTET_STRING *sid_data = NULL;
+
+    EVP_PKEY* priv = NULL;
+    FILE* f = NULL;
+    byte* pt = NULL;
+
+    AssertNotNull(f = fopen(csr_fname, "rb"));
+    AssertNotNull(x509 = d2i_X509_REQ_fp(f, NULL));
+    fclose(f);
+    AssertIntEQ(X509_REQ_set_version(x509, 2), 1);
+    AssertNotNull(gn = GENERAL_NAME_new());
+    AssertNotNull(upn_oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    AssertNotNull(utf8str = ASN1_UTF8STRING_new());
+    AssertIntEQ(ASN1_STRING_set(utf8str, "othername@wolfssl.com", -1), 1);
+    AssertNotNull(value = ASN1_TYPE_new());
+    ASN1_TYPE_set(value, V_ASN1_UTF8STRING, utf8str);
+    AssertIntEQ(GENERAL_NAME_set0_othername(gn, upn_oid, value), 1);
+    AssertNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    AssertIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    AssertNotNull(san_ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    AssertNotNull(sid_oid = OBJ_txt2obj("1.3.6.1.4.1.311.25.2", 1));
+    AssertNotNull(sid_data = ASN1_OCTET_STRING_new());
+    ASN1_OCTET_STRING_set(sid_data, SidExtension, sizeof(SidExtension));
+    AssertNotNull(sid_ext = X509_EXTENSION_create_by_OBJ(NULL, sid_oid, 0,
+                                                         sid_data));
+    AssertNotNull(exts = sk_X509_EXTENSION_new_null());
+    /* Ensure an empty stack doesn't raise an error. */
+    AssertIntEQ(X509_REQ_add_extensions(x509, exts), 1);
+    AssertIntEQ(sk_X509_EXTENSION_push(exts, san_ext), 1);
+    AssertIntEQ(sk_X509_EXTENSION_push(exts, sid_ext), 2);
+    AssertIntEQ(X509_REQ_add_extensions(x509, exts), 1);
+    AssertNotNull(f = fopen(key_fname, "rb"));
+    AssertIntGT(derSz = (int)fread(der, 1, sizeof(der), f), 0);
+    fclose(f);
+    pt = der;
+    AssertNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                        (const unsigned char**)&pt, derSz));
+    AssertIntGT(X509_REQ_sign(x509, priv, EVP_sha256()), 0);
+    pt = der;
+    AssertIntGT(derSz = i2d_X509_REQ(x509, &pt), 0);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+    ASN1_OBJECT_free(upn_oid);
+    ASN1_OBJECT_free(sid_oid);
+    ASN1_OCTET_STRING_free(sid_data);
+    X509_REQ_free(x509);
+    EVP_PKEY_free(priv);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
 
 static int test_wolfSSL_X509_set_name(void)
 {
@@ -44750,14 +45487,10 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Both should have been allocated */
     AssertIntEQ(clientSessRemCountMalloc, 1);
     AssertIntEQ(serverSessRemCountMalloc, 1);
-#if (!defined(WOLFSSL_TLS13) || !defined(HAVE_SESSION_TICKET)) && \
-        defined(NO_SESSION_CACHE_REF)
-    /* Client session should not be added to cache so this should be free'd when
-     * the SSL object was being free'd */
-    AssertIntEQ(clientSessRemCountFree, 1);
-#else
-    /* Client session is in cache due to requiring a persistent reference */
+    /* This should not be called yet. Session wasn't evicted from cache yet. */
     AssertIntEQ(clientSessRemCountFree, 0);
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+        !defined(NO_SESSION_CACHE_REF)
     /* Force a cache lookup */
     AssertNotNull(SSL_SESSION_get_ex_data(clientSess, serverSessRemIdx));
     /* Force a cache update */
@@ -45135,7 +45868,6 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     const char* x400Str  = "X400Name:<unsupported>";
     const char* ediStr   = "EdiPartyName:<unsupported>";
 
-
     /* BIO to output */
     AssertNotNull(out = BIO_new(BIO_s_mem()));
 
@@ -45261,6 +45993,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     AssertIntEQ(XSTRNCMP((const char*)outbuf, x400Str, XSTRLEN(x400Str)), 0);
 
+    /* Restore to GEN_IA5 (default) to avoid memory leak. */
+    gn->type = GEN_IA5;
     GENERAL_NAME_free(gn);
 
     /* test for GEN_EDIPARTY */
@@ -45273,6 +46007,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     AssertIntEQ(XSTRNCMP((const char*)outbuf, ediStr, XSTRLEN(ediStr)), 0);
 
+    /* Restore to GEN_IA5 (default) to avoid memory leak. */
+    gn->type = GEN_IA5;
     GENERAL_NAME_free(gn);
 
     BIO_free(out);
@@ -53065,6 +53801,7 @@ static int test_tls13_apis(void)
     wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
 #endif
     serverSsl = wolfSSL_new(serverCtx);
+    AssertNotNull(serverSsl);
 #endif
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -59256,8 +59993,8 @@ static int test_wolfSSL_EC_KEY_private_key(void)
     AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     AssertNotNull(priv = wolfSSL_BN_new());
     AssertNotNull(priv2 = wolfSSL_BN_new());
-    AssertIntNE(BN_set_word(priv, 1), 0);
-    AssertIntNE(BN_set_word(priv2, 1), 0);
+    AssertIntNE(BN_set_word(priv, 2), 0);
+    AssertIntNE(BN_set_word(priv2, 2), 0);
 
     AssertNull(wolfSSL_EC_KEY_get0_private_key(NULL));
     /* No private key set. */
@@ -60180,6 +60917,7 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
 static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 {
+    const word16 sendCountMax = 100;
     byte b[150]; /* buffer for the messages to send */
     size_t idx = 0;
     size_t msg_offset = 0;
@@ -60207,7 +60945,7 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
     /* fragment contents */
     idx += 100;
 
-    for (; ret > 0; msg_number++) {
+    for (; ret > 0 && msg_number < sendCountMax; msg_number++) {
         byte sendBuf[150];
         int sendSz = sizeof(sendBuf);
         struct timespec delay;
@@ -60256,9 +60994,10 @@ static int test_wolfSSL_dtls_fragments(void)
         AssertFalse(func_cb_server.return_code);
 
         /* The socket should be closed by the server resulting in a
-         * socket error or reading a close notify alert */
+         * socket error, fatal error or reading a close notify alert */
         if (func_cb_client.last_err != SOCKET_ERROR_E &&
-                func_cb_client.last_err != WOLFSSL_ERROR_ZERO_RETURN) {
+                func_cb_client.last_err != WOLFSSL_ERROR_ZERO_RETURN &&
+                func_cb_client.last_err != FATAL_ERROR) {
             AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
         }
         /* Check the server returned an error indicating the msg buffer
@@ -60569,6 +61308,7 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
     XMEMSET(&delay, 0, sizeof(delay));
     delay.tv_nsec = 100000000; /* wait 0.1 seconds */
     tcp_set_nonblocking(&fd); /* So that read doesn't block */
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
     test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
     while (!test_AEAD_done && ret > 0) {
         counter++;
@@ -62155,6 +62895,8 @@ static int test_wolfSSL_SESSION_get_ex_new_index(void)
     SSL_SESSION_free(d);
     AssertIntEQ(test_wolfSSL_SESSION_get_ex_new_index_free_cb_called, 2);
 
+    crypto_ex_cb_free(crypto_ex_cb_ctx_session);
+    crypto_ex_cb_ctx_session = NULL;
     return TEST_RES_CHECK(1);
 }
 #else
@@ -64800,6 +65542,114 @@ static int test_harden_no_secure_renegotiation(void)
 }
 #endif
 
+#if defined(HAVE_OCSP) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+static int test_override_alt_cert_chain_cert_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    printf("preverify: %d\n", preverify);
+    printf("store->error: %d\n", store->error);
+    printf("error reason: %s\n", wolfSSL_ERR_reason_error_string(store->error));
+    if (store->error == OCSP_INVALID_STATUS) {
+        printf("Overriding OCSP error\n");
+        return 1;
+    }
+#ifndef WOLFSSL_ALT_CERT_CHAINS
+    else if ((store->error == ASN_NO_SIGNER_E ||
+              store->error == ASN_SELF_SIGNED_E
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
+            || store->error == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+#endif
+            ) && store->error_depth == store->totalCerts - 1) {
+        printf("Overriding no signer error only for root cert\n");
+        return 1;
+    }
+#endif
+    else
+        return preverify;
+}
+
+static int test_override_alt_cert_chain_ocsp_cb(void* ioCtx, const char* url,
+        int urlSz, unsigned char* request, int requestSz,
+        unsigned char** response)
+{
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+    (void)response;
+    return -1;
+}
+
+static void test_override_alt_cert_chain_client_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER,
+            test_override_alt_cert_chain_cert_cb);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_override_alt_cert_chain_ocsp_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "not a url"),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_override_alt_cert_chain_client_ctx_ready2(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL |
+            WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_Cb(ctx,
+            test_override_alt_cert_chain_ocsp_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx, "not a url"),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_override_alt_cert_chain_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx,
+            "./certs/intermediate/server-chain-alt.pem"), WOLFSSL_SUCCESS);
+}
+
+static int test_override_alt_cert_chain(void)
+{
+    size_t i;
+    struct test_params {
+        ctx_callback client_ctx_cb;
+        ctx_callback server_ctx_cb;
+        int result;
+    } params[] = {
+        {test_override_alt_cert_chain_client_ctx_ready,
+                test_override_alt_cert_chain_server_ctx_ready, TEST_SUCCESS},
+        {test_override_alt_cert_chain_client_ctx_ready2,
+                test_override_alt_cert_chain_server_ctx_ready, TEST_FAIL},
+    };
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        callback_functions client_cbs, server_cbs;
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        printf("test config: %d\n", (int)i);
+
+        client_cbs.ctx_ready = params[i].client_ctx_cb;
+        server_cbs.ctx_ready = params[i].server_ctx_cb;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertIntEQ(client_cbs.return_code, params[i].result);
+        AssertIntEQ(server_cbs.return_code, params[i].result);
+    }
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_override_alt_cert_chain(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -64830,6 +65680,7 @@ TEST_CASE testCases[] = {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
     TEST_DECL(test_wolfSSL_get_finished),
     TEST_DECL(test_wolfSSL_CTX_add_session),
+    TEST_DECL(test_wolfSSL_CTX_add_session_ext),
 #endif
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
@@ -65152,6 +66003,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OBJ_txt2obj),
     TEST_DECL(test_wolfSSL_PEM_write_bio_X509),
     TEST_DECL(test_wolfSSL_X509_NAME_ENTRY),
+    TEST_DECL(test_GENERAL_NAME_set0_othername),
+    TEST_DECL(test_othername_and_SID_ext),
     TEST_DECL(test_wolfSSL_X509_set_name),
     TEST_DECL(test_wolfSSL_X509_set_notAfter),
     TEST_DECL(test_wolfSSL_X509_set_notBefore),
@@ -65833,6 +66686,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
     TEST_DECL(test_harden_no_secure_renegotiation),
+    TEST_DECL(test_override_alt_cert_chain),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */

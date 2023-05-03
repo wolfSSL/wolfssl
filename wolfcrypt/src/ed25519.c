@@ -53,17 +53,29 @@
 #endif
 
 #if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_VERIFY)
-#define ED25519CTX_SIZE    32
+    /* Set a static message string for "Sig No Collisions Message SNC".
+    ** Note this is a static string per spec, see:
+    ** https://datatracker.ietf.org/doc/rfc8032/
+    */
+    #define ED25519CTX_SNC_MESSAGE "SigEd25519 no Ed25519 collisions"
+    #define ED25519CTX_SIZE 32 /* 32 chars: fixed length of SNC Message. */
 
-static const byte ed25519Ctx[ED25519CTX_SIZE+1] =
-                                             "SigEd25519 no Ed25519 collisions";
+    /* The 32 bytes of ED25519CTX_SIZE is used elsewhere, but we need one
+    ** more char for saving the line ending in our ed25519Ctx[] here: */
+    static const byte ed25519Ctx[ED25519CTX_SIZE + 1] = ED25519CTX_SNC_MESSAGE;
 #endif
 
 static int ed25519_hash_init(ed25519_key* key, wc_Sha512 *sha)
 {
     int ret;
 
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+    /* when not using persistent SHA, we'll zero the sha param */
+    XMEMSET(sha, 0, sizeof(wc_Sha512));
+#endif
+
     ret = wc_InitSha512_ex(sha, key->heap,
+
 #if defined(WOLF_CRYPTO_CB)
                            key->devId
 #else
@@ -334,8 +346,9 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #else
         wc_Sha512 sha[1];
         ret = ed25519_hash_init(key, sha);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 #endif
 
         if (type == Ed25519ctx || type == Ed25519ph) {
@@ -386,6 +399,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         wc_Sha512 *sha = &key->sha;
 #else
         wc_Sha512 sha[1];
+
         ret = ed25519_hash_init(key, sha);
         if (ret < 0)
             return ret;
@@ -765,9 +779,10 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     sha = &key->sha;
 #else
     ret = ed25519_hash_init(key, sha);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
-#endif
+    }
+#endif /* WOLFSSL_ED25519_PERSISTENT_SHA */
 
     ret = ed25519_verify_msg_init_with_sha(sig, sigLen, key, sha, type, context,
         contextLen);
@@ -871,7 +886,9 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    /* for init, ensure the key is zeroed*/
     XMEMSET(key, 0, sizeof(ed25519_key));
+
 #ifdef WOLF_CRYPTO_CB
     key->devId = devId;
 #else

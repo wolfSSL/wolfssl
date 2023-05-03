@@ -10,6 +10,7 @@ jobs:
         config: [
           # Add new configs here
           '--enable-asynccrypt --enable-all --enable-dtls13',
+          '--enable-asynccrypt-sw',
         ]
     name: make check
     runs-on: ubuntu-latest
@@ -23,3 +24,9 @@ jobs:
           ./configure ${{ matrix.config }}
           make check
 
+      - name: Print errors 
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi

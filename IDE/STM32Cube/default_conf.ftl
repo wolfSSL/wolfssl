@@ -152,6 +152,12 @@ extern ${variable.value} ${variable.name};
         #undef  NO_STM32_CRYPTO
         #define WOLFSSL_STM32_PKA
     #endif
+#elif defined(STM32H563xx)
+    #define WOLFSSL_STM32H5
+    #define HAL_CONSOLE_UART huart3
+    #define STM32_HAL_V2
+    #undef  NO_STM32_HASH
+
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */

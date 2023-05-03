@@ -110,7 +110,7 @@ typedef WOLFSSL_ASN1_BIT_STRING ASN1_BIT_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAMES  GENERAL_NAMES;
-typedef WOLFSSL_GENERAL_NAME GENERAL_NAME;
+typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
 typedef WOLFSSL_OBJ_NAME       OBJ_NAME;
 typedef WOLFSSL_DIST_POINT_NAME DIST_POINT_NAME;
 typedef WOLFSSL_DIST_POINT      DIST_POINT;
@@ -392,16 +392,17 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_get_max_early_data  wolfSSL_SESSION_get_max_early_data
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #define SSL_MODE_RELEASE_BUFFERS    0x00000010U
-    #define ASN1_BOOLEAN                WOLFSSL_ASN1_BOOLEAN
-    #define X509_get_ext                wolfSSL_X509_get_ext
-    #define X509_get_ext_by_OBJ         wolfSSL_X509_get_ext_by_OBJ
-    #define X509_cmp                    wolfSSL_X509_cmp
-    #define X509_EXTENSION_get_object   wolfSSL_X509_EXTENSION_get_object
-    #define X509_EXTENSION_get_critical wolfSSL_X509_EXTENSION_get_critical
-    #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data
-    #define X509_EXTENSION_new          wolfSSL_X509_EXTENSION_new
-    #define X509_EXTENSION_free         wolfSSL_X509_EXTENSION_free
+    #define SSL_MODE_RELEASE_BUFFERS     0x00000010U
+    #define ASN1_BOOLEAN                 WOLFSSL_ASN1_BOOLEAN
+    #define X509_get_ext                 wolfSSL_X509_get_ext
+    #define X509_get_ext_by_OBJ          wolfSSL_X509_get_ext_by_OBJ
+    #define X509_cmp                     wolfSSL_X509_cmp
+    #define X509_EXTENSION_get_object    wolfSSL_X509_EXTENSION_get_object
+    #define X509_EXTENSION_get_critical  wolfSSL_X509_EXTENSION_get_critical
+    #define X509_EXTENSION_get_data      wolfSSL_X509_EXTENSION_get_data
+    #define X509_EXTENSION_new           wolfSSL_X509_EXTENSION_new
+    #define X509_EXTENSION_free          wolfSSL_X509_EXTENSION_free
+    #define X509_EXTENSION_create_by_OBJ wolfSSL_X509_EXTENSION_create_by_OBJ
 #endif
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
@@ -415,6 +416,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define i2d_X509_REQ_bio                wolfSSL_i2d_X509_REQ_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
 #define d2i_X509_REQ_bio                wolfSSL_d2i_X509_REQ_bio
+#define d2i_X509_REQ_fp                 wolfSSL_d2i_X509_REQ_fp
 #define d2i_X509_fp                     wolfSSL_d2i_X509_fp
 #define i2d_X509                        wolfSSL_i2d_X509
 #define d2i_X509                        wolfSSL_d2i_X509
@@ -877,6 +879,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_OCTET_STRING_new           wolfSSL_ASN1_STRING_new
 #define ASN1_OCTET_STRING_free          wolfSSL_ASN1_STRING_free
 #define ASN1_OCTET_STRING_set           wolfSSL_ASN1_STRING_set
+
+#define ASN1_UTF8STRING                 WOLFSSL_ASN1_STRING
+#define ASN1_UTF8STRING_new             wolfSSL_ASN1_STRING_new
+#define ASN1_UTF8STRING_free            wolfSSL_ASN1_STRING_free
+#define ASN1_UTF8STRING_set             wolfSSL_ASN1_STRING_set
 
 #define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
 
@@ -1345,6 +1352,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAME_dup                wolfSSL_GENERAL_NAME_dup
 #define GENERAL_NAME_print              wolfSSL_GENERAL_NAME_print
+#define GENERAL_NAME_set0_othername     wolfSSL_GENERAL_NAME_set0_othername
 #define sk_GENERAL_NAME_push            wolfSSL_sk_GENERAL_NAME_push
 #define sk_GENERAL_NAME_value           wolfSSL_sk_GENERAL_NAME_value
 
@@ -1367,6 +1375,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_SESSION_set1_id_context     wolfSSL_SESSION_set1_id_context
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
+#define sk_GENERAL_NAME_new             wolfSSL_sk_GENERAL_NAME_new
 #define sk_GENERAL_NAME_free            wolfSSL_sk_GENERAL_NAME_free
 #define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_ASN1_OBJECT_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
@@ -1555,7 +1564,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE ||
           OPENSSL_ALL || HAVE_LIGHTY */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
 #define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list
 #define SSL_set1_curves_list            wolfSSL_set1_curves_list
 #endif

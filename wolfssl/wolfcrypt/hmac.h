@@ -107,6 +107,8 @@ enum {
     HMAC_MAX_ID_LEN    = 32,
     HMAC_MAX_LABEL_LEN = 32,
 #endif
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(HMAC)
 };
 
 /* Select the largest available hash for the buffer size. */

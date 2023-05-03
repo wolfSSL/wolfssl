@@ -97,16 +97,19 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32L5 support define `WOLFSSL_STM32L5`.
 * To enable STM32H7 support define `WOLFSSL_STM32H7`.
 * To enable STM32WB support define `WOLFSSL_STM32WB`.
+* To enable STM32U5 support define `WOLFSSL_STM32U5`.
+* To enable STM32H5 support define `WOLFSSL_STM32H5`.
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
-The PKA acceleration for ECC is avaialble on some U5, L5 and WB55 chips.
+The PKA acceleration for ECC is available on some U5, L5 and WB55 chips.
 This is enabled with `WOLFSSL_STM32_PKA`. You can see some of the benchmarks [here](STM32_Benchmarks.md).
 
 To disable hardware crypto acceleration you can define:
 
 * `NO_STM32_HASH`
 * `NO_STM32_CRYPTO`
+* `NO_STM32_RNG`
 
 To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 
@@ -168,6 +171,8 @@ The TLS v1.3 client/server examples over UART are paired with these host-side ap
 * https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/server-tls-uart.c
 
 To use this example you will need to use the STM32Cube interface to enable an additional USART and enable DMA for the RX with defaults. Enabling DMA for the USART requires adding the USART RX DMA in the STM32Cube tool. Under Connectivity click on your TLS USART# and goto DMA Settings and "Add" one for USART#_RX with default options.
+
+On some boards, such as U5, there is GPDMA support. In this case when you click on "DMA Settings" you will be given a button to take you to GPDMA1 configuration. Click it. You can then enable a channel (any of the ones from 0 to 11 should be fine.) as "Standard Request Mode" and set the "Request Configuration" section's "Request" to USART#_RX. In the "System Core" tab, find NVIC and click on it. Make sure that the GPDMA1 global interrupt for your channel is enabled as well as USARTx global interrupt.
 
 Then set the TLS_UART macro to the correct `huart#` instance. This USART will be used as a TLS transport.
 

@@ -112,7 +112,7 @@ WOLFSSL_API int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId);
 WOLFSSL_API int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len);
 WOLFSSL_API int wc_Md5Final(wc_Md5* md5, byte* hash);
 WOLFSSL_API void wc_Md5Free(wc_Md5* md5);
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Md5Transform(wc_Md5* md5, const byte* data);
 #endif
 

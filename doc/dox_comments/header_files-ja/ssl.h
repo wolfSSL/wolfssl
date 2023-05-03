@@ -1055,6 +1055,37 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 int  wolfSSL_set_fd (WOLFSSL* ssl, int fd);
 
 /*!
+    \ingroup Setup
+    \brief この関数はファイルディスクリプタ(fd)をSSLコネクションの入出力手段として設定します。
+    通常はソケットファイルディスクリプタが指定されます。この関数はDTLS専用のAPIであり、ソケットは接続済みとマークされます。
+    したがって、与えられたfdに対するrecvfromとsendto呼び出しでのaddrとaddr_lenはNULLに設定されます。
+    \return SSL_SUCCESS 成功時に返されます。
+    \return Bad_FUNC_ARG 失敗時に返されます。
+    \param ssl wolfSSL_new()で生成されたSSLセッションへのポインタ。
+    \param fd SSL/TLSコネクションに使用するファイルディスクリプタ。
+    _Example_
+    \code
+    int sockfd;
+    WOLFSSL* ssl = 0;
+    ...
+    if (connect(sockfd, peer_addr, peer_addr_len) != 0) {
+        // handle connect error
+    }
+    ...
+    ret = wolfSSL_set_dtls_fd_connected(ssl, sockfd);
+    if (ret != SSL_SUCCESS) {
+        // failed to set SSL file descriptor
+    }
+    \endcode
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SetIOReadCtx
+    \sa wolfSSL_SetIOWriteCtx
+    \sa wolfDTLS_SetChGoodCb
+*/
+int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
+
+/*!
     \ingroup IO 
     \brief  渡された優先順位の暗号の名前を取得します。
     \return string  成功
@@ -4005,19 +4036,23 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
 
 /*!
     \ingroup CertsKeys 
-    \brief  この関数は、証明書のチェーンからのピアのwolfssl_x509_209_Certificateをインデックス（IDX）で取得します。
-    \return pointer  wolfssl_x509構造へのポインタを返します。
+    \brief  この関数は、証明書のチェーンからのピアのWOLFSSL_X509構造体をインデックス（IDX）で取得します。
+    \return pointer  WOLFSSL_X509構造体へのポインタを返します。
     \param chain  動的メモリsession_cacheの場合に使用されるWOLFSSL_X509_CHAINへのポインタ。
+
+    注意：本関数から返された構造体をwolfSSL_FreeX509()を呼び出して解放するのはユーザーの責任です。
+
     _Example_
     \code
     WOLFSSL_X509_CHAIN* chain = &session->chain;
     int idx = 999; // set idx
     ...
-    WOLFSSL_X509_CHAIN ptr;
+    WOLFSSL_X509* ptr;
     prt = wolfSSL_get_chain_X509(chain, idx);
 
     if(ptr != NULL){
         //ptr contains the cert at the index specified
+        wolfSSL_FreeX509(ptr);
     } else {
 	    // ptr is NULL
     }

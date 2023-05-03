@@ -195,6 +195,8 @@ enum {
     ECC_MAX_ID_LEN    = 32,
     ECC_MAX_LABEL_LEN = 32,
 #endif
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(ECC)
 };
 
 #endif /* HAVE_ECC */
@@ -413,7 +415,7 @@ typedef struct {
 enum {
     WC_ECC_FLAG_NONE     = 0x00,
     WC_ECC_FLAG_COFACTOR = 0x01,
-    WC_ECC_FLAG_DEC_SIGN = 0x02,
+    WC_ECC_FLAG_DEC_SIGN = 0x02
 };
 
 /* ECC non-blocking */
@@ -601,6 +603,11 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 WOLFSSL_API
 int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
+
+/* Internal API for blocking ECDHE call */
+WOLFSSL_LOCAL
+int wc_ecc_shared_secret_gen_sync(ecc_key* private_key,
+    ecc_point* point, byte* out, word32* outlen);
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)

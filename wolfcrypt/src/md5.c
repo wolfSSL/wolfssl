@@ -450,7 +450,12 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    local = (byte*)md5->buffer;
+    local = (byte*)md5->buffer; /* buffer allocated in word32 size */
+
+    /* ensure we have a valid buffer length; (-1 to append a byte to length) */
+    if (md5->buffLen > WC_MD5_BLOCK_SIZE - 1) {
+        return BUFFER_E;
+    }
 
     local[md5->buffLen++] = 0x80;  /* add 1 */
 
@@ -552,7 +557,7 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
     return ret;
 }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 /* Apply MD5 transformation to the data                   */
 /* @param md5  a pointer to wc_MD5 structure              */
 /* @param data data to be applied MD5 transformation      */

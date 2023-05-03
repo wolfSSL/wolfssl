@@ -1913,7 +1913,14 @@ WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
     }
 
     if (ret == 0) {
-        ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+        if (isRsa) {
+            ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+        }
+        else {
+#if defined(WOLFSSL_CHECK_SIG_FAULTS)
+            ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+#endif
+        }
     }
 
     if (ret == 0) {

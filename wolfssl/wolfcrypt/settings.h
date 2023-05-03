@@ -1361,7 +1361,8 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
-    defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5)
+    defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
+    defined(WOLFSSL_STM32H5)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1416,6 +1417,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32g0xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
             #include "stm32u5xx_hal.h"
+        #elif defined(WOLFSSL_STM32H5)
+            #include "stm32h5xx_hal.h"
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -1467,7 +1470,8 @@ extern void uITRON4_free(void *p) ;
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 ||
           WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB ||
-          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 || WOLFSSL_STM32U5 */
+          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 || WOLFSSL_STM32U5 ||
+          WOLFSSL_STM32H5 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
@@ -1555,7 +1559,8 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
 
-    #if ! defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(CUSTOM_RAND_GENERATE)
+    #if !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(STM32_RNG) && \
+        !defined(CUSTOM_RAND_GENERATE)
         #define CUSTOM_RAND_TYPE     RAND_NBR
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
@@ -1872,6 +1877,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifdef _MSC_VER
+    #ifndef HAVE_SSIZE_T
+        #include <BaseTsd.h>
+        typedef SSIZE_T ssize_t;
+    #endif
+#endif
+
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
 #if defined(WOLFSSL_IMXRT_DCP) && !defined(SINGLE_THREADED)
     #undef WOLFSSL_CRYPT_HW_MUTEX
@@ -2032,6 +2044,9 @@ extern void uITRON4_free(void *p) ;
          *      Constant time: Not supported
          *      Enable:        USE_INTEGER_HEAP_MATH
          */
+    #elif defined(NO_BIG_INT)
+        /*  5) No big integer math libraries
+         */
     #else
         /* default is SP Math. */
         #define WOLFSSL_SP_MATH_ALL
@@ -2135,8 +2150,9 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_KEY_IMPORT
         #define HAVE_ECC_KEY_IMPORT
     #endif
-    /* The ECC key export requires mp_int */
-    #if !defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT)
+    /* The ECC key export requires mp_int or SP */
+    #if (!defined(NO_ECC_KEY_EXPORT) && defined(WOLFSSL_SP_MATH)) || \
+        (!defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT))
         #undef HAVE_ECC_KEY_EXPORT
         #define HAVE_ECC_KEY_EXPORT
     #endif
@@ -2591,6 +2607,11 @@ extern void uITRON4_free(void *p) ;
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
+/* Disable time checking if no timer */
+#if defined(NO_ASN_TIME)
+    #define NO_ASN_TIME_CHECK
+#endif
+
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL
     #define CURVE25519_SMALL
@@ -2712,12 +2733,6 @@ extern void uITRON4_free(void *p) ;
     (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
-#endif
-
-#if defined(NO_AES) && defined(NO_DES3) && !defined(HAVE_CAMELLIA) && \
-       !defined(WOLFSSL_HAVE_PRF) && defined(NO_PWDBASED)
-    #undef  WOLFSSL_NO_XOR_OPS
-    #define WOLFSSL_NO_XOR_OPS
 #endif
 
 #if defined(NO_ASN) && defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_WOLFSSH)

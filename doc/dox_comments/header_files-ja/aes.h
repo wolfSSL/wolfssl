@@ -610,7 +610,7 @@ int wc_AesXtsFree(XtsAes* aes);
 
 /*!
     \ingroup AES 
-    \brief  AES構造を初期化します。ASYNCハードウェアで使用するためのヒープヒントとIDを設定する
+    \brief  Aes構造体を初期化します。ヒープヒントを設定し、ASYNCハードウェアを使用する場合のIDも設定します。Aes構造体の使用が終了した際にwc_AesFreeを呼び出すのはユーザーに任されています。
     \return 0  成功
     \param aes  初期化にはAES構造
     \param heap  必要に応じてmalloc / freeに使用するヒントヒント
@@ -622,12 +622,32 @@ int wc_AesXtsFree(XtsAes* aes);
 
     //heap hint could be set here if used
 
-    wc_AesInit(&aes, hint, devId);
+    wc_AesInit(&enc, hint, devId);
     \endcode
     \sa wc_AesSetKey
     \sa wc_AesSetIV
 */
 int  wc_AesInit(Aes* aes, void* heap, int devId);
+
+/*!
+    \ingroup AES
+    \brief Aes構造体に関連つけられたリソースを可能なら解放する。
+    内部的にはノーオペレーションとなることもありますが、ベストプラクティスとしてどのケースでもこの関数を呼び出すことを推奨します。
+    \return 戻り値なし
+    \param aes FreeすべきAes構造体へのポインター
+    _Example_
+    \code
+    Aes enc;
+    void* hint = NULL;
+    int devId = INVALID_DEVID; //if not using async INVALID_DEVID is default
+    //heap hint could be set here if used
+    wc_AesInit(&enc, hint, devId);
+    // ... do some interesting things ...
+    wc_AesFree(&enc);
+    \endcode
+    \sa wc_AesInit
+*/
+int  wc_AesFree(Aes* aes);
 
 /*!
     \ingroup AES 

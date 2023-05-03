@@ -112,14 +112,26 @@ decouple library dependencies with standard string, memory and so on.
         /* if a version is available, pivot on the version, otherwise guess it's
          * allowed, subject to override.
          */
-        #if !defined(__STDC__) \
+        #if !defined(WOLF_C89) && (!defined(__STDC__)                \
             || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
             || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
-            || (defined(__cplusplus) && (__cplusplus >= 201103L))
+            || (defined(__cplusplus) && (__cplusplus >= 201103L)))
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
         #else
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
         #endif
+    #endif
+
+    /* With a true C89-dialect compiler (simulate with gcc -std=c89 -Wall
+     * -Wextra -pedantic), a trailing comma on the last value in an enum
+     * definition is a syntax error.  We use this macro to accommodate that
+     * without disrupting clean flow/syntax when some enum values are
+     * preprocessor-gated.
+     */
+    #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _wolf_ ## prefix ## _enum_dummy_last_element
+    #else
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix)
     #endif
 
     /* helpers for stringifying the expanded value of a macro argument rather
@@ -174,17 +186,29 @@ decouple library dependencies with standard string, memory and so on.
         typedef unsigned long long word64;
     #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long sword64;
         typedef unsigned long word64;
     #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long long sword64;
         typedef unsigned long long word64;
     #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
         #define WORD64_AVAILABLE
-        #define W64LIT(x) x##LL
+        #ifdef WOLF_C89
+            #define W64LIT(x) x##L
+        #else
+            #define W64LIT(x) x##LL
+        #endif
         typedef          long long sword64;
         typedef unsigned long long word64;
     #endif
@@ -616,7 +640,7 @@ typedef struct w64wrapper {
              defined(WOLFSSL_TIRTOS) || defined(WOLF_C99))
         #define USE_WOLF_STRTOK
     #endif
-    #if !defined(USE_WOLF_STRSEP) && (defined(WOLF_C99))
+    #if !defined(USE_WOLF_STRSEP) && (defined(WOLF_C89) || defined(WOLF_C99))
         #define USE_WOLF_STRSEP
     #endif
     #if !defined(XSTRLCPY) && !defined(USE_WOLF_STRLCPY)
@@ -660,10 +684,9 @@ typedef struct w64wrapper {
             #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
         #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
                 defined(WOLFSSL_ZEPHYR)
-            /* XC32 version < 1.0 does not support strcasecmp, so use
-             * case sensitive one.
-             */
-            #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+            /* XC32 version < 1.0 does not support strcasecmp. */
+            #define USE_WOLF_STRCASECMP
+            #define XSTRCASECMP(s1,s2) wc_strcasecmp(s1,s2)
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
             #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
         #else
@@ -673,8 +696,10 @@ typedef struct w64wrapper {
             #endif
             #if defined(WOLFSSL_DEOS)
                 #define XSTRCASECMP(s1,s2) stricmp((s1),(s2))
-            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE)
-                #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE) \
+                    || defined(WOLF_C89)
+                #define USE_WOLF_STRCASECMP
+                #define XSTRCASECMP(s1,s2) wc_strcasecmp(s1, s2)
             #elif defined(WOLF_C89)
                 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
             #else
@@ -689,10 +714,9 @@ typedef struct w64wrapper {
             #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
         #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
                 defined(WOLFSSL_ZEPHYR)
-            /* XC32 version < 1.0 does not support strncasecmp, so use case
-             * sensitive one.
-             */
-            #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
+            /* XC32 version < 1.0 does not support strncasecmp. */
+            #define USE_WOLF_STRNCASECMP
+            #define XSTRNCASECMP(s1,s2) wc_strncasecmp(s1,s2)
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
@@ -702,8 +726,10 @@ typedef struct w64wrapper {
             #endif
             #if defined(WOLFSSL_DEOS)
                 #define XSTRNCASECMP(s1,s2,n) strnicmp((s1),(s2),(n))
-            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE)
-                #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
+            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE) \
+                    || defined(WOLF_C89)
+                #define USE_WOLF_STRNCASECMP
+                #define XSTRNCASECMP(s1,s2,n) wc_strncasecmp(s1, s2 ,n)
             #elif defined(WOLF_C89)
                 #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
             #else
@@ -830,6 +856,12 @@ typedef struct w64wrapper {
     #ifdef USE_WOLF_STRLCAT
         WOLFSSL_API size_t wc_strlcat(char *dst, const char *src, size_t dstSize);
         #define XSTRLCAT(s1,s2,n) wc_strlcat((s1),(s2),(n))
+    #endif
+    #ifdef USE_WOLF_STRCASECMP
+        WOLFSSL_API int wc_strcasecmp(const char *s1, const char *s2);
+    #endif
+    #ifdef USE_WOLF_STRNCASECMP
+        WOLFSSL_API int wc_strncasecmp(const char *s1, const char *s2, size_t n);
     #endif
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -971,7 +1003,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_PB_BUFFER  = 1003,
         DYNAMIC_TYPE_SNIFFER_TICKET_ID  = 1004,
         DYNAMIC_TYPE_SNIFFER_NAMED_KEY  = 1005,
-        DYNAMIC_TYPE_SNIFFER_KEY        = 1006,
+        DYNAMIC_TYPE_SNIFFER_KEY        = 1006
     };
 
     /* max error buffer string size */

@@ -211,14 +211,14 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
     }
 
     static void U64TO8(byte* p, word64 v) {
-        p[0] = (v      ) & 0xff;
-        p[1] = (v >>  8) & 0xff;
-        p[2] = (v >> 16) & 0xff;
-        p[3] = (v >> 24) & 0xff;
-        p[4] = (v >> 32) & 0xff;
-        p[5] = (v >> 40) & 0xff;
-        p[6] = (v >> 48) & 0xff;
-        p[7] = (v >> 56) & 0xff;
+        p[0] = (byte)v;
+        p[1] = (byte)(v >>  8);
+        p[2] = (byte)(v >> 16);
+        p[3] = (byte)(v >> 24);
+        p[4] = (byte)(v >> 32);
+        p[5] = (byte)(v >> 40);
+        p[6] = (byte)(v >> 48);
+        p[7] = (byte)(v >> 56);
     }
 #endif/* WOLFSSL_ARMASM */
 #else /* if not 64 bit then use 32 bit */
@@ -778,7 +778,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
 
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
-            size_t want = (bytes & ~(POLY1305_BLOCK_SIZE - 1));
+            size_t want = ((size_t)bytes & ~((size_t)POLY1305_BLOCK_SIZE - 1));
 #if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
             int ret;
             ret = poly1305_blocks(ctx, m, want);

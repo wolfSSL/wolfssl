@@ -855,6 +855,7 @@ void ssl_FreeSniffer(void)
             FreeSnifferSession(removeSession);
         }
     }
+    XMEMSET(SessionTable, 0, sizeof(SessionTable));
     SessionCount = 0;
 
     /* Then server (wolfSSL_CTX) */
@@ -3418,6 +3419,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
             WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer,
                 NULL, 0);
             if (sess == NULL) {
+                SetupSession(session->sslServer);
                 AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);
@@ -4345,6 +4347,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
         #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
+                SetupSession(session->sslServer);
                 AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);

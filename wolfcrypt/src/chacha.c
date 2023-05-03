@@ -77,7 +77,7 @@ Public domain.
     #endif
 
     static int cpuidFlagsSet = 0;
-    static int cpuidFlags = 0;
+    static word32 cpuidFlags = 0;
 #endif
 
 #ifdef BIG_ENDIAN_ORDER
@@ -202,15 +202,12 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 /**
   * Converts word into bytes with rotations having been done.
   */
-static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
-    const word32 input[CHACHA_CHUNK_WORDS])
+static WC_INLINE void wc_Chacha_wordtobyte(word32 x[CHACHA_CHUNK_WORDS],
+        word32 state[CHACHA_CHUNK_WORDS])
 {
-    word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
 
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = input[i];
-    }
+    XMEMCPY(x, state, CHACHA_CHUNK_BYTES);
 
     for (i = (ROUNDS); i > 0; i -= 2) {
         QUARTERROUND(0, 4,  8, 12)
@@ -224,11 +221,10 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     }
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = PLUS(x[i], input[i]);
-    }
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        output[i] = LITTLE32(x[i]);
+        x[i] = PLUS(x[i], state[i]);
+#ifdef BIG_ENDIAN_ORDER
+        x[i] = LITTLE32(x[i]);
+#endif
     }
 }
 
@@ -240,7 +236,7 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
  *
  * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
  */
-static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], int nrounds)
+static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], word32 nrounds)
 {
     word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
@@ -334,36 +330,33 @@ extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
 static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                     word32 bytes)
 {
-    byte*  output;
-    word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
-    word32 i;
+    union {
+        byte state[CHACHA_CHUNK_BYTES];
+        word32 state32[CHACHA_CHUNK_WORDS];
+        wolfssl_word align_word; /* align for xorbufout */
+    } tmp;
 
     /* handle left overs */
     if (bytes > 0 && ctx->left > 0) {
-        wc_Chacha_wordtobyte(temp, ctx->X); /* recreate the stream */
-        output = (byte*)temp + CHACHA_CHUNK_BYTES - ctx->left;
-        for (i = 0; i < bytes && i < ctx->left; i++) {
-            c[i] = (byte)(m[i] ^ output[i]);
-        }
-        ctx->left -= i;
+        word32 processed = min(bytes, ctx->left);
+        wc_Chacha_wordtobyte(tmp.state32, ctx->X); /* recreate the stream */
+        xorbufout(c, m, tmp.state + CHACHA_CHUNK_BYTES - ctx->left, processed);
+        ctx->left -= processed;
 
         /* Used up all of the stream that was left, increment the counter */
         if (ctx->left == 0) {
             ctx->X[CHACHA_MATRIX_CNT_IV] =
                                           PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
         }
-        bytes -= i;
-        c += i;
-        m += i;
+        bytes -= processed;
+        c += processed;
+        m += processed;
     }
 
-    output = (byte*)temp;
     while (bytes >= CHACHA_CHUNK_BYTES) {
-        wc_Chacha_wordtobyte(temp, ctx->X);
+        wc_Chacha_wordtobyte(tmp.state32, ctx->X);
         ctx->X[CHACHA_MATRIX_CNT_IV] = PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
-        for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
-            c[i] = (byte)(m[i] ^ output[i]);
-        }
+        xorbufout(c, m, tmp.state, CHACHA_CHUNK_BYTES);
         bytes -= CHACHA_CHUNK_BYTES;
         c += CHACHA_CHUNK_BYTES;
         m += CHACHA_CHUNK_BYTES;
@@ -373,11 +366,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         /* in this case there will always be some left over since bytes is less
          * than CHACHA_CHUNK_BYTES, so do not increment counter after getting
          * stream in order for the stream to be recreated on next call */
-        wc_Chacha_wordtobyte(temp, ctx->X);
-        for (i = 0; i < bytes; ++i) {
-            c[i] = m[i] ^ output[i];
-        }
-        ctx->left = CHACHA_CHUNK_BYTES - i;
+        wc_Chacha_wordtobyte(tmp.state32, ctx->X);
+        xorbufout(c, m, tmp.state, bytes);
+        ctx->left = CHACHA_CHUNK_BYTES - bytes;
     }
 }
 
@@ -394,17 +385,14 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     /* handle left overs */
     if (msglen > 0 && ctx->left > 0) {
         byte*  out;
-        word32 i;
+        word32 processed = min(msglen, ctx->left);
 
         out = (byte*)ctx->over + CHACHA_CHUNK_BYTES - ctx->left;
-        for (i = 0; i < msglen && i < ctx->left; i++) {
-            output[i] = (byte)(input[i] ^ out[i]);
-        }
-        ctx->left -= i;
-
-        msglen -= i;
-        output += i;
-        input += i;
+        xorbufout(output, input, out, processed);
+        ctx->left -= processed;
+        msglen -= processed;
+        output += processed;
+        input += processed;
     }
 
     if (msglen == 0) {

@@ -34,6 +34,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifdef WOLFSSL_CAAM
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 /* TODO: Consider linked list with mutex */
 #ifndef MAX_CRYPTO_DEVID_CALLBACKS
@@ -46,6 +49,7 @@ typedef struct CryptoCb {
     void* ctx;
 } CryptoCb;
 static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
+static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
 
 
 #ifdef DEBUG_CRYPTOCB
@@ -165,15 +169,32 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
 }
 #endif /* DEBUG_CRYPTOCB */
 
-static CryptoCb* wc_CryptoCb_FindDevice(int devId)
+/* Search through listed devices and return the first matching device ID
+ * found. */
+static CryptoCb* wc_CryptoCb_GetDevice(int devId)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+    for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
         if (gCryptoDev[i].devId == devId)
             return &gCryptoDev[i];
     }
     return NULL;
 }
+
+
+/* Filters through find callback set when trying to get the device,
+ * returns the device found on success and null if not found. */
+static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
+{
+    int localDevId = devId;
+
+    if (CryptoCb_FindCb != NULL) {
+        localDevId = CryptoCb_FindCb(devId, algoType);
+    }
+    return wc_CryptoCb_GetDevice(localDevId);
+}
+
+
 static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
 {
     int i;
@@ -211,12 +232,22 @@ int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
     return devId;
 }
 
+
+/* Used to register a find device function. Useful for cases where the
+ * device ID in the struct may not have been set but still wanting to use
+ * a specifice crypto callback device ID. The find callback is global and
+ * not thread safe. */
+void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
+{
+    CryptoCb_FindCb = cb;
+}
+
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     /* find existing or new */
-    CryptoCb* dev = wc_CryptoCb_FindDevice(devId);
+    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
     if (dev == NULL)
-        dev = wc_CryptoCb_FindDevice(INVALID_DEVID);
+        dev = wc_CryptoCb_GetDevice(INVALID_DEVID);
 
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
@@ -230,7 +261,7 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 
 void wc_CryptoCb_UnRegisterDevice(int devId)
 {
-    CryptoCb* dev = wc_CryptoCb_FindDevice(devId);
+    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
     if (dev) {
         XMEMSET(dev, 0, sizeof(*dev));
         dev->devId = INVALID_DEVID;
@@ -248,7 +279,7 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -278,7 +309,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -306,7 +337,7 @@ int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -333,7 +364,7 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -360,7 +391,7 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(private_key->devId);
+    dev = wc_CryptoCb_FindDevice(private_key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -387,7 +418,7 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -416,7 +447,7 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -445,7 +476,7 @@ int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -473,7 +504,7 @@ int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -499,7 +530,7 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(private_key->devId);
+    dev = wc_CryptoCb_FindDevice(private_key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -529,7 +560,7 @@ int wc_CryptoCb_Ed25519Gen(WC_RNG* rng, int keySize,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -556,7 +587,7 @@ int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen, byte* out,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -588,7 +619,7 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -624,7 +655,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -665,7 +696,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -708,7 +739,7 @@ int wc_CryptoCb_AesCcmEncrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -749,7 +780,7 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -789,7 +820,7 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -821,7 +852,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -854,7 +885,7 @@ int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -887,7 +918,7 @@ int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -919,7 +950,7 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 
     /* locate registered callback */
     if (aes) {
-        dev = wc_CryptoCb_FindDevice(aes->devId);
+        dev = wc_CryptoCb_FindDevice(aes->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -954,7 +985,7 @@ int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
 
     /* locate registered callback */
     if (des3) {
-        dev = wc_CryptoCb_FindDevice(des3->devId);
+        dev = wc_CryptoCb_FindDevice(des3->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -986,7 +1017,7 @@ int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
 
     /* locate registered callback */
     if (des3) {
-        dev = wc_CryptoCb_FindDevice(des3->devId);
+        dev = wc_CryptoCb_FindDevice(des3->devId, WC_ALGO_TYPE_CIPHER);
     }
     else {
         /* locate first callback and try using it */
@@ -1020,7 +1051,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
 
     /* locate registered callback */
     if (sha) {
-        dev = wc_CryptoCb_FindDevice(sha->devId);
+        dev = wc_CryptoCb_FindDevice(sha->devId, WC_ALGO_TYPE_HASH);
     }
     else {
         /* locate first callback and try using it */
@@ -1053,7 +1084,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 
     /* locate registered callback */
     if (sha256) {
-        dev = wc_CryptoCb_FindDevice(sha256->devId);
+        dev = wc_CryptoCb_FindDevice(sha256->devId, WC_ALGO_TYPE_HASH);
     }
     else {
         /* locate first callback and try using it */
@@ -1087,7 +1118,7 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     /* locate registered callback */
     #ifndef NO_SHA2_CRYPTO_CB
     if (sha384) {
-        dev = wc_CryptoCb_FindDevice(sha384->devId);
+        dev = wc_CryptoCb_FindDevice(sha384->devId, WC_ALGO_TYPE_HASH);
     }
     else
     #endif
@@ -1123,7 +1154,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     /* locate registered callback */
     #ifndef NO_SHA2_CRYPTO_CB
     if (sha512) {
-        dev = wc_CryptoCb_FindDevice(sha512->devId);
+        dev = wc_CryptoCb_FindDevice(sha512->devId, WC_ALGO_TYPE_HASH);
     }
     else
     #endif
@@ -1160,7 +1191,7 @@ int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
         return ret;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(hmac->devId);
+    dev = wc_CryptoCb_FindDevice(hmac->devId, WC_ALGO_TYPE_HMAC);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -1186,7 +1217,7 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 
     /* locate registered callback */
     if (rng) {
-        dev = wc_CryptoCb_FindDevice(rng->devId);
+        dev = wc_CryptoCb_FindDevice(rng->devId, WC_ALGO_TYPE_RNG);
     }
     else {
         /* locate first callback and try using it */
@@ -1213,7 +1244,7 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(os->devId);
+    dev = wc_CryptoCb_FindDevice(os->devId, WC_ALGO_TYPE_SEED);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -1238,7 +1269,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 
     /* locate registered callback */
     if (cmac) {
-        dev = wc_CryptoCb_FindDevice(cmac->devId);
+        dev = wc_CryptoCb_FindDevice(cmac->devId, WC_ALGO_TYPE_CMAC);
     }
     else {
         /* locate first callback and try using it */

@@ -89,7 +89,7 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
 
     if (ret == 0) {
         /* random number for private key */
-        ret = wc_RNG_GenerateBlock(rng, key->k, keysize);
+        ret = wc_RNG_GenerateBlock(rng, key->k, (word32)keysize);
     }
     if (ret == 0) {
         key->privSet = 1;

@@ -88,6 +88,16 @@
 #define AssertStrGE(x, y) AssertStr(x, y, >=,  <)
 #define AssertStrLE(x, y) AssertStr(x, y, <=,  >)
 
+#ifdef WOLF_C89
+
+#define AssertPtr(x, y, op, er) do {                                           \
+    void* _x = (void*)(x);                                                     \
+    void* _y = (void*)(y);                                                     \
+    Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%p " #er " %p", _x, _y));    \
+} while(0)
+
+#else
+
 #define AssertPtr(x, y, op, er) do {                                           \
     PRAGMA_GCC_DIAG_PUSH;                                                      \
       /* remarkably, without this inhibition, */                               \
@@ -101,6 +111,8 @@
     Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%p " #er " %p", _x, _y));    \
     PRAGMA_GCC_DIAG_POP;                                                       \
 } while(0)
+
+#endif
 
 #define AssertPtrEq(x, y) AssertPtr(x, y, ==, !=)
 #define AssertPtrNE(x, y) AssertPtr(x, y, !=, ==)

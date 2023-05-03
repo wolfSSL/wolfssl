@@ -61,7 +61,7 @@ Block counter is located at index 12.
 
 /* Size of ChaCha chunks */
 #define CHACHA_CHUNK_WORDS 16
-#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * sizeof(word32))
+#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * (word32)sizeof(word32))
 
 #ifdef WOLFSSL_X86_64_BUILD
 #if defined(USE_INTEL_SPEEDUP) && !defined(NO_CHACHA_ASM)
@@ -72,7 +72,7 @@ Block counter is located at index 12.
 
 enum {
     CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
-    CHACHA_MAX_KEY_SZ = 32,
+    CHACHA_MAX_KEY_SZ = 32
 };
 
 typedef struct ChaCha {

@@ -7,6 +7,8 @@
 * [STM32L562E](#stm32l562e)
 * [STM32F777](#stm32f777)
 * [STM32U585](#stm32u585)
+* [STM32H563ZI](#stm32h563zi)
+* [STM32G071RB](#stm32g071rb)
 
 ## STM32H753ZI
 
@@ -708,3 +710,98 @@ ECDSA [      SECP256R1]   256 verify          4 ops took 1.196 sec, avg 299.000 
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
+## STM32H563ZI
+
+Cortex-M33 at 150MHz
+
+### STM32H563ZI (No STM HW Crypto, SP Math ASM Cortex M)
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.0
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                          2 MB took 1.011 seconds,    1.950 MB/s
+AES-128-CBC-enc              4 MB took 1.000 seconds,    3.686 MB/s
+AES-128-CBC-dec              4 MB took 1.004 seconds,    3.723 MB/s
+AES-192-CBC-enc              3 MB took 1.004 seconds,    3.187 MB/s
+AES-192-CBC-dec              3 MB took 1.000 seconds,    3.046 MB/s
+AES-256-CBC-enc              3 MB took 1.000 seconds,    2.816 MB/s
+AES-256-CBC-dec              3 MB took 1.004 seconds,    2.728 MB/s
+AES-128-GCM-enc              2 MB took 1.000 seconds,    2.048 MB/s
+AES-128-GCM-dec              2 MB took 1.004 seconds,    2.091 MB/s
+AES-192-GCM-enc              2 MB took 1.008 seconds,    1.879 MB/s
+AES-192-GCM-dec              2 MB took 1.011 seconds,    1.874 MB/s
+AES-256-GCM-enc              2 MB took 1.000 seconds,    1.741 MB/s
+AES-256-GCM-dec              2 MB took 1.012 seconds,    1.745 MB/s
+AES-128-GCM-enc-no_AAD       2 MB took 1.008 seconds,    2.057 MB/s
+AES-128-GCM-dec-no_AAD       2 MB took 1.008 seconds,    2.108 MB/s
+AES-192-GCM-enc-no_AAD       2 MB took 1.000 seconds,    1.894 MB/s
+AES-192-GCM-dec-no_AAD       2 MB took 1.000 seconds,    1.894 MB/s
+AES-256-GCM-enc-no_AAD       2 MB took 1.004 seconds,    1.759 MB/s
+AES-256-GCM-dec-no_AAD       2 MB took 1.004 seconds,    1.759 MB/s
+GMAC Table 4-bit             4 MB took 1.000 seconds,    4.400 MB/s
+CHACHA                       8 MB took 1.000 seconds,    8.448 MB/s
+CHA-POLY                     6 MB took 1.000 seconds,    5.683 MB/s
+POLY1305                    26 MB took 1.000 seconds,   25.574 MB/s
+SHA-256                      5 MB took 1.004 seconds,    4.972 MB/s
+HMAC-SHA256                  5 MB took 1.000 seconds,    4.941 MB/s
+RSA     2048   public       122 ops took 1.000 sec, avg 8.197 ms, 122.000 ops/sec
+RSA     2048  private         4 ops took 1.231 sec, avg 307.750 ms, 3.249 ops/sec
+DH      2048  key gen         7 ops took 1.000 sec, avg 142.857 ms, 7.000 ops/sec
+DH      2048    agree         8 ops took 1.141 sec, avg 142.625 ms, 7.011 ops/sec
+ECC   [      SECP256R1]   256  key gen       204 ops took 1.000 sec, avg 4.902 ms, 204.000 ops/sec
+ECDHE [      SECP256R1]   256    agree        94 ops took 1.007 sec, avg 10.713 ms, 93.347 ops/sec
+ECDSA [      SECP256R1]   256     sign       136 ops took 1.012 sec, avg 7.441 ms, 134.387 ops/sec
+ECDSA [      SECP256R1]   256   verify        66 ops took 1.012 sec, avg 15.333 ms, 65.217 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
+## STM32G071RB
+
+STM32G0 is a Cortex M0+ at up to 64MHz. The STM32G071RB has 128KB Flash and 36KB RAM.
+
+### STM32G071RB Benchmarks (SP Math Small with ARM Thumb Assembly)
+
+Build options used:
+* `WOLFSSL_HAVE_SP_RSA`
+* `WOLFSSL_SP_ARM_THUMB_ASM`
+* `WOLFSSL_SP_SMALL`
+* `WOLFSSL_SP_MATH`
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.0
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        205 KB took 1.043 seconds,  196.357 KB/s
+AES-128-CBC-enc            358 KB took 1.008 seconds,  355.556 KB/s
+AES-128-CBC-dec            358 KB took 1.051 seconds,  341.009 KB/s
+AES-192-CBC-enc            333 KB took 1.063 seconds,  313.076 KB/s
+AES-192-CBC-dec            307 KB took 1.023 seconds,  300.293 KB/s
+AES-256-CBC-enc            282 KB took 1.004 seconds,  280.478 KB/s
+AES-256-CBC-dec            282 KB took 1.043 seconds,  269.990 KB/s
+SHA-256                    486 KB took 1.020 seconds,  476.863 KB/s
+HMAC-SHA256                486 KB took 1.028 seconds,  473.152 KB/s
+RSA     2048   public        12 ops took 1.043 sec, avg 86.917 ms, 11.505 ops/sec
+RSA     2048  private         2 ops took 6.482 sec, avg 3241.000 ms, 0.309 ops/sec
+ECC   [      SECP256R1]   256  key gen        10 ops took 1.122 sec, avg 112.200 ms, 8.913 ops/sec
+ECDHE [      SECP256R1]   256    agree         4 ops took 1.000 sec, avg 250.000 ms, 4.000 ops/sec
+ECDSA [      SECP256R1]   256     sign         8 ops took 1.227 sec, avg 153.375 ms, 6.520 ops/sec
+ECDSA [      SECP256R1]   256   verify         4 ops took 1.396 sec, avg 349.000 ms, 2.865 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+Without `WOLFSSL_SP_SMALL` (larger version):
+
+```
+RSA     2048   public        14 ops took 1.016 sec, avg 72.571 ms, 13.780 ops/sec
+RSA     2048  private         2 ops took 5.447 sec, avg 2723.500 ms, 0.367 ops/sec
+```
+

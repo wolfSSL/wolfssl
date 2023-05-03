@@ -340,7 +340,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #ifdef WOLF_CRYPTO_CB
     hmac->keyRaw = key; /* use buffer directly */
-    hmac->keyLen = length;
+    hmac->keyLen = (word16)length;
 #endif
 
 #ifdef WOLFSSL_MAXQ108X
@@ -1055,7 +1055,7 @@ int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
     if (ret == 0)
         ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
-        XMEMCPY(hmac->id, id, len);
+        XMEMCPY(hmac->id, id, (size_t)len);
         hmac->idLen = len;
     }
 
@@ -1078,7 +1078,7 @@ int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap, int devId)
     if (ret == 0)
         ret  = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
-        XMEMCPY(hmac->label, label, labelLen);
+        XMEMCPY(hmac->label, label, (size_t)labelLen);
         hmac->labelLen = labelLen;
     }
 
@@ -1199,7 +1199,7 @@ int wolfSSL_GetHmacMaxSize(void)
     #endif
         int    ret;
         const  byte* localSalt;  /* either points to user input or tmp */
-        int    hashSz;
+        word32 hashSz;
 
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {
@@ -1213,7 +1213,7 @@ int wolfSSL_GetHmacMaxSize(void)
         }
     #endif
 
-        hashSz = ret;
+        hashSz = (word32)ret;
         localSalt = salt;
         if (localSalt == NULL) {
             XMEMSET(tmp, 0, hashSz);
@@ -1259,8 +1259,14 @@ int wolfSSL_GetHmacMaxSize(void)
     #endif
         int    ret = 0;
         word32 outIdx = 0;
-        word32 hashSz = wc_HmacSizeByType(type);
+        word32 hashSz;
         byte   n = 0x1;
+
+        ret = wc_HmacSizeByType(type);
+        if (ret < 0) {
+            return ret;
+        }
+        hashSz = (word32)ret;
 
         /* RFC 5869 states that the length of output keying material in
          * octets must be L <= 255*HashLen or N = ceil(L/HashLen) */
@@ -1285,7 +1291,7 @@ int wolfSSL_GetHmacMaxSize(void)
         }
 
         while (outIdx < outSz) {
-            int    tmpSz = (n == 1) ? 0 : hashSz;
+            word32 tmpSz = (n == 1) ? 0 : hashSz;
             word32 left = outSz - outIdx;
 
             ret = wc_HmacSetKey(myHmac, type, inKey, inKeySz);
@@ -1338,11 +1344,14 @@ int wolfSSL_GetHmacMaxSize(void)
                        byte* out,         word32 outSz)
     {
         byte   prk[WC_MAX_DIGEST_SIZE];
-        int    hashSz = wc_HmacSizeByType(type);
+        word32 hashSz;
         int    ret;
 
-        if (hashSz < 0)
-            return BAD_FUNC_ARG;
+        ret = wc_HmacSizeByType(type);
+        if (ret < 0) {
+            return ret;
+        }
+        hashSz = (word32)ret;
 
         ret = wc_HKDF_Extract(type, salt, saltSz, inKey, inKeySz, prk);
         if (ret != 0)

@@ -1218,6 +1218,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     while (1) {
         int ret = peekErrorNode(idx, file, NULL, line);
         if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
+            ERRQ_UNLOCK();
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }

@@ -149,7 +149,7 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     /* setup aead context */
     XMEMSET(aead, 0, sizeof(ChaChaPoly_Aead));
     XMEMSET(authKey, 0, sizeof(authKey));
-    aead->isEncrypt = (byte)isEncrypt;
+    aead->isEncrypt = isEncrypt ? 1 : 0;
 
     /* Initialize the ChaCha20 context (key and iv) */
     ret = wc_Chacha_SetKey(&aead->chacha, inKey,
@@ -340,7 +340,7 @@ int wc_XChaCha20Poly1305_Init(
     if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)ad_len)) < 0)
         return ret;
 
-    aead->isEncrypt = (byte)isEncrypt;
+    aead->isEncrypt = isEncrypt ? 1 : 0;
     aead->state = CHACHA20_POLY1305_STATE_AAD;
 
     return 0;
