@@ -330,11 +330,14 @@ static int esp_get_rinv(MATH_INT_T *rinv, MATH_INT_T *M, word32 exp)
 /* Z = X * Y;  */
 int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
 {
-    int ret = MP_OKAY; /* assume success until proven wrong */
+    int ret;
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /* neg check: X*Y becomes negative */
-    int neg = (mp_isneg(X) == mp_isneg(Y)) ? MP_ZPOS : MP_NEG; // (X->sign == Y->sign) ? MP_ZPOS : MP_NEG;
+    int neg;
+
+    /* aka (X->sign == Y->sign) ? MP_ZPOS : MP_NEG; , but with mp_isneg(): */
+    neg = (mp_isneg(X) == mp_isneg(Y)) ? MP_ZPOS : MP_NEG;
     if (neg) {
         /* Negative numbers are relatively infrequent.
          * May be interesting during verbose debugging: */
@@ -342,6 +345,7 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
                        mp_isneg(X),      mp_isneg(Y),           neg);
     }
 #endif
+    ret = MP_OKAY; /* assume success until proven wrong */
 
 #if CONFIG_IDF_TARGET_ESP32S3
 
@@ -384,8 +388,9 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
         return ret;
     }
 
-    /* 2. Disable completion interrupt signal; we don't use. */
-    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0); // 0 => no interrupt; 1 => interrupt on completion.
+    /* 2. Disable completion interrupt signal; we don't use.
+    **    0 => no interrupt; 1 => interrupt on completion. */
+    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0);
 
     /* 3. Write number of words required for result. */
     if ( (WordsForOperand * BITS_IN_ONE_WORD * 2) > ESP_HW_RSAMAX_BIT) {
@@ -596,8 +601,9 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
         return ret;
     }
 
-    /* 2. Disable completion interrupt signal; we don't use. */
-    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0); // 0 => no interrupt; 1 => interrupt on completion.
+    /* 2. Disable completion interrupt signal; we don't use.
+    **    0 => no interrupt; 1 => interrupt on completion. */
+    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0);
 
     /* 3. Write (N_result_bits/32 - 1) to the RSA_MODE_REG. */
     OperandBits = max(max(Xs, Ys), Ms);
@@ -815,8 +821,9 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, word32 Ys, MATH_INT_T* M, MATH_
         return ret;
     }
 
-    /* 2. Disable completion interrupt signal; we don't use. */
-    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0); // 0 => no interrupt; 1 => interrupt on completion.
+    /* 2. Disable completion interrupt signal; we don't use.
+    **    0 => no interrupt; 1 => interrupt on completion. */
+    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0);
 
     /* 3. Write (N_result_bits/32 - 1) to the RSA_MODE_REG. */
     OperandBits = max(max(Xs, Ys), Ms);
