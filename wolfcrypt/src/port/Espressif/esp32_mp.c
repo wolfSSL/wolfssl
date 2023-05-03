@@ -330,10 +330,17 @@ static int esp_get_rinv(MATH_INT_T *rinv, MATH_INT_T *M, word32 exp)
 /* Z = X * Y;  */
 int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
 {
-    int ret = 0;
+    int ret = MP_OKAY; /* assume success until proven wrong */
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    int neg = (X->sign == Y->sign) ? MP_ZPOS : MP_NEG;
+    /* neg check: X*Y becomes negative */
+    int neg = (mp_isneg(X) == mp_isneg(Y)) ? MP_ZPOS : MP_NEG; // (X->sign == Y->sign) ? MP_ZPOS : MP_NEG;
+    if (neg) {
+        /* Negative numbers are relatively infrequent.
+         * May be interesting during verbose debugging: */
+        ESP_LOGV(TAG, "mp_isneg(X) = %d; mp_isneg(Y) = %d; neg = %d ",
+                       mp_isneg(X),      mp_isneg(Y),           neg);
+    }
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -407,11 +414,6 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     /* 7. clear and release HW                    */
     esp_mp_hw_unlock();
 
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    Z->sign = (Z->used > 0) ? neg : MP_ZPOS;
-#endif
-
-    return ret;
     /* end if CONFIG_IDF_TARGET_ESP32S3 */
 
 #else /* not CONFIG_IDF_TARGET_ESP32S3 */
@@ -421,11 +423,6 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     word32 Zs;
     word32 maxWords_sz;
     word32 hwWords_sz;
-
-    /* neg check - X*Y becomes negative */
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    neg = mp_isneg(X) != mp_isneg(Y) ? 1 : 0;
-#endif
 
     /* ask bits number */
     Xs = mp_count_bits(X);
@@ -492,15 +489,18 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     /* step.7 clear and release HW                    */
     esp_mp_hw_unlock();
 
+#endif /* CONFIG_IDF_TARGET_ESP32S3 or not */
 
+    /* common exit for all chipset types */
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if (!mp_iszero(Z) && neg) {
+        /* for non-zero negative numbers, set negative flag for our result:
+         *   Z->sign = FP_NEG */
         mp_setneg(Z);
     }
 #endif
 
     return ret;
-#endif /* CONFIG_IDF_TARGET_ESP32S3 or not */
 }
 
 /* Z = X * Y (mod M)                                  */
