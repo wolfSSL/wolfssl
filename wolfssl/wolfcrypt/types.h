@@ -1327,6 +1327,10 @@ typedef struct w64wrapper {
         #define WOLFSSL_THREAD
         #define INFINITE      (-1)
         #define WAIT_OBJECT_0 0L
+    #elif defined(FREERTOS)
+        typedef unsigned int   THREAD_RETURN;
+        typedef TaskHandle_t   THREAD_TYPE;
+        #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
