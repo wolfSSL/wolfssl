@@ -949,19 +949,19 @@ typedef struct Asn1PrintOptions {
     /* Length of DER/BER encoding to parse. */
     word32 length;
     /* Number of spaces to indent for each change in depth. */
-    int indent:4;
+    word8 indent;
     /* Draw branches instead of indenting. */
-    int draw_branch:1;
+    word8 draw_branch:1;
     /* Show raw data of primitive types as octets. */
-    int show_data:1;
+    word8 show_data:1;
     /* Show header data as octets. */
-    int show_header_data:1;
+    word8 show_header_data:1;
     /* Show the wolfSSL OID value for OBJECT_ID. */
-    int show_oid:1;
+    word8 show_oid:1;
     /* Don't show text representations of primitive types. */
-    int show_no_text:1;
+    word8 show_no_text:1;
     /* Don't show dump text representations of primitive types. */
-    int show_no_dump_text:1;
+    word8 show_no_dump_text:1;
 } Asn1PrintOptions;
 
 /* ASN.1 item data. */
