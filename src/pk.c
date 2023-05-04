@@ -30,6 +30,15 @@
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 #if !defined(WOLFSSL_PK_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning pk.c does not need to be compiled separately from ssl.c
@@ -11395,7 +11404,7 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
 
     if (ret == 0) {
         /* Copy private key. */
-        ret = mp_copy(&src->k, &dst->k);
+        ret = mp_copy(wc_ecc_key_get_priv(src), wc_ecc_key_get_priv(dst));
         if (ret != MP_OKAY) {
             WOLFSSL_MSG("mp_copy error");
         }
@@ -12533,7 +12542,8 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
         /* set the external privkey */
         if ((ret == 1) && (key->type == ECC_PRIVATEKEY) &&
-                (wolfssl_bn_set_value(&eckey->priv_key, &key->k) != 1)) {
+                (wolfssl_bn_set_value(&eckey->priv_key,
+                wc_ecc_key_get_priv(key)) != 1)) {
             WOLFSSL_MSG("ec priv key error");
             ret = -1;
         }
@@ -12604,12 +12614,13 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
 
         /* set privkey */
         if ((ret == 1) && (eckey->priv_key != NULL)) {
-            if (wolfssl_bn_get_value(eckey->priv_key, &key->k) != 1) {
+            if (wolfssl_bn_get_value(eckey->priv_key,
+                    wc_ecc_key_get_priv(key)) != 1) {
                 WOLFSSL_MSG("ec key priv error");
                 ret = -1;
             }
             /* private key */
-            if ((ret == 1) && (!mp_iszero(&key->k))) {
+            if ((ret == 1) && (!mp_iszero(wc_ecc_key_get_priv(key)))) {
                 if (pubSet) {
                     key->type = ECC_PRIVATEKEY;
                 }

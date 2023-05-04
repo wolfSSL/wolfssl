@@ -45,6 +45,12 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 #if defined(NO_PKCS11_RSA) && !defined(NO_RSA)
     #define NO_RSA
 #endif
@@ -1184,8 +1190,8 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
 
     ret = Pkcs11EccSetParams(private_key, keyTemplate, 3);
     if (ret == 0) {
-        keyTemplate[4].pValue     = private_key->k.raw.buf;
-        keyTemplate[4].ulValueLen = private_key->k.raw.len;
+        keyTemplate[4].pValue     = wc_ecc_key_get_priv(private_key)->raw.buf;
+        keyTemplate[4].ulValueLen = wc_ecc_key_get_priv(private_key)->raw.len;
 
         PKCS11_DUMP_TEMPLATE("Ec Private Key", keyTemplate, keyTmplCnt);
         rv = session->func->C_CreateObject(session->handle, keyTemplate,
@@ -1426,7 +1432,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                         ret = ret2;
                 }
                 if (ret == 0 && clear)
-                    mp_forcezero(&eccKey->k);
+                    mp_forcezero(wc_ecc_key_get_priv(eccKey));
                 break;
             }
     #endif
@@ -2448,7 +2454,8 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Derivation Operation");
 
-        if ((sessionKey = !mp_iszero(&info->pk.ecdh.private_key->k)))
+        if ((sessionKey = !mp_iszero(
+                wc_ecc_key_get_priv(info->pk.ecdh.private_key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                          info->pk.ecdh.private_key, CKA_DERIVE);
         else if (info->pk.ecdh.private_key->labelLen > 0) {
@@ -2742,7 +2749,8 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Signing Operation");
 
-        if ((sessionKey = !mp_iszero(&info->pk.eccsign.key->k)))
+        if ((sessionKey = !mp_iszero(
+                wc_ecc_key_get_priv(info->pk.eccsign.key))))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                                 info->pk.eccsign.key, CKA_SIGN);
         else if (info->pk.eccsign.key->labelLen > 0) {

@@ -43,6 +43,11 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
 
 #ifdef STM32_HASH
 
@@ -954,7 +959,8 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qybin, key->pubkey.y, szModulus);
     if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(privKeybin, &key->k, szModulus);
+        status = stm32_get_from_mp_int(privKeybin, wc_ecc_key_get_priv(key),
+            szModulus);
     if (status != MP_OKAY)
         return status;
 
@@ -1020,7 +1026,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
 
     size = wc_ecc_size(key);
 
-    status = stm32_get_from_mp_int(Keybin, &key->k, size);
+    status = stm32_get_from_mp_int(Keybin, wc_ecc_key_get_priv(key), size);
     if (status != MP_OKAY)
         return status;
 

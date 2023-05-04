@@ -356,6 +356,12 @@
     #include <wiiuse/wpad.h>
 #endif
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
 #else
@@ -25748,7 +25754,8 @@ static int ecc_mulmod_test(ecc_key* key1)
     if (ret != 0)
         goto done;
 
-    ret = wc_ecc_mulmod(&key1->k, &key2->pubkey, &key3->pubkey, &key2->k, &key3->k,
+    ret = wc_ecc_mulmod(wc_ecc_key_get_priv(key1), &key2->pubkey, &key3->pubkey,
+                        wc_ecc_key_get_priv(key2), wc_ecc_key_get_priv(key3),
                         1);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
