@@ -95,16 +95,27 @@ enum ASN_Tags {
     ASN_OCTET_STRING      = 0x04,
     ASN_TAG_NULL          = 0x05,
     ASN_OBJECT_ID         = 0x06,
+    ASN_OBJECT_DESC       = 0x07,
+    ASN_INSTANCE_OF       = 0x08,
+    ASN_REAL              = 0x09,
     ASN_ENUMERATED        = 0x0a,
+    ASN_EMBEDDED_PDV      = 0x0b,
     ASN_UTF8STRING        = 0x0c,
+    ASN_RELATIVE_OID      = 0x0d,
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
+    ASN_NUMERICSTRING     = 0x12,
     ASN_PRINTABLE_STRING  = 0x13,
     ASN_T61STRING         = 0x14,
+    ASN_VIDEOTEXSTRING    = 0x15,
     ASN_IA5_STRING        = 0x16,
     ASN_UTC_TIME          = 0x17,
     ASN_GENERALIZED_TIME  = 0x18,
+    ASN_GRAPHICSTRING     = 0x19,
+    ASN_ISO646STRING      = 0x1a,
+    ASN_GENERALSTRING     = 0x1b,
     ASN_UNIVERSALSTRING   = 0x1c,
+    ASN_CHARACTER_STRING  = 0x1d,
     ASN_BMPSTRING         = 0x1e,
     ASN_TYPE_MASK         = 0x1f,
 
@@ -2153,7 +2164,7 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
-#ifdef HAVE_OID_DECODING
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
     WOLFSSL_LOCAL int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
 #endif

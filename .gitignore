@@ -73,6 +73,7 @@ examples/sctp/sctp-server
 examples/sctp/sctp-server-dtls
 examples/sctp/sctp-client
 examples/sctp/sctp-client-dtls
+examples/asn1/asn1
 server_ready
 snifftest
 output
