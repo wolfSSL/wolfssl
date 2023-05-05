@@ -302,7 +302,7 @@ void fe_mul(fe r, const fe a, const fe b)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -345,7 +345,7 @@ void fe_sq(fe r, const fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -372,7 +372,7 @@ void fe_mul121666(fe r, fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -430,8 +430,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         b = n[pos / 8] >> (pos & 7);
         b &= 1;
         swap ^= b;
-        fe_cswap(x2, x3, swap);
-        fe_cswap(z2, z3, swap);
+        fe_cswap(x2, x3, (int)swap);
+        fe_cswap(z2, z3, (int)swap);
         swap = b;
 
         fe_sub(t0, x3, z3);
@@ -453,8 +453,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         fe_mul(z3, x1, z2);
         fe_mul(z2, t1, t0);
     }
-    fe_cswap(x2, x3, swap);
-    fe_cswap(z2, z3, swap);
+    fe_cswap(x2, x3, (int)swap);
+    fe_cswap(z2, z3, (int)swap);
 
     fe_invert(z2, z2);
     fe_mul(x2, x2, z2);
@@ -591,7 +591,7 @@ void fe_sq2(fe r, const fe a)
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * k19;
+    r[0] += (sword64)((t4 >> 51) * k19);
     r[4] = t4 & 0x7ffffffffffff;
 }
 

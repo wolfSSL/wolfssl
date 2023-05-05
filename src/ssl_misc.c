@@ -129,7 +129,7 @@ static int wolfssl_read_bio_len(WOLFSSL_BIO* bio, int sz, char** data)
     char* mem;
 
     /* Allocate buffer to hold data. */
-    mem = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
+    mem = (char*)XMALLOC((size_t)sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
     if (mem == NULL) {
         WOLFSSL_ERROR_MSG("Memory allocation error");
         ret = MEMORY_E;
@@ -272,13 +272,13 @@ static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
     ret = wolfssl_file_len(fp, &sz);
     if (ret == 0) {
         /* Allocate memory big enough to hold whole file. */
-        mem = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        mem = (char*)XMALLOC((size_t)sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (mem == NULL) {
             ret = MEMORY_E;
         }
     }
     /* Read whole file into new buffer. */
-    if ((ret == 0) && ((int)XFREAD(mem, 1, sz, fp) != sz)) {
+    if ((ret == 0) && ((int)XFREAD(mem, 1, (size_t)sz, fp) != sz)) {
         ret = WOLFSSL_BAD_FILE;
     }
     if (ret == 0) {
