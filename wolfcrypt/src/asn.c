@@ -5556,7 +5556,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
     }
 
     /* return length */
-    *outSz = y;
+    *outSz = (word32)y;
 
     return 0;
 }
@@ -37034,73 +37034,43 @@ int wc_Asn1PrintOptions_Set(Asn1PrintOptions* opts, enum Asn1PrintOpt opt,
             break;
         /* Number of spaces to indent for each change in depth. */
         case ASN1_PRINT_OPT_INDENT:
-            /* Only 4 bits available for value. */
+            /* Only 4 bits allowed for value. */
             if (val >= (1 << 4)) {
                 ret = BAD_FUNC_ARG;
             }
             else {
-                opts->indent = val;
+                opts->indent = (word8)val;
             }
             break;
         /* Draw branches instead of indenting. */
         case ASN1_PRINT_OPT_DRAW_BRANCH:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->draw_branch = val;
-            }
+            opts->draw_branch = (val > 0);
             break;
         /* Show raw data of primitive types as octets. */
         case ASN1_PRINT_OPT_SHOW_DATA:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->show_data = val;
-            }
+            opts->show_data = (val > 0);
             break;
         /* Show header data as octets. */
         case ASN1_PRINT_OPT_SHOW_HEADER_DATA:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->show_header_data = val;
-            }
+            opts->show_header_data = (val > 0);
             break;
         /* Show the wolfSSL OID value for OBJECT_ID. */
         case ASN1_PRINT_OPT_SHOW_OID:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->show_oid = val;
-            }
+            opts->show_oid = (val > 0);
             break;
         /* Don't show text representations of primitive types. */
         case ASN1_PRINT_OPT_SHOW_NO_TEXT:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->show_no_text = val;
-            }
+            opts->show_no_text = (val > 0);
             break;
         /* Don't show dump text representations of primitive types. */
         case ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT:
             /* Boolean value. */
-            if (val > 1) {
-                ret = BAD_FUNC_ARG;
-            }
-            else {
-                opts->show_no_dump_text = val;
-            }
+            opts->show_no_dump_text = (val > 0);
             break;
         }
     }
@@ -37251,7 +37221,7 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
 {
     word32 oid = (word32)-1;
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
-    word32 nid;
+    int nid;
 #endif
     const char* ln = NULL;
     word32 i = 0;
@@ -37262,7 +37232,7 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
         asn1->item.len + 2);
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     /* Lookup NID for OID value. */
-    if ((nid = oid2nid(oid, oidIgnoreType)) != (word32)-1) {
+    if ((nid = oid2nid(oid, oidIgnoreType)) != -1) {
         /* Lookup long name for NID. */
         ln = wolfSSL_OBJ_nid2ln(nid);
     }
@@ -37546,9 +37516,9 @@ static void DrawBranch(Asn1* asn1)
  * @param [in] data  Data to print.
  * @param [in] len   Number of bytes to print.
  */
-static void PrintHexBytes(XFILE file, unsigned char* data, int len)
+static void PrintHexBytes(XFILE file, unsigned char* data, word32 len)
 {
-    int i;
+    word32 i;
 
     for (i = 0; i < len; i++) {
         XFPRINTF(file, " %02x", data[i]);
@@ -37564,15 +37534,18 @@ static void DumpHeader(Asn1* asn1, Asn1PrintOptions* opts)
 {
     /* Put on same line when not showing data too and not showing text data. */
     if ((!opts->show_data) && opts->show_no_text) {
-        XFPRINTF(asn1->file, "%10s %02x", "", asn1->item.tag);
+        XFPRINTF(asn1->file, "%10s", "");
     }
     else {
         /* Align with start of data. */
-        XFPRINTF(asn1->file, "\n%12s %02x", "", asn1->item.tag);
+        XFPRINTF(asn1->file, "\n%12s", "");
     }
-    /* Print the header bytes as hex bytes separated by a space. */
-    PrintHexBytes(asn1->file, asn1->data + asn1->offset + 1,
-        asn1->curr - (asn1->offset + 1));
+    XFPRINTF(asn1->file, " %02x", asn1->item.tag);
+    if (asn1->curr >= asn1->offset + 1) {
+        /* Print the header bytes as hex bytes separated by a space. */
+        PrintHexBytes(asn1->file, asn1->data + asn1->offset + 1,
+            asn1->curr - (asn1->offset + 1));
+    }
 }
 
 /* Print ASN.1 item info based on header and indeces.
@@ -37628,16 +37601,12 @@ static int wc_Asn1_Print(Asn1* asn1, Asn1PrintOptions* opts)
 {
     int ret = 0;
 
-    if ((asn1 == NULL) || (opts == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
-
     /* Process tag. */
     if (asn1->part == ASN_PART_TAG) {
         /* Recalculate which depth we are at. */
         UpdateDepth(asn1);
         /* Get tag. */
-        asn1->item.tag = asn1->data[asn1->curr] & ~ASN_CONSTRUCTED;
+        asn1->item.tag = asn1->data[asn1->curr] & (byte)~ASN_CONSTRUCTED;
         /* Store whether tag indicates constructed. */
         asn1->item.cons = (asn1->data[asn1->curr] & ASN_CONSTRUCTED) ==
                      ASN_CONSTRUCTED;
@@ -37660,7 +37629,7 @@ static int wc_Asn1_Print(Asn1* asn1, Asn1PrintOptions* opts)
             /* Store ASN.1 item data offset. */
             asn1->item.data_idx = asn1->curr;
             /* Store ASN.1 item data length. */
-            asn1->item.len = len;
+            asn1->item.len = (word32)len;
 
             /* Print info about ASN.1 item. */
             PrintInfo(asn1, opts);
@@ -37721,7 +37690,7 @@ static int wc_Asn1_Print(Asn1* asn1, Asn1PrintOptions* opts)
  * @param [in]      data  BER/DER data to print.
  * @param [in]      len   Length of data to print in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when asn1 or opts is NULL.
+ * @return  BAD_FUNC_ARG when asn1, opts or data is NULL.
  * @return  ASN_LEN_E when ASN.1 item's length too long.
  * @return  ASN_DEPTH_E when end offset invalid.
  * @return  ASN_PARSE_E when not all of an ASN.1 item parsed.
@@ -37731,7 +37700,7 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
 {
     int ret = 0;
 
-    if (asn1 == NULL) {
+    if ((asn1 == NULL) || (opts == NULL) || (data == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 

@@ -7702,7 +7702,7 @@ case $host_cpu in
     ;;
 esac
 
-if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_ECC" = "yes" && (test "$ENABLED_RSA" = "yes" || test "$ENABLED_DH" == "yes") && (test "$ENABLED_SP_MATH" = "yes" || test "$ENABLED_SP_MATH_ALL" = "yes")
+if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_ECC" = "yes" && (test "$ENABLED_RSA" = "yes" || test "$ENABLED_DH" = "yes") && (test "$ENABLED_SP_MATH" = "yes" || test "$ENABLED_SP_MATH_ALL" = "yes")
 then
     AM_CFLAGS="$AM_CFLAGS -DALT_ECC_SIZE"
 fi

@@ -1262,8 +1262,7 @@ static const char* client_usage_msg[][70] = {
         "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with "
-        "OpenSSL\n",                                                    /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
 #endif
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
@@ -1487,8 +1486,7 @@ static const char* client_usage_msg[][70] = {
         "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with "
-        "OpenSSL\n",                                                    /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
 #endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
