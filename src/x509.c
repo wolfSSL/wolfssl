@@ -686,8 +686,22 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         /* extCount == loc. Now get the extension. */
         /* Check if extension has been set */
         isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, nid);
-        ext->obj = wolfSSL_OBJ_nid2obj(nid);
-        if (ext->obj != NULL) {
+
+        if (wolfSSL_OBJ_nid2ln(nid) != NULL) {
+            /* This is NOT an unknown OID. */
+            ext->obj = wolfSSL_OBJ_nid2obj(nid);
+            if (ext->obj == NULL) {
+                WOLFSSL_MSG("\tfail: Invalid OBJECT");
+                wolfSSL_X509_EXTENSION_free(ext);
+                FreeDecodedCert(cert);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+            #endif
+                return NULL;
+            }
+        }
+
+        if (ext->obj) {
             ext->obj->nid = nid;
         }
 
