@@ -45197,12 +45197,20 @@ static int myCryptoCbFind(int currentId, int algoType)
     /* can have algo specific overrides here
        switch (algoType) {
 
+            i.e.
+            WC_ALGO_TYPE_CMAC
+            WC_ALGO_TYPE_SEED
+            WC_ALGO_TYPE_HMAC
+            WC_ALGO_TYPE_HASH
+            WC_ALGO_TYPE_CIPHER
+            WC_ALGO_TYPE_PK
+
         }
     */
     (void)algoType;
 
     if (currentId == INVALID_DEVID) {
-        return 1; /* override invalid devid found with 1 */
+        /* can override invalid devid found with 1 */
     }
     return currentId;
 }
