@@ -1829,12 +1829,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return 0;
 
 #ifdef WOLF_CRYPTO_CB
-    if (rng->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_RandomBlock(rng, output, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
-        /* fall-through when unavailable */
-    }
+    ret = wc_CryptoCb_RandomBlock(rng, output, sz);
+    if (ret != CRYPTOCB_UNAVAILABLE)
+        return ret;
+    /* fall-through when unavailable */
 #endif
 
 #ifdef HAVE_INTEL_RDRAND
@@ -2583,7 +2581,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #ifdef WOLF_CRYPTO_CB
     int ret;
 
-    if (os != NULL && os->devId != INVALID_DEVID) {
+    if (os != NULL) {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
@@ -3702,7 +3700,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (os->devId != INVALID_DEVID) {
+        {
             ret = wc_CryptoCb_RandomSeed(os, output, sz);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
