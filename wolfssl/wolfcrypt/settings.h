@@ -316,7 +316,44 @@
     #endif
 #endif
 
-/* OpenSSL compat layer */
+/* ---------------------------------------------------------------------------
+ * X9.146 Required Features.
+ * ---------------------------------------------------------------------------
+ */
+#ifdef WOLFSSL_X9_146
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    #error "X9.146 support requires the ASN.1 template feature."
+#endif
+
+#ifdef NO_RSA
+    #error "Need RSA or else X9.146 example will not work."
+#endif
+
+#ifndef HAVE_ECC
+    #error "Need ECDSA or else X9.146 example will not work."
+#endif
+
+#undef WOLFSSL_CERT_GEN
+#define WOLFSSL_CERT_GEN
+
+#undef WOLFSSL_CUSTOM_OID
+#define WOLFSSL_CUSTOM_OID
+
+#undef HAVE_OID_ENCODING
+#define HAVE_OID_ENCODING
+
+#undef WOLFSSL_CERT_EXT
+#define WOLFSSL_CERT_EXT
+
+#undef OPENSSL_EXTRA
+#define OPENSSL_EXTRA
+#endif /* WOLFSSL_X9_146 */
+
+/* ---------------------------------------------------------------------------
+ * OpenSSL compat layer
+ * ---------------------------------------------------------------------------
+ */
 #if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
 #undef  WOLFSSL_ALWAYS_VERIFY_CB
 #define WOLFSSL_ALWAYS_VERIFY_CB
@@ -343,7 +380,10 @@
 #define WOLFSSL_SESSION_ID_CTX
 #endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
 
-/* Special small OpenSSL compat layer for certs */
+/* ---------------------------------------------------------------------------
+ * Special small OpenSSL compat layer for certs
+ * ---------------------------------------------------------------------------
+ */
 #ifdef OPENSSL_EXTRA_X509_SMALL
 #undef WOLFSSL_EKU_OID
 #define WOLFSSL_EKU_OID

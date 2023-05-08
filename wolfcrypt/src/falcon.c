@@ -747,6 +747,11 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    ret = wc_falcon_import_public(input, inSz, key);
+    if (ret == 0) {
+        return 0;
+    }
+
     if (key->level == 1) {
         keytype = FALCON_LEVEL1k;
     }

@@ -815,6 +815,11 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    ret = wc_dilithium_import_public(input, inSz, key);
+    if (ret == 0) {
+        return 0;
+    }
+
     if (key->level == 2) {
         keytype = DILITHIUM_LEVEL2k;
     }

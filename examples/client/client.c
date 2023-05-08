@@ -3558,6 +3558,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to get SSL object");
     }
 
+#ifdef WOLFSSL_X9_146
+    /* Set preference for verfication of both the native and alternative chains.
+     */
+    byte cks_order[3] = {
+                         WOLFSSL_CKS_SIGSPEC_BOTH,
+                         WOLFSSL_CKS_SIGSPEC_ALTERNATIVE,
+                         WOLFSSL_CKS_SIGSPEC_NATIVE,
+                        };
+
+    if (!wolfSSL_UseCKS(ssl, cks_order, sizeof(cks_order))) {
+        wolfSSL_CTX_free(ctx); ctx = NULL;
+        err_sys("unable to set the CKS order.");
+    }
+#endif /* WOLFSSL_X9_146 */
+
 #ifndef NO_PSK
     if (usePsk) {
     #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(TEST_PSK_USE_SESSION)
