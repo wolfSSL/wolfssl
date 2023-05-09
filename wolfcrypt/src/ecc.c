@@ -5334,6 +5334,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     if (err == CRYPTOCB_UNAVAILABLE) {
         return NO_VALID_DEVID;
     }
+    return err;
     #endif
 #endif
 

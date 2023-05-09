@@ -3179,9 +3179,10 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     /* fall-through when unavailable and try using software */
     #endif
     #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-    if (ret == CRYPTOCB_UNAVAILABLE)
+    if (ret == CRYPTOCB_UNAVAILABLE) {
         return NO_VALID_DEVID;
     }
+    return ret;
     #endif
 #endif
 
