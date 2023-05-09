@@ -32,6 +32,11 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
 
 #define SILABS_UNSUPPORTED_KEY_TYPE 0xFFFFFFFF
 
@@ -163,7 +168,7 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
     mp_read_unsigned_bin (key->pubkey.y,
                           key->key.storage.location.buffer.pointer  + keysize,
                           keysize);
-    mp_read_unsigned_bin (&key->k,
+    mp_read_unsigned_bin (wc_ecc_key_get_priv(key),
                           key->key.storage.location.buffer.pointer + 2 * keysize,
                           keysize);
 
@@ -203,9 +208,9 @@ int silabs_ecc_import(ecc_key* key, word32 keysize)
                             &used, keysize,
                             WC_TYPE_UNSIGNED_BIN);
     if (err == MP_OKAY)
-        err = wc_export_int(&key->k, key->key.storage.location.buffer.pointer + 2 * keysize,
-                            &used, keysize,
-                            WC_TYPE_UNSIGNED_BIN);
+        err = wc_export_int(wc_ecc_key_get_priv(key),
+            key->key.storage.location.buffer.pointer + 2 * keysize, &used,
+            keysize, WC_TYPE_UNSIGNED_BIN);
 
     return err;
 }
@@ -229,9 +234,9 @@ int silabs_ecc_import_private(ecc_key* key, word32 keysize)
     if (sl_stat != SL_STATUS_OK)
           return WC_HW_E;
 
-    ret = wc_export_int(&key->k, key->key.storage.location.buffer.pointer,
-                        &keySz, keySz,
-                        WC_TYPE_UNSIGNED_BIN);
+    ret = wc_export_int(wc_ecc_key_get_priv(key),
+        key->key.storage.location.buffer.pointer, &keySz, keySz,
+        WC_TYPE_UNSIGNED_BIN);
 
     if (keySz != keysize)
         ret = WC_HW_E;
@@ -284,14 +289,14 @@ int silabs_ecc_import_private_raw(ecc_key* key, word32 keySz, const char* d, int
           return WC_HW_E;
 
     if (encType == WC_TYPE_HEX_STR)
-        err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
+        err = mp_read_radix(wc_ecc_key_get_priv(key), d, MP_RADIX_HEX);
     else
-        err = mp_read_unsigned_bin(&key->k, (const byte*)d,
+        err = mp_read_unsigned_bin(wc_ecc_key_get_priv(key), (const byte*)d,
                                    key->dp->size);
     if (err == MP_OKAY) {
-        err = wc_export_int(&key->k, key->key.storage.location.buffer.pointer + (2 * keySz),
-                            &keySz, keySz,
-                            WC_TYPE_UNSIGNED_BIN);
+        err = wc_export_int(wc_ecc_key_get_priv(key),
+            key->key.storage.location.buffer.pointer + (2 * keySz), &keySz,
+            keySz, WC_TYPE_UNSIGNED_BIN);
     }
 
     return err;

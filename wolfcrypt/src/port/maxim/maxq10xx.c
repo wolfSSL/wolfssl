@@ -43,6 +43,12 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/maxim/MXQ_API.h>
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 #ifdef MAXQ_DEBUG
 void dbg_dumphex(const char *identifier, const uint8_t* pdata, uint32_t plen);
 #else
@@ -525,8 +531,9 @@ int wc_MAXQ10XX_EccSetKey(ecc_key* key, word32 keysize)
 
     if (err == 0) {
         if ((keytype == ECC_PRIVATEKEY) || (keytype == ECC_PRIVATEKEY_ONLY)) {
-            err = wc_export_int(&key->k, key->maxq_ctx.ecc_key + (2 * keysize),
-                                &bufflen, keysize, WC_TYPE_UNSIGNED_BIN);
+            err = wc_export_int(wc_ecc_key_get_priv(key),
+                key->maxq_ctx.ecc_key + (2 * keysize), &bufflen, keysize,
+                WC_TYPE_UNSIGNED_BIN);
         }
     }
 

@@ -347,13 +347,14 @@ typedef struct ecc_set_type {
  * The ALT_ECC_SIZE option only applies to stack based fast math USE_FAST_MATH.
  */
 
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH_ALL) && \
-    !defined(WOLFSSL_SP_MATH)
-    #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
+#if defined(USE_INTEGER_HEAP_MATH)
+    #error Cannot use integer math with ALT_ECC_SIZE
 #endif
 #ifdef WOLFSSL_NO_MALLOC
     #error ALT_ECC_SIZE cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
+
+#ifdef USE_FAST_MATH
 
 /* determine max bits required for ECC math */
 #ifndef FP_MAX_BITS_ECC
@@ -385,6 +386,40 @@ typedef struct alt_fp_int {
     int used, sign, size;
     mp_digit dp[FP_SIZE_ECC];
 } alt_fp_int;
+
+#else
+
+#ifdef FP_MAX_BITS_ECC
+    #define SP_INT_BITS_ECC    (FP_MAX_BITS_ECC / 2)
+#elif SP_INT_BITS < MAX_ECC_BITS
+    #define SP_INT_BITS_ECC    SP_INT_BITS
+#else
+    #define SP_INT_BITS_ECC    MAX_ECC_BITS
+#endif
+
+#define SP_INT_DIGITS_ECC \
+    (((SP_INT_BITS_ECC + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
+
+#define FP_SIZE_ECC     SP_INT_DIGITS_ECC
+
+typedef struct alt_fp_int {
+    /** Number of words that contain data.  */
+    unsigned int used;
+    /** Maximum number of words in data.  */
+    unsigned int size;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /** Indicates whether number is 0/positive or negative.  */
+    unsigned int sign;
+#endif
+#ifdef HAVE_WOLF_BIGINT
+    /** Unsigned binary (big endian) representation of number. */
+    struct WC_BIGINT raw;
+#endif
+    /** Data of number.  */
+    sp_int_digit dp[SP_INT_DIGITS_ECC];
+} alt_fp_int;
+
+#endif
 #endif /* ALT_ECC_SIZE */
 
 #ifndef WC_ECCKEY_TYPE_DEFINED
@@ -446,7 +481,12 @@ struct ecc_key {
 #endif
     void* heap;         /* heap hint */
     ecc_point pubkey;   /* public key */
-    mp_int    k;        /* private key */
+#ifndef ALT_ECC_SIZE
+    mp_int    k[1];     /* private key */
+#else
+    mp_int*   k;
+    alt_fp_int ka[1];
+#endif
 
 #ifdef WOLFSSL_CAAM
     word32 blackKey;     /* address of key encrypted and in secure memory */
@@ -542,6 +582,9 @@ struct ecc_key {
     ecc_nb_ctx_t* nb_ctx;
 #endif
 };
+
+#define wc_ecc_key_get_priv(key) ((key)->k)
+#define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 
 
 WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new(void* heap);

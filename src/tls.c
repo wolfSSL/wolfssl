@@ -9249,6 +9249,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
             && ret != WC_PENDING_E
         #endif
         ) {
+            TLSX_KeyShare_FreeAll(list, ssl->heap);
             return ret;
         }
     }

@@ -43,6 +43,12 @@
     #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 /**
  * Initialize the components of the ECCSI key and use the specified curve.
  *
@@ -594,7 +600,8 @@ static int eccsi_encode_key(EccsiKey* key, byte* data)
     word32 sz = (word32)key->ecc.dp->size * 2;
 
     /* Write out the secret value into key size bytes. */
-    err = mp_to_unsigned_bin_len(&key->ecc.k, data, key->ecc.dp->size);
+    err = mp_to_unsigned_bin_len(wc_ecc_key_get_priv(&key->ecc), data,
+        key->ecc.dp->size);
     if (err == 0) {
         data += key->ecc.dp->size;
         /* Write the public key. */
@@ -676,7 +683,8 @@ static int eccsi_decode_key(EccsiKey* key, const byte* data)
     int err;
 
     /* Read the secret value from key size bytes. */
-    err = mp_read_unsigned_bin(&key->ecc.k, data, key->ecc.dp->size);
+    err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
+        key->ecc.dp->size);
     if (err == 0) {
         data += key->ecc.dp->size;
         /* Read public key. */
@@ -771,7 +779,8 @@ int wc_ExportEccsiPrivateKey(EccsiKey* key, byte* data, word32* sz)
         }
     }
     if (err == 0) {
-        err = mp_to_unsigned_bin_len(&key->ecc.k, data, key->ecc.dp->size);
+        err = mp_to_unsigned_bin_len(wc_ecc_key_get_priv(&key->ecc), data,
+            key->ecc.dp->size);
     }
 
     return err;
@@ -804,7 +813,8 @@ int wc_ImportEccsiPrivateKey(EccsiKey* key, const byte* data, word32 sz)
     }
 
     if (err == 0) {
-        err = mp_read_unsigned_bin(&key->ecc.k, data, key->ecc.dp->size);
+        err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
+            key->ecc.dp->size);
     }
 
     return err;
@@ -907,18 +917,20 @@ static int eccsi_make_pair(EccsiKey* key, WC_RNG* rng,
             err = mp_read_unsigned_bin(ssk, key->data, hashSz);
         }
         if (err == 0) {
-            err = mp_mulmod(ssk, &key->pubkey.k, &key->params.order, ssk);
+            err = mp_mulmod(ssk, wc_ecc_key_get_priv(&key->pubkey),
+                &key->params.order, ssk);
         }
         if (err == 0) {
-            err = mp_addmod(ssk, &key->ecc.k, &key->params.order, ssk);
+            err = mp_addmod(ssk, wc_ecc_key_get_priv(&key->ecc),
+                &key->params.order, ssk);
         }
     }
     while ((err == 0) && (mp_iszero(ssk) ||
-            (mp_cmp(ssk, &key->ecc.k) == MP_EQ)));
+            (mp_cmp(ssk, wc_ecc_key_get_priv(&key->ecc)) == MP_EQ)));
     /* Step 5: ensure SSK and HS are non-zero (code lines above) */
 
     /* Step 6: Copy out SSK (done during calc) and PVT. Erase v */
-    mp_forcezero(&key->pubkey.k);
+    mp_forcezero(wc_ecc_key_get_priv(&key->pubkey));
 
     return err;
 }
@@ -2005,7 +2017,7 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         err = mp_invmod(s, &key->params.order, s);
     }
     if (err == 0) {
-        j  = &key->pubkey.k;
+        j = wc_ecc_key_get_priv(&key->pubkey);
         err = mp_mulmod(s, j, &key->params.order, s);
     }
     if (err == 0) {
@@ -2215,7 +2227,7 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     /* Decode the signature into components. */
-    r = &key->pubkey.k;
+    r = wc_ecc_key_get_priv(&key->pubkey);
     pvt = &key->pubkey.pubkey;
     err = eccsi_decode_sig_r_pvt(key, sig, sigSz, r, pvt);
 

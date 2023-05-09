@@ -34,6 +34,12 @@
 #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 #ifndef ECC_CURVE_NIST_P256
 #define ECC_CURVE_NIST_P256     2
 #endif
@@ -113,10 +119,11 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
 
     /* set the key */
     if (ret == 0) {
-        if (mp_iszero(&key->k) != MP_YES) {
+        if (mp_iszero(wc_ecc_key_get_priv(key)) != MP_YES) {
             /* if a private key value is set, load and use it */
             byte priv[MAX_ECC_BYTES];
-            ret = wc_export_int(&key->k, priv, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+            ret = wc_export_int(wc_ecc_key_get_priv(key), priv, &keySz, keySz,
+                WC_TYPE_UNSIGNED_BIN);
             if (ret == 0) {
                 ret = kcapi_kpp_setkey(key->handle, priv, keySz);
             }
@@ -231,10 +238,10 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
     }
 
     /* if a private key value is set, load and use it */
-    if (ret == 0 && mp_iszero(&private_key->k) != MP_YES) {
+    if (ret == 0 && mp_iszero(wc_ecc_key_get_priv(private_key)) != MP_YES) {
         byte priv[MAX_ECC_BYTES];
-        ret = wc_export_int(&private_key->k, priv, &keySz, keySz,
-                            WC_TYPE_UNSIGNED_BIN);
+        ret = wc_export_int(wc_ecc_key_get_priv(private_key), priv, &keySz,
+            keySz, WC_TYPE_UNSIGNED_BIN);
         if (ret == 0) {
             ret = kcapi_kpp_setkey(private_key->handle, priv, keySz);
             if (ret >= 0) {
@@ -302,8 +309,8 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
         else
     #endif
         {
-            ret = wc_export_int(&key->k, priv + KCAPI_PARAM_SZ, &keySz, keySz,
-                                WC_TYPE_UNSIGNED_BIN);
+            ret = wc_export_int(wc_ecc_key_get_priv(key), priv + KCAPI_PARAM_SZ,
+                &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
         }
     }
     if (ret == 0) {

@@ -686,17 +686,24 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         /* extCount == loc. Now get the extension. */
         /* Check if extension has been set */
         isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, nid);
-        ext->obj = wolfSSL_OBJ_nid2obj(nid);
-        if (ext->obj == NULL) {
-            WOLFSSL_MSG("\tfail: Invalid OBJECT");
-            wolfSSL_X509_EXTENSION_free(ext);
-            FreeDecodedCert(cert);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
-        #endif
-            return NULL;
+
+        if (wolfSSL_OBJ_nid2ln(nid) != NULL) {
+            /* This is NOT an unknown OID. */
+            ext->obj = wolfSSL_OBJ_nid2obj(nid);
+            if (ext->obj == NULL) {
+                WOLFSSL_MSG("\tfail: Invalid OBJECT");
+                wolfSSL_X509_EXTENSION_free(ext);
+                FreeDecodedCert(cert);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+            #endif
+                return NULL;
+            }
         }
-        ext->obj->nid = nid;
+
+        if (ext->obj) {
+            ext->obj->nid = nid;
+        }
 
         switch (oid) {
             case BASIC_CA_OID:
@@ -1000,8 +1007,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             default:
                 WOLFSSL_MSG("Unknown extension type found, parsing OID");
                 /* If the extension type is not recognized/supported,
-                    set the ASN1_OBJECT in the extension with the
-                    parsed oid for access in later function calls */
+                 *  set the ASN1_OBJECT in the extension with the
+                 *  parsed oid for access in later function calls */
 
                 /* Get OID from input */
                 if (GetASNObjectId(input, &idx, &length, sz) != 0) {
@@ -1030,6 +1037,18 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 objSz += length;
 
                 /* Set object size and reallocate space in object buffer */
+                if (ext->obj == NULL) {
+                    ext->obj = wolfSSL_ASN1_OBJECT_new();
+                    if (ext->obj == NULL) {
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(cert);
+                #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                #endif
+                        return NULL;
+                    }
+                }
+
                 ext->obj->objSz = objSz;
                 if(((ext->obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
                    (ext->obj->obj == NULL)) {
@@ -4600,10 +4619,12 @@ static void wolfSSL_GENERAL_NAME_type_free(WOLFSSL_GENERAL_NAME* name)
             name->d.registeredID = NULL;
             break;
         case GEN_OTHERNAME:
-            wolfSSL_ASN1_OBJECT_free(name->d.otherName->type_id);
-            wolfSSL_ASN1_TYPE_free(name->d.otherName->value);
-            XFREE(name->d.otherName, NULL, DYNAMIC_TYPE_ASN1);
-            name->d.otherName = NULL;
+            if (name->d.otherName != NULL) {
+                wolfSSL_ASN1_OBJECT_free(name->d.otherName->type_id);
+                wolfSSL_ASN1_TYPE_free(name->d.otherName->value);
+                XFREE(name->d.otherName, NULL, DYNAMIC_TYPE_ASN1);
+                name->d.otherName = NULL;
+            }
             break;
         case GEN_X400:
             /* Unsupported: fall through */

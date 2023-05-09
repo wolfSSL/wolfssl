@@ -358,6 +358,12 @@
 #endif
 #include <wolfssl/certs_test.h>
 
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
+
 typedef struct testVector {
     const char* input;
     const char* output;
@@ -27393,25 +27399,30 @@ static int test_wc_ecc_mulmod(void)
     }
 
     if (ret == 0) {
-        ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+        ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+                            &key3.pubkey, wc_ecc_key_get_priv(&key2),
+                            wc_ecc_key_get_priv(&key3), 1);
     }
 
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+        ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey,
+                            wc_ecc_key_get_priv(&key2),
+                            wc_ecc_key_get_priv(&key3), 1);
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, NULL, &key3.pubkey, &key2.k,
-                                                            &key3.k, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), NULL, &key3.pubkey,
+                                wc_ecc_key_get_priv(&key2),
+                                wc_ecc_key_get_priv(&key3), 1);
         }
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, NULL, &key2.k,
-                                                            &key3.k, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, NULL,
+                                wc_ecc_key_get_priv(&key2),
+                                wc_ecc_key_get_priv(&key3), 1);
         }
         if (ret == ECC_BAD_ARG_E) {
-            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey,
-                                                            &key2.k, NULL, 1);
+            ret = wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+                                &key3.pubkey, wc_ecc_key_get_priv(&key2), NULL,
+                                1);
         }
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
@@ -43869,7 +43880,13 @@ static int test_GENERAL_NAME_set0_othername(void) {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
     defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
-    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)  && \
+    defined(WOLFSSL_FPKI)
+
+    /* ./configure --enable-opensslall --enable-certgen --enable-certreq
+     *  --enable-certext --enable-debug 'CPPFLAGS=-DWOLFSSL_CUSTOM_OID
+     *  -DWOLFSSL_ALT_NAMES  -DWOLFSSL_FPKI' */
+
     const char * cert_fname = "./certs/server-cert.der";
     const char * key_fname = "./certs/server-key.der";
     X509* x509 = NULL;
@@ -43885,6 +43902,18 @@ static int test_GENERAL_NAME_set0_othername(void) {
     int derSz = 0;
     EVP_PKEY* priv = NULL;
     FILE* f = NULL;
+    /* The length of this buffer is 37 */
+    const unsigned char expected_asn1[] = {
+        /* OID specifier and length */
+        0x06, 0x0A,
+        /* 1.3.6.1.4.1.311.20.2.3 */
+        0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03,
+        /* TODO */
+        0xA0, 0x17, 0x0C, 0x15,
+        /* othername@wolfssl.com */
+        0x6F, 0x74, 0x68, 0x65, 0x72, 0x6E, 0x61, 0x6D, 0x65, 0x40, 0x77, 0x6F,
+        0x6C, 0x66, 0x73, 0x73, 0x6C, 0x2E, 0x63, 0x6F, 0x6D
+    };
 
     AssertNotNull(f = fopen(cert_fname, "rb"));
     AssertNotNull(x509 = d2i_X509_fp(f, NULL));
@@ -43908,6 +43937,25 @@ static int test_GENERAL_NAME_set0_othername(void) {
                                         (const unsigned char**)&pt, derSz));
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    AssertNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
+                                         NULL));
+
+    AssertIntEQ(sk_GENERAL_NAME_num(gns), 3);
+
+    AssertNotNull(gn = sk_GENERAL_NAME_value(gns, 2));
+    AssertIntEQ(gn->type, 0);
+
+    /* It is odd that we are using ASN_RFC822_TYPE. It is because when we are
+     * parsing der, the string is not fully parsed. It is still raw der whereas
+     * when we encode we set the oid (for example, upn) and value. As we are
+     * overloading the meaning of the type, here we manually do the right thing.
+     */
+    AssertIntEQ(ASN1_STRING_length(gn->d.rfc822Name), 37);
+    AssertIntEQ(XMEMCMP(ASN1_STRING_data(gn->d.rfc822Name), expected_asn1, 37),
+                0);
+    gn->type = ASN_RFC822_TYPE;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+
     ASN1_OBJECT_free(upn_oid);
     X509_EXTENSION_free(ext);
     X509_free(x509);
@@ -43923,7 +43971,13 @@ static int test_othername_and_SID_ext(void) {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
     defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
-    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_FPKI) && defined(WOLFSSL_ASN_TEMPLATE)
+
+    /* ./configure --enable-opensslall --enable-certgen --enable-certreq
+     *  --enable-certext --enable-debug 'CPPFLAGS=-DWOLFSSL_CUSTOM_OID
+     *  -DWOLFSSL_ALT_NAMES  -DWOLFSSL_FPKI' */
+
 
     const char* csr_fname = "./certs/csr.signed.der";
     const char* key_fname = "./certs/server-key.der";
@@ -43934,11 +43988,13 @@ static int test_othername_and_SID_ext(void) {
     STACK_OF(X509_EXTENSION) *exts = NULL;
 
     X509_EXTENSION * san_ext = NULL;
+    X509_EXTENSION * ext = NULL;
     GENERAL_NAME* gn = NULL;
     GENERAL_NAMES* gns = NULL;
     ASN1_OBJECT* upn_oid = NULL;
     ASN1_UTF8STRING *utf8str = NULL;
     ASN1_TYPE *value = NULL;
+    ASN1_STRING *extval = NULL;
 
     /* SID extension. SID data format explained here:
      * https://blog.qdsecurity.se/2022/05/27/manually-injecting-a-sid-in-a-certificate/
@@ -43948,6 +44004,13 @@ static int test_othername_and_SID_ext(void) {
     48, 4,  46,  83, 45, 49, 45, 53, 45, 50, 49, 45,  50, 56, 52, 51, 57,
     48, 55, 52,  49, 56, 45, 51, 57, 50, 54, 50, 55,  55, 52, 50, 49, 45,
     51, 56, 49,  53, 57, 57, 51, 57, 55, 50, 45, 52,  54, 48, 49};
+
+    uint8_t expectedAltName[] = {
+    0x30, 0x27, 0xA0, 0x25, 0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82,
+    0x37, 0x14, 0x02, 0x03, 0xA0, 0x17, 0x0C, 0x15, 0x6F, 0x74, 0x68, 0x65,
+    0x72, 0x6E, 0x61, 0x6D, 0x65, 0x40, 0x77, 0x6F, 0x6C, 0x66, 0x73, 0x73,
+    0x6C, 0x2E, 0x63, 0x6F, 0x6D};
+
     X509_EXTENSION *sid_ext = NULL;
     ASN1_OBJECT* sid_oid = NULL;
     ASN1_OCTET_STRING *sid_data = NULL;
@@ -43955,6 +44018,7 @@ static int test_othername_and_SID_ext(void) {
     EVP_PKEY* priv = NULL;
     FILE* f = NULL;
     byte* pt = NULL;
+    BIO* bio = NULL;
 
     AssertNotNull(f = fopen(csr_fname, "rb"));
     AssertNotNull(x509 = d2i_X509_REQ_fp(f, NULL));
@@ -43996,7 +44060,54 @@ static int test_othername_and_SID_ext(void) {
     ASN1_OBJECT_free(sid_oid);
     ASN1_OCTET_STRING_free(sid_data);
     X509_REQ_free(x509);
+    x509 = NULL;
     EVP_PKEY_free(priv);
+
+    /* At this point everything used to generate what is in der is cleaned up.
+     * We now read back from der to confirm the extensions were inserted
+     * correctly. */
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    AssertNotNull(bio);
+
+    AssertIntEQ(BIO_write(bio, der, derSz), derSz); /* d2i consumes BIO */
+    d2i_X509_REQ_bio(bio, &x509);
+    AssertNotNull(x509);
+    BIO_free(bio);
+    AssertNotNull(exts = (STACK_OF(X509_EXTENSION)*) X509_REQ_get_extensions(
+                            x509));
+    AssertIntEQ(sk_X509_EXTENSION_num(exts), 2);
+
+    /* Check the SID extension. */
+    AssertNotNull(ext = sk_X509_EXTENSION_value(exts, 0));
+    AssertNotNull(extval = X509_EXTENSION_get_data(ext));
+    AssertIntEQ(extval->length, sizeof(SidExtension));
+    AssertIntEQ(XMEMCMP(SidExtension, extval->data, sizeof(SidExtension)), 0);
+
+    /* Check the AltNames extension. */
+    AssertNotNull(ext = sk_X509_EXTENSION_value(exts, 1));
+    AssertNotNull(extval = X509_EXTENSION_get_data(ext));
+    AssertIntEQ(extval->length, sizeof(expectedAltName));
+    AssertIntEQ(XMEMCMP(expectedAltName, extval->data, sizeof(expectedAltName)),
+                0);
+
+    /* Cleanup */
+    AssertNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
+                                         NULL));
+    AssertIntEQ(sk_GENERAL_NAME_num(gns), 1);
+    AssertNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    AssertIntEQ(gn->type, 0);
+
+    /* It is odd that we are using ASN_RFC822_TYPE. It is because when we are
+     * parsing der, the string is not fully parsed. It is still raw der whereas
+     * when we encode we set the oid (for example, upn) and value. As we are
+     * overloading the meaning of the type, here we manually do the right thing.
+     */
+    gn->type = ASN_RFC822_TYPE;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+
+    ext->ext_sk->data.gn->type = ASN_RFC822_TYPE;
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+    X509_REQ_free(x509);
     res = TEST_RES_CHECK(1);
 #endif
     return res;

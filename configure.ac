@@ -1849,10 +1849,13 @@ AC_ARG_ENABLE([lowresource],
 if test "$ENABLED_LOWRESOURCE" = "yes"
 then
     # low memory / flash flags
-    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY -DWOLFSSL_NO_ASYNC_IO"
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY -DWOLFSSL_NO_ASYNC_IO"
 
     # low flash flags
     AM_CFLAGS="$AM_CFLAGS -DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512"
+
+    # AES small
+    AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL -DWOLFSSL_AES_NO_UNROLL -DWOLFSSL_AES_SMALL_TABLES"
 fi
 
 
@@ -3998,7 +4001,7 @@ else
 fi
 
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && \
-   test "$ENABLED_ASN" = "no"
+   test "$ENABLED_ASN" = "no" && test "$ENABLED_LOWRESOURCE" = "no"
 then
     AC_MSG_ERROR([please disable rsa if disabling asn.])
 fi
@@ -4025,6 +4028,26 @@ then
     ENABLED_BIGNUM="no"
 else
     ENABLED_BIGNUM="yes"
+fi
+
+case $host_os in
+*linux* | *darwin* | *freebsd*)
+    DEF_ASN_PRINT="yes"
+    ;;
+*)
+    DEF_ASN_PRINT="no"
+    ;;
+esac
+
+AC_ARG_ENABLE([asn-print],
+    [AS_HELP_STRING([--enable-asn-print],[Enable ASN Print API (default: enabled)])],
+    [ ENABLED_ASN_PRINT=$enableval ],
+    [ ENABLED_ASN_PRINT=$DEF_ASN_PRINT ]
+    )
+
+if test "$ENABLED_ASN_PRINT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_PRINT"
 fi
 
 
@@ -7679,6 +7702,11 @@ case $host_cpu in
     ;;
 esac
 
+if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_ECC" = "yes" && (test "$ENABLED_RSA" = "yes" || test "$ENABLED_DH" = "yes") && (test "$ENABLED_SP_MATH" = "yes" || test "$ENABLED_SP_MATH_ALL" = "yes")
+then
+    AM_CFLAGS="$AM_CFLAGS -DALT_ECC_SIZE"
+fi
+
 ################################################################################
 # Update ENABLE_* variables                                                    #
 ################################################################################
@@ -8465,7 +8493,7 @@ AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AES],[test "x$ENABLED_AES" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CODING],[test "x$ENABLED_CODING" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RC4],[test "x$ENABLED_ARC4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -8507,6 +8535,7 @@ AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes"] && [test "x$ENABLED_ASN_PRINT" = "xyes"] && [test "x$ENABLED_ASN" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])

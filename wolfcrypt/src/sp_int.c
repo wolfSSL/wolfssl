@@ -5605,7 +5605,7 @@ int sp_cnt_lsb(const sp_int* a)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_ASN_TEMPLATE) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_ASN))
 /* Determine if the most significant byte of the encoded multi-precision number
  * has the top bit set.
@@ -18698,6 +18698,9 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *
+ * Find the largest number that divides both a and b without remainder.
+ * r <= a, r <= b, a % r == 0, b % r == 0
+ *
  * a and b are positive integers.
  *
  * Euclidian Algorithm:
@@ -18801,6 +18804,9 @@ static WC_INLINE int _sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *
+ * Find the largest number that divides both a and b without remainder.
+ * r <= a, r <= b, a % r == 0, b % r == 0
+ *
  * a and b are positive integers.
  *
  * @param  [in]   a  SP integer of first operand.
@@ -18823,8 +18829,14 @@ int sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
     else if ((a->used >= SP_INT_DIGITS) || (b->used >= SP_INT_DIGITS)) {
         err = MP_VAL;
     }
+    /* Check that r is large enough to hold maximum sized result. */
+    else if (((a->used <= b->used) && (r->size < a->used)) ||
+             ((b->used < a->used) && (r->size < b->used))) {
+        err = MP_VAL;
+    }
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    else if ((a->sign == MP_NEG) || (b->sign >= MP_NEG)) {
+    /* Algorithm doesn't work with negative numbers. */
+    else if ((a->sign == MP_NEG) || (b->sign == MP_NEG)) {
         err = MP_VAL;
     }
 #endif

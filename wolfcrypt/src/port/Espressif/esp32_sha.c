@@ -855,7 +855,7 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
             break;
     #if defined(WOLFSSL_SHA384)
         case SHA2_384:
-            uHardwareAlgorithm = 3;
+            HardwareAlgorithm = 3;
             break;
     #endif
     #if defined(WOLFSSL_SHA512)
