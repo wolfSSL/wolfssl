@@ -10421,16 +10421,19 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
             ENUM_LEN + VERSION_SZ);
     *inOutIdx += ENUM_LEN + VERSION_SZ;
     ato16(ssl->buffers.inputBuffer.buffer + *inOutIdx, &ssl->keys.curEpoch);
+
 #ifdef WOLFSSL_DTLS13
     /* only non protected message can use the DTLSPlaintext record header */
-    if (ssl->options.tls1_3 && ssl->keys.curEpoch != 0)
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (ssl->keys.curEpoch != 0)
             return SEQUENCE_ERROR;
 
-    w64Zero(&ssl->keys.curEpoch64);
-    if (!w64IsZero(ssl->dtls13DecryptEpoch->epochNumber))
-        Dtls13SetEpochKeys(ssl, ssl->keys.curEpoch64, DECRYPT_SIDE_ONLY);
-
+        w64Zero(&ssl->keys.curEpoch64);
+        if (!w64IsZero(ssl->dtls13DecryptEpoch->epochNumber))
+            Dtls13SetEpochKeys(ssl, ssl->keys.curEpoch64, DECRYPT_SIDE_ONLY);
+    }
 #endif /* WOLFSSL_DTLS13 */
+
     *inOutIdx += OPAQUE16_LEN;
     if (ssl->options.haveMcast) {
     #ifdef WOLFSSL_MULTICAST
