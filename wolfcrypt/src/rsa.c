@@ -3172,18 +3172,23 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
-    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-    if (ret != CRYPTOCB_UNAVAILABLE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
+        #ifndef WOLF_CRYPTO_CB_ONLY_RSA
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable and try using software */
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        if (ret == CRYPTOCB_UNAVAILABLE) {
+            return NO_VALID_DEVID;
+        }
         return ret;
-    /* fall-through when unavailable and try using software */
-    #endif
-    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-    if (ret == CRYPTOCB_UNAVAILABLE) {
-        return NO_VALID_DEVID;
+        #endif
     }
-    return ret;
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
@@ -4765,18 +4770,23 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
 #ifdef WOLF_CRYPTO_CB
-    err = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
-    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-    if (err != CRYPTOCB_UNAVAILABLE)
-        goto out;
-    /* fall-through when unavailable */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
     #endif
-    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-    if (err == CRYPTOCB_UNAVAILABLE)
-        err = NO_VALID_DEVID;
-        goto out;
+    {
+        err = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
+        #ifndef WOLF_CRYPTO_CB_ONLY_RSA
+        if (err != CRYPTOCB_UNAVAILABLE)
+            goto out;
+        /* fall-through when unavailable */
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        if (err == CRYPTOCB_UNAVAILABLE)
+            err = NO_VALID_DEVID;
+            goto out;
+        }
+        #endif
     }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA

@@ -49,8 +49,10 @@ typedef struct CryptoCb {
     void* ctx;
 } CryptoCb;
 static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
-static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
 
+#ifdef WOLF_CRYPTO_CB_FIND
+static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
+#endif
 
 #ifdef DEBUG_CRYPTOCB
 static const char* GetAlgoTypeStr(int algo)
@@ -188,9 +190,11 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
 {
     int localDevId = devId;
 
+#ifdef WOLF_CRYPTO_CB_FIND
     if (CryptoCb_FindCb != NULL) {
         localDevId = CryptoCb_FindCb(devId, algoType);
     }
+#endif /* WOLF_CRYPTO_CB_FIND */
     return wc_CryptoCb_GetDevice(localDevId);
 }
 
@@ -233,6 +237,7 @@ int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
 }
 
 
+#ifdef WOLF_CRYPTO_CB_FIND
 /* Used to register a find device function. Useful for cases where the
  * device ID in the struct may not have been set but still wanting to use
  * a specific crypto callback device ID. The find callback is global and
@@ -241,6 +246,7 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 {
     CryptoCb_FindCb = cb;
 }
+#endif
 
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {

@@ -115,6 +115,9 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
     XMEMSET(cmac, 0, sizeof(Cmac));
 
 #ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (devId != INVALID_DEVID)
+    #endif
     {
         cmac->devId = devId;
         cmac->devCtx = NULL;
@@ -178,6 +181,9 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     }
 
 #ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (cmac->devId != INVALID_DEVID)
+    #endif
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, in, inSz,
                 NULL, NULL, 0, NULL);
@@ -226,10 +232,15 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
-    if (ret != CRYPTOCB_UNAVAILABLE)
-        return ret;
-    /* fall-through when unavailable */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (cmac->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
 #endif
 
     if (cmac->bufferSz == AES_BLOCK_SIZE) {
