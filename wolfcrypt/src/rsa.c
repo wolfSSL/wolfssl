@@ -267,11 +267,18 @@ static void wc_RsaCleanup(RsaKey* key)
 
 int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
-    int ret = 0;
+    int ret      = 0;
+    int isPkcs11 = 0;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+    if (key->isPkcs11) {
+        isPkcs11 = 1;
+    }
+#endif
 
     XMEMSET(key, 0, sizeof(RsaKey));
 
@@ -299,13 +306,17 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     #endif
 
     #ifdef WC_ASYNC_ENABLE_RSA
-        /* handle as async */
-        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
-                                                            key->heap, devId);
-        if (ret != 0)
-            return ret;
+         if (!isPkcs11) {
+            /* handle as async */
+            ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
+                                                                key->heap, devId);
+            if (ret != 0)
+                return ret;
+         }
     #endif /* WC_ASYNC_ENABLE_RSA */
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    (void)isPkcs11;
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = mp_init_multi(&key->n, &key->e, NULL, NULL, NULL, NULL);
@@ -370,6 +381,11 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && (len < 0 || len > RSA_MAX_ID_LEN))
         ret = BUFFER_E;
 
+#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+    XMEMSET(key, 0, sizeof(RsaKey));
+    key->isPkcs11 = 1;
+#endif
+
     if (ret == 0)
         ret = wc_InitRsaKey_ex(key, heap, devId);
     if (ret == 0 && id != NULL && len != 0) {
@@ -399,6 +415,11 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
         if (labelLen == 0 || labelLen > RSA_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
+
+#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+    XMEMSET(key, 0, sizeof(RsaKey));
+    key->isPkcs11 = 1;
+#endif
 
     if (ret == 0)
         ret = wc_InitRsaKey_ex(key, heap, devId);

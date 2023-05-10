@@ -215,6 +215,9 @@ struct RsaKey {
 #ifdef WOLF_CRYPTO_CB
     int   devId;
 #endif
+#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+    byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
     #ifdef WOLFSSL_CERT_GEN
