@@ -195,6 +195,7 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId, int algoType)
         localDevId = CryptoCb_FindCb(devId, algoType);
     }
 #endif /* WOLF_CRYPTO_CB_FIND */
+    (void)algoType;
     return wc_CryptoCb_GetDevice(localDevId);
 }
 
