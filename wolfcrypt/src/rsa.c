@@ -268,13 +268,15 @@ static void wc_RsaCleanup(RsaKey* key)
 int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
     int ret      = 0;
+#if defined(HAVE_PKCS11)
     int isPkcs11 = 0;
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     if (key->isPkcs11) {
         isPkcs11 = 1;
     }
@@ -306,17 +308,21 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     #endif
 
     #ifdef WC_ASYNC_ENABLE_RSA
-         if (!isPkcs11) {
-            /* handle as async */
-            ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
-                                                                key->heap, devId);
-            if (ret != 0)
-                return ret;
-         }
+        #if defined(HAVE_PKCS11)
+            if (!isPkcs11) {
+        #endif
+                /* handle as async */
+                ret = wolfAsync_DevCtxInit(&key->asyncDev,
+                        WOLFSSL_ASYNC_MARKER_RSA, key->heap, devId);
+                if (ret != 0)
+                    return ret;
+        #if defined(HAVE_PKCS11)
+            }
+        #endif
     #endif /* WC_ASYNC_ENABLE_RSA */
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
+#elif defined(HAVE_PKCS11) 
     (void)isPkcs11;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = mp_init_multi(&key->n, &key->e, NULL, NULL, NULL, NULL);
@@ -381,7 +387,7 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && (len < 0 || len > RSA_MAX_ID_LEN))
         ret = BUFFER_E;
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     XMEMSET(key, 0, sizeof(RsaKey));
     key->isPkcs11 = 1;
 #endif
@@ -416,7 +422,7 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
             ret = BUFFER_E;
     }
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     XMEMSET(key, 0, sizeof(RsaKey));
     key->isPkcs11 = 1;
 #endif

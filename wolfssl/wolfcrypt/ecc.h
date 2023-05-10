@@ -504,7 +504,7 @@ struct ecc_key {
 #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */
 #endif
 #ifdef WOLFSSL_SILABS_SE_ACCEL

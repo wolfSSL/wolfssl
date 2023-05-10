@@ -5796,13 +5796,15 @@ WOLFSSL_ABI
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 {
     int ret      = 0;
+#if defined(HAVE_PKCS11)
     int isPkcs11 = 0;
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     if (key->isPkcs11) {
         isPkcs11 = 1;
     }
@@ -5860,14 +5862,18 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    if (!isPkcs11) {
-        /* handle as async */
-        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
+    #if defined(HAVE_PKCS11)
+        if (!isPkcs11) {
+    #endif
+            /* handle as async */
+            ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
                                                             key->heap, devId);
-    }
-#endif
-
+    #if defined(HAVE_PKCS11)
+        }
+    #endif
+#elif defined(HAVE_PKCS11) 
     (void)isPkcs11;
+#endif
 
 #if defined(WOLFSSL_DSP)
     key->handle = -1;
@@ -5919,7 +5925,7 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN))
         ret = BUFFER_E;
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->isPkcs11 = 1;
 #endif
@@ -5954,7 +5960,7 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId)
             ret = BUFFER_E;
     }
 
-#if defined(WOLF_PRIVATE_KEY_ID) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(HAVE_PKCS11)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->isPkcs11 = 1;
 #endif
