@@ -100,11 +100,11 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     byte mask;
 
     c -= BASE64_MIN;
-    mask = (((byte)(0x3f - c)) >> 7) - 1;
+    mask = (byte)((((byte)(0x3f - c)) >> 7) - 1);
     /* Load a value from the first cache line and use when mask set. */
-    v  = base64Decode[ c & 0x3f        ] &   mask ;
+    v  = (byte)(base64Decode[ c & 0x3f        ] &   mask);
     /* Load a value from the second cache line and use when mask not set. */
-    v |= base64Decode[(c & 0x0f) | 0x40] & (~mask);
+    v |= (byte)(base64Decode[(c & 0x0f) | 0x40] & (~mask));
 
     return v;
 #else
@@ -236,8 +236,8 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         e1 = Base64_Char2Val(e1);
         e2 = Base64_Char2Val(e2);
-        e3 = (e3 == PAD) ? 0 : Base64_Char2Val(e3);
-        e4 = (e4 == PAD) ? 0 : Base64_Char2Val(e4);
+        e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val(e3));
+        e4 = (byte)((e4 == PAD) ? 0 : Base64_Char2Val(e4));
 
         if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
             WOLFSSL_MSG("Bad Base64 Decode bad character");

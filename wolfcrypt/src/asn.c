@@ -2159,7 +2159,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         /* Bottom 7 bits are the number of bytes to calculate length with.
          * Note: 0 indicates indefinite length encoding *not* 0 bytes of length.
          */
-        word32 bytes = b & 0x7F;
+        word32 bytes = (word32)b & 0x7FU;
         int minLen;
 
         /* Calculate minimum length to be encoded with bytes. */
@@ -2935,7 +2935,7 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
     length = mp_unsigned_bin_size(n);
     if (maxSz >= 0 && (1 + length + (leadingBit ? 1 : 0)) > maxSz)
         return BUFFER_E;
-    idx = SetASNInt(length, leadingBit ? 0x80 : 0x00, output);
+    idx = SetASNInt(length, (byte)(leadingBit ? 0x80U : 0x00U), output);
     if (maxSz >= 0 && (idx + length) > maxSz)
         return BUFFER_E;
 
@@ -14468,7 +14468,7 @@ word32 SetLength(word32 length, byte* output)
 
         if (output) {
             /* Encode count byte. */
-            output[i] = j | ASN_LONG_LENGTH;
+            output[i] = (byte)(j | ASN_LONG_LENGTH);
         }
         /* Skip over count byte. */
         i++;
@@ -14550,8 +14550,8 @@ word32 SetSet(word32 len, byte* output)
  */
 word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
 {
-    tag = ((tag == ASN_SEQUENCE || tag == ASN_SET) ? ASN_CONSTRUCTED : 0)
-                    | ASN_CONTEXT_SPECIFIC | number;
+    tag = (byte)(((tag == ASN_SEQUENCE || tag == ASN_SET) ? ASN_CONSTRUCTED : 0)
+                 | ASN_CONTEXT_SPECIFIC | number);
     return SetHeader(tag, len, output);
 }
 
@@ -14566,8 +14566,8 @@ word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
  */
 word32 SetExplicit(byte number, word32 len, byte* output)
 {
-    return SetHeader(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | number, len,
-                     output);
+    return SetHeader((byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | number),
+                     len, output);
 }
 
 #if defined(OPENSSL_EXTRA)
@@ -14754,8 +14754,7 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 
     tagSz = (type == oidHashType ||
              (type == oidSigType && !IsSigAlgoECC((word32)algoOID)) ||
-             (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
-
+             (type == oidKeyType && algoOID == RSAk)) ? 2U : 0U;
     algoName = OidFromId((word32)algoOID, (word32)type, &algoSz);
     if (algoName == NULL) {
         WOLFSSL_MSG("Unknown Algorithm");
@@ -18634,7 +18633,7 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         }
 
         /* Get type, LSB 4-bits */
-        bType = (b & ASN_TYPE_MASK);
+        bType = (byte)(b & ASN_TYPE_MASK);
 
         if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
                                                         bType == ASN_DIR_TYPE) {
@@ -21988,7 +21987,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
                 if (decrementMaxPathLen && cert->ca->maxPathLen > 0) {
                     WOLFSSL_MSG("\tmaxPathLen status: reduce by 1");
-                    cert->maxPathLen = cert->ca->maxPathLen - 1;
+                    cert->maxPathLen = (byte)(cert->ca->maxPathLen - 1);
                     if (verify != NO_VERIFY && type != CA_TYPE &&
                                                     type != TRUSTED_PEER_TYPE) {
                         WOLFSSL_MSG("\tmaxPathLen status: OK");
@@ -22006,7 +22005,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             } else if (cert->ca && cert->isCA) {
                 /* case where cert->pathLength extension is not set */
                 if (cert->ca->maxPathLen > 0) {
-                    cert->maxPathLen = cert->ca->maxPathLen - 1;
+                    cert->maxPathLen = (byte)(cert->ca->maxPathLen - 1);
                 } else {
                     cert->maxPathLen = 0;
                     if (verify != NO_VERIFY && type != CA_TYPE &&
@@ -31240,7 +31239,7 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
     idx = SetSequence(rLen+rAddLeadZero + sLen+sAddLeadZero + headerSz, out);
 
     /* store r */
-    ret = SetASNInt((int)rLen, rAddLeadZero ? 0x80 : 0x00, &out[idx]);
+    ret = SetASNInt((int)rLen, (byte)(rAddLeadZero ? 0x80U : 0x00U), &out[idx]);
     if (ret < 0)
         return ret;
     idx += (word32)ret;
@@ -31248,7 +31247,7 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
     idx += rLen;
 
     /* store s */
-    ret = SetASNInt((int)sLen, sAddLeadZero ? 0x80 : 0x00, &out[idx]);
+    ret = SetASNInt((int)sLen, (byte)(sAddLeadZero ? 0x80U : 0x00U), &out[idx]);
     if (ret < 0)
         return ret;
     idx += (word32)ret;

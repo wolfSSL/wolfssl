@@ -289,7 +289,7 @@ WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
         /* Move alignment so that it lines up with a
          * WOLFSSL_WORD_SIZE boundary */
         while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
-            *(o++) = *(b++) ^ *(m++);
+            *(o++) = (byte)(*(b++) ^ *(m++));
             count--;
         }
         XorWordsOut( (wolfssl_word**)&o, (const wolfssl_word**)&b,
@@ -298,7 +298,7 @@ WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
     }
 
     for (i = 0; i < count; i++)
-        o[i] = b[i] ^ m[i];
+        o[i] = (byte)(b[i] ^ m[i]);
 }
 
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
@@ -505,8 +505,8 @@ WC_MISC_STATIC WC_INLINE int ByteToHexStr(byte in, char* out)
     if (out == NULL)
         return -1;
 
-    out[0] = ByteToHex(in >> 4);
-    out[1] = ByteToHex(in & 0xf);
+    out[0] = ByteToHex((byte)(in >> 4));
+    out[1] = ByteToHex((byte)(in & 0xf));
     return 0;
 }
 
@@ -544,7 +544,7 @@ WC_MISC_STATIC WC_INLINE byte ctMaskLTE(int a, int b)
 /* Constant time - mask set when a == b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
 {
-    return (byte)(~ctMaskGT(a, b)) & (byte)(~ctMaskLT(a, b));
+    return (byte)((byte)(~ctMaskGT(a, b)) & (byte)(~ctMaskLT(a, b)));
 }
 
 /* Constant time - sets 16 bit integer mask when a > b */
@@ -574,13 +574,13 @@ WC_MISC_STATIC WC_INLINE word16 ctMask16LTE(int a, int b)
 /* Constant time - sets 16 bit integer mask when a == b. */
 WC_MISC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)
 {
-    return (word16)(~ctMask16GT(a, b)) & (word16)(~ctMask16LT(a, b));
+    return (word16)((word16)(~ctMask16GT(a, b)) & (word16)(~ctMask16LT(a, b)));
 }
 
 /* Constant time - mask set when a != b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskNotEq(int a, int b)
 {
-    return (byte)ctMaskGT(a, b) | (byte)ctMaskLT(a, b);
+    return (byte)((byte)ctMaskGT(a, b) | (byte)ctMaskLT(a, b));
 }
 
 /* Constant time - select a when mask is set and b otherwise. */
