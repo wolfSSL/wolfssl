@@ -1633,7 +1633,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     curve->dp = dp; /* set dp info */
 
     /* determine items to load */
-    load_items = (((byte)~(word32)curve->load_mask) & load_mask);
+    load_items = (byte)(((byte)~(word32)curve->load_mask) & load_mask);
     curve->load_mask |= load_items;
 
     /* load items */
@@ -6928,7 +6928,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* make up a key and export the public copy */
@@ -8389,7 +8389,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* check for async hardware acceleration */
