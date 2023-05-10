@@ -885,8 +885,18 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     const byte*         protocol = tls13ProtocolLabel;
     word32              protocolLen = TLS13_PROTOCOL_LABEL_SZ;
 
-    if (ssl->version.minor != TLSv1_3_MINOR)
+    if (ssl->options.dtls && ssl->version.minor != DTLSv1_3_MINOR)
         return VERSION_ERROR;
+
+    if (!ssl->options.dtls && ssl->version.minor != TLSv1_3_MINOR)
+        return VERSION_ERROR;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        protocol = dtls13ProtocolLabel;
+        protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
@@ -1165,6 +1175,13 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
     int         ret;
 
     WOLFSSL_MSG("Derive Resumption PSK");
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        protocol = dtls13ProtocolLabel;
+        protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
