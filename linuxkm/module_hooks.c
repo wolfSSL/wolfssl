@@ -141,13 +141,21 @@ static int wolfssl_init(void)
 
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
-    #define THIS_MODULE_BASE (THIS_MODULE->core_layout.base)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+    /* see linux commit ac3b432839 */
+    #define THIS_MODULE_TEXT_BASE (THIS_MODULE->mem[MOD_TEXT].base)
+    #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->mem[MOD_TEXT].size)
+    #define THIS_MODULE_RO_BASE (THIS_MODULE->mem[MOD_RODATA].base)
+    #define THIS_MODULE_RO_SIZE (THIS_MODULE->mem[MOD_RODATA].size)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+    #define THIS_MODULE_TEXT_BASE (THIS_MODULE->core_layout.base)
     #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_layout.text_size)
+    #define THIS_MODULE_RO_BASE ((char *)THIS_MODULE->core_layout.base + THIS_MODULE->core_layout.text_size)
     #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_layout.ro_size)
 #else
-    #define THIS_MODULE_BASE (THIS_MODULE->module_core)
+    #define THIS_MODULE_TEXT_BASE (THIS_MODULE->module_core)
     #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_text_size)
+    #define THIS_MODULE_RO_BASE ((char *)THIS_MODULE->module_core + THIS_MODULE->core_ro_size)
     #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_ro_size)
 #endif
 
@@ -159,8 +167,8 @@ static int wolfssl_init(void)
         unsigned int text_hash, rodata_hash;
 
         if ((pie_text_start < pie_text_end) &&
-            (pie_text_start >= (char *)THIS_MODULE_BASE) &&
-            (pie_text_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_TEXT_SIZE))
+            (pie_text_start >= (char *)THIS_MODULE_TEXT_BASE) &&
+            (pie_text_end - (char *)THIS_MODULE_TEXT_BASE <= THIS_MODULE_TEXT_SIZE))
         {
             text_hash = hash_span(pie_text_start, pie_text_end);
         } else {
@@ -169,14 +177,14 @@ static int wolfssl_init(void)
                     pie_text_start,
                     pie_text_end,
                     pie_text_end-pie_text_start,
-                    THIS_MODULE_BASE,
-                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE);
+                    THIS_MODULE_TEXT_BASE,
+                    (char *)THIS_MODULE_TEXT_BASE + THIS_MODULE_TEXT_SIZE);
             text_hash = 0;
         }
 
         if ((pie_rodata_start < pie_rodata_end) && // cppcheck-suppress comparePointers
-            (pie_rodata_start >= (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE) &&
-            (pie_rodata_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_RO_SIZE))
+            (pie_rodata_start >= (char *)THIS_MODULE_RO_BASE) &&
+            (pie_rodata_end - (char *)THIS_MODULE_RO_BASE <= THIS_MODULE_RO_SIZE))
         {
             rodata_hash = hash_span(pie_rodata_start, pie_rodata_end);
         } else {
@@ -185,8 +193,8 @@ static int wolfssl_init(void)
                     pie_rodata_start,
                     pie_rodata_end,
                     pie_rodata_end-pie_rodata_start,
-                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE,
-                    (char *)THIS_MODULE_BASE + THIS_MODULE_RO_SIZE);
+                    (char *)THIS_MODULE_RO_BASE,
+                    (char *)THIS_MODULE_RO_BASE + THIS_MODULE_RO_SIZE);
             rodata_hash = 0;
         }
 
@@ -194,10 +202,10 @@ static int wolfssl_init(void)
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), module base %pK\n",
+        pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), text base %pK, ro base %pK\n",
                 text_hash, pie_text_end-pie_text_start,
                 rodata_hash, pie_rodata_end-pie_rodata_start,
-                THIS_MODULE_BASE);
+                THIS_MODULE_TEXT_BASE, THIS_MODULE_RO_BASE);
     }
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
 

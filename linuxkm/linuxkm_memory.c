@@ -21,7 +21,7 @@
 
 /* included by wolfcrypt/src/memory.c */
 
-#if defined(WOLFSSL_LINUXKM_SIMD_X86)
+#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #ifdef LINUXKM_SIMD_IRQ
         #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
             static union fpregs_state **wolfcrypt_linuxkm_fpu_states = NULL;
@@ -335,7 +335,7 @@
 
         return;
     }
-#endif /* WOLFSSL_LINUXKM_SIMD_X86 && WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
+#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS && CONFIG_X86 */
 
 #if defined(__PIE__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
 /* needed in 6.1+ because show_free_areas() static definition in mm.h calls

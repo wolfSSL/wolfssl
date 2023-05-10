@@ -119,10 +119,30 @@
     #endif
     #include <linux/net.h>
     #include <linux/slab.h>
+
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_SP_X86_64_ASM)
         #ifndef CONFIG_X86
             #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
         #endif
+        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+        #endif
+    #elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
+          defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) ||\
+          defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
+        #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
+            #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
+        #endif
+        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+        #endif
+    #else
+        #ifndef WOLFSSL_NO_ASM
+            #define WOLFSSL_NO_ASM
+        #endif
+    #endif
+
+    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
         #define WOLFSSL_LINUXKM_SIMD
         #define WOLFSSL_LINUXKM_SIMD_X86
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -148,28 +168,21 @@
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
         #endif
-    #elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
-          defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) ||\
-          defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
-        #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
-            #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
-        #endif
+    #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
         #define WOLFSSL_LINUXKM_SIMD
         #define WOLFSSL_LINUXKM_SIMD_ARM
         #include <asm/fpsimd.h>
+        #ifdef LINUXKM_SIMD_IRQ
+            #error LINUXKM_SIMD_IRQ is unavailable on ARM (not implemented)
+        #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
         #endif
-        #ifdef LINUXKM_SIMD_IRQ
-            #error LINUXKM_SIMD_IRQ is unavailable on ARM (not implemented)
-        #endif
-    #else
-        #ifndef WOLFSSL_NO_ASM
-            #define WOLFSSL_NO_ASM
-        #endif
+    #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
     #endif
 
     _Pragma("GCC diagnostic pop");
