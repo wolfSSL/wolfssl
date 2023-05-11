@@ -45192,20 +45192,30 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 }
 
 
+#ifdef WOLF_CRYPTO_CB_FIND
 static int myCryptoCbFind(int currentId, int algoType)
 {
     /* can have algo specific overrides here
        switch (algoType) {
+
+            i.e.
+            WC_ALGO_TYPE_CMAC
+            WC_ALGO_TYPE_SEED
+            WC_ALGO_TYPE_HMAC
+            WC_ALGO_TYPE_HASH
+            WC_ALGO_TYPE_CIPHER
+            WC_ALGO_TYPE_PK
 
         }
     */
     (void)algoType;
 
     if (currentId == INVALID_DEVID) {
-        return 1; /* override invalid devid found with 1 */
+        /* can override invalid devid found with 1 */
     }
     return currentId;
 }
+#endif /* WOLF_CRYPTO_CB_FIND */
 
 
 WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
@@ -45220,7 +45230,9 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
     ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
+#ifdef WOLF_CRYPTO_CB_FIND
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);
+#endif /* WOLF_CRYPTO_CB_FIND */
 #ifndef WC_NO_RNG
     if (ret == 0)
         ret = random_test();

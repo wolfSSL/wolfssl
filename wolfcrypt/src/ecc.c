@@ -4432,19 +4432,22 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
 #ifdef WOLF_CRYPTO_CB
-    if (private_key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (private_key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -5330,21 +5333,23 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     key->flags = (byte)flags;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #else
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            return NO_VALID_DEVID;
+        }
         return err;
-    #endif
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        return NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -6320,19 +6325,22 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -8020,19 +8028,22 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC

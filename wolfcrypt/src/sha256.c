@@ -1231,7 +1231,10 @@ static int InitSha256(wc_Sha256* sha256)
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (sha256->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha256->devId != INVALID_DEVID)
+        #endif
+        {
             int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
@@ -1394,7 +1397,10 @@ static int InitSha256(wc_Sha256* sha256)
         }
 
     #ifdef WOLF_CRYPTO_CB
-        if (sha256->devId != INVALID_DEVID) {
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha256->devId != INVALID_DEVID)
+        #endif
+        {
             ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;

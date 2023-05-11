@@ -952,7 +952,10 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (sha512->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
         int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
@@ -1151,7 +1154,10 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (sha512->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha512->devId != INVALID_DEVID)
+    #endif
+    {
         byte localHash[WC_SHA512_DIGEST_SIZE];
         ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, localHash);
         if (ret != CRYPTOCB_UNAVAILABLE) {
@@ -1374,7 +1380,10 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (sha384->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha384->devId != INVALID_DEVID)
+    #endif
+    {
         int ret = wc_CryptoCb_Sha384Hash(sha384, data, len, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
@@ -1423,7 +1432,10 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (sha384->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha384->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Sha384Hash(sha384, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
