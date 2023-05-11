@@ -318,7 +318,7 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
         }
     #endif
 
-        if (len >= 0 && stmCtx->buffLen == chunkSz) {
+        if (stmCtx->buffLen == chunkSz) {
             wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
             wroteToFifo = 1;
         #ifdef STM32_HASH_FIFO_WORKAROUND
