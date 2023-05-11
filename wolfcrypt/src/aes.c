@@ -1978,12 +1978,12 @@ static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
 #define GetTable(t, o)  t[o]
 #define GetTable8(t, o) t[o]
 #define GetTable_Multi(t, t0, o0, t1, o1, t2, o2, t3, o3)  \
-    *t0 = t[o0]; *t1 = t[o1]; *t2 = t[o2]; *t3 = t[o3]
+    *(t0) = (t)[o0]; *(t1) = (t)[o1]; *(t2) = (t)[o2]; *(t3) = (t)[o3]
 #define XorTable_Multi(t, t0, o0, t1, o1, t2, o2, t3, o3)  \
-    *t0 ^= t[o0]; *t1 ^= t[o1]; *t2 ^= t[o2]; *t3 ^= t[o3]
+    *(t0) ^= (t)[o0]; *(t1) ^= (t)[o1]; *(t2) ^= (t)[o2]; *(t3) ^= (t)[o3]
 #define GetTable8_4(t, o0, o1, o2, o3) \
-    (((word32)t[o0] << 24) | ((word32)t[o1] << 16) | \
-     ((word32)t[o2] <<  8) | ((word32)t[o3] <<  0))
+    (((word32)(t)[o0] << 24) | ((word32)(t)[o1] << 16) |   \
+     ((word32)(t)[o2] <<  8) | ((word32)(t)[o3] <<  0))
 #endif
 
 /* Software AES - ECB Encrypt */
