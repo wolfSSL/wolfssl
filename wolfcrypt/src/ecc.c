@@ -3368,6 +3368,10 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
 
    (void)heap;
 
+   if (key == NULL) {
+       return ECC_BAD_ARG_E;
+   }
+
    XMEMSET(key, 0, sizeof(*key));
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SMALL_STACK)
