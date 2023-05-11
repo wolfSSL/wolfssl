@@ -2295,7 +2295,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
   "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config.cmake"
   INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl"
   NO_SET_AND_CHECK_MACRO
