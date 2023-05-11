@@ -309,18 +309,17 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 
     #ifdef WC_ASYNC_ENABLE_RSA
         #if defined(HAVE_PKCS11)
-            if (!isPkcs11) {
+            if (!isPkcs11)
         #endif
+            {
                 /* handle as async */
                 ret = wolfAsync_DevCtxInit(&key->asyncDev,
                         WOLFSSL_ASYNC_MARKER_RSA, key->heap, devId);
                 if (ret != 0)
                     return ret;
-        #if defined(HAVE_PKCS11)
             }
-        #endif
     #endif /* WC_ASYNC_ENABLE_RSA */
-#elif defined(HAVE_PKCS11) 
+#elif defined(HAVE_PKCS11)
     (void)isPkcs11;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 

@@ -5863,15 +5863,14 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     #if defined(HAVE_PKCS11)
-        if (!isPkcs11) {
+        if (!isPkcs11)
     #endif
+        {
             /* handle as async */
             ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
                                                             key->heap, devId);
-    #if defined(HAVE_PKCS11)
         }
-    #endif
-#elif defined(HAVE_PKCS11) 
+#elif defined(HAVE_PKCS11)
     (void)isPkcs11;
 #endif
 
