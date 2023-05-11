@@ -11,8 +11,7 @@ ctaocrypt/src/src/
 .dirstamp
 *.user
 configure
-config.log
-config.status
+config.*
 !cmake/config.in
 *Debug/
 *Release/
@@ -417,4 +416,3 @@ user_settings_asm.h
 
 # auto-created CMake backups
 **/CMakeLists.txt.old
-
