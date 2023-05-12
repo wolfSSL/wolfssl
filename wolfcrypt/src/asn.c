@@ -35260,6 +35260,7 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
             if (req->url == NULL) {
                 XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
+                req->serial = NULL;
                 return MEMORY_E;
             }
 
