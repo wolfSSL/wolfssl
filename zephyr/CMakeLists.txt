@@ -6,7 +6,7 @@ if(CONFIG_WOLFSSL)
   	WOLFSSL_SETTINGS_FILE="${CONFIG_WOLFSSL_SETTINGS_FILE}"
   	)
   
-    target_include_directories(wolfSSL INTERFACE
+    zephyr_include_directories(
   	${ZEPHYR_CURRENT_MODULE_DIR}
   	${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl
   	${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
@@ -116,7 +116,6 @@ if(CONFIG_WOLFSSL)
   
     add_definitions(-DWOLFSSL_USER_SETTINGS)
     add_definitions(-DWOLFSSL_ZEPHYR)
-    include_directories("${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl")
   else()
     assert(CONFIG_WOLFSSL_LIBRARY "wolfSSL was enabled, but neither BUILTIN or LIBRARY was selected.")
   
