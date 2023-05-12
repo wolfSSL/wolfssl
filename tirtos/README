@@ -1,7 +1,7 @@
 # wolfSSL library for TI-RTOS
 
 This directory contains the files that build wolfSSL library for TI-RTOS.
-Please follow the instructions in "Using wolfSSL with TI-RTOS" (http://processors.wiki.ti.com/index.php/Using_wolfSSL_with_TI-RTOS) to build the wolfSSL
+Please follow the instructions in "Using wolfSSL with TI-RTOS" (https://www.wolfssl.com/documentation/Using_wolfSSL_with_TI-RTOS.pdf) to build the wolfSSL
 library and the example applications.
 
 Also read TI-RTOS Getting Started Guide and TI-RTOS User Guide to learn more
