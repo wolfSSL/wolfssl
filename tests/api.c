@@ -33143,6 +33143,7 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
       defined(OPENSSL_ALL)) && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
+    time_t testTime = 1683926567; /* Fri May 12 09:22:47 PM UTC 2023 */
 
     XMEMSET(&asnTime, 0, sizeof(ASN1_TIME));
     AssertIntEQ(ASN1_TIME_set_string(&asnTime, "000222211515Z"), 1);
@@ -33187,6 +33188,22 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
     AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 0);
     AssertIntEQ(ASN1_TIME_set_string(&asnTime, "20000222211515U"), 1);
     AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 0);
+
+#ifdef XMKTIME
+    AssertNotNull(ASN1_TIME_adj(&asnTime, testTime, 0, 0));
+    AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
+    AssertIntEQ(tm.tm_sec, 47);
+    AssertIntEQ(tm.tm_min, 22);
+    AssertIntEQ(tm.tm_hour, 21);
+    AssertIntEQ(tm.tm_mday, 12);
+    AssertIntEQ(tm.tm_mon, 4);
+    AssertIntEQ(tm.tm_year, 123);
+    AssertIntEQ(tm.tm_wday, 5);
+    AssertIntEQ(tm.tm_yday, 131);
+    /* Confirm that when used with a tm struct from ASN1_TIME_adj, all other
+       fields are zeroed out as expected. */
+    AssertIntEQ(tm.tm_isdst, 0);
+#endif
 
     res = TEST_RES_CHECK(1);
 #endif
