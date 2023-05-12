@@ -402,6 +402,11 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_aes.c</locationURI>
 		</link>
 		<link>
+			<name>wolfCrypt/port/renesas_sce_rsa.c</name>
+			<type>1</type>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_rsa.c</locationURI>
+		</link>
+		<link>
 			<name>wolfCrypt/port/renesas_sce_sha.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_sha.c</locationURI>

@@ -30,7 +30,8 @@
 
 #include <wolfssl/wolfcrypt/logging.h>
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>

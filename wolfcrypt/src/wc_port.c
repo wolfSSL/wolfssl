@@ -61,7 +61,8 @@
 #if defined(WOLFSSL_RENESAS_TSIP)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
-#if defined(WOLFSSL_RENESAS_SCE)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 #endif
 #if defined(WOLFSSL_RENESAS_RX64_HASH)
@@ -187,7 +188,8 @@ int wolfCrypt_Init(void)
     }
     #endif
 
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
         ret = wc_sce_Open( );
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
@@ -436,7 +438,8 @@ int wolfCrypt_Cleanup(void)
         rx64_hw_Close();
     #endif
 
-    #ifdef WOLFSSL_RENESAS_SCEPROTECT
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
         wc_sce_Close();
     #endif
 
