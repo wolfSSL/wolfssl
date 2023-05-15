@@ -12,6 +12,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_fipsv5.h`: The FIPS v5 (ready) 140-3 build options. Equivalent to `./configure --enable-fips=v5-dev`.
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
 * `user_settings_wolftpm.h`: Minimum options for building wolfTPM. See comment at top for ./configure used to generate.
+*.`user_settings_EBSnet.h`: Example configuration file for use with EBSnet ports.
 
 ## Usage
 

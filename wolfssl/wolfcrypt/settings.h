@@ -918,7 +918,7 @@ extern void uITRON4_free(void *p) ;
         #define SINGLE_THREADED
     #endif
 
-    #if (RTPLATFORM)
+    #if (defined(RTPLATFORM) && (RTPLATFORM != 0))
         #if (!RTP_LITTLE_ENDIAN)
             #define BIG_ENDIAN_ORDER
         #endif
@@ -937,9 +937,13 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif
 
+    #if (WINMSP3)
+        #define strtok_r strtok_s
+    #endif
+
     #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
     #define XFREE(p, h, type) (rtp_free(p))
-    #define XREALLOC(p, n, h, t) (rtp_realloc((p), (n)))
+    #define XREALLOC(p, n, h, t) (rtp_realloc((p), (n), (t)))
 
     #if (WINMSP3)
         #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
