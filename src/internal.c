@@ -33327,7 +33327,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0 || !ssl->options.dtlsStateful) {
                 int alertType = TranslateErrorToAlert(ret);
                 if (alertType != invalid_alert)
-                    SendAlert(ssl, alert_fatal, alertType);
+                if (alertType != invalid_alert) {
+                    int err;
+
+                    /* propogate socket errors to avoid re-calling send alert */
+                    err = SendAlert(ssl, alert_fatal, alertType);
+                    if (err == SOCKET_ERROR_E)
+                        ret = SOCKET_ERROR_E;
+                }
                 *inOutIdx += helloSz;
                 DtlsResetState(ssl);
                 if (DtlsIgnoreError(ret))
