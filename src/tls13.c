@@ -5236,8 +5236,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
+        /* sanity check on PSK / KSE */
+        if (
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            ssl->options.pskNegotiated == 0 &&
+    #endif
+            ssl->session->namedGroup == 0) {
+            return EXT_MISSING;
+        }
+
         ssl->keys.encryptionOn = 1;
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
+
     }
     else {
         ssl->options.tls1_3 = 1;
