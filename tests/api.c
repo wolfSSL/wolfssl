@@ -53894,11 +53894,11 @@ static int test_tls13_apis(void)
             ":P256_KYBER_LEVEL1"
 #endif
 #endif
+#endif /* !defined(NO_ECC_SECP) */
 #ifdef HAVE_PQC
             ":KYBER_LEVEL1"
 #endif
             "";
-#endif /* !defined(NO_ECC_SECP) */
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
 
     (void)ret;
