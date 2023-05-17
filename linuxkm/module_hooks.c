@@ -113,6 +113,15 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 static int updateFipsHash(void);
 #endif
 
+#ifdef WOLFSSL_LINUXKM_BENCHMARKS
+#undef HAVE_PTHREAD
+#define STRING_USER
+#define NO_MAIN_FUNCTION
+#define current_time benchmark_current_time
+#define WOLFSSL_NO_FLOAT_FMT
+#include "/home/douzzer/com/wolfssl/src/wolfssl/wolfcrypt/benchmark/benchmark.c"
+#endif /* WOLFSSL_LINUXKM_BENCHMARKS */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -202,10 +211,9 @@ static int wolfssl_init(void)
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), text base %pK, ro base %pK\n",
+        pr_info("wolfCrypt container hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu)\n",
                 text_hash, pie_text_end-pie_text_start,
-                rodata_hash, pie_rodata_end-pie_rodata_start,
-                THIS_MODULE_TEXT_BASE, THIS_MODULE_RO_BASE);
+                rodata_hash, pie_rodata_end-pie_rodata_start);
     }
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
@@ -277,6 +285,10 @@ static int wolfssl_init(void)
     pr_info("wolfCrypt self-test passed.\n");
 #endif
 
+#ifdef WOLFSSL_LINUXKM_BENCHMARKS
+    wolfcrypt_benchmark_main(0, (char**)NULL);
+#endif
+
 #ifdef WOLFCRYPT_ONLY
     pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded%s"
             ".\nSee https://www.wolfssl.com/ for more information.\n"
@@ -333,15 +345,6 @@ static struct task_struct *my_get_current_thread(void) {
 static int my_preempt_count(void) {
     return preempt_count();
 }
-
-#if defined(WOLFSSL_LINUXKM_SIMD_X86) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
-static int my_copy_fpregs_to_fpstate(struct fpu *fpu) {
-    return copy_fpregs_to_fpstate(fpu);
-}
-static void my_copy_kernel_to_fpregs(union fpregs_state *fpstate) {
-    copy_kernel_to_fpregs(fpstate);
-}
-#endif
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
@@ -430,6 +433,20 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
     wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
 
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
+    #endif
+    wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
+
+    #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+        wolfssl_linuxkm_pie_redirect_table.migrate_disable = &migrate_disable;
+        wolfssl_linuxkm_pie_redirect_table.migrate_enable = &migrate_enable;
+    #endif
+
 #ifdef WOLFSSL_LINUXKM_SIMD_X86
     wolfssl_linuxkm_pie_redirect_table.irq_fpu_usable = irq_fpu_usable;
     #ifdef kernel_fpu_begin
@@ -440,29 +457,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kernel_fpu_begin;
     #endif
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
-    #ifdef LINUXKM_SIMD_IRQ
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-            wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
-        #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-            wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
-        /*
-         * #else
-         *  wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
-         *  wolfssl_linuxkm_pie_redirect_table.restore_fpregs_from_fpstate = restore_fpregs_from_fpstate;
-         *  wolfssl_linuxkm_pie_redirect_table.fpu_kernel_cfg = &fpu_kernel_cfg;
-         */
-        #endif
-    #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
-    #else
-        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
-    #endif
-    wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
-#endif
+#endif /* WOLFSSL_LINUXKM_SIMD_X86 */
+
+#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
