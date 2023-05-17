@@ -548,7 +548,7 @@ endif()
 
 # SHA224
 set(SHA224_DEFAULT "no")
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
+if(("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64") OR
     ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
     if(NOT WOLFSSL_AFALG AND NOT WOLFSSL_DEVCRYPTO AND
        (NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2")))
@@ -562,7 +562,7 @@ add_option("WOLFSSL_SHA224"
 
 # SHA3
 set(SHA3_DEFAULT "no")
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
+if(("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64") OR
     ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
     if(NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2"))
         set(SHA3_DEFAULT "yes")
@@ -1048,7 +1048,7 @@ endif()
 
 # Base64
 set(BASE64_ENCODE_DEFAULT "no")
-if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
     set(BASE64_ENCODE_DEFAULT "yes")
 endif()
 
@@ -1526,7 +1526,7 @@ if(WOLFSSL_FAST_MATH)
         set(WOLFSSL_SLOWMATH "no")
     endif()
 
-    if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+    if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
         # Have settings.h set FP_MAX_BITS higher if user didn't set directly
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
     endif()
@@ -1534,7 +1534,7 @@ endif()
 
 # TODO: - Fast huge math
 
-if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
 endif()
 
@@ -1853,10 +1853,6 @@ if(WOLFSSL_USER_SETTINGS_ASM)
     endif()
 endif()
 
-# TODO: Applying definitions to everything like this, rather than
-#       individual targets, is discouraged in CMake.
-add_definitions(${WOLFSSL_DEFINITIONS})
-
 add_option("WOLFSSL_CONFIG_H"
     "Enable generation of config.h and define HAVE_CONFIG_H (default: enabled)"
     "yes" "yes;no")
@@ -1878,7 +1874,7 @@ message("Generating user options header...")
 if (${CMAKE_DISABLE_SOURCE_CHANGES})
     set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "${CMAKE_DISABLE_SOURCE_CHANGES}")
 else()
-    set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "no")
+    set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "yes")
 endif()
 add_option("WOLFSSL_BUILD_OUT_OF_TREE"
     "Don't generate files in the source tree (default: ${WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT})"
@@ -1940,7 +1936,13 @@ set(LIB_SOURCES "")
 # Corresponds to the instances of "src_libwolfssl_la_SOURCES += ..."
 # in the *.am files.
 generate_lib_src_list("${LIB_SOURCES}")
-add_library(wolfssl ${LIB_SOURCES})
+if(BUILD_SHARED_LIBS)
+    add_library(wolfssl SHARED ${LIB_SOURCES})
+else()
+    add_library(wolfssl STATIC ${LIB_SOURCES})
+endif()
+
+add_library(wolfssl::wolfssl ALIAS wolfssl)
 
 set_target_properties(wolfssl
     PROPERTIES
@@ -1952,6 +1954,7 @@ target_compile_definitions(wolfssl PRIVATE "BUILDING_WOLFSSL")
 if(${BUILD_SHARED_LIBS})
     target_compile_definitions(wolfssl PUBLIC "WOLFSSL_DLL")
 endif()
+target_compile_definitions(wolfssl PUBLIC ${WOLFSSL_DEFINITIONS})
 
 ####################################################
 # Include Directories
@@ -1974,7 +1977,7 @@ target_link_libraries(wolfssl PUBLIC ${WOLFSSL_LINK_LIBS})
 if(WIN32)
     # For Windows link ws2_32
     target_link_libraries(wolfssl PUBLIC
-        $<$<PLATFORM_ID:Windows>:ws2_32>)
+        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32>)
 elseif(APPLE)
     if(WOLFSSL_SYS_CA_CERTS)
         target_link_libraries(wolfssl PUBLIC
@@ -2295,7 +2298,8 @@ install(FILES
 # Install the export set
 install(EXPORT wolfssl-targets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
-        FILE wolfssl-config.cmake)
+        FILE wolfssl-targets.cmake
+        NAMESPACE wolfssl::)
 
 # TODO: Distro build + rules for what to include in the distro.
 #       See various include.am files.
@@ -2309,3 +2313,28 @@ set(VERSION ${PROJECT_VERSION})
 configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl"
+  NO_SET_AND_CHECK_MACRO
+  NO_CHECK_REQUIRED_COMPONENTS_MACRO
+)
+
+export(EXPORT wolfssl-targets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-targets.cmake"
+  NAMESPACE wolfssl::
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake"
+  VERSION "${wolfssl_VERSION_MAJOR}.${wolfssl_VERSION_MINOR}"
+  COMPATIBILITY AnyNewerVersion
+)
+
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/wolfssl-config-version.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
+)
