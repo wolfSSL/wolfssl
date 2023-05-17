@@ -69,14 +69,21 @@
     #define FLT_FMT "%0ld,%09lu"
     #define FLT_FMT_PREC "%0ld.%0*lu"
     #define FLT_FMT_PREC2 FLT_FMT_PREC
-    #define FLT_FMT_ARGS(x) (long)(x), ((x) < 0) ? (unsigned long)(-(((x) - (double)(long)(x)) * 1000000000.0)) : (unsigned long)(((x) - (double)(long)(x)) * 1000000000.0)
-    static const double pow_10_array[] = { 0.0, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0, 100000000.0, 1000000000.0 };
+    #define FLT_FMT_ARGS(x) (long)(x), ((x) < 0) ?                        \
+        (unsigned long)(-(((x) - (double)(long)(x)) * 1000000000.0)) :    \
+        (unsigned long)(((x) - (double)(long)(x)) * 1000000000.0)
+    static const double pow_10_array[] = { 0.0, 1.0, 10.0, 100.0, 1000.0, \
+                                           10000.0, 100000.0, 1000000.0,  \
+                                           10000000.0, 100000000.0,       \
+                                           1000000000.0 };
     #define FLT_FMT_PREC_ARGS(p, x) \
             (long)(x), \
                 p, \
-            (x) >= 0.0 ?                                              \
-                (unsigned long int)((((x) - (double)(long)(x)) * pow_10_array[(p)+1]) + 0.5) : \
-                (unsigned long int)((((-(x)) - (double)((long)-(x))) * pow_10_array[(p)+1]) + 0.5)
+            (x) >= 0.0 ?                                                  \
+                (unsigned long int)((((x) - (double)(long)(x)) *          \
+                                     pow_10_array[(p)+1]) + 0.5) :        \
+                (unsigned long int)((((-(x)) - (double)((long)-(x))) *    \
+                                     pow_10_array[(p)+1]) + 0.5)
     #define FLT_FMT_PREC2_ARGS(w, p, x) FLT_FMT_PREC_ARGS(p, x)
 #else
     #define FLT_FMT "%f"
@@ -943,13 +950,16 @@ static const char* bench_desc_words[][15] = {
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
-    #define SHOW_INTEL_CYCLES(b, n, s) \
-        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), " %s = " FLT_FMT_PREC2 "\n", \
-            bench_result_words1[lng_index][2], \
-            FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 : (double)total_cycles / ((word64)count*(s))))
-    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
+    #define SHOW_INTEL_CYCLES(b, n, s)                                          \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                     \
+            " %s = " FLT_FMT_PREC2 "\n",                                        \
+            bench_result_words1[lng_index][2],                                  \
+            FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 :                           \
+            (double)total_cycles / ((word64)count*(s))))
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                      \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), FLT_FMT_PREC ",\n", \
-            FLT_FMT_PREC_ARGS(6, count == 0 ? 0 : (double)total_cycles / ((word64)count*(s))))
+            FLT_FMT_PREC_ARGS(6, count == 0 ? 0 :                               \
+            (double)total_cycles / ((word64)count*(s))))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -960,25 +970,26 @@ static const char* bench_desc_words[][15] = {
     static THREAD_LS_T int cycles = -1;
     static THREAD_LS_T struct perf_event_attr atr;
 
-    #define INIT_CYCLE_COUNTER do { \
-        atr.type   = PERF_TYPE_HARDWARE; \
-        atr.config = PERF_COUNT_HW_CPU_CYCLES; \
-        cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0); \
+    #define INIT_CYCLE_COUNTER do {                                             \
+        atr.type   = PERF_TYPE_HARDWARE;                                        \
+        atr.config = PERF_COUNT_HW_CPU_CYCLES;                                  \
+        cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0);        \
     } while (0);
 
     #define BEGIN_INTEL_CYCLES read(cycles, &begin_cycles, sizeof(begin_cycles));
-    #define END_INTEL_CYCLES   do { \
-        read(cycles, &total_cycles, sizeof(total_cycles)); \
-        total_cycles = total_cycles - begin_cycles; \
+    #define END_INTEL_CYCLES   do {                                             \
+        read(cycles, &total_cycles, sizeof(total_cycles));                      \
+        total_cycles = total_cycles - begin_cycles;                             \
     } while (0);
 
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
-    #define SHOW_INTEL_CYCLES(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = " FLT_FMT_PREC2 "\n", \
-        bench_result_words1[lng_index][2], \
+    #define SHOW_INTEL_CYCLES(b, n, s)                                          \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                         \
+            " %s = " FLT_FMT_PREC2 "\n",                                        \
+        bench_result_words1[lng_index][2],                                      \
                         FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)))
-    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n", \
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                      \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n",     \
             FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
 
 #elif defined(SYNERGY_CYCLE_COUNT)
@@ -991,12 +1002,13 @@ static const char* bench_desc_words[][15] = {
     #define END_INTEL_CYCLES   total_cycles =  DWT->CYCCNT - begin_cycles;
 
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
-    #define SHOW_INTEL_CYCLES(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = " FLT_FMT_PREC2 "\n", \
-        bench_result_words1[lng_index][2], \
+    #define SHOW_INTEL_CYCLES(b, n, s)                                          \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                         \
+        " %s = " FLT_FMT_PREC2 "\n",                                            \
+        bench_result_words1[lng_index][2],                                      \
             FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)))
-    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n", \
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                      \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n",     \
             FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
 #elif defined(WOLFSSL_ESPIDF)
     static THREAD_LS_T word64 begin_cycles;
@@ -1027,9 +1039,10 @@ static const char* bench_desc_words[][15] = {
                 total_cycles = (get_xtensa_cycles() - begin_cycles);
 
     #define SHOW_ESP_CYCLES(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = " FLT_FMT_PREC2 "\n", \
-                        bench_result_words1[lng_index][2],               \
-                        FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s))                  \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),             \
+            " %s = " FLT_FMT_PREC2 "\n",                            \
+                        bench_result_words1[lng_index][2],          \
+                        FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)) \
                        )
 
     #define SHOW_ESP_CYCLES_CSV(b, n, s) \
@@ -1613,13 +1626,15 @@ typedef enum bench_stat_type {
         for (bstat = bench_stats_head; bstat != NULL; ) {
             if (bstat->type == BENCH_STAT_SYM) {
                 printf("%-16s%s " FLT_FMT_PREC2 " %s/s\n", bstat->desc,
-                    BENCH_DEVID_GET_NAME(bstat->useDeviceID), FLT_FMT_PREC2_ARGS(8, 3, bstat->perfsec),
+                    BENCH_DEVID_GET_NAME(bstat->useDeviceID),
+                    FLT_FMT_PREC2_ARGS(8, 3, bstat->perfsec),
                     base2 ? "MB" : "mB");
             }
             else {
                 printf("%-5s %4d %-9s %s " FLT_FMT_PREC " ops/sec\n",
                     bstat->algo, bstat->strength, bstat->desc,
-                    BENCH_DEVID_GET_NAME(bstat->useDeviceID), FLT_FMT_PREC_ARGS(3, bstat->perfsec));
+                    BENCH_DEVID_GET_NAME(bstat->useDeviceID),
+                    FLT_FMT_PREC_ARGS(3, bstat->perfsec));
             }
 
             bstat = bstat->next;
@@ -1673,12 +1688,14 @@ typedef enum bench_stat_type {
         for (i=0; i<gStatsCount; i++) {
             bench_stats_t* bstat = &gStats[i];
             if (bstat->type == BENCH_STAT_SYM) {
-                printf("%-16s " FLT_FMT_PREC2 " %s/s\n", bstat->desc, FLT_FMT_PREC2_ARGS(8, 3, bstat->perfsec),
+                printf("%-16s " FLT_FMT_PREC2 " %s/s\n", bstat->desc,
+                       FLT_FMT_PREC2_ARGS(8, 3, bstat->perfsec),
                     base2 ? "MB" : "mB");
             }
             else if (bstat->type == BENCH_STAT_ASYM) {
                 printf("%-5s %4d %-9s " FLT_FMT_PREC " ops/sec\n",
-                    bstat->algo, bstat->strength, bstat->desc, FLT_FMT_PREC_ARGS(3, bstat->perfsec));
+                    bstat->algo, bstat->strength, bstat->desc,
+                       FLT_FMT_PREC_ARGS(3, bstat->perfsec));
             }
         }
     }
@@ -1695,8 +1712,6 @@ static WC_INLINE void bench_stats_init(void)
 
 static WC_INLINE void bench_stats_start(int* count, double* start)
 {
-    SAVE_VECTOR_REGISTERS(pr_err("SAVE_VECTOR_REGISTERS failed for benchmark run."););
-
     *count = 0;
     *start = current_time(1);
 
@@ -1709,6 +1724,14 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
     BEGIN_INTEL_CYCLES
 #endif
 }
+
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #define bench_stats_start(count, start) do {                                         \
+        SAVE_VECTOR_REGISTERS(pr_err("SAVE_VECTOR_REGISTERS failed for benchmark run."); \
+                              return; );                                                 \
+        bench_stats_start(count, start);                                                 \
+    } while (0)
+#endif
 
 static WC_INLINE int bench_stats_check(double start)
 {
@@ -1911,13 +1934,17 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
     #else
         #ifdef HAVE_GET_CYCLES
-            (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu," FLT_FMT "," FLT_FMT ",%lu,", desc,
+            (void)XSNPRINTF(msg, sizeof(msg),
+                            "sym,%s,%s,%lu," FLT_FMT "," FLT_FMT ",%lu,", desc,
                             BENCH_DEVID_GET_NAME(useDeviceID),
-                            bytes_processed, FLT_FMT_ARGS(total), FLT_FMT_ARGS(persec), total_cycles);
+                            bytes_processed, FLT_FMT_ARGS(total),
+                            FLT_FMT_ARGS(persec), total_cycles);
         #else
-            (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu," FLT_FMT "," FLT_FMT ",", desc,
+            (void)XSNPRINTF(msg, sizeof(msg),
+                            "sym,%s,%s,%lu," FLT_FMT "," FLT_FMT ",", desc,
                             BENCH_DEVID_GET_NAME(useDeviceID),
-                            bytes_processed, FLT_FMT_ARGS(total), FLT_FMT_ARGS(persec));
+                            bytes_processed, FLT_FMT_ARGS(total),
+                            FLT_FMT_ARGS(persec));
         #endif
     #endif
 #elif defined(BENCH_DEVID)
@@ -1940,23 +1967,30 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
-                "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, " FLT_FMT_PREC2 " %s/s"
-                ", %lu cycles,",
-                desc, BENCH_DEVID_GET_NAME(useDeviceID), FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
-                word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], FLT_FMT_PREC2_ARGS(8, 3, persec), blockType,
+                "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
+                FLT_FMT_PREC2 " %s/s, %lu cycles,",
+                desc, BENCH_DEVID_GET_NAME(useDeviceID),
+                FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
+                word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
+                FLT_FMT_PREC2_ARGS(8, 3, persec), blockType,
                 (unsigned long) total_cycles);
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
-                 "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, " FLT_FMT_PREC2 " %s/s"
-                 ",",
-                 desc, BENCH_DEVID_GET_NAME(useDeviceID), FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
-                 word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
+                 "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
+                 FLT_FMT_PREC2 " %s/s,",
+                 desc, BENCH_DEVID_GET_NAME(useDeviceID),
+                 FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
+                 word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
+                 FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
     #endif /* HAVE_GET_CYCLES */
 #else
         (void)XSNPRINTF(msg, sizeof(msg),
-                 "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, " FLT_FMT_PREC2 " %s/s",
-                 desc, BENCH_DEVID_GET_NAME(useDeviceID), FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
-                 word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
+                 "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
+                 FLT_FMT_PREC2 " %s/s",
+                 desc, BENCH_DEVID_GET_NAME(useDeviceID),
+                 FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
+                 word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
+                 FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
 #endif
 
 #ifdef WOLFSSL_ESPIDF
@@ -2064,19 +2098,23 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
-                        "asym,%s,%d,%s%s," FLT_FMT_PREC "," FLT_FMT_PREC ",%d," FLT_FMT ",%lu," FLT_FMT_PREC "\n",
-                        algo, strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach), FLT_FMT_PREC_ARGS(3, opsSec),
+                        "asym,%s,%d,%s%s," FLT_FMT_PREC "," FLT_FMT_PREC ",%d," FLT_FMT
+                        ",%lu," FLT_FMT_PREC "\n",
+                        algo, strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach),
+                        FLT_FMT_PREC_ARGS(3, opsSec),
                         count, FLT_FMT_ARGS(total), (unsigned long) total_cycles,
                         FLT_FMT_PREC_ARGS(6, (double)total_cycles / (double)count));
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "asym,%s,%d,%s%s," FLT_FMT_PREC "," FLT_FMT_PREC ",%d," FLT_FMT "\n",
-                        algo, strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach), FLT_FMT_PREC_ARGS(3, opsSec),
+                        algo, strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach),
+                        FLT_FMT_PREC_ARGS(3, opsSec),
                         count, FLT_FMT_ARGS(total));
     #endif
 #else
         (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s," FLT_FMT_PREC "," FLT_FMT_PREC ",\n", algo,
-                        strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach), FLT_FMT_PREC_ARGS(3, opsSec));
+                        strength, desc, desc_extra, FLT_FMT_PREC_ARGS(3, milliEach),
+                        FLT_FMT_PREC_ARGS(3, opsSec));
 #endif
     } /* if (csv_format == 1) */
 
@@ -2087,14 +2125,16 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s " FLT_FMT_PREC2 " ms,"
                         " " FLT_FMT_PREC " %s, %lu cycles\n", algo, strength, desc,
                         desc_extra, BENCH_DEVID_GET_NAME(useDeviceID),
-                        count, word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2], FLT_FMT_PREC2_ARGS(5, 3, milliEach),
+                        count, word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
+                        FLT_FMT_PREC2_ARGS(5, 3, milliEach),
                         FLT_FMT_PREC_ARGS(3, opsSec), word[3], (unsigned long) total_cycles);
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s " FLT_FMT_PREC2 " ms,"
                         " " FLT_FMT_PREC " %s\n", algo, strength, desc,
                         desc_extra, BENCH_DEVID_GET_NAME(useDeviceID),
-                        count, word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2], FLT_FMT_PREC2_ARGS(5, 3, milliEach),
+                        count, word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
+                        FLT_FMT_PREC2_ARGS(5, 3, milliEach),
                         FLT_FMT_PREC_ARGS(3, opsSec), word[3]);
     #endif /* HAVE_GET_CYCLES */
 #else
@@ -2102,7 +2142,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s " FLT_FMT_PREC2 " ms,"
                         " " FLT_FMT_PREC " %s\n", algo, strength, desc, desc_extra,
                         BENCH_DEVID_GET_NAME(useDeviceID), count, word[0],
-                        FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2], FLT_FMT_PREC2_ARGS(5, 3, milliEach), FLT_FMT_PREC_ARGS(3, opsSec), word[3]);
+                        FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
+                        FLT_FMT_PREC2_ARGS(5, 3, milliEach), FLT_FMT_PREC_ARGS(3, opsSec), word[3]);
 #endif
     }
     printf("%s", msg);
@@ -5717,7 +5758,7 @@ exit:
 
 
 #ifdef WOLFSSL_RIPEMD
-int bench_ripemd(void)
+void bench_ripemd(void)
 {
     RipeMd hash;
     byte   digest[RIPEMD_DIGEST_SIZE];
@@ -5727,7 +5768,8 @@ int bench_ripemd(void)
     if (digest_stream) {
         ret = wc_InitRipeMd(&hash);
         if (ret != 0) {
-            return ret;
+            printf("wc_InitRipeMd failed, retval %d\n", ret);
+            return;
         }
 
         bench_stats_start(&count, &start);
@@ -5735,12 +5777,14 @@ int bench_ripemd(void)
             for (i = 0; i < numBlocks; i++) {
                 ret = wc_RipeMdUpdate(&hash, bench_plain, bench_size);
                 if (ret != 0) {
-                    return ret;
+                    printf("wc_RipeMdUpdate failed, retval %d\n", ret);
+                    return;
                 }
             }
             ret = wc_RipeMdFinal(&hash, digest);
             if (ret != 0) {
-                return ret;
+                printf("wc_RipeMdFinal failed, retval %d\n", ret);
+                return;
             }
 
             count += i;
@@ -5752,15 +5796,18 @@ int bench_ripemd(void)
             for (i = 0; i < numBlocks; i++) {
                 ret = wc_InitRipeMd(&hash);
                 if (ret != 0) {
-                    return ret;
+                    printf("wc_InitRipeMd failed, retval %d\n", ret);
+                    return;
                 }
                 ret = wc_RipeMdUpdate(&hash, bench_plain, bench_size);
                 if (ret != 0) {
-                    return ret;
+                    printf("wc_RipeMdUpdate failed, retval %d\n", ret);
+                    return;
                 }
                 ret = wc_RipeMdFinal(&hash, digest);
                 if (ret != 0) {
-                    return ret;
+                    printf("wc_RipeMdFinal failed, retval %d\n", ret);
+                    return;
                 }
             }
             count += i;
@@ -5768,7 +5815,7 @@ int bench_ripemd(void)
     }
     bench_stats_sym_finish("RIPEMD", 0, count, bench_size, start, ret);
 
-    return 0;
+    return;
 }
 #endif
 
@@ -6091,7 +6138,8 @@ exit:
 
 void bench_hmac_md5(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
 
     bench_hmac(useDeviceID, WC_MD5, WC_MD5_DIGEST_SIZE, key, sizeof(key),
@@ -6104,7 +6152,8 @@ void bench_hmac_md5(int useDeviceID)
 
 void bench_hmac_sha(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b };
 
@@ -6118,7 +6167,8 @@ void bench_hmac_sha(int useDeviceID)
 
 void bench_hmac_sha224(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b };
@@ -6134,7 +6184,8 @@ void bench_hmac_sha224(int useDeviceID)
 
 void bench_hmac_sha256(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
@@ -6149,7 +6200,8 @@ void bench_hmac_sha256(int useDeviceID)
 
 void bench_hmac_sha384(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -6166,7 +6218,8 @@ void bench_hmac_sha384(int useDeviceID)
 
 void bench_hmac_sha512(int useDeviceID)
 {
-    static const byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -6187,7 +6240,8 @@ void bench_pbkdf2(void)
     double start;
     int    ret = 0, count = 0;
     const char* passwd32 = "passwordpasswordpasswordpassword";
-    static const byte salt32[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
+    WOLFSSL_SMALL_STACK_STATIC const byte salt32[] = {
+                            0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
@@ -6913,7 +6967,8 @@ void bench_dh(int useDeviceID)
                   BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
 
 #ifdef WOLFSSL_SMALL_STACK
-    dhKey = (DhKey *)XMALLOC(sizeof(DhKey) * BENCH_MAX_PENDING, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    dhKey = (DhKey *)XMALLOC(sizeof(DhKey) * BENCH_MAX_PENDING, HEAP_HINT,
+                             DYNAMIC_TYPE_TMP_BUFFER);
     if (! dhKey) {
         ret = MEMORY_E;
         goto exit;
@@ -7630,7 +7685,9 @@ exit:
 void bench_eccEncrypt(int curveId)
 {
 #define BENCH_ECCENCRYPT_MSG_SIZE 48
-#define BENCH_ECCENCRYPT_OUT_SIZE (BENCH_ECCENCRYPT_MSG_SIZE + WC_SHA256_DIGEST_SIZE + (MAX_ECC_BITS+3)/4 + 2)
+#define BENCH_ECCENCRYPT_OUT_SIZE (BENCH_ECCENCRYPT_MSG_SIZE + \
+                                   WC_SHA256_DIGEST_SIZE + \
+                                   (MAX_ECC_BITS+3)/4 + 2)
     word32   outSz = BENCH_ECCENCRYPT_OUT_SIZE;
 #ifdef WOLFSSL_SMALL_STACK
     ecc_key *userA = NULL, *userB = NULL;
@@ -9117,7 +9174,8 @@ void bench_sphincsKeySign(byte level, byte optim)
         if (stime_utime_ratio > .1)
             printf("%swarning, "
                    "excessive system time ratio for %s%s (" FLT_FMT_PREC "%%).\n",
-                   err_prefix, desc, desc_extra, FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+                   err_prefix, desc, desc_extra,
+                   FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
     }
 
 #elif defined(WOLFSSL_LINUXKM)

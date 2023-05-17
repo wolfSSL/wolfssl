@@ -119,7 +119,7 @@ static int updateFipsHash(void);
 #define NO_MAIN_FUNCTION
 #define current_time benchmark_current_time
 #define WOLFSSL_NO_FLOAT_FMT
-#include "/home/douzzer/com/wolfssl/src/wolfssl/wolfcrypt/benchmark/benchmark.c"
+#include "wolfcrypt/benchmark/benchmark.c"
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)

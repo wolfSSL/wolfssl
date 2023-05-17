@@ -3131,7 +3131,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         if (haveAESNI) {
             #ifdef WOLFSSL_LINUXKM
             /* runtime alignment check */
-            if ((unsigned long)&aes->key & 0xf) {
+            if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
                 return BAD_ALIGN_E;
             }
             #endif
