@@ -8410,7 +8410,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     if (ret == 0) {
         /* Set the IV passed in if it is smaller than a block. */
         if ((iv != NULL) && (ivSz <= AES_BLOCK_SIZE)) {
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
+            XMEMMOVE((byte*)aes->reg, iv, ivSz);
             aes->nonceSz = ivSz;
         }
         /* No IV passed in, check for cached IV. */
