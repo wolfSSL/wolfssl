@@ -1864,7 +1864,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     XMEMSET(output, 0, sz);
-    ret = CUSTOM_RAND_GENERATE_BLOCK(output, sz);
+    ret = (int)CUSTOM_RAND_GENERATE_BLOCK(output, sz);
 #else
 
 #ifdef HAVE_HASHDRBG
