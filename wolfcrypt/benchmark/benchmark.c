@@ -1702,7 +1702,7 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 #ifdef WOLFSSL_ESPIDF
     ESP_LOGV(TAG, "finish total_cycles = %llu, start=" FLT_FMT,
-                   total_cycles, FLT_FMT_ARG(*start) );
+                   total_cycles, FLT_FMT_ARGS(*start) );
 
     BEGIN_ESP_CYCLES
 #else
