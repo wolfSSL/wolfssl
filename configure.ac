@@ -495,6 +495,16 @@ then
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
 
+AC_ARG_ENABLE([linuxkm-benchmarks],
+    [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
+    [ENABLED_LINUXKM_BENCHMARKS=$enableval],
+    [ENABLED_LINUXKM_BENCHMARKS=no]
+    )
+if test "$ENABLED_LINUXKM_BENCHMARKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM_BENCHMARKS"
+fi
+AC_SUBST([ENABLED_LINUXKM_BENCHMARKS])
 
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
@@ -7369,6 +7379,11 @@ fi
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
+    if ! test -f ${srcdir}/wolfcrypt/src/async.c || ! test -f ${srcdir}/wolfssl/wolfcrypt/async.h
+    then
+        AC_MSG_ERROR([--enable-asynccrypt requested, but WOLFSSL_ASYNC_CRYPT source files are missing.])
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT -DWOLFSSL_NO_HASH_RAW"
 
     # If no async backend (hardware or software) has been explicitly enabled,
@@ -8810,9 +8825,9 @@ then
     for header in $openssl_headers
     do
         AC_CHECK_HEADER([$header], [], [
-                AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
+                AC_MSG_ERROR([Header file inconsistency detected -- error including ${header}.])
             ], [
-            #include <wolfssl/options.h>
+            #include <${OPTION_FILE}>
             extern int dummy_int_to_make_compiler_happy;
         ])
     done
@@ -8852,6 +8867,7 @@ echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
+echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS"
 
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
