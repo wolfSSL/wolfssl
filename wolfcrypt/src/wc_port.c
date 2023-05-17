@@ -1155,7 +1155,49 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 }
 #endif /* USE_WOLF_STRNCASECMP */
 
-#if !defined(SINGLE_THREADED) && !defined(HAVE_C___ATOMIC)
+#ifdef WOLFSSL_ATOMIC_OPS
+
+#ifdef HAVE_C___ATOMIC
+/* Atomic ops using standard C lib */
+#ifdef __cplusplus
+/* C++ using direct calls to compiler built-in functions */
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+{
+    *c = i;
+}
+
+int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_fetch_add(c, i, __ATOMIC_RELAXED);
+}
+
+int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+{
+    return __atomic_fetch_sub(c, i, __ATOMIC_RELAXED);
+}
+#else
+/* Default C Implementation */
+WC_INLINE void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+{
+    atomic_init(c, i);
+}
+
+WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+{
+    return atomic_fetch_add_explicit(c, i, memory_order_relaxed);
+}
+
+WC_INLINE int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+{
+    return atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
+}
+#endif /* __cplusplus */
+
+#endif /* HAVE_C___ATOMIC */
+
+#endif /* WOLFSSL_ATOMIC_OPS */
+
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_ATOMIC_OPS)
 void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)
 {
     int ret = wc_InitMutex(&ref->mutex);

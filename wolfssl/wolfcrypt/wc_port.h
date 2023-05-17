@@ -298,12 +298,39 @@
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
 
+#ifdef HAVE_C___ATOMIC
+#ifdef __cplusplus
+#if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
+    /* C++ using direct calls to compiler built-in functions */
+    typedef volatile int wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_OPS
+#endif
+#else
+    /* Default C Implementation */
+    #include <stdatomic.h>
+    typedef atomic_int wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_OPS
+#endif
+#endif
+
+#ifdef WOLFSSL_ATOMIC_OPS
+    WOLFSSL_LOCAL void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
+    /* Fetch* functions return the value of the counter immediately preceding
+     * the effects of the function. */
+    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+#endif
+
 /* Reference counting. */
 typedef struct wolfSSL_Ref {
-#if !defined(SINGLE_THREADED) && !defined(HAVE_C___ATOMIC)
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_ATOMIC_OPS)
     wolfSSL_Mutex mutex;
 #endif
+#ifdef WOLFSSL_ATOMIC_OPS
+    wolfSSL_Atomic_Int count;
+#else
     int count;
+#endif
 } wolfSSL_Ref;
 
 #ifdef SINGLE_THREADED
@@ -326,25 +353,24 @@ typedef struct wolfSSL_Ref {
         *(err) = 0;                          \
     } while(0)
 
-#elif defined(HAVE_C___ATOMIC)
+#elif defined(WOLFSSL_ATOMIC_OPS)
 
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
-        (ref)->count = 1;                    \
+        wolfSSL_Atomic_Int_Init(&(ref)->count, 1); \
         *(err) = 0;                          \
     } while(0)
 #define wolfSSL_RefFree(ref)
 #define wolfSSL_RefInc(ref, err)             \
     do {                                     \
-        __atomic_fetch_add(&(ref)->count, 1, \
-            __ATOMIC_RELAXED);               \
+        (void)wolfSSL_Atomic_Int_FetchAdd(&(ref)->count, 1); \
         *(err) = 0;                          \
     } while(0)
 #define wolfSSL_RefDec(ref, isZero, err)     \
     do {                                     \
-        __atomic_fetch_sub(&(ref)->count, 1, \
-            __ATOMIC_RELAXED);               \
-        *(isZero) = ((ref)->count == 0);     \
+        int __prev = wolfSSL_Atomic_Int_FetchSub(&(ref)->count, 1); \
+        /* __prev holds the value of count before subtracting 1 */ \
+        *(isZero) = (__prev == 1);     \
         *(err) = 0;                          \
     } while(0)
 
