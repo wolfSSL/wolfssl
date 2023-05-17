@@ -8475,6 +8475,9 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (!WOLFSSL_NAMED_GROUP_IS_PQC(group))
 #endif
             ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL, &ssl->extensions);
+
+        if (ret == 0)
+            ssl->session->namedGroup = ssl->namedGroup = group;
     }
     else {
         /* Not a message type that is allowed to have this extension. */
