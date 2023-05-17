@@ -24,6 +24,12 @@
 #ifndef LINUXKM_WC_PORT_H
 #define LINUXKM_WC_PORT_H
 
+    #include <linux/version.h>
+
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+        #error Unsupported kernel.
+    #endif
+
     #ifdef HAVE_CONFIG_H
         #ifndef PACKAGE_NAME
             #error wc_port.h included before config.h
@@ -58,6 +64,23 @@
           }                                             \
           (int)_xatoi_res;                              \
         })
+
+    /* Kbuild+gcc on x86 doesn't consistently honor the default ALIGN16 on stack objects,
+     *   but gives adequate alignment with "32".
+     */
+    #if defined(CONFIG_X86) && !defined(ALIGN16)
+        #define ALIGN16 __attribute__ ( (aligned (32)))
+    #endif
+
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+        #define HAVE_KVMALLOC
+    #endif
+
+    /* kernel printf doesn't implement fp. */
+    #ifndef WOLFSSL_NO_FLOAT_FMT
+        #define WOLFSSL_NO_FLOAT_FMT
+    #endif
 
     #ifdef BUILDING_WOLFSSL
 
@@ -95,7 +118,6 @@
 
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
-    #include <linux/version.h>
     #include <linux/ctype.h>
     #include <linux/init.h>
     #include <linux/module.h>
@@ -124,6 +146,8 @@
         #ifndef CONFIG_X86
             #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
         #endif
+        #define WOLFSSL_LINUXKM_SIMD
+        #define WOLFSSL_LINUXKM_SIMD_X86
         #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
             #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         #endif
@@ -133,6 +157,8 @@
         #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
             #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
         #endif
+        #define WOLFSSL_LINUXKM_SIMD
+        #define WOLFSSL_LINUXKM_SIMD_ARM
         #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
             #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         #endif
@@ -142,25 +168,16 @@
         #endif
     #endif
 
+    /* benchmarks.c uses floating point math, so needs a working SAVE_VECTOR_REGISTERS(). */
+    #if defined(WOLFSSL_LINUXKM_BENCHMARKS) && !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+        #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #endif
+
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
-        #define WOLFSSL_LINUXKM_SIMD
-        #define WOLFSSL_LINUXKM_SIMD_X86
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
-        #endif
-        #ifdef LINUXKM_SIMD_IRQ
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
-                #include <asm/fpu/internal.h>
-            #endif
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
-                #error LINUXKM_SIMD_IRQ is unavailable on linux >= 5.16 (missing exports around fpregs)
-                /*
-                 * #include <asm/fpu/sched.h>
-                 * #include <asm/fpu/signal.h>
-                 */
-            #endif
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
@@ -169,12 +186,7 @@
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
         #endif
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-        #define WOLFSSL_LINUXKM_SIMD
-        #define WOLFSSL_LINUXKM_SIMD_ARM
         #include <asm/fpsimd.h>
-        #ifdef LINUXKM_SIMD_IRQ
-            #error LINUXKM_SIMD_IRQ is unavailable on ARM (not implemented)
-        #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
         #endif
@@ -195,11 +207,6 @@
     #define NO_THREAD_LS
     #define NO_ATTRIBUTE_CONSTRUCTOR
 
-    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-        #define HAVE_KVMALLOC
-    #endif
-
     #ifdef HAVE_FIPS
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
@@ -215,7 +222,7 @@
     #endif
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
-        #error "compiling -fPIE without PIE support."
+        #error "compiling -fPIE requires PIE redirect table."
     #endif
 
     #if defined(HAVE_FIPS) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
@@ -307,42 +314,37 @@
         struct task_struct *(*get_current)(void);
         int (*preempt_count)(void);
 
-        #ifdef WOLFSSL_LINUXKM_SIMD_X86
-        typeof(irq_fpu_usable) *irq_fpu_usable;
-        /* kernel_fpu_begin() replaced by kernel_fpu_begin_mask() in commit e4512289,
-         * released in kernel 5.11, backported to 5.4.93
-         */
-        #ifdef kernel_fpu_begin
-            typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
-        #else
-            typeof(kernel_fpu_begin) *kernel_fpu_begin;
-        #endif
-        typeof(kernel_fpu_end) *kernel_fpu_end;
+        #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
 
-        #ifdef LINUXKM_SIMD_IRQ
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-                typeof(copy_fpregs_to_fpstate) *copy_fpregs_to_fpstate;
-                typeof(copy_kernel_to_fpregs) *copy_kernel_to_fpregs;
-            #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-                typeof(save_fpregs_to_fpstate) *save_fpregs_to_fpstate;
-                typeof(__restore_fpregs_from_fpstate) *__restore_fpregs_from_fpstate;
-                typeof(xfeatures_mask_all) *xfeatures_mask_all;
-            /*
-             * #else
-             *  typeof(save_fpregs_to_fpstate) *save_fpregs_to_fpstate;
-             *  typeof(restore_fpregs_from_fpstate) *restore_fpregs_from_fpstate;
-             *  typeof(fpu_kernel_cfg) *fpu_kernel_cfg;
-             */
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+                typeof(cpu_number) *cpu_number;
+            #else
+                typeof(pcpu_hot) *pcpu_hot;
             #endif
-        #endif
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-            typeof(cpu_number) *cpu_number;
-        #else
-            typeof(pcpu_hot) *pcpu_hot;
-        #endif
-        typeof(nr_cpu_ids) *nr_cpu_ids;
+            typeof(nr_cpu_ids) *nr_cpu_ids;
 
-        #endif /* WOLFSSL_LINUXKM_SIMD_X86 */
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+                /* note the current and needed version of these were added in af449901b8 (2020-Sep-17) */
+                typeof(migrate_disable) *migrate_disable;
+                typeof(migrate_enable) *migrate_enable;
+            #endif
+
+            #ifdef CONFIG_X86
+                typeof(irq_fpu_usable) *irq_fpu_usable;
+                /* kernel_fpu_begin() replaced by kernel_fpu_begin_mask() in commit e4512289,
+                 * released in kernel 5.11, backported to 5.4.93
+                 */
+                #ifdef kernel_fpu_begin
+                    typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
+                #else
+                    typeof(kernel_fpu_begin) *kernel_fpu_begin;
+                #endif
+                typeof(kernel_fpu_end) *kernel_fpu_end;
+            #else /* !CONFIG_X86 */
+                #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+            #endif /* arch */
+
+        #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
         typeof(__mutex_init) *__mutex_init;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -452,37 +454,31 @@
     #undef preempt_count
     #define preempt_count (wolfssl_linuxkm_get_pie_redirect_table()->preempt_count)
 
-    #ifdef WOLFSSL_LINUXKM_SIMD_X86
-        #define irq_fpu_usable (wolfssl_linuxkm_get_pie_redirect_table()->irq_fpu_usable)
-        #ifdef kernel_fpu_begin
-            #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
-        #else
-            #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
-        #endif
-        #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
-        #ifdef LINUXKM_SIMD_IRQ
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-                #define copy_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->copy_fpregs_to_fpstate)
-                #define copy_kernel_to_fpregs (wolfssl_linuxkm_get_pie_redirect_table()->copy_kernel_to_fpregs)
-            #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-                #define save_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->save_fpregs_to_fpstate)
-                #define __restore_fpregs_from_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->__restore_fpregs_from_fpstate)
-                #define xfeatures_mask_all (*(wolfssl_linuxkm_get_pie_redirect_table()->xfeatures_mask_all))
-            /*
-             * #else
-             *  #define save_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->save_fpregs_to_fpstate)
-             *  #define restore_fpregs_from_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->restore_fpregs_from_fpstate)
-             *  #define fpu_kernel_cfg (*(wolfssl_linuxkm_get_pie_redirect_table()->fpu_kernel_cfg))
-             */
-            #endif
-        #endif
+    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
             #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
         #else
             #define pcpu_hot (*(wolfssl_linuxkm_get_pie_redirect_table()->pcpu_hot))
         #endif
         #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
-    #endif
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+            #define migrate_disable (*(wolfssl_linuxkm_get_pie_redirect_table()->migrate_disable))
+            #define migrate_enable (*(wolfssl_linuxkm_get_pie_redirect_table()->migrate_enable))
+        #endif
+
+        #ifdef CONFIG_X86
+            #define irq_fpu_usable (wolfssl_linuxkm_get_pie_redirect_table()->irq_fpu_usable)
+            #ifdef kernel_fpu_begin
+                #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
+            #else
+                #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
+            #endif
+            #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
+        #else /* !CONFIG_X86 */
+            #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+        #endif /* archs */
+    #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -515,9 +511,9 @@
 
     #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
-#ifdef WOLFSSL_LINUXKM_SIMD
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
 
-#ifdef WOLFSSL_LINUXKM_SIMD_X86
+#ifdef CONFIG_X86
 
     extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
     extern void free_wolfcrypt_linuxkm_fpu_states(void);
@@ -547,29 +543,13 @@
 
 #endif
 
-#endif /* WOLFSSL_LINUXKM_SIMD */
+#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
     #ifndef WOLFSSL_NEED_LINUX_CURRENT
         #undef current
-    #endif
-
-    /* prevent gcc's mm_malloc.h from being included, since it unconditionally
-     * includes stdlib.h, which is kernel-incompatible.
-     */
-    #define _MM_MALLOC_H_INCLUDED
-
-    #ifdef HAVE_KVMALLOC
-        #define malloc(x) kvmalloc_node(x, GFP_KERNEL, NUMA_NO_NODE)
-        #define free(x) kvfree(x)
-        void *lkm_realloc(void *ptr, size_t newsize);
-        #define realloc(x, y) lkm_realloc(x, y)
-    #else
-        #define malloc(x) kmalloc(x, GFP_KERNEL)
-        #define free(x) kfree(x)
-        #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
     #endif
 
     /* min() and max() in linux/kernel.h over-aggressively type-check, producing
@@ -618,9 +598,41 @@
     #include <linux/mutex.h>
     typedef struct mutex wolfSSL_Mutex;
 
-    #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
-    #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
-    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
+    /* prevent gcc's mm_malloc.h from being included, since it unconditionally
+     * includes stdlib.h, which is kernel-incompatible.
+     */
+    #define _MM_MALLOC_H_INCLUDED
+
+    /* fun fact: since linux commit 59bb47985c, kmalloc with power-of-2 size is
+     * aligned to the size.
+     */
+    #define WC_LINUXKM_ROUND_UP_P_OF_2(x) (                                         \
+    {                                                                               \
+        size_t _alloc_sz = (x);                                                     \
+        _alloc_sz = 1UL << ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz)); \
+        _alloc_sz;                                                                  \
+    })
+    #ifdef HAVE_KVMALLOC
+        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_KERNEL, NUMA_NO_NODE)
+        #define free(ptr) kvfree(ptr)
+        void *lkm_realloc(void *ptr, size_t newsize);
+        #define realloc(ptr, newsize) lkm_realloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize))
+    #else
+        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_KERNEL)
+        #define free(ptr) kfree(ptr)
+        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_KERNEL)
+    #endif
+
+#ifdef WOLFSSL_TRACK_MEMORY
+    #include <wolfssl/wolfcrypt/memory.h>
+    #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
+    #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) wolfSSL_Free(_xp);})
+    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); wolfSSL_Realloc(p, n);})
+#else
+    #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); malloc(s);})
+    #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) free(_xp);})
+    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+#endif
 
     #include <linux/limits.h>
 

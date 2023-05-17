@@ -3653,7 +3653,9 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
     int asn1TimeBufLen;
     int i = 0;
 #ifdef XMKTIME
-    struct tm localTm = {0};
+    struct tm localTm;
+
+    XMEMSET(&localTm, 0, sizeof localTm);
 #endif
 
     /* Get the string buffer - fixed array, can't fail. */

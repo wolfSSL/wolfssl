@@ -33329,7 +33329,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
             if (ret != 0 || !ssl->options.dtlsStateful) {
                 int alertType = TranslateErrorToAlert(ret);
-                if (alertType != invalid_alert)
                 if (alertType != invalid_alert) {
                     int err;
 

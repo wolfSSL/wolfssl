@@ -3129,6 +3129,12 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             checkAESNI = 1;
         }
         if (haveAESNI) {
+            #ifdef WOLFSSL_LINUXKM
+            /* runtime alignment check */
+            if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
+                return BAD_ALIGN_E;
+            }
+            #endif
             aes->use_aesni = 1;
             if (iv)
                 XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
