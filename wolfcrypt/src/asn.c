@@ -6146,6 +6146,7 @@ enum {
  * @param  [out]  hash     Hash algorithm to use on message.
  * @param  [out]  mgf      MGF algorithm to use with PSS padding.
  * @param  [out]  saltLen  Length of salt in PSS padding.
+ * @return  BAD_FUNC_ARG when the params is NULL.
  * @return  ASN_PARSE_E when the decoding fails.
  * @return  0 on success.
  */
@@ -6160,7 +6161,10 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
     byte tag;
     int length;
 
-    if (GetSequence_ex(params, &idx, &len, sz, 1) < 0) {
+    if (params == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (GetSequence_ex(params, &idx, &len, sz, 1) < 0)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
@@ -6251,6 +6255,10 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
     DECL_ASNGETDATA(dataASN, rsaPssParamsASN_Length);
     int ret = 0;
     word16 sLen = 20;
+
+    if (params == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
 
     CALLOC_ASNGETDATA(dataASN, rsaPssParamsASN_Length, ret, NULL);
     if (ret == 0) {
@@ -37228,8 +37236,11 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     int known = 1;
 
     /* Get the OID value for the OBJECT_ID. */
-    GetObjectId(asn1->data + asn1->offset, &i, &oid, oidIgnoreType,
-        asn1->item.len + 2);
+    if (GetObjectId(asn1->data + asn1->offset, &i, &oid, oidIgnoreType,
+            asn1->item.len + 2) == ASN_PARSE_E) {
+        known = 0;
+    }
+    else
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     /* Lookup NID for OID value. */
     if ((nid = oid2nid(oid, oidIgnoreType)) != -1) {
