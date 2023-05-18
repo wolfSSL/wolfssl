@@ -3234,7 +3234,7 @@ else
 fi
 
 AC_ARG_ENABLE([brainpool],
-    [AS_HELP_STRING([--enable-brainpool],[Enable Brainpool ECC curves (default: ${BRAINPOOL_DEFAULT})])],
+    [AS_HELP_STRING([--enable-brainpool],[Enable Brainpool ECC curves (default: enabled with ECC custom curves)])],
     [ ENABLED_BRAINPOOL=$enableval ],
     [ ENABLED_BRAINPOOL="$BRAINPOOL_DEFAULT" ]
     )
