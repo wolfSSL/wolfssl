@@ -885,8 +885,18 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     const byte*         protocol = tls13ProtocolLabel;
     word32              protocolLen = TLS13_PROTOCOL_LABEL_SZ;
 
-    if (ssl->version.minor != TLSv1_3_MINOR)
+    if (ssl->options.dtls && ssl->version.minor != DTLSv1_3_MINOR)
         return VERSION_ERROR;
+
+    if (!ssl->options.dtls && ssl->version.minor != TLSv1_3_MINOR)
+        return VERSION_ERROR;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        protocol = dtls13ProtocolLabel;
+        protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
@@ -1165,6 +1175,13 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
     int         ret;
 
     WOLFSSL_MSG("Derive Resumption PSK");
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        protocol = dtls13ProtocolLabel;
+        protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
@@ -5219,8 +5236,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
+        /* sanity check on PSK / KSE */
+        if (
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            ssl->options.pskNegotiated == 0 &&
+    #endif
+            ssl->session->namedGroup == 0) {
+            return EXT_MISSING;
+        }
+
         ssl->keys.encryptionOn = 1;
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
+
     }
     else {
         ssl->options.tls1_3 = 1;
@@ -10946,7 +10973,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             byte type, word32 size, word32 totalSz)
 {
-    int ret = 0;
+    int ret = 0, tmp;
     word32 inIdx = *inOutIdx;
     int alertType = invalid_alert;
 #if defined(HAVE_ECH)
@@ -11186,7 +11213,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (type == client_hello && ssl->options.dtls)
             DtlsSetSeqNumForReply(ssl);
 #endif
-        SendAlert(ssl, alert_fatal, alertType);
+        tmp = SendAlert(ssl, alert_fatal, alertType);
+        /* propagate socket error instead of tls error to be sure the error is
+         * not ignored by DTLS code */
+        if (tmp == SOCKET_ERROR_E)
+            ret = SOCKET_ERROR_E;
     }
 
     if (ret == 0 && ssl->options.tls1_3) {

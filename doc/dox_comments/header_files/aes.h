@@ -136,8 +136,10 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
     \param aes pointer to the AES object used to decrypt data.
     \param out pointer to the output buffer in which to store the plain text
     of the decrypted message.
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param in pointer to the input buffer containing cipher text to be
     decrypted.
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param sz size of input message.
 
     _Example_
@@ -176,7 +178,9 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \param aes pointer to the AES object used to decrypt data
     \param out pointer to the output buffer in which to store the cipher
     text of the encrypted message
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param in pointer to the input buffer containing plain text to be encrypted
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param sz size of the input plain text
 
     _Example_
@@ -353,7 +357,9 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 
     \param aes - pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the cipher text
+    size must match in's size (sz)
     \param in pointer to the input buffer holding the message to encrypt
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param sz length of the input message to encrypt
     \param iv pointer to the buffer containing the initialization vector
     \param ivSz length of the initialization vector
@@ -403,7 +409,9 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
 
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the message text
+    size must match in's size (sz)
     \param in pointer to the input buffer holding the cipher text to decrypt
+    size must be a multiple of AES_BLOCK_LENGTH, padded if necessary
     \param sz length of the cipher text to decrypt
     \param iv pointer to the buffer containing the initialization vector
     \param ivSz length of the initialization vector

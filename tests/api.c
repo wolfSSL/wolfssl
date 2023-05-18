@@ -33143,6 +33143,7 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
       defined(OPENSSL_ALL)) && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
+    time_t testTime = 1683926567; /* Fri May 12 09:22:47 PM UTC 2023 */
 
     XMEMSET(&asnTime, 0, sizeof(ASN1_TIME));
     AssertIntEQ(ASN1_TIME_set_string(&asnTime, "000222211515Z"), 1);
@@ -33187,6 +33188,22 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
     AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 0);
     AssertIntEQ(ASN1_TIME_set_string(&asnTime, "20000222211515U"), 1);
     AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 0);
+
+#ifdef XMKTIME
+    AssertNotNull(ASN1_TIME_adj(&asnTime, testTime, 0, 0));
+    AssertIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
+    AssertIntEQ(tm.tm_sec, 47);
+    AssertIntEQ(tm.tm_min, 22);
+    AssertIntEQ(tm.tm_hour, 21);
+    AssertIntEQ(tm.tm_mday, 12);
+    AssertIntEQ(tm.tm_mon, 4);
+    AssertIntEQ(tm.tm_year, 123);
+    AssertIntEQ(tm.tm_wday, 5);
+    AssertIntEQ(tm.tm_yday, 131);
+    /* Confirm that when used with a tm struct from ASN1_TIME_adj, all other
+       fields are zeroed out as expected. */
+    AssertIntEQ(tm.tm_isdst, 0);
+#endif
 
     res = TEST_RES_CHECK(1);
 #endif
@@ -53877,11 +53894,11 @@ static int test_tls13_apis(void)
             ":P256_KYBER_LEVEL1"
 #endif
 #endif
+#endif /* !defined(NO_ECC_SECP) */
 #ifdef HAVE_PQC
             ":KYBER_LEVEL1"
 #endif
             "";
-#endif /* !defined(NO_ECC_SECP) */
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
 
     (void)ret;
@@ -65761,6 +65778,76 @@ static int test_override_alt_cert_chain(void)
 }
 #endif
 
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+
+
+static int test_dtls13_bad_epoch_ch(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const int EPOCH_OFF = 3;
+    int ret, err;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    /* disable hrr cookie so we can later check msgsReceived.got_client_hello
+     *  with just one message */
+    ret = wolfSSL_disable_hrr_cookie(ssl_s);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    if (test_ctx.s_len < EPOCH_OFF + 2)
+        return TEST_FAIL;
+
+    /* first CH should use epoch 0x0 */
+    if (test_ctx.s_buff[EPOCH_OFF] != 0x0 ||
+        test_ctx.s_buff[EPOCH_OFF + 1] != 0x0)
+        return TEST_FAIL;
+
+    /* change epoch to 2 */
+    test_ctx.s_buff[EPOCH_OFF + 1] = 0x2;
+
+    ret = wolfSSL_accept(ssl_s);
+    err = wolfSSL_get_error(ssl_s, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    if (ssl_s->msgsReceived.got_client_hello == 1)
+        return TEST_FAIL;
+
+    /* resend the CH */
+    ret = wolfSSL_dtls_got_timeout(ssl_c);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_dtls13_bad_epoch_ch(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -66798,6 +66885,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_bad_psk),
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
+    TEST_DECL(test_dtls13_bad_epoch_ch),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */

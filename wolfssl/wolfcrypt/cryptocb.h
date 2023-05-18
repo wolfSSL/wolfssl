@@ -366,8 +366,10 @@ WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb,
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 
+#ifdef WOLF_CRYPTO_CB_FIND
 typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
 WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
+#endif
 
 #ifdef DEBUG_CRYPTOCB
 WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info);

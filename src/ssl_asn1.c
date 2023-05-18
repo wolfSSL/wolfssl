@@ -3652,6 +3652,11 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
     const unsigned char* asn1TimeBuf;
     int asn1TimeBufLen;
     int i = 0;
+#ifdef XMKTIME
+    struct tm localTm;
+
+    XMEMSET(&localTm, 0, sizeof localTm);
+#endif
 
     /* Get the string buffer - fixed array, can't fail. */
     asn1TimeBuf = wolfSSL_ASN1_TIME_get_data(asnTime);
@@ -3706,8 +3711,13 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
         tm->tm_sec  += (asn1TimeBuf[i] - '0');
 
     #ifdef XMKTIME
-        /* Call XMKTIME on tm to get tm_wday and tm_yday fields populated. */
-        XMKTIME(tm);
+        XMEMCPY(&localTm, tm, sizeof(struct tm));
+        /* Call XMKTIME on tm to get tm_wday and tm_yday fields populated.
+           Note that localTm is used here to avoid modifying other fields,
+           such as tm_isdst/tm_gmtoff. */
+        XMKTIME(&localTm);
+        tm->tm_wday = localTm.tm_wday;
+        tm->tm_yday = localTm.tm_yday;
     #endif
     }
 

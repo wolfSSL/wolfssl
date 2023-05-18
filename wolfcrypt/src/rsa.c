@@ -267,11 +267,20 @@ static void wc_RsaCleanup(RsaKey* key)
 
 int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
-    int ret = 0;
+    int ret      = 0;
+#if defined(HAVE_PKCS11)
+    int isPkcs11 = 0;
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_PKCS11)
+    if (key->isPkcs11) {
+        isPkcs11 = 1;
+    }
+#endif
 
     XMEMSET(key, 0, sizeof(RsaKey));
 
@@ -299,12 +308,19 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     #endif
 
     #ifdef WC_ASYNC_ENABLE_RSA
-        /* handle as async */
-        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
-                                                            key->heap, devId);
-        if (ret != 0)
-            return ret;
+        #if defined(HAVE_PKCS11)
+            if (!isPkcs11)
+        #endif
+            {
+                /* handle as async */
+                ret = wolfAsync_DevCtxInit(&key->asyncDev,
+                        WOLFSSL_ASYNC_MARKER_RSA, key->heap, devId);
+                if (ret != 0)
+                    return ret;
+            }
     #endif /* WC_ASYNC_ENABLE_RSA */
+#elif defined(HAVE_PKCS11)
+    (void)isPkcs11;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -370,6 +386,11 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && (len < 0 || len > RSA_MAX_ID_LEN))
         ret = BUFFER_E;
 
+#if defined(HAVE_PKCS11)
+    XMEMSET(key, 0, sizeof(RsaKey));
+    key->isPkcs11 = 1;
+#endif
+
     if (ret == 0)
         ret = wc_InitRsaKey_ex(key, heap, devId);
     if (ret == 0 && id != NULL && len != 0) {
@@ -399,6 +420,11 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
         if (labelLen == 0 || labelLen > RSA_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
+
+#if defined(HAVE_PKCS11)
+    XMEMSET(key, 0, sizeof(RsaKey));
+    key->isPkcs11 = 1;
+#endif
 
     if (ret == 0)
         ret = wc_InitRsaKey_ex(key, heap, devId);
@@ -3172,21 +3198,23 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
-    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
+        #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         /* fall-through when unavailable and try using software */
-    #else
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        if (ret == CRYPTOCB_UNAVAILABLE) {
+            return NO_VALID_DEVID;
+        }
         return ret;
-    #endif
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-    else {
-        return NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
@@ -3357,7 +3385,22 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
         }
-    #endif /* WOLFSSL_CRYPTOCELL */
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+           /* SCE needs warpped key which is passed via
+            * user ctx object of crypt-call back.
+            */
+       #ifdef WOLF_CRYPTO_CB
+            if (key->devId != INVALID_DEVID) {
+                /* SCE supports 1024 and 2048 bits */
+                ret = wc_CryptoCb_Rsa(in, inLen, out,
+                                    outLen, rsa_type, key, rng);
+                if (ret != CRYPTOCB_UNAVAILABLE)
+                    return ret;
+                /* fall-through when unavailable */
+                ret = 0; /* reset error code and try using software */
+            }
+       #endif
+    #endif /* WOLFSSL_SE050 */
 
         key->state = RSA_STATE_ENCRYPT_PAD;
         ret = wc_RsaPad_ex(in, inLen, out, (word32)sz, pad_value, rng, pad_type,
@@ -3501,6 +3544,18 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+           #ifdef WOLF_CRYPTO_CB
+                if (key->devId != INVALID_DEVID) {
+                    ret = wc_CryptoCb_Rsa(in, inLen, out,
+                                        outLen, rsa_type, key, rng);
+                    if (ret != CRYPTOCB_UNAVAILABLE)
+                      return ret;
+                    /* fall-through when unavailable */
+                    ret = 0; /* reset error code and try using software */
+                }
+           #endif
+
     #endif /* WOLFSSL_CRYPTOCELL */
 
 
@@ -4768,22 +4823,23 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
-    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
+        #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (err != CRYPTOCB_UNAVAILABLE)
             goto out;
         /* fall-through when unavailable */
-    #else
-        goto out;
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        if (err == CRYPTOCB_UNAVAILABLE)
+            err = NO_VALID_DEVID;
+            goto out;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-    else {
-        err = NO_VALID_DEVID;
-        goto out;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA

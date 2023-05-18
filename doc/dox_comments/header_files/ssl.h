@@ -9825,7 +9825,8 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER*);
 /*!
     \ingroup CertManager
     \brief Error checks and passes through to LoadCRL() in order to load the
-    cert into the CRL for revocation checking.
+    cert into the CRL for revocation checking. An updated CRL can be loaded by
+    first calling wolfSSL_CertManagerFreeCRL, then loading the new CRL.
 
     \return SSL_SUCCESS if there is no error in wolfSSL_CertManagerLoadCRL and
     if LoadCRL returns successfully.
@@ -9853,6 +9854,7 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER*);
 
     \sa wolfSSL_CertManagerEnableCRL
     \sa wolfSSL_LoadCRL
+    \sa wolfSSL_CertManagerFreeCRL
 */
 int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
                                const char* path, int type, int monitor);
@@ -9934,6 +9936,36 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
 */
 int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
                                  CbMissingCRL cb);
+
+/*!
+    \ingroup CertManager
+    \brief This function frees the CRL stored in the Cert Manager. An
+    application can update the CRL by calling wolfSSL_CertManagerFreeCRL
+    and then loading the new CRL.
+
+    \return SSL_SUCCESS returned upon successful execution of the function and
+    subroutines.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER structure is NULL.
+
+    \param cm a pointer to a WOLFSSL_CERT_MANAGER structure, created using
+    wolfSSL_CertManagerNew().
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    const char* crl1     = "./certs/crl/crl.pem";
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    cm = wolfSSL_CertManagerNew();
+    wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0);
+    …
+    wolfSSL_CertManagerFreeCRL(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCRL
+*/
+int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup CertManager

@@ -141,7 +141,7 @@ decouple library dependencies with standard string, memory and so on.
     #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
-    #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
+    #if defined(_WIN32) || defined(HAVE_LIMITS_H)
         /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set,
          * otherwise causes issues with CTC_SETTINGS */
         #if !defined(SIZEOF_LONG_LONG) || !defined(SIZEOF_LONG)
@@ -598,8 +598,8 @@ typedef struct w64wrapper {
         #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
         #define WC_INIT_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) do {} while(0)
-        #define WC_FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
-        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
+        #define WC_FREE_VAR(VAR_NAME, HEAP) do {} while(0) /* nothing to free, its stack */
+        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) do {} while(0) /* nothing to free, its stack */
 
         #define WC_DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \

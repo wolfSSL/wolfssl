@@ -375,6 +375,7 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
     defined(WOLFSSL_SECO_CAAM)
     #define HASH_SIZE_LIMIT
 #endif
@@ -512,7 +513,7 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void);
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
         WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void);
     #endif
@@ -1452,7 +1453,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
         if ( (ret = ecc_test_buffers()) != 0)
             TEST_FAIL("ECC buffer test failed!\n", ret);
@@ -3006,7 +3007,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
             (word32)sizeof(large_input));
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    }
+        }
     ret = wc_Sha256Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
@@ -13777,7 +13778,8 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
         #endif
 #endif
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
-        #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
+        #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN) && \
+                !defined(NO_ECC_SECP)
             #ifndef NO_RSA
                 static const char* eccKeyPubFileDer = CERT_ROOT "ecc-keyPub.der";
             #endif
@@ -13826,13 +13828,15 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
-    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
-         static const char* certEccPemFile =   CERT_WRITE_TEMP_DIR "certecc.pem";
-         static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
-    #endif
-    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
+    #ifndef NO_ECC_SECP
+        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+        static const char* certEccPemFile = CERT_WRITE_TEMP_DIR "certecc.pem";
+        static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
+        #endif
+        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
         static const char* certEccRsaPemFile = CERT_WRITE_TEMP_DIR "certeccrsa.pem";
         static const char* certEccRsaDerFile = CERT_WRITE_TEMP_DIR "certeccrsa.der";
+        #endif
     #endif
     #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
         !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ASN_CRYPT)
@@ -16297,7 +16301,8 @@ exit_rsa:
 }
 #endif
 
-#if !defined(NO_RSA) && defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
+#if !defined(NO_RSA) && defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    defined(WOLFSSL_CERT_GEN)
 /* Make Cert / Sign example for ECC cert and RSA CA */
 static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 {
@@ -17444,7 +17449,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (ret != 0)
         goto exit_rsa;
 
-#if !defined(NO_RSA) && defined(HAVE_ECC)
+#if !defined(NO_RSA) && defined(HAVE_ECC) && !defined(NO_ECC_SECP)
     ret = rsa_ecc_certgen_test(&rng, tmp);
     if (ret != 0)
         goto exit_rsa;
@@ -23391,6 +23396,10 @@ WOLFSSL_TEST_SUBROUTINE int hpke_test(void)
 #endif
 #define ECC_SIG_SIZE        ECC_MAX_SIG_SIZE
 
+#ifdef NO_ECC_SECP
+    #define NO_ECC_VECTOR_TEST
+#endif
+
 #ifndef NO_ECC_VECTOR_TEST
     #if (defined(HAVE_ECC192) || defined(HAVE_ECC224) ||\
          !defined(NO_ECC256) || defined(HAVE_ECC384) ||\
@@ -25839,8 +25848,9 @@ static int ecc_def_curve_test(WC_RNG *rng)
 #else
     ecc_key key[1];
 #endif
-#if (defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
-    (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+#if ((defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
+    (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT))) \
+    && !defined(NO_ECC_SECP)
     word32 idx = 0;
 #endif
 
@@ -25891,8 +25901,9 @@ static int ecc_def_curve_test(WC_RNG *rng)
     (void)rng;
 #endif /* !WC_NO_RNG */
 
-#if (defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
-    (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+#if ((defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
+    (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT))) \
+    && !defined(NO_ECC_SECP)
     /* Use test ECC key - ensure real private "d" exists */
     #ifdef USE_CERT_BUFFERS_256
     ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
@@ -26261,7 +26272,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && !defined(NO_ASN_TIME)
 
 /* Make Cert / Sign example for ECC cert and ECC CA */
 static int ecc_test_cert_gen(WC_RNG* rng)
@@ -26496,7 +26507,8 @@ exit:
 #endif /* WOLFSSL_CERT_GEN */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    (!defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES))
 /* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
 static int ecc_test_allocator(WC_RNG* rng)
 {
@@ -27084,10 +27096,12 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
         goto done;
     }
 #endif
+#if !defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES)
     ret = ecc_def_curve_test(&rng);
     if (ret < 0) {
         goto done;
     }
+#endif
 #endif /* !NO_ECC256 */
 #if (defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 320
     ret = ecc_test_curve(&rng, 40);
@@ -27157,7 +27171,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
         goto done;
     }
 #endif
-#if defined(HAVE_ECC_CDH) && defined(HAVE_ECC_DHE)
+#if defined(HAVE_ECC_VECTOR_TEST) && defined(HAVE_ECC_CDH) && \
+    defined(HAVE_ECC_DHE)
     ret = ecc_test_cdh_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
@@ -27166,7 +27181,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
   !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-  !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+  !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);
@@ -27175,7 +27190,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 #elif defined(HAVE_ECC_KEY_IMPORT)
     (void)ecc_test_make_pub; /* for compiler warning */
 #endif
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && !defined(NO_ASN_TIME)
     ret = ecc_test_cert_gen(&rng);
     if (ret != 0) {
         printf("ecc_test_cert_gen failed!: %d\n", ret);
@@ -27183,7 +27198,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
     }
 #endif
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && (!defined(NO_ECC_SECP) || \
+    defined(WOLFSSL_CUSTOM_CURVES))
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
         printf("ecc_test_allocator failed!: %d\n", ret);
@@ -27985,7 +28001,7 @@ done:
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
 WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
 {
     size_t bytes;
@@ -45192,20 +45208,30 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 }
 
 
+#ifdef WOLF_CRYPTO_CB_FIND
 static int myCryptoCbFind(int currentId, int algoType)
 {
     /* can have algo specific overrides here
        switch (algoType) {
+
+            i.e.
+            WC_ALGO_TYPE_CMAC
+            WC_ALGO_TYPE_SEED
+            WC_ALGO_TYPE_HMAC
+            WC_ALGO_TYPE_HASH
+            WC_ALGO_TYPE_CIPHER
+            WC_ALGO_TYPE_PK
 
         }
     */
     (void)algoType;
 
     if (currentId == INVALID_DEVID) {
-        return 1; /* override invalid devid found with 1 */
+        /* can override invalid devid found with 1 */
     }
     return currentId;
 }
+#endif /* WOLF_CRYPTO_CB_FIND */
 
 
 WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
@@ -45220,7 +45246,9 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
     ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
+#ifdef WOLF_CRYPTO_CB_FIND
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);
+#endif /* WOLF_CRYPTO_CB_FIND */
 #ifndef WC_NO_RNG
     if (ret == 0)
         ret = random_test();

@@ -1633,7 +1633,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     curve->dp = dp; /* set dp info */
 
     /* determine items to load */
-    load_items = (((byte)~(word32)curve->load_mask) & load_mask);
+    load_items = (byte)(((byte)~(word32)curve->load_mask) & load_mask);
     curve->load_mask |= load_items;
 
     /* load items */
@@ -3368,6 +3368,10 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
 
    (void)heap;
 
+   if (key == NULL) {
+       return ECC_BAD_ARG_E;
+   }
+
    XMEMSET(key, 0, sizeof(*key));
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SMALL_STACK)
@@ -4428,19 +4432,22 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
 #ifdef WOLF_CRYPTO_CB
-    if (private_key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (private_key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -5326,21 +5333,23 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     key->flags = (byte)flags;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #else
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            return NO_VALID_DEVID;
+        }
         return err;
-    #endif
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        return NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -5795,11 +5804,20 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key)
 WOLFSSL_ABI
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 {
-    int ret = 0;
+    int ret      = 0;
+#if defined(HAVE_PKCS11)
+    int isPkcs11 = 0;
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_PKCS11)
+    if (key->isPkcs11) {
+        isPkcs11 = 1;
+    }
+#endif
 
 #ifdef ECC_DUMP_OID
     wc_ecc_dump_oids();
@@ -5853,9 +5871,16 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    /* handle as async */
-    ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
+    #if defined(HAVE_PKCS11)
+        if (!isPkcs11)
+    #endif
+        {
+            /* handle as async */
+            ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
                                                             key->heap, devId);
+        }
+#elif defined(HAVE_PKCS11)
+    (void)isPkcs11;
 #endif
 
 #if defined(WOLFSSL_DSP)
@@ -5908,6 +5933,11 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN))
         ret = BUFFER_E;
 
+#if defined(HAVE_PKCS11)
+    XMEMSET(key, 0, sizeof(ecc_key));
+    key->isPkcs11 = 1;
+#endif
+
     if (ret == 0)
         ret = wc_ecc_init_ex(key, heap, devId);
     if (ret == 0 && id != NULL && len != 0) {
@@ -5937,6 +5967,11 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId)
         if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
+
+#if defined(HAVE_PKCS11)
+    XMEMSET(key, 0, sizeof(ecc_key));
+    key->isPkcs11 = 1;
+#endif
 
     if (ret == 0)
         ret = wc_ecc_init_ex(key, heap, devId);
@@ -6316,19 +6351,22 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -6928,7 +6966,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* make up a key and export the public copy */
@@ -8016,19 +8054,22 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
         err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+        #ifndef WOLF_CRYPTO_CB_ONLY_ECC
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #endif
+        #endif
+        #ifdef WOLF_CRYPTO_CB_ONLY_ECC
+        if (err == CRYPTOCB_UNAVAILABLE) {
+            err = NO_VALID_DEVID;
+        }
+        #endif
     }
-    #ifdef WOLF_CRYPTO_CB_ONLY_ECC
-    else {
-        err = NO_VALID_DEVID;
-    }
-    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -8389,7 +8430,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* check for async hardware acceleration */

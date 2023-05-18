@@ -97,7 +97,7 @@ int wc_ChaCha20Poly1305_Encrypt(
     byte plain[sizeof(cipher)];
 
     int ret = wc_ChaCha20Poly1305_Decrypt(key, iv, inAAD, sizeof(inAAD),
-    cipher, sizeof(cipher), plain, authTag);
+    cipher, sizeof(cipher), authTag, plain);
 
     if(ret == MAC_CMP_FAILED_E) {
     	// error during authentication

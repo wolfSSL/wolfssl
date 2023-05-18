@@ -1816,8 +1816,6 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_IMXRT1170_CAAM
     #define WOLFSSL_CAAM
-
-    #define WOLFSSL_NO_CAAM_BLOB
 #endif
 
 /* OS specific support so far */

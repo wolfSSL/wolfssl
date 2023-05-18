@@ -78,3 +78,7 @@
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
     #define HAVE_RENESAS_SYNC
 #endif
+
+#if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    #define WOLFSSL_KEY_GEN
+#endif

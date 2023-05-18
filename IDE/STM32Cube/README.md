@@ -37,16 +37,6 @@ You need both the STM32 IDE and the STM32 initialization code generator (STM32Cu
 8. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
 9. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
 
-### STM32 Cube Pack Examples
-
-In the `I-CUBE-wolfSSL.pack` pack there are pre-assembled example projects available.
-After installing the pack you can find these example projects in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects`.
-To use an example:
-
-1. Open STM32CubeIDE
-2. Choose "Import" -> "Import an Existing STM32CubeMX Configuration File (.ioc)".
-3. Browse to find the .ioc in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects` and click finish.
-
 ### Creating your own STM32CubeMX configuration
 
 If none of the examples fit your STM32 type then you can create your own in STM32CubeMX by doing the following:

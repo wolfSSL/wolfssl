@@ -61,7 +61,8 @@
 #if defined(WOLFSSL_RENESAS_TSIP)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
-#if defined(WOLFSSL_RENESAS_SCE)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 #endif
 #if defined(WOLFSSL_RENESAS_RX64_HASH)
@@ -187,7 +188,8 @@ int wolfCrypt_Init(void)
     }
     #endif
 
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+            defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
         ret = wc_sce_Open( );
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
@@ -205,7 +207,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(WOLFSSL_LINUXKM_SIMD_X86)
+    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         ret = allocate_wolfcrypt_linuxkm_fpu_states();
         if (ret != 0) {
             WOLFSSL_MSG("allocate_wolfcrypt_linuxkm_fpu_states failed");
@@ -436,7 +438,8 @@ int wolfCrypt_Cleanup(void)
         rx64_hw_Close();
     #endif
 
-    #ifdef WOLFSSL_RENESAS_SCEPROTECT
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+        defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
         wc_sce_Close();
     #endif
 
@@ -463,7 +466,7 @@ int wolfCrypt_Cleanup(void)
         rpcmem_deinit();
         wolfSSL_CleanupHandle();
     #endif
-    #if defined(WOLFSSL_LINUXKM_SIMD_X86)
+    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         free_wolfcrypt_linuxkm_fpu_states();
     #endif
 
@@ -3203,56 +3206,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 
 #endif /* WOLFSSL_NUCLEUS_1_2 */
-
-#if defined(WOLFSSL_LINUXKM) && defined(HAVE_KVMALLOC)
-    /* adapted from kvrealloc() draft by Changli Gao, 2010-05-13 */
-    void *lkm_realloc(void *ptr, size_t newsize) {
-        void *nptr;
-        size_t oldsize;
-
-        if (unlikely(newsize == 0)) {
-            kvfree(ptr);
-            return ZERO_SIZE_PTR;
-        }
-
-        if (unlikely(ptr == NULL))
-            return kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
-
-        if (is_vmalloc_addr(ptr)) {
-            /* no way to discern the size of the old allocation,
-             * because the kernel doesn't export find_vm_area().  if
-             * it did, we could then call get_vm_area_size() on the
-             * returned struct vm_struct.
-             */
-            return NULL;
-        } else {
-#ifndef __PIE__
-            struct page *page;
-
-            page = virt_to_head_page(ptr);
-            if (PageSlab(page) || PageCompound(page)) {
-                if (newsize < PAGE_SIZE)
-#endif /* ! __PIE__ */
-                    return krealloc(ptr, newsize, GFP_KERNEL);
-#ifndef __PIE__
-                oldsize = ksize(ptr);
-            } else {
-                oldsize = page->private;
-                if (newsize <= oldsize)
-                    return ptr;
-            }
-#endif /* ! __PIE__ */
-        }
-
-        nptr = kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
-        if (nptr != NULL) {
-            memcpy(nptr, ptr, oldsize);
-            kvfree(ptr);
-        }
-
-        return nptr;
-    }
-#endif /* WOLFSSL_LINUXKM && HAVE_KVMALLOC */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

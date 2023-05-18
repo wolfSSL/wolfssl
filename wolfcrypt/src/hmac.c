@@ -586,7 +586,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             XMEMSET(ip + length, 0, hmac_block_size - length);
 
         for(i = 0; i < hmac_block_size; i++) {
-            op[i] = ip[i] ^ OPAD;
+            op[i] = (byte)(ip[i] ^ OPAD);
             ip[i] ^= IPAD;
         }
     }
