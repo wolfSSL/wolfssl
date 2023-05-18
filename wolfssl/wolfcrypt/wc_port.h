@@ -298,6 +298,7 @@
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
 
+#ifndef WOLFSSL_NO_ATOMICS
 #ifdef HAVE_C___ATOMIC
 #ifdef __cplusplus
 #if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
@@ -311,7 +312,13 @@
     typedef atomic_int wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_OPS
 #endif
+#elif defined(_MSC_VER)
+    /* Use MSVC compiler intrinsics for atomic ops */
+    #include <intrin.h>
+    typedef volatile long wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_OPS
 #endif
+#endif /* WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_ATOMIC_OPS
     WOLFSSL_LOCAL void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);

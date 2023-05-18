@@ -1177,23 +1177,41 @@ int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
 }
 #else
 /* Default C Implementation */
-WC_INLINE void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
 {
     atomic_init(c, i);
 }
 
-WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
 {
     return atomic_fetch_add_explicit(c, i, memory_order_relaxed);
 }
 
-WC_INLINE int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
 {
     return atomic_fetch_sub_explicit(c, i, memory_order_relaxed);
 }
 #endif /* __cplusplus */
 
-#endif /* HAVE_C___ATOMIC */
+#elif defined(_MSC_VER)
+
+/* Default C Implementation */
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+{
+    *c = i;
+}
+
+int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+{
+    return (int)_InterlockedExchangeAdd(c, (long)i);
+}
+
+int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+{
+    return (int)_InterlockedExchangeAdd(c, (long)-i);
+}
+
+#endif
 
 #endif /* WOLFSSL_ATOMIC_OPS */
 
