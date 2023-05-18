@@ -346,7 +346,7 @@ static int sockAddrEqual(
     if (a->ss_family != b->ss_family)
         return 0;
 
-    if (a->ss_family == AF_INET) {
+    if (a->ss_family == WOLFSSL_IP4) {
 
         if (aLen < (XSOCKLENT)sizeof(SOCKADDR_IN))
             return 0;
@@ -362,7 +362,7 @@ static int sockAddrEqual(
     }
 
 #ifdef WOLFSSL_IPV6
-    if (a->ss_family == AF_INET6) {
+    if (a->ss_family == WOLFSSL_IP6) {
         SOCKADDR_IN6 *a6, *b6;
 
         if (aLen < (XSOCKLENT)sizeof(SOCKADDR_IN6))
@@ -380,7 +380,7 @@ static int sockAddrEqual(
 
         return 1;
     }
-#endif /* WOLFSSL_HAVE_IPV6 */
+#endif /* WOLFSSL_IPV6 */
 
     return 0;
 }
