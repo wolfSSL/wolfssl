@@ -14356,12 +14356,9 @@ int wolfSSL_Cleanup(void)
 {
     int ret = WOLFSSL_SUCCESS; /* Only the first error will be returned */
     int release = 0;
-#if !defined(NO_SESSION_CACHE) && (defined(ENABLE_SESSION_CACHE_ROW_LOCK) || \
-                                   defined(SESSION_CACHE_DYNAMIC_MEM))
+#if !defined(NO_SESSION_CACHE)
     int i;
-    #ifdef SESSION_CACHE_DYNAMIC_MEM
     int j;
-    #endif
 #endif
 
     WOLFSSL_ENTER("wolfSSL_Cleanup");
@@ -14406,17 +14403,20 @@ int wolfSSL_Cleanup(void)
     }
     session_lock_valid = 0;
     #endif
-    #ifdef SESSION_CACHE_DYNAMIC_MEM
     for (i = 0; i < SESSION_ROWS; i++) {
         for (j = 0; j < SESSIONS_PER_ROW; j++) {
+    #ifdef SESSION_CACHE_DYNAMIC_MEM
             if (SessionCache[i].Sessions[j]) {
+                EvictSessionFromCache(SessionCache[i].Sessions[j]);
                 XFREE(SessionCache[i].Sessions[j], SessionCache[i].heap,
                       DYNAMIC_TYPE_SESSION);
                 SessionCache[i].Sessions[j] = NULL;
             }
+    #else
+            EvictSessionFromCache(&SessionCache[i].Sessions[j]);
+    #endif
         }
     }
-    #endif
     #ifndef NO_CLIENT_CACHE
     if ((clisession_mutex_valid == 1) &&
         (wc_FreeMutex(&clisession_mutex) != 0)) {
@@ -21457,8 +21457,8 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
              * the static buffer. */
             if (ticBuff != NULL) {
                 if (ticLenAlloc >= input->ticketLen) {
-                    output->ticket = output->staticTicket;
-                    output->ticketLenAlloc = 0;
+                    output->ticket = ticBuff;
+                    output->ticketLenAlloc = ticLenAlloc;
                 }
                 else {
                     WOLFSSL_MSG("ticket dynamic buffer too small but we are "
