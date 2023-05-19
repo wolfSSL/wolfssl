@@ -434,7 +434,6 @@ AS_CASE([$FIPS_VERSION],
     ]
 )
 
-
 # For reproducible build, gate out from the build anything that might
 # introduce semantically frivolous jitter, maximizing chance of
 # identical object files.
