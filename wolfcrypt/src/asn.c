@@ -11451,6 +11451,7 @@ enum {
  * @param [in]      pubKey     Buffer holding encoded public key.
  * @param [in]      pubKeyLen  Length of encoded public key in bytes.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when pubKey is NULL.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -11469,6 +11470,10 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     byte* publicKey;
     byte  tag;
     int length;
+
+    if (pubKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     localIdx = *srcIdx;
     if (GetASNTag(source, &localIdx, &tag, maxIdx) < 0)
@@ -11526,6 +11531,11 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     int ret = 0;
     DECL_ASNGETDATA(dataASN, eccCertKeyASN_Length);
     byte* publicKey;
+
+    /* Validate parameters. */
+    if (pubKey == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
 
     /* Clear dynamic data and check OID is a curve. */
     CALLOC_ASNGETDATA(dataASN, eccCertKeyASN_Length, ret, cert->heap);
@@ -11694,6 +11704,11 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
 #endif
     int ret = 0;
     int length;
+
+    /* Validate paramaters. */
+    if (source == NULL) {
+        return ASN_PARSE_E;
+    }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
     if (GetSequence(source, &srcIdx, &length, maxIdx) < 0)
