@@ -4790,6 +4790,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
                 pkiMsg2   = pkiMsg;
                 pkiMsg2Sz = pkiMsgSz;
+
+                /* reset ret */
+                ret = 0;
             }
 
         #ifndef NO_PKCS7_STREAM
@@ -4963,7 +4966,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = 0; /* reset ret state on degenerate case */
             }
 
-        #ifndef NO_PKCS7_STREAM
             /* save content */
             if (detached == 1) {
                 /* if detached, use content from user in pkcs7 struct */
@@ -4971,6 +4973,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 contentSz = pkcs7->contentSz;
             }
 
+        #ifndef NO_PKCS7_STREAM
             if (content != NULL) {
                 XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->stream->content = (byte*)XMALLOC(contentSz, pkcs7->heap,
@@ -4986,6 +4989,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
         #endif /* !NO_PKCS7_STREAM */
 
+            /* Certificates begin "footer" section (ie pkiMsg2) if being used */
             /* Get the implicit[0] set of certificates */
             if (ret == 0 && idx >= pkiMsg2Sz)
                 ret = BUFFER_E;
@@ -5270,6 +5274,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 break;
             }
             stateIdx = idx;
+        #else
+            /* if not streaming, maxIdx is just pkiMsg2Sz */
+            maxIdx = pkiMsg2Sz;
         #endif
 
             /* set contentType and size after init of PKCS7 structure */
@@ -11619,7 +11626,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 {
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     int recipFound = 0;
-    int ret = 0, length;
+    int ret = 0, length = 0;
     word32 idx = 0;
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
@@ -12019,8 +12026,6 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 
             length = pkcs7->stream->expected;
             encodedAttribs = pkcs7->stream->aad;
-    #else
-            length = 0;
     #endif
 
             /* save pointer and length */
@@ -12541,7 +12546,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
-    word32 contentType = 0, encOID;
+    word32 contentType = 0, encOID = 0;
 
     int expBlockSz = 0;
     byte tmpIvBuf[MAX_CONTENT_IV_SIZE];
@@ -12797,8 +12802,6 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             encryptedContentSz = pkcs7->stream->varThree;
             version    = pkcs7->stream->vers;
             tmpIv      = pkcs7->stream->tmpIv;
-#else
-            encOID = 0;
 #endif
             if (ret == 0 && (encryptedContent = (byte*)XMALLOC(
                 encryptedContentSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7)) == NULL) {
