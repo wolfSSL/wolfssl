@@ -12445,6 +12445,10 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
     else if (m->used * 2 >= SP_INT_DIGITS) {
         err = MP_VAL;
     }
+    /* check that r can hold the range of the modulus result */
+    else if (m->used > r->size) {
+        err = MP_VAL;
+    }
 
     /* 0 != n*m + 1 (+ve m), r*a mod 0 is always 0 (never 1) */
     if ((err == MP_OKAY) && (sp_iszero(a) || sp_iszero(m) ||
