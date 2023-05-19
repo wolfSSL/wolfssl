@@ -5677,7 +5677,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         err = _ecc_validate_public_key(key, 0, 0);
     }
     if (err == MP_OKAY
-#if defined(WOLF_CRYPTO_CB && defined(WOLFSSL_HYBRID_FIPS_TPM))
+#if defined(WOLF_CRYPTO_CB)
         /* even if WOLF_CRYPTO_CB we generate the key if the devId is invalid */
         && key->devId == INVALID_DEVID
 #endif

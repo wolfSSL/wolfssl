@@ -434,17 +434,6 @@ AS_CASE([$FIPS_VERSION],
     ]
 )
 
-# Use FIPS with external crypto, wolfTPM with a FIPS approved TPM for example
-AC_ARG_ENABLE([hybrid-fips-tpm],
-    [AS_HELP_STRING([--enable-hybrid-fips-tpm],[Enable FIPS 140-2 with external FIPS hardware crypto (default: disabled)])],
-    [ENABLED_HYBRID_FIPS_TPM=$enableval],
-    [ENABLED_HYBRID_FIPS_TPM="no"])
-
-if test "ENABLED_FIPS_HYBRID"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HYBRID_FIPS_TPM"
-fi
-
 # For reproducible build, gate out from the build anything that might
 # introduce semantically frivolous jitter, maximizing chance of
 # identical object files.
