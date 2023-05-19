@@ -11696,7 +11696,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m,
+static int _sp_mulmod_tmp(const sp_int* a, const sp_int* b, const sp_int* m,
     sp_int* r)
 {
     int err = MP_OKAY;
@@ -11718,6 +11718,39 @@ static int _sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m,
 
     /* Dispose of an allocated SP int. */
     FREE_SP_INT(t, NULL);
+
+    return err;
+}
+
+/* Multiply a by b mod m and store in r: r = (a * b) mod m
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [in]   m  SP integer that is the modulus.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m,
+    sp_int* r)
+{
+    int err = MP_OKAY;
+
+    /* Use r as intermediate result if not same as pointer m which is needed
+     * after first intermediate result.
+     */
+    if (r != m) {
+        /* Multiply and reduce. */
+        err = sp_mul(a, b, r);
+        if (err == MP_OKAY) {
+            err = sp_mod(r, m, r);
+        }
+    }
+    else {
+        /* Do operation using temporary. */
+        _sp_mulmod_tmp(a, b, m, r);
+    }
 
     return err;
 }
@@ -11755,19 +11788,8 @@ int sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
     }
 #endif
 
-    /* Use r as intermediate result if not same as pointer m which is needed
-     * after first intermediate result.
-     */
-    if ((err == MP_OKAY) && (r != m)) {
-        /* Multiply and reduce. */
-        err = sp_mul(a, b, r);
-        if (err == MP_OKAY) {
-            err = sp_mod(r, m, r);
-        }
-    }
-    else if (err == MP_OKAY) {
-        /* Do operation using temporary. */
-        _sp_mulmod(a, b, m, r);
+    if (err == MP_OKAY) {
+        err = _sp_mulmod(a, b, m, r);
     }
 
 #if 0
@@ -12562,7 +12584,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                 /* 4.4  s = s | y */
                 s |= y;
                 /* 4.5. t[j] = t[j] * b */
-                err = sp_mulmod(t[j], b, m, t[j]);
+                err = _sp_mulmod(t[j], b, m, t[j]);
             }
 #else
             /* 4.1. t[s] = t[s] ^ 2 */
@@ -12585,7 +12607,7 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
                          t[2]);
-                err = sp_mulmod(t[2], b, m, t[2]);
+                err = _sp_mulmod(t[2], b, m, t[2]);
                 _sp_copy(t[2],
                          (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
                                    ((size_t)t[1] & sp_off_on_addr[j  ])));
@@ -12682,7 +12704,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
          */
         err = sp_mont_norm(t[1], m);
         if (err == MP_OKAY) {
-            err = sp_mulmod(t[0], t[1], m, t[0]);
+            err = _sp_mulmod(t[0], t[1], m, t[0]);
         }
         if (err == MP_OKAY) {
             /* 4. t[1] = t[0]
@@ -12860,7 +12882,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         err = sp_mont_norm(t[0], m);
         if (err == MP_OKAY) {
             /* 3. t[1] = ToMont(t[1]) */
-            err = sp_mulmod(t[1], t[0], m, t[1]);
+            err = _sp_mulmod(t[1], t[0], m, t[1]);
         }
 
         /* 4. For i in 2..(2 ^ w) - 1 */
@@ -13556,7 +13578,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         err = sp_mont_norm(t[0], m);
         if (err == MP_OKAY) {
             /* 2. Convert base to Montgomery form. */
-            err = sp_mulmod(bm, t[0], m, bm);
+            err = _sp_mulmod(bm, t[0], m, bm);
         }
         if (err == MP_OKAY) {
             /* Copy Montgomery form of base into first element of table. */
@@ -13807,7 +13829,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         err = sp_mont_norm(t[1], m);
         if (err == MP_OKAY) {
             /* 1. Convert base to Montgomery form. */
-            err = sp_mulmod(t[0], t[1], m, t[0]);
+            err = _sp_mulmod(t[0], t[1], m, t[0]);
         }
         if (err == MP_OKAY) {
             /* 2. Result starts as Montgomery form of base (assuming e > 0). */
