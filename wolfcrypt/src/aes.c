@@ -75,10 +75,12 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
-
-#if defined(WOLFSSL_AES_SIV)
+#ifdef WOLFSSL_MICROCHIP_TA100
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
+#ifdef WOLFSSL_AES_SIV
     #include <wolfssl/wolfcrypt/cmac.h>
-#endif /* WOLFSSL_AES_SIV */
+#endif
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
@@ -3053,7 +3055,13 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             return ret;
         }
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+        ret = microchip_aes_set_key(aes, userKey, keylen, iv, dir);
+        if (ret == 0) {
+            ret = wc_AesSetIV(aes, iv);
+        }
+        return ret;
+#endif
         rk = aes->key;
         XMEMCPY(rk, userKey, keylen);
 
@@ -6926,7 +6934,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authTag, authTagSz,
         authIn, authInSz);
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    return microchip_AesGcmEncrypt(
+        aes, out, in, sz,
+        iv, ivSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+#endif
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
         aes, out, in, sz, iv, ivSz,
@@ -7484,6 +7498,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes, out, in, sz, iv, ivSz,
         authTag, authTagSz, authIn, authInSz);
 
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    return microchip_AesGcmDecrypt(
+        aes, out, in, sz, iv, ivSz,
+        authTag, authTagSz, authIn, authInSz);
 #endif
 
 #ifdef STM32_CRYPTO_AES_GCM
@@ -9940,7 +9959,9 @@ void wc_AesFree(Aes* aes)
         se050_aes_free(aes);
     }
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    microchip_aes_free(aes);
+#endif
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     wc_psa_aes_free(aes);
 #endif

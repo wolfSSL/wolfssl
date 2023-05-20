@@ -50,7 +50,8 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif /* WOLFSSL_ATECC508A */
 

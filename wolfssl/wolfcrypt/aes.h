@@ -228,6 +228,9 @@ struct Aes {
     byte   keyIdSet;
     byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
+#ifdef WOLFSSL_MICROCHIP_TA100
+    uint16_t key_id;
+#endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     word32 y0;
 #endif

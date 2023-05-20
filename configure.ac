@@ -2242,15 +2242,42 @@ AC_ARG_WITH([maxq10xx],
     ]
 )
 
+AC_ARG_ENABLE([microchip],
+    [AS_HELP_STRING([--enable-microchip],[Enable wolfSSL support for microchip/atmel 508/608/100 (default: disabled)])],
+    [ ENABLED_ATMEL=$enableval ],
+    [ ENABLED_ATMEL=no ]
+    )
+
+if test "$ENABLED_ATMEL" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MICROCHIP"
+
+    for v in `echo $ENABLED_ATMEL | tr "," " "`
+    do
+      case $v in
+        508)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
+            ;;
+
+        608)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC608A"
+            ;;
+
+        100)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A -DWOLFSSL_MICROCHIP_TA100 -DMICROCHIP_DEV_TYPE=TA100"
+            ;;
+      esac
+    done
+fi
 # Microchip/Atmel CryptoAuthLib
 ENABLED_CRYPTOAUTHLIB="no"
 trylibatcadir=""
 AC_ARG_WITH([cryptoauthlib],
-    [AS_HELP_STRING([--with-cryptoauthlib=PATH],[PATH to CryptoAuthLib install (default /usr/)])],
+    [AS_HELP_STRING([--with-cryptoauthlib=PATH],[PATH to CryptoAuthLib install (default /usr)])],
     [
         AC_MSG_CHECKING([for cryptoauthlib])
         CPPFLAGS="$CPPFLAGS -DWOLFSSL_ATECC508A"
-        LIBS="$LIBS -lcryptoauth"
+        LIBS="$LIBS -lcryptoauth -lwolfssl -lpthread -lrt"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
 
@@ -2262,18 +2289,17 @@ AC_ARG_WITH([cryptoauthlib],
                 trylibatcadir="/usr"
             fi
 
-            LDFLAGS="$LDFLAGS -L$trylibatcadir/lib"
-            CPPFLAGS="$CPPFLAGS -I$trylibatcadir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
-
-            if test "x$libatca_linked" = "xno" ; then
-                AC_MSG_ERROR([cryptoauthlib isn't found.
-                If it's already installed, specify its path using --with-cryptoauthlib=/dir/])
+            if test "$host_cpu" = "aarch64" ; then
+                LIB_SUFFIX="/aarch64-linux-gnu"
+            else
+                LIB_SUFFIX=""
             fi
 
-            AM_LDFLAGS="$AM_LDFLAGS -L$trylibatcadir/lib"
-            AM_CFLAGS="$AM_CFLAGS -I$trylibatcadir/lib"
+            LDFLAGS="$LDFLAGS -L$trylibatcadir/lib$LIB_SUFFIX"
+            CPPFLAGS="$CPPFLAGS -I$trylibatcadir/include/cryptoauthlib"
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibatcadir/lib$LIB_SUFFIX"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibatcadir/include/cryptoauthlib"
+
             AC_MSG_RESULT([yes])
         else
             AC_MSG_RESULT([yes])
