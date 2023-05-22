@@ -1446,7 +1446,7 @@ static const char* client_usage_msg[][70] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
 #endif
-        "-6          WANT_WRITE エラーを全てのIO 送信でシュミレートします\n",
+        "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n",
 #ifdef HAVE_CURVE448
         "-8          鍵交換に X448 を使用する\n",                      /* 66 */
 #endif
@@ -1489,7 +1489,7 @@ static const char* client_usage_msg[][70] = {
         "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
 #endif
         "\n"
-        "より簡単なwolfSSL TSL クライアントの例については"
+        "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 75 */
         NULL,
