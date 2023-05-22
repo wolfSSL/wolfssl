@@ -1684,6 +1684,16 @@ static int wolfsentry_setup(
     {
         struct wolfsentry_route_table *table;
 
+#ifdef WOLFSENTRY_THREADSAFE
+        ret = WOLFSENTRY_SHARED_EX(*_wolfsentry);
+        if (ret < 0) {
+            fprintf(stderr, "wolfsentry shared lock op failed: "
+                    WOLFSENTRY_ERROR_FMT ".\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(ret));
+            return ret;
+        }
+#endif
+
         if ((ret = wolfsentry_route_get_main_table(
                  WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry),
                  &table)) < 0)
@@ -1691,6 +1701,11 @@ static int wolfsentry_setup(
             fprintf(stderr, "wolfsentry_route_get_main_table() returned "
                     WOLFSENTRY_ERROR_FMT "\n",
                     WOLFSENTRY_ERROR_FMT_ARGS(ret));
+#ifdef WOLFSENTRY_THREADSAFE
+            WOLFSENTRY_WARN_ON_FAILURE(
+                wolfsentry_context_unlock(
+                    WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
             return ret;
         }
 
@@ -1708,6 +1723,11 @@ static int wolfsentry_setup(
                         "wolfsentry_route_table_default_policy_set() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
+#ifdef WOLFSENTRY_THREADSAFE
+                WOLFSENTRY_WARN_ON_FAILURE(
+                    wolfsentry_context_unlock(
+                        WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
                 return ret;
             }
 
@@ -1742,6 +1762,11 @@ static int wolfsentry_setup(
                 fprintf(stderr, "wolfsentry_route_insert() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
+#ifdef WOLFSENTRY_THREADSAFE
+                WOLFSENTRY_WARN_ON_FAILURE(
+                    wolfsentry_context_unlock(
+                        WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
                 return ret;
             }
         } else if (WOLFSENTRY_MASKIN_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN)) {
@@ -1757,6 +1782,11 @@ static int wolfsentry_setup(
                         "wolfsentry_route_table_default_policy_set() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
+#ifdef WOLFSENTRY_THREADSAFE
+                WOLFSENTRY_WARN_ON_FAILURE(
+                    wolfsentry_context_unlock(
+                        WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
                 return ret;
             }
 
@@ -1791,9 +1821,19 @@ static int wolfsentry_setup(
                 fprintf(stderr, "wolfsentry_route_insert() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
+#ifdef WOLFSENTRY_THREADSAFE
+                WOLFSENTRY_WARN_ON_FAILURE(
+                    wolfsentry_context_unlock(
+                        WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
                 return ret;
             }
         }
+#ifdef WOLFSENTRY_THREADSAFE
+        WOLFSENTRY_WARN_ON_FAILURE(
+            wolfsentry_context_unlock(
+                WOLFSENTRY_CONTEXT_ARGS_OUT_EX(*_wolfsentry)));
+#endif
     }
 
 #if defined(WOLFSENTRY_THREADSAFE) && defined(HAVE_WOLFSENTRY_API_0v8)
