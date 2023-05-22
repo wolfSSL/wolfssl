@@ -54588,50 +54588,58 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     const char* issuerCert = "./certs/client-cert.pem";
     int derType = WOLFSSL_FILETYPE_ASN1;
     int pemType = WOLFSSL_FILETYPE_PEM;
+#ifdef HAVE_CRL_MONITOR
     int monitor = WOLFSSL_CRL_MONITOR;
+#else
+    int monitor = 0;
+#endif
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
-    ExpectIntEQ(wolfSSL_CTX_LoadCRL(ctx, validPath, pemType, monitor),
-        BAD_FUNC_ARG);
-
+    #define FAIL_T1(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+                                                BAD_FUNC_ARG)
+    #define FAIL_T2(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+                                                NOT_COMPILED_IN)
+    #define SUCC_T(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+                                                WOLFSSL_SUCCESS)
 #ifndef NO_WOLFSSL_CLIENT
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    #define NEW_CTX(ctx) AssertNotNull( \
+            ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()))
+#elif !defined(NO_WOLFSSL_SERVER)
+    #define NEW_CTX(ctx) AssertNotNull( \
+            ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()))
 #else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    #define NEW_CTX(ctx) return
 #endif
 
-    ExpectIntEQ(wolfSSL_CTX_LoadCRL(ctx, validPath, pemType, monitor),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_LoadCRL(ctx, badPath, pemType, monitor),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_LoadCRL(ctx, badPath, derType, monitor),
-        WOLFSSL_SUCCESS);
+    FAIL_T1(wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
+
+    NEW_CTX(ctx);
+
+#ifndef HAVE_CRL_MONITOR
+    FAIL_T2(wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, WOLFSSL_CRL_MONITOR);
+    wolfSSL_CTX_free(ctx);
+    NEW_CTX(ctx);
+#endif
+
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, pemType, monitor);
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, derType, monitor);
 
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-#ifndef NO_WOLFSSL_CLIENT
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#endif
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, validFilePath, pemType),
-        WOLFSSL_SUCCESS);
+    NEW_CTX(ctx);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, validFilePath, pemType), WOLFSSL_SUCCESS);
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-#ifndef NO_WOLFSSL_CLIENT
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#endif
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
-        WOLFSSL_SUCCESS);
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
-    ExpectIntEQ(wolfSSL_LoadCRLFile(ssl, validFilePath, pemType),
-        WOLFSSL_SUCCESS);
+    NEW_CTX(ctx);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+            WOLFSSL_SUCCESS);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_LoadCRLFile(ssl, validFilePath, pemType), WOLFSSL_SUCCESS);
     wolfSSL_free(ssl);
     ssl = NULL;
     wolfSSL_CTX_free(ctx);

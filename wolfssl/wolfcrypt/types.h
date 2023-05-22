@@ -1360,17 +1360,48 @@ typedef struct w64wrapper {
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD
-        #define INFINITE      (-1)
-        #define WAIT_OBJECT_0 0L
+#error TODO implement threading with pthreads
     #elif defined(FREERTOS)
         typedef unsigned int   THREAD_RETURN;
         typedef TaskHandle_t   THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif defined(_MSC_VER)
+        typedef unsigned      THREAD_RETURN;
+        typedef uintptr_t     THREAD_TYPE;
+        typedef HANDLE        COND_TYPE;
+        #define WOLFSSL_COND
+        #define INVALID_THREAD_VAL ((THREAD_TYPE)(INVALID_HANDLE_VALUE))
+        #define COND_NO_REQUIRE_LOCKED_MUTEX
+        #define WOLFSSL_THREAD __stdcall
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD __stdcall
     #endif
+
+
+    #ifndef SINGLE_THREADED
+        /* Necessary headers should already be included. */
+        
+        /* We don't support returns from threads */
+        typedef THREAD_RETURN (WOLFSSL_THREAD *THREAD_CB)(void* arg);
+
+        #ifndef INVALID_THREAD_VAL
+            #define INVALID_THREAD_VAL (-1)
+        #endif
+
+        WOLFSSL_LOCAL int wolfSSL_NewThread(THREAD_TYPE* thread,
+            THREAD_CB cb, void* arg);
+        WOLFSSL_LOCAL int wolfSSL_JoinThread(THREAD_TYPE thread);
+
+        #ifdef WOLFSSL_COND
+            WOLFSSL_LOCAL int wolfSSL_CondInit(COND_TYPE* cond);
+            WOLFSSL_LOCAL int wolfSSL_CondFree(COND_TYPE* cond);
+            WOLFSSL_LOCAL int wolfSSL_CondSignal(COND_TYPE* cond);
+            WOLFSSL_LOCAL int wolfSSL_CondWait(COND_TYPE* cond,
+                wolfSSL_Mutex* mutex);
+        #endif
+    #endif /* SINGLE_THREADED */
 
     #if defined(HAVE_STACK_SIZE)
         #define EXIT_TEST(ret) return (THREAD_RETURN)((size_t)(ret))

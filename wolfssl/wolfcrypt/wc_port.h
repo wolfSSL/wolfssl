@@ -77,6 +77,9 @@
             #endif
         #endif /* WOLFSSL_SGX */
     #endif
+    #ifndef SINGLE_THREADED
+        #include <process.h>
+    #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
         #ifdef NEED_THREADX_TYPES

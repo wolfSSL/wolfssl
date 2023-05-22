@@ -633,13 +633,7 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args* args);
 
-#ifdef WOLFSSL_ZEPHYR
-typedef void THREAD_FUNC(void*, void*, void*);
-#else
-typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
-#endif
-
-void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread);
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread);
 void join_thread(THREAD_TYPE thread);
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);

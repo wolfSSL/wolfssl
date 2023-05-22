@@ -469,7 +469,7 @@ void wait_tcp_ready(func_args* args)
  * @param [in]  args    Object to send to function in thread.
  * @param [out] thread  Handle to thread.
  */
-void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(HAVE_PTHREAD)
     PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
@@ -529,8 +529,8 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     }
     /* end if NETOS */
 #else
-    /* custom / external thread type */
-    *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
+    /* windows thread type */
+    *thread = (THREAD_TYPE)_beginthreadex(NULL, 0, fun, args, 0, 0);
 #endif /* thread types */
 }
 
@@ -554,7 +554,7 @@ void join_thread(THREAD_TYPE thread)
 #elif defined(NETOS)
     /* TODO: */
 #else
-    int res = WaitForSingleObject((HANDLE)thread, INFINITE);
+    DWORD res = WaitForSingleObject((HANDLE)thread, INFINITE);
     assert(res == WAIT_OBJECT_0);
     res = CloseHandle((HANDLE)thread);
     assert(res);

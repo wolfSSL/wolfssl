@@ -46,10 +46,11 @@ CRL Options:
 #endif
 
 #ifdef HAVE_CRL_MONITOR
-    #if (defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__))
-        static int StopMonitor(int mfd);
+    #if defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__) || \
+         defined(_MSC_VER)
+        static int StopMonitor(wolfSSL_CRL_mfd_t mfd);
     #else
-        #error "CRL monitor only currently supported on linux or mach"
+        #error "CRL monitor only currently supported on linux or mach or windows"
     #endif
 #endif /* HAVE_CRL_MONITOR */
 
@@ -68,10 +69,10 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     crl->monitors[0].path = NULL;
     crl->monitors[1].path = NULL;
 #ifdef HAVE_CRL_MONITOR
-    crl->tid   =  0;
-    crl->mfd   = -1;    /* mfd for bsd is kqueue fd, eventfd for linux */
-    crl->setup = 0;     /* thread setup done predicate */
-    if (pthread_cond_init(&crl->cond, 0) != 0) {
+    crl->tid = INVALID_THREAD_VAL;
+    crl->mfd = WOLFSSL_CRL_MFD_INIT_VAL;
+    crl->setup = 0; /* thread setup done predicate */
+    if (wolfSSL_CondInit(&crl->cond) != 0) {
         WOLFSSL_MSG("Pthread condition init failed");
         return BAD_COND_E;
     }
@@ -221,22 +222,18 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
     }
 
 #ifdef HAVE_CRL_MONITOR
-    if (crl->tid != 0) {
+    if (crl->tid != INVALID_THREAD_VAL) {
         WOLFSSL_MSG("stopping monitor thread");
         if (StopMonitor(crl->mfd) == 0) {
-            int _pthread_ret = pthread_join(crl->tid, NULL);
-            if (_pthread_ret != 0)
+            if (wolfSSL_JoinThread(crl->tid) != 0)
                 WOLFSSL_MSG("stop monitor failed in pthread_join");
         }
         else {
             WOLFSSL_MSG("stop monitor failed");
         }
     }
-    {
-        int _pthread_ret = pthread_cond_destroy(&crl->cond);
-        if (_pthread_ret != 0)
-            WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL");
-    }
+    if (wolfSSL_CondFree(&crl->cond) != 0)
+        WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL");
 #endif
     wc_FreeMutex(&crl->crlLock);
     if (dynamic)   /* free self */
@@ -931,15 +928,19 @@ static int SignalSetup(WOLFSSL_CRL* crl, int status)
     int ret;
 
     /* signal to calling thread we're setup */
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex crlLock failed");
         return BAD_MUTEX_E;
     }
+#endif
 
-        crl->setup = status;
-        ret = pthread_cond_signal(&crl->cond);
+    crl->setup = status;
+    ret = wolfSSL_CondSignal(&crl->cond);
 
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     wc_UnLockMutex(&crl->crlLock);
+#endif
 
     if (ret != 0)
         return BAD_COND_E;
@@ -1047,7 +1048,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 
 
 /* shutdown monitor thread, 0 on success */
-static int StopMonitor(int mfd)
+static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 {
     struct kevent change;
 
@@ -1063,7 +1064,7 @@ static int StopMonitor(int mfd)
 
 
 /* OS X  monitoring */
-static void* DoMonitor(void* arg)
+static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 {
     int fPEM, fDER;
     struct kevent change;
@@ -1180,7 +1181,7 @@ static void* DoMonitor(void* arg)
 
 
 /* shutdown monitor thread, 0 on success */
-static int StopMonitor(int mfd)
+static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 {
     word64 w64 = 1;
 
@@ -1195,7 +1196,7 @@ static int StopMonitor(int mfd)
 
 
 /* linux monitoring */
-static void* DoMonitor(void* arg)
+static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
 {
     int         notifyFd;
     int         wd  = -1;
@@ -1326,7 +1327,120 @@ static void* DoMonitor(void* arg)
     return NULL;
 }
 
-#endif /* MACH or linux */
+#elif defined(_MSC_VER)
+
+/* shutdown monitor thread, 0 on success */
+static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
+{
+    if (SetEvent(mfd) == 0) {
+        WOLFSSL_MSG("SetEvent custom event trigger failed");
+        return -1;
+    }
+    return 0;
+}
+
+#define DM_ERROR() do { status = MONITOR_SETUP_E; goto cleanup; } while(0)
+
+/* windows monitoring
+ * Tested initially by hand by running 
+ * .\server.exe -A certs/ca-cert.pem
+ * and connecting to with
+ * .\client.exe -C -c certs/server-cert.pem -k certs/server-key.pem
+ * This connection succeeds by default. By deleting all files from certs/crl
+ * except for crl.revoked we disallow the client to connect. Deleting files
+ * is done while the server is running to show that the monitor reacts to
+ * changes in the crl directory. */
+static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
+{
+    WOLFSSL_CRL* crl = (WOLFSSL_CRL*)arg;
+    int status = 0;
+    HANDLE handles[WOLFSSL_CRL_MONITORS_LEN + 1];
+    DWORD handlesLen = 0;
+    int i;
+
+    WOLFSSL_ENTER("DoMonitor");
+
+    handles[0] = crl->mfd = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if (crl->mfd == NULL) {
+        WOLFSSL_MSG("CreateEventA failed");
+        DM_ERROR();
+    }
+    handlesLen++;
+
+    for (i = 0; i < WOLFSSL_CRL_MONITORS_LEN; i++) {
+        if (crl->monitors[i].path) {
+            handles[handlesLen] = FindFirstChangeNotificationA(
+                crl->monitors[i].path, TRUE,
+                /* Watch for any changes that may affect what CRL's we load.
+                 * This may trigger on the same file multiple times but this
+                 * way we are certain that we have the most up to date and
+                 * accurate set of CRL's. We don't expect this to trigger
+                 * often enough for it to be a bottleneck. */
+                FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES |
+                FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE |
+                FILE_NOTIFY_CHANGE_SECURITY);
+            if (handles[handlesLen] == INVALID_HANDLE_VALUE) {
+                WOLFSSL_MSG("FindFirstChangeNotificationA failed");
+                DM_ERROR();
+            }
+            handlesLen++;
+        }
+    }
+
+    if (handlesLen == 1) {
+        WOLFSSL_MSG("Nothing to watch. Only custom event handle set.");
+        DM_ERROR();
+    }
+
+    if (SignalSetup(crl, 1) != 0) {
+        WOLFSSL_MSG("Call to SignalSetup failed");
+        DM_ERROR();
+    }
+
+    for (;;) {
+        DWORD waitRet = WaitForMultipleObjects(handlesLen, handles, FALSE,
+                                               INFINITE);
+        WOLFSSL_MSG("Got notify event");
+
+        if (waitRet >= WAIT_OBJECT_0 && waitRet < WAIT_OBJECT_0 + handlesLen) {
+            if (waitRet == WAIT_OBJECT_0) {
+                WOLFSSL_MSG("got custom shutdown event, breaking out");
+                break;
+            }
+            else if (SwapLists(crl) < 0) {
+                WOLFSSL_MSG("SwapLists problem, continue");
+            }
+        }
+        else {
+            WOLFSSL_MSG("Unexpected WaitForMultipleObjects return. Continue.");
+        }
+
+        for (i = 1; i < (int)handlesLen; i++) {
+            if (FindNextChangeNotification(handles[i]) == 0) {
+                WOLFSSL_MSG("FindNextChangeNotification failed");
+                DM_ERROR();
+            }
+        }
+    }
+
+cleanup:
+    if (status != 0)
+        SignalSetup(crl, status);
+    for (i = 0; i < (int)handlesLen; i++) {
+        BOOL closeRet;
+        if (i == 0) /* First handle is our custom event */
+            closeRet = CloseHandle(handles[i]);
+        else
+            closeRet = FindCloseChangeNotification(handles[i]);
+        if (closeRet == 0) {
+            WOLFSSL_MSG("Failed to close handle");
+        }
+    }
+    crl->mfd = INVALID_HANDLE_VALUE;
+    return 0;
+}
+
+#endif /* MACH or linux or windows */
 
 
 /* Start Monitoring the CRL path(s) in a thread */
@@ -1339,36 +1453,40 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
     if (crl == NULL)
         return BAD_FUNC_ARG;
 
-    if (crl->tid != 0) {
+    if (crl->tid != INVALID_THREAD_VAL) {
         WOLFSSL_MSG("Monitor thread already running");
         return ret;  /* that's ok, someone already started */
     }
 
-    if (pthread_create(&crl->tid, NULL, DoMonitor, crl) != 0) {
+    if (wolfSSL_NewThread(&crl->tid, DoMonitor, crl) != 0) {
         WOLFSSL_MSG("Thread creation error");
         return THREAD_CREATE_E;
     }
 
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     /* wait for setup to complete */
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex crlLock error");
         return BAD_MUTEX_E;
     }
+#endif
 
-        while (crl->setup == 0) {
-            if (pthread_cond_wait(&crl->cond, &crl->crlLock) != 0) {
-                ret = BAD_COND_E;
-                break;
-            }
+    while (crl->setup == 0) {
+        if (wolfSSL_CondWait(&crl->cond, &crl->crlLock) != 0) {
+            ret = BAD_COND_E;
+            break;
         }
-        if (crl->setup < 0)
-            ret = crl->setup;  /* store setup error */
+    }
+    if (crl->setup < 0)
+        ret = crl->setup;  /* store setup error */
 
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     wc_UnLockMutex(&crl->crlLock);
+#endif
 
     if (ret < 0) {
         WOLFSSL_MSG("DoMonitor setup failure");
-        crl->tid = 0;  /* thread already done */
+        crl->tid = INVALID_THREAD_VAL;  /* thread already done */
     }
 
     return ret;
@@ -1451,13 +1569,14 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 #endif
 
     if (monitor & WOLFSSL_CRL_MONITOR) {
+#ifdef HAVE_CRL_MONITOR
         word32 pathLen;
         char* pathBuf;
 
         WOLFSSL_MSG("monitor path requested");
 
         pathLen = (word32)XSTRLEN(path);
-        pathBuf = (char*)XMALLOC(pathLen+1, crl->heap,DYNAMIC_TYPE_CRL_MONITOR);
+        pathBuf = (char*)XMALLOC(pathLen+1, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
         if (pathBuf) {
             XMEMCPY(pathBuf, path, pathLen+1);
 
@@ -1488,6 +1607,10 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
         else {
             ret = MEMORY_E;
         }
+#else
+        WOLFSSL_MSG("CRL monitoring requested but not compiled in");
+        ret = NOT_COMPILED_IN;
+#endif
     }
 
     return ret;
