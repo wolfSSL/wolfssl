@@ -6767,9 +6767,9 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* p = in;
     byte* c = out;
-    ALIGN32 byte counter[AES_BLOCK_SIZE];
-    ALIGN32 byte initialCounter[AES_BLOCK_SIZE];
-    ALIGN32 byte scratch[AES_BLOCK_SIZE];
+    ALIGN16 byte counter[AES_BLOCK_SIZE];
+    ALIGN16 byte initialCounter[AES_BLOCK_SIZE];
+    ALIGN16 byte scratch[AES_BLOCK_SIZE];
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
@@ -7289,10 +7289,10 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* c = in;
     byte* p = out;
-    ALIGN32 byte counter[AES_BLOCK_SIZE];
-    ALIGN32 byte scratch[AES_BLOCK_SIZE];
-    ALIGN32 byte Tprime[AES_BLOCK_SIZE];
-    ALIGN32 byte EKY0[AES_BLOCK_SIZE];
+    ALIGN16 byte counter[AES_BLOCK_SIZE];
+    ALIGN16 byte scratch[AES_BLOCK_SIZE];
+    ALIGN16 byte Tprime[AES_BLOCK_SIZE];
+    ALIGN16 byte EKY0[AES_BLOCK_SIZE];
     sword32 res;
 
     if (ivSz == GCM_NONCE_MID_SZ) {
