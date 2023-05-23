@@ -1410,6 +1410,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef HAVE_SUPPORTED_CURVES
         {"onlyPskDheKe", 2, 264},
 #endif /* HAVE_SUPPORTED_CURVES */
+#ifdef HAVE_CRL
+        {"crl-dir", 1, 265},
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -1531,6 +1534,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int useDtlsCID = 0;
     char dtlsCID[DTLS_CID_BUFFER_SIZE] = { 0 };
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef HAVE_CRL
+    char* crlDir = NULL;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
@@ -2281,6 +2287,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         #endif
 #endif
             break;
+        case 265:
+#ifdef HAVE_CRL
+            crlDir = myoptarg;
+#endif
+            break;
 
             default:
                 Usage();
@@ -3029,8 +3040,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
         if (wolfSSL_EnableCRL(ssl, 0) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to enable CRL");
-        if (wolfSSL_LoadCRL(ssl, crlPemDir, WOLFSSL_FILETYPE_PEM, crlFlags)
-                            != WOLFSSL_SUCCESS)
+        if (wolfSSL_LoadCRL(ssl, crlDir != NULL ? crlDir : crlPemDir, 
+                            WOLFSSL_FILETYPE_PEM, crlFlags) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to load CRL");
         if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to set CRL callback url");

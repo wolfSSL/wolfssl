@@ -1343,7 +1343,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 
 /* windows monitoring
  * Tested initially by hand by running 
- * .\server.exe -A certs/ca-cert.pem
+ * .\server.exe -A certs/ca-cert.pem -i -x
  * and connecting to with
  * .\client.exe -C -c certs/server-cert.pem -k certs/server-key.pem
  * This connection succeeds by default. By deleting all files from certs/crl
