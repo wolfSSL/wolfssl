@@ -2706,11 +2706,13 @@ int wc_DhCmpNamedKey(int name, int noQ,
             goodName = 0;
     }
 
-    cmp = goodName && (pSz == pCmpSz) && (gSz == gCmpSz) &&
-        (noQ || ((qCmp != NULL) && (qSz == qCmpSz) &&
-                 XMEMCMP(q, qCmp, qCmpSz) == 0)) &&
-        (XMEMCMP(p, pCmp, pCmpSz) == 0) &&
-        (XMEMCMP(g, gCmp, gCmpSz) == 0);
+    if (goodName) {
+        cmp = (pSz == pCmpSz) && (gSz == gCmpSz) &&
+            (noQ || ((qCmp != NULL) && (qSz == qCmpSz) &&
+                     XMEMCMP(q, qCmp, qCmpSz) == 0)) &&
+            (XMEMCMP(p, pCmp, pCmpSz) == 0) &&
+            (XMEMCMP(g, gCmp, gCmpSz) == 0);
+    }
 
     return cmp;
 }
