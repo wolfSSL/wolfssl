@@ -62956,7 +62956,7 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     return res;
 }
 
-#if defined(HAVE_EX_DATA) && \
+#if defined(HAVE_EX_DATA) && defined(HAVE_EXT_CACHE) && \
     (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
         (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
         defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
