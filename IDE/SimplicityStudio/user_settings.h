@@ -1,4 +1,4 @@
-/* user_settings_template.h
+/* user_settings.h
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -19,10 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Example wolfSSL user settings with #if 0/1 gates to enable/disable algorithms and features.
- * This file is included with wolfssl/wolfcrypt/settings.h when WOLFSSL_USER_SETTINGS is defined.
- * Based on IDE/GCC-ARM/Headers/user_settings.h
- */
+/* Template based on examples/config/user_settings_template.h, but modified to
+ * include `WOLFSSL_SILABS_SE_ACCEL` and tune for ARM Cortex M. */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
 #define WOLFSSL_USER_SETTINGS_H
@@ -31,38 +29,38 @@
 extern "C" {
 #endif
 
-/* If TARGET_EMBEDDED is defined then small target settings are used */
-#if !(defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__) || defined(_WIN32))
-    #define TARGET_EMBEDDED
-#endif
+/* Silicon Labs ERF32 Hardware Acceleration */
+#define WOLFSSL_SILABS_SE_ACCEL
 
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
 #define WOLFSSL_GENERAL_ALIGNMENT 4
 #define SIZEOF_LONG_LONG 8
-#if 0
-    #define NO_64BIT /* disable use of 64-bit variables */
-#endif
+#define HAVE_STRINGS_H
 
-#ifdef TARGET_EMBEDDED
+/* Use FreeRTOS */
+#if 1
+    #define FREERTOS
+#else
     /* disable mutex locking */
     #define SINGLE_THREADED
-
-    /* reduce stack use. For variables over 100 bytes allocate from heap */
-    #define WOLFSSL_SMALL_STACK
-
-    /* Disable the built-in socket support and use the IO callbacks.
-     * Set IO callbacks with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend
-     */
-    #define WOLFSSL_USER_IO
 #endif
+
+/* reduce stack use. For variables over 100 bytes allocate from heap */
+#define WOLFSSL_SMALL_STACK
+
+/* Disable the built-in socket support and use the IO callbacks.
+ * Set IO callbacks with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend
+ */
+#define WOLFSSL_USER_IO
 
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-/* Wolf Single Precision Math */
+/* Math Choices: SP (preferred), TFM or Normal (heap) */
 #if 1
+    /* Wolf Single Precision Math */
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
@@ -76,19 +74,12 @@ extern "C" {
     //#define WOLFSSL_SP_NO_MALLOC
     //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
 
-    #ifdef TARGET_EMBEDDED
-        /* use smaller version of code */
-        #define WOLFSSL_SP_SMALL
-    #else
-        /* SP Assembly Speedups - specific to chip type */
-        #define WOLFSSL_SP_ASM
-    #endif
-    //#define WOLFSSL_SP_X86_64
-    //#define WOLFSSL_SP_X86
-    //#define WOLFSSL_SP_ARM32_ASM
-    //#define WOLFSSL_SP_ARM64_ASM
-    //#define WOLFSSL_SP_ARM_THUMB_ASM
-    //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+    /* use smaller version of code */
+    #define WOLFSSL_SP_SMALL
+
+    /* SP Assembly Speedups - specific to chip type */
+    #define WOLFSSL_SP_ASM
+    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
 #elif 1
     /* Fast Math (tfm.c) (stack based and timing resistant) */
     #define USE_FAST_MATH
@@ -201,11 +192,7 @@ extern "C" {
 
     /* GCM Method: GCM_TABLE_4BIT, GCM_SMALL, GCM_WORD32 or GCM_TABLE */
     #define HAVE_AESGCM
-    #ifdef TARGET_EMBEDDED
-        #define GCM_SMALL
-    #else
-        #define GCM_TABLE_4BIT
-    #endif
+    #define GCM_SMALL
 
     //#define WOLFSSL_AES_DIRECT
     //#define HAVE_AES_ECB
@@ -319,16 +306,12 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */
 /* ------------------------------------------------------------------------- */
-#ifdef TARGET_EMBEDDED
-    /* Use reduced benchmark / test sizes */
-    #define BENCH_EMBEDDED
-#endif
+/* Use reduced benchmark / test sizes */
+#define BENCH_EMBEDDED
 
 /* Use test buffers from array (not filesystem) */
-#ifndef NO_FILESYSTEM
 #define USE_CERT_BUFFERS_256
 #define USE_CERT_BUFFERS_2048
-#endif
 
 /* ------------------------------------------------------------------------- */
 /* Debugging */
@@ -484,6 +467,7 @@ extern "C" {
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
 #define WOLFSSL_BASE64_ENCODE
+#define WOLFSSL_PUB_PEM_TO_DER
 
 //#define WOLFSSL_KEY_GEN /* For RSA Key gen only */
 //#define KEEP_PEER_CERT
@@ -514,12 +498,10 @@ extern "C" {
 /* Slower, but about 1k smaller */
 //#define NO_INLINE
 
-#ifdef TARGET_EMBEDDED
-    #define NO_FILESYSTEM
-    #define NO_WRITEV
-    #define NO_MAIN_DRIVER
-    #define NO_DEV_RANDOM
-#endif
+#define NO_FILESYSTEM
+#define NO_WRITEV
+#define NO_MAIN_DRIVER
+#define NO_DEV_RANDOM
 
 #define NO_OLD_TLS
 #define NO_PSK

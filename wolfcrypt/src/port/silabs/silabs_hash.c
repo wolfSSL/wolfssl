@@ -1,4 +1,4 @@
-/* silabs_se_hash.c
+/* silabs_hash.c
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -94,32 +94,30 @@ int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
     return ret;
 }
 
-int wc_silabs_se_hash_update (wc_silabs_sha_t* sha, const byte* data, word32 len)
+int wc_silabs_se_hash_update(wc_silabs_sha_t* sha, const byte* data,
+    word32 len)
 {
     int ret = 0;
-
     sl_status_t status = sl_se_hash_update(&sha->hash_ctx, data, len);
     if (status != SL_STATUS_OK) {
-        ret = BUFFER_E;
+        ret = WC_HW_E;
     }
-
     return ret;
 }
 
-int wc_silabs_se_hash_final (wc_silabs_sha_t* sha, byte* hash)
+int wc_silabs_se_hash_final(wc_silabs_sha_t* sha, byte* hash)
 {
     int ret = 0;
-
-    sl_status_t status = sl_se_hash_finish(&sha->hash_ctx, hash, sha->hash_ctx.size);
+    sl_status_t status = sl_se_hash_finish(&sha->hash_ctx, hash,
+        sha->hash_ctx.size);
     if (status != SL_STATUS_OK) {
-        ret = BUFFER_E;
+        ret = WC_HW_E;
     }
-
     return ret;
 }
 
 
-int wc_HashUpdate_ex (wc_silabs_sha_t* sha, const byte* data, word32 len)
+int wc_HashUpdate_ex(wc_silabs_sha_t* sha, const byte* data, word32 len)
 {
     int ret = 0;
 
@@ -130,7 +128,6 @@ int wc_HashUpdate_ex (wc_silabs_sha_t* sha, const byte* data, word32 len)
     ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
         ret = wc_silabs_se_hash_update(sha, data, len);
-
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
@@ -212,7 +209,7 @@ int wc_Sha256Final(wc_Sha256* sha, byte* hash)
 }
 #endif /* ! NO_SHA256 */
 
-#ifndef NO_SHA224
+#ifdef WOLFSSL_SHA224
 int wc_InitSha224_ex(wc_Sha224* sha, void* heap, int devId)
 {
     if (sha == NULL) {
@@ -239,7 +236,7 @@ int wc_Sha224Final(wc_Sha224* sha, byte* hash)
 
     return ret;
 }
-#endif /* ! NO_SHA224 */
+#endif /* WOLFSSL_SHA224 */
 
 #ifdef WOLFSSL_SILABS_SHA384
 int wc_InitSha384_ex(wc_Sha384* sha, void* heap, int devId)
@@ -299,4 +296,4 @@ int wc_Sha512Final(wc_Sha512* sha, byte* hash)
 }
 #endif /* WOLFSSL_SILABS_SHA512 */
 
-#endif /* defined(WOLFSSL_SILABS_SE_ACCEL) */
+#endif /* WOLFSSL_SILABS_SE_ACCEL */
