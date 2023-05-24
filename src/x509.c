@@ -11486,7 +11486,36 @@ err:
 
         return ne;
     }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
+WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
+    WOLFSSL_X509_NAME_ENTRY *ne)
+{
+    WOLFSSL_ASN1_OBJECT* object = NULL;
+
+#ifdef WOLFSSL_DEBUG_OPENSSL
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
+#endif
+
+    if (ne != NULL) {
+        /* Create object from nid - reuse existing object if possible. */
+        object = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
+        if (object != NULL) {
+            /* Set the object when no error. */
+            ne->object = object;
+        }
+    }
+
+    return object;
+}
+#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+        * HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* add all entry of type "nid" to the buffer "fullName" and advance "idx"
      * since number of entries is small, a brute force search is used here
      * returns the number of entries added
