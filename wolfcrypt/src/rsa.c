@@ -4307,7 +4307,9 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0 && key->devId != INVALID_DEVID) {
-        ret = 2048/8; /* hardware handles, use 2048-bit as default */
+        if (wc_CryptoCb_RsaGetSize(key, &ret) == CRYPTOCB_UNAVAILABLE) {
+            ret = 2048/8; /* hardware handles, use 2048-bit as default */
+        }
     }
 #endif
 

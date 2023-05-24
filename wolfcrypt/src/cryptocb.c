@@ -359,6 +359,30 @@ int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+
+int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_RSA_GET_SIZE;
+        cryptoInfo.pk.rsa_get_size.key = key;
+        cryptoInfo.pk.rsa_get_size.keySize = keySize;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC

@@ -1725,6 +1725,42 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
 }
 
 /**
+ * Get the RSA modulus size in bytes from the PKCS#11 object.
+ *
+ * @param  [in]   session  Session object.
+ * @param  [in]   pubkey   Public key object.
+ * @param  [out]  modSize  Size of the modulus in bytes.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
+ */
+static int Pkcs11GetRsaModulusSize(Pkcs11Session* session,
+                                   CK_OBJECT_HANDLE pubKey, int* modSize)
+{
+    int            ret = 0;
+    CK_ATTRIBUTE   tmpl[] = {
+        { CKA_MODULUS,         NULL_PTR, 0 }
+    };
+    CK_ULONG       tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+    CK_RV rv;
+
+    PKCS11_DUMP_TEMPLATE("Get RSA Modulus Length", tmpl, tmplCnt);
+    rv = session->func->C_GetAttributeValue(session->handle, pubKey, tmpl,
+                                                                       tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+    }
+    PKCS11_DUMP_TEMPLATE("RSA Modulus Length", tmpl, tmplCnt);
+
+    if (ret == 0) {
+        *modSize = (int)tmpl[0].ulValueLen;
+    }
+
+    return ret;
+}
+
+/**
  * Make a handle to a private RSA key.
  *
  * @param  [in]   session     Session object.
@@ -2965,7 +3001,6 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
  * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  MEMORY_E when a memory allocation fails.
- * @return  MEMORY_E when a memory allocation fails.
  * @return  MP_CMP_E when the public parts are different.
  * @return  0 on success.
  */
@@ -2982,7 +3017,7 @@ static int Pkcs11RsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
                                                   CKK_RSA, session, priv->label,
                                                   priv->labelLen);
         }
-        else if (info->pk.rsa.key->idLen > 0) {
+        else if (priv->idLen > 0) {
             ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_RSA,
                                     session, priv->id, priv->idLen);
         }
@@ -2999,6 +3034,52 @@ static int Pkcs11RsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
         /* Compare the extracted public parts with the public key. */
         ret = wc_Pkcs11CheckPrivKey_Rsa(priv, info->pk.rsa_check.pubKey,
                                                    info->pk.rsa_check.pubKeySz);
+    }
+
+    return ret;
+}
+
+/**
+ * Get the size of the RSA key in bytes.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  NOT_COMPILED_IN when no modulus, label or id.
+ * @return  0 on success.
+ */
+static int Pkcs11RsaGetSize(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int ret = 0;
+    CK_OBJECT_HANDLE privateKey;
+    const RsaKey* priv = info->pk.rsa_get_size.key;
+
+    if (!mp_iszero(&priv->n)) {
+        /* Use the key's modulus MP integer to determine size. */
+        *info->pk.rsa_get_size.keySize = mp_unsigned_bin_size(&priv->n);
+    }
+    else {
+        /* Get the RSA private key object. */
+        if (priv->labelLen > 0) {
+            ret = Pkcs11FindKeyByLabel(&privateKey, CKO_PRIVATE_KEY,
+                                           CKK_RSA, session, (char*)priv->label,
+                                           priv->labelLen);
+        }
+        else if (priv->idLen > 0) {
+            ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_RSA,
+                                              session, (unsigned char*)priv->id,
+                                              priv->idLen);
+        }
+        else {
+            /* Lookup is by modulus which is not present. */
+            ret = NOT_COMPILED_IN;
+        }
+
+        if (ret == 0) {
+            /* Lookup the modulus size in bytes. */
+            ret = Pkcs11GetRsaModulusSize(session, privateKey,
+                                                 info->pk.rsa_get_size.keySize);
+        }
     }
 
     return ret;
@@ -3707,6 +3788,13 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
                         ret = Pkcs11RsaCheckPrivKey(&session, info);
+                        Pkcs11CloseSession(token, &session);
+                    }
+                    break;
+                case WC_PK_TYPE_RSA_GET_SIZE:
+                    ret = Pkcs11OpenSession(token, &session, readWrite);
+                    if (ret == 0) {
+                        ret = Pkcs11RsaGetSize(&session, info);
                         Pkcs11CloseSession(token, &session);
                     }
                     break;
