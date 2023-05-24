@@ -636,6 +636,10 @@ typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread);
 void join_thread(THREAD_TYPE thread);
 
+typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+
+void test_wolfSSL_client_server_nofail_ex(callback_functions* client_cb,
+    callback_functions* server_cb, cbType client_on_handshake);
 void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
                                        callback_functions* server_cb);
 

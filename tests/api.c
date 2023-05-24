@@ -5435,6 +5435,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         input[idx] = '\0';
         fprintf(stderr, "Client message: %s\n", input);
     }
+    else if (idx < 0) {
+        goto done;
+    }
 
     if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg)) {
         /*err_sys("SSL_write failed");*/
@@ -5684,8 +5687,6 @@ done:
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
 
-typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
-
 static int test_client_nofail(void* args, cbType cb)
 {
 #if !defined(NO_WOLFSSL_CLIENT)
@@ -5928,8 +5929,8 @@ done:
     return 0;
 }
 
-void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
-                                       callback_functions* server_cb)
+void test_wolfSSL_client_server_nofail_ex(callback_functions* client_cb,
+    callback_functions* server_cb, cbType client_on_handshake)
 {
     func_args client_args;
     func_args server_args;
@@ -5958,7 +5959,7 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, NULL);
+    test_client_nofail(&client_args, client_on_handshake);
     join_thread(serverThread);
 
     client_cb->return_code = client_args.return_code;
@@ -5970,6 +5971,13 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
     fdOpenSession(Task_self());
 #endif
 }
+
+void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
+    callback_functions* server_cb)
+{
+    test_wolfSSL_client_server_nofail_ex(client_cb, server_cb, NULL);
+}
+
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
@@ -65917,6 +65925,182 @@ static int test_wolfSSL_dtls13_null_cipher(void)
     return TEST_SKIPPED;
 }
 #endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
+    !defined(SINGLE_THREADED)
+
+static int test_dtls_msg_get_connected_port(int fd, word16 *port)
+{
+    SOCKADDR_S peer;
+    XSOCKLENT len;
+    int ret;
+
+    XMEMSET((byte*)&peer, 0, sizeof(peer));
+    len = sizeof(peer);
+    ret = getpeername(fd,  (SOCKADDR*)&peer, &len);
+    if (ret != 0 || len > sizeof(peer))
+        return -1;
+    switch (peer.ss_family) {
+#ifdef WOLFSSL_IPV6
+    case WOLFSSL_IP6: {
+        *port = ntohs(((SOCKADDR_IN6*)&peer)->sin6_port);
+        break;
+    }
+#endif /* WOLFSSL_IPV6 */
+    case WOLFSSL_IP4:
+        *port = ntohs(((SOCKADDR_IN*)&peer)->sin_port);
+        break;
+    default:
+        return -1;
+    }
+    return 0;
+}
+
+static int test_dtls_msg_from_other_peer_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
+{
+    char buf[1] = {'t'};
+    SOCKADDR_IN_T addr;
+    int sock_fd;
+    word16 port;
+    int err;
+
+    (void)ssl;
+    (void)ctx;
+
+    err = test_dtls_msg_get_connected_port(wolfSSL_get_fd(ssl), &port);
+    if (err != 0)
+        return -1;
+
+    sock_fd = socket(AF_INET_V, SOCK_DGRAM, 0);
+    if (sock_fd == -1)
+        return -1;
+    build_addr(&addr, wolfSSLIP, port, 1, 0);
+
+    /* send a packet to the server. Being another socket, the kernel will ensure
+     * the source port will be different. */
+    err = (int)sendto(sock_fd, buf, sizeof(buf), 0, (SOCKADDR*)&addr,
+        sizeof(addr));
+
+    close(sock_fd);
+    if (err == -1)
+        return -1;
+
+    return 0;
+}
+
+/* setup a SSL session but just after the handshake send a packet to the server
+ * with a source address different than the one of the connected client. The I/O
+ * callback EmbedRecvFrom should just ignore the packet. Sending of the packet
+ * is done in test_dtls_msg_from_other_peer_cb */
+static int test_dtls_msg_from_other_peer(void)
+{
+    callback_functions client_cbs;
+    callback_functions server_cbs;
+
+    XMEMSET((byte*)&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET((byte*)&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfDTLSv1_2_client_method;
+    server_cbs.method = wolfDTLSv1_2_server_method;
+    client_cbs.doUdp = 1;
+    server_cbs.doUdp = 1;
+
+    test_wolfSSL_client_server_nofail_ex(&client_cbs, &server_cbs,
+        test_dtls_msg_from_other_peer_cb);
+
+    if (client_cbs.return_code != WOLFSSL_SUCCESS ||
+        server_cbs.return_code != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_dtls_msg_from_other_peer(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
+        *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  \
+        *  !defined(SINGLE_THREADED) */
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_IPV6) &&               \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+static int test_dtls_ipv6_check(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    SOCKADDR_IN fake_addr6;
+    int sockfd;
+    int ret;
+
+    ctx_c = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
+    if (ctx_c == NULL)
+        return TEST_FAIL;
+    ssl_c  = wolfSSL_new(ctx_c);
+    if (ssl_c == NULL)
+        return TEST_FAIL;
+    ctx_s = wolfSSL_CTX_new(wolfDTLSv1_2_server_method());
+    if (ctx_s == NULL)
+        return TEST_FAIL;
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                          WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
+        return- -1;
+    ret = wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                           WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+    ssl_s  = wolfSSL_new(ctx_s);
+    if (ssl_s == NULL)
+        return TEST_FAIL;
+    XMEMSET((byte*)&fake_addr6, 0, sizeof(fake_addr6));
+    /* mimic a sockaddr_in6 struct, this way we can't test without
+     *  WOLFSSL_IPV6 */
+    fake_addr6.sin_family = WOLFSSL_IP6;
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == -1)
+        return TEST_FAIL;
+    ret = wolfSSL_set_fd(ssl_c, sockfd);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    /* can't return error here, as the peer is opaque for wolfssl library at
+     * this point */
+    ret = wolfSSL_dtls_set_peer(ssl_c, &fake_addr6, sizeof(fake_addr6));
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    ret = fcntl(sockfd, F_SETFL, O_NONBLOCK);
+    if (ret == -1)
+        return TEST_FAIL;
+    wolfSSL_dtls_set_using_nonblock(ssl_c, 1);
+    ret = wolfSSL_connect(ssl_c);
+    if (ret != WOLFSSL_FAILURE && ssl_c->error != SOCKET_ERROR_E)
+        return TEST_FAIL;
+
+    ret = wolfSSL_dtls_set_peer(ssl_s, &fake_addr6, sizeof(fake_addr6));
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    /* re-use the socket */
+    ret = wolfSSL_set_fd(ssl_c, sockfd);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
+    ret = wolfSSL_accept(ssl_s);
+    if (ret != WOLFSSL_FAILURE && ssl_s->error != SOCKET_ERROR_E)
+        return TEST_FAIL;
+    close(sockfd);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return TEST_SUCCESS;
+}
+#else
+static int test_dtls_ipv6_check(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66955,6 +67139,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_dtls13_bad_epoch_ch),
     TEST_DECL(test_wolfSSL_dtls13_null_cipher),
+    TEST_DECL(test_dtls_msg_from_other_peer),
+    TEST_DECL(test_dtls_ipv6_check),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
