@@ -3374,16 +3374,19 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
+        int ret = 0;
+
         if (thread == INVALID_THREAD_VAL)
             return BAD_FUNC_ARG;
 
+        /* We still want to attempt to close the thread handle even on error */
         if (WaitForSingleObject((HANDLE)thread, INFINITE) == WAIT_FAILED)
-            return MEMORY_ERROR;
+            ret = MEMORY_ERROR;
 
         if (CloseHandle((HANDLE)thread) == 0)
-            return MEMORY_ERROR;
+            ret = MEMORY_ERROR;
 
-        return 0;
+        return ret;
     }
 
 #ifdef WOLFSSL_COND
@@ -3437,6 +3440,79 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #endif /* WOLFSSL_COND */
 
 #else /* pthread */
+
+    int wolfSSL_NewThread(THREAD_TYPE* thread,
+        THREAD_CB cb, void* arg)
+    {
+        if (thread == NULL || cb == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_create(thread, NULL, cb, arg) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    {
+        if (thread == INVALID_THREAD_VAL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_join(thread, NULL) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+#ifdef WOLFSSL_COND
+    int wolfSSL_CondInit(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_cond_init(cond, NULL) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+    int wolfSSL_CondFree(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_cond_destroy(cond) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_cond_signal(cond) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+    int wolfSSL_CondWait(COND_TYPE* cond,
+            wolfSSL_Mutex* mutex)
+    {
+        if (cond == NULL || mutex == NULL)
+            return BAD_FUNC_ARG;
+
+        /* mutex has to be locked on entry so we can't touch */
+
+        if (pthread_cond_wait(cond, mutex) != 0)
+            return MEMORY_ERROR;
+
+        return 0;
+    }
+
+#endif /* WOLFSSL_COND */
 
 #endif
 

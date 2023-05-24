@@ -1359,8 +1359,9 @@ typedef struct w64wrapper {
         !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
+        typedef pthread_cond_t COND_TYPE;
+        #define WOLFSSL_COND
         #define WOLFSSL_THREAD
-#error TODO implement threading with pthreads
     #elif defined(FREERTOS)
         typedef unsigned int   THREAD_RETURN;
         typedef TaskHandle_t   THREAD_TYPE;
@@ -1387,7 +1388,7 @@ typedef struct w64wrapper {
         typedef THREAD_RETURN (WOLFSSL_THREAD *THREAD_CB)(void* arg);
 
         #ifndef INVALID_THREAD_VAL
-            #define INVALID_THREAD_VAL (-1)
+            #define INVALID_THREAD_VAL ((THREAD_TYPE)(-1))
         #endif
 
         WOLFSSL_LOCAL int wolfSSL_NewThread(THREAD_TYPE* thread,

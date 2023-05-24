@@ -291,7 +291,7 @@ void wait_tcp_ready(func_args* args)
 }
 
 
-void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(SINGLE_THREADED)
     (void)fun;

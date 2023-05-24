@@ -269,14 +269,14 @@ static int test_crl_monitor(void)
     char buf[128];
     char tmpDir[16];
     char rounds[4];
-    char* serverArgv[] = {
+    const char* serverArgv[] = {
         "testsuite",
         "-A", "certs/ca-cert.pem",
         "--crl-dir", tmpDir,
         "-C", rounds,
         "-x"
     };
-    char* clientArgv[] = {
+    const char* clientArgv[] = {
         "testsuite",
         "-C",
         "-c", "certs/server-cert.pem",
@@ -297,10 +297,10 @@ static int test_crl_monitor(void)
         goto cleanup;
     }
 
-    server_args.argv = serverArgv;
+    server_args.argv = (char**)serverArgv;
     server_args.argc = sizeof(serverArgv) / sizeof(*serverArgv);
     client_args.signal = server_args.signal = &ready;
-    client_args.argv = clientArgv;
+    client_args.argv = (char**)clientArgv;
     client_args.argc = sizeof(clientArgv) / sizeof(*clientArgv);
 
     InitTcpReady(&ready);
@@ -675,14 +675,18 @@ void join_thread(THREAD_TYPE thread)
 #endif
 }
 
+#ifndef NO_FILESYSTEM
+
+#ifdef _MSC_VER
 #include <direct.h>
+#endif
 
 #define TMP_DIR_PREFIX "tmpDir-"
 /* len is length of tmpDir name, assuming
  * len does not include null terminating character */
 char* create_tmp_dir(char *tmpDir, int len)
 {
-    if (len < XSTR_SIZEOF(TMP_DIR_PREFIX))
+    if (len < (int)XSTR_SIZEOF(TMP_DIR_PREFIX))
         return NULL;
 
     XMEMCPY(tmpDir, TMP_DIR_PREFIX, XSTR_SIZEOF(TMP_DIR_PREFIX));
@@ -690,23 +694,38 @@ char* create_tmp_dir(char *tmpDir, int len)
     if (mymktemp(tmpDir, len, len - XSTR_SIZEOF(TMP_DIR_PREFIX)) == NULL)
         return NULL;
 
+#ifdef _MSC_VER
     if (_mkdir(tmpDir) != 0)
         return NULL;
+#else
+    if (mkdir(tmpDir, 0700) != 0)
+        return NULL;
+#endif
 
     return tmpDir;
 }
 
 int rem_dir(const char* dirName)
 {
+#ifdef _MSC_VER
     if (_rmdir(dirName) != 0)
         return -1;
+#else
+    if (rmdir(dirName) != 0)
+        return -1;
+#endif
     return 0;
 }
 
 int rem_file(const char* fileName)
 {
+#ifdef _MSC_VER
     if (_unlink(fileName) != 0)
         return -1;
+#else
+    if (unlink(fileName) != 0)
+        return -1;
+#endif
     return 0;
 }
 
@@ -743,6 +762,7 @@ cleanup:
         XFCLOSE(outFile);
     return ret;
 }
+#endif /* !NO_FILESYSTEM */
 
 #ifndef NO_SHA256
 /* Create SHA-256 hash of the file based on filename.
