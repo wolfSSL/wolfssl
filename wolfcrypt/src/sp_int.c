@@ -5473,76 +5473,63 @@ int sp_is_bit_set(const sp_int* a, unsigned int b)
  */
 int sp_count_bits(const sp_int* a)
 {
-    int n = 0;
+    int n = -1;
 
     /* Check parameter. */
-    if (a != NULL) {
+    if ((a != NULL) && (a->used > 0)) {
         /* Get index of last word. */
         n = (int)(a->used - 1);
         /* Don't count leading zeros. */
         while ((n >= 0) && (a->dp[n] == 0)) {
             n--;
         }
-        /* -1 indicates SP integer value was zero. */
-        if (n < 0) {
-            n = 0;
-        }
-        else {
-        #ifdef SP_ASM_HI_BIT_SET_IDX
+    }
+
+    /* -1 indicates SP integer value was zero. */
+    if (n < 0) {
+        n = 0;
+    }
+    else {
+        /* Get the most significant word. */
+        sp_int_digit d = a->dp[n];
+        /* Count of bits up to last word. */
+        n *= SP_WORD_SIZE;
+
+    #ifdef SP_ASM_HI_BIT_SET_IDX
+        {
             sp_int_digit hi;
-            sp_int_digit d;
-
-            /* Get the most significant word. */
-            d = a->dp[n];
-            /* Count of bits up to last word. */
-            n *= SP_WORD_SIZE;
-
             /* Get index of highest set bit. */
             SP_ASM_HI_BIT_SET_IDX(d, hi);
-
             /* Add bits up to and including index. */
             n += (int)hi + 1;
-        #elif defined(SP_ASM_LZCNT)
+        }
+    #elif defined(SP_ASM_LZCNT)
+        {
             sp_int_digit lz;
-            sp_int_digit d;
-
-            /* Get the most significant word. */
-            d = a->dp[n];
-            /* Count of bits up to last word. */
-            n *= SP_WORD_SIZE;
-
             /* Count number of leading zeros in highest non-zero digit. */
             SP_ASM_LZCNT(d, lz);
-
             /* Add non-leading zero bits count. */
             n += SP_WORD_SIZE - (int)lz;
-        #else
-            sp_int_digit d;
-
-            /* Get the most significant word. */
-            d = a->dp[n];
-            /* Count of bits up to last word. */
-            n *= SP_WORD_SIZE;
-
-            /* Check if top word has more than half the bits set. */
-            if (d > SP_HALF_MAX) {
-                /* Set count to a full last word. */
-                n += SP_WORD_SIZE;
-                /* Don't count leading zero bits. */
-                while ((d & ((sp_int_digit)1 << (SP_WORD_SIZE - 1))) == 0) {
-                    n--;
-                    d <<= 1;
-                }
-            }
-            else {
-                /* Add to count until highest set bit is shifted out. */
-                while (d != 0) {
-                    n++;
-                    d >>= 1;
-                }
-            }
-        #endif
         }
+    #else
+        /* Check if top word has more than half the bits set. */
+        if (d > SP_HALF_MAX) {
+            /* Set count to a full last word. */
+            n += SP_WORD_SIZE;
+            /* Don't count leading zero bits. */
+            while ((d & ((sp_int_digit)1 << (SP_WORD_SIZE - 1))) == 0) {
+                n--;
+                d <<= 1;
+            }
+        }
+        else {
+            /* Add to count until highest set bit is shifted out. */
+            while (d != 0) {
+                n++;
+                d >>= 1;
+            }
+        }
+    #endif
     }
 
     return n;
