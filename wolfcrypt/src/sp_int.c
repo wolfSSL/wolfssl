@@ -12708,7 +12708,11 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
          */
         err = sp_mont_norm(t[1], m);
         if (err == MP_OKAY) {
-            err = _sp_mulmod(t[0], t[1], m, t[0]);
+            err = sp_mul(t[0], t[1], t[0]);
+        }
+        if (err == MP_OKAY) {
+            /* t[0] = t[0] mod m, temporary size has to be bigger than t[0]. */
+            err = _sp_div(t[0], m, NULL, t[0], t[0]->used + 1);
         }
         if (err == MP_OKAY) {
             /* 4. t[1] = t[0]
@@ -12886,7 +12890,11 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
         err = sp_mont_norm(t[0], m);
         if (err == MP_OKAY) {
             /* 3. t[1] = ToMont(t[1]) */
-            err = _sp_mulmod(t[1], t[0], m, t[1]);
+            err = sp_mul(t[1], t[0], t[1]);
+        }
+        if (err == MP_OKAY) {
+            /* t[1] = t[1] mod m, temporary size has to be bigger than t[1]. */
+            err = _sp_div(t[1], m, NULL, t[1], t[1]->used + 1);
         }
 
         /* 4. For i in 2..(2 ^ w) - 1 */
@@ -13491,8 +13499,6 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     sp_int* r)
 {
     int i = 0;
-    int c = 0;
-    int y = 0;
     int bits;
     int winBits;
     int preCnt;
@@ -13500,7 +13506,6 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     int done = 0;
     sp_int* tr = NULL;
     sp_int* bm = NULL;
-    sp_int_digit mask;
     /* Maximum winBits is 6 and preCnt is (1 << (winBits - 1)). */
 #ifndef WOLFSSL_SP_NO_MALLOC
     DECL_DYN_SP_INT_ARRAY(t, m->used * 2 + 1, (1 << 5) + 2);
@@ -13532,8 +13537,6 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     }
     /* Top bit of exponent fixed as 1 for pre-calculated window. */
     preCnt = 1 << (winBits - 1);
-    /* Mask for calculating index into pre-computed table. */
-    mask = (sp_int_digit)preCnt - 1;
 
     /* Allocate sp_ints for:
      *  - pre-computation table
@@ -13573,8 +13576,9 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     }
 
     if ((!done) && (err == MP_OKAY)) {
+        int y = 0;
+        int c = 0;
         sp_int_digit mp;
-        sp_int_digit n;
 
         /* Calculate Montgomery multiplier for reduction. */
         _sp_mont_setup(m, &mp);
@@ -13582,7 +13586,11 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         err = sp_mont_norm(t[0], m);
         if (err == MP_OKAY) {
             /* 2. Convert base to Montgomery form. */
-            err = _sp_mulmod(bm, t[0], m, bm);
+            err = sp_mul(bm, t[0], bm);
+        }
+        if (err == MP_OKAY) {
+            /* bm = bm mod m, temporary size has to be bigger than bm->used. */
+            err = _sp_div(bm, m, NULL, bm, bm->used + 1);
         }
         if (err == MP_OKAY) {
             /* Copy Montgomery form of base into first element of table. */
@@ -13608,6 +13616,10 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
          *    if less than windows bits in exponent, 1 in Montgomery form.
          */
         if (err == MP_OKAY) {
+            sp_int_digit n;
+            /* Mask for calculating index into pre-computed table. */
+            sp_int_digit mask = (sp_int_digit)preCnt - 1;
+
             /* Find the top bit. */
             i = (bits - 1) >> SP_WORD_SHIFT;
             n = e->dp[i--];
@@ -13833,7 +13845,11 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         err = sp_mont_norm(t[1], m);
         if (err == MP_OKAY) {
             /* 1. Convert base to Montgomery form. */
-            err = _sp_mulmod(t[0], t[1], m, t[0]);
+            err = sp_mul(t[0], t[1], t[0]);
+        }
+        if (err == MP_OKAY) {
+            /* t[0] = t[0] mod m, temporary size has to be bigger than t[0]. */
+            err = _sp_div(t[0], m, NULL, t[0], t[0]->used + 1);
         }
         if (err == MP_OKAY) {
             /* 2. Result starts as Montgomery form of base (assuming e > 0). */
