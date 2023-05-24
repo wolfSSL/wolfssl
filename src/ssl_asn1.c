@@ -558,7 +558,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
 void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
 {
     if ((in != NULL) && (in->isDynamic)) {
-        /* Dispose of any data allocated in BIT_STRING. */
+        /* Dispose of any data allocated in INTEGER. */
         XFREE(in->data, NULL, DYNAMIC_TYPE_OPENSSL);
     }
     /* Dispose of the ASN.1 INTEGER object. */
