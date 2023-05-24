@@ -65917,6 +65917,17 @@ static int test_wolfSSL_dtls13_null_cipher(void)
     return TEST_SKIPPED;
 }
 #endif
+
+static int test_wolfSSL_configure_args(void)
+{
+#if (defined(LIBWOLFSSL_CONFIGURE_ARGS) && defined(HAVE_WC_INTROSPECTION))   
+    AssertNotNull(wolfSSL_configure_args());
+    return TEST_SUCCESS;
+#else
+    return TEST_SKIPPED
+#endif    
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -65932,7 +65943,7 @@ typedef struct {
 
 int testAll = 1;
 
-TEST_CASE testCases[] = {
+TEST_CASE testCases[] = { 
     TEST_DECL(test_fileAccess),
     TEST_DECL(test_wolfSSL_Init),
     TEST_DECL(test_wolfSSL_Method_Allocators),
@@ -66164,6 +66175,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ERR_remove_state),
     TEST_DECL(test_wc_ERR_print_errors_fp),
 #endif
+    TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_set_options),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
     TEST_DECL(test_wolfSSL_set1_curves_list),
@@ -66296,7 +66308,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_ticket_keys),
     TEST_DECL(test_wolfSSL_DES_ecb_encrypt),
     TEST_DECL(test_wolfSSL_sk_GENERAL_NAME),
-    TEST_DECL(test_wolfSSL_GENERAL_NAME_print),
+    TEST_DECL(test_wolfSSL_GENERAL_NAME_print), 
     TEST_DECL(test_wolfSSL_sk_DIST_POINT),
     TEST_DECL(test_wolfSSL_MD4),
     TEST_DECL(test_wolfSSL_verify_mode),
