@@ -54595,11 +54595,11 @@ static int test_wolfSSL_CTX_LoadCRL(void)
 #endif
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
-    #define FAIL_T1(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+    #define FAIL_T1(x, y, z, p, d) ExpectIntEQ((int) x(y, z, p, d), \
                                                 BAD_FUNC_ARG)
-    #define FAIL_T2(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+    #define FAIL_T2(x, y, z, p, d) ExpectIntEQ((int) x(y, z, p, d), \
                                                 NOT_COMPILED_IN)
-    #define SUCC_T(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+    #define SUCC_T(x, y, z, p, d) ExpectIntEQ((int) x(y, z, p, d), \
                                                 WOLFSSL_SUCCESS)
 #ifndef NO_WOLFSSL_CLIENT
     #define NEW_CTX(ctx) AssertNotNull( \
@@ -54629,17 +54629,17 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     ctx = NULL;
 
     NEW_CTX(ctx);
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
             WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, validFilePath, pemType), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, validFilePath, pemType), WOLFSSL_SUCCESS);
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
     NEW_CTX(ctx);
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
             WOLFSSL_SUCCESS);
-    AssertNotNull(ssl = wolfSSL_new(ctx));
-    AssertIntEQ(wolfSSL_LoadCRLFile(ssl, validFilePath, pemType), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_LoadCRLFile(ssl, validFilePath, pemType), WOLFSSL_SUCCESS);
     wolfSSL_free(ssl);
     ssl = NULL;
     wolfSSL_CTX_free(ctx);

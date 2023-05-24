@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>
@@ -57,7 +58,10 @@ static THREAD_RETURN simple_test(func_args *args);
 static void simple_test(func_args *args);
 #endif
 static int test_tls(func_args* server_args);
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
 static int test_crl_monitor(void);
+#endif
 static void show_ciphers(void);
 static void cleanup_output(void);
 static int validate_cleanup_output(void);
@@ -216,7 +220,8 @@ int testsuite_test(int argc, char** argv)
         return server_args.return_code;
     }
 
-#ifdef HAVE_CRL_MONITOR
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
     ret = test_crl_monitor();
     if (ret != 0) {
         cleanup_output();
@@ -257,7 +262,7 @@ int testsuite_test(int argc, char** argv)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(HAVE_CRL_MONITOR)
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
 #define CRL_MONITOR_TEST_ROUNDS 6
 
 static int test_crl_monitor(void)
@@ -274,6 +279,7 @@ static int test_crl_monitor(void)
         "-A", "certs/ca-cert.pem",
         "--crl-dir", tmpDir,
         "-C", rounds,
+        "--quieter",
         "-x"
     };
     const char* clientArgv[] = {
@@ -281,10 +287,13 @@ static int test_crl_monitor(void)
         "-C",
         "-c", "certs/server-cert.pem",
         "-k", "certs/server-key.pem",
+        "--quieter",
         "-H", "exitWithRet"
     };
     int ret = -1;
     int i;
+
+    printf("\nRunning CRL monitor test\n");
 
     sprintf(rounds, "%d", CRL_MONITOR_TEST_ROUNDS);
 
@@ -333,7 +342,7 @@ static int test_crl_monitor(void)
             rem_file(buf);
             expectFail = 1;
         }
-        
+
         client_args.return_code = 0;
         client_test(&client_args);
 
@@ -375,6 +384,8 @@ static int test_tls(func_args* server_args)
     func_args echo_args;
     char* myArgv[NUMARGS];
     char arg[3][128];
+
+    printf("\nRunning TLS test\n");
 
     /* Set up command line arguments for echoclient to send input file
      * and write echoed data to temporary output file. */
@@ -487,6 +498,8 @@ static void simple_test(func_args* args)
     char *cliArgv[NUMARGS];
     char argvc[3][32];
 
+    printf("\nRunning simple test\n");
+
     for (i = 0; i < 9; i++)
         svrArgv[i] = argvs[i];
     for (i = 0; i < 3; i++)
@@ -575,6 +588,7 @@ void wait_tcp_ready(func_args* args)
 #endif /* thread checks */
 }
 
+#ifndef SINGLE_THREADED
 
 /* Start a thread.
  *
@@ -675,6 +689,8 @@ void join_thread(THREAD_TYPE thread)
 #endif
 }
 
+#endif /* SINGLE_THREADED */
+
 #ifndef NO_FILESYSTEM
 
 #ifdef _MSC_VER
@@ -753,7 +769,7 @@ int copy_file(const char* in, const char* out)
 
     if (XFWRITE(buf, 1, sz, outFile) != sz)
         goto cleanup;
-    
+
     ret = 0;
 cleanup:
     if (inFile != XBADFILE)

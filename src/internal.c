@@ -13805,6 +13805,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             /* CA already verified above in ParseCertRelative */
                             WOLFSSL_MSG("Adding CA from chain");
+                            SSL_CM_WARNING(ssl);
                             ret = AddCA(SSL_CM(ssl), &add, WOLFSSL_CHAIN_CA,
                                 NO_VERIFY);
                             if (ret == WOLFSSL_SUCCESS) {

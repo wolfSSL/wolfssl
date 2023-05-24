@@ -633,8 +633,10 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args* args);
 
+#ifndef SINGLE_THREADED
 void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread);
 void join_thread(THREAD_TYPE thread);
+#endif
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
@@ -643,7 +645,7 @@ void test_wolfSSL_client_server_nofail_ex(callback_functions* client_cb,
 void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
                                        callback_functions* server_cb);
 
-/* Return 
+/* Return
  *   tmpDir on success
  *   NULL on failure */
 char* create_tmp_dir(char* tmpDir, int len);

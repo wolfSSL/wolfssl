@@ -1160,6 +1160,23 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
+
+    /* AFTER user_settings.h is loaded,
+    ** determine if POSIX multi-threaded: HAVE_PTHREAD  */
+    #if defined(SINGLE_THREADED) || defined(__MINGW32__)
+        /* Never HAVE_PTHREAD in single thread, or non-POSIX mode.
+        ** Reminder: MING32 is win32 threads, not POSIX threads */
+        #undef HAVE_PTHREAD
+    #else
+        /* _POSIX_THREADS is defined by unistd.h so this check needs to happen
+         * after we include all the platform relevant libs. */
+        #ifdef _POSIX_THREADS
+            /* HAVE_PTHREAD == POSIX threads capable and enabled. */
+            #undef HAVE_PTHREAD
+            #define HAVE_PTHREAD 1
+        #endif
+    #endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

@@ -5683,6 +5683,13 @@ struct WOLFSSL {
 #else
 #define SSL_CM(ssl) (ssl)->ctx->cm
 #endif
+/* Issue warning when we are modifying the overall context CM */
+#define SSL_CM_WARNING(ssl) \
+    do {                                                             \
+        if (SSL_CM( (ssl) ) == (ssl)->ctx->cm) {                     \
+            WOLFSSL_MSG("Modifying SSL_CTX CM not SSL specific CM"); \
+        }                                                            \
+    } while (0)
 
 #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? (ssl)->ca_names : \
         (ssl)->ctx->ca_names)

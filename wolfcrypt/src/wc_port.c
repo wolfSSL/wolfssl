@@ -3366,7 +3366,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         *thread = _beginthreadex(NULL, 0, cb, arg, 0, NULL);
         if (*thread == 0) {
             *thread = INVALID_THREAD_VAL;
-            return MEMORY_ERROR;
+            return MEMORY_E;
         }
 
         return 0;
@@ -3381,10 +3381,10 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         /* We still want to attempt to close the thread handle even on error */
         if (WaitForSingleObject((HANDLE)thread, INFINITE) == WAIT_FAILED)
-            ret = MEMORY_ERROR;
+            ret = MEMORY_E;
 
         if (CloseHandle((HANDLE)thread) == 0)
-            ret = MEMORY_ERROR;
+            ret = MEMORY_E;
 
         return ret;
     }
@@ -3394,10 +3394,10 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-        
+
         *cond = CreateEventA(NULL, FALSE, FALSE, NULL);
         if (*cond == NULL)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3408,7 +3408,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (CloseHandle(*cond) == 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3419,7 +3419,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (SetEvent(*cond) == 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3433,13 +3433,13 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (WaitForSingleObject(*cond, INFINITE) == WAIT_FAILED)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
 #endif /* WOLFSSL_COND */
 
-#else /* pthread */
+#elif defined(WOLFSSL_PTHREADS)
 
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
@@ -3448,7 +3448,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (pthread_create(thread, NULL, cb, arg) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3459,7 +3459,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (pthread_join(thread, NULL) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3471,7 +3471,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (pthread_cond_init(cond, NULL) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3482,7 +3482,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (pthread_cond_destroy(cond) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3493,7 +3493,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         if (pthread_cond_signal(cond) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }
@@ -3507,7 +3507,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         /* mutex has to be locked on entry so we can't touch */
 
         if (pthread_cond_wait(cond, mutex) != 0)
-            return MEMORY_ERROR;
+            return MEMORY_E;
 
         return 0;
     }

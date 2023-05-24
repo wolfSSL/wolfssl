@@ -1342,7 +1342,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 #define DM_ERROR() do { status = MONITOR_SETUP_E; goto cleanup; } while(0)
 
 /* windows monitoring
- * Tested initially by hand by running 
+ * Tested initially by hand by running
  * .\server.exe -A certs/ca-cert.pem -i -x
  * and connecting to with
  * .\client.exe -C -c certs/server-cert.pem -k certs/server-key.pem
@@ -1491,23 +1491,6 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
 
     return ret;
 }
-
-
-#else /* HAVE_CRL_MONITOR */
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-
-static int StartMonitorCRL(WOLFSSL_CRL* crl)
-{
-    (void)crl;
-
-    WOLFSSL_ENTER("StartMonitorCRL");
-    WOLFSSL_MSG("Not compiled in");
-
-    return NOT_COMPILED_IN;
-}
-
-#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 #endif  /* HAVE_CRL_MONITOR */
 
