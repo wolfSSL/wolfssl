@@ -7433,6 +7433,10 @@ static WOLFSSL_DH *wolfssl_dhparams_read_pem(WOLFSSL_DH **dh,
                 != 0) {
             err = 1;
         }
+        /* If Success on X9.42 DH format, clear error from failed DH format */
+        else {
+            wolfSSL_ERR_clear_error();
+        }
     }
     if (memAlloced) {
         /* PEM data no longer needed.  */
