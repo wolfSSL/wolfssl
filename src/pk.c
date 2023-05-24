@@ -7435,7 +7435,8 @@ static WOLFSSL_DH *wolfssl_dhparams_read_pem(WOLFSSL_DH **dh,
         }
         /* If Success on X9.42 DH format, clear error from failed DH format */
         else {
-            wolfSSL_ERR_clear_error();
+            unsigned long error;
+            CLEAR_ASN_NO_PEM_HEADER_ERROR(error);
         }
     }
     if (memAlloced) {
