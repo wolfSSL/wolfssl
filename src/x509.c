@@ -11383,6 +11383,31 @@ err:
         return ne;
     }
 
+    static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
+        int nid, int type, const unsigned char *data, int dataSz)
+    {
+        WOLFSSL_ASN1_OBJECT* object;
+
+        ne->nid = nid;
+        /* Reuse the object if already available. */
+        object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
+        if (object != NULL) {
+            /* Set the object when no error. */
+            ne->object = object;
+        }
+        ne->value = wolfSSL_ASN1_STRING_type_new(type);
+        if (ne->value != NULL) {
+            if (wolfSSL_ASN1_STRING_set(ne->value, (const void*)data,
+                                            dataSz) == WOLFSSL_SUCCESS) {
+                ne->set = 1;
+            }
+            else {
+                /* Free the ASN1_STRING if it is not set. */
+                wolfSSL_ASN1_STRING_free(ne->value);
+                ne->value = NULL;
+            }
+        }
+    }
 
     /* Create a new WOLFSSL_X509_NAME_ENTRY structure based on the text passed
      * in. Returns NULL on failure */
@@ -11415,20 +11440,8 @@ err:
                     return NULL;
                 }
             }
-            ne->nid = nid;
-            ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
-            ne->value = wolfSSL_ASN1_STRING_type_new(type);
-            if (ne->value != NULL) {
-                if (wolfSSL_ASN1_STRING_set(ne->value, (const void*)data,
-                                            dataSz) == WOLFSSL_SUCCESS) {
-                    ne->set = 1;
-                }
-                else {
-                    /* Free the ASN1_STRING if it is not set. */
-                    wolfSSL_ASN1_STRING_free(ne->value);
-                    ne->value = NULL;
-                }
-            }
+
+            wolfssl_x509_name_entry_set(ne, nid, type, data, dataSz);
         }
 
         return ne;
@@ -11469,20 +11482,7 @@ err:
             ne = *out;
         }
 
-        ne->nid = nid;
-        ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
-        ne->value = wolfSSL_ASN1_STRING_type_new(type);
-        if (ne->value != NULL) {
-            if (wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz)
-                    == WOLFSSL_SUCCESS) {
-                ne->set = 1;
-            }
-            else {
-                /* Free the ASN1_STRING if it is not set. */
-                wolfSSL_ASN1_STRING_free(ne->value);
-                ne->value = NULL;
-            }
-        }
+        wolfssl_x509_name_entry_set(ne, nid, type, data, dataSz);
 
         return ne;
     }
