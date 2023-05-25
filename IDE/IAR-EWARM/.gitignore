@@ -1,0 +1,11 @@
+# Generated files
+settings/
+*.dep
+
+# Unused project settings for C-STAT and C-RUN
+*.ewt
+
+# Build artifacts
+ewarm/
+Debug/
+Release/
