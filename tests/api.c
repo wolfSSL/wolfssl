@@ -63268,9 +63268,9 @@ static void obj_name_t(const OBJ_NAME* nm, void* arg)
     /* print to stderr */
     AssertNotNull(arg);
 
-    bio = BIO_new(BIO_s_file());
+    BIO *bio = BIO_new(BIO_s_file());
     BIO_set_fp(bio, arg, BIO_NOCLOSE);
-    BIO_printf(bio, "%s\n", mn);
+    BIO_printf(bio, "%s\n", nm);
     BIO_free(bio);
 #endif
 }
