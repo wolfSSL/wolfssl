@@ -7365,7 +7365,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         #ifdef HAVE_PKCS8
             /* if private key try and remove PKCS8 header */
-            if (type == PRIVATEKEY_TYPE) {
+            if (ret == 0 && type == PRIVATEKEY_TYPE) {
                 if ((ret = ToTraditional_ex(der->buffer, der->length,
                                                                  &algId)) > 0) {
                     /* Found PKCS8 header */
@@ -8013,7 +8013,10 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed, 0, verify);
 
-        if (ret < 0) {
+        if (ret == MEMORY_E) {
+            return ret;
+        }
+        else if (ret < 0) {
 #if defined(WOLFSSL_WPAS) && defined(HAVE_CRL)
             DerBuffer*    der = NULL;
             EncryptedInfo info;
@@ -38466,7 +38469,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             }
             if (certData != NULL) {
-                XFREE(*cert, heap, DYNAMIC_TYPE_PKCS); *cert = NULL;
+                XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
             }
             /* Free up WC_DerCertList and move on */
             while (current != NULL) {
@@ -38580,6 +38583,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
             wolfSSL_X509_free(*cert); *cert = NULL;
+            XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
             ret = WOLFSSL_FAILURE;
             goto out;
         }

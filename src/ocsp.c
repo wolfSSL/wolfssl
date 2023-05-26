@@ -938,8 +938,10 @@ WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
                                     DYNAMIC_TYPE_OCSP_ENTRY);
     bs->source = (byte*)XMALLOC(bs->maxIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (bs->single == NULL || bs->source == NULL) {
-        if (bs->single) XFREE(bs->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        if (bs->source) XFREE(bs->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (bs->single) {
+            XFREE(bs->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+            bs->single = NULL;
+        }
         wolfSSL_OCSP_RESPONSE_free(bs);
         bs = NULL;
     }

@@ -24,10 +24,6 @@
     #include <config.h>
 #endif
 
-#ifdef WOLFSSL_LINUXKM
-    #define WOLFSSL_NEED_LINUX_CURRENT
-#endif
-
 #include <wolfssl/wolfcrypt/settings.h>
 
 /* check old macros @wc_fips */
@@ -55,6 +51,8 @@ Possible memory options:
  * WOLFSSL_MALLOC_CHECK:            Reports malloc or alignment failure using WOLFSSL_STATIC_ALIGN
  * WOLFSSL_FORCE_MALLOC_FAIL_TEST:  Used for internal testing to induce random malloc failures.
  * WOLFSSL_HEAP_TEST:               Used for internal testing of heap hint
+ * WOLFSSL_MEM_FAIL_COUNT:          Fail memory allocation at a count from
+ *                                  environment variable: MEM_FAIL_CNT.
  */
 
 #ifdef WOLFSSL_ZEPHYR
@@ -264,6 +262,50 @@ void wc_MemZero_Check(void* addr, size_t len)
 }
 #endif /* WOLFSSL_CHECK_MEM_ZERO */
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+static wolfSSL_Mutex memFailMutex;
+int mem_fail_allocs = 0;
+int mem_fail_frees = 0;
+int mem_fail_cnt = 0;
+
+void wc_MemFailCount_Init()
+{
+    wc_InitMutex(&memFailMutex);
+    char* cnt = getenv("MEM_FAIL_CNT");
+    if (cnt != NULL) {
+        fprintf(stderr, "MemFailCount At: %d\n", mem_fail_cnt);
+        mem_fail_cnt = atoi(cnt);
+    }
+}
+static int wc_MemFailCount_AllocMem(void)
+{
+    int ret = 1;
+
+    wc_LockMutex(&memFailMutex);
+    if ((mem_fail_cnt > 0) && (mem_fail_cnt <= mem_fail_allocs + 1)) {
+        ret = 0;
+    }
+    else {
+        mem_fail_allocs++;
+    }
+    wc_UnLockMutex(&memFailMutex);
+
+    return ret;
+}
+static void wc_MemFailCount_FreeMem(void)
+{
+    wc_LockMutex(&memFailMutex);
+    mem_fail_frees++;
+    wc_UnLockMutex(&memFailMutex);
+}
+void wc_MemFailCount_Free()
+{
+    wc_FreeMutex(&memFailMutex);
+    fprintf(stderr, "MemFailCount Total: %d\n", mem_fail_allocs);
+    fprintf(stderr, "MemFailCount Frees: %d\n", mem_fail_frees);
+}
+#endif
+
 #ifdef WOLFSSL_DEBUG_MEMORY
 void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line)
 #else
@@ -271,6 +313,13 @@ void* wolfSSL_Malloc(size_t size)
 #endif
 {
     void* res = 0;
+
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (!wc_MemFailCount_AllocMem()) {
+        WOLFSSL_MSG("MemFailCnt: Fail malloc");
+        return NULL;
+    }
+#endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     /* Space for requested size. */
@@ -365,6 +414,9 @@ void wolfSSL_Free(void *ptr)
     /* Check that the pointer is zero where required. */
     wc_MemZero_Check(((unsigned char*)ptr) + MEM_ALIGN, *(size_t*)ptr);
 #endif
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    wc_MemFailCount_FreeMem();
+#endif
 
     if (free_function) {
     #ifdef WOLFSSL_DEBUG_MEMORY
@@ -417,6 +469,13 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 #else
     void* res = 0;
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (!wc_MemFailCount_AllocMem()) {
+        WOLFSSL_MSG("MemFailCnt: Fail realloc");
+        return NULL;
+    }
+#endif
+
     if (realloc_function) {
     #ifdef WOLFSSL_DEBUG_MEMORY
         res = realloc_function(ptr, size, func, line);
@@ -431,6 +490,12 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
         WOLFSSL_MSG("No realloc available");
     #endif
     }
+
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (ptr != NULL) {
+        wc_MemFailCount_FreeMem();
+    }
+#endif
 
     return res;
 #endif
@@ -1245,6 +1310,13 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     void*   p = NULL;
     word32* p32;
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (!wc_MemFailCount_AllocMem()) {
+        WOLFSSL_MSG("MemFailCnt: Fail malloc");
+        return NULL;
+    }
+#endif
+
     if (malloc_function)
         p32 = malloc_function(n + sizeof(word32) * 4);
     else
@@ -1270,6 +1342,13 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
     word32* oldp32 = NULL;
     word32  oldLen;
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (!wc_MemFailCount_AllocMem()) {
+        WOLFSSL_MSG("MemFailCnt: Fail malloc");
+        return NULL;
+    }
+#endif
+
     if (p != NULL) {
         oldp32 = (word32*)p;
         oldp32 -= 4;
@@ -1293,6 +1372,12 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
                                                         type, func, file, line);
     }
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    if (p != NULL) {
+        wc_MemFailCount_FreeMem();
+    }
+#endif
+
     (void)heap;
 
     return newp;
@@ -1303,6 +1388,9 @@ void xfree(void *p, void* heap, int type, const char* func, const char* file,
     word32* p32 = (word32*)p;
 
     if (p != NULL) {
+    #ifdef WOLFSSL_MEM_FAIL_COUNT
+        wc_MemFailCount_FreeMem();
+    #endif
         p32 -= 4;
 
         fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%u\n", p, p32[0], type,

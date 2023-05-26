@@ -913,6 +913,7 @@ static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len,
     word32 tmp_seq_peer_hi;
     word32 tmp_seq_lo;
     word32 tmp_seq_hi;
+    int ret;
 
     WOLFSSL_ENTER("ImportCipherSpecState");
 
@@ -951,7 +952,9 @@ static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len,
     tmp_seq_lo = ssl->keys.sequence_number_lo;
     tmp_seq_hi = ssl->keys.sequence_number_hi;
 
-    SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+    if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) < 0) {
+        return ret;
+    }
 
     /* reset sequence numbers after setting keys */
     ssl->keys.peer_sequence_number_lo = tmp_seq_peer_lo;

@@ -9007,9 +9007,6 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
     if (!algor) {
         return WOLFSSL_FAILURE;
     }
-    if (aobj) {
-        algor->algorithm = aobj;
-    }
 
     if (!algor->parameter) {
         algor->parameter = wolfSSL_ASN1_TYPE_new();
@@ -9018,6 +9015,9 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
         }
     }
 
+    if (aobj) {
+        algor->algorithm = aobj;
+    }
     wolfSSL_ASN1_TYPE_set(algor->parameter, ptype, pval);
 
     return WOLFSSL_SUCCESS;
@@ -9991,8 +9991,8 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         {
             ret = wc_InitRng(&rng);
             if (ret != 0) {
-                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
-                return WOLFSSL_FAILURE;
+                ret = WOLFSSL_FAILURE;
+                goto cleanup;
             }
 
             ret = wc_MakeCert_ex(cert, der, *derSz, type, key, &rng);

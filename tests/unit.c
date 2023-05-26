@@ -34,6 +34,7 @@
 
 
 int allTesting = 1;
+int apiTesting = 1;
 int myoptind = 0;
 char* myoptarg = NULL;
 int unit_test(int argc, char** argv);
@@ -185,21 +186,26 @@ int unit_test(int argc, char** argv)
             goto exit;
         }
         else if (XSTRCMP(argv[1], "--api") == 0) {
+            allTesting = 0;
+        }
+        else if (XSTRCMP(argv[1], "--no-api") == 0) {
+            apiTesting = 0;
         }
         else if (argv[1][1] >= '0' && argv[1][1] <= '9') {
             ret = ApiTest_RunIdx(atoi(argv[1] + 1));
             if (ret != 0) {
                 goto exit;
             }
+            allTesting = 0;
         }
         else {
             ret = ApiTest_RunName(argv[1] + 1);
             if (ret != 0) {
                 goto exit;
             }
+            allTesting = 0;
         }
 
-        allTesting = 0;
         argc--;
         argv++;
     }
@@ -208,7 +214,11 @@ int unit_test(int argc, char** argv)
     if (argc == 1)
 #endif
     {
-        ApiTest();
+        if (apiTesting) {
+            ret = ApiTest();
+            if (ret != 0)
+                goto exit;
+        }
 
         if (!allTesting) {
             goto exit;
