@@ -20230,6 +20230,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         #endif
         ssl->options.rejectTicket = 0;
     #endif
+        ssl->options.haveRSA = 0;
+        ssl->options.haveECC = 0;
+        ssl->options.haveFalconSig = 0;
+        ssl->options.haveDilithiumSig = 0;
+        ssl->options.haveDH = 0;
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;
