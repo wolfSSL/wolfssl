@@ -232,6 +232,7 @@ static int wolfssl_i2d_asn1_item(void** item, int type, byte* buf)
                 *(const WOLFSSL_ASN1_BIT_STRING**)item, buf);
             break;
         case WOLFSSL_ASN1_INTEGER_ASN1:
+        {
             byte *tmp_buf = buf;
             len = wolfSSL_i2d_ASN1_INTEGER(
                 *(const WOLFSSL_ASN1_INTEGER**)item, &tmp_buf);
@@ -239,6 +240,7 @@ static int wolfssl_i2d_asn1_item(void** item, int type, byte* buf)
                 XFREE(tmp_buf, NULL, DYNAMIC_TYPE_ASN1);
                 tmp_buf = NULL;
             }
+        }
         break;
         default:
             WOLFSSL_MSG("Type not support in processMembers");
