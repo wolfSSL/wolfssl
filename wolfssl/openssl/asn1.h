@@ -140,6 +140,7 @@ typedef struct {
 typedef enum {
     WOLFSSL_X509_ALGOR_ASN1 = 0,
     WOLFSSL_ASN1_BIT_STRING_ASN1,
+    WOLFSSL_ASN1_INTEGER_ASN1,
 } WOLFSSL_ASN1_TYPES;
 
 #define ASN1_SEQUENCE(type) \

@@ -65,6 +65,9 @@ static int wolfssl_asn1_item_new(void** item, int type)
         case WOLFSSL_ASN1_BIT_STRING_ASN1:
             *(WOLFSSL_ASN1_BIT_STRING**)item = wolfSSL_ASN1_BIT_STRING_new();
             break;
+        case WOLFSSL_ASN1_INTEGER_ASN1:
+           *(WOLFSSL_ASN1_INTEGER**)item = wolfSSL_ASN1_INTEGER_new();
+           break;
         default:
             WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_new");
             *(void**)item = NULL;
@@ -127,6 +130,9 @@ static void wolfssl_asn1_item_free(void** item, int type)
             break;
         case WOLFSSL_ASN1_BIT_STRING_ASN1:
             wolfSSL_ASN1_BIT_STRING_free(*(WOLFSSL_ASN1_BIT_STRING**)item);
+            break;
+        case WOLFSSL_ASN1_INTEGER_ASN1:
+            wolfSSL_ASN1_INTEGER_free(*(WOLFSSL_ASN1_INTEGER**)item);
             break;
         default:
             WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_free");
@@ -225,6 +231,17 @@ static int wolfssl_i2d_asn1_item(void** item, int type, byte* buf)
             len = wolfSSL_i2d_ASN1_BIT_STRING(
                 *(const WOLFSSL_ASN1_BIT_STRING**)item, buf);
             break;
+        case WOLFSSL_ASN1_INTEGER_ASN1:
+        {
+            byte *tmp_buf = buf;
+            len = wolfSSL_i2d_ASN1_INTEGER(
+                *(const WOLFSSL_ASN1_INTEGER**)item, &tmp_buf);
+            if ((buf == NULL) && (tmp_buf != NULL)) {
+                XFREE(tmp_buf, NULL, DYNAMIC_TYPE_ASN1);
+                tmp_buf = NULL;
+            }
+        }
+        break;
         default:
             WOLFSSL_MSG("Type not support in processMembers");
             len = 0;
@@ -543,7 +560,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
 void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
 {
     if ((in != NULL) && (in->isDynamic)) {
-        /* Dispose of any data allocated in BIT_STRING. */
+        /* Dispose of any data allocated in INTEGER. */
         XFREE(in->data, NULL, DYNAMIC_TYPE_OPENSSL);
     }
     /* Dispose of the ASN.1 INTEGER object. */
@@ -787,7 +804,7 @@ static int wolfssl_asn1_int_twos_compl(byte* data, int length, byte* neg)
  * @return  -1 when a is NULL or no data, out is NULL, dynamic memory allocation
  *          fails or encoding length fails.
  */
-int wolfSSL_i2d_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER* a, unsigned char** out)
+int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a, unsigned char** out)
 {
     int ret = 0;
     byte* buf = NULL;

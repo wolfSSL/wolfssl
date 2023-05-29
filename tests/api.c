@@ -33539,7 +33539,8 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
     const EC_GROUP *group;
     const EC_POINT *point;
     int nid;
-    TEST_ASN1 test_asn1;
+    TEST_ASN1 *test_asn1 = NULL;
+
     const unsigned char badObjDer[] = { 0x06, 0x00 };
     const unsigned char goodObjDer[] = {
         0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
@@ -33631,12 +33632,17 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
     XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
     DPP_BOOTSTRAPPING_KEY_free(bootstrap);
 
+    /* Test integer */
+    AssertNotNull(test_asn1 = TEST_ASN1_new());
+    der = NULL;
+    ASN1_INTEGER_set(test_asn1->integer, 100);
+    AssertIntEQ(i2d_TEST_ASN1(test_asn1, &der), 5);
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+    TEST_ASN1_free(test_asn1);
+
     /* Test error cases. */
-    AssertNull(TEST_ASN1_new());
     AssertNull(wolfSSL_ASN1_item_new(NULL));
     TEST_ASN1_free(NULL);
-    XMEMSET(&test_asn1, 0, sizeof(TEST_ASN1));
-    AssertIntEQ(i2d_TEST_ASN1(&test_asn1, &der), 0);
 
     res = TEST_RES_CHECK(1);
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
