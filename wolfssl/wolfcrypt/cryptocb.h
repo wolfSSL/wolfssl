@@ -107,6 +107,10 @@ typedef struct wc_CryptoInfo {
                 const byte* pubKey;
                 word32      pubKeySz;
             } rsa_check;
+            struct {
+                const RsaKey* key;
+                int*          keySize;
+            } rsa_get_size;
         #endif
         #ifdef HAVE_ECC
             struct {
@@ -391,6 +395,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e,
 
 WOLFSSL_LOCAL int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
     word32 pubKeySz);
+WOLFSSL_LOCAL int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize);
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
