@@ -33610,7 +33610,8 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
     /* Test integer */
     AssertNotNull(test_asn1 = TEST_ASN1_new());
     der = NULL;
-    AssertIntEQ(i2d_TEST_ASN1(test_asn1, &der), 4);
+    ASN1_INTEGER_set(test_asn1->integer, 100);
+    AssertIntEQ(i2d_TEST_ASN1(test_asn1, &der), 5);
     XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
     TEST_ASN1_free(test_asn1);
 
