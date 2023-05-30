@@ -52,6 +52,7 @@ include IDE/zephyr/include.am
 include IDE/AURIX/include.am
 include IDE/MCUEXPRESSO/include.am
 include IDE/Espressif/include.am
+include IDE/STARCORE/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif
 EXTRA_DIST+= IDE/OPENSTM32/README.md
