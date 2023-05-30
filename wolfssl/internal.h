@@ -3182,7 +3182,7 @@ typedef struct KeyShareEntry {
     byte*                 pubKey;    /* Public key                        */
     word32                pubKeyLen; /* Public key length                 */
 #if !defined(NO_DH) || defined(HAVE_PQC)
-    byte*                 privKey;   /* Private key - DH ond PQ KEMs only */
+    byte*                 privKey;   /* Private key - DH and PQ KEMs only */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     int                   lastRet;

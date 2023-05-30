@@ -985,7 +985,7 @@ typedef struct Asn1 {
     Asn1Item         item;
     /* Current depth of ASN.1 item. */
     unsigned char    depth;
-    /* End indeces of ASN.1 items at different depths. */
+    /* End indices of ASN.1 items at different depths. */
     word32           end_idx[ASN_MAX_DEPTH];
 
     /* Buffer to print. */

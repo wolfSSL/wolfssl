@@ -1855,7 +1855,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_CAAM_HASH
     #endif
     #if defined(WOLFSSL_DEVCRYPTO_HMAC)
-        /* HMAC is throught the devcrypto calls */
+        /* HMAC is through the devcrypto calls */
         #define WOLFSSL_CAAM_HMAC
     #endif
 

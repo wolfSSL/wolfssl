@@ -2165,7 +2165,7 @@ static void AddTls13HandShakeHeader(byte* output, word32 length,
     (void)ssl;
 
 #ifdef WOLFSSL_DTLS13
-    /* message_hash type is used for a syntetic message that replaces the first
+    /* message_hash type is used for a synthetic message that replaces the first
        ClientHello in the hash transcript when using HelloRetryRequest. It will
        never be transmitted and, as the DTLS-only fields must not be considered
        when computing the hash transcript, we can avoid to use the DTLS

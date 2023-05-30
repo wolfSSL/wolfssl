@@ -2382,7 +2382,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
         }
     }
     else {
-        /* Convert unreadable strings to hexdecimal. */
+        /* Convert unreadable strings to hexadecimal. */
         ret = wolfssl_asn1_string_to_hex_chars(s);
     }
 
@@ -2833,7 +2833,7 @@ static int wolfssl_asn1_string_dump_hex(WOLFSSL_BIO *bio,
         /* Calculate end of string. */
         end = str->data + str->length - 1;
         for (p = str->data; p <= end; p++) {
-            /* Encode string characther as hex into temporary. */
+            /* Encode string character as hex into temporary. */
             ByteToHexStr((byte)*p, hex_tmp);
             /* Update count of written characters. */
             str_len += 2;
@@ -2853,7 +2853,7 @@ static int wolfssl_asn1_string_dump_hex(WOLFSSL_BIO *bio,
  * @param [in] c    Character to check for.
  * @param [in] str  String to check.
  * @return  1 when character found.
- * @return  0 when characther not found.
+ * @return  0 when character not found.
  */
 static int wolfssl_check_esc_char(char c)
 {
