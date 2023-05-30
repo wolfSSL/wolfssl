@@ -33335,7 +33335,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (alertType != invalid_alert) {
                     int err;
 
-                    /* propogate socket errors to avoid re-calling send alert */
+                    /* propagate socket errors to avoid re-calling send alert */
                     err = SendAlert(ssl, alert_fatal, alertType);
                     if (err == SOCKET_ERROR_E)
                         ret = SOCKET_ERROR_E;
@@ -34871,7 +34871,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             byte bogusID[ID_LEN];
             byte bogusIDSz = ssl->session->sessionIDSz;
             XMEMCPY(bogusID, ssl->session->sessionID, ID_LEN);
-            /* Failure here should not interupt the resumption. We already have
+            /* Failure here should not interrupt the resumption. We already have
              * all the cipher material we need in `it` */
             WOLFSSL_MSG("Copying in session from passed in arg");
             (void)wolfSSL_DupSession(sess, ssl->session, 1);

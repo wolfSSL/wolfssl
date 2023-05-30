@@ -3767,7 +3767,7 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     #endif
         pubKey = otherKey;
 
-        /* TLS v1.2 and older we must generate a key here for the client ony.
+        /* TLS v1.2 and older we must generate a key here for the client only.
          * TLS v1.3 calls key gen early with key share */
         if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
             ret = myEccKeyGen(ssl, privKey, 0, otherKey->dp->id, ctx);

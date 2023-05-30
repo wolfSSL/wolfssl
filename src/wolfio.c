@@ -57,7 +57,7 @@ Possible IO enable options:
  * indefinetely. If not enabled EmbedReceiveFrom will return timeout after
  * DTLS_RECEIVEFROM_MAX_INVALID_PEER number of packets from invalid peers. When
  * enabled, without a timer, EmbedReceivefrom can't check if the timeout is
- * expired and it may never return under a continous flow of invalid packets.
+ * expired and it may never return under a continuous flow of invalid packets.
  *                                                                default: off
  */
 

@@ -9500,7 +9500,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 
                 if (ret == WOLFSSL_SUCCESS) {
                     for (idx = 0; idx < req->customExtCount; idx++) {
-                        /* Note that ownership is NOT transfered.
+                        /* Note that ownership is NOT transferred.
                          * req->custom_exts buffers still need to be cleaned
                          * up. */
                         cert->customCertExt[idx] = req->custom_exts[idx];

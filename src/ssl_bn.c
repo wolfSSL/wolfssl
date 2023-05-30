@@ -1777,7 +1777,7 @@ int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
         ret = 0;
     }
 
-    /* Perfom operation with wolfCrypt. */
+    /* Perform operation with wolfCrypt. */
     if ((ret == 1) && (mp_addmod((mp_int*)a->internal, (mp_int*)b->internal,
             (mp_int*)m->internal, (mp_int*)r->internal) != MP_OKAY)) {
         WOLFSSL_MSG("mp_add_d error");
@@ -1973,7 +1973,7 @@ int wolfSSL_BN_gcd(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* a, WOLFSSL_BIGNUM* b,
  * @param [in]      top      Whether top bits must be set.
  *                           Valid values: WOLFSSL_BN_RAND_TOP_ANY,
  *                           WOLFSSL_BN_RAND_TOP_ONE, WOLFSSL_BN_RAND_TOP_TWO.
- * @param [in]      botttom  Whether bottom bit must be set.
+ * @param [in]      bottom   Whether bottom bit must be set.
  *                           Valid values: WOLFSSL_BN_RAND_BOTTOM_ANY,
                              WOLFSSL_BN_RAND_BOTTOM_ODD.
  * @return  1 on success.
@@ -2081,7 +2081,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
  * @param [in]      top      Whether top bits must be set.
  *                           Valid values: WOLFSSL_BN_RAND_TOP_ANY,
  *                           WOLFSSL_BN_RAND_TOP_ONE, WOLFSSL_BN_RAND_TOP_TWO.
- * @param [in]      botttom  Whether bottom bit must be set.
+ * @param [in]      bottom   Whether bottom bit must be set.
  *                           Valid values: WOLFSSL_BN_RAND_BOTTOM_ANY,
                              WOLFSSL_BN_RAND_BOTTOM_ODD.
  * @return  1 on success.
