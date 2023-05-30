@@ -64320,8 +64320,9 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 
 #if !defined(NO_FILESYSTEM) && \
-     defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+     defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA)
 
 static int test_wolfSSL_dtls_stateless2(void)
 {
@@ -64580,7 +64581,7 @@ static int test_wolfSSL_dtls_stateless_downgrade(void)
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
-    !defined(NO_OLD_TLS)
+    !defined(NO_OLD_TLS) && !defined(NO_RSA)
 static int test_WOLFSSL_dtls_version_alert(void)
 {
     struct test_memio_ctx test_ctx;
@@ -64635,7 +64636,7 @@ static int test_WOLFSSL_dtls_version_alert(void)
 }
 #endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&
         * !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&
-        * !defined(NO_OLD_TLS)
+        * !defined(NO_OLD_TLS) && !defined(NO_RSA)
         */
 
 
@@ -65927,7 +65928,7 @@ static int test_wolfSSL_dtls13_null_cipher(void)
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
-    !defined(SINGLE_THREADED)
+    !defined(SINGLE_THREADED) && !defined(NO_RSA)
 
 static int test_dtls_msg_get_connected_port(int fd, word16 *port)
 {
@@ -66021,7 +66022,7 @@ static int test_dtls_msg_from_other_peer(void)
 }
 #endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
         *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  \
-        *  !defined(SINGLE_THREADED) */
+        *  !defined(SINGLE_THREADED) && !defined(NO_RSA) */
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_IPV6) &&               \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
@@ -67108,10 +67109,12 @@ TEST_CASE testCases[] = {
 #ifdef HAVE_MAX_FRAGMENT
     TEST_DECL(test_wolfSSL_dtls_stateless_maxfrag),
 #endif /* HAVE_MAX_FRAGMENT */
+#ifndef NO_RSA
     TEST_DECL(test_wolfSSL_dtls_stateless2),
 #if !defined(NO_OLD_TLS)
     TEST_DECL(test_wolfSSL_dtls_stateless_downgrade),
 #endif /* !defined(NO_OLD_TLS) */
+#endif /* ! NO_RSA */
 #endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&     \
         *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) */
     TEST_DECL(test_wolfSSL_CTX_set_ciphersuites),

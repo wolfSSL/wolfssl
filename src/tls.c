@@ -6500,8 +6500,10 @@ static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
         hashSigAlgoSz = sa->hashSigAlgoSz;
     }
 
+#ifndef NO_RSA
     TLSX_SignatureAlgorithms_MapPss(sa->ssl, output + OPAQUE16_LEN,
             hashSigAlgoSz);
+#endif
 
     return OPAQUE16_LEN + hashSigAlgoSz;
 }

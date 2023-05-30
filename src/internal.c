@@ -3187,6 +3187,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif /* !NO_WOLFSSL_SERVER */
 
+#ifdef NO_RSA
+    haveRSAsig = 0;    /* can't have RSA sig if don't have RSA */
+#endif
+
 #ifdef WOLFSSL_DTLS
     if (pv.major == DTLS_MAJOR) {
         dtls   = 1;
