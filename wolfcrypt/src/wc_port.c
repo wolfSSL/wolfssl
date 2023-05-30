@@ -144,6 +144,9 @@ int wolfCrypt_Init(void)
          * must be freed. */
         wc_MemZero_Init();
     #endif
+    #ifdef WOLFSSL_MEM_FAIL_COUNT
+        wc_MemFailCount_Init();
+    #endif
 
     #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
         {
@@ -474,6 +477,9 @@ int wolfCrypt_Cleanup(void)
         Entropy_Final();
     #endif
 
+    #ifdef WOLFSSL_MEM_FAIL_COUNT
+        wc_MemFailCount_Free();
+    #endif
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Free the mutex for access to the list of memory locations that
          * must be freed. */

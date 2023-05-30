@@ -2481,6 +2481,23 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
+
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            {
+                int ret;
+                wolfSSL_RefInit(&bio->ref, &ret);
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                if (ret != 0) {
+                    wolfSSL_BIO_free(bio);
+                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
+                    return NULL;
+                }
+            #else
+                (void)ret;
+            #endif
+            }
+        #endif
+
             if (method->type == WOLFSSL_BIO_MEMORY)
                 bio->eof = WOLFSSL_BIO_ERROR; /* Return value for empty buffer */
             if (method->type == WOLFSSL_BIO_MEMORY ||
@@ -2506,22 +2523,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             if (method->createCb) {
                 method->createCb(bio);
             }
-
-        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            {
-                int ret;
-                wolfSSL_RefInit(&bio->ref, &ret);
-            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-                if (ret != 0) {
-                    wolfSSL_BIO_free(bio);
-                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
-                    return NULL;
-                }
-            #else
-                (void)ret;
-            #endif
-            }
-        #endif
 
         }
         return bio;

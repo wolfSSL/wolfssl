@@ -623,7 +623,7 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
     if ((!a->isDynamic) && (len > (int)a->dataMax)) {
         /* Create a new buffer to hold large integer value. */
         data = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
-        if (a->data == NULL) {
+        if (data == NULL) {
             ret = 0;
         }
         else {

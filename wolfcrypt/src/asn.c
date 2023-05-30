@@ -15390,14 +15390,17 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
                     sigCtx->key.rsa = (RsaKey*)XMALLOC(sizeof(RsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_RSA);
-                    sigCtx->sigCpy = (byte*)XMALLOC(sigSz, sigCtx->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-                    if (sigCtx->key.rsa == NULL || sigCtx->sigCpy == NULL) {
+                    if (sigCtx->key.rsa == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
                     if ((ret = wc_InitRsaKey_ex(sigCtx->key.rsa, sigCtx->heap,
                                                         sigCtx->devId)) != 0) {
                         goto exit_cs;
+                    }
+                    sigCtx->sigCpy = (byte*)XMALLOC(sigSz, sigCtx->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
+                    if (sigCtx->sigCpy == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_cs);
                     }
                     if (sigSz > MAX_ENCODED_SIG_SZ) {
                         WOLFSSL_MSG("Verify Signature is too big");
