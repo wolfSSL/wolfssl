@@ -66477,6 +66477,16 @@ static int test_dtls_ipv6_check(void)
     return TEST_SKIPPED;
 }
 #endif
+
+static int test_wolfSSL_configure_args(void)
+{
+#if defined(LIBWOLFSSL_CONFIGURE_ARGS) && defined(HAVE_WC_INTROSPECTION)
+    AssertNotNull(wolfSSL_configure_args());
+    return TEST_SUCCESS;
+#else
+    return TEST_SKIPPED;
+#endif
+}
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66742,6 +66752,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ERR_remove_state),
     TEST_DECL(test_wc_ERR_print_errors_fp),
 #endif
+    TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_set_options),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
     TEST_DECL(test_wolfSSL_set1_curves_list),
