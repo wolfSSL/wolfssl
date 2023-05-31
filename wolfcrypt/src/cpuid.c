@@ -43,14 +43,10 @@
             __asm__ __volatile__ ("cpuid":\
                 "=a" ((reg)[0]), "=b" ((reg)[1]), "=c" ((reg)[2]), "=d" ((reg)[3]) :\
                 "a" (leaf), "c"(sub));
-
-        #define XASM_LINK(f) asm(f)
     #else
         #include <intrin.h>
 
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
-
-        #define XASM_LINK(f)
     #endif /* _MSC_VER */
 
     #define EAX 0

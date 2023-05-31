@@ -1180,8 +1180,22 @@ typedef struct w64wrapper {
     /* invalid device id */
     #define INVALID_DEVID    (-2)
 
-    /* AESNI requires alignment and ARMASM gains some performance from it
-     * Xilinx RSA operations require alignment */
+    #ifdef XASM_LINK
+        /* keep user-supplied definition */
+    #elif defined(_MSC_VER)
+        #define XASM_LINK(f)
+    #elif defined(__APPLE__)
+        #define XASM_LINK(f) asm("_" f)
+    #elif defined(__GNUC__)
+        /* use alternate keyword for compatibility with -std=c99 */
+        #define XASM_LINK(f) __asm__(f)
+    #else
+        #define XASM_LINK(f) asm(f)
+    #endif
+
+    /* AESNI requires alignment and ARMASM gains some performance from it.
+     * Xilinx RSA operations require alignment.
+     */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
         defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX) || \
         defined(WOLFSSL_XILINX)
