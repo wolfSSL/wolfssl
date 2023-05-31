@@ -85,11 +85,24 @@ extern "C" {
 /* FIPS - Requires eval or license from wolfSSL */
 /* ------------------------------------------------------------------------- */
 #undef  HAVE_FIPS
+#undef  HAVE_FIPS_VERSION
+#undef  HAVE_FIPS_VERSION_MINOR
 #if 0
     #define HAVE_FIPS
 
-    #undef  HAVE_FIPS_VERSION
-    #define HAVE_FIPS_VERSION 2
+    /* Choose a FIPS version */
+    #if 0
+        /* FIPS 140-2 */
+        #define HAVE_FIPS_VERSION 2
+    #elif 0
+        /* FIPS 140-3 */
+        #define HAVE_FIPS_VERSION 5
+        #define HAVE_FIPS_VERSION_MINOR 2
+    #elif 0
+        /* FIPS Ready */
+        #define HAVE_FIPS_VERSION 5
+        #define HAVE_FIPS_VERSION_MINOR 3
+    #endif
 
     #ifdef SINGLE_THREADED
         #undef  NO_THREAD_LS
