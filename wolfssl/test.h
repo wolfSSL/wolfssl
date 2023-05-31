@@ -2928,8 +2928,9 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                                        wolfSSL_X509_get_issuer_name(peer), 0, 0);
         char* subject = wolfSSL_X509_NAME_oneline(
                                       wolfSSL_X509_get_subject_name(peer), 0, 0);
-        printf("\tPeer's cert info:\n issuer : %s\n subject: %s\n", issuer,
-                                                                  subject);
+        printf("\tPeer's cert info:\n issuer : %s\n subject: %s\n",
+               issuer ? issuer : "[none]",
+               subject ? subject : "[none]");
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (issuer != NULL && subject != NULL) {
             /* preverify needs to be self-signer error for Qt compat.

@@ -1861,7 +1861,9 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     OcspResponse* res = NULL;
     byte data[4096];
     const unsigned char* pt;
-    int  dataSz;
+    int  dataSz = 0; /* initialize to mitigate spurious maybe-uninitialized from
+                      * gcc sanitizer with --enable-heapmath.
+                      */
     XFILE f = XBADFILE;
     WOLFSSL_OCSP_BASICRESP* bs = NULL;
     WOLFSSL_X509_STORE* st = NULL;
@@ -2128,16 +2130,15 @@ static int test_wolfSSL_CertManagerGetCerts(void)
     ExpectNull(sk = wolfSSL_CertManagerGetCerts(cm));
 
     ExpectNotNull(der = wolfSSL_X509_get_der(cert1, &derSz));
-    ExpectIntEQ(ret = wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
-        WOLFSSL_FILETYPE_ASN1),
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     /* Check that ASN_SELF_SIGNED_E is returned for a self-signed cert for QT
      * and full OpenSSL compatibility */
-       ASN_SELF_SIGNED_E
+    ExpectIntEQ(ret = wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+        WOLFSSL_FILETYPE_ASN1), ASN_SELF_SIGNED_E);
 #else
-       ASN_NO_SIGNER_E
+    ExpectIntEQ(ret = wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+        WOLFSSL_FILETYPE_ASN1), ASN_NO_SIGNER_E);
 #endif
-    );
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
                 "./certs/ca-cert.pem", NULL));
@@ -2186,13 +2187,12 @@ static int test_wolfSSL_CertManagerSetVerify(void)
 
     wolfSSL_CertManagerSetVerify(cm, myVerify);
 
-    ExpectIntEQ(ret = wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL),
     #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
-        -1
+    ExpectIntEQ(ret = wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), -1);
     #else
-        WOLFSSL_SUCCESS
+    ExpectIntEQ(ret = wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL),
+                WOLFSSL_SUCCESS);
     #endif
-    );
     /* Use the test CB that always accepts certs */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
@@ -2284,7 +2284,7 @@ static int test_wolfSSL_CertManagerNameConstraint(void)
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     ExpectNotNull(pt = (byte*)wolfSSL_X509_get_tbs(x509, &derSz));
-    if (der != NULL) {
+    if (EXPECT_SUCCESS() && (der != NULL)) {
         XMEMCPY(der, pt, derSz);
 
         /* find the name constraint extension and alter it */
@@ -3376,7 +3376,7 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
     defined(KEEP_OUR_CERT) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
     EXPECT_DECLS;
     WOLFSSL_CTX*        ctx;
-    WOLFSSL*            ssl = NULL;;
+    WOLFSSL*            ssl = NULL;
     const char *certChain[] = {
             "./certs/intermediate/client-int-cert.pem",
             "./certs/intermediate/ca-int2-cert.pem",
@@ -6135,7 +6135,8 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
-static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
+static void test_client_reuse_WOLFSSLobj(void* args, cbType cb,
+                                         void* server_args)
 {
     SOCKET_T sockfd = 0;
     callback_functions* cbf;
@@ -6262,7 +6263,7 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
     }
     /* Build first session */
     if (cb != NULL)
-        ((cbType)cb)(ctx, ssl);
+        cb(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
         /*err_sys("SSL_write failed");*/
@@ -6326,7 +6327,7 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
     }
     /* Build first session */
     if (cb != NULL)
-        ((cbType)cb)(ctx, ssl);
+        cb(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
         /*err_sys("SSL_write failed");*/
@@ -9275,14 +9276,16 @@ static int test_wolfSSL_SNI_GetFromBuffer(void)
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff, sizeof(buff),
                                                            0, result, &length));
-    result[length] = 0;
+    if (EXPECT_RESULT() == TEST_SUCCESS)
+        result[length] = 0;
     ExpectStrEQ("www.paypal.com", (const char*) result);
 
     length = 32;
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff2, sizeof(buff2),
                                                            0, result, &length));
-    result[length] = 0;
+    if (EXPECT_RESULT() == TEST_SUCCESS)
+        result[length] = 0;
     ExpectStrEQ("api.textmate.org", (const char*) result);
 
     /* SSL v2.0 tests */
@@ -11430,14 +11433,13 @@ static int test_wolfSSL_UseOCSPStapling(void)
 
     ExpectIntEQ(wolfSSL_UseOCSPStapling(NULL, WOLFSSL_CSR2_OCSP,
         WOLFSSL_CSR2_OCSP_USE_NONCE), BAD_FUNC_ARG);
-    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP,
-        WOLFSSL_CSR2_OCSP_USE_NONCE),
 #ifndef NO_WOLFSSL_CLIENT
-        1
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), 1);
 #else
-        BAD_FUNC_ARG
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), BAD_FUNC_ARG);
 #endif
-        );
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -11479,14 +11481,13 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
 
     ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(NULL, WOLFSSL_CSR2_OCSP,
         WOLFSSL_CSR2_OCSP_USE_NONCE), BAD_FUNC_ARG);
-    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP,
-        WOLFSSL_CSR2_OCSP_USE_NONCE),
 #ifndef NO_WOLFSSL_CLIENT
-        1
+    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), 1);
 #else
-        BAD_FUNC_ARG
+    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP,
+        WOLFSSL_CSR2_OCSP_USE_NONCE), BAD_FUNC_ARG);
 #endif
-        );
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -34870,7 +34871,8 @@ static int test_wc_KeyPemToDer(void)
     /* Test NULL for DER buffer to return needed DER buffer size */
     ExpectIntGT(ret = wc_KeyPemToDer(cert_buf, cert_sz, NULL, 0, ""), 0);
     ExpectIntLE(ret, cert_sz);
-    cert_dersz = ret;
+    if (EXPECT_RESULT() == TEST_SUCCESS)
+        cert_dersz = ret;
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
     ExpectIntGE(ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz,
         cert_pw), 0);
