@@ -637,8 +637,14 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
     return err;
 }
 
-
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
+{
+    /* use sha1 by default for backwards compatability */
+    return wc_DsaSign_ex(digest, WC_SHA_DIGEST_SIZE, out, key, rng);
+}
+
+int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
+    WC_RNG* rng)
 {
 #ifdef WOLFSSL_SMALL_STACK
     mp_int  *k = NULL;
@@ -781,7 +787,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         }
 
         /* generate H from sha digest */
-        if (mp_read_unsigned_bin(H, digest,WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+        if (mp_read_unsigned_bin(H, digest, digestSz) != MP_OKAY) {
             ret = MP_READ_E;
             break;
         }
@@ -824,7 +830,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         }
 
         /* set H from sha digest */
-        if (mp_read_unsigned_bin(H, digest, WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+        if (mp_read_unsigned_bin(H, digest, digestSz) != MP_OKAY) {
             ret = MP_READ_E;
             break;
         }
@@ -964,8 +970,14 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     return ret;
 }
 
-
 int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
+{
+    /* use sha1 by default for backwards compatability */
+    return wc_DsaVerify_ex(digest, WC_SHA_DIGEST_SIZE, sig, key, answer);
+}
+
+int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
+    DsaKey* key, int* answer)
 {
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *w = NULL;
@@ -1029,7 +1041,7 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
         }
 
         /* put H into u1 from sha digest */
-        if (mp_read_unsigned_bin(u1,digest,WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+        if (mp_read_unsigned_bin(u1,digest, digestSz) != MP_OKAY) {
             ret = MP_READ_E;
             break;
         }
