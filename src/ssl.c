@@ -20610,8 +20610,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             if (x509->dynamicMemory != TRUE)
                 InitX509(x509, 0, NULL);
             ret = CopyDecodedToX509(x509, cert);
-            FreeDecodedCert(cert);
         }
+        FreeDecodedCert(cert);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
     #endif
@@ -26128,7 +26128,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     { NID_postalCode, NID_postalCode, oidCertNameType, "postalCode", "postalCode"},
     { NID_userId, NID_userId, oidCertNameType, "UID", "userId"},
 
-#ifdef WOLFSSL_CERT_REQ
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_NAME_ALL)
     { NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
             oidCsrAttrType, "challengePassword", "challengePassword"},
     { NID_pkcs9_contentType, PKCS9_CONTENT_TYPE_OID,
@@ -27862,28 +27862,31 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **key,
     DerBuffer*        der = NULL;
     int               keyFormat = 0;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PUBKEY");
+    WOLFSSL_ENTER("wolfSSL_PEM_read_PUBKEY");
 
     if (pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der)
             >= 0) {
         const unsigned char* ptr = der->buffer;
 
         /* handle case where reuse is attempted */
-        if (key != NULL && *key != NULL)
+        if ((key != NULL) && (*key != NULL)) {
             pkey = *key;
+        }
 
-        wolfSSL_d2i_PUBKEY(&pkey, &ptr, der->length);
-        if (pkey == NULL) {
+        if ((wolfSSL_d2i_PUBKEY(&pkey, &ptr, der->length) == NULL) ||
+                (pkey == NULL)) {
             WOLFSSL_MSG("Error loading DER buffer into WOLFSSL_EVP_PKEY");
+            pkey = NULL;
         }
     }
 
     FreeDer(&der);
 
-    if (key != NULL && pkey != NULL)
+    if ((key != NULL) && (pkey != NULL)) {
         *key = pkey;
+    }
 
-    WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PUBKEY", 0);
+    WOLFSSL_LEAVE("wolfSSL_PEM_read_PUBKEY", 0);
 
     return pkey;
 }
@@ -37446,6 +37449,7 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
     /* take ownership of certs */
     p7->certs = certs;
+    /* TODO: takes ownership even on failure below but not on above failure. */
 
     if (pkcs7->certList) {
         WOLFSSL_MSG("wolfSSL_PKCS7_encode_certs called multiple times on same "

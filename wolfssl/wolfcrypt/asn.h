@@ -1289,7 +1289,7 @@ enum KeyIdType {
 };
 #endif
 
-#ifdef WOLFSSL_CERT_REQ
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_NAME_ALL)
 enum CsrAttrType {
     UNSTRUCTURED_NAME_OID = 654,
     PKCS9_CONTENT_TYPE_OID = 655,

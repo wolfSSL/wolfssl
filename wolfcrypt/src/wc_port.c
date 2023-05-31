@@ -77,8 +77,8 @@
     #include <wolfssl/openssl/evp.h>
 #endif
 
+#include <wolfssl/wolfcrypt/memory.h>
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
-    #include <wolfssl/wolfcrypt/memory.h>
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 

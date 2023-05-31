@@ -1124,8 +1124,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
      */
     if (x509->ext_sk == NULL)
         x509->ext_sk = wolfSSL_sk_new_x509_ext();
-    if (x509->ext_sk != NULL)
-        wolfSSL_sk_X509_EXTENSION_push(x509->ext_sk, ext);
+    if (wolfSSL_sk_X509_EXTENSION_push(x509->ext_sk, ext) == WOLFSSL_FAILURE) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
 
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK
@@ -2925,9 +2926,6 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
 err_cleanup:
     if (ext) {
         wolfSSL_X509_EXTENSION_free(ext);
-    }
-    if (asn1str) {
-        wolfSSL_ASN1_STRING_free(asn1str);
     }
     return NULL;
 }
@@ -10354,6 +10352,10 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
                 return WOLFSSL_FATAL_ERROR;
             }
             if (wolfSSL_ASN1_STRING_canon(cano_data, data) != WOLFSSL_SUCCESS) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                wolfSSL_ASN1_STRING_free(cano_data);
                 return WOLFSSL_FAILURE;
             }
             nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
