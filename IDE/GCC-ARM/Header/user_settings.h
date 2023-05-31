@@ -195,6 +195,9 @@ extern "C" {
 
         #undef  WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
+
+        #undef  WOLFSSL_ECDSA_SET_K
+        #define WOLFSSL_ECDSA_SET_K
     #endif
 
     /* Compressed Key Support */
