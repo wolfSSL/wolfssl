@@ -9276,7 +9276,7 @@ static int test_wolfSSL_SNI_GetFromBuffer(void)
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff, sizeof(buff),
                                                            0, result, &length));
-    if (EXPECT_RESULT() == TEST_SUCCESS)
+    if (EXPECT_SUCCESS())
         result[length] = 0;
     ExpectStrEQ("www.paypal.com", (const char*) result);
 
@@ -9284,7 +9284,7 @@ static int test_wolfSSL_SNI_GetFromBuffer(void)
 
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff2, sizeof(buff2),
                                                            0, result, &length));
-    if (EXPECT_RESULT() == TEST_SUCCESS)
+    if (EXPECT_SUCCESS())
         result[length] = 0;
     ExpectStrEQ("api.textmate.org", (const char*) result);
 
@@ -34871,7 +34871,7 @@ static int test_wc_KeyPemToDer(void)
     /* Test NULL for DER buffer to return needed DER buffer size */
     ExpectIntGT(ret = wc_KeyPemToDer(cert_buf, cert_sz, NULL, 0, ""), 0);
     ExpectIntLE(ret, cert_sz);
-    if (EXPECT_RESULT() == TEST_SUCCESS)
+    if (EXPECT_SUCCESS())
         cert_dersz = ret;
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
     ExpectIntGE(ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz,
