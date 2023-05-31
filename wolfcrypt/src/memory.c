@@ -24,6 +24,13 @@
     #include <config.h>
 #endif
 
+#ifdef WOLFSSL_LINUXKM
+    /* inhibit "#undef current" in linuxkm_wc_port.h, included from wc_port.h,
+     * because needed in linuxkm_memory.c, included below.
+     */
+    #define WOLFSSL_NEED_LINUX_CURRENT
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 /* check old macros @wc_fips */
