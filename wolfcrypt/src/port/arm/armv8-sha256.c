@@ -301,13 +301,28 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         numBlocks = (len + sha256->buffLen)/WC_SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
-            /* get leftover amount after blocks */
-            add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
+            /* handle unaligned data */
+            if ((wc_ptr_t)data & 0x7) {
+                while (numBlocks--) {
+                    /* data won't be used since only 1 block at a time*/
+                    Sha256Transform(sha256, data, 1);
+                    AddLength(sha256, WC_SHA256_BLOCK_SIZE);
+                    if (numBlocks > 0) {
+                        len -= WC_SHA256_BLOCK_SIZE;
+                        XMEMCPY((byte*)(sha256->buffer),data, WC_SHA256_BLOCK_SIZE);
+                        data += WC_SHA256_BLOCK_SIZE;
+                    }
+                }
+                add = len;
+            }
+            else {
+              /* get leftover amount after blocks */
+              add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
 
-            Sha256Transform(sha256, data, numBlocks);
-            data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
-
-            AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
+              Sha256Transform(sha256, data, numBlocks);
+              data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
+              AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
+            }
 
             /* copy over any remaining data leftover */
             XMEMCPY(sha256->buffer, data, add);
