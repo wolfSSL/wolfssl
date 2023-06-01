@@ -1180,8 +1180,16 @@ typedef struct w64wrapper {
     /* invalid device id */
     #define INVALID_DEVID    (-2)
 
-    #ifdef XASM_LINK
+    #if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,3)
+        #ifdef XASM_LINK
+            #error User-supplied XASM_LINK is not compatible with this FIPS version.
+        #else
+            /* use version in FIPS <=5.2 aes.c */
+        #endif
+    #elif defined(XASM_LINK)
         /* keep user-supplied definition */
+    #elif defined(WOLFSSL_NO_ASM)
+        #define XASM_LINK(f)
     #elif defined(_MSC_VER)
         #define XASM_LINK(f)
     #elif defined(__APPLE__)
