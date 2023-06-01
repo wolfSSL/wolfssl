@@ -709,14 +709,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define AESNI_ALIGN 16
     #endif
 
-    #ifdef _MSC_VER
-        #define XASM_LINK(f)
-    #elif defined(__APPLE__)
-        #define XASM_LINK(f) asm("_" f)
-    #else
-        #define XASM_LINK(f) asm(f)
-    #endif /* _MSC_VER */
-
     static int checkAESNI = 0;
     static int haveAESNI  = 0;
     static word32 intel_flags = 0;

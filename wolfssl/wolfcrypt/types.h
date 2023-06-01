@@ -1180,8 +1180,22 @@ typedef struct w64wrapper {
     /* invalid device id */
     #define INVALID_DEVID    (-2)
 
-    /* AESNI requires alignment and ARMASM gains some performance from it
-     * Xilinx RSA operations require alignment */
+    #ifdef XASM_LINK
+        /* keep user-supplied definition */
+    #elif defined(_MSC_VER)
+        #define XASM_LINK(f)
+    #elif defined(__APPLE__)
+        #define XASM_LINK(f) asm("_" f)
+    #elif defined(__GNUC__)
+        /* use alternate keyword for compatibility with -std=c99 */
+        #define XASM_LINK(f) __asm__(f)
+    #else
+        #define XASM_LINK(f) asm(f)
+    #endif
+
+    /* AESNI requires alignment and ARMASM gains some performance from it.
+     * Xilinx RSA operations require alignment.
+     */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
         defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX) || \
         defined(WOLFSSL_XILINX)
@@ -1379,6 +1393,9 @@ typedef struct w64wrapper {
         #define PRAGMA_GCC_DIAG_PUSH _Pragma("GCC diagnostic push")
         #define PRAGMA_GCC(str) _Pragma(str)
         #define PRAGMA_GCC_DIAG_POP _Pragma("GCC diagnostic pop")
+        #define PRAGMA_DIAG_PUSH PRAGMA_GCC_DIAG_PUSH
+        #define PRAGMA(str) PRAGMA_GCC(str)
+        #define PRAGMA_DIAG_POP PRAGMA_GCC_DIAG_POP
     #else
         #define PRAGMA_GCC_DIAG_PUSH
         #define PRAGMA_GCC(str)
@@ -1389,10 +1406,23 @@ typedef struct w64wrapper {
         #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
         #define PRAGMA_CLANG(str) _Pragma(str)
         #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
+        #define PRAGMA_DIAG_PUSH PRAGMA_CLANG_DIAG_PUSH
+        #define PRAGMA(str) PRAGMA_CLANG(str)
+        #define PRAGMA_DIAG_POP PRAGMA_CLANG_DIAG_POP
     #else
         #define PRAGMA_CLANG_DIAG_PUSH
         #define PRAGMA_CLANG(str)
         #define PRAGMA_CLANG_DIAG_POP
+    #endif
+
+    #ifndef PRAGMA_DIAG_PUSH
+        #define PRAGMA_DIAG_PUSH
+    #endif
+    #ifndef PRAGMA
+        #define PRAGMA(str)
+    #endif
+    #ifndef PRAGMA_DIAG_POP
+        #define PRAGMA_DIAG_POP
     #endif
 
     #ifdef DEBUG_VECTOR_REGISTER_ACCESS
