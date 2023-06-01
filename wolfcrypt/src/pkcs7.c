@@ -1085,6 +1085,12 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         /* create new Pkcs7Cert for recipient, freed during cleanup */
         cert = (Pkcs7Cert*)XMALLOC(sizeof(Pkcs7Cert), pkcs7->heap,
                                    DYNAMIC_TYPE_PKCS7);
+        if (cert == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+#endif
+            return MEMORY_E;
+        }
         XMEMSET(cert, 0, sizeof(Pkcs7Cert));
         cert->der = derCert;
         cert->derSz = derCertSz;

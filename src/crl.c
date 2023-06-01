@@ -597,6 +597,10 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
                                         DYNAMIC_TYPE_CRL_ENTRY);
     if (crl->currentEntry == NULL) {
         WOLFSSL_MSG("alloc CRL Entry failed");
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        FreeDer(&der);
         return MEMORY_E;
     }
     XMEMSET(crl->currentEntry, 0, sizeof(CRL_Entry));
