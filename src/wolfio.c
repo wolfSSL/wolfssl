@@ -388,7 +388,7 @@ static int sockAddrEqual(
 #ifndef WOLFSSL_IPV6
 static int PeerIsIpv6(const SOCKADDR_S *peer, XSOCKLENT len)
 {
-    if (len < sizeof(peer->ss_family))
+    if (len < (XSOCKLENT)sizeof(peer->ss_family))
         return 0;
     return peer->ss_family == WOLFSSL_IP6;
 }

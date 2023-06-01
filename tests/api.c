@@ -66317,7 +66317,7 @@ static int test_dtls_msg_get_connected_port(int fd, word16 *port)
     XMEMSET((byte*)&peer, 0, sizeof(peer));
     len = sizeof(peer);
     ret = getpeername(fd,  (SOCKADDR*)&peer, &len);
-    if (ret != 0 || len > sizeof(peer))
+    if (ret != 0 || len > (XSOCKLENT)sizeof(peer))
         return -1;
     switch (peer.ss_family) {
 #ifdef WOLFSSL_IPV6
