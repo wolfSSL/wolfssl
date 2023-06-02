@@ -2169,6 +2169,8 @@ WOLFSSL_API void *wolfSSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 
 WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
                           void (*f)(const WOLFSSL* ssl, int type, int val));
+WOLFSSL_API void wolfSSL_set_info_callback(WOLFSSL* ssl,
+                          void (*f)(const WOLFSSL* ssl, int type, int val));
 
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);
@@ -2271,6 +2273,7 @@ enum {
     WOLFSSL_OP_TLS_D5_BUG                             = 0x00000080,
     WOLFSSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
     WOLFSSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
+    WOLFSSL_OP_NO_RENEGOTIATION                       = 0x00000400,
     WOLFSSL_OP_EPHEMERAL_RSA                          = 0x00000800,
     WOLFSSL_OP_NO_SSLv3                               = 0x00001000,
     WOLFSSL_OP_NO_TLSv1                               = 0x00002000,
@@ -2306,7 +2309,7 @@ enum {
 };
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
 /* for compatibility these must be macros */
 
 #define SSL_OP_MICROSOFT_SESS_ID_BUG            WOLFSSL_OP_MICROSOFT_SESS_ID_BUG
@@ -4939,6 +4942,7 @@ WOLFSSL_API int wolfSSL_SSL_in_init(const WOLFSSL* ssl);
 #else
 WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL* ssl);
 #endif
+WOLFSSL_API int wolfSSL_SSL_in_before(const WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl);
 
 #ifndef NO_SESSION_CACHE

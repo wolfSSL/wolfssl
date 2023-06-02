@@ -40,6 +40,8 @@ jobs:
         uses: ./.github/workflows/krb5.yml
     packaging:
         uses: ./.github/workflows/packaging.yml
+    memcached:
+        uses: ./.github/workflows/memcached.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml

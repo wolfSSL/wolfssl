@@ -40602,7 +40602,7 @@ static int test_wolfSSL_ERR_put_error(void)
 static int test_wolfSSL_ERR_get_error_order(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA)
     /* Empty the queue. */
     wolfSSL_ERR_clear_error();
 
@@ -40613,7 +40613,7 @@ static int test_wolfSSL_ERR_get_error_order(void)
     ExpectIntEQ(wolfSSL_ERR_get_error(), -ASN_NO_SIGNER_E);
     ExpectIntEQ(wolfSSL_ERR_peek_error(), -ASN_SELF_SIGNED_E);
     ExpectIntEQ(wolfSSL_ERR_get_error(), -ASN_SELF_SIGNED_E);
-#endif /* WOLFSSL_HAVE_ERROR_QUEUE */
+#endif /* WOLFSSL_HAVE_ERROR_QUEUE && OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
 
@@ -45068,6 +45068,7 @@ static int test_wolfSSL_SESSION(void)
 #endif
     ExpectIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess, 500), SSL_SUCCESS);
 
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* fail case with miss match session context IDs (use compatibility API) */
     ExpectIntEQ(SSL_set_session_id_context(ssl, context, contextSz),
             SSL_SUCCESS);
@@ -45080,6 +45081,7 @@ static int test_wolfSSL_SESSION(void)
             SSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
+#endif
 #endif /* OPENSSL_EXTRA */
 
     wolfSSL_free(ssl);
@@ -62120,7 +62122,9 @@ static int test_wolfSSL_set_SSL_CTX(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx2));
     ExpectIntNE((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3), 0);
 #ifdef WOLFSSL_INT_H
+#ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
+#endif
     ExpectTrue(ssl->buffers.certificate == ctx2->certificate);
     ExpectTrue(ssl->buffers.certChain == ctx2->certChain);
 #endif
@@ -62142,7 +62146,9 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #ifdef WOLFSSL_INT_H
     ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
     ExpectTrue(ssl->buffers.certChain == ctx1->certChain);
+#ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id1, 4), 0);
+#endif
 #endif
 
     wolfSSL_free(ssl);
