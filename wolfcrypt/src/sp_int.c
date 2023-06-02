@@ -11736,7 +11736,7 @@ static int _sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m,
     }
     else {
         /* Do operation using temporary. */
-        _sp_mulmod_tmp(a, b, m, r);
+        err = _sp_mulmod_tmp(a, b, m, r);
     }
 
     return err;
