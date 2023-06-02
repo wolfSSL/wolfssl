@@ -4652,10 +4652,12 @@ static int test_wolfSSL_EVP_EncodeUpdate(void)
     );
     ExpectIntEQ(outl,0);
 
+    if (EXPECT_SUCCESS()) {
         EVP_EncodeFinal(
             ctx,
             encOutBuff + outl,
             &outl);
+    }
 
     ExpectIntEQ( outl, sizeof(enc0)-1);
     ExpectIntEQ(
@@ -5014,10 +5016,12 @@ static int test_wolfSSL_EVP_DecodeUpdate(void)
         ExpectIntEQ(EVP_DecodeFinal(ctx,decOutBuff + outl, NULL), -1);
         ExpectIntEQ(EVP_DecodeFinal(NULL,NULL, NULL), -1);
 
-        EVP_DecodeFinal(
-            ctx,
-            decOutBuff + outl,
-            &outl);
+        if (EXPECT_SUCCESS()) {
+            EVP_DecodeFinal(
+                ctx,
+                decOutBuff + outl,
+                &outl);
+        }
 
         ExpectIntEQ( outl, 0);
         ExpectIntEQ(
@@ -11616,14 +11620,13 @@ static int test_wolfSSL_X509_TLS_version_test_1(void)
     func_cb_server.method = wolfTLSv1_3_server_method;
 #endif
 
-    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
-        &func_cb_server, NULL),
 #ifndef OPENSSL_COMPATIBLE_DEFAULTS
-        TEST_FAIL
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_FAIL);
 #else
-        TEST_SUCCESS
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
 #endif
-        );
 
     res = EXPECT_RESULT();
 #endif
@@ -37189,6 +37192,7 @@ static int test_wolfSSL_EVP_PKEY_new_mac_key(void)
         /* Allocation for key->pkey.ptr may fail - OK key len is 0 */
         checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz);
     }
+    ExpectTrue((checkPwSz == 0) || (checkPw != NULL));
     ExpectIntEQ((int)checkPwSz, 0);
     wolfSSL_EVP_PKEY_free(key);
     key = NULL;
@@ -37200,6 +37204,7 @@ static int test_wolfSSL_EVP_PKEY_new_mac_key(void)
         /* Allocation for key->pkey.ptr may fail - OK key len is 0 */
         checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz);
     }
+    ExpectTrue((checkPwSz == 0) || (checkPw != NULL));
     ExpectIntEQ((int)checkPwSz, 0);
     wolfSSL_EVP_PKEY_free(key);
     key = NULL;
