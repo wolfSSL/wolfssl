@@ -1058,7 +1058,7 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int  x, y, u, v, B, D;
-  int     res, neg, loop_check = 0;
+  int     res, loop_check = 0;
 
   /* 2. [modified] b must be odd   */
   if (mp_iseven (b) == MP_YES) {
@@ -1077,6 +1077,12 @@ int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 
   /* we need y = |a| */
   if ((res = mp_mod (a, b, &y)) != MP_OKAY) {
+    goto LBL_ERR;
+  }
+
+  if (mp_iszero (&y) == MP_YES) {
+    /* invmod doesn't exist for this a and b */
+    res = MP_VAL;
     goto LBL_ERR;
   }
 
@@ -1168,7 +1174,6 @@ top:
   }
 
   /* b is now the inverse */
-  neg = a->sign;
   while (D.sign == MP_NEG) {
     if ((res = mp_add (&D, b, &D)) != MP_OKAY) {
       goto LBL_ERR;
@@ -1181,7 +1186,6 @@ top:
       }
   }
   mp_exch (&D, c);
-  c->sign = neg;
   res = MP_OKAY;
 
 LBL_ERR:mp_clear(&x);
@@ -1226,6 +1230,13 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
   if ((res = mp_mod(a, b, &x)) != MP_OKAY) {
     goto LBL_ERR;
   }
+
+  if (mp_iszero (&x) == MP_YES) {
+    /* invmod doesn't exist for this a and b */
+    res = MP_VAL;
+    goto LBL_ERR;
+  }
+
   if (mp_isone(&x)) {
     res = mp_set(c, 1);
     goto LBL_ERR;
