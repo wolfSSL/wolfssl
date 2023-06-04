@@ -36409,7 +36409,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         !defined(HAVE_USER_RSA) && !defined(NO_RSA)
     {
         XFILE f = XBADFILE;
-        wc_pem_password_cb* passwd_cb;
+        wc_pem_password_cb* passwd_cb = NULL;
         void* passwd_cb_userdata;
         SSL_CTX* ctx = NULL;
         char passwd[] = "bad password";
