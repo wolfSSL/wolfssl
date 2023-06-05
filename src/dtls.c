@@ -573,6 +573,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     XMEMSET(&pskInfo, 0, sizeof(pskInfo));
 #endif
 
+#ifndef HAVE_SUPPORTED_CURVES
+    (void)doKE;
+#endif /* !HAVE_SUPPORTED_CURVES */
+
     XMEMSET(&cs, 0, sizeof(cs));
 
     /* We need to echo the session ID sent by the client */
@@ -602,10 +606,13 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     /* Set that this is a response extension */
     parsedExts->resp = 1;
 
+#if defined(HAVE_SUPPORTED_CURVES)
     ret = TLSX_SupportedCurve_Copy(ssl->extensions, &parsedExts, ssl->heap);
     if (ret != 0)
         goto dtls13_cleanup;
+#endif
 
+#if !defined(NO_CERTS)
     /* Signature algs */
     ret = FindExtByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
                          ch->extension, &tlsxFound);
@@ -624,7 +631,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         XMEMCPY(suites.hashSigAlgo, sigAlgs.elements, sigAlgs.size);
         haveSA = 1;
     }
+#endif /* !defined(NO_CERTS) */
 
+#ifdef HAVE_SUPPORTED_CURVES
     /* Supported groups */
     ret = FindExtByType(&tlsx, TLSX_SUPPORTED_GROUPS,
                          ch->extension, &tlsxFound);
@@ -650,6 +659,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             goto dtls13_cleanup;
         haveKS = 1;
     }
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Pre-shared key */
@@ -705,6 +715,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
 
+#ifdef HAVE_SUPPORTED_CURVES
         if (doKE) {
             byte searched = 0;
             ret = TLSX_KeyShare_Choose(ssl, parsedExts, &cs.clientKSE,
@@ -714,9 +725,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             if (cs.clientKSE == NULL && searched)
                 cs.doHelloRetry = 1;
         }
+#endif /* HAVE_SUPPORTED_CURVES */
     }
     else
-#endif
+#endif /* defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) */
     {
         /* https://datatracker.ietf.org/doc/html/rfc8446#section-9.2 */
         if (!haveKS || !haveSA || !haveSG) {
@@ -731,6 +743,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
     }
+
+#ifdef HAVE_SUPPORTED_CURVES
     if (cs.doHelloRetry) {
         ret = TLSX_KeyShare_SetSupported(ssl, &parsedExts);
         if (ret != 0)
@@ -741,6 +755,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
          * and are not doing curve negotiation. */
         TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
     }
+#endif /* HAVE_SUPPORTED_CURVES */
 
     /* This is required to correctly generate the hash */
     ret = GetCipherSpec(WOLFSSL_SERVER_END, cs.cipherSuite0,
