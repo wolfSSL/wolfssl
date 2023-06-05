@@ -984,8 +984,21 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     pka_ecc.pPubKeyCurvePtY = Qybin;
     pka_ecc.RSign =           Rbin;
     pka_ecc.SSign =           Sbin;
+
     XMEMSET(Hashbin, 0, STM32_MAX_ECC_SIZE);
-    XMEMCPY(Hashbin + (size - hashlen), hash, hashlen);
+    if (hashlen > STM32_MAX_ECC_SIZE) {
+        return ECC_BAD_ARG_E;
+    }
+    else if (hashlen > size) {
+        /* in the case that hashlen is larger than key size place hash at
+         * beginning of buffer */
+        XMEMCPY(Hashbin, hash, hashlen);
+    }
+    else {
+        /* in all other cases where hashlen is equal to or less than the key
+         * size pad the Hashbin buffer with leading zero's */
+        XMEMCPY(Hashbin + (size - hashlen), hash, hashlen);
+    }
     pka_ecc.hash =            Hashbin;
 
     status = HAL_PKA_ECDSAVerif(&hpka, &pka_ecc, HAL_MAX_DELAY);
