@@ -426,6 +426,7 @@ int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
 
     \return Success Length of text on no error.
     \return MEMORY_E memory exception.
+    \return MP_EXPTMOD_E - When using fastmath and FP_MAX_BITS not set to at least 2 times the keySize (Example when using 4096-bit key set FP_MAX_BITS to 8192 or greater value)
 
     \param in The byte array to be decrypted.
     \param inLen The length of in.
