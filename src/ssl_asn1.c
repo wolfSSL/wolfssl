@@ -4002,7 +4002,7 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS)
 /**
  * Set ASN.1 TYPE object with a type and value.
  *
@@ -4055,7 +4055,7 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
     }
 }
 
-#endif /* OPENSSL_ALL || WOLFSSL_WPAS */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_WPAS */
 
 #endif /* !NO_ASN */
 
