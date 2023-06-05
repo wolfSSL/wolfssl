@@ -5430,9 +5430,11 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
         *ctx_c = wolfSSL_CTX_new(method_c());
         if (*ctx_c == NULL)
             return -1;
+#ifndef NO_CERTS
         ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
         if (ret != WOLFSSL_SUCCESS)
             return -1;
+#endif /* NO_CERTS */
         wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
         wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
         if (ctx->c_ciphers != NULL) {
@@ -5446,6 +5448,7 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
         *ctx_s = wolfSSL_CTX_new(method_s());
         if (*ctx_s == NULL)
             return -1;
+#ifndef NO_CERTS
         ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
             WOLFSSL_FILETYPE_PEM);
         if (ret != WOLFSSL_SUCCESS)
@@ -5454,6 +5457,7 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
                                                WOLFSSL_FILETYPE_PEM);
         if (ret != WOLFSSL_SUCCESS)
             return -1;
+#endif
         wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
         wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
         if (ctx->s_ciphers != NULL) {
