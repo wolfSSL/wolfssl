@@ -27388,7 +27388,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
     #ifdef OPENSSL_EXTRA
         else
     #else
-        else if (IsTLS(ssl))
+        else if (IsTLS(ssl) || ssl->options.dtls)
     #endif
         {
             ssl->options.sendVerify = SEND_BLANK_CERT;
