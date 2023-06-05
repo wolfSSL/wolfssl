@@ -301,6 +301,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         numBlocks = (len + sha256->buffLen)/WC_SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
+#if defined(WC_HASH_DATA_ALIGNMENT) && (WC_HASH_DATA_ALIGNMENT >= 8)
             /* handle unaligned data */
             if ((wc_ptr_t)data & 0x7) {
                 while (numBlocks--) {
@@ -315,7 +316,10 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
                 }
                 add = len;
             }
-            else {
+            else 
+#endif /* WC_HASH_DATA_ALIGNMENT>=8 */
+            {
+
               /* get leftover amount after blocks */
               add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
 
