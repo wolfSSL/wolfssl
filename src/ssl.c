@@ -35770,6 +35770,11 @@ int wolfSSL_RAND_Init(void)
                 ret = WOLFSSL_SUCCESS;
             }
         }
+        else {
+            /* GlobalRNG is already initialized */
+            ret = WOLFSSL_SUCCESS;
+        }
+
         wc_UnLockMutex(&globalRNGMutex);
     }
 #endif
