@@ -17,8 +17,8 @@
     /* 128-bit type */
     #define HAVE___UINT128_T
 
-    /* fast math */
-    #define USE_FAST_MATH
+    /* SP Math */
+    #define WOLFSSL_SP_MATH
     #define HAVE_ECC
 
     /* ECC speedups */
