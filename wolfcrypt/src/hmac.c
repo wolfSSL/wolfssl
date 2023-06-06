@@ -1290,6 +1290,8 @@ int wolfSSL_GetHmacMaxSize(void)
             return ret;
         }
 
+        XMEMSET(tmp, 0, WC_MAX_DIGEST_SIZE);
+
         while (outIdx < outSz) {
             word32 tmpSz = (n == 1) ? 0 : hashSz;
             word32 left = outSz - outIdx;

@@ -17757,7 +17757,7 @@ int sp_tohex(const sp_int* a, char* str)
             d = a->dp[i];
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
             /* Find highest non-zero byte in most-significant word. */
-            for (j = SP_WORD_SIZE - 8; j >= 0; j -= 8) {
+            for (j = SP_WORD_SIZE - 8; j >= 0 && i >= 0; j -= 8) {
                 /* When a byte at this index is not 0 break out to start
                  * writing.
                  */

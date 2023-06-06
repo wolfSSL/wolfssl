@@ -15958,6 +15958,12 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             return PARSE_ERROR;
         }
 
+        if (size > MAX_HANDSHAKE_SZ) {
+            WOLFSSL_MSG("Handshake message too large");
+            WOLFSSL_ERROR_VERBOSE(HANDSHAKE_SIZE_ERROR);
+            return HANDSHAKE_SIZE_ERROR;
+        }
+
         return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
 
