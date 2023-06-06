@@ -601,7 +601,7 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
     }
 
     if ((err == 0) && (data == NULL)) {
-        *sz = 3 * key->ecc.dp->size;
+        *sz = (word32)(3 * key->ecc.dp->size);
         err = LENGTH_ONLY_E;
     }
     if ((err >= 0) && (*sz < (word32)(3 * key->ecc.dp->size))) {
@@ -609,7 +609,8 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
     }
     if (err == 0) {
         /* Write out the secret value into key size bytes. */
-        err = mp_to_unsigned_bin_len(wc_ecc_key_get_priv(&key->ecc), data, key->ecc.dp->size);
+        err = mp_to_unsigned_bin_len(wc_ecc_key_get_priv(&key->ecc), data,
+            key->ecc.dp->size);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
@@ -624,7 +625,7 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
                 key->ecc.dp->size);
     }
     if (err == 0) {
-        *sz = 3 * key->ecc.dp->size;
+        *sz = (word32)(3 * key->ecc.dp->size);
     }
 
     return err;
@@ -660,17 +661,19 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
     if (err == 0) {
         /* Read the secret value from key size bytes. */
         err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
-            key->ecc.dp->size);
+            (word32)key->ecc.dp->size);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
         /* Read the public key point's x value from key size bytes. */
-        err = mp_read_unsigned_bin(key->ecc.pubkey.x, data, key->ecc.dp->size);
+        err = mp_read_unsigned_bin(key->ecc.pubkey.x, data,
+            (word32)key->ecc.dp->size);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
         /* Read the public key point's y value from key size bytes. */
-        err = mp_read_unsigned_bin(key->ecc.pubkey.y, data, key->ecc.dp->size);
+        err = mp_read_unsigned_bin(key->ecc.pubkey.y, data,
+            (word32)key->ecc.dp->size);
     }
     if (err == 0) {
         err = mp_set(key->ecc.pubkey.z, 1);
@@ -707,7 +710,7 @@ int wc_ExportSakkePrivateKey(SakkeKey* key, byte* data, word32* sz)
     }
 
     if ((err == 0) && (data == NULL)) {
-        *sz = key->ecc.dp->size;
+        *sz = (word32)key->ecc.dp->size;
         err = LENGTH_ONLY_E;
     }
     if ((err >= 0) && (*sz < (word32)key->ecc.dp->size)) {
@@ -719,7 +722,7 @@ int wc_ExportSakkePrivateKey(SakkeKey* key, byte* data, word32* sz)
             key->ecc.dp->size);
     }
     if (err == 0) {
-        *sz = key->ecc.dp->size;
+        *sz = (word32)key->ecc.dp->size;
     }
 
     return err;
@@ -756,7 +759,7 @@ int wc_ImportSakkePrivateKey(SakkeKey* key, const byte* data, word32 sz)
     if (err == 0) {
         /* Read the secret value from key size bytes. */
         err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
-            key->ecc.dp->size);
+            (word32)key->ecc.dp->size);
     }
 
     return err;
@@ -838,12 +841,12 @@ static int sakke_encode_point(ecc_point* point, word32 size, byte* data,
         }
 
         /* Write out the point's x ordinate into key size bytes. */
-        err = mp_to_unsigned_bin_len(point->x, data, size);
+        err = mp_to_unsigned_bin_len(point->x, data, (int)size);
     }
     if (err == 0) {
         data += size;
         /* Write out the point's y ordinate into key size bytes. */
-        err = mp_to_unsigned_bin_len(point->y, data, size);
+        err = mp_to_unsigned_bin_len(point->y, data, (int)size);
     }
     if (err == 0) {
         *sz = size * 2 + !raw;
@@ -2491,7 +2494,7 @@ int wc_GetSakkeAuthSize(SakkeKey* key, word16* authSz)
     }
     if (err == 0) {
         word16 n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
-        *authSz = 1 + 2 * n;
+        *authSz = (word16)(1 + 2 * n);
     }
 
     return err;
@@ -6131,8 +6134,8 @@ static int sakke_calc_h_v(SakkeKey* key, enum wc_HashType hashType,
  * @param  [in]      idx     Index to start XORing into.
  * @param  [in]      n       Length of data to XOR (mask) in bytes.
  */
-static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, int idx,
-        int n)
+static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, word32 idx,
+        word32 n)
 {
     int o;
     word32 i;
@@ -6146,7 +6149,7 @@ static void sakke_xor_in_v(const byte* v, word32 hashSz, byte* out, int idx,
     else {
         i = 0;
     }
-    o = i;
+    o = (int)i;
     xorbuf(out + idx + i - o, v + i, hashSz - i);
 }
 
@@ -6389,7 +6392,7 @@ int wc_GetSakkePointI(SakkeKey* key, byte* data, word32* sz)
     }
 
     if ((err == 0) && (data == NULL)) {
-        *sz = key->ecc.dp->size * 2;
+        *sz = (word32)(key->ecc.dp->size * 2);
         err = LENGTH_ONLY_E;
     }
     if ((err == 0) && (*sz < (word32)key->ecc.dp->size * 2)) {
@@ -6406,7 +6409,7 @@ int wc_GetSakkePointI(SakkeKey* key, byte* data, word32* sz)
         err = mp_to_unsigned_bin_len(key->i.i->y, data, key->ecc.dp->size);
     }
     if (err == 0) {
-        *sz = key->ecc.dp->size * 2;
+        *sz = (word32)(key->ecc.dp->size * 2);
     }
 
     return err;
@@ -6444,12 +6447,14 @@ int wc_SetSakkePointI(SakkeKey* key, const byte* id, word16 idSz,
 
     if (err == 0) {
         /* Read the x value from key size bytes. */
-        err = mp_read_unsigned_bin(key->i.i->x, data, key->ecc.dp->size);
+        err = mp_read_unsigned_bin(key->i.i->x, data,
+            (word32)key->ecc.dp->size);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
         /* Read the y value from key size bytes. */
-        err = mp_read_unsigned_bin(key->i.i->y, data, key->ecc.dp->size);
+        err = mp_read_unsigned_bin(key->i.i->y, data,
+            (word32)key->ecc.dp->size);
     }
     if (err == 0) {
         err = mp_set(key->i.i->z, 1);
@@ -6687,7 +6692,7 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
         n = (word16)((mp_count_bits(&key->params.prime) + 7) / 8);
 
         /* Uncompressed point */
-        outSz = 1 + 2 * n;
+        outSz = (word16)(1 + 2 * n);
 
         if ((auth != NULL) && (*authSz < outSz)) {
             err = BAD_FUNC_ARG;
@@ -6876,7 +6881,7 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     if (err == 0) {
         r = key->tmp.p2;
 
-        err = wc_ecc_import_point_der(auth, n * 2 + 1,
+        err = wc_ecc_import_point_der(auth, (word32)(n * 2 + 1),
                 wc_ecc_get_curve_idx(key->ecc.dp->id), r);
     }
 
@@ -6916,7 +6921,7 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
 
         err = sakke_compute_point_r(key, key->id, key->idSz, ri, n, test);
     }
-    if ((err == 0) && (XMEMCMP(auth, test, 2 * n + 1) != 0)) {
+    if ((err == 0) && (XMEMCMP(auth, test, (size_t)(2 * n + 1)) != 0)) {
         err = SAKKE_VERIFY_FAIL_E;
     }
 

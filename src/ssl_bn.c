@@ -509,7 +509,8 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
         }
         else {
             /* Decode into big number. */
-            if (mp_read_unsigned_bin((mp_int*)ret->internal, data, len) != 0) {
+            if (mp_read_unsigned_bin((mp_int*)ret->internal, data, (word32)len)
+                    != 0) {
                 WOLFSSL_MSG("mp_read_unsigned_bin failure");
                 /* Don't return anything on failure. bn will be freed if set. */
                 ret = NULL;
@@ -557,7 +558,7 @@ static char* wolfssl_bn_bn2radix(const WOLFSSL_BIGNUM* bn, int radix)
 
     if (!err) {
         /* Allocate string. */
-        str = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        str = (char*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_OPENSSL);
         if (str == NULL) {
             WOLFSSL_MSG("BN_bn2hex malloc string failure");
             err = 1;
@@ -1985,7 +1986,7 @@ int wolfSSL_BN_gcd(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* a, WOLFSSL_BIGNUM* b,
 int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int ret = 1;
-    int len = (bits + 7) / 8;
+    word32 len = (word32)((bits + 7) / 8);
     WC_RNG* rng;
 
     WOLFSSL_ENTER("wolfSSL_BN_rand");

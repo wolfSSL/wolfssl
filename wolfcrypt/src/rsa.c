@@ -1438,8 +1438,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
 #if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-        msg = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + saltLen, heap,
-                                                       DYNAMIC_TYPE_RSA_BUFFER);
+        msg = (byte*)XMALLOC(
+                          (size_t)(RSA_PSS_PAD_SZ + inputLen + (word32)saltLen),
+                          heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (msg == NULL) {
             return MEMORY_E;
         }
@@ -1451,7 +1452,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     m += inputLen;
     o = (int)(m - s);
     if (saltLen > 0) {
-        ret = wc_RNG_GenerateBlock(rng, m, saltLen);
+        ret = wc_RNG_GenerateBlock(rng, m, (word32)saltLen);
         if (ret == 0) {
             m += saltLen;
         }
@@ -1459,8 +1460,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 #else
     if ((int)pkcsBlockLen < RSA_PSS_PAD_SZ + (int)inputLen + saltLen) {
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-        msg = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + (word32)saltLen, heap,
-                                                       DYNAMIC_TYPE_RSA_BUFFER);
+        msg = (byte*)XMALLOC(
+                          (size_t)(RSA_PSS_PAD_SZ + inputLen + (word32)saltLen),
+                          heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (msg == NULL) {
             return MEMORY_E;
         }
@@ -4090,9 +4092,11 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
 
 #ifdef WOLFSSL_PSS_LONG_SALT
     /* if long salt is larger then default maximum buffer then allocate a buffer */
-    if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
-        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, heap,
-                                                       DYNAMIC_TYPE_RSA_BUFFER);
+    if ((ret == 0) &&
+            (sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + (word32)saltLen))) {
+        sigCheck = (byte*)XMALLOC(
+                              (size_t)(RSA_PSS_PAD_SZ + inSz + (word32)saltLen),
+                              heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (sigCheck == NULL) {
             ret = MEMORY_E;
         }
