@@ -5245,8 +5245,10 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
         if (x509 == NULL)
             goto error;
 
-        if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS)
+        if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
+            wolfSSL_X509_free(x509);
             goto error;
+        }
     }
 
     for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {

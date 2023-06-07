@@ -51,7 +51,11 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
                                     DYNAMIC_TYPE_X509_CTX);
     if (ctx != NULL) {
         ctx->param = NULL;
-        wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
+        if (wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
+                WOLFSSL_SUCCESS) {
+            XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
+            ctx = NULL;
+        }
     }
 
     return ctx;
@@ -1261,6 +1265,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
         }
         obj->type = WOLFSSL_X509_LU_X509;
         obj->data.x509 = x509;
+        x509 = NULL;
     }
 #endif
 
@@ -1286,11 +1291,11 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     store->objs = ret;
     return ret;
 err_cleanup:
-    if (ret)
-        wolfSSL_sk_X509_OBJECT_free(ret);
-    if (cert_stack)
+    if (ret != NULL)
+        wolfSSL_sk_X509_OBJECT_pop_free(ret, NULL);
+    if (cert_stack != NULL)
         wolfSSL_sk_X509_pop_free(cert_stack, NULL);
-    if (x509)
+    if (x509 != NULL)
         wolfSSL_X509_free(x509);
     return NULL;
 }

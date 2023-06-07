@@ -2693,8 +2693,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
         WOLFSSL_ENTER("wolfSSL_BIO_push");
-        top->next    = append;
-        append->prev = top;
+        if (top == NULL) {
+            return append;
+        }
+        top->next = append;
+        if (append != NULL) {
+            append->prev = top;
+        }
 
         /* SSL BIO's should use the next object in the chain for IO */
         if (top->type == WOLFSSL_BIO_SSL && top->ptr)
