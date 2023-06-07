@@ -16694,8 +16694,8 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
         cert->hwTypeSz = (int)oidLen;
         /* TODO: check this is the HW serial number OID - no test data. */
 
-        /* Allocate space for HW serial number. */
-        cert->hwSerialNum = (byte*)XMALLOC(serialLen, cert->heap,
+        /* Allocate space for HW serial number, +1 for null terminator. */
+        cert->hwSerialNum = (byte*)XMALLOC(serialLen + 1, cert->heap,
                                            DYNAMIC_TYPE_X509_EXT);
         if (cert->hwSerialNum == NULL) {
             WOLFSSL_MSG("\tOut of Memory");
