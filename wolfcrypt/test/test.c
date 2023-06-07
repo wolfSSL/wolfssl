@@ -579,7 +579,8 @@ WOLFSSL_TEST_SUBROUTINE int decodedCertCache_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int memory_test(void);
 #if defined(WOLFSSL_PUBLIC_MP) && \
-    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
+    ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+     defined(USE_FAST_MATH))
 WOLFSSL_TEST_SUBROUTINE int mp_test(void);
 #endif
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
@@ -1587,7 +1588,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLFSSL_PUBLIC_MP) && \
-    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
+    ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+     defined(USE_FAST_MATH))
     if ( (ret = mp_test()) != 0)
         TEST_FAIL("mp       test failed!\n", ret);
     else
@@ -13949,12 +13951,15 @@ static void initDefaultName(void)
     WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
     #endif
-    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
+    #if !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN) && \
+        !defined(NO_ASN_TIME) && defined(WOLFSSL_CERT_REQ) && \
+        !defined(WOLFSSL_NO_MALLOC)
         WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
     #endif
 #endif /* WOLFSSL_CERT_EXT */
-#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN && (!NO_RSA || HAVE_ECC) || (WOLFSSL_TEST_CERT &&
+        * (HAVE_ED25519 || HAVE_ED448)) */
 
 #ifndef NO_RSA
 
@@ -40383,7 +40388,8 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7signed_test(void)
 #endif /* HAVE_PKCS7 */
 
 #if defined(WOLFSSL_PUBLIC_MP) && \
-    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
+    ((defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+     defined(USE_FAST_MATH))
 
 /* Maximum number of bytes in a number to test. */
 #define MP_MAX_TEST_BYTE_LEN      32
@@ -43315,7 +43321,8 @@ done:
     return ret;
 }
 
-#endif /* WOLFSSL_PUBLIC_MP && (WOLFSSL_SP_MATH_ALL || USE_FAST_MATH) */
+#endif /* WOLFSSL_PUBLIC_MP && ((WOLFSSL_SP_MATH_ALL &&
+        * !WOLFSSL_RSA_VERIFY_ONLY) || USE_FAST_MATH) */
 
 
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
