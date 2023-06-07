@@ -223,9 +223,26 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
     return newExt;
 }
 
+
+/* Clear out and free internal pointers of ASN.1 STRING object.
+ *
+ * @param [in] asn1  ASN.1 STRING object.
+ */
+static void wolfSSL_ASN1_STRING_clear(WOLFSSL_ASN1_STRING* asn1)
+{
+    /* Check we have an object to free. */
+    if (asn1 != NULL) {
+        /* Dispose of dynamic data. */
+        if ((asn1->length > 0) && asn1->isDynamic) {
+            XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        XMEMSET(asn1, 0, sizeof(WOLFSSL_ASN1_STRING));
+    }
+}
+
+
 void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
 {
-    WOLFSSL_ASN1_STRING asn1;
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_free");
     if (x == NULL)
         return;
@@ -234,10 +251,7 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
         wolfSSL_ASN1_OBJECT_free(x->obj);
     }
 
-    asn1 = x->value;
-    if (asn1.length > 0 && asn1.data != NULL && asn1.isDynamic)
-        XFREE(asn1.data, NULL, DYNAMIC_TYPE_OPENSSL);
-
+    wolfSSL_ASN1_STRING_clear(&x->value);
     wolfSSL_sk_pop_free(x->ext_sk, NULL);
 
     XFREE(x, NULL, DYNAMIC_TYPE_X509_EXT);
@@ -304,7 +318,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
         /* Prevent potential memory leaks and dangling pointers. */
         wolfSSL_ASN1_OBJECT_free(ret->obj);
         ret->obj = NULL;
-        wolfSSL_ASN1_STRING_free(&ret->value);
+        wolfSSL_ASN1_STRING_clear(&ret->value);
     }
 
     if (err == 0) {
