@@ -586,6 +586,7 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
 
         /* Next is: [0]. Check tag and length. */
         if (GetASNTag(p, &idx, &tag, (word32)len) < 0) {
+            wolfSSL_ASN1_OBJECT_free(obj);
             goto err;
         }
         if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
