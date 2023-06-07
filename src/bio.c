@@ -2375,6 +2375,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         if (err == 1) {
             wolfSSL_free(ssl);
             wolfSSL_BIO_free(sslBio);
+            sslBio = NULL;
             wolfSSL_BIO_free(connBio);
         }
 
