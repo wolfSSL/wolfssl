@@ -1115,18 +1115,19 @@ done
 if test "$ENABLED_KYBER" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
+
+    if test "$ENABLED_KYBER512" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+    fi
+    if test "$ENABLED_KYBER768" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+    fi
+    if test "$ENABLED_KYBER1024" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+    fi
+
     if test "$ENABLED_WC_KYBER" = "yes"
     then
-        if test "$ENABLED_KYBER512" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
-        fi
-        if test "$ENABLED_KYBER768" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
-        fi
-        if test "$ENABLED_KYBER1024" = ""; then
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
-        fi
-
         test "$enable_sha3" = "" && enable_sha3=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
