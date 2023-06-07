@@ -1218,6 +1218,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         x509->ext_sk = wolfSSL_sk_new_x509_ext();
     if (wolfSSL_sk_X509_EXTENSION_push(x509->ext_sk, ext) == WOLFSSL_FAILURE) {
         wolfSSL_X509_EXTENSION_free(ext);
+        ext = NULL;
     }
 
     FreeDecodedCert(cert);
