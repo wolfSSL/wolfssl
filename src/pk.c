@@ -360,8 +360,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpBuf == NULL) {
             WOLFSSL_ERROR_MSG("Extending DER buffer failed");
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            ret = 0;
+            ret = 0; /* der buffer is free'd at the end of the function */
         }
         else {
             der = tmpBuf;
