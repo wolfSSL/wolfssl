@@ -1270,7 +1270,6 @@ int sce_crypt_Sha_AesCbcGcm_multitest()
     
     if ((xRet == pdPASS) && 
         (Aes128_Gcm_multTst_rslt == 0 && Aes256_Gcm_multTst_rslt == 0) &&
-        (Aes128_Gcm_multTst_rslt == 0 && Aes256_Gcm_multTst_rslt == 0) &&
         (sha256_multTst_rslt1 == 0 && sha256_multTst_rslt2 == 0)) {
         
         ret = 0;

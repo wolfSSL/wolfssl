@@ -4014,7 +4014,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(FREESCALE_MMCAU)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
@@ -4052,7 +4051,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         byte* iv;
         byte temp_block[AES_BLOCK_SIZE];

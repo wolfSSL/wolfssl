@@ -309,9 +309,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
 
     if (err == 0) {
         ret->crit = crit;
-    }
-
-    if (err == 0) {
         ret->obj = wolfSSL_ASN1_OBJECT_dup(obj);
         if (ret->obj == NULL) {
             err = 1;
@@ -3278,14 +3275,9 @@ unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509)
  */
 char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 {
-    WOLFSSL_X509_NAME_ENTRY* entry;
-    int nameSz, strSz, strLen, count, i;
+    int count, i;
     int totalLen = 0;
-    char *str;
     char tmpBuf[256];
-    const int tmpBufSz = sizeof(tmpBuf);
-    char buf[80];
-    const char* sn;
     WOLFSSL_ENTER("wolfSSL_X509_get_name_oneline");
 
     if (name == NULL) {
@@ -3302,6 +3294,14 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     /* Loop through X509 name entries and copy new format to buffer */
     count = wolfSSL_X509_NAME_entry_count(name);
     for (i = 0; i < count; i++) {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        int nameSz;
+        int strSz;
+        int strLen;
+        char *str;
+        const int tmpBufSz = sizeof(tmpBuf);
+        char buf[80];
+        const char* sn;
 
         /* Get name entry and size */
         entry = wolfSSL_X509_NAME_get_entry(name, i);
@@ -3582,7 +3582,6 @@ int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
 #else
     DecodedCert cert[1];
 #endif
-    word32 idx;
     const byte*  der;
     int length = 0;
     int    ret = 0, derSz = 0;
@@ -3611,7 +3610,7 @@ int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
         InitDecodedCert(cert, der, derSz, NULL);
         ret = wc_GetPubX509(cert, 0, &badDate);
         if (ret >= 0) {
-            idx = cert->srcIdx;
+            word32 idx = cert->srcIdx;
             pubKeyX509 = cert->source + cert->srcIdx;
             ret = GetSequence(cert->source, &cert->srcIdx, &length,
                     cert->maxIdx);
@@ -5599,7 +5598,6 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         int indent)
 {
     int ret = WOLFSSL_SUCCESS;
-    int nameCount = 0;
     DNS_entry* entry;
 
     if (bio == NULL || x509 == NULL) {
@@ -5620,6 +5618,8 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             }
         }
         if (ret == WOLFSSL_SUCCESS) {
+            int nameCount = 0;
+
             entry = x509->altNames;
             while (entry != NULL) {
                 ++nameCount;
@@ -5708,8 +5708,6 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
 static int X509PrintKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
 {
     int ret = WOLFSSL_SUCCESS;
-    word32 i = 0;
-    int usageCount = 0;
     const int usages[] = {
         KEYUSE_DIGITAL_SIG,
         KEYUSE_CONTENT_COMMIT,
@@ -5740,6 +5738,8 @@ static int X509PrintKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     if (ret == WOLFSSL_SUCCESS && x509->keyUsageSet && x509->keyUsage != 0) {
         char scratch[MAX_WIDTH];
         int len;
+        word32 i = 0;
+        int usageCount = 0;
 
         len = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent, "");
         if (len >= MAX_WIDTH)
@@ -5776,8 +5776,6 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         int indent)
 {
     int ret = WOLFSSL_SUCCESS;
-    word32 i = 0;
-    int usageCount = 0;
     const int usages[] = {
         EXTKEYUSE_OCSP_SIGN,
         EXTKEYUSE_TIMESTAMP,
@@ -5803,6 +5801,8 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             && x509->extKeyUsage != 0) {
         char scratch[MAX_WIDTH];
         int len;
+        word32 i = 0;
+        int usageCount = 0;
 
         len = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent, "");
         if (len >= MAX_WIDTH)
@@ -5857,7 +5857,6 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
 
     if (sz > (int)sizeof(byte)) {
         int i;
-        int valLen;
 
         /* serial is larger than int size so print off hex values */
         if ((scratchLen = XSNPRINTF(
@@ -5867,6 +5866,8 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
             return WOLFSSL_FAILURE;
         }
         for (i = 0; i < sz; i++) {
+            int valLen;
+
             if ((valLen = XSNPRINTF(
                      scratch + scratchLen, scratchSz - scratchLen,
                      "%02x%s", serial[i], (i < sz - 1) ?
@@ -6158,7 +6159,6 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
     int scratchLen;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     int ret = WOLFSSL_SUCCESS;
-    int i;
     char tmp[100];
     int tmpLen = 0;
 
@@ -6219,6 +6219,8 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
+        int i;
+
         for (i = 0; i < sigSz; i++) {
             char val[6];
             int valLen;
@@ -6394,9 +6396,10 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
 static int X509PrintName(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         char* type, int indent)
 {
-    char scratch[MAX_WIDTH];
-    int scratchLen;
     if (name != NULL) {
+        char scratch[MAX_WIDTH];
+        int scratchLen;
+
         if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
                                      "%*s%s", indent, "", type))
             >= MAX_WIDTH)

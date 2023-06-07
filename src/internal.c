@@ -18784,10 +18784,10 @@ static void LogAlert(int type)
 {
 #ifdef DEBUG_WOLFSSL
     const char* typeStr;
-    char buff[60];
 
     typeStr = AlertTypeToString(type);
     if (typeStr != NULL) {
+        char buff[60];
         XSNPRINTF(buff, sizeof(buff), "Alert type: %s", typeStr);
         WOLFSSL_MSG(buff);
     }

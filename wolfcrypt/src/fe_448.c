@@ -358,14 +358,13 @@ int curve448(byte* r, const byte* n, const byte* a)
     word8 t1[56];
     int i;
     unsigned int swap;
-    unsigned int b;
 
     fe448_copy(x1, a);
     fe448_copy(x3, a);
 
     swap = 0;
     for (i = 447; i >= 0; --i) {
-        b = (n[i >> 3] >> (i & 7)) & 1;
+        unsigned int b = (n[i >> 3] >> (i & 7)) & 1;
         swap ^= b;
         fe448_cswap(x2, x3, swap);
         fe448_cswap(z2, z3, swap);
@@ -1077,7 +1076,6 @@ int curve448(byte* r, const byte* n, const byte* a)
     sword64 t1[8];
     int i;
     unsigned int swap;
-    unsigned int b;
 
     fe448_from_bytes(x1, a);
     fe448_1(x2);
@@ -1087,7 +1085,7 @@ int curve448(byte* r, const byte* n, const byte* a)
 
     swap = 0;
     for (i = 447; i >= 0; --i) {
-        b = (n[i >> 3] >> (i & 7)) & 1;
+        unsigned int b = (n[i >> 3] >> (i & 7)) & 1;
         swap ^= b;
         fe448_cswap(x2, x3, swap);
         fe448_cswap(z2, z3, swap);
@@ -2169,7 +2167,6 @@ int curve448(byte* r, const byte* n, const byte* a)
     sword32 t1[16];
     int i;
     unsigned int swap;
-    unsigned int b;
 
     fe448_from_bytes(x1, a);
     fe448_1(x2);
@@ -2179,7 +2176,7 @@ int curve448(byte* r, const byte* n, const byte* a)
 
     swap = 0;
     for (i = 447; i >= 0; --i) {
-        b = (n[i >> 3] >> (i & 7)) & 1;
+        unsigned int b = (n[i >> 3] >> (i & 7)) & 1;
         swap ^= b;
         fe448_cswap(x2, x3, swap);
         fe448_cswap(z2, z3, swap);

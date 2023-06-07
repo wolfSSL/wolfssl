@@ -1790,9 +1790,7 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_free");
-    if (biom) {
-        XFREE(biom, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(biom, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 

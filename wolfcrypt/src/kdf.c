@@ -73,8 +73,6 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     word32 times;
     word32 lastLen;
     word32 lastTime;
-    word32 i;
-    word32 idx = 0;
     int    ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  previous;
@@ -164,6 +162,9 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         if (ret == 0)
             ret = wc_HmacFinal(hmac, previous);       /* A1 */
         if (ret == 0) {
+            word32 i;
+            word32 idx = 0;
+
             for (i = 0; i < times; i++) {
                 ret = wc_HmacUpdate(hmac, previous, len);
                 if (ret != 0)
