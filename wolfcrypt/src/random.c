@@ -3664,10 +3664,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
-        int len = 0;
         (void)os;
 
         while (sz) {
+            int len;
+
             errno = 0;
             len = (int)getrandom(output, sz, 0);
             if (len == -1) {

@@ -6516,7 +6516,6 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     CALLOC_ASNGETDATA(dataASN, rsaKeyASN_Length, ret, heap);
 
     if (ret == 0) {
-        int i;
         /* Register variable to hold version field. */
         GetASN_Int8Bit(&dataASN[RSAKEYASN_IDX_VER], &version);
         /* Setup data to store INTEGER data in mp_int's in RSA object. */
@@ -6530,6 +6529,7 @@ static int _RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
         #define RSA_ASN_COMPLETE    1
     #endif
         if (key != NULL) {
+            int i;
             /* Extract all public fields. */
             for (i = 0; i < RSA_ASN_INTS; i++) {
                 GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i],
@@ -12415,7 +12415,7 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, (size_t)strLen);
         dnsEntry->name[strLen] = '\0';
 
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         /* store IP addresses as a string */
         if (type == ASN_IP_TYPE) {
             if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
@@ -12423,10 +12423,9 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
             }
         }
-    #endif
     }
-
     if (ret == 0) {
+#endif
         ret = AddDNSEntryToList(entries, dnsEntry);
     }
 
@@ -14810,9 +14809,7 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     return length;
 #else
     DECL_ASNSETDATA(dataASN, algoIdASN_Length);
-    int sz;
     int ret = 0;
-    int o = 0;
     const byte* algoName = 0;
     word32 algoSz = 0;
 
@@ -14823,6 +14820,9 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
         WOLFSSL_MSG("Unknown Algorithm");
     }
     else {
+        int sz;
+        int o = 0;
+
         /* Set the OID and OID type to encode. */
         SetASN_OID(&dataASN[ALGOIDASN_IDX_OID], (word32)algoOID, (word32)type);
         /* Hashes, signatures not ECC and keys not RSA output NULL tag. */
@@ -17081,9 +17081,7 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
             WOLFSSL_MSG("\tOut of Memory");
             return MEMORY_E;
         }
-    }
 
-    if (ret == 0) {
         switch (oid) {
         #ifdef WOLFSSL_FPKI
             case FASCN_OID:
@@ -17167,7 +17165,6 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int length = 0;
-    byte current_byte;
 
     WOLFSSL_ENTER("DecodeAltNames");
 
@@ -17192,6 +17189,8 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
     cert->weOwnAltNames = 1;
 
     while (length > 0) {
+        byte current_byte;
+
         /* Verify idx can't overflow input buffer */
         if (idx >= (word32)sz) {
             WOLFSSL_MSG("\tBad Index");
@@ -18249,12 +18248,7 @@ static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
 
     WOLFSSL_ENTER("DecodeSubjKeyId");
 
-    if (sz <= 0) {
-        ret = ASN_PARSE_E;
-    }
-    if (ret == 0) {
-        ret = GetOctetString(input, &idx, &length, sz);
-    }
+    ret = GetOctetString(input, &idx, &length, sz);
     if (ret > 0) {
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extSubjKeyIdSrc = &input[idx];
@@ -20160,15 +20154,14 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         issuer = cert->source + dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].offset;
         issuerSz = dataASN[X509CERTASN_IDX_TBS_VALIDITY_SEQ].offset -
             dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].offset;
-    }
-    if (ret == 0) {
+
         /* Get the subject name. */
         subject = cert->source +
             dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].offset;
         subjectSz = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset -
             dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].offset;
     }
-    if ((ret == 0) && (stopAtPubKey)) {
+    if ((ret == 0) && stopAtPubKey) {
         /* Return any bad date error through badDateRet and return offset of
          * subjectPublicKeyInfo.
          */
@@ -22880,7 +22873,6 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
     if (line != NULL) {
         word32      lineSz;
         char*       finish;
-        word32      finishSz;
         char*       start;
         word32      startSz;
         const char* newline = NULL;
@@ -22914,6 +22906,8 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
         finish = XSTRNSTR(start, ",", min(startSz, PEM_LINE_LEN));
 
         if ((start != NULL) && (finish != NULL) && (start < finish)) {
+            word32 finishSz;
+
             if (finish >= bufferEnd) {
                 return BUFFER_E;
             }
@@ -24291,8 +24285,8 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
 int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-    int ret = 0, i, mpSz;
-    word32 j, seqSz = 0, verSz = 0, rawLen, intTotalLen = 0, outLen = 0;
+    int ret = 0, i;
+    word32 seqSz = 0, verSz = 0, intTotalLen = 0, outLen = 0;
     word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
@@ -24310,6 +24304,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
         mp_int* keyInt = GetRsaInt(key, i);
+        int mpSz;
+        word32 rawLen;
 
         ret = mp_unsigned_bin_size(keyInt);
         if (ret < 0)
@@ -24348,6 +24344,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             ret = BUFFER_E;
     }
     if (ret == 0 && output != NULL) {
+        word32 j;
+
         /* write to output */
         XMEMCPY(output, seq, seqSz);
         j = seqSz;

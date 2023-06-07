@@ -150,7 +150,6 @@ int usart_rx(uint32_t dev, uint8_t *c)
 
 int usart_init(uint32_t dev, uint32_t bitrate, uint8_t data, char parity, uint8_t stop)
 {
-    uint32_t reg;
     int rtscts = 0;
 
     if (dev == USART1_BASE) {
@@ -219,7 +218,6 @@ int usart_init(uint32_t dev, uint32_t bitrate, uint8_t data, char parity, uint8_
 int _write(void *r, uint8_t *text, int len)
 {
     char *p = (char *)text;
-    int i;
     (void)r;
     while(*p && (p < (char *)(text + len))) {
         usart_tx(USART2_BASE, *p);

@@ -167,9 +167,9 @@ static int KcapiHashFinal(wolfssl_KCAPI_Hash* hash, byte* out, word32 outSz,
         ret = (int)kcapi_md_update(hash->handle, hash->msg, hash->used);
         XFREE(hash->msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
         hash->msg = NULL;
+        if (ret == 0)
     #endif
-
-        if (ret == 0) {
+        {
             ret = (int)kcapi_md_final(hash->handle, out, outSz);
         }
 

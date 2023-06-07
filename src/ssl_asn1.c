@@ -1001,7 +1001,6 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
 {
     int ret = 1;
     int readNextLine = 1;
-    int lineLen;
     int len;
     word32 outLen = 0;
     const int hdrSz = 1 + MAX_LENGTH_SZ;
@@ -1014,6 +1013,8 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
     }
 
     while ((ret == 1) && readNextLine) {
+        int lineLen;
+
         /* Assume we won't be reading any more. */
         readNextLine = 0;
 
@@ -1048,8 +1049,6 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
             outLen = (word32)(lineLen / 2);
             (void)Base16_Decode((byte*)buf, (word32)lineLen,
                 asn1->data + asn1->length, &outLen);
-        }
-        if (ret == 1) {
             /* Update length of data. */
             asn1->length += (int)outLen;
         }
@@ -1455,16 +1454,17 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a)
 int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
 {
     int ret = 1;
-    byte j;
-    unsigned int i = 0;
-    byte tmp[sizeof(long)];
-    byte pad = 0;
 
     /* Validate parameters. */
     if (a == NULL) {
         ret = 0;
     }
     if (ret == 1) {
+        byte j;
+        unsigned int i = 0;
+        byte tmp[sizeof(long)];
+        byte pad = 0;
+
         wolfssl_asn1_integer_reset_data(a);
 
         /* Check for negative. */
@@ -1884,7 +1884,6 @@ int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
  */
 int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 {
-    int done = 0;
     int length = 0;
     int cLen = 0;
     word32 idx = 0;
@@ -1896,36 +1895,26 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 
     /* Validate parameters. */
     if (bp == NULL) {
-        done = 1;
+        /* Do nothing. */
     }
-
     /* NULL object is written as "NULL". */
-    if ((!done) && (a == NULL)) {
+    else if (a == NULL) {
         /* Write "NULL" - as done in OpenSSL. */
         length = wolfSSL_BIO_write(bp, null_str, (int)XSTRLEN(null_str));
-        done = 1;
     }
-
     /* Try getting text version and write it out. */
-    if ((!done) && ((length = i2t_ASN1_OBJECT(buf, sizeof(buf), a)) > 0)) {
+    else if ((length = i2t_ASN1_OBJECT(buf, sizeof(buf), a)) > 0) {
         length = wolfSSL_BIO_write(bp, buf, length);
-        done = 1;
     }
-
     /* Look for DER header. */
-    if ((!done) && ((a->obj == NULL) || (a->obj[idx++] != ASN_OBJECT_ID))) {
+    else if ((a->obj == NULL) || (a->obj[idx++] != ASN_OBJECT_ID)) {
         WOLFSSL_MSG("Bad ASN1 Object");
-        done = 1;
     }
-
     /* Get length from DER header. */
-    if ((!done) && (GetLength((const byte*)a->obj, &idx, &cLen, a->objSz) < 0))
-    {
+    else if (GetLength((const byte*)a->obj, &idx, &cLen, a->objSz) < 0) {
         length = 0;
-        done = 1;
     }
-
-    if (!done) {
+    else {
         /* Write out "<INVALID>" and dump content. */
         length = wolfSSL_BIO_write(bp, invalid_str, (int)XSTRLEN(invalid_str));
         length += wolfSSL_BIO_dump(bp, (const char*)(a->obj + idx), cLen);
@@ -2217,7 +2206,6 @@ int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
 {
     int ret = 1;
     char* p;
-    char* copy;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_UNIVERSALSTRING_to_string");
 
@@ -2252,6 +2240,8 @@ int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
     }
 
     if (ret == 1) {
+        char* copy;
+
         /* Strip first three bytes of each four byte character. */
         for (copy = p = s->data; p < s->data + s->length; p += 4) {
             *copy++ = p[3];
@@ -2813,8 +2803,6 @@ static int wolfssl_asn1_string_dump_hex(WOLFSSL_BIO *bio,
 {
     const char* hash="#";
     char hex_tmp[4];
-    char* p;
-    char* end;
     int str_len = 1;
 
     /* Write out hash character to indicate hex string. */
@@ -2837,6 +2825,9 @@ static int wolfssl_asn1_string_dump_hex(WOLFSSL_BIO *bio,
     }
 
     if (str_len != -1) {
+        char* p;
+        char* end;
+
         /* Calculate end of string. */
         end = str->data + str->length - 1;
         for (p = str->data; p <= end; p++) {
@@ -3021,7 +3012,7 @@ static WC_INLINE const char* MonthStr(const char* n)
 
     i = (n[0] - '0') * 10 + (n[1] - '0') - 1;
     /* Convert string to number and index table. */
-    if ((i >= 0) && (i <= 12)) {
+    if ((i >= 0) && (i < 12)) {
         month = monthStr[i];
     }
 
@@ -3844,7 +3835,6 @@ int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
  */
 int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 {
-    char buf[MAX_TIME_STRING_SZ];
     int  ret = 1;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_print");
@@ -3856,6 +3846,7 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
     }
 
     if (ret == 1) {
+        char buf[MAX_TIME_STRING_SZ];
         int len;
 
         /* Create human readable string. */

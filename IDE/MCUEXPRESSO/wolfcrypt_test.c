@@ -78,8 +78,6 @@ static void setup()
 #include "fsl_snvs_hp.h"
 static void setup()
 {
-    uint32_t sec;
-    uint8_t index;
     snvs_hp_rtc_datetime_t rtcDate;
     snvs_hp_rtc_config_t snvsRtcConfig;
 

@@ -361,15 +361,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-    int ivlen;
-
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p) + AES_BLOCK_SIZE];
     byte resultC[sizeof(p) + AES_BLOCK_SIZE];
     int  result = 0;
     int  ret;
-    int  alen;
-    int  plen;
 
     (void) result;
 
@@ -950,8 +946,6 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
     int ret = 0;
     int num = 0;
     int i;
-    Info info_aes128cbc;
-    Info info_aes128gcm;
     Info info_aes256cbc;
     Info info_aes256gcm;
     BaseType_t xRet;

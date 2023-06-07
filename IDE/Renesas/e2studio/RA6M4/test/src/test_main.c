@@ -165,7 +165,6 @@ void sce_test(void)
         (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
         defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY))
     int ret = 0;
-    BaseType_t xRet;
 
     if ((ret = wolfCrypt_Init()) != 0) {
         printf("wolfCrypt_Init failed %d\n", ret);

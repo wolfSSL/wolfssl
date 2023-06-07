@@ -136,7 +136,7 @@ static int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[RSA_INTS];
-    int    i, j, outLen, ret = 0, mpSz;
+    int    i, j, outLen, ret = 0;
 
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
@@ -153,6 +153,7 @@ static int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
+        int mpSz;
         mp_int* keyInt = GetRsaInt(key, i);
 
         rawLen = mp_unsigned_bin_size(keyInt) + 1;
@@ -249,7 +250,7 @@ int KcapiRsa_Decrypt(RsaKey* key, const byte* in, word32 inLen, byte* out,
         if (ret != 0) {
             WOLFSSL_MSG("KcapiRsa_Decrypt: Failed initialization");
         }
-        if (ret != 0) {
+        else {
             ret = KcapiRsa_SetPrivKey(key);
         }
     }
@@ -340,7 +341,7 @@ int KcapiRsa_Encrypt(RsaKey* key, const byte* in, word32 inLen, byte* out,
         if (ret != 0) {
             WOLFSSL_MSG("KcapiRsa_Encrypt: Failed initialization");
         }
-        if (ret == 0) {
+        else {
             ret = KcapiRsa_SetPubKey(key);
         }
     }

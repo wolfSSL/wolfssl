@@ -6222,7 +6222,7 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
     int hash_inited = 0;
 
     err = wc_HashInit_ex(&key->hash, hashType, key->heap, INVALID_DEVID);
-    if (err == 0)
+    if (err == 0) {
         hash_inited = 1;
 
     /* Step 1: A = hashfn( s ), where s = data | extra
@@ -6230,8 +6230,8 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
      */
 
     /* Step 2: h_0 = 00...00, a string of null bits of length hashlen bits */
-    if (err == 0)
         err = wc_HashGetDigestSize(hashType);
+    }
     if (err > 0) {
         hashSz = (word32)err;
         XMEMSET(h, 0, hashSz);

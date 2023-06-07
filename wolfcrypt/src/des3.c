@@ -920,7 +920,6 @@
 
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -966,7 +965,6 @@
 
     int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -1013,7 +1011,6 @@
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;
@@ -1064,7 +1061,6 @@
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        int i;
         int offset = 0;
         int len = sz;
         int ret = 0;

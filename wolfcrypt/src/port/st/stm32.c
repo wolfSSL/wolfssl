@@ -196,10 +196,10 @@ static void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 
 #ifdef DEBUG_STM32_HASH
     {
-        word32 i;
+        word32 ii;
         printf("STM Digest %d\n", digestSize);
-        for (i=0; i<digestSize/sizeof(word32); i++) {
-            printf("\tDIG 0x%04x\n", digest[i]);
+        for (ii=0; ii<digestSize/sizeof(word32); ii++) {
+            printf("\tDIG 0x%04x\n", digest[ii]);
         }
     }
 #endif

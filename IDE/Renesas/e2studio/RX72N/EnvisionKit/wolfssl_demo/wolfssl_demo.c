@@ -494,7 +494,9 @@ static void Tls_client(void *pvParam)
         }
     }
     
+#if defined(TLS_MULTITHREAD_TEST)
 out:
+#endif
     if (ssl) {
         wolfSSL_shutdown(ssl);
         wolfSSL_free(ssl);

@@ -299,7 +299,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #ifndef WOLFSSL_MAXQ108X
     byte*  ip;
     byte*  op;
-    word32 i, hmac_block_size = 0;
+    word32 hmac_block_size = 0;
 #endif
     int    ret = 0;
     void*  heap = NULL;
@@ -582,6 +582,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #endif
 
     if (ret == 0) {
+        word32 i;
+
         if (length < hmac_block_size)
             XMEMSET(ip + length, 0, hmac_block_size - length);
 

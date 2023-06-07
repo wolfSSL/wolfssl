@@ -5501,13 +5501,6 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     {
         ExpectIntEQ(wolfSSL_use_certificate_file(ctx->s_ssl, certFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    }
-    if (0
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-     || s_sharedCtx
-#endif
-        )
-    {
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(ctx->s_ssl, keyFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     }
@@ -26224,7 +26217,7 @@ static int test_wc_ecc_signVerify_hash(void)
         if (signH == ECC_BAD_ARG_E) {
             signH = 0;
         }
-        else if (ret == 0) {
+        else {
             signH = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -26267,7 +26260,7 @@ static int test_wc_ecc_signVerify_hash(void)
         if (verifyH == ECC_BAD_ARG_E) {
             verifyH = 0;
         }
-        else if (ret == 0) {
+        else {
             verifyH = WOLFSSL_FATAL_ERROR;
         }
     }

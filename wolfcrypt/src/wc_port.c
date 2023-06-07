@@ -599,7 +599,6 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = WC_READDIR_NOFILE; /* default to no files found */
     int pathLen = 0;
-    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -626,7 +625,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 
     do {
         if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+            int dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
 
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
                 return BAD_PATH_ERROR;
@@ -655,7 +654,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     do {
-        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
+        int dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
         if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
             return BAD_PATH_ERROR;
@@ -680,7 +679,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     ctx->dirp = &ctx->dir;
 
     while ((fs_readdir(&ctx->dir, &ctx->entry)) != 0) {
-        dnameLen = (int)XSTRLEN(ctx->entry.name);
+        int dnameLen = (int)XSTRLEN(ctx->entry.name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
@@ -707,7 +706,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     while ((ctx->entry = m2mb_fs_readdir(ctx->dir)) != NULL) {
-        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+        int dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
@@ -735,7 +734,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+        int dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
@@ -765,7 +764,6 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = WC_READDIR_NOFILE; /* default to no file found */
     int pathLen = 0;
-    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -780,7 +778,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 #ifdef USE_WINDOWS_API
     while (FindNextFileA(ctx->hFind, &ctx->FindFileData)) {
         if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+            int dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
 
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
                 return BAD_PATH_ERROR;
@@ -798,7 +796,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 
 #elif defined(INTIME_RTOS)
     while (IntimeFindNext(&ctx->FindFileData)) {
-        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
+        int dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
         if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
             return BAD_PATH_ERROR;
@@ -817,7 +815,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 
 #elif defined(WOLFSSL_ZEPHYR)
     while ((fs_readdir(&ctx->dir, &ctx->entry)) != 0) {
-        dnameLen = (int)XSTRLEN(ctx->entry.name);
+        int dnameLen = (int)XSTRLEN(ctx->entry.name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
@@ -838,7 +836,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 #elif defined(WOLFSSL_TELIT_M2MB)
     while ((ctx->entry = m2mb_fs_readdir(ctx->dir)) != NULL) {
-        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+        int dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
@@ -860,7 +858,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 #else
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+        int dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
         if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;

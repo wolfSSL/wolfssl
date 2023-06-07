@@ -1110,9 +1110,8 @@ void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx)
 {
     WOLFSSL_ENTER("wolfSSL_CONF_CTX_free");
 
-    if (cctx) {
-        XFREE(cctx, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(cctx, NULL, DYNAMIC_TYPE_OPENSSL);
+
     WOLFSSL_LEAVE("wolfSSL_CONF_CTX_free", 1);
 }
 /**
