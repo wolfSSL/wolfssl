@@ -36237,7 +36237,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         const char* fname = "./certs/ecc-key.pem";
         const char* fname_ecc_p8  = "./certs/ecc-keyPkcs8.pem";
 
-        size_t sz;
+        size_t sz = 0;
         byte* buf = NULL;
         EVP_PKEY* pkey2 = NULL;
         EVP_PKEY* pkey3 = NULL;
