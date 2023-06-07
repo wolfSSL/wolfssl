@@ -46316,7 +46316,7 @@ static int test_wolfSSL_ticket_keys(void)
     WOLFSSL_CTX* ctx;
     byte keys[WOLFSSL_TICKET_KEYS_SZ];
 
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(NULL, NULL, 0),
                 WOLFSSL_FAILURE);

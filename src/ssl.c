@@ -4097,7 +4097,7 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     else {
         /* Reset resuming flag to do full secure handshake. */
         ssl->options.resuming = 0;
-        #ifdef HAVE_SESSION_TICKET
+        #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT)
             /* Clearing the ticket. */
             ret = wolfSSL_UseSessionTicket(ssl);
         #endif
