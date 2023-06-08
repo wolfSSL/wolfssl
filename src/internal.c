@@ -10418,6 +10418,9 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
      * DTLS_RECORD_HEADER_SZ */
     if (ssl->buffers.inputBuffer.length - *inOutIdx < DTLS_RECORD_HEADER_SZ) {
         ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ);
+        /* Check if Dtls13RtxTimeout(ssl) returned socket error */
+        if (ret == SOCKET_ERROR_E)
+            return ret;
         if (ret != 0)
             return LENGTH_ERROR;
     }
