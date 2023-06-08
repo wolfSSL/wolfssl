@@ -199,6 +199,10 @@
 
     _Pragma("GCC diagnostic pop");
 
+    /* avoid -Wpointer-arith, encountered when -DCONFIG_FORTIFY_SOURCE */
+    #undef __is_constexpr
+    #define __is_constexpr(x) __builtin_constant_p(x)
+
     /* the kernel uses -std=c89, but not -pedantic, and makes full use of anon
      * structs/unions, so we should too.
      */
