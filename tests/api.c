@@ -3806,6 +3806,7 @@ static int test_wolfSSL_set_minmax_proto_version(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 #ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -5414,6 +5415,9 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
             method = wolfSSLv23_server_method();
         }
         ExpectNotNull(ctx->s_ctx = wolfSSL_CTX_new(method));
+        if (EXPECT_FAIL()) {
+            XFREE(method, NULL, DYNAMIC_TYPE_METHOD);
+        }
         ctx->s_cb.isSharedCtx = 0;
     }
     if (!ctx->s_cb.ticNoInit && (ctx->s_ctx != NULL)) {
@@ -5601,12 +5605,16 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
 
     ExpectIntEQ(wolfSSL_write(ctx->c_ssl, msg_c, msglen_c), msglen_c);
     ExpectIntGT(idx = wolfSSL_read(ctx->s_ssl, input, sizeof(input) - 1), 0);
-    input[idx] = '\0';
+    if (idx >= 0) {
+        input[idx] = '\0';
+    }
     ExpectIntGT(fprintf(stderr, "Client message: %s\n", input), 0);
     ExpectIntEQ(wolfSSL_write(ctx->s_ssl, msg_s, msglen_s), msglen_s);
     ctx->s_cb.return_code = EXPECT_RESULT();
     ExpectIntGT(idx = wolfSSL_read(ctx->c_ssl, input, sizeof(input) - 1), 0);
-    input[idx] = '\0';
+    if (idx >= 0) {
+        input[idx] = '\0';
+    }
     ExpectIntGT(fprintf(stderr, "Server response: %s\n", input), 0);
     ctx->c_cb.return_code = EXPECT_RESULT();
     if (ctx->c_cb.on_result != NULL) {
@@ -32491,11 +32499,13 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
-    tpp--;
-    ExpectIntEQ(*(tpp--), 128);
-    ExpectIntEQ(*tpp, 0);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
+        tpp--;
+        ExpectIntEQ(*(tpp--), 128);
+        ExpectIntEQ(*tpp, 0);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32510,10 +32520,12 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
-    tpp--;
-    ExpectIntEQ(*tpp, 216);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp--;
+        ExpectIntEQ(*tpp, 216);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32528,10 +32540,12 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
-    tpp--;
-    ExpectIntEQ(*tpp, 128);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp--;
+        ExpectIntEQ(*tpp, 128);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32546,11 +32560,13 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
             DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
-    tpp--;
-    ExpectIntEQ(*(tpp--), 56);
-    ExpectIntEQ(*tpp, 255);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
+        tpp--;
+        ExpectIntEQ(*(tpp--), 56);
+        ExpectIntEQ(*tpp, 255);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32564,10 +32580,12 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
-    tpp--;
-    ExpectIntEQ(*tpp, 0);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp--;
+        ExpectIntEQ(*tpp, 0);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32581,11 +32599,13 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 1);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
-    tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
-    tpp--;
-    ExpectIntEQ(*tpp, 0);
+    if (tpp != NULL) {
+        tpp = pp;
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp--;
+        ExpectIntEQ(*tpp, 0);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32600,12 +32620,14 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectIntEQ(ret = i2c_ASN1_INTEGER(a, NULL), 2);
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
-    tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
-    tpp -= 2;
-    ExpectIntEQ(tpp[0], 0x01);
-    ExpectIntEQ(tpp[1], 0x00);
+    if (tpp != NULL) {
+        tpp = pp;
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
+        tpp -= 2;
+        ExpectIntEQ(tpp[0], 0x01);
+        ExpectIntEQ(tpp[1], 0x00);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32621,11 +32643,13 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
-    tpp -= 2;
-    ExpectIntEQ(tpp[0], 0x80);
-    ExpectIntEQ(tpp[1], 0x00);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 2);
+        tpp -= 2;
+        ExpectIntEQ(tpp[0], 0x80);
+        ExpectIntEQ(tpp[1], 0x00);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -32641,12 +32665,14 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 3);
-    tpp -= 3;
-    ExpectIntEQ(tpp[0], 0xFF);
-    ExpectIntEQ(tpp[1], 0x7F);
-    ExpectIntEQ(tpp[2], 0xFF);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 3);
+        tpp -= 3;
+        ExpectIntEQ(tpp[0], 0xFF);
+        ExpectIntEQ(tpp[1], 0x7F);
+        ExpectIntEQ(tpp[2], 0xFF);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     wolfSSL_ASN1_INTEGER_free(a);
@@ -33071,9 +33097,13 @@ static int test_wolfSSL_i2s_ASN1_STRING(void)
 
     ExpectNotNull(str = ASN1_STRING_new());
 
-    ExpectNull(wolfSSL_i2s_ASN1_STRING(NULL, NULL));
+    ExpectNull(ret = wolfSSL_i2s_ASN1_STRING(NULL, NULL));
+    XFREE(ret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ret = NULL;
     /* No data. */
-    ExpectNull(wolfSSL_i2s_ASN1_STRING(NULL, str));
+    ExpectNull(ret = wolfSSL_i2s_ASN1_STRING(NULL, str));
+    XFREE(ret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ret = NULL;
 
     ExpectIntEQ(ASN1_STRING_set(str, data, 0), 1);
     ExpectNotNull(ret = wolfSSL_i2s_ASN1_STRING(NULL, str));
@@ -33770,6 +33800,7 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
     date_str[CTC_DATE_SIZE] = '\0';
     ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
     XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
+    asn_time = NULL;
 
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day,
         offset_sec));
@@ -36494,6 +36525,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY_free(pkey);
         pkey = NULL;
         SSL_CTX_free(ctx);
+        server_key = NULL;
     }
     #endif
 
@@ -39111,6 +39143,8 @@ static int test_wolfSSL_CTX_set_client_CA_list(void)
         wolfSSL_free(ssl_client);
         wolfSSL_CTX_free(ctx_client);
 
+        CloseSocket(sockfd);
+
         join_thread(serverThread);
         FreeTcpReady(&ready);
     }
@@ -39582,6 +39616,8 @@ static int test_wolfSSL_Tls13_ECH(void)
     ExpectStrEQ(privateName, reply);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+
+    CloseSocket(sockfd);
 
     join_thread(serverThread);
 
@@ -40373,6 +40409,7 @@ static int test_wolfSSL_BN_enc_dec(void)
     ExpectNotNull(BN_hex2bn(&b, numberStr));
     ExpectIntEQ(BN_cmp(a, b), -1);
     XFREE(str, NULL, DYNAMIC_TYPE_OPENSSL);
+    str = NULL;
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
     ExpectNotNull(str = BN_bn2dec(a));
@@ -42045,12 +42082,14 @@ static int test_wolfSSL_a2i_IPADDRESS(void)
     ExpectIntEQ(dataSz = ASN1_STRING_length(st), WOLFSSL_IP4_ADDR_LEN);
     ExpectIntEQ(XMEMCMP(data, ipv4_exp, dataSz), 0);
     ASN1_STRING_free(st);
+    st = NULL;
 
     ExpectNotNull(st = a2i_IPADDRESS("::1"));
     ExpectNotNull(data = ASN1_STRING_get0_data(st));
     ExpectIntEQ(dataSz = ASN1_STRING_length(st), WOLFSSL_IP6_ADDR_LEN);
     ExpectIntEQ(XMEMCMP(data, ipv6_home, dataSz), 0);
     ASN1_STRING_free(st);
+    st = NULL;
 
     ExpectNotNull(st = a2i_IPADDRESS("2021:db8::ff00:42:7777"));
     ExpectNotNull(data = ASN1_STRING_get0_data(st));
@@ -44324,7 +44363,11 @@ static int test_wolfSSL_OBJ_txt2obj(void)
     };
 
     ExpectNull(obj = OBJ_txt2obj("Bad name", 0));
+    ASN1_OBJECT_free(obj);
+    obj = NULL;
     ExpectNull(obj = OBJ_txt2obj(NULL, 0));
+    ASN1_OBJECT_free(obj);
+    obj = NULL;
 
     for (i = 0; objs_list[i].oidStr != NULL; i++) {
         /* Test numerical value of oid (oidStr) */
@@ -45418,6 +45461,8 @@ static int test_wolfSSL_BIO_should_retry(void)
     BIO_free(bio);
     wolfSSL_CTX_free(ctx);
 
+    CloseSocket(sockfd);
+
     join_thread(serverThread);
     FreeTcpReady(&ready);
 
@@ -45739,6 +45784,7 @@ static int test_wolfSSL_BIO_write(void)
     ExpectNotNull(bio   = BIO_push(BIO_new(BIO_f_base64()), bio64));
     if (EXPECT_FAIL()) {
         BIO_free(bio64);
+        bio64 = NULL;
     }
     ExpectNotNull(bio_mem = BIO_new(BIO_s_mem()));
     ExpectNotNull(BIO_push(bio64, bio_mem));
@@ -66629,6 +66675,9 @@ static int test_dtls_msg_from_other_peer_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
 
     (void)ssl;
     (void)ctx;
+
+    if (ssl == NULL)
+        return -1;
 
     err = test_dtls_msg_get_connected_port(wolfSSL_get_fd(ssl), &port);
     if (err != 0)
