@@ -8208,19 +8208,19 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
 {
     int ret = WOLFSSL_SUCCESS;
 
-    (void)options;
-
     WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
     if (cm == NULL)
         return BAD_FUNC_ARG;
-#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
     if (options == 0) {
+#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
         /* Turn off doing Leaf CRL check */
         cm->crlEnabled = 0;
         /* Turn off all checks */
         cm->crlCheckAll = 0;
-    }
 #endif
+        return ret;
+    }
+
     #ifdef HAVE_CRL
         if (cm->crl == NULL) {
             cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,

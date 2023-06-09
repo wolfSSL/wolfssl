@@ -979,7 +979,10 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
     if (store == NULL)
         return WOLFSSL_FAILURE;
 
-    ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
+    if ((flag & WOLFSSL_CRL_CHECKALL) || (flag & WOLFSSL_CRL_CHECK) ||
+         flag == 0 ) {
+        ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
+    }
 
     return ret;
 }
