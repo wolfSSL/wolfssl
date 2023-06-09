@@ -66573,7 +66573,7 @@ static byte* test_find_string(const char *string,
 {
     int string_size, i;
 
-    string_size = XSTRLEN(string);
+    string_size = (int)XSTRLEN(string);
     for (i = 0; i < buf_size - string_size - 1; i++) {
         if (XSTRCMP((char*)&buf[i], string) == 0)
             return &buf[i];
