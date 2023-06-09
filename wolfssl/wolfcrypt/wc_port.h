@@ -307,10 +307,12 @@
     #define WOLFSSL_ATOMIC_OPS
 #endif
 #else
+    #ifdef HAVE_STDATOMIC_H
     /* Default C Implementation */
     #include <stdatomic.h>
     typedef atomic_int wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_OPS
+    #endif /* HAVE_STDATOMIC_H */
 #endif
 #elif defined(_MSC_VER)
     /* Use MSVC compiler intrinsics for atomic ops */
