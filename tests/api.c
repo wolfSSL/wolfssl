@@ -48860,7 +48860,7 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
     smimeTestFile = XFOPEN("./certs/test/smime-test-multipart-badsig.p7s", "r");
     ExpectIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
-    ExpectNull(pkcs7);
+    ExpectNotNull(pkcs7); /* can read in the unverified smime bundle */
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
         PKCS7_NOVERIFY), SSL_FAILURE);
     XFCLOSE(smimeTestFile);
