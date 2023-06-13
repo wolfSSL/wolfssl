@@ -277,8 +277,9 @@ int mem_fail_cnt = 0;
 
 void wc_MemFailCount_Init()
 {
+    char* cnt;
     wc_InitMutex(&memFailMutex);
-    char* cnt = getenv("MEM_FAIL_CNT");
+    cnt = getenv("MEM_FAIL_CNT");
     if (cnt != NULL) {
         fprintf(stderr, "MemFailCount At: %d\n", mem_fail_cnt);
         mem_fail_cnt = atoi(cnt);

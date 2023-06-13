@@ -2245,14 +2245,16 @@ int wolfSSL_EVP_PKEY_CTX_add1_hkdf_info(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS && info != NULL && infoSz > 0) {
+        unsigned char* p;
         /* If there's already info in the buffer, append. */
-        ctx->pkey->hkdfInfo = (byte*)XREALLOC(ctx->pkey->hkdfInfo,
-            ctx->pkey->hkdfInfoSz + infoSz, NULL, DYNAMIC_TYPE_INFO);
-        if (ctx->pkey->hkdfInfo == NULL) {
+        p = (byte*)XREALLOC(ctx->pkey->hkdfInfo, ctx->pkey->hkdfInfoSz + infoSz,
+            NULL, DYNAMIC_TYPE_INFO);
+        if (p == NULL) {
             WOLFSSL_MSG("Failed to reallocate larger HKDF info buffer.");
             ret = WOLFSSL_FAILURE;
         }
         else {
+            ctx->pkey->hkdfInfo = p;
             XMEMCPY(ctx->pkey->hkdfInfo + ctx->pkey->hkdfInfoSz, info,
                     infoSz);
             ctx->pkey->hkdfInfoSz += infoSz;
@@ -7945,6 +7947,11 @@ int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
 int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 {
     WOLFSSL_MSG("wolfSSL_EVP_CIPHER_CTX_iv_length");
+
+    if (ctx == NULL) {
+        WOLFSSL_MSG("No context");
+        return 0;
+    }
 
     switch (ctx->cipherType) {
 
