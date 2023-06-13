@@ -31485,6 +31485,7 @@ static void DataToHexString(const byte* input, word32 inSz, char* out)
     out[i * 2] = '\0';
 }
 
+#ifndef WOLFSSL_ECC_CURVE_STATIC
 /* Convert data to hex string and place in allocated buffer.
  *
  * Big-endian byte array is converted to big-endian hexadecimal string.
@@ -31519,6 +31520,7 @@ static int DataToHexStringAlloc(const byte* input, word32 inSz, char** out,
 
     return ret;
 }
+#endif /* WOLFSSL_ECC_CURVE_STATIC */
 
 /* ASN.1 template for SpecifiedECDomain.
  * SEC 1 Ver. 2.0, C.2 - Syntax for Elliptic Curve Domain Parameters

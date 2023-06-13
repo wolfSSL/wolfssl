@@ -48,10 +48,10 @@
 
 static const word64 blake2b_IV[8] =
 {
-  W64LIT(0x6a09e667f3bcc908U), W64LIT(0xbb67ae8584caa73bU),
-  W64LIT(0x3c6ef372fe94f82bU), W64LIT(0xa54ff53a5f1d36f1U),
-  W64LIT(0x510e527fade682d1U), W64LIT(0x9b05688c2b3e6c1fU),
-  W64LIT(0x1f83d9abfb41bd6bU), W64LIT(0x5be0cd19137e2179U)
+  W64LIT(0x6a09e667f3bcc908), W64LIT(0xbb67ae8584caa73b),
+  W64LIT(0x3c6ef372fe94f82b), W64LIT(0xa54ff53a5f1d36f1),
+  W64LIT(0x510e527fade682d1), W64LIT(0x9b05688c2b3e6c1f),
+  W64LIT(0x1f83d9abfb41bd6b), W64LIT(0x5be0cd19137e2179)
 };
 
 static const byte blake2b_sigma[12][16] =
@@ -73,7 +73,7 @@ static const byte blake2b_sigma[12][16] =
 
 static WC_INLINE int blake2b_set_lastnode( blake2b_state *S )
 {
-  S->f[1] = ~W64LIT(0U);
+  S->f[1] = ~W64LIT(0);
   return 0;
 }
 
@@ -82,7 +82,7 @@ static WC_INLINE int blake2b_set_lastblock( blake2b_state *S )
 {
   if( S->last_node ) blake2b_set_lastnode( S );
 
-  S->f[0] = ~W64LIT(0U);
+  S->f[0] = ~W64LIT(0);
   return 0;
 }
 
