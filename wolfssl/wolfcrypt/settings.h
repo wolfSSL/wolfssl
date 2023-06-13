@@ -1879,7 +1879,9 @@ extern void uITRON4_free(void *p) ;
 #ifdef _MSC_VER
     #ifndef HAVE_SSIZE_T
         #include <BaseTsd.h>
-        typedef SSIZE_T ssize_t;
+        #if ! defined(ssize_t)
+            typedef SSIZE_T ssize_t;
+        #endif
     #endif
 #endif
 

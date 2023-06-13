@@ -80,6 +80,8 @@ AC_CHECK_SIZEOF([long long])
 AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([__uint128_t])
+AC_CHECK_TYPES([ssize_t], [], [], [[#include <BaseTsd.h>]])
+
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
