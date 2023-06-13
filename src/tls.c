@@ -13203,15 +13203,16 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             #endif
 
 #ifdef WOLFSSL_TLS13
+                /* RFC 8446 4.2.4 states trusted_ca_keys is not used
+                   in TLS 1.3. */
                 if (IsAtLeastTLSv1_3(ssl->version)) {
-                    if (msgType != client_hello &&
-                        msgType != encrypted_extensions)
-                        return EXT_NOT_ALLOWED;
+                    return EXT_NOT_ALLOWED;
                 }
                 else
 #endif
                 {
-                    if (msgType != client_hello)
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
                         return EXT_NOT_ALLOWED;
                 }
                 ret = TCA_PARSE(ssl, input + offset, size, isRequest);
