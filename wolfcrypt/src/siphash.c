@@ -165,15 +165,15 @@ int wc_InitSipHash(SipHash* sipHash, const unsigned char* key,
         word64 k1 = GET_U64(key + 8);
 
         /* Initialize state with key. */
-        sipHash->v[0] = W64LIT(0x736f6d6570736575U);
+        sipHash->v[0] = W64LIT(0x736f6d6570736575);
         if (outSz == SIPHASH_MAC_SIZE_8) {
-            sipHash->v[1] = W64LIT(0x646f72616e646f6dU);
+            sipHash->v[1] = W64LIT(0x646f72616e646f6d);
         }
         else {
-            sipHash->v[1] = W64LIT(0x646f72616e646f83U);
+            sipHash->v[1] = W64LIT(0x646f72616e646f83);
         }
-        sipHash->v[2] = W64LIT(0x6c7967656e657261U);
-        sipHash->v[3] = W64LIT(0x7465646279746573U);
+        sipHash->v[2] = W64LIT(0x6c7967656e657261);
+        sipHash->v[3] = W64LIT(0x7465646279746573);
 
         sipHash->v[0] ^= k0;
         sipHash->v[1] ^= k1;

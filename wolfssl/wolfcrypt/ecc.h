@@ -306,14 +306,14 @@ typedef struct ecc_set_type {
 typedef struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
-    const char name[MAX_ECC_NAME];     /* name of this curve */
-    const char prime[MAX_ECC_STRING];    /* prime that defines the field, curve is in (hex) */
-    const char Af[MAX_ECC_STRING];       /* fields A param (hex) */
-    const char Bf[MAX_ECC_STRING];       /* fields B param (hex) */
-    const char order[MAX_ECC_STRING];    /* order of the curve (hex) */
-    const char Gx[MAX_ECC_STRING];       /* x coordinate of the base point on curve (hex) */
-    const char Gy[MAX_ECC_STRING];       /* y coordinate of the base point on curve (hex) */
-    const ecc_oid_t oid[10];
+    char name[MAX_ECC_NAME];     /* name of this curve */
+    char prime[MAX_ECC_STRING];    /* prime that defines the field, curve is in (hex) */
+    char Af[MAX_ECC_STRING];       /* fields A param (hex) */
+    char Bf[MAX_ECC_STRING];       /* fields B param (hex) */
+    char order[MAX_ECC_STRING];    /* order of the curve (hex) */
+    char Gx[MAX_ECC_STRING];       /* x coordinate of the base point on curve (hex) */
+    char Gy[MAX_ECC_STRING];       /* y coordinate of the base point on curve (hex) */
+    ecc_oid_t oid[10];
     word32      oidSz;
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
