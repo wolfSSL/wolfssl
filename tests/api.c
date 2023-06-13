@@ -25658,7 +25658,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     }
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        BAD_FUNC_ARG);
+        BUFFER_E);
     if (pkcs7 != NULL) {
         pkcs7->singleCertSz = tempWrd32;
 
@@ -25667,7 +25667,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     }
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        BAD_FUNC_ARG);
+        ASN_PARSE_E);
     if (pkcs7 != NULL) {
         pkcs7->singleCert = tmpBytePtr;
     }
