@@ -5612,6 +5612,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 #ifndef ALT_ECC_SIZE
         err = mp_init(key->k);
 #else
+        err = 0;
         key->k = (mp_int*)key->ka;
         alt_fp_init(key->k);
 #endif
