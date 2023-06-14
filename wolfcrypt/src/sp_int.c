@@ -5104,6 +5104,51 @@ int sp_copy(const sp_int* a, sp_int* r)
 }
 #endif
 
+#if ((defined(WOLFSSL_SP_MATH_ALL) && ((!defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+      !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH))) || \
+     defined(OPENSSL_ALL)) && defined(WC_PROTECT_ENCRYPTED_MEM)
+
+/* Copy 2 numbers into two results based on y. Copy a fixed number of digits.
+ *
+ * Constant time implementation.
+ * When y is 0, r1 = a2 and r2 = a1.
+ * When y is 1, r1 = a1 and r2 = a2.
+ *
+ * @param [in]  a1    First number to copy.
+ * @param [in]  a2    Second number to copy.
+ * @param [out] r1    First result number to copy into.
+ * @param [out] r2    Second result number to copy into.
+ * @param [in]  y     Indicates which number goes into which result number.
+ * @param [in]  used  Number of digits to copy.
+ */
+static void _sp_copy_2_ct(const sp_int* a1, const sp_int* a2, sp_int* r1,
+    sp_int* r2, int y, unsigned int used)
+{
+    unsigned int i;
+
+    /* Copy data - constant time. */
+    for (i = 0; i < used; i++) {
+        r1->dp[i] = (a1->dp[i] & ((sp_digit)wc_off_on_addr[y  ])) +
+                    (a2->dp[i] & ((sp_digit)wc_off_on_addr[y^1]));
+        r2->dp[i] = (a1->dp[i] & ((sp_digit)wc_off_on_addr[y^1])) +
+                    (a2->dp[i] & ((sp_digit)wc_off_on_addr[y  ]));
+    }
+    /* Copy used. */
+    r1->used = (a1->used & ((int)wc_off_on_addr[y  ])) +
+               (a2->used & ((int)wc_off_on_addr[y^1]));
+    r2->used = (a1->used & ((int)wc_off_on_addr[y^1])) +
+               (a2->used & ((int)wc_off_on_addr[y  ]));
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    /* Copy sign. */
+    r1->sign = (a1->sign & ((int)wc_off_on_addr[y  ])) +
+               (a2->sign & ((int)wc_off_on_addr[y^1]));
+    r2->sign = (a1->sign & ((int)wc_off_on_addr[y^1])) +
+               (a2->sign & ((int)wc_off_on_addr[y  ]));
+#endif
+}
+
+#endif
+
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && defined(FP_ECC))
 /* Initializes r and copies in value from a.
  *
@@ -12483,6 +12528,9 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
     defined(OPENSSL_ALL)
+
+#ifndef WC_PROTECT_ENCRYPTED_MEM
+
 /* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  * Process the exponent one bit at a time.
  * Is constant time and can be cache attack resistant.
@@ -12614,6 +12662,105 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
     FREE_SP_INT_ARRAY(t, NULL);
     return err;
 }
+
+#else
+
+/* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
+ * Process the exponent one bit at a time with base in Montgomery form.
+ * Is constant time and cache attack resistant.
+ *
+ * Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
+ * Cryptographic Hardware and Embedded Systems, CHES 2002
+ *
+ * Algorithm:
+ *  b: base, e: exponent, m: modulus, r: result, bits: #bits to use
+ *  1. t[1] = b mod m.
+ *  2. t[0] = 1
+ *  3. For i in (bits-1)...0
+ *   3.1. y = e[i]
+ *   3.2. t[2] = t[0] * t[1]
+ *   3.3. t[3] = t[y] ^ 2
+ *   3.4. t[y] = t[3], t[y^1] = t[2]
+ *  4. r = t[0]
+ *
+ * @param  [in]   b     SP integer that is the base.
+ * @param  [in]   e     SP integer that is the exponent.
+ * @param  [in]   bits  Number of bits in exponent to use. May be greater than
+ *                      count of bits in e.
+ * @param  [in]   m     SP integer that is the modulus.
+ * @param  [out]  r     SP integer to hold result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
+    const sp_int* m, sp_int* r)
+{
+    int err = MP_OKAY;
+    int done = 0;
+    DECL_SP_INT_ARRAY(t, m->used * 2 + 1, 4);
+
+    /* Allocate temporaries. */
+    ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, 4, err, NULL);
+    if (err == MP_OKAY) {
+        /* Initialize temporaries. */
+        _sp_init_size(t[0], m->used * 2 + 1);
+        _sp_init_size(t[1], m->used * 2 + 1);
+        _sp_init_size(t[2], m->used * 2 + 1);
+        _sp_init_size(t[3], m->used * 2 + 1);
+
+        /* 1. Ensure base is less than modulus. */
+        if (_sp_cmp_abs(b, m) != MP_LT) {
+            err = sp_mod(b, m, t[1]);
+            /* Handle base == modulus. */
+            if ((err == MP_OKAY) && sp_iszero(t[1])) {
+                _sp_set(r, 0);
+                done = 1;
+            }
+        }
+        else {
+            /* Copy base into working variable. */
+            err = sp_copy(b, t[1]);
+        }
+    }
+
+    if ((!done) && (err == MP_OKAY)) {
+        int i;
+
+        /* 2. t[0] = 1 */
+        _sp_set(t[0], 1);
+
+        /* 3. For i in (bits-1)...0 */
+        for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
+            /* 3.1. y = e[i] */
+            int y = (e->dp[i >> SP_WORD_SHIFT] >> (i & SP_WORD_MASK)) & 1;
+
+            /* 3.2. t[2] = t[0] * t[1] */
+            err = sp_mulmod(t[0], t[1], m, t[2]);
+            /* 3.3. t[3] = t[y] ^ 2 */
+            if (err == MP_OKAY) {
+                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
+                                   ((size_t)t[1] & sp_off_on_addr[y  ])),
+                         t[3]);
+                err = sp_sqrmod(t[3], m, t[3]);
+            }
+            /* 3.4. t[y] = t[3], t[y^1] = t[2] */
+            if (err == MP_OKAY) {
+                _sp_copy_2_ct(t[2], t[3], t[0], t[1], y, m->used);
+            }
+        }
+    }
+    if ((!done) && (err == MP_OKAY)) {
+        /* 4. r = t[0] */
+        err = sp_copy(t[0], r);
+    }
+
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
+
+#endif /* WC_PROTECT_ENCRYPTED_MEM */
+
 #endif
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && ((!defined(WOLFSSL_RSA_VERIFY_ONLY) && \
@@ -12621,6 +12768,9 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
     defined(OPENSSL_ALL)
 #ifndef WC_NO_HARDEN
 #if !defined(WC_NO_CACHE_RESISTANT)
+
+#ifndef WC_PROTECT_ENCRYPTED_MEM
+
 /* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  * Process the exponent one bit at a time with base in Montgomery form.
  * Is constant time and cache attack resistant.
@@ -12759,6 +12909,130 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
     FREE_SP_INT_ARRAY(t, NULL);
     return err;
 }
+
+#else
+
+/* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
+ * Process the exponent one bit at a time with base in Montgomery form.
+ * Is constant time and cache attack resistant.
+ *
+ * Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
+ * Cryptographic Hardware and Embedded Systems, CHES 2002
+ *
+ * Algorithm:
+ *  b: base, e: exponent, m: modulus, r: result, bits: #bits to use
+ *  1. t[1] = b mod m.
+ *  2. t[0] = ToMont(1)
+ *  3. t[1] = ToMont(t[1])
+ *  4. For i in (bits-1)...0
+ *   4.1. y = e[i]
+ *   4.2. t[2] = t[0] * t[1]
+ *   4.3. t[3] = t[y] ^ 2
+ *   4.4. t[y] = t[3], t[y^1] = t[2]
+ *  5. t[0] = FromMont(t[0])
+ *  6. r = t[0]
+ *
+ * @param  [in]   b     SP integer that is the base.
+ * @param  [in]   e     SP integer that is the exponent.
+ * @param  [in]   bits  Number of bits in exponent to use. May be greater than
+ *                      count of bits in e.
+ * @param  [in]   m     SP integer that is the modulus.
+ * @param  [out]  r     SP integer to hold result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+    const sp_int* m, sp_int* r)
+{
+    int err = MP_OKAY;
+    int done = 0;
+    DECL_SP_INT_ARRAY(t, m->used * 2 + 1, 4);
+
+    /* Allocate temporaries. */
+    ALLOC_SP_INT_ARRAY(t, m->used * 2 + 1, 4, err, NULL);
+    if (err == MP_OKAY) {
+        /* Initialize temporaries. */
+        _sp_init_size(t[0], m->used * 2 + 1);
+        _sp_init_size(t[1], m->used * 2 + 1);
+        _sp_init_size(t[2], m->used * 2 + 1);
+        _sp_init_size(t[3], m->used * 2 + 1);
+
+        /* 1. Ensure base is less than modulus. */
+        if (_sp_cmp_abs(b, m) != MP_LT) {
+            err = sp_mod(b, m, t[1]);
+            /* Handle base == modulus. */
+            if ((err == MP_OKAY) && sp_iszero(t[1])) {
+                _sp_set(r, 0);
+                done = 1;
+            }
+        }
+        else {
+            /* Copy base into working variable. */
+            err = sp_copy(b, t[1]);
+        }
+    }
+
+    if ((!done) && (err == MP_OKAY)) {
+        int i;
+        sp_int_digit mp;
+
+        /* Calculate Montgomery multiplier for reduction. */
+        _sp_mont_setup(m, &mp);
+        /* 2. t[0] = ToMont(1)
+          *    Calculate 1 in Montgomery form.
+          */
+        err = sp_mont_norm(t[0], m);
+        if (err == MP_OKAY) {
+            /* 3. t[1] = ToMont(t[1])
+             *    Convert base to Montgomery form.
+             */
+            err = sp_mulmod(t[1], t[0], m, t[1]);
+        }
+
+        /* 4. For i in (bits-1)...0 */
+        for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
+            /* 4.1. y = e[i] */
+            int y = (e->dp[i >> SP_WORD_SHIFT] >> (i & SP_WORD_MASK)) & 1;
+
+            /* 4.2. t[2] = t[0] * t[1] */
+            err = sp_mul(t[0], t[1], t[2]);
+            if (err == MP_OKAY) {
+                err = _sp_mont_red(t[2], m, mp);
+            }
+            /* 4.3. t[3] = t[y] ^ 2 */
+            if (err == MP_OKAY) {
+                _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
+                                   ((size_t)t[1] & sp_off_on_addr[y  ])),
+                         t[3]);
+                err = sp_sqr(t[3], t[3]);
+            }
+            if (err == MP_OKAY) {
+                err = _sp_mont_red(t[3], m, mp);
+            }
+            /* 4.4. t[y] = t[3], t[y^1] = t[2] */
+            if (err == MP_OKAY) {
+                _sp_copy_2_ct(t[2], t[3], t[0], t[1], y, m->used);
+            }
+        }
+
+        if (err == MP_OKAY) {
+            /* 5. t[0] = FromMont(t[0]) */
+            err = _sp_mont_red(t[0], m, mp);
+            /* Reduction implementation returns number to range: 0..m-1. */
+        }
+    }
+    if ((!done) && (err == MP_OKAY)) {
+        /* 6. r = t[0] */
+        err = sp_copy(t[0], r);
+    }
+
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
+
+#endif /* WC_PROTECT_ENCRYPTED_MEM */
+
 #else
 
 #ifdef SP_ALLOC

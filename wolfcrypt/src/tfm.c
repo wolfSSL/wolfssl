@@ -1977,6 +1977,8 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 #endif /* WC_RSA_NONBLOCK */
 
 
+#ifndef WC_PROTECT_ENCRYPTED_MEM
+
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
@@ -2158,6 +2160,171 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
 #endif
    return err;
 }
+
+#else
+
+/* Copy from a1 and a2 into r1 and r2 based on y in constant time.
+ * When y is 1, r1 = a1 and r2 = a2.
+ * When y is 0, r1 = a2 and r2 = a1.
+ * Always copy size digits as that is the maximum size for a1 and a2.
+ */
+static void fp_copy_2_ct(fp_int* a1, fp_int* a2, fp_int* r1, fp_int* r2, int y,
+    int size)
+{
+    int i;
+
+    /* Copy data - constant time. */
+    for (i = 0; i < size; i++) {
+        r1->dp[i] = (a1->dp[i] & ((fp_digit)wc_off_on_addr[y  ])) +
+                    (a2->dp[i] & ((fp_digit)wc_off_on_addr[y^1]));
+        r2->dp[i] = (a1->dp[i] & ((fp_digit)wc_off_on_addr[y^1])) +
+                    (a2->dp[i] & ((fp_digit)wc_off_on_addr[y  ]));
+    }
+    /* Copy used. */
+    r1->used = (a1->used & ((int)wc_off_on_addr[y  ])) +
+               (a2->used & ((int)wc_off_on_addr[y^1]));
+    r2->used = (a1->used & ((int)wc_off_on_addr[y^1])) +
+               (a2->used & ((int)wc_off_on_addr[y  ]));
+    /* Copy sign. */
+    r1->sign = (a1->sign & ((int)wc_off_on_addr[y  ])) +
+               (a2->sign & ((int)wc_off_on_addr[y^1]));
+    r2->sign = (a1->sign & ((int)wc_off_on_addr[y^1])) +
+               (a2->sign & ((int)wc_off_on_addr[y  ]));
+}
+
+/* timing resistant montgomery ladder based exptmod
+   Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
+   Cryptographic Hardware and Embedded Systems, CHES 2002
+*/
+static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
+                          fp_int * Y)
+{
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int   R[4];   /* need a temp for cache resistance */
+#else
+  fp_int  *R;
+#endif
+  fp_digit buf, mp;
+  int      err, bitcnt, digidx, y;
+
+  /* now setup montgomery  */
+  if ((err = fp_montgomery_setup (P, &mp)) != FP_OKAY) {
+     return err;
+  }
+
+#ifdef WOLFSSL_SMALL_STACK
+   R = (fp_int*)XMALLOC(sizeof(fp_int) * 4, NULL, DYNAMIC_TYPE_BIGINT);
+   if (R == NULL)
+       return FP_MEM;
+#endif
+  fp_init(&R[0]);
+  fp_init(&R[1]);
+  fp_init(&R[2]);
+  fp_init(&R[3]);
+
+  /* now we need R mod m */
+  err = fp_montgomery_calc_normalization (&R[0], P);
+  if (err != FP_OKAY) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+  #endif
+    return err;
+  }
+
+  /* now set R[0][1] to G * R mod m */
+  if (fp_cmp_mag(P, G) != FP_GT) {
+     /* G > P so we reduce it first */
+     err = fp_mod(G, P, &R[1]);
+     if (err != FP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+         XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+         return err;
+     }
+  } else {
+     fp_copy(G, &R[1]);
+  }
+  err = fp_mulmod (&R[1], &R[0], P, &R[1]);
+  if (err != FP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+      return err;
+  }
+
+  /* for j = t-1 downto 0 do
+        r_!k = R0*R1; r_k = r_k^2
+  */
+
+  /* set initial mode and bit cnt */
+  bitcnt = 1;
+  buf    = 0;
+  digidx = digits - 1;
+
+  for (;;) {
+    /* grab next digit as required */
+    if (--bitcnt == 0) {
+      /* if digidx == -1 we are out of digits so break */
+      if (digidx == -1) {
+        break;
+      }
+      /* read next digit and reset bitcnt */
+      buf    = X->dp[digidx--];
+      bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    y     = (int)(buf >> (DIGIT_BIT - 1)) & 1;
+    buf <<= (fp_digit)1;
+
+    /* do ops */
+    err = fp_mul(&R[0], &R[1], &R[2]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[2], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+
+    /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
+     * use R[3] as temp, make sure address calc is constant, keep
+     * &R[0] and &R[1] in cache */
+    fp_copy((fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
+                        ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ),
+            &R[3]);
+    err = fp_sqr(&R[3], &R[3]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[3], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    fp_copy_2_ct(&R[2], &R[3], &R[0], &R[1], y, P->used);
+  }
+
+  err = fp_montgomery_reduce(&R[0], P, mp);
+  fp_copy(&R[0], Y);
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+  return err;
+}
+
+#endif /* WC_PROTECT_ENCRYPTED_MEM */
 
 #endif /* TFM_TIMING_RESISTANT */
 
