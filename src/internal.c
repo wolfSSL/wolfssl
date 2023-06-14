@@ -16065,13 +16065,13 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_EXTRA_ALERTS
-void SendFatalAlertOnly(WOLFSSL *ssl, int error)
+int SendFatalAlertOnly(WOLFSSL *ssl, int error)
 {
     int why;
 
     /* already sent a more specific fatal alert  */
     if (ssl->alert_history.last_tx.level == alert_fatal)
-        return;
+        return 0;
 
     switch (error) {
         /* not fatal errors */
@@ -16081,12 +16081,12 @@ void SendFatalAlertOnly(WOLFSSL *ssl, int error)
 #ifdef WOLFSSL_ASYNC_CRYPT
     case WC_PENDING_E:
 #endif
-        return;
+        return 0;
 
     /* peer already disconnected and ssl is possibly in bad state
      * don't try to send an alert */
     case SOCKET_ERROR_E:
-        return;
+        return error;
 
     case BUFFER_ERROR:
     case ASN_PARSE_E:
@@ -16114,14 +16114,15 @@ void SendFatalAlertOnly(WOLFSSL *ssl, int error)
         break;
     }
 
-    SendAlert(ssl, alert_fatal, why);
+    return SendAlert(ssl, alert_fatal, why);
 }
 #else
-void SendFatalAlertOnly(WOLFSSL *ssl, int error)
+int SendFatalAlertOnly(WOLFSSL *ssl, int error)
 {
     (void)ssl;
     (void)error;
     /* no op */
+    return 0;
 }
 #endif /* WOLFSSL_EXTRA_ALERTS */
 
@@ -16555,7 +16556,9 @@ int DtlsMsgDrain(WOLFSSL* ssl)
             DtlsTxMsgListClean(ssl);
         }
         else if (!IsAtLeastTLSv1_3(ssl->version)) {
-            SendFatalAlertOnly(ssl, ret);
+            if (SendFatalAlertOnly(ssl, ret) == SOCKET_ERROR_E) {
+                ret = SOCKET_ERROR_E;
+            }
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E) {
@@ -19874,8 +19877,12 @@ default:
                                                          ssl->buffers.inputBuffer.buffer,
                                                          &ssl->buffers.inputBuffer.idx,
                                                          ssl->buffers.inputBuffer.length);
-                                if (ret != 0)
-                                    SendFatalAlertOnly(ssl, ret);
+                                if (ret != 0) {
+                                    if (SendFatalAlertOnly(ssl, ret)
+                                            == SOCKET_ERROR_E) {
+                                        ret = SOCKET_ERROR_E;
+                                    }
+                                }
                         }
 #endif
 #ifdef WOLFSSL_DTLS13
@@ -19912,8 +19919,10 @@ default:
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->buffers.inputBuffer.length);
-                        if (ret != 0)
-                            SendFatalAlertOnly(ssl, ret);
+                        if (ret != 0) {
+                            if (SendFatalAlertOnly(ssl, ret) == SOCKET_ERROR_E)
+                                ret = SOCKET_ERROR_E;
+                        }
 #else
                         ret = BUFFER_ERROR;
 #endif
