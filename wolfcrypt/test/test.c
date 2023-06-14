@@ -21886,6 +21886,7 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void)
         0xe8, 0xd3, 0xe0, 0xfb, 0x2e, 0x0d, 0x36, 0x28,
         0xcf, 0x35, 0xe2, 0x0c, 0x38, 0xd1, 0x89, 0x06
     };
+#if !defined(BENCH_EMBEDDED)
     WOLFSSL_SMALL_STACK_STATIC const byte verify2[] = {
         0xfd, 0xba, 0xbe, 0x1c, 0x9d, 0x34, 0x72, 0x00,
         0x78, 0x56, 0xe7, 0x19, 0x0d, 0x01, 0xe9, 0xfe,
@@ -21896,6 +21897,7 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void)
         0xc7, 0x27, 0xaf, 0xb9, 0x4a, 0x83, 0xee, 0x6d,
         0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40
     };
+#endif
 #if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_LINUXKM) && !defined(HAVE_INTEL_QA)
     WOLFSSL_SMALL_STACK_STATIC const byte verify3[] = {
         0x70, 0x23, 0xbd, 0xcb, 0x3a, 0xfd, 0x73, 0x48,
@@ -21930,16 +21932,18 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void)
     if (XMEMCMP(derived, verify1, sizeof(verify1)) != 0)
         return WC_TEST_RET_ENC_NC;
 
+#if !defined(BENCH_EMBEDDED)
     ret = wc_scrypt(derived, (byte*)"password", 8, (byte*)"NaCl", 4, 10, 8, 16,
                     sizeof(verify2));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
     /* Test case with parallel overflowing */
     ret = wc_scrypt(derived, (byte*)"password", 16, (byte*)"NaCl", 16, 2, 4, 8388608,
-                    sizeof(verify2));
+                    sizeof(verify1));
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -21962,12 +21966,14 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void)
 #endif
 #endif /* !BENCH_EMBEDDED && !defined(WOLFSSL_LINUXKM) && !HAVE_INTEL_QA */
 
+#if !defined(BENCH_EMBEDDED)
     ret = wc_scrypt_ex(derived, (byte*)"password", 8, (byte*)"NaCl", 4, 1<<10,
                        8, 16, sizeof(verify2));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
 #endif /* !HAVE_FIPS */
 
