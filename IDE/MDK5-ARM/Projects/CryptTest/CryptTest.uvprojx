@@ -334,7 +334,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>USE_STM32756G_EVAL USE_IOEXPANDER WOLFSSL_USER_SETTINGS</Define>
+              <Define>USE_STM32756G_EVAL USE_IOEXPANDER WOLFSSL_USER_SETTINGS MDK_CONF_NETWORK=0</Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
@@ -413,7 +413,7 @@
             <File>
               <FileName>user_settings.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\RTE\wolfSSL\user_settings.h</FilePath>
+              <FilePath>..\..\Conf\user_settings.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -760,14 +760,8 @@
         <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\config-Crypt.h">
-        <instance index="0" removed="1">RTE\wolfSSL\config-Crypt.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="" condition="wolfCrypt-Core"/>
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.13.0"/>
-        <targetInfos/>
-      </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\user_settings.h" version="3.14.0">
-        <instance index="0">RTE\wolfSSL\user_settings.h</instance>
+        <instance index="0">..\..\Conf\user_settings.h</instance>
         <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.15.7" condition="wolfCrypt-Core"/>
         <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.15.7"/>
         <targetInfos>

@@ -21,21 +21,20 @@
 
 #define NO_MAIN_DRIVER
 #define BENCH_EMBEDDED
-#define NO_DEV_RANDOM
-#define WOLFSSL_USER_CURRTIME
 #define SIZEOF_LONG_LONG 8
 #define NO_WRITEV
 #define NO_DEV_RANDOM
+#define WOLFSSL_IGNORE_FILE_WARN
 
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 #define WC_RSA_BLINDING
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
-#define WOLFSSL_CURRTIME_OSTICK /* use OS tich for current_time */
+#define WOLFSSL_CURRTIME_OSTICK /* use OS tick for current_time */
 #define WOLFSSL_GMTIME
-
 #define NO_MULTIBYTE_PRINT
+
 // <<< Use Configuration Wizard in Context Menu >>>
 
 
@@ -99,7 +98,7 @@
 
 
 //      <e>File System
-#define MDK_CONF_FILESYSTEM 1
+#define MDK_CONF_FILESYSTEM 0
 #if MDK_CONF_FILESYSTEM == 0
 #define NO_FILESYSTEM
 #else
@@ -109,7 +108,9 @@
 //  </e>
 
 //   <o> Network<0=>None <1=>RLnet <2=>User I/O
+#ifndef MDK_CONF_NETWORK
 #define MDK_CONF_NETWORK 1
+#endif
 #if   MDK_CONF_NETWORK == 0
 #elif MDK_CONF_NETWORK == 1
 #define WOLFSSL_KEIL_TCP_NET
@@ -150,7 +151,7 @@
 
 // <h> wolfCrypt Configuration
 
-//  <h>Hash/Crypt Algrithm
+//  <h>Hash/Crypt Algorithm
 
 //      <e>MD2
 #define MDK_CONF_MD2 0
@@ -201,7 +202,7 @@
 #endif
 //  </e>
 //      <e>RIPEMD
-#define MDK_CONF_RIPEMD 1
+#define MDK_CONF_RIPEMD 0
 #if MDK_CONF_RIPEMD == 1
 #define WOLFSSL_RIPEMD
 #endif
@@ -275,7 +276,7 @@
 //  </e>
 
 //      <e>CAMELLIA
-#define MDK_CONF_CAMELLIA 1
+#define MDK_CONF_CAMELLIA 0
 #if MDK_CONF_CAMELLIA == 1
 #define HAVE_CAMELLIA
 #endif
@@ -287,8 +288,19 @@
 #define NO_DH
 #endif
 //  </e>
+
+//      <e>RSA
+#define MDK_CONF_RSA 1
+#if MDK_CONF_RSA == 1
+/* #define RSA_LOW_MEM */
+#else
+#define NO_RSA
+#endif
+//  </e>
+
+
 //      <e>DSA
-#define MDK_CONF_DSA 1
+#define MDK_CONF_DSA 0
 #if MDK_CONF_DSA == 0
 #define NO_DSA
 #endif
@@ -297,7 +309,7 @@
 //      <e>SRP
 #define MDK_CONF_SRP 1
 #if MDK_CONF_SRP == 1
-#define HAVE_SRP
+#define WOLFCRYPT_HAVE_SRP
 #endif
 //  </e>
 
@@ -412,7 +424,7 @@
 //  </e>
 // </h>
 
-//  <h>Cert/Key Strage
+//  <h>Cert/Key Storage
 //        <o>Cert Storage <0=> SD Card <1=> Mem Buff (1024bytes) <2=> Mem Buff (2048bytes)
 #define MDK_CONF_CERT_BUFF 0
 #if MDK_CONF_CERT_BUFF== 1
@@ -432,25 +444,64 @@
 #define MDK_CONF_KEY_GEN 0
 #if MDK_CONF_KEY_GEN == 1
 #define WOLFSSL_KEY_GEN
+#define WOLFSSL_OLD_PRIME_CHECK /* use older prime check (faster) */
 #endif
 //  </e>
 // </h>
-//      <e>Use Fast Math
-#define MDK_CONF_FASTMATH 1
-#if MDK_CONF_FASTMATH == 1
-#define USE_FAST_MATH
-#define TFM_TIMING_RESISTANT
+
+// <h>Math / Memory
+//      <o> Math Library
+//        <0=>SP Math All (sp_int.c)
+//        <1=>Fast Math (tfm.c)
+//        <2=>Heap Math (integer.c)
+//        <3=>SP Math (RSA/DH 2048/3072/4096 and ECC 256/384/521 only)
+//        <4=>SP Math +ASM (faster)
+#define MDK_CONF_MATH 0
+#if MDK_CONF_MATH == 0
+    #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
+#elif MDK_CONF_MATH == 1
+    #define USE_FAST_MATH
+#elif MDK_CONF_MATH == 2
+    #define USE_INTEGER_HEAP_MATH
+#elif MDK_CONF_MATH == 3 || MDK_CONF_MATH == 4
+    #define WOLFSSL_SP_MATH     /* only SP math - disables integer.c/tfm.c */
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+
+    //#define WOLFSSL_SP_NO_2048
+    //#define WOLFSSL_SP_NO_3072
+    #define WOLFSSL_SP_4096
+    //#define WOLFSSL_SP_NO_256
+    //#define WOLFSSL_SP_384
+    //#define WOLFSSL_SP_521
+
+    #define WOLFSSL_SP_SMALL /* use smaller version of code */
+    //#define WOLFSSL_SP_NO_MALLOC /* do not use heap */
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
+
+    #if MDK_CONF_MATH == 4
+        /* SP Assembly Speedups - specific to chip type */
+        #define WOLFSSL_SP_ASM
+
+        //#define WOLFSSL_SP_ARM32_ASM
+        //#define WOLFSSL_SP_ARM64_ASM
+        //#define WOLFSSL_SP_ARM_THUMB_ASM
+        //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+    #endif
 #endif
-//  </e>
+
 //      <e>Small Stack
 #define MDK_CONF_SmallStack 1
 #if MDK_CONF_SmallStack == 0
-#define NO_WOLFSSL_SMALL_STACK
+    #define NO_WOLFSSL_SMALL_STACK
+#else
+    #define WOLFSSL_SMALL_STACK
 #endif
-//  </e>
-
+//      </e>
 //  </h>
-
+//  </h>
 
 /**** wolfSSL Configuration ****/
 
@@ -465,6 +516,7 @@
 #define WC_RSA_PSS
 #define HAVE_HKDF
 #define HAVE_FFDHE_2048
+//#define HAVE_FFDHE_3072
 #endif
 //  </e>
 

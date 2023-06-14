@@ -9020,6 +9020,14 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)OSA_TimeGetMsec() / 1000;
     }
 
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+    double current_time(int reset)
+    {
+        (void)reset;
+        return (double)osKernelGetTickCount() / 1000.0;
+    }
+
 #elif defined(WOLFSSL_EMBOS)
 
     #include "RTOS.h"

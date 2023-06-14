@@ -34,9 +34,9 @@
     #include "cmsis_os2.h"
 #endif
 /* Dummy definition for test RTC */
-#define RTC_YEAR 2019
+#define RTC_YEAR  2023
 #define RTC_MONTH 1
-#define RTC_DAY 1
+#define RTC_DAY   1
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal.h"
@@ -65,19 +65,19 @@ extern uint32_t os_time;
 #endif
 
 uint32_t HAL_GetTick(void) {
-    #if defined(WOLFSSL_CMSIS_RTOS)
-        return os_time;
-    #elif defined(WOLFSSL_CMSIS_RTOSv2)
-        return osKernelGetTickCount();
-    #endif
+#if defined(WOLFSSL_CMSIS_RTOS)
+    return os_time;
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    return osKernelGetTickCount();
+#endif
 }
 
 static  time_t epochTime;
-time_t time(time_t *t){
-     return epochTime ;
+time_t time(time_t *t) {
+     return epochTime;
 }
 
-void setTime(time_t t){
+void setTime(time_t t) {
     epochTime = t;
 }
 
@@ -87,48 +87,52 @@ void setTime(time_t t){
 #if !defined(NO_FILESYSTEM)
 #include "rl_fs.h"                      /* FileSystem definitions             */
 
-static void init_filesystem (void) {
-  int32_t retv;
+static void init_filesystem(void)
+{
+    int32_t retv;
 
-  retv = finit ("M0:");
-  if (retv == fsOK) {
-    retv = fmount ("M0:");
+    retv = finit ("M0:");
     if (retv == fsOK) {
-      printf ("Drive M0 ready!\n");
+        retv = fmount ("M0:");
+        if (retv == fsOK) {
+            printf ("Drive M0 ready!\n");
+        }
+        else {
+            printf ("Drive M0 mount failed(%d)!\n", retv);
+        }
     }
     else {
-      printf ("Drive M0 mount failed(%d)!\n", retv);
+        printf ("Drive M0 initialization failed!\n");
     }
-  }
-  else {
-    printf ("Drive M0 initialization failed!\n");
-  }
 }
 #endif
 
 
 /*-----------------------------------------------------------------------------
- *       mian entry
+ *       main entry
  *----------------------------------------------------------------------------*/
-void wolfcrypt_test(void *arg) ;
+void wolfcrypt_test(void *arg);
 
 int main()
 {
-    void * arg = NULL ;
+    void * arg = NULL;
 
-    MPU_Config(); 
+    MPU_Config();
     CPU_CACHE_Enable();
     HAL_Init();                        /* Initialize the HAL Library     */
     SystemClock_Config();              /* Configure the System Clock     */
 
-    #if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
     init_filesystem ();
-    #endif
+#endif
 
-    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
+    setTime((RTC_YEAR-1970)*365*24*60*60 +
+            RTC_MONTH*30*24*60*60 +
+            RTC_DAY*24*60*60);
 
-    printf("=== Start: Crypt test === \n") ;
-        wolfcrypt_test(arg) ;
-    printf("=== End: Crypt test  ===\n") ;
+    printf("=== Start: Crypt test === \n");
+    wolfcrypt_test(arg);
+    printf("=== End: Crypt test  ===\n");
 
+    return 0;
 }
