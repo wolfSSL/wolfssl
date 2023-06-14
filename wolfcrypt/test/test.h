@@ -23,6 +23,7 @@
 #ifndef WOLFCRYPT_TEST_H
 #define WOLFCRYPT_TEST_H
 
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {

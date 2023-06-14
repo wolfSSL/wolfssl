@@ -445,8 +445,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hmac_sha3_test(void);
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#if defined(WOLFSSL_AFALG_XILINX) || defined(WOLFSSL_AFALG_XILINX_AES) ||     \
+    defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_AFALG_HASH_KEEP) || \
+    defined(WOLFSSL_AFALG_XILINX_RSA)
 /* hkdf_test has issue with WOLFSSL_TEST_SUBROUTINE set on Xilinx with afalg */
 static                  wc_test_ret_t  hkdf_test(void);
+#else
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
+#endif
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
 #ifdef WOLFSSL_TLS13
@@ -22119,8 +22125,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
+#if defined(WOLFSSL_AFALG_XILINX) || defined(WOLFSSL_AFALG_XILINX_AES) ||     \
+    defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_AFALG_HASH_KEEP) || \
+    defined(WOLFSSL_AFALG_XILINX_RSA)
 /* hkdf_test has issue with WOLFSSL_TEST_SUBROUTINE set on Xilinx with afalg */
 static wc_test_ret_t hkdf_test(void)
+#else
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
+#endif
 {
     wc_test_ret_t ret = 0;
 
