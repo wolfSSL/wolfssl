@@ -10476,7 +10476,11 @@ static int test_tls_ext_duplicate(void)
     wolfSSL_SetIOReadCtx(ssl, &msg);
 
     ExpectIntNE(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_get_error(ssl, 0), DUPLICATE_TLS_EXT_E);
+    /* can return duplicate ext error or socket error if the peer closed down
+     * while sending alert */
+    if (wolfSSL_get_error(ssl, 0) != SOCKET_ERROR_E) {
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), DUPLICATE_TLS_EXT_E);
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
