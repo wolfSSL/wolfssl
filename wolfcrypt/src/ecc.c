@@ -10357,7 +10357,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     if (err == MP_OKAY)
-        err = silabs_ecc_import(key, keysize);
+        err = silabs_ecc_import(key, keysize, 1, 0);
 #elif defined(WOLFSSL_SE050)
     if (err == MP_OKAY) {
         /* reset key ID, in case used before */
@@ -10604,18 +10604,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
         ret = mp_read_unsigned_bin(key->k, priv, privSz);
     }
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(key->k, priv, privSz);
-
-    if (ret == MP_OKAY) {
-        if (pub) {
-            ret = silabs_ecc_import(key, key->dp->size);
-        }
-        else {
-            ret = silabs_ecc_import_private(key, key->dp->size);
-        }
-    }
 #elif defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
     #ifdef WOLFSSL_CAAM_BLACK_KEY_SM
@@ -10732,6 +10720,10 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if (ret == 0) {
         ret = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (ret == 0) {
+        ret = silabs_ecc_import(key, key->dp->size, (pub != NULL), 1);
     }
 #endif
 
@@ -10962,11 +10954,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             err = wc_export_int(key->pubkey.y, &key->pubkey_raw[keySz],
                 &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
     }
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    keySz = key->dp->size;
-    if (err == MP_OKAY) {
-        err = silabs_ecc_sig_to_rs(key, keySz);
-    }
 #elif defined(WOLFSSL_CRYPTOCELL)
     if (err == MP_OKAY) {
         keyRaw[0] = ECC_POINT_UNCOMP;
@@ -11045,9 +11032,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
             /* Hardware doesn't support loading private key */
             err = NOT_COMPILED_IN;
-
-        #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-            err = silabs_ecc_import_private_raw(key, keySz, d, encType);
 
         #elif defined(WOLFSSL_CRYPTOCELL)
             key->type = ECC_PRIVATEKEY;
@@ -11129,6 +11113,10 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if (err == MP_OKAY) {
         err = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (err == MP_OKAY) {
+        err = silabs_ecc_import(key, keySz, 1, (d != NULL));
     }
 #endif
 
