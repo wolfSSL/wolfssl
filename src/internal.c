@@ -9011,8 +9011,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                     return ret;
                 }
 
-                output = ssl->buffers.outputBuffer.buffer +
-                         ssl->buffers.outputBuffer.length;
+                output = GetOutputBuffer(ssl);
                 if (inputSz != ENUM_LEN)
                     sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                           handshake, 0, 0, 0, epochOrder);
@@ -9743,8 +9742,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             return ret;
         if (ssl->buffers.outputBuffer.buffer == NULL)
             return MEMORY_E;
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         if (IsEncryptionOn(ssl, 1)) {
             /* First we need to add the fragment header ourselves.
@@ -10071,6 +10069,14 @@ int SendBuffered(WOLFSSL* ssl)
         ShrinkOutputBuffer(ssl);
 
     return 0;
+}
+
+
+/* returns the current location in the output buffer to start writing to */
+byte* GetOutputBuffer(WOLFSSL* ssl)
+{
+    return ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.idx +
+             ssl->buffers.outputBuffer.length;
 }
 
 
@@ -20337,8 +20343,7 @@ int SendChangeCipher(WOLFSSL* ssl)
         return ret;
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     AddRecordHeader(output, 1, change_cipher_spec, ssl, CUR_ORDER);
 
@@ -21265,9 +21270,7 @@ int SendFinished(WOLFSSL* ssl)
     #endif
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
-
+    output = GetOutputBuffer(ssl);
     AddHandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
 
     /* make finished hashes */
@@ -21645,8 +21648,7 @@ int SendCertificate(WOLFSSL* ssl)
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         /* Safe to use ssl->fragOffset since it will be incremented immediately
          * after this block. This block needs to be entered only once to not
@@ -22974,9 +22976,7 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         return BUFFER_E;
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
-
+    output = GetOutputBuffer(ssl);
     input[0] = (byte)severity;
     input[1] = (byte)type;
     ssl->alert_history.last_tx.code = type;
@@ -30932,9 +30932,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
-
+        output = GetOutputBuffer(ssl);
         AddHeaders(output, length, server_hello, ssl);
 
         /* now write to output */
@@ -34415,9 +34413,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
-
+        output = GetOutputBuffer(ssl);
         AddHeaders(output, 0, server_hello_done, ssl);
 
         if (IsEncryptionOn(ssl, 1)) {
@@ -35265,9 +35261,7 @@ cleanup:
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
-
+        output = GetOutputBuffer(ssl);
         AddHeaders(output, length, session_ticket, ssl);
 
         /* hint */
@@ -35806,9 +35800,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
-
+        output = GetOutputBuffer(ssl);
         AddHeaders(output, 0, hello_request, ssl);
 
         if (IsEncryptionOn(ssl, 1)) {
@@ -35880,8 +35872,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         /* Hello Verify Request should use the same sequence number
          * as the Client Hello unless we are in renegotiation then
