@@ -4210,8 +4210,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    args->output = ssl->buffers.outputBuffer.buffer +
-                   ssl->buffers.outputBuffer.length;
+    args->output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(args->output, args->length, client_hello, ssl);
@@ -6935,8 +6934,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, server_hello, ssl);
@@ -7178,8 +7176,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, encrypted_extensions, ssl);
@@ -7300,8 +7297,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, reqSz, certificate_request, ssl);
@@ -8024,8 +8020,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             return ret;
 
         /* Get position in output buffer to write new message to. */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         if (ssl->fragOffset == 0) {
             AddTls13FragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
@@ -8278,8 +8273,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
 
             /* get output buffer */
-            args->output = ssl->buffers.outputBuffer.buffer +
-                           ssl->buffers.outputBuffer.length;
+            args->output = GetOutputBuffer(ssl);
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
@@ -9491,8 +9485,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         return ret;
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
     input = output + RECORD_HEADER_SZ;
 
 #ifdef WOLFSSL_DTLS13
@@ -9748,8 +9741,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
         return ret;
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
     input = output + RECORD_HEADER_SZ;
 
 #ifdef WOLFSSL_DTLS13
@@ -9941,8 +9933,7 @@ static int SendTls13EndOfEarlyData(WOLFSSL* ssl)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, end_of_early_data, ssl);
@@ -10364,8 +10355,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         return ret;
 
     /* Get position in output buffer to write new message to. */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, session_ticket, ssl);
