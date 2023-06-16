@@ -4511,8 +4511,9 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_ZERO_RETURN;       /* convert to OpenSSL type */
 #if defined(WOLFSSL_HAPROXY)
     return GetX509Error(ssl->error);
-#endif
+#else
     return (ssl->error);
+#endif
 }
 
 

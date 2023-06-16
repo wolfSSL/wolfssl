@@ -50277,7 +50277,43 @@ static int test_wolfSSL_X509_STORE_get1_certs(void)
 #endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
     return EXPECT_RESULT();
 }
+static int test_wolfSSL_dup_CA_list(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_ALL)
+    EXPECT_DECLS;
+    STACK_OF(X509_NAME) *originalStack = NULL;
+    STACK_OF(X509_NAME) *copyStack = NULL;
+    int originalCount = 0;
+    int copyCount = 0;
+    X509_NAME *name = NULL;
+    int i;
 
+    originalStack = sk_X509_NAME_new_null();
+    ExpectNotNull(originalStack);
+
+    for (i = 0; i < 3; i++) {
+        name = X509_NAME_new();
+        ExpectNotNull(name);
+        AssertIntEQ(sk_X509_NAME_push(originalStack, name), WOLFSSL_SUCCESS);
+    }
+
+    copyStack = SSL_dup_CA_list(originalStack);
+    ExpectNotNull(copyStack);
+    originalCount = sk_X509_NAME_num(originalStack);
+    copyCount = sk_X509_NAME_num(copyStack);
+
+    AssertIntEQ(originalCount, copyCount);
+    sk_X509_NAME_pop_free(originalStack, X509_NAME_free);
+    sk_X509_NAME_pop_free(copyStack, X509_NAME_free);
+
+    originalStack = NULL;
+    copyStack = NULL;
+
+    res = EXPECT_RESULT();
+#endif /* OPENSSL_ALL */
+    return res;
+}
 /* include misc.c here regardless of NO_INLINE, because misc.c implementations
  * have default (hidden) visibility, and in the absence of visibility, it's
  * benign to mask out the library implementation.
@@ -60385,7 +60421,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_GENERAL_NAME_set0_othername),
     TEST_DECL(test_othername_and_SID_ext),
-
+    TEST_DECL(test_wolfSSL_dup_CA_list),
     /* OpenSSL sk_X509 API test */
     TEST_DECL(test_sk_X509),
     /* OpenSSL sk_X509_CRL API test */

@@ -6238,8 +6238,18 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* Don't change version on a SSL object that has already started a
      * handshake */
 #if defined(WOLFSSL_HAPROXY)
-    ssl->initial_ctx     = ctx; /* Save access to session key materials */
-    wolfSSL_CTX_up_ref(ctx);
+    ret = wolfSSL_CTX_up_ref(ctx);
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->initial_ctx = ctx; /* Save access to session key materials */
+    }
+    else {
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        return ret;
+    #else
+        (void)ret;
+    #endif
+    }
+
 #endif
     if (!ssl->msgsReceived.got_client_hello &&
             !ssl->msgsReceived.got_server_hello)
