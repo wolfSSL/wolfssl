@@ -1,8 +1,11 @@
-# wolfSSL Release 5.6.3 (Jun 13, 2023)
+# wolfSSL Release 5.6.3 (Jun 16, 2023)
 
-Release 5.6.3 of wolfSSL embedded TLS has 2 bug fixes
+Release 5.6.3 of wolfSSL embedded TLS has 4 bug fixes:
+
 * Fix for setting the atomic macro options introduced in release 5.6.2. This issue affects GNU gcc autoconf builds. The fix resolves a potential mismatch of the generated macros defined in options.h file and the macros used when the wolfSSL library is compiled. In version 5.6.2 this mismatch could result in unstable runtime behavior.
 * Fix for invalid suffix error with Windows build using the macro GCM_TABLE_4BIT.
+* Improvements to Encrypted Memory support (WC_PROTECT_ENCRYPTED_MEM) implementations for modular exponentiation in SP math-all (sp_int.c) and TFM (tfm.c).
+* Improvements to SendAlert for getting output buffer.
 
 
 # wolfSSL Release 5.6.2 (Jun 09, 2023)
