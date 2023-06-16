@@ -419,7 +419,7 @@ static int Dtls13SendFragFromBuffer(WOLFSSL* ssl, byte* output, word16 length)
     if (ret != 0)
         return ret;
 
-    buf = ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+    buf = GetOutputBuffer(ssl);
 
     XMEMCPY(buf, output, length);
 
@@ -924,8 +924,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 
-        output =
-            ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         ret = Dtls13HandshakeAddHeaderFrag(ssl, output + rlHeaderLength,
             (enum HandShakeType)ssl->dtls13FragHandshakeType,
@@ -1509,8 +1508,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 
-        output =
-            ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         XMEMCPY(output + headerLength, r->data, r->length);
 
@@ -2342,8 +2340,7 @@ static int Dtls13WriteAckMessage(WOLFSSL* ssl,
     if (ret != 0)
         return ret;
 
-    output =
-        ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     ackMessage = output + headerLength;
 
@@ -2617,8 +2614,7 @@ int SendDtls13Ack(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 
-        output =
-            ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, (word16)length);
         if (ret != 0)
@@ -2632,10 +2628,10 @@ int SendDtls13Ack(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 
-        output =
-            ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         outputSize = ssl->buffers.outputBuffer.bufferSize -
+                     ssl->buffers.outputBuffer.idx -
                      ssl->buffers.outputBuffer.length;
 
         headerSize = Dtls13GetRlHeaderLength(ssl, 1);

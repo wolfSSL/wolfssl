@@ -8967,10 +8967,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                     return ret;
                 }
 
-                XMEMCPY(ssl->buffers.outputBuffer.buffer +
-                        ssl->buffers.outputBuffer.idx +
-                        ssl->buffers.outputBuffer.length,
-                        pool->raw, pool->sz);
+                XMEMCPY(GetOutputBuffer(ssl), pool->raw, pool->sz);
                 ssl->buffers.outputBuffer.length += pool->sz;
             }
             else {
@@ -9950,6 +9947,7 @@ void ShrinkOutputBuffer(WOLFSSL* ssl)
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
     ssl->buffers.outputBuffer.offset      = 0;
+    /* idx and length are assumed to be 0. */
 }
 
 
@@ -10091,6 +10089,8 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 #else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
+    int newSz = size + ssl->buffers.outputBuffer.idx +
+                ssl->buffers.outputBuffer.length;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
@@ -10101,8 +10101,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         align *= 2;
 #endif
 
-    tmp = (byte*)XMALLOC(size + ssl->buffers.outputBuffer.length + align,
-                             ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    tmp = (byte*)XMALLOC(newSz + align, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     WOLFSSL_MSG("growing output buffer");
 
     if (tmp == NULL)
@@ -10117,14 +10116,14 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     /* can be from IO memory pool which does not need copy if same buffer */
     if (ssl->buffers.outputBuffer.length &&
             tmp == ssl->buffers.outputBuffer.buffer) {
-        ssl->buffers.outputBuffer.bufferSize =
-            size + ssl->buffers.outputBuffer.length;
+        ssl->buffers.outputBuffer.bufferSize = newSz;
         return 0;
     }
 #endif
 
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
+               ssl->buffers.outputBuffer.idx +
                ssl->buffers.outputBuffer.length);
 
     if (ssl->buffers.outputBuffer.dynamicFlag) {
@@ -10142,8 +10141,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         ssl->buffers.outputBuffer.offset = 0;
 
     ssl->buffers.outputBuffer.buffer = tmp;
-    ssl->buffers.outputBuffer.bufferSize = size +
-                                           ssl->buffers.outputBuffer.length;
+    ssl->buffers.outputBuffer.bufferSize = newSz;
     return 0;
 }
 
@@ -10241,8 +10239,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        if (size + ssl->buffers.outputBuffer.length -
-            ssl->buffers.outputBuffer.idx >
+        if (size + ssl->buffers.outputBuffer.length >
 #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
                 ssl->dtlsMtuSz
 #else
@@ -10274,8 +10271,9 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     }
 #endif
 
-    if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
-                                             < (word32)size) {
+    if ((ssl->buffers.outputBuffer.bufferSize -
+             ssl->buffers.outputBuffer.length -
+             ssl->buffers.outputBuffer.idx) < (word32)size) {
         if (GrowOutputBuffer(ssl, size) < 0)
             return MEMORY_E;
     }
@@ -21890,8 +21888,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
         return ret;
 
     /* get output buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
+    output = GetOutputBuffer(ssl);
 
     AddHeaders(output, reqSz, certificate_request, ssl);
 
@@ -22049,8 +22046,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     ssl->options.buildingMsg = 1;
 
     if ((ret = CheckAvailableSize(ssl, sendSz)) == 0) {
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         AddHeaders(output, length, certificate_status, ssl);
 
@@ -22646,8 +22642,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             return ssl->error = ret;
 
         /* get output buffer */
-        out = ssl->buffers.outputBuffer.buffer +
-              ssl->buffers.outputBuffer.length;
+        out = GetOutputBuffer(ssl);
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -26429,8 +26424,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return ret;
 
         /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
+        output = GetOutputBuffer(ssl);
 
         AddHeaders(output, length, client_hello, ssl);
 
@@ -29926,8 +29920,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 goto exit_scke;
 
             /* get output buffer */
-            args->output = ssl->buffers.outputBuffer.buffer +
-                           ssl->buffers.outputBuffer.length;
+            args->output = GetOutputBuffer(ssl);
 
             AddHeaders(args->output, args->encSz + tlsSz, client_key_exchange, ssl);
 
