@@ -16,6 +16,8 @@ This CMSIS pack contains the wolfCrypt and wolfSSL (TLS) libraries including tes
 2) Expand "wolfSSL" and check the boxes for wolfCrypt CORE and wolfSSL CORE.
 3) If running the wolfCrypt test or any of the TLS examples check those as well.
 
+Note: By default the pack's user_settings.h assumes the CMSIS RTOS v2 and Keil TCP packs are also installed. See below for how to change these settings (`MDK_CONF_THREAD` and `MDK_CONF_NETWORK`).
+
 If the wolfSSL::wolfSSL pack isn't showing:
 1) Project -> Manage -> "Select Software Packs"
 2) Make sure wolfSSL:wolfSSL is selected to "latest"
@@ -30,6 +32,7 @@ If the wolfSSL::wolfSSL pack isn't showing:
 3) Configure math library (`MDK_CONF_MATH`). Default 0=SP Math all (sp_int.c)
 4) Configure MPU (`MDK_CONF_MPU`): If not STM32, use 0 for none.
 5) Configure the RTOS (`MDK_CONF_THREAD`): By default 15 = "CMSIS RTOSv2". For bare-metal use 0. For FreeRTOS use 1.
+6) Configure the TCP stack (`MDK_CONF_NETWORK`). By default uses Keil TCP `WOLFSSL_KEIL_TCP_NET`. Use 0 for none or 2 for user io callbacks.
 6) For wolfCrypt only (no TLS) add `#define WOLFCRYPT_ONLY` (resolves GetCA errors)
 7) Increase stack/heap (if needed). This is typically in the startup.s, but for RTX is in the `RTX_Config.h`. For CMSIS RTOSv2 stack is set in `osThreadAttr_t` on call to `osThreadNew`.
 
