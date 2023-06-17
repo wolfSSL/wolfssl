@@ -933,9 +933,9 @@ static int test_for_double_Free(void)
             WOLFSSL_FILETYPE_PEM));
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(HAVE_AESGCM) && \
         defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
-        /* only update TLSv13 suites 
-         * ctx->suite is not yet allocated. This is tls13Only case.
-         * Therefore, suite->suiteSz is zero at allocating suitesCpy.
+        /* only update TLSv13 suites
+         * ctx->suite is not yet allocated. This is tls13Only case
+         * Therefore, suite->suiteSz is zero at allocating suitesCpy
          */
         ExpectTrue(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES256-GCM-SHA384"));
 #endif

@@ -12713,8 +12713,8 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
             return WOLFSSL_FAILURE;
         else {
             /* suiteSz is zero. Depending on malloc implementation-dependent
-             * it will return a NULL or Address. Try again to memory allocation 
-             * by smallest size. 
+             * it will return a NULL or Address. Try again to memory allocation
+             * by smallest size.
              */
             suitesCpy = (byte*)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (suitesCpy == NULL)
