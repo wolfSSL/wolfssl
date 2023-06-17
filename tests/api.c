@@ -904,10 +904,10 @@ static int test_for_double_Free(void)
         wolfSSL_CTX_free(ctx);
         ctx = NULL;
 
-#ifndef NO_WOLFSSL_CLIENT
-        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#else
+#ifndef NO_WOLFSSL_SERVER
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif
         ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
             WOLFSSL_FILETYPE_PEM));
@@ -921,22 +921,26 @@ static int test_for_double_Free(void)
         wolfSSL_free(ssl);
         ssl = NULL;
 
-#ifndef NO_WOLFSSL_SERVER
-        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#else
+#ifndef NO_WOLFSSL_CLIENT
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #endif
         /* Test setting ciphers at ctx level */
         ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
             WOLFSSL_FILETYPE_PEM));
         ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
             WOLFSSL_FILETYPE_PEM));
-        ExpectTrue(wolfSSL_CTX_set_cipher_list(ctx, optionsCiphers));
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(HAVE_AESGCM) && \
         defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
-        /* only update TLSv13 suites */
+        /* only update TLSv13 suites 
+         * ctx->suite is not yet allocated. This is tls13Only case.
+         * Therefore, suite->suiteSz is zero at allocating suitesCpy.
+         */
         ExpectTrue(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES256-GCM-SHA384"));
 #endif
+        ExpectTrue(wolfSSL_CTX_set_cipher_list(ctx, optionsCiphers));
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(HAVE_AESGCM) && \
     !defined(NO_SHA256) && !defined(WOLFSSL_NO_TLS12) && \
     defined(WOLFSSL_AES_128) && !defined(NO_RSA)

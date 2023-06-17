@@ -12708,8 +12708,19 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
 
 #ifdef WOLFSSL_SMALL_STACK
     suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (suitesCpy == NULL)
-        return WOLFSSL_FAILURE;
+    if (suitesCpy == NULL) {
+        if (suites->suiteSz != 0)
+            return WOLFSSL_FAILURE;
+        else {
+            /* suiteSz is zero. Depending on malloc implementation-dependent
+             * it will return a NULL or Address. Try again to memory allocation 
+             * by smallest size. 
+             */
+            suitesCpy = (byte*)XMALLOC(1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (suitesCpy == NULL)
+                return WOLFSSL_FAILURE;
+        }
+    }
 #endif
 
     XMEMCPY(suitesCpy, suites->suites, suites->suiteSz);
