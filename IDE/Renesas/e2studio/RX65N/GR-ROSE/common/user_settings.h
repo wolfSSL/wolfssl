@@ -220,13 +220,28 @@
 
 #if defined(WOLFSSL_RENESAS_TSIP)
 
+    /*-- TSIP TLS and/or CRYPTONLY Definition --------------------------------*/
+    /* Enable TSIP TLS (default)
+     *   TSIP CRYPTONLY is also enabled.
+     * Disable TSIP TLS
+     *   TSIP CRYPTONLY is only enabled.
+     */
+    #define WOLFSSL_RENESAS_TSIP_TLS
+
     #if !defined(NO_RENESAS_TSIP_CRYPT)
-        #define WOLFSSL_RENESAS_TSIP_CRYPT
-        #define WOLFSSL_RENESAS_TSIP_TLS
-        #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+        #define WOLFSSL_RENESAS_TSIP_CRYPTONLY
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
-        #define WOLF_PRIVATE_KEY_ID
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+            #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+            #define WOLF_PRIVATE_KEY_ID
+        #endif
+    #endif
+
+    #if !defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+         defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+        # undef WOLFSSL_RENESAS_TSIP_TLS
+        # undef WOLFSSL_RENESAS_TSIP_CRYPT
     #endif
 
 #else
@@ -244,3 +259,8 @@
 
 
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS)
+ #define min(x,y) ((x)<(y)?(x):(y))
+#endif
+

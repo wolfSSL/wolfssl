@@ -28,7 +28,6 @@
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_RX72N
 
-
 /*-- Renesas TSIP usage and its version ---------------------------------------
  *
  *  "WOLFSSL_RENESAS_TSIP" definition makes wolfSSL to use H/W acceleration
@@ -44,6 +43,7 @@
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
   #define WOLFSSL_RENESAS_TSIP_VER     117
+
 
 #if defined(SIMPLE_TLS_CLIENT) || defined(SIMPLE_TLS_SERVER)
  #undef WOLFSSL_RENESAS_TSIP
@@ -157,6 +157,7 @@
  *----------------------------------------------------------------------------*/
   #define SIZEOF_LONG_LONG 8
 
+  #define WOLFSSL_SMALL_STACK
 
  /* 
   * -- "NO_ASN_TIME" macro is to avoid certificate expiration validation --
@@ -220,7 +221,7 @@
 #endif
 /*-- Consistency checking between definitions  ---------------------------------
  *
- *  
+ *
  *----------------------------------------------------------------------------*/
 
 /*-- TSIP TLS specific definitions --*/
@@ -236,14 +237,28 @@
  *----------------------------------------------------------------------------*/
 
 #if defined(WOLFSSL_RENESAS_TSIP)
+    /*-- TSIP TLS and/or CRYPTONLY Definition --------------------------------*/
+    /* Enable TSIP TLS (default)
+     *   TSIP CRYPTONLY is also enabled.
+     * Disable TSIP TLS
+     *   TSIP CRYPTONLY is only enabled.
+     */
+    #define WOLFSSL_RENESAS_TSIP_TLS
 
     #if !defined(NO_RENESAS_TSIP_CRYPT)
-        #define WOLFSSL_RENESAS_TSIP_CRYPT
-        #define WOLFSSL_RENESAS_TSIP_TLS
-        #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+        #define WOLFSSL_RENESAS_TSIP_CRYPTONLY
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
-        #define WOLF_PRIVATE_KEY_ID
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+            #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+            #define WOLF_PRIVATE_KEY_ID
+        #endif
+    #endif
+
+    #if !defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+         defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+        # undef WOLFSSL_RENESAS_TSIP_TLS
+        # undef WOLFSSL_RENESAS_TSIP_CRYPT
     #endif
 
 #else

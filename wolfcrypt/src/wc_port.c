@@ -174,7 +174,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
+    #if defined(WOLFSSL_RENESAS_TSIP)
         ret = tsip_Open( );
         if( ret != TSIP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS TSIP Open failed");
@@ -468,7 +468,7 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_SILABS_SE_ACCEL
         ret = sl_se_deinit();
     #endif
-    #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
+    #if defined(WOLFSSL_RENESAS_TSIP)
         tsip_Close();
     #endif
     #if defined(WOLFSSL_DEVCRYPTO)

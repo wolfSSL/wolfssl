@@ -19,6 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl_simple_demo.h>
+
+#ifdef TSIP_CRYPT_UNIT_TEST
+
+#include "r_bsp_config.h"
+#if BSP_CFG_USTACK_BYTES < 0x4000
+#    error "more than 0x4000 stack needed to run the unit tests."
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -28,6 +36,7 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -36,12 +45,14 @@
 #endif
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
+#ifdef FREERTOS
 #include "FreeRTOS.h"
-#if defined(FREERTOS_TCP)
+# if defined(FREERTOS_TCP)
     #include "FreeRTOS_IP.h"
     #include "FreeRTOS_Sockets.h"
     #include "platform/iot_network.h"
     #include "platform.h"
+# endif
 #endif
 
 #ifndef NO_SHA
@@ -59,7 +70,7 @@
                           printf(" passed \n");\
                          else \
                           printf(" failed \n");
-
+#ifdef FREERTOS
 static xSemaphoreHandle exit_semaph;
 static byte exit_loop = 0;
 static byte sha_multTst_rslt = 0;
@@ -68,25 +79,54 @@ static byte Aes128_Cbc_multTst_rslt = 0;
 static byte Aes256_Cbc_multTst_rslt = 0;
 static byte Aes128_Gcm_multTst_rslt = 0;
 static byte Aes256_Gcm_multTst_rslt = 0;
+#endif /* FREERTOS */
 
 #if defined(HAVE_AES_CBC)
 
-#if defined(WOLFSSL_AES_128)
-static tsip_aes_key_index_t g_user_aes128_key_index1;
-static tsip_aes_key_index_t g_user_aes128_key_index2;
+# if defined(WOLFSSL_AES_128)
+ static tsip_aes_key_index_t g_user_aes128_key_index1;
+ static tsip_aes_key_index_t g_user_aes128_key_index2;
+# endif
+
+# if defined(WOLFSSL_AES_256)
+ static tsip_aes_key_index_t g_user_aes256_key_index1;
+ static tsip_aes_key_index_t g_user_aes256_key_index2;
+# endif
+
 #endif
 
-#if defined(WOLFSSL_AES_256)
-static tsip_aes_key_index_t g_user_aes256_key_index1;
-static tsip_aes_key_index_t g_user_aes256_key_index2;
-#endif
 
-#endif
 
 typedef struct tagInfo
 {
     tsip_aes_key_index_t aes_key;
 } Info;
+
+#ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+ static TsipUserCtx userContext;
+
+ void Clr_CallbackCtx(TsipUserCtx *g)
+ {
+
+     if (g->rsa1024pri_keyIdx != NULL)
+         XFREE(g->rsa1024pri_keyIdx,
+                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+     if (g->rsa1024pub_keyIdx != NULL)
+         XFREE(g->rsa1024pub_keyIdx,
+                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+     if (g->rsa2048pri_keyIdx != NULL)
+         XFREE(g->rsa2048pri_keyIdx,
+                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+     if (g->rsa2048pub_keyIdx != NULL)
+         XFREE(g->rsa2048pub_keyIdx,
+                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XMEMSET(g, 0, sizeof(TsipUserCtx));
+ }
+
+#endif
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
@@ -160,6 +200,7 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     return ret;
 }
 
+#ifdef FREERTOS
 static void tskAes128_Cbc_Test(void *pvParam)
 {
     int ret = 0;
@@ -177,7 +218,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
 }
-
+#endif /* FREERTOS */
 #endif
 
 #ifdef WOLFSSL_AES_256
@@ -212,6 +253,7 @@ static int tsip_aes256_test(int prnt, tsip_aes_key_index_t* aes_key)
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
     };
+    (void)verify;
 
     if (prnt)
         printf(" tsip_aes256_test() ");
@@ -276,7 +318,7 @@ out:
     
     return ret;
 }
-
+#ifdef FREERTOS
 static void tskAes256_Cbc_Test(void *pvParam)
 {
     int ret = 0;
@@ -294,7 +336,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
 }
-
+#endif /* FREERTOS */
 #endif /* WOLFSSL_AES_256 */
 
 #if defined(WOLFSSL_AES_256)
@@ -368,6 +410,8 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     int  ret;
 
     (void) result;
+    (void) c1;
+    (void) t1;
 
     if (prnt) {
         printf(" tsip_aes256_gcm_test() ");
@@ -467,7 +511,7 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     
     return ret;
 }
-
+#ifdef FREERTOS
 static void tskAes256_Gcm_Test(void *pvParam)
 {
     int ret = 0;
@@ -485,6 +529,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
 }
+#endif /* FREERTOS */
 #endif
 
 #if defined(WOLFSSL_AES_128)
@@ -539,7 +584,8 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
     int ret;
 
     (void) result;
-
+    (void) c3;
+    (void) t3;
     if (prnt) {
         printf(" tsip_aes128_gcm_test() ");
     }
@@ -602,7 +648,7 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
     
     return ret;
 }
-
+#ifdef FREERTOS
 static void tskAes128_Gcm_Test(void *pvParam)
 {
     int ret = 0;
@@ -620,69 +666,11 @@ static void tskAes128_Gcm_Test(void *pvParam)
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
 }
-
+#endif /* FREERTOS */
 #endif
 
-int tsip_crypt_test()
-{
-    int ret = 0;
-    e_tsip_err_t tsip_error_code;
 
-    /* Generate AES tsip Key */
-    tsip_error_code = R_TSIP_GenerateAes128RandomKeyIndex(
-                &g_user_aes128_key_index1);
-    
-    if (tsip_error_code == TSIP_SUCCESS)
-    tsip_error_code = R_TSIP_GenerateAes128RandomKeyIndex(
-                &g_user_aes128_key_index2);
-                        
-    if (tsip_error_code == TSIP_SUCCESS)
-    tsip_error_code = R_TSIP_GenerateAes256RandomKeyIndex(
-                &g_user_aes256_key_index1);
-    
-    if (tsip_error_code == TSIP_SUCCESS)
-    tsip_error_code = R_TSIP_GenerateAes256RandomKeyIndex(
-                &g_user_aes256_key_index2);
-                            
-    if (tsip_error_code == TSIP_SUCCESS) {
-
-   #ifndef NO_SHA
-        printf(" sha_test()");
-        ret = sha_test();
-        RESULT_STR(ret)
-   #endif
-
-   #ifndef NO_SHA256
-        printf(" sha256_test()");
-        ret = sha256_test();
-        RESULT_STR(ret)
-   #endif
-
-        ret = tsip_aes_cbc_test(1, &g_user_aes128_key_index1);
-
-        if (ret == 0) {
-
-            ret = tsip_aes256_test(1, &g_user_aes256_key_index1);
-
-        }
-
-        if (ret == 0) {
-
-            ret = tsip_aesgcm128_test(1, &g_user_aes128_key_index1);
-
-        }
-        
-        if (ret == 0) {
-
-            ret = tsip_aesgcm256_test(1, &g_user_aes256_key_index1);
-
-        }
-    }
-    else
-        ret = -1;
-
-    return ret;
-}
+#ifdef FREERTOS
 
 #ifndef NO_SHA
 
@@ -722,7 +710,102 @@ static void tskSha256_Test(void *pvParam)
     vTaskDelete(NULL);
 }
 #endif
+#endif /* FREERTOS */
 
+#if !defined(NO_RSA)
+
+/* testing rsa sign/verify w/ rsa 2048 bit key */
+#define TEST_STRING     "Everyone gets Friday off."
+#define TEST_STRING2    "Everyone gets Friday ofv."
+#define TEST_STRING_SZ   25
+#define RSA_TEST_BYTES   256 /* up to 2048-bit key */
+
+static int tsip_rsa_SignVerify_test(int prnt, int keySize)
+{
+    int ret = 0;
+
+    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_RNG rng;
+    const char inStr [] = TEST_STRING;
+    const char inStr2[] = TEST_STRING2;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 outSz = RSA_TEST_BYTES;
+
+    byte *in = NULL;
+    byte *in2 = NULL;
+    byte *out= NULL;
+
+    in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    (void) prnt;
+
+    if (key == NULL || in == NULL || out == NULL) {
+        ret = -1;
+        goto out;
+    }
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(key, 0, sizeof *key);
+    XMEMCPY(in, inStr, inLen);
+    XMEMCPY(in2, inStr2, inLen);
+
+    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if ((ret = wc_InitRng(&rng)) != 0)
+        goto out;
+
+    if ((ret = wc_RsaSetRNG(key, &rng)) != 0)
+        goto out;
+
+    /* make rsa key by SCE */
+    if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
+        goto out;
+    }
+
+    ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
+    if (ret < 0) {
+        goto out;
+    }
+
+    /* this should fail */
+    ret = wc_RsaSSL_Verify(in2, inLen, out, keySize/8, key);
+    if (ret != SIG_VERIFY_E) {
+        ret = -1;
+        goto out;
+    }
+    /* this should succeed */
+    ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
+    if (ret < 0) {
+        ret = -1;
+        goto out;
+    }
+    ret = 0;
+  out:
+    if (key != NULL) {
+        wc_FreeRsaKey(key);
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in != NULL) {
+        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (in2 != NULL) {
+        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (out != NULL) {
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+#endif /* NO_RSA */
+
+
+#ifdef TSIP_MULTIUNIT_TEST
 int tsip_crypt_sha_multitest()
 {
     int ret = 0;
@@ -1018,4 +1101,109 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
 
     return ret;
 }
+#endif
 
+
+int tsip_crypt_test()
+{
+    int ret = 0;
+    e_tsip_err_t tsip_error_code;
+
+    /* Generate AES tsip Key */
+    tsip_error_code = R_TSIP_GenerateAes128RandomKeyIndex(
+                &g_user_aes128_key_index1);
+
+    if (tsip_error_code == TSIP_SUCCESS)
+    tsip_error_code = R_TSIP_GenerateAes128RandomKeyIndex(
+                &g_user_aes128_key_index2);
+
+    if (tsip_error_code == TSIP_SUCCESS)
+    tsip_error_code = R_TSIP_GenerateAes256RandomKeyIndex(
+                &g_user_aes256_key_index1);
+
+    if (tsip_error_code == TSIP_SUCCESS)
+    tsip_error_code = R_TSIP_GenerateAes256RandomKeyIndex(
+                &g_user_aes256_key_index2);
+
+    if (tsip_error_code == TSIP_SUCCESS) {
+
+   #ifndef NO_SHA
+        printf(" sha_test()");
+        ret = sha_test();
+        RESULT_STR(ret)
+   #endif
+
+   #ifndef NO_SHA256
+        printf(" sha256_test()");
+        ret = sha256_test();
+        RESULT_STR(ret)
+   #endif
+
+        ret = tsip_aes_cbc_test(1, &g_user_aes128_key_index1);
+
+        if (ret == 0) {
+
+            ret = tsip_aes256_test(1, &g_user_aes256_key_index1);
+
+        }
+
+        if (ret == 0) {
+
+            ret = tsip_aesgcm128_test(1, &g_user_aes128_key_index1);
+
+        }
+
+        if (ret == 0) {
+
+            ret = tsip_aesgcm256_test(1, &g_user_aes256_key_index1);
+
+        }
+   #if defined(WOLFSSL_KEY_GEN)&& \
+       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+
+        if (ret == 0) {
+
+            Clr_CallbackCtx(&userContext);
+
+            ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &userContext);
+
+            if (ret > 0)
+                ret = 0;
+        }
+
+        if (ret == 0) {
+
+            printf(" tsip_rsa_SignVerify_test(1024)");
+
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
+            userContext.sing_hash_type = sha256_mac;
+            userContext.keyflgs_crypt.bits.message_type = 0;
+
+            ret = tsip_rsa_SignVerify_test(1, 1024);
+            RESULT_STR(ret)
+        }
+
+        Clr_CallbackCtx(&userContext);
+
+        if (ret == 0) {
+            printf(" tsip_rsa_SignVerify_test(2048)");
+
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
+            userContext.sing_hash_type = sha256_mac;
+            userContext.keyflgs_crypt.bits.message_type = 0;
+
+            ret = tsip_rsa_SignVerify_test(1, 2048);
+            RESULT_STR(ret)
+        }
+
+        Clr_CallbackCtx(&userContext);
+   #endif
+    }
+    else
+        ret = -1;
+
+
+    return ret;
+}
+
+#endif /* TSIP_CRYPT_UNIT_TEST */

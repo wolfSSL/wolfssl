@@ -40,6 +40,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/wolfssl_demo/user_settings.h</locationURI>
 		</link>
 		<link>
+			<name>src/wolfssl_tsip_unit_test.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/wolfssl_demo/wolfssl_tsip_unit_test.c</locationURI>
+		</link>
+		<link>
 			<name>src/key_data/key_data.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wolfssl_demo/key_data.c</locationURI>

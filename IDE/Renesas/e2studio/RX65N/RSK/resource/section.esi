@@ -8,18 +8,24 @@
   <sections name="R_2"/>
   <sections name="R"/>
   <sections name="RPFRAM2"/>
+  <sections name="B_ETHERNET_BUFFERS_1">
+    <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="65536"/>
+  </sections>
+  <sections name="B_RX_DESC_1"/>
+  <sections name="B_TX_DESC_1"/>
+  <sections name="C_FIRMWARE_UPDATE_CONTROL_BLOCK">
+    <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="1048576"/>
+  </sections>
+  <sections name="C_FIRMWARE_UPDATE_CONTROL_BLOCK_MIRROR"/>
   <sections name="C_PKCS11_STORAGE*">
     <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="1050624"/>
   </sections>
   <sections name="C_SYSTEM_CONFIG*">
     <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="1067008"/>
   </sections>
-  <sections name="B_ETHERNET_BUFFERS_1">
+  <sections name="B">
     <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="8388608"/>
   </sections>
-  <sections name="B_RX_DESC_1"/>
-  <sections name="B_TX_DESC_1"/>
-  <sections name="B"/>
   <sections name="B_1"/>
   <sections name="B_2"/>
   <sections name="C_1">
