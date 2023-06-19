@@ -79,7 +79,7 @@ single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` a
 `WC_SHA512` should be used for the enum name.
 
 
-# wolfSSL Release 5.6.3 (Jun 14, 2023)
+# wolfSSL Release 5.6.3 (Jun 20, 2023)
 
 Release 5.6.3 has been developed according to wolfSSL's development and QA process (see link below) and successfully passed the quality criteria.
 
