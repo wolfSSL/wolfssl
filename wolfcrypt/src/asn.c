@@ -16924,6 +16924,15 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
     }
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
+
+    /* GeneralName choice: registeredID */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
+        ret = SetDNSEntry(cert, (const char*)(input + idx), len,
+                ASN_RID_TYPE, &cert->altNames);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
     /* GeneralName choice: otherName */
@@ -16932,8 +16941,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         ret = DecodeOtherName(cert, input, &idx, idx + (word32)len);
     }
 #endif
-    /* GeneralName choice: dNSName, x400Address, ediPartyName,
-     *                     registeredID */
+    /* GeneralName choice: dNSName, x400Address, ediPartyName */
     else {
         WOLFSSL_MSG("\tUnsupported name type, skipping");
         idx += (word32)len;
@@ -20477,6 +20485,22 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                     XMEMCPY(cert->serial, cert->sNum, (size_t)cert->sNumLen);
                     cert->serialSz = cert->sNumLen;
                 }
+            }
+            break;
+
+        case UNSTRUCTURED_NAME_OID:
+            /* Clear dynamic data and specify choices acceptable. */
+            XMEMSET(strDataASN, 0, sizeof(strDataASN));
+            GetASN_Choice(&strDataASN[STRATTRASN_IDX_STR], strAttrChoice);
+            /* Parse a string. */
+            ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
+                               1, input, &idx, maxIdx);
+            if (ret == 0) {
+                /* Store references to unstructured name. */
+                cert->unstructuredName =
+                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->unstructuredNameLen = (int)strDataASN[STRATTRASN_IDX_STR].
+                    data.ref.length;
             }
             break;
 
@@ -29346,6 +29370,11 @@ static const ASNItem certReqBodyASN[] = {
 /* ATTRS_CPW_SET   */             { 3, ASN_SET, 1, 1, 0 },
 /* ATTRS_CPW_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
 /* ATTRS_CPW_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
+/* ATTRS_USN_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* ATTRS_USN_OID   */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* ATTRS_USN_SET   */             { 3, ASN_SET, 1, 1, 0 },
+/* ATTRS_USN_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
+/* ATTRS_USN_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
                                                  /* Extensions Attribute */
 /* EXT_SEQ         */         { 2, ASN_SEQUENCE, 1, 1, 1 },
 /* EXT_OID         */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
@@ -29363,6 +29392,11 @@ enum {
     CERTREQBODYASN_IDX_ATTRS_CPW_SET,
     CERTREQBODYASN_IDX_ATTRS_CPW_PS,
     CERTREQBODYASN_IDX_ATTRS_CPW_UTF,
+    CERTREQBODYASN_IDX_ATTRS_USN_SEQ,
+    CERTREQBODYASN_IDX_ATTRS_USN_OID,
+    CERTREQBODYASN_IDX_ATTRS_USN_SET,
+    CERTREQBODYASN_IDX_ATTRS_USN_PS,
+    CERTREQBODYASN_IDX_ATTRS_USN_UTF,
     CERTREQBODYASN_IDX_EXT_SEQ,
     CERTREQBODYASN_IDX_EXT_OID,
     CERTREQBODYASN_IDX_EXT_SET,
@@ -29615,6 +29649,23 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             /* Leave out challenge password attribute items. */
             SetASNItem_NoOutNode(dataASN, certReqBodyASN,
                     CERTREQBODYASN_IDX_ATTRS_CPW_SEQ, certReqBodyASN_Length);
+        }
+        if (cert->unstructuredName[0] != '\0') {
+            /* Add unstructured name attribute. */
+            /* Set unstructured name OID. */
+            SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_USN_OID],
+                attrUnstructuredNameOid, sizeof(attrUnstructuredNameOid));
+                /* PRINTABLE_STRING - set buffer */
+                SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_USN_PS],
+                        (byte*)cert->unstructuredName,
+                        (word32)XSTRLEN(cert->unstructuredName));
+                /* UTF8STRING - don't encode */
+                dataASN[CERTREQBODYASN_IDX_ATTRS_USN_UTF].noOut = 1;
+        }
+        else {
+            /* Leave out unstructured name attribute item. */
+            SetASNItem_NoOutNode(dataASN, certReqBodyASN,
+                    CERTREQBODYASN_IDX_ATTRS_USN_SEQ, certReqBodyASN_Length);
         }
         if (extSz > 0) {
             /* Set extension attribute OID. */

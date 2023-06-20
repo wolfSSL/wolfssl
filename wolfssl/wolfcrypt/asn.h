@@ -139,6 +139,7 @@ enum ASN_Tags {
     ASN_DIR_TYPE          = 0x04,
     ASN_URI_TYPE          = 0x06, /* the value 6 is from GeneralName OID */
     ASN_IP_TYPE           = 0x07, /* the value 7 is from GeneralName OID */
+    ASN_RID_TYPE          = 0x08,
 
     /* PKCS #7 types */
     ASN_ENC_CONTENT       = 0x00,
