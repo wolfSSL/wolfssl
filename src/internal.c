@@ -23100,12 +23100,11 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #else
 
     int error = (int)e;
-#ifdef OPENSSL_EXTRA
+
     /* OpenSSL uses positive error codes */
     if (error > 0) {
         error = -error;
     }
-#endif
 
     /* pass to wolfCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
@@ -23204,7 +23203,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "peer ip address mismatch";
 
     case WANT_READ :
-    case WOLFSSL_ERROR_WANT_READ :
+    case -WOLFSSL_ERROR_WANT_READ :
         return "non-blocking socket wants data to be read";
 
     case NOT_READY_ERROR :
@@ -23214,8 +23213,21 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer version error";
 
     case WANT_WRITE :
-    case WOLFSSL_ERROR_WANT_WRITE :
+    case -WOLFSSL_ERROR_WANT_WRITE :
         return "non-blocking socket write buffer full";
+
+    case -WOLFSSL_ERROR_WANT_CONNECT:
+    case -WOLFSSL_ERROR_WANT_ACCEPT:
+        return "The underlying BIO was not yet connected";
+
+    case -WOLFSSL_ERROR_SYSCALL:
+        return "fatal I/O error in TLS layer";
+
+    case -WOLFSSL_ERROR_WANT_X509_LOOKUP:
+        return "application client cert callback asked to be called again";
+
+    case -WOLFSSL_ERROR_SSL:
+        return "fatal TLS protocol error";
 
     case BUFFER_ERROR :
         return "malformed buffer input error";
@@ -23254,7 +23266,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "can't decode peer key";
 
     case ZERO_RETURN:
-    case WOLFSSL_ERROR_ZERO_RETURN:
+    case -WOLFSSL_ERROR_ZERO_RETURN:
         return "peer sent close notify alert";
 
     case ECC_CURVETYPE_ERROR:
