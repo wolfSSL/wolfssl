@@ -4780,7 +4780,7 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 
 /* Determine when mp_add_d is required. */
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    !defined(NO_DSA) || \
+    !defined(NO_DSA) || (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(OPENSSL_EXTRA)
 #define WOLFSSL_SP_ADD_D
