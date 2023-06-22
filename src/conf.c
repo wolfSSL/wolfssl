@@ -143,7 +143,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
     failed = 0;
 error:
     if (failed && ret) {
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_TXT_DB_free(ret);
         ret = NULL;
     }
     if (buf) {
@@ -458,6 +458,7 @@ int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
     }
     if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
+        wolfssl_sk_pop_type(sk, STACK_TYPE_CONF_VALUE);
         return WOLFSSL_FAILURE;
     }
 
@@ -948,6 +949,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 
             if (wolfSSL_CONF_add_string(conf, section, newVal) !=
                     WOLFSSL_SUCCESS) {
+                wolfSSL_X509V3_conf_free(newVal);
                 WOLFSSL_MSG("wolfSSL_CONF_add_string error");
                 goto cleanup;
             }

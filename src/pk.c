@@ -825,6 +825,7 @@ WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
     if (err) {
         /* meth->name won't be allocated on error. */
         XFREE(meth, NULL, DYNAMIC_TYPE_OPENSSL);
+        meth = NULL;
     }
     return meth;
 }
@@ -2751,6 +2752,15 @@ int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *dmp1,
 
         /* Set the values into the wolfCrypt RSA key. */
         if (SetRsaInternal(rsa) != 1) {
+            if (dmp1 != NULL) {
+                rsa->dmp1 = NULL;
+            }
+            if (dmq1 != NULL) {
+                rsa->dmq1 = NULL;
+            }
+            if (iqmp != NULL) {
+                rsa->iqmp = NULL;
+            }
             ret = 0;
         }
     }
@@ -2815,6 +2825,12 @@ int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *p,
 
         /* Set the values into the wolfCrypt RSA key. */
         if (SetRsaInternal(rsa) != 1) {
+             if (p != NULL) {
+                 rsa->p = NULL;
+             }
+             if (q != NULL) {
+                 rsa->q = NULL;
+             }
              ret = 0;
         }
     }
@@ -2890,6 +2906,15 @@ int wolfSSL_RSA_set0_key(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
 
         /* Set the values into the wolfCrypt RSA key. */
         if (SetRsaInternal(rsa) != 1) {
+            if (n != NULL) {
+                rsa->n = NULL;
+            }
+            if (e != NULL) {
+                rsa->e = NULL;
+            }
+            if (d != NULL) {
+                rsa->d = NULL;
+            }
             ret = 0;
         }
     }

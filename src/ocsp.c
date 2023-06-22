@@ -659,6 +659,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     InitDecodedCert(cert, subject->derCert->buffer,
                     subject->derCert->length, NULL);
     if (ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm) != 0) {
+        FreeDecodedCert(cert);
         goto out;
     }
     else {
@@ -676,11 +677,12 @@ out:
     if (ret != 0) {
         if (derCert != NULL)
             FreeDer(&derCert);
-        if (certId != NULL)
+        if (certId != NULL) {
             XFREE(certId, cm->heap, DYNAMIC_TYPE_OPENSSL);
+            certId = NULL;
+        }
         if (certStatus)
             XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1115,7 +1117,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
         }
     }
 
-    if (cid && (!cidOut || cid != *cidOut)) {
+    if ((cid != NULL) && ((cidOut == NULL) || (cid != *cidOut))) {
         XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 
