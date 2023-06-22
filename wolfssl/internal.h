@@ -1737,13 +1737,6 @@ enum Misc {
     MAX_WOLFSSL_FILE_SIZE = 1024UL * 1024UL * 4,  /* 4 mb file size alloc limit */
 #endif
 
-#if defined(HAVE_PQC)
-    MAX_X509_SIZE      = 8*1024, /* max static x509 buffer size; dilithium is big */
-#elif defined(WOLFSSL_HAPROXY)
-    MAX_X509_SIZE      = 3072, /* max static x509 buffer size */
-#else
-    MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
-#endif
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 
     NO_SNIFF           =   0,  /* not sniffing */
@@ -1876,6 +1869,15 @@ enum Misc {
 #define SESSIDX_IDX_MASK  0x0F
 #endif
 
+#ifndef MAX_X509_SIZE
+    #if defined(HAVE_PQC)
+        #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; dilithium is big */
+    #elif defined(WOLFSSL_HAPROXY)
+        #define MAX_X509_SIZE   3072 /* max static x509 buffer size */
+    #else
+        #define MAX_X509_SIZE   2048 /* max static x509 buffer size */
+    #endif
+#endif
 
 /* max cert chain peer depth */
 #ifndef MAX_CHAIN_DEPTH
