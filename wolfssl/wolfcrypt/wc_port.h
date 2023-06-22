@@ -244,7 +244,11 @@
     #elif defined(MICRIUM)
         typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(EBSNET)
-        typedef RTP_MUTEX wolfSSL_Mutex;
+        #if (defined(RTPLATFORM) && (RTPLATFORM != 0))
+            typedef RTP_MUTEX wolfSSL_Mutex;
+        #else
+            typedef KS_RTIPSEM wolfSSL_Mutex;
+        #endif
     #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         typedef MUTEX_STRUCT wolfSSL_Mutex;
     #elif defined(FREESCALE_FREE_RTOS)
@@ -474,6 +478,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END                VSEEK_END
     #define XBADFILE                 -1
     #define XFGETS(b,s,f)            -2 /* Not ported yet */
+    #define XSNPRINTF rtp_snprintf
+    #define XFPRINTF fprintf
 
 #elif defined(LSR_FS)
     #include <fs.h>

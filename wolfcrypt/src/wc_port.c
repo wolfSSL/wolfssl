@@ -2031,7 +2031,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
     }
 
 #elif defined(EBSNET)
-
+    #if (defined(RTPLATFORM) && (RTPLATFORM != 0))
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
         if (rtp_sig_mutex_alloc(m, "wolfSSL Mutex") == -1)
@@ -2071,6 +2071,66 @@ int wolfSSL_CryptHwMutexUnLock(void)
             retval =  -1;
 
         return(retval);
+    }
+    #else
+    static int rtip_semaphore_build(wolfSSL_Mutex *m)
+    {
+        KS_SEMAPHORE_BUILD(m)
+        return(RTP_TRUE);
+    }
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        if (rtip_semaphore_build(m) == RTP_FALSE)
+            return BAD_MUTEX_E;
+        else
+            return 0;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        KS_SEMAPHORE_FREE(*m);
+        return 0;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        if (KS_SEMAPHORE_GET(*m))
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        KS_SEMAPHORE_GIVE(*m);
+        return 0;
+    }
+    #endif
+    int ebsnet_fseek(int a, long b, int c)
+    {
+        int retval;
+
+        retval = (int)vf_lseek(a, b, c);
+        if (retval > 0)
+            retval = 0;
+        else
+            retval =  -1;
+
+        return(retval);
+    }
+
+    int strcasecmp(const char *s1, const char *s2)
+    {
+        while (rtp_tolower(*s1) == rtp_tolower(*s2)) {
+            if (*s1 == '\0' || *s2 == '\0')
+                break;
+            s1++;
+            s2++;
+        }
+
+        return rtp_tolower(*(unsigned char *) s1) -
+               rtp_tolower(*(unsigned char *) s2);
     }
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)

@@ -2627,6 +2627,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(HAVE_RTP_SYS) || defined(EBSNET)
 
 #include "rtprand.h"   /* rtp_rand () */
+
+#if (defined(HAVE_RTP_SYS) || (defined(RTPLATFORM) && (RTPLATFORM != 0)))
 #include "rtptime.h"   /* rtp_get_system_msec() */
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -2640,6 +2642,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
+#else
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    word32 i;
+    KS_SEED(ks_get_ticks());
+
+    for (i = 0; i < sz; i++ ) {
+        output[i] = KS_RANDOM() % 256;
+    }
+
+    return 0;
+}
+#endif /* defined(HAVE_RTP_SYS) || (defined(RTPLATFORM) && (RTPLATFORM != 0)) */
 
 #elif (defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC_RNG)) && \
       !defined(WOLFSSL_PIC32MZ_RNG)
