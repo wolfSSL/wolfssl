@@ -1,0 +1,71 @@
+name: hitch Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-hitch
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-hitch
+          path: build-dir
+          retention-days: 1
+
+  hitch_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 1.7.3 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-hitch
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          # TODO: change to wolfssl repo once merged
+          repository: kareem-wolfssl/osp
+          ref: hitch
+          path: osp
+
+      - name: Build hitch
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: varnish/hitch
+          ref: ${{ matrix.ref }}
+          path: hitch
+          patch-file: $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
+          run: |
+            autoreconf -i
+          configure: --with-wolfssl --enable-warnings
+
+      - name: Confirm hitch built with wolfSSL
+        working-directory: ./hitch
+        run: ldd src/hitch | grep wolfssl
+
+      - name: Run hitch tests, skipping 13, 15 and 39
+        run: |
+          for test in ./test*.sh; do
+            if ! [[ "$test" = ./test13* ]] && ! [[ "$test" = ./test15* ]] && ! [[ "$test" = ./test39* ]]; then
+              $test
+            fi
+          done

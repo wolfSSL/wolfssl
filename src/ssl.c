@@ -16149,16 +16149,49 @@ cleanup:
     /*
      * This is an OpenSSL compatibility layer function, but it doesn't mirror
      * the exact functionality of its OpenSSL counterpart. We don't support the
-     * notion of an "OpenSSL directory," nor do we support the environment
-     * variables SSL_CERT_DIR or SSL_CERT_FILE. This function is simply a
-     * wrapper around our native wolfSSL_CTX_load_system_CA_certs function. This
-     * function does conform to OpenSSL's return value conventions, though.
+     * notion of an "OpenSSL directory". This function will attempt to load the
+     * environment variables SSL_CERT_DIR and SSL_CERT_FILE, if either are found,
+     * they will be loaded. Otherwise, it will act as a wrapper around our
+     * native wolfSSL_CTX_load_system_CA_certs function. This function does
+     * conform to OpenSSL's return value conventions.
      */
     int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     {
         int ret;
+#ifdef XGETENV
+        char* certDir;
+        char* certFile;
+        word32 flags;
+#endif
 
         WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
+
+#ifdef XGETENV
+        certDir = XGETENV("SSL_CERT_DIR");
+        certFile = XGETENV("SSL_CERT_FILE");
+        flags = WOLFSSL_LOAD_FLAG_PEM_CA_ONLY;
+
+        if (certDir || certFile) {
+            if (certDir) {
+               /*
+                * We want to keep trying to load more CAs even if one cert in
+                * the directory is bad and can't be used (e.g. if one is expired),
+                * so we use WOLFSSL_LOAD_FLAG_IGNORE_ERR.
+                */
+                flags |= WOLFSSL_LOAD_FLAG_IGNORE_ERR;
+            }
+
+            ret = wolfSSL_CTX_load_verify_locations_ex(ctx, certFile, certDir,
+                    flags);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG_EX("Failed to load CA certs from SSL_CERT_FILE: %s"
+                                " SSL_CERT_DIR: %s. Error: %d", certFile,
+                                certDir, ret);
+                return WOLFSSL_FAILURE;
+            }
+            return ret;
+        }
+#endif
 
         ret = wolfSSL_CTX_load_system_CA_certs(ctx);
         if (ret == WOLFSSL_BAD_PATH) {
@@ -16649,6 +16682,32 @@ cleanup:
                                                     and free it with CTX free*/
     }
 
+#ifdef OPENSSL_ALL
+    int wolfSSL_CTX_set1_verify_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_set1_verify_cert_store");
+
+        if (ctx == NULL || str == NULL) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+
+        /* NO-OP when setting existing store */
+        if (str == CTX_STORE(ctx))
+            return WOLFSSL_SUCCESS;
+
+        if (wolfSSL_X509_STORE_up_ref(str) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_STORE_up_ref error");
+            return WOLFSSL_FAILURE;
+        }
+
+        /* free existing store if it exists */
+        wolfSSL_X509_STORE_free(ctx->x509_store_pt);
+        ctx->x509_store_pt = str; /* take ownership of store and free it
+                                     with CTX free */
+        return WOLFSSL_SUCCESS;
+    }
+#endif
 
     int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
     {
@@ -16759,6 +16818,13 @@ cleanup:
         if (wc_SetMutexCb(f) != 0) {
             WOLFSSL_MSG("Error when setting mutex call back");
         }
+    }
+
+    void (*wolfSSL_get_locking_callback(void))(int, int, const char*, int)
+    {
+        WOLFSSL_ENTER("wolfSSL_get_locking_callback");
+
+        return wc_GetMutexCb();
     }
 
 
@@ -31977,8 +32043,7 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** ch
 
     /* Create a new stack of WOLFSSL_X509 object from chain buffer. */
     for (idx = 0; idx < ctx->certChain->length; ) {
-        node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+        node = wolfSSL_sk_X509_new_null();
         if (node == NULL)
             return WOLFSSL_FAILURE;
         node->next = NULL;
@@ -32065,8 +32130,11 @@ int wolfSSL_CTX_get0_chain_certs(WOLFSSL_CTX *ctx,
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
-    *sk = ctx->x509Chain;
-    return WOLFSSL_SUCCESS;
+
+    /* This function should return ctx->x509Chain if it is populated, otherwise
+       it should be populated from ctx->certChain.  This matches the behavior of
+       wolfSSL_CTX_get_extra_chain_certs, so it is used directly. */
+    return wolfSSL_CTX_get_extra_chain_certs(ctx, sk);
 }
 
 #ifdef KEEP_OUR_CERT

@@ -35198,8 +35198,10 @@ static int test_wolfSSL_X509_STORE(void)
                     SSL_SUCCESS);
             }
             else {
-                ExpectIntEQ(SSL_set1_verify_cert_store(ssl, store),
-                    SSL_SUCCESS);
+                ExpectIntEQ(SSL_set1_verify_cert_store(ssl, store), SSL_SUCCESS);
+                #ifdef OPENSSL_ALL
+                ExpectIntEQ(SSL_CTX_set1_verify_cert_store(ctx, store), SSL_SUCCESS);
+                #endif
             }
             if (EXPECT_FAIL() || (i == 1)) {
                 X509_STORE_free(store);
@@ -40189,9 +40191,16 @@ static int test_wolfSSL_BIO_gets(void)
     char emp[] = "";
     char bio_buffer[20];
     int bufferSz = 20;
+#ifdef OPENSSL_ALL
+    BUF_MEM* emp_bm = NULL;
+    BUF_MEM* msg_bm = NULL;
+#endif
 
     /* try with bad args */
     ExpectNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
+#ifdef OPENSSL_ALL
+    ExpectIntEQ(BIO_set_mem_buf(bio, NULL, BIO_NOCLOSE), BAD_FUNC_ARG);
+#endif
 
     /* try with real msg */
     ExpectNotNull(bio = BIO_new_mem_buf((void*)msg, -1));
@@ -40212,6 +40221,42 @@ static int test_wolfSSL_BIO_gets(void)
     ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 19);
     ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 8);
     ExpectIntEQ(BIO_gets(bio, bio_buffer, -1), 0);
+
+#ifdef OPENSSL_ALL
+    /* test setting the mem_buf manually */
+    BIO_free(bio);
+    ExpectNotNull(bio = BIO_new_mem_buf((void*)msg, -1));
+    ExpectNotNull(emp_bm = BUF_MEM_new());
+    ExpectNotNull(msg_bm = BUF_MEM_new());
+    ExpectIntEQ(BUF_MEM_grow(msg_bm, sizeof(msg)), sizeof(msg));
+    XFREE(msg_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
+    /* emp size is 1 for terminator */
+    ExpectIntEQ(BUF_MEM_grow(emp_bm, sizeof(emp)), sizeof(emp));
+    XFREE(emp_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
+    emp_bm->data = emp;
+    msg_bm->data = msg;
+    ExpectIntEQ(BIO_set_mem_buf(bio, emp_bm, BIO_CLOSE), WOLFSSL_SUCCESS);
+
+    /* check reading an empty string */
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 1); /* just terminator */
+    ExpectStrEQ(emp, bio_buffer);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 0); /* Nothing to read */
+
+    /* BIO_gets reads a line of data */
+    ExpectIntEQ(BIO_set_mem_buf(bio, msg_bm, BIO_NOCLOSE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, -3), 0);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 1);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 14);
+    ExpectStrEQ(bio_buffer, "hello wolfSSL\n");
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 19);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 8);
+    ExpectIntEQ(BIO_gets(bio, bio_buffer, -1), 0);
+
+    emp_bm->data = NULL;
+    BUF_MEM_free(emp_bm);
+    msg_bm->data = NULL;
+    BUF_MEM_free(msg_bm);
+#endif
 
     /* check not null terminated string */
     BIO_free(bio);
@@ -40468,12 +40513,11 @@ static int test_wolfSSL_BIO_should_retry(void)
     tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
 
     /* force retry */
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(bio = wolfSSL_BIO_new_ssl(ctx, 1));
+    ExpectIntEQ(BIO_get_ssl(bio, &ssl), 1);
+    ExpectNotNull(ssl);
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     wolfSSL_SSLSetIORecv(ssl, forceWantRead);
-
-    ExpectNotNull(bio = BIO_new(BIO_f_ssl()));
-    ExpectIntEQ(BIO_set_ssl(bio, ssl, BIO_CLOSE), 1);
     if (EXPECT_FAIL()) {
         wolfSSL_free(ssl);
         ssl = NULL;
@@ -40481,6 +40525,8 @@ static int test_wolfSSL_BIO_should_retry(void)
 
     ExpectIntLE(BIO_write(bio, msg, msgSz), 0);
     ExpectIntNE(BIO_should_retry(bio), 0);
+    ExpectIntEQ(BIO_should_read(bio), 0);
+    ExpectIntEQ(BIO_should_write(bio), 0);
 
 
     /* now perform successful connection */
@@ -40490,9 +40536,21 @@ static int test_wolfSSL_BIO_should_retry(void)
     ret = wolfSSL_get_error(ssl, -1);
     if (ret == WOLFSSL_ERROR_WANT_READ || ret == WOLFSSL_ERROR_WANT_WRITE) {
         ExpectIntNE(BIO_should_retry(bio), 0);
+
+        if (ret == WOLFSSL_ERROR_WANT_READ)
+            ExpectIntEQ(BIO_should_read(bio), 1);
+        else
+            ExpectIntEQ(BIO_should_read(bio), 0);
+
+        if (ret == WOLFSSL_ERROR_WANT_WRITE)
+            ExpectIntEQ(BIO_should_write(bio), 1);
+        else
+            ExpectIntEQ(BIO_should_write(bio), 0);
     }
     else {
         ExpectIntEQ(BIO_should_retry(bio), 0);
+        ExpectIntEQ(BIO_should_read(bio), 0);
+        ExpectIntEQ(BIO_should_write(bio), 0);
     }
     ExpectIntEQ(XMEMCMP(reply, "I hear you fa shizzle!",
                 XSTRLEN("I hear you fa shizzle!")), 0);

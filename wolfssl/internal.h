@@ -5804,10 +5804,14 @@ struct WOLFSSL {
  * Always use SSL specific objects when available and revert to CTX otherwise.
  */
 #ifdef WOLFSSL_LOCAL_X509_STORE
-#define SSL_CM(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt->cm : (ssl)->ctx->cm)
+#define SSL_CM(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt->cm : \
+                     ((ssl)->ctx->x509_store_pt ? (ssl)->ctx->x509_store_pt->cm : \
+                                            (ssl)->ctx->cm))
 #define SSL_STORE(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt : \
                   ((ssl)->ctx->x509_store_pt ? (ssl)->ctx->x509_store_pt : \
                                             &(ssl)->ctx->x509_store))
+#define CTX_STORE(ssl) ((ctx)->x509_store_pt ? (ctx)->x509_store_pt : \
+                                            &(ctx)->x509_store)
 #else
 #define SSL_CM(ssl) (ssl)->ctx->cm
 #endif

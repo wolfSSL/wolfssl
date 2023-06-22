@@ -165,6 +165,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define CRYPTO_WRITE            0x08
 
 #define CRYPTO_set_locking_callback     wolfSSL_set_locking_callback
+#define CRYPTO_get_locking_callback     wolfSSL_get_locking_callback
 #define CRYPTO_set_dynlock_create_callback  wolfSSL_set_dynlock_create_callback
 #define CRYPTO_set_dynlock_lock_callback wolfSSL_set_dynlock_lock_callback
 #define CRYPTO_set_dynlock_destroy_callback wolfSSL_set_dynlock_destroy_callback
@@ -783,6 +784,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_method_type                 wolfSSL_BIO_method_type
 #define BIO_set_ssl                     wolfSSL_BIO_set_ssl
 #define BIO_get_ssl                     wolfSSL_BIO_get_ssl
+#define BIO_new_ssl                     wolfSSL_BIO_new_ssl
 #define BIO_new_ssl_connect             wolfSSL_BIO_new_ssl_connect
 #define BIO_set_conn_hostname           wolfSSL_BIO_set_conn_hostname
 #define BIO_eof                         wolfSSL_BIO_eof
@@ -899,6 +901,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_client_cert_cb      wolfSSL_CTX_set_client_cert_cb
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
+#ifdef OPENSSL_ALL
+#define SSL_CTX_set1_verify_cert_store  wolfSSL_CTX_set1_verify_cert_store
+#endif
 #define SSL_set0_verify_cert_store      wolfSSL_set0_verify_cert_store
 #define SSL_set1_verify_cert_store      wolfSSL_set1_verify_cert_store
 #define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
@@ -1269,6 +1274,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTRL_SET_GROUPS                       91
 #define SSL_CTRL_GET_PEER_TMP_KEY                 109
 #define SSL_CTRL_GET_SERVER_TMP_KEY               SSL_CTRL_GET_PEER_TMP_KEY
+#define SSL_CTRL_GET_CHAIN_CERTS                  115
 #define SSL_CTRL_SET_MIN_PROTO_VERSION            123
 #define SSL_CTRL_SET_MAX_PROTO_VERSION            124
 #define SSL_CTRL_GET_MIN_PROTO_VERSION            125
