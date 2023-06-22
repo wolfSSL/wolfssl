@@ -11160,6 +11160,9 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         XFREE(altNames->ipString, heap, DYNAMIC_TYPE_ALTNAME);
     #endif
+    #if defined(OPENSSL_ALL)
+        XFREE(altNames->ridString, heap, DYNAMIC_TYPE_ALTNAME);
+    #endif
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
         altNames = tmp;
     }
@@ -12337,6 +12340,66 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
+#if defined(OPENSSL_ALL)
+/* used to set the human readable string for the registeredID with an
+ * ASN_RID_TYPE DNS entry
+ * return 0 on success
+ */
+static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
+{
+    int i, j, ret = 0;
+    int nameSz;
+    int tmpSize = MAX_OID_SZ;
+    word16 tmpName[MAX_OID_SZ];
+    char* rid;
+    char dottedName[MAX_OID_SZ] = {0};
+
+    if (entry == NULL || entry->type != ASN_RID_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (entry->len <= 0) {
+        return BAD_FUNC_ARG;
+    }
+    rid = entry->name;
+
+    /* Decode OBJECT_ID into dotted form array. */
+    ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
+            (word32*)&tmpSize);
+    if (ret == 0) {
+        j = 0;
+        /* Append each number of dotted form. */
+        for (i = 0; i < tmpSize; i++) {
+            ret = XSNPRINTF(dottedName + j, MAX_OID_SZ, "%d", tmpName[i]);
+            if (ret >= 0) {
+                j += ret;
+                if (i < tmpSize - 1) {
+                    dottedName[j] = '.';
+                    j++;
+                }
+            }
+            else {
+                return BUFFER_E;
+            }
+        }
+        ret = 0;
+    }
+
+    if (ret == 0) {
+        nameSz = (int)XSTRLEN((const char*)dottedName);
+        entry->ridString = (char*)XMALLOC(nameSz + 1, heap, DYNAMIC_TYPE_ALTNAME);
+        if (entry->ridString == NULL) {
+            ret = MEMORY_E;
+        }
+
+        XMEMCPY(entry->ridString, dottedName, nameSz);
+        entry->ridString[nameSz] = '\0';
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_ALL */
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 
 #if defined(WOLFSSL_CERT_GEN) || !defined(NO_CERTS)
@@ -12419,6 +12482,13 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         /* store IP addresses as a string */
         if (type == ASN_IP_TYPE) {
             if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
+                XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+            }
+        }
+        /* store registeredID as a string */
+        else if (type == ASN_RID_TYPE) {
+            if ((ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap)) != 0) {
                 XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
             }

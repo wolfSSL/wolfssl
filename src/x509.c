@@ -5797,7 +5797,7 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 }
                 else if (entry->type == ASN_RID_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
-                        entry->name);
+                        entry->ridString);
                     if (len >= MAX_WIDTH) {
                         ret = WOLFSSL_FAILURE;
                         break;

@@ -1360,6 +1360,10 @@ struct DNS_entry {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     char*      ipString; /* human readable form of IP address */
 #endif
+#if defined(OPENSSL_ALL)
+    char*      ridString; /* human readable form of registeredID */
+#endif
+
 #ifdef WOLFSSL_FPKI
     int        oidSum; /* provide oid sum for verification */
 #endif
@@ -2162,7 +2166,7 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                          word32 maxIdx);
 
 #ifdef HAVE_OID_ENCODING
-    WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
+    WOLFSSL_API int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
