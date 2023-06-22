@@ -1774,12 +1774,6 @@ if(WOLFSSL_AESKEYWRAP)
         )
 endif()
 
-# Hybrid Key Derivation Function
-add_option("WOLFSSL_HKDF"
-        "Enable wolfSSL HKDF (HMAC-KDF) support (default: disabled)"
-        "no" "yes;no")
-
-
 # Hybrid Public Key Encryption (RFC9180)
 add_option("WOLFSSL_HPKE"
         "Enable wolfSSL hybrid public key encryption (default: disabled)"
@@ -1801,10 +1795,6 @@ if(WOLFSSL_HPKE)
     endif()
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HPKE")
     override_cache(WOLFSSL_HKDF "yes")
-endif()
-
-if(WOLFSSL_HKDF)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HKDF")
 endif()
 
 if(WOLFSSL_ECH)
