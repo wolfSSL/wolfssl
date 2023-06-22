@@ -182,7 +182,9 @@
     #include <sys/ioctl.h>
     #include <sys/time.h>
     #include <sys/socket.h>
-    #include <pthread.h>
+    #ifdef HAVE_PTHREAD
+        #include <pthread.h>
+    #endif
     #include <fcntl.h>
     #ifdef TEST_IPV6
         #include <netdb.h>
