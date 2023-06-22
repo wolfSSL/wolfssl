@@ -3314,7 +3314,7 @@ int mp_init_size (mp_int * a, int size)
 }
 
 
-/* the jist of squaring...
+/* the list of squaring...
  * you do like mult except the offset of the tmpx [one that
  * starts closer to zero] can't equal the offset of tmpy.
  * So basically you set up iy like before then you min it with

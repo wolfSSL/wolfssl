@@ -656,7 +656,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         peerSz = dtlsCtx->peer.sz;
 #ifndef WOLFSSL_IPV6
         if (PeerIsIpv6(peer, peerSz)) {
-            WOLFSSL_MSG("ipv6 dtls peer setted but no ipv6 support compiled");
+            WOLFSSL_MSG("ipv6 dtls peer set but no ipv6 support compiled");
             return NOT_COMPILED_IN;
         }
 #endif

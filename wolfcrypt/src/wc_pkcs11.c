@@ -74,7 +74,7 @@
 #endif
 
 
-/* Maximim length of the EC parameter string. */
+/* Maximum length of the EC parameter string. */
 #define MAX_EC_PARAM_LEN   16
 
 

@@ -332,7 +332,7 @@ WOLFSSL_LOCAL int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
                             &(tuc->handle13),
                             TSIP_TLS13_MODE_FULL_HANDSHAKE,
                             &(tuc->EcdhPrivKey13Idx),    /* private key index */
-                            &(kse->pubKey[1]));       /* genereted public key */
+                            &(kse->pubKey[1]));       /* generated public key */
 
             if (err != TSIP_SUCCESS){ret = WC_HW_E;}
 
@@ -422,7 +422,7 @@ WOLFSSL_LOCAL int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
         if ((ret = tsip_hw_lock()) == 0) {
 
             tuc->SharedSecret_set = 0;
-            pubkeyraw = kse->ke + 1;        /* peer's raw publick key data */
+            pubkeyraw = kse->ke + 1;        /* peer's raw public key data */
 
             /* derive shared secret */
             err = R_TSIP_Tls13GenerateEcdheSharedSecret(
@@ -2113,7 +2113,7 @@ static uint32_t GetTsipCipherSuite(
     return tsipCipher;
 }
 
-/*  Attempt to get a public key exchaged with the peer in ECDHE.
+/*  Attempt to get a public key exchanged with the peer in ECDHE.
  *  the public key is verified by given signature then stored into ctx.
  *
  *  return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure.

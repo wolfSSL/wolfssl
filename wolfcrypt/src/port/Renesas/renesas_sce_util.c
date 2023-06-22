@@ -372,7 +372,7 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
                 return ret;
             }
 
-            /* copy generated ecdh public key inot buffer */
+            /* copy generated ecdh public key into buffer */
             pubKeyDer[0] = ECC_POINT_UNCOMP;
             *pubKeySz = 1 + sizeof(cbInfo->ecc_ecdh_public_key);
             XMEMCPY(&pubKeyDer[1], &cbInfo->ecc_ecdh_public_key,

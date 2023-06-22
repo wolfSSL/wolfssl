@@ -163,7 +163,7 @@ To enable SCP03 authentication, wolfSSL was using the following defines:
 ```
 
 Default ENC, MAC, and DEK keys for SCP03 should be set by defining the
-following values. Thes are the default keys wolfSSL used for the SE50C2
+following values. These are the default keys wolfSSL used for the SE50C2
 variant (OEF OID: A201). The variant can be seen by running the
 `se05x_GetInfo` sample application.
 

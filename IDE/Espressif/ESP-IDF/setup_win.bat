@@ -73,7 +73,7 @@ dir %WOLFSSL_ESPIDFDIR%\*.xyzzy 2> nul | findstr  \
 
 echo;
 echo Equivalalent source directory paths:
-:: show the path of the equivalent  %VALUE% (search for files that don't exist, supress error, and look for string with "\")
+:: show the path of the equivalent  %VALUE% (search for files that don't exist, suppress error, and look for string with "\")
 dir %BASEDIR%\*.xyzzy 2> nul | findstr  \
 dir %WOLFSSLLIB_TRG_DIR%\*.xyzzy 2> nul | findstr  \
 dir %WOLFSSLEXP_TRG_DIR%\*.xyzzy 2> nul | findstr  \

@@ -725,7 +725,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
 
 /**
  * Get the error value at the HEAD of the ERR queue or 0 if the queue
- * is emtpy. The HEAD entry is removed by this call.
+ * is empty. The HEAD entry is removed by this call.
  */
 unsigned long wc_GetErrorNodeErr(void)
 {

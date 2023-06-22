@@ -4638,7 +4638,7 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
                 sz = cSz;
             }
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
-            /* Update count of unsed encrypted counter. */
+            /* Update count of unused encrypted counter. */
             aes->cOver += sz;
             if (aes->cOver == AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
@@ -4972,7 +4972,7 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret == 0) {
         /* Encrypt the plaintext. */
         AesGcmCryptUpdate_C(aes, out, in, sz);
-        /* Update the authenication tag with any authentication data and the
+        /* Update the authentication tag with any authentication data and the
          * new cipher text. */
         GHASH_UPDATE(aes, authIn, authInSz, out, sz);
     }
@@ -5081,7 +5081,7 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         /* Decrypt with AAD and/or cipher text. */
-        /* Update the authenication tag with any authentication data and
+        /* Update the authentication tag with any authentication data and
          * cipher text. */
         GHASH_UPDATE(aes, authIn, authInSz, in, sz);
         /* Decrypt the cipher text. */

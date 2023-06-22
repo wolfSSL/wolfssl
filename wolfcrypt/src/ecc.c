@@ -9090,7 +9090,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     return err;
 }
 
-/* function for backwards compatiblity with previous implementations */
+/* function for backwards compatibility with previous implementations */
 int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
 {

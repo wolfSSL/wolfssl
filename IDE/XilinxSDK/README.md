@@ -70,7 +70,7 @@ This shows the necessary steps on the basis of using the VMK180 development boar
 2. Repeat the same steps of the previous step 3 for the newly created domain.
    - In the tree-view select "freertos10_xilinx" and then open the "kernel_behavior" sub-entry.
    - Change `minimal_stack_size` to `8000`, `tick_rate` to `1000` and `total_heap_size` to `8388608`. "Big chunk sizes" have not been tested under FreeRTOS.
-3. Repeat the same steps of the preivous steps 4 to 6, but with the `wolfCrypt_FreeRTOS_example` resp. `wolfCrypt_FreeRTOS_example_system`.
+3. Repeat the same steps of the previous steps 4 to 6, but with the `wolfCrypt_FreeRTOS_example` resp. `wolfCrypt_FreeRTOS_example_system`.
 
 
 ## Troubleshooting

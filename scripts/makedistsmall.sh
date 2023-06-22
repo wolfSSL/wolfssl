@@ -74,7 +74,7 @@ find . -name "*.vcxproj" -delete
 find . -name "*.vcproj" -delete
 find . -name "*.sln" -delete
 
-# TLS/Compatiblity layer
+# TLS/Compatibility layer
 #rm -rf ./src
 #rm -rf ./wolfssl/openssl
 

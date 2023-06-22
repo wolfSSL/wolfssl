@@ -2769,7 +2769,7 @@ static void* benchmarks_do(void* args)
 
             do {
             #ifdef WOLFCRYPT_HAVE_SAKKE
-                /* SAKKE is not useable with ECDH/ECDSA. Run separate test. */
+                /* SAKKE is not usable with ECDH/ECDSA. Run separate test. */
                 if (curveId == ECC_SAKKE_1) {
                     curveId++;
                     continue;

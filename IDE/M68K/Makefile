@@ -84,7 +84,7 @@ clean: rmo
 	rm -f $(OUTPUT)/$(NAME).a
 
 help:
-	@echo "all     : exectue compile, link, rmo"
+	@echo "all     : execute compile, link, rmo"
 	@echo "compile : create .o files"
 	@echo "link    : create .a library from .o files"
 	@echo "rmo     : remove all .o files"

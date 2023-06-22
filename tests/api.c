@@ -4770,7 +4770,7 @@ static int test_wolfSSL_EVP_DecodeUpdate(void)
                 &outl),
             1                    /* expected result code 1: success */
             );
-        ExpectIntEQ(outl, 0);   /* expected DecodeFinal outout no data */
+        ExpectIntEQ(outl, 0);   /* expected DecodeFinal output no data */
 
         ExpectIntEQ(XSTRNCMP( (const char*)plain2,(const char*)decOutBuff,
                               sizeof(plain2) -1 ),0);
@@ -6577,7 +6577,7 @@ static void test_client_reuse_WOLFSSLobj(void* args, cbType cb,
     if (ssl == NULL) {
         goto done;
     }
-    /* keep handshakre resources for re-using WOLFSSL obj */
+    /* keep handshake resources for re-using WOLFSSL obj */
     wolfSSL_KeepArrays(ssl);
     if (wolfSSL_KeepHandshakeResources(ssl)) {
         /* err_sys("SSL_KeepHandshakeResources failed"); */
@@ -7284,7 +7284,7 @@ static int test_wolfSSL_reuse_WOLFSSLobj(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
     !defined(WOLFSSL_NO_TLS12)
     /* The unit test for session resumption by re-using WOLFSSL object.
-     * WOLFSSL object is not cleared after first session. It re-use the obeject
+     * WOLFSSL object is not cleared after first session. It re-use the object
      * for second connection.
     */
     tcp_ready ready;
@@ -7517,7 +7517,7 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
     ExpectTrue(wolfSSL_CTX_set_cipher_list(ctxClient, "ECDHE+AESGCM"));
     ExpectNotNull((sslClient = wolfSSL_new(ctxClient)));
 
-    /* check for the existance of an ECDHE ECDSA cipher suite */
+    /* check for the existence of an ECDHE ECDSA cipher suite */
     if (EXPECT_SUCCESS()) {
         int i = 0;
         int found = 0;
@@ -7968,7 +7968,7 @@ static int twcase_cache_intOff_extOff(WOLFSSL_CTX* ctx)
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
 #endif
-    /* off - Donot setup external cache */
+    /* off - Do not setup external cache */
 
     /* Require both peers to provide certs */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
@@ -7977,8 +7977,8 @@ static int twcase_cache_intOff_extOff(WOLFSSL_CTX* ctx)
 
 static int twcase_cache_intOn_extOff(WOLFSSL_CTX* ctx)
 {
-    /* on - internal cache is on by default*/
-    /* off - Donot setup external cache */
+    /* on - internal cache is on by default */
+    /* off - Do not setup external cache */
     /* Require both peers to provide certs */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
     return TEST_SUCCESS;
@@ -9551,7 +9551,7 @@ static int test_wolfSSL_SNI_GetFromBuffer(void)
 
     byte buff5[] = { /* SSL v2.0 client hello */
         0x00, 0x2b, 0x01, 0x03, 0x01, 0x00, 0x09, 0x00, 0x00,
-        /* dummy bytes bellow, just to pass size check */
+        /* dummy bytes below, just to pass size check */
         0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
         0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
         0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
@@ -10811,7 +10811,7 @@ static int test_wolfSSL_PKCS12(void)
     ExpectNull(pkey);
     ExpectNull(cert);
 
-    /* check parse iwth not extra certs kept */
+    /* check parse with not extra certs kept */
     ExpectIntEQ(ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, NULL),
         WOLFSSL_SUCCESS);
     ExpectNotNull(pkey);
@@ -12320,7 +12320,7 @@ static int test_wc_Sha512Update(void)
 #ifdef WOLFSSL_SHA512
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
         (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
-/* Perfoms test for
+/* Performs test for
  * - wc_Sha512Final/wc_Sha512FinalRaw
  * - wc_Sha512_224Final/wc_Sha512_224Final
  * - wc_Sha512_256Final/wc_Sha512_256Final
@@ -15520,7 +15520,7 @@ static int test_wc_Chacha_Process(void)
     word32      keySz = sizeof(key)/sizeof(byte);
     unsigned long int inlen = XSTRLEN(input);
 
-    /* Initialize stack varialbes.*/
+    /* Initialize stack variables. */
     XMEMSET(cipher, 0, 128);
     XMEMSET(plain, 0, 128);
 
@@ -19259,7 +19259,7 @@ static int test_wc_curve25519_export_key_raw_ex(void)
     ExpectIntEQ(wc_curve25519_export_key_raw_ex(&key, privateKey,
         &prvkSz, publicKey, NULL, EC25519_BIG_ENDIAN), BAD_FUNC_ARG);
 
-    /* illegal value for endien */
+    /* illegal value for endian */
     prvkSz = CURVE25519_KEYSIZE;
     /* pubkSz = CURVE25519_KEYSIZE; */
     ExpectIntEQ(wc_curve25519_export_key_raw_ex(&key, privateKey, &prvkSz,
@@ -25937,7 +25937,7 @@ static int test_wolfSSL_a2i_ASN1_INTEGER(void)
 
     ExpectNotNull(fixed = BIO_new(wolfSSL_BIO_s_fixed_mem()));
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, tmp, 1), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(fixed, ai), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26707,7 +26707,7 @@ static int test_wolfSSL_ASN1_STRING_print(void)
 
     ExpectNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
     ExpectIntEQ(BIO_set_write_buf_size(bio, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(bio, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print(bio, asnStr), 0);
     ExpectIntEQ(BIO_set_write_buf_size(bio, 1), 1);
@@ -26769,7 +26769,7 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 15), 15);
     ExpectStrEQ((char*)rbuf, "Hello wolfSSL!");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26784,7 +26784,7 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 9), 9);
     ExpectStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, esc_str, flags), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26799,7 +26799,7 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 28), 28);
     ExpectStrEQ((char*)rbuf, "OCTET STRING:Hello wolfSSL!");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26816,7 +26816,7 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 31), 31);
     ExpectStrEQ((char*)rbuf, "#48656C6C6F20776F6C6653534C2100");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26831,7 +26831,7 @@ static int test_wolfSSL_ASN1_STRING_print_ex(void)
     ExpectIntEQ(BIO_read(bio, (void*)rbuf, 35), 35);
     ExpectStrEQ((char*)rbuf, "#040F48656C6C6F20776F6C6653534C2100");
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, rbuf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_STRING_print_ex(fixed, asn_str, flags), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -26986,7 +26986,7 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
 
     ExpectNotNull(bio = BIO_new(wolfSSL_BIO_s_fixed_mem()));
     ExpectIntEQ(BIO_set_write_buf_size(bio, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(bio, buf, 1), 1);
     ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
     for (i = 1; i < 20; i++) {
@@ -27454,7 +27454,7 @@ static int test_wolfSSL_ASN1_TIME_print(void)
 
     /* Test BIO_write fails. */
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
-    /* Ensure there is 0 bytes avaialble to write into. */
+    /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(fixed, buf, 1), 1);
     ExpectIntEQ(ASN1_TIME_print(fixed, notBefore), 0);
     ExpectIntEQ(BIO_set_write_buf_size(fixed, 1), 1);
@@ -32063,7 +32063,7 @@ static int test_wolfSSL_CTX_get0_set1_param(void)
     ExpectIntEQ(0x01, pParam->hostFlags);
     ExpectIntEQ(0, XSTRNCMP(pParam->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
-    /* test for incorrect patameter */
+    /* test for incorrect parameter */
     ExpectIntEQ(1,SSL_CTX_set1_param(ctx, NULL));
     ExpectIntEQ(1,SSL_CTX_set1_param(NULL, pvpm));
     ExpectIntEQ(1,SSL_CTX_set1_param(NULL, NULL));
@@ -34112,7 +34112,7 @@ static int test_wolfSSL_BN_math_other(void)
     ExpectIntEQ(BN_gcd(r, a, &emptyBN, NULL), 0);
     /* END Invalid parameters. */
 
-    /* No comman factors between 2 and 3. */
+    /* No common factors between 2 and 3. */
     ExpectIntEQ(BN_set_word(a, 2), 1);
     ExpectIntEQ(BN_set_word(b, 3), 1);
     ExpectIntEQ(BN_gcd(r, a, b, NULL), 1);
@@ -37720,7 +37720,7 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
     return EXPECT_RESULT();
 }
 
-/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+/* Note the lack of wolfSSL_ prefix...this is a compatibility layer test. */
 static int test_GENERAL_NAME_set0_othername(void) {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -37804,7 +37804,7 @@ static int test_GENERAL_NAME_set0_othername(void) {
     return EXPECT_RESULT();
 }
 
-/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+/* Note the lack of wolfSSL_ prefix...this is a compatibility layer test. */
 static int test_othername_and_SID_ext(void) {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -52410,7 +52410,7 @@ static int test_wolfSSL_DH_check(void)
     ExpectIntEQ(wolfSSL_DH_check(dh, &codes), 1);
     ExpectIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     ExpectIntEQ(codes, DH_CHECK_P_NOT_PRIME);
-    /* set dh->p back to normal so it wont fail on next tests */
+    /* set dh->p back to normal so it won't fail on next tests */
     if (dh != NULL) {
         dh->p = pTmp;
         pTmp = NULL;
@@ -55929,7 +55929,7 @@ static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
 
     (void)ctx;
 
-    /* Succes Cases */
+    /* Success Cases */
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
             "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 0), 1);
     ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
@@ -60556,12 +60556,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_X509_STORE_No_SSL_CTX),
     TEST_DECL(test_X509_LOOKUP_add_dir),
 
-    /* RAND compatability API */
+    /* RAND compatibility API */
     TEST_DECL(test_wolfSSL_RAND_set_rand_method),
     TEST_DECL(test_wolfSSL_RAND_bytes),
     TEST_DECL(test_wolfSSL_RAND),
 
-    /* BN compatability API */
+    /* BN compatibility API */
     TEST_DECL(test_wolfSSL_BN_CTX),
     TEST_DECL(test_wolfSSL_BN),
     TEST_DECL(test_wolfSSL_BN_init),

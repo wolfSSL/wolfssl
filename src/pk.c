@@ -10201,7 +10201,7 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
 /* Convert Jacobian ordinates to affine.
  *
  * @param [in]      group  EC group.
- * @param [in]      point  EC point to get co-ordinates from.
+ * @param [in]      point  EC point to get coordinates from.
  * @return  1 on success.
  * @return  0 on error.
  */
@@ -10266,9 +10266,9 @@ static int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     return err;
 }
 
-/* Get the affine co-ordinates of the EC point on a Prime curve.
+/* Get the affine coordinates of the EC point on a Prime curve.
  *
- * When z-ordinate is not one then co-ordinates are Jacobian and need to be
+ * When z-ordinate is not one then coordinates are Jacobian and need to be
  * converted to affine before storing in BNs.
  *
  * Return code compliant with OpenSSL.
@@ -10276,7 +10276,7 @@ static int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
  * TODO: OpenSSL doesn't change point when Jacobian. Do the same?
  *
  * @param [in]      group  EC group.
- * @param [in]      point  EC point to get co-ordinates from.
+ * @param [in]      point  EC point to get coordinates from.
  * @param [in, out] x      BN to hold x-ordinate.
  * @param [in, out] y      BN to hold y-ordinate.
  * @param [in]      ctx    Context to use for BN operations. Unused.
@@ -10330,10 +10330,10 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
 }
 #endif /* !WOLFSSL_SP_MATH && !WOLF_CRYPTO_CB_ONLY_ECC */
 
-/* Sets the affine co-ordinates that belong on a prime curve.
+/* Sets the affine coordinates that belong on a prime curve.
  *
  * @param [in]      group  EC group.
- * @param [in, out] point  EC point to set co-ordinates into.
+ * @param [in, out] point  EC point to set coordinates into.
  * @param [in]      x      BN holding x-ordinate.
  * @param [in]      y      BN holding y-ordinate.
  * @param [in]      ctx    Context to use for BN operations. Unused.
@@ -10387,7 +10387,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
         WOLFSSL_MSG("wolfSSL_BN_copy failed");
         ret = 0;
     }
-    /* z-ordinate is one for affine co-ordinates. */
+    /* z-ordinate is one for affine coordinates. */
     if ((ret == 1) && ((wolfSSL_BN_one(point->Z)) == 0)) {
         WOLFSSL_MSG("wolfSSL_BN_one failed");
         ret = 0;
@@ -10551,7 +10551,7 @@ static int wolfssl_ec_point_add(int curveIdx, ecc_point* r, ecc_point* p1,
         ret = 0;
     }
 
-    /* Map point back to affine co-ordinates. Converts from Montogomery form. */
+    /* Map point back to affine coordinates. Converts from Montogomery form. */
     if ((ret == 1) && (ecc_map(r, prime, mp) != MP_OKAY)) {
         WOLFSSL_MSG("ecc_map error");
         ret = 0;
@@ -10671,7 +10671,7 @@ static int ec_mul2add(ecc_point* r, ecc_point* b, mp_int* n, ecc_point* q,
         WOLFSSL_MSG("wc_ecc_mulmod nqm error");
         ret = 0;
     }
-    /* Map point back to affine co-ordinates. Converts from Montogomery
+    /* Map point back to affine coordinates. Converts from Montogomery
      * form. */
     if ((ret == 1) && (ecc_map(r, prime, mp) != MP_OKAY)) {
         WOLFSSL_MSG("ecc_map nqm error");

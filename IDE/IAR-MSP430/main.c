@@ -36,7 +36,7 @@
 #include <msp430f5659.h>
 
 /* Without __root on some of the functions, IAR's "Discard Unused Publics"
-   will optimze out some of the functions
+   will optimize out some of the functions
  */
 #if defined(__IAR_SYSTEMS_ICC__)
 #define IAR_KEEP __root
@@ -304,7 +304,7 @@ only_rng:
     wc_FreeRng(&rng);
 
     printf(
-        "ChaCha20/Poly1305 Encryption Start, 1000 itterations, %d bytes\r\n",
+        "ChaCha20/Poly1305 Encryption Start, 1000 iterations, %d bytes\r\n",
         (int)strlen((const char*)plaintext));
     start = seconds;
     for (int i=0; i <= 1000; i++) {
@@ -319,7 +319,7 @@ only_rng:
     printf("\r\nEnd %d seconds\r\n", seconds - start);
 
     start = seconds;
-    printf("ChaCha20/Poly1305 Decryption Start, 1000 itterations\r\n");
+    printf("ChaCha20/Poly1305 Decryption Start, 1000 iterations\r\n");
     start = seconds;
     for (int i=0; i <= 1000; i++) {
         ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad),

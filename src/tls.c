@@ -9502,7 +9502,7 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         word16 len;
         int ret;
 
-        /* Write identites only. Binders after HMACing over this. */
+        /* Write identities only. Binders after HMACing over this. */
         lenIdx = idx;
         idx += OPAQUE16_LEN;
         while (current != NULL) {
@@ -9519,7 +9519,7 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
 
             current = current->next;
         }
-        /* Length of the identites. */
+        /* Length of the identities. */
         len = idx - lenIdx - OPAQUE16_LEN;
         c16toa(len, output + lenIdx);
 

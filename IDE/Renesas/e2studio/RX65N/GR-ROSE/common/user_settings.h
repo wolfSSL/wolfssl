@@ -150,7 +150,7 @@
   * -- "NO_ASN_TIME" macro is to avoid certificate expiration validation --
   *  
   * Note. In your actual products, do not forget to comment-out 
-  * "NO_ASN_TIME" macro. And prepare time function to get calender time,
+  * "NO_ASN_TIME" macro. And prepare time function to get calendar time,
   * otherwise, certificate expiration validation will not work.  
   */
   /*#define NO_ASN_TIME*/

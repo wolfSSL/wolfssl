@@ -2580,7 +2580,7 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
 
 #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
     /* Multiple calls for each cipher suite. First identity byte indicates the
-     * number of identites seen so far for cipher suite. */
+     * number of identities seen so far for cipher suite. */
     if (identity[0] != 0) {
         return 0;
     }

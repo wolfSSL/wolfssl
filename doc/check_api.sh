@@ -21,7 +21,7 @@ while read h_file; do
         api_count="$(wc -l < dox_api.txt)"
         match_count="$(grep -Ff dox_api.txt wolf_api.txt | wc -l)"
         if [ "$api_count" != "$match_count" ]; then
-            echo "Mistmatch"
+            echo "Mismatch"
             echo "Dox_api: $api_count"
             echo "Matched_api: $match_count"
             echo "Header file: $h_file"

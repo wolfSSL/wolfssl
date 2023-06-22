@@ -285,7 +285,7 @@ static void ShowVersions(void)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     XSTRNCAT(verStr, "e(either):", 11);
 #endif
-    /* print all stings at same time on stdout to avoid any flush issues */
+    /* print all strings at same time on stdout to avoid any flush issues */
     printf("%s\n", verStr);
 }
 
