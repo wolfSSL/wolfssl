@@ -2608,6 +2608,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
+#if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
+    #define OPENSSL_EXTRA
+#endif
+
 #ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
@@ -3098,6 +3103,7 @@ extern void uITRON4_free(void *p) ;
     #endif
     /* Ciphersuite check done in internal.h */
 #endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */
