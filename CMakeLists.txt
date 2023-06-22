@@ -1774,10 +1774,48 @@ if(WOLFSSL_AESKEYWRAP)
         )
 endif()
 
+# Hybrid Key Derivation Function
+add_option("WOLFSSL_HKDF"
+        "Enable wolfSSL HKDF (HMAC-KDF) support (default: disabled)"
+        "no" "yes;no")
+
+
+# Hybrid Public Key Encryption (RFC9180)
+add_option("WOLFSSL_HPKE"
+        "Enable wolfSSL hybrid public key encryption (default: disabled)"
+        "no" "yes;no")
+
+# Encrypted Client Hello (ECH)
+add_option("WOLFSSL_ECH"
+        "Enable wolfSSL encrypted client hello (default: disabled)"
+        "no" "yes;no")
+
 # Keying Material Exporter / TLS Exporter
 add_option("WOLFSSL_KEYING_MATERIAL"
         "Enable wolfSSL keying material export (default: disabled)"
         "no" "yes;no")
+
+if(WOLFSSL_HPKE)
+    if(NOT WOLFSSL_ECC)
+        message(FATAL_ERROR "HPKE supported only with ECC (WOLFSSL_ECC)")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HPKE")
+    override_cache(WOLFSSL_HKDF "yes")
+endif()
+
+if(WOLFSSL_HKDF)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HKDF")
+endif()
+
+if(WOLFSSL_ECH)
+    if(NOT WOLFSSL_HPKE)
+        message(FATAL_ERROR "ECH supported only with HPKE (WOLFSSL_HPKE)")
+    endif()
+    if(NOT WOLFSSL_SNI)
+        message(FATAL_ERROR "ECH supported only with SNI (WOLFSSL_SNI)")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECH")
+endif()
 
 if(WOLFSSL_KEYING_MATERIAL)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_KEYING_MATERIAL")
