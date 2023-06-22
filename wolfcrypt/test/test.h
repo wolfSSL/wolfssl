@@ -28,6 +28,10 @@
     extern "C" {
 #endif
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else
@@ -69,6 +73,7 @@ int wolf_test_task(void);
 #if defined(HAVE_ERRNO_H) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM) && !defined(WOLFSSL_USER_IO)
 #include <errno.h>
+#include <wolfssl/wolfcrypt/settings.h>
 #define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC(WC_TEST_RET_LN, errno, WC_TEST_RET_TAG_ERRNO)
 #else
 #define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC_NC
