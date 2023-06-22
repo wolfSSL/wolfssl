@@ -12340,7 +12340,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_ASN_TEMPLATE)
 /* used to set the human readable string for the registeredID with an
  * ASN_RID_TYPE DNS entry
  * return 0 on success
@@ -12363,9 +12363,14 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     }
     rid = entry->name;
 
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
     /* Decode OBJECT_ID into dotted form array. */
     ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
             (word32*)&tmpSize);
+#else
+    ret = NOT_COMPILED_IN;
+#endif
+
     if (ret == 0) {
         j = 0;
         /* Append each number of dotted form. */
@@ -12398,7 +12403,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
     return ret;
 }
-#endif /* OPENSSL_ALL */
+#endif /* OPENSSL_ALL && WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 
@@ -12478,17 +12483,19 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, (size_t)strLen);
         dnsEntry->name[strLen] = '\0';
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        /* store IP addresses as a string */
-        if (type == ASN_IP_TYPE) {
-            if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
+#if defined(OPENSSL_ALL)
+        /* store registeredID as a string */
+        if (type == ASN_RID_TYPE) {
+            if ((ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap)) != 0) {
                 XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
             }
         }
-        /* store registeredID as a string */
-        else if (type == ASN_RID_TYPE) {
-            if ((ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap)) != 0) {
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+        /* store IP addresses as a string */
+        if (type == ASN_IP_TYPE) {
+            if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
                 XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
             }
