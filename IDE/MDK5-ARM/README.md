@@ -38,6 +38,9 @@ If the wolfSSL::wolfSSL pack isn't showing:
 
 ## Building
 
+If getting an error for an unknown type `inline`, change your project C standard to c99 in the C/C++ options. Alternatively,
+add `#define WC_INLINE __inline` to `user_settings.h` to stick to c89 or the default c90.
+
 If getting error for missing GetCA or GetCAByName then include `Src/ssl-dummy.c` or define `WOLFCRYPT_ONLY`.
 
 If getting an error with missing `current_time` then please implement a function to return elapsed seconds (used by benchmark) like this:
