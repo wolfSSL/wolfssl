@@ -26,6 +26,8 @@ jobs:
         uses: ./.github/workflows/openvpn.yml
     hostap:
         uses: ./.github/workflows/hostap.yml
+    hitch:
+        uses: ./.github/workflows/hitch.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml

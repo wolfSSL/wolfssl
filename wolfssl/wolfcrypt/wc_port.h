@@ -444,6 +444,7 @@ typedef void (mutex_cb)(int flag, int type, const char* file, int line);
 
 WOLFSSL_API int wc_LockMutex_ex(int flag, int type, const char* file, int line);
 WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
+WOLFSSL_API mutex_cb* wc_GetMutexCb(void);
 #endif
 
 /* main crypto initialization function */
