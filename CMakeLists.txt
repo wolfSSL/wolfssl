@@ -1774,6 +1774,14 @@ if(WOLFSSL_AESKEYWRAP)
         )
 endif()
 
+# Keying Material Exporter / TLS Exporter
+add_option("WOLFSSL_KEYING_MATERIAL"
+        "Enable wolfSSL keying material export (default: disabled)"
+        "no" "yes;no")
+
+if(WOLFSSL_KEYING_MATERIAL)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_KEYING_MATERIAL")
+endif()
 
 if(WOLFSSL_KEYGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_KEY_GEN")
