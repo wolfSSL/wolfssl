@@ -14404,7 +14404,7 @@ int wolfSSL_Cleanup(void)
         SessionCache[i].lock_valid = 0;
     }
     #else
-    if ((session_lock_valid == 1) && (wc_UnLockRwLock(&session_lock) != 0)) {
+    if ((session_lock_valid == 1) && (wc_FreeRwLock(&session_lock) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
             ret = BAD_MUTEX_E;
     }
