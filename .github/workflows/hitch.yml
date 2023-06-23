@@ -47,6 +47,12 @@ jobs:
           ref: hitch
           path: osp
 
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y libev-dev libssl-dev automake python3-docutils flex bison pkg-config make
+
       - name: Build hitch
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
@@ -54,9 +60,7 @@ jobs:
           ref: ${{ matrix.ref }}
           path: hitch
           patch-file: $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
-          run: |
-            autoreconf -i
-          configure: --with-wolfssl --enable-warnings
+          configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc
 
       - name: Confirm hitch built with wolfSSL
         working-directory: ./hitch
