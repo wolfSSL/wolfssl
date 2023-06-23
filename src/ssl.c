@@ -8212,15 +8212,18 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
     WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
     if (cm == NULL)
         return BAD_FUNC_ARG;
-    if (options == 0) {
 #if defined(OPENSSL_COMPATIBLE_DEFAULTS)
+    if (options == 0) {
+
         /* Turn off doing Leaf CRL check */
         cm->crlEnabled = 0;
         /* Turn off all checks */
         cm->crlCheckAll = 0;
-#endif
         return ret;
     }
+#else
+    (void)options;
+#endif
 
     #ifdef HAVE_CRL
         if (cm->crl == NULL) {
