@@ -52,6 +52,12 @@
     extern "C" {
 #endif
 
+/* pick up compiler def; may need to turn on HAVE_PTHREAD for some configs */
+#ifdef _POSIX_THREADS
+    #undef HAVE_PTHREAD
+    #define HAVE_PTHREAD
+#endif
+
 /* This flag allows wolfSSL to include options.h instead of having client
  * projects do it themselves. This should *NEVER* be defined when building
  * wolfSSL as it can cause hard to debug problems. */
