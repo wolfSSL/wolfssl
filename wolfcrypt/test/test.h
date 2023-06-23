@@ -23,19 +23,26 @@
 #ifndef WOLFCRYPT_TEST_H
 #define WOLFCRYPT_TEST_H
 
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
+#ifdef WC_TEST_RET_CUSTOM_TYPE
+    typedef WC_TEST_RET_CUSTOM_TYPE wc_test_ret_t;
+#else
+    typedef sword32 wc_test_ret_t;
+#endif
+
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else
-int wolfcrypt_test(void* args);
+wc_test_ret_t wolfcrypt_test(void* args);
 #endif
 
 #ifndef NO_MAIN_DRIVER
-int wolfcrypt_test_main(int argc, char** argv);
+wc_test_ret_t wolfcrypt_test_main(int argc, char** argv);
 #endif
 
 #if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
@@ -44,13 +51,13 @@ int wolf_test_task(void);
 
 #ifndef WC_TEST_RET_HAVE_CUSTOM_MACROS
 
-#define WC_TEST_RET_TAG_NC     0
-#define WC_TEST_RET_TAG_EC     1
-#define WC_TEST_RET_TAG_ERRNO  2
-#define WC_TEST_RET_TAG_I      3
+#define WC_TEST_RET_TAG_NC     0L
+#define WC_TEST_RET_TAG_EC     1L
+#define WC_TEST_RET_TAG_ERRNO  2L
+#define WC_TEST_RET_TAG_I      3L
 
 #define WC_TEST_RET_ENC(line, i, tag)                           \
-        (-((line) + ((int)((unsigned)(i) & 0x7ff) * 100000) + ((tag) << 29)))
+        (-((wc_test_ret_t)(line) + ((wc_test_ret_t)((word32)(i) & 0x7ffL) * 100000L) + ((wc_test_ret_t)(tag) << 29L)))
 
 #ifndef WC_TEST_RET_LN
 #define WC_TEST_RET_LN __LINE__
@@ -74,16 +81,16 @@ int wolf_test_task(void);
 #define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC_NC
 #endif
 
-#define WC_TEST_RET_DEC_TAG(x) ((-(x)) >> 29)
+#define WC_TEST_RET_DEC_TAG(x) ((-(x)) >> 29L)
 
 /* decode line number */
-#define WC_TEST_RET_DEC_LN(x) (((-(x)) & ~(3 << 29)) % 100000)
+#define WC_TEST_RET_DEC_LN(x) ((int)(((-(x)) & ~(3L << 29L)) % 100000L))
 
 /* decode integer or errno */
-#define WC_TEST_RET_DEC_I(x) (((-(x)) & ~(3 << 29)) / 100000)
+#define WC_TEST_RET_DEC_I(x) ((int)((((-(x)) & ~(3L << 29L)) / 100000L)))
 
 /* decode error code */
-#define WC_TEST_RET_DEC_EC(x) (-WC_TEST_RET_DEC_I(x))
+#define WC_TEST_RET_DEC_EC(x) ((int)(-WC_TEST_RET_DEC_I(x)))
 
 #endif /* !WC_TEST_RET_HAVE_CUSTOM_MACROS */
 

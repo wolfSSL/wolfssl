@@ -1880,11 +1880,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef _MSC_VER
-    #ifndef HAVE_SSIZE_T
-        #include <BaseTsd.h>
-        typedef SSIZE_T ssize_t;
-    #endif
+#if defined(NO_WC_SSIZE_TYPE) || defined(ssize_t)
+    /* ssize_t comes from system headers or user_settings.h */
+#elif defined(WC_SSIZE_TYPE)
+    typedef WC_SSIZE_TYPE ssize_t;
+#elif defined(_MSC_VER)
+    #include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
 #endif
 
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
