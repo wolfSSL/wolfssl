@@ -47,25 +47,40 @@ jobs:
           ref: hitch
           path: osp
 
-      - name: Build hitch
-        uses: wolfSSL/actions-build-autotools-project@v1
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y libev-dev libssl-dev automake python3-docutils flex bison pkg-config make
+
+      - name: Checkout hitch
+        uses: actions/checkout@v3
         with:
           repository: varnish/hitch
-          ref: ${{ matrix.ref }}
+          ref: 1.7.3
           path: hitch
-          patch-file: $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
-          run: |
-            autoreconf -i
-          configure: --with-wolfssl --enable-warnings
+
+      - name: Configure and build hitch
+        run: |
+            cd $GITHUB_WORKSPACE/hitch/
+            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_1.7.3.patch
+            autoreconf -ivf
+            SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl" SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl" ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc --prefix=$GITHUB_WORKSPACE/build-dir
+            make -j$(nproc)
 
       - name: Confirm hitch built with wolfSSL
         working-directory: ./hitch
-        run: ldd src/hitch | grep wolfssl
-
-      - name: Run hitch tests, skipping 13, 15 and 39
         run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          ldd src/hitch | grep wolfssl
+
+      # Note: Exit status 77 means a test was skipped, this is valid and expected.
+      - name: Run hitch tests, skipping 13, 15 and 39
+        working-directory: ./hitch/src/tests
+        run: |
+          export TESTDIR=`pwd`/; export PATH=$PATH:`pwd`/../:`pwd`/../util/:`pwd`; export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
           for test in ./test*.sh; do
             if ! [[ "$test" = ./test13* ]] && ! [[ "$test" = ./test15* ]] && ! [[ "$test" = ./test39* ]]; then
-              $test
+              $test && echo "PASS: $test" || (ret=$?; if [[ $ret != 77 ]]; then echo "FAIL: $test (exit status: $ret)" && exit $ret; else echo "SKIP: $test"; fi)
             fi
           done
