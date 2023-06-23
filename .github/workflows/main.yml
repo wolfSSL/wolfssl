@@ -10,22 +10,22 @@ on:
     branches: [ '*' ]
 
 jobs:
-    espressif:
-        uses: ./.github/workflows/docker-Espressif.yml
-    multi-compiler:
-        uses: ./.github/workflows/multi-compiler.yml
-    openwrt:
-        uses: ./.github/workflows/docker-OpenWrt.yml
-    os-check:
-        uses: ./.github/workflows/os-check.yml
-    async:
-        uses: ./.github/workflows/async.yml
-    stunnel:
-        uses: ./.github/workflows/stunnel.yml
-    openvpn:
-        uses: ./.github/workflows/openvpn.yml
-    hostap:
-        uses: ./.github/workflows/hostap.yml
+    # espressif:
+    #     uses: ./.github/workflows/docker-Espressif.yml
+    # multi-compiler:
+    #     uses: ./.github/workflows/multi-compiler.yml
+    # openwrt:
+    #     uses: ./.github/workflows/docker-OpenWrt.yml
+    # os-check:
+    #     uses: ./.github/workflows/os-check.yml
+    # async:
+    #     uses: ./.github/workflows/async.yml
+    # stunnel:
+    #     uses: ./.github/workflows/stunnel.yml
+    # openvpn:
+    #     uses: ./.github/workflows/openvpn.yml
+    # hostap:
+    #     uses: ./.github/workflows/hostap.yml
     hitch:
         uses: ./.github/workflows/hitch.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        

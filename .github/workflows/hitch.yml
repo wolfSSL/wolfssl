@@ -60,7 +60,9 @@ jobs:
           ref: ${{ matrix.ref }}
           path: hitch
           patch-file: $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
-          configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc
+          configure: |
+              --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc
+              SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl" SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
 
       - name: Confirm hitch built with wolfSSL
         working-directory: ./hitch
