@@ -99,7 +99,7 @@ extern void benchmark_test(void) ;
 extern void SER_Init(void) ;
 
 /*-----------------------------------------------------------------------------
- *       mian entry
+ *       main entry
  *----------------------------------------------------------------------------*/
 
 /*** This is the parent task entry ***/

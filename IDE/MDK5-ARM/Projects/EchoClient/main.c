@@ -26,7 +26,7 @@
 #include "wolfssl/wolfcrypt/settings.h"
 
 #include "cmsis_os.h"                 /* CMSIS RTOS definitions             */
-#include "rl_net.h"                      /* Network definitions                */
+#include "rl_net.h"                   /* Network definitions                */
 #include <time.h>
 
 #if defined(STM32F7xx)
@@ -40,12 +40,9 @@
 //-------- <<< Use Configuration Wizard in Context Menu >>> -----------------
 
 //   <h>RTC: for validate certificate date
-//    <o>Year <1970-2099>
-#define RTC_YEAR 2018
-//    <o>Month <1=>Jan<2=>Feb<3=>Mar<4=>Apr<5=>May<6=>Jun<7=>Jul<8=>Aut<9=>Sep<10=>Oct<11=>Nov<12=>Dec
+#define RTC_YEAR  2023
 #define RTC_MONTH 1
-//    <o>Day <1-31>
-#define RTC_DAY 1
+#define RTC_DAY   1
 //    </h>
 
 //------------- <<< end of configuration section >>> -----------------------
@@ -69,29 +66,30 @@ static void CPU_CACHE_Enable (void) {
 #if !defined(NO_FILESYSTEM)
 #include "rl_fs.h"                      /* FileSystem definitions             */
 
-static void init_filesystem (void) {
-  int32_t retv;
+static void init_filesystem(void)
+{
+    int32_t retv;
 
-  retv = finit ("M0:");
-  if (retv == fsOK) {
-    retv = fmount ("M0:");
+    retv = finit ("M0:");
     if (retv == fsOK) {
-      printf ("Drive M0 ready!\n");
+        retv = fmount ("M0:");
+        if (retv == fsOK) {
+            printf ("Drive M0 ready!\n");
+        }
+        else {
+            printf ("Drive M0 mount failed(%d)!\n", retv);
+        }
     }
     else {
-      printf ("Drive M0 mount failed(%d)!\n", retv);
+        printf ("Drive M0 initialization failed!\n");
     }
-  }
-  else {
-    printf ("Drive M0 initialization failed!\n");
-  }
 }
 #endif
 
 
 void net_loop(void const *arg)
 {
-    while(1) {
+    while (1) {
         net_main ();
         osThreadYield ();
     }
@@ -103,8 +101,8 @@ osThreadDef(net_loop, osPriorityLow, 2, 0);
 extern uint32_t os_time;
 static  time_t epochTime;
 
-uint32_t HAL_GetTick(void) { 
-    return os_time; 
+uint32_t HAL_GetTick(void) {
+    return os_time;
 }
 
 time_t time(time_t *t){
@@ -133,15 +131,15 @@ double current_time(int reset)
 #define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
 typedef struct
 {
-  uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
-  uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
+    uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
+    uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
 } DWT_Type;
 
 extern uint32_t SystemCoreClock ;
 
 double current_time(int reset)
 {
-    if(reset) DWT->CYCCNT = 0 ;
+    if (reset) DWT->CYCCNT = 0 ;
     return ((double)DWT->CYCCNT/SystemCoreClock) ;
 }
 #endif
@@ -160,20 +158,21 @@ extern void echoclient_test(func_args * args) ;
 int myoptind = 0;
 char* myoptarg = NULL;
 
-int main (void) {
+int main (void)
+{
      static char *argv[] =
           {   "client" } ;
      static   func_args args  =
           {  1, argv } ;
 
-    MPU_Config();                             /* Configure the MPU              */
-    CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
-    HAL_Init();                               /* Initialize the HAL Library     */
-    SystemClock_Config();                     /* Configure the System Clock     */
+    MPU_Config();                             /* Configure the MPU            */
+    CPU_CACHE_Enable();                       /* Enable the CPU Cache         */
+    HAL_Init();                               /* Initialize the HAL Library   */
+    SystemClock_Config();                     /* Configure the System Clock   */
 
-    #if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
     init_filesystem ();
-    #endif
+#endif
     net_initialize ();
 
     #if defined(DEBUG_WOLFSSL)
@@ -181,14 +180,15 @@ int main (void) {
          wolfSSL_Debugging_ON() ;
     #endif
 
-    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
+    setTime((RTC_YEAR-1970)*365*24*60*60 +
+             RTC_MONTH*30*24*60*60 +
+             RTC_DAY*24*60*60);
 
     osThreadCreate (osThread(net_loop), NULL);
 
     echoclient_test(&args) ;
 
-    while(1)
+    while (1) {
         osDelay(1000);
-
+    }
 }
-

@@ -1713,6 +1713,14 @@ end:
     {
         return sys_now();
     }
+
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+    word32 TimeNowInMilliseconds(void)
+    {
+        return (word32)osKernelGetTickCount();
+    }
+
 #elif defined(WOLFSSL_TIRTOS)
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -1996,6 +2004,14 @@ end:
     {
         return sys_now();
     }
+
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)osKernelGetTickCount();
+    }
+
 #elif defined(WOLFSSL_TIRTOS)
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when

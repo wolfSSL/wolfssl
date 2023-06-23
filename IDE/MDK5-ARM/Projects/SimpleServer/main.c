@@ -66,11 +66,9 @@
 
 //   <h>RTC: for validate certificate date
 //    <o>Year <1970-2099>
-#define RTC_YEAR 2019
-//    <o>Month <1=>Jan<2=>Feb<3=>Mar<4=>Apr<5=>May<6=>Jun<7=>Jul<8=>Aut<9=>Sep<10=>Oct<11=>Nov<12=>Dec
+#define RTC_YEAR  2023
 #define RTC_MONTH 1
-//    <o>Day <1-31>
-#define RTC_DAY 1
+#define RTC_DAY   1
 //    </h>
 
 //------------- <<< end of configuration section >>> -----------------------
@@ -94,22 +92,23 @@ static void CPU_CACHE_Enable (void) {
 #if !defined(NO_FILESYSTEM)
 #include "rl_fs.h"                      /* FileSystem definitions             */
 
-static void init_filesystem (void) {
-  int32_t retv;
+static void init_filesystem(void)
+{
+    int32_t retv;
 
-  retv = finit ("M0:");
-  if (retv == fsOK) {
-    retv = fmount ("M0:");
+    retv = finit ("M0:");
     if (retv == fsOK) {
-      printf ("Drive M0 ready!\n");
+        retv = fmount ("M0:");
+        if (retv == fsOK) {
+            printf ("Drive M0 ready!\n");
+        }
+        else {
+            printf ("Drive M0 mount failed(%d)!\n", retv);
+        }
     }
     else {
-      printf ("Drive M0 mount failed(%d)!\n", retv);
+        printf ("Drive M0 initialization failed!\n");
     }
-  }
-  else {
-    printf ("Drive M0 initialization failed!\n");
-  }
 }
 #endif
 
@@ -121,20 +120,20 @@ extern uint32_t os_time;
 
 uint32_t HAL_GetTick(void)
 {
-    #if defined(WOLFSSL_CMSIS_RTOS)
-        return os_time;
-    #elif defined(WOLFSSL_CMSIS_RTOSv2)
-        return osKernelGetTickCount();
-    #endif
+#if defined(WOLFSSL_CMSIS_RTOS)
+    return os_time;
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    return osKernelGetTickCount();
+#endif
 }
 
 double current_time(int reset)
 {
-    #if defined(WOLFSSL_CMSIS_RTOS)
-        return (double)os_time / 1000.0;
-    #elif defined(WOLFSSL_CMSIS_RTOSv2)
-        return (double)osKernelGetTickCount() / 1000.0;
-    #endif
+#if defined(WOLFSSL_CMSIS_RTOS)
+    return (double)os_time / 1000.0;
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    return (double)osKernelGetTickCount() / 1000.0;
+#endif
 }
 
 #else
@@ -143,8 +142,8 @@ double current_time(int reset)
 #define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
 typedef struct
 {
-  uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
-  uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
+    uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
+    uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
 } DWT_Type;
 
 extern uint32_t SystemCoreClock;
@@ -203,22 +202,22 @@ int main(void)
 {
     static char *argv[] =
         {   "server",  "-p", SERVER_PORT,
-                       "-v",  " ",  OTHER_OPTIONS } ;
+                       "-v",  " ",  OTHER_OPTIONS };
     static   func_args args  =
-        {  sizeof(argv)/sizeof(*argv[0]), argv } ;
+        {  sizeof(argv)/sizeof(*argv[0]), argv };
 
     char *verStr[] = { "SSL3", "TLS1.0", "TLS1.1", "TLS1.2", "TLS1.3"};
     #define VERSIZE 2
     char ver[VERSIZE];
-                    
+
     MPU_Config();                             /* Configure the MPU              */
     CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
     HAL_Init();                               /* Initialize the HAL Library     */
     SystemClock_Config();                     /* Configure the System Clock     */
 
-    #if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
     init_filesystem ();
-    #endif
+#endif
 
 #if defined(WOLFSSL_CMSIS_RTOSv2)
     osKernelInitialize();
@@ -232,10 +231,12 @@ int main(void)
     snprintf(ver, VERSIZE, "%d", TLS_VER);
     argv[4] = ver;
 
-    printf("SSL/TLS Server\n ") ;
-    printf("    Server Port: %s\n    Version: %s\n", argv[2], verStr[TLS_VER]) ;
-    printf("    Other options: %s\n", OTHER_OPTIONS);   
-    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
+    printf("SSL/TLS Server\n ");
+    printf("    Server Port: %s\n    Version: %s\n", argv[2], verStr[TLS_VER]);
+    printf("    Other options: %s\n", OTHER_OPTIONS);
+    setTime((RTC_YEAR-1970)*365*24*60*60 +
+             RTC_MONTH*30*24*60*60 +
+             RTC_DAY*24*60*60);
 
 #if defined(WOLFSSL_CMSIS_RTOS)
     osThreadCreate(osThread(app_main), (void *)&args);

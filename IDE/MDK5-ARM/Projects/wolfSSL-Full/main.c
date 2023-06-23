@@ -51,22 +51,24 @@ void SystemClock_Config(void) {
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM)
 #include "rl_fs.h"
-static void init_filesystem (void) {
-  int32_t retv;
 
-  retv = finit ("M0:");
-  if (retv == 0) {
-    retv = fmount ("M0:");
-    if (retv == 0) {
-      printf ("Drive M0 ready!\n");
+static void init_filesystem(void)
+{
+    int32_t retv;
+
+    retv = finit ("M0:");
+    if (retv == fsOK) {
+        retv = fmount ("M0:");
+        if (retv == fsOK) {
+            printf ("Drive M0 ready!\n");
+        }
+        else {
+            printf ("Drive M0 mount failed(%d)!\n", retv);
+        }
     }
     else {
-      printf ("Drive M0 mount failed!\n");
+        printf ("Drive M0 initialization failed!\n");
     }
-  }
-  else {
-    printf ("Drive M0 initialization failed!\n");
-  }
 }
 #endif
 
@@ -76,31 +78,31 @@ typedef struct func_args {
 } func_args;
 
 
-extern void shell_main(func_args * args) ;
+extern void shell_main(func_args * args);
 
 /*-----------------------------------------------------------------------------
- *       mian entry
+ *       main entry
  *----------------------------------------------------------------------------*/
 int myoptind = 0;
 char* myoptarg = NULL;
 
 int main()
 {
-    void *arg = NULL ;
+    void *arg = NULL;
 
-	  SystemClock_Config() ;
+	  SystemClock_Config();
 	  #if !defined(NO_FILESYSTEM)
         init_filesystem ();
 	  #endif
 
-    netInitialize() ;
-    osDelay(300) ;
+    netInitialize();
+    osDelay(300);
 
-    #if defined(DEBUG_WOLFSSL)
-         printf("Turning ON Debug message\n") ;
-         wolfSSL_Debugging_ON() ;
-    #endif
+#if defined(DEBUG_WOLFSSL)
+        printf("Turning ON Debug message\n");
+        wolfSSL_Debugging_ON();
+#endif
 
-    shell_main(arg) ;
+    shell_main(arg);
 
 }

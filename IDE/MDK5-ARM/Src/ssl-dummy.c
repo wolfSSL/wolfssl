@@ -29,11 +29,11 @@
 
 Signer* GetCA(void* vp, byte* hash)
 {
-    return NULL  ;
+    return NULL;
 }
 
 Signer* GetCAByName(void* vp, byte* hash)
 {
-    return NULL ;
+    return NULL;
 }
 
