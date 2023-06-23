@@ -1630,7 +1630,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_ASN */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 /**
  * Parse DER encoding and return header information.
@@ -1858,6 +1858,10 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
 
     return ret;
 }
+
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 /* Write at most buf_len bytes of textual representation of ASN.1 OBJECT_ID.
  *
@@ -3227,7 +3231,7 @@ static int wolfssl_asn1_time_to_secs(const WOLFSSL_ASN1_TIME* t,
 /* Calculate difference in time of two ASN.1 TIME objects.
  *
  * @param [out] days  Number of whole days between from and to.
- * @param [out] secs  Number of serconds less than a day between from and to.
+ * @param [out] secs  Number of seconds less than a day between from and to.
  * @param [in]  from  ASN.1 TIME object as start time.
  * @param [in]  to    ASN.1 TIME object as end time.
  * @return  1 on success.
@@ -3918,7 +3922,7 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
  * ASN1_TYPE APIs
  ******************************************************************************/
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 /**
  * Allocate a new ASN.1 TYPE object.
@@ -3954,12 +3958,12 @@ static void wolfssl_asn1_type_free_value(WOLFSSL_ASN1_TYPE* at)
             wolfSSL_ASN1_OBJECT_free(at->value.object);
             break;
         case V_ASN1_UTCTIME:
-        #ifndef NO_ASN_TIME
+        #if !defined(NO_ASN_TIME) && defined(OPENSSL_EXTRA)
             wolfSSL_ASN1_TIME_free(at->value.utctime);
         #endif
             break;
         case V_ASN1_GENERALIZEDTIME:
-        #ifndef NO_ASN_TIME
+        #if !defined(NO_ASN_TIME) && defined(OPENSSL_EXTRA)
             wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
         #endif
             break;
@@ -3991,9 +3995,10 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
     XFREE(at, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS) || \
+    defined(WOLFSSL_WPAS_SMALL)
 /**
  * Set ASN.1 TYPE object with a type and value.
  *
