@@ -28,6 +28,9 @@ CRL Options:
  * CRL_MAX_REVOKED_CERTS:                                          default: 4
  *                         Specifies the number of buffers to hold RevokedCerts.
  *                         The default value is set to 4.
+ * CRL_REPORT_LOAD_ERRORS:                                         default: off
+ *                         Return any errors encountered during loading CRL
+ *                         from a directory.
 */
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -1562,15 +1565,27 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
             }
         }
 
+#ifndef CRL_REPORT_LOAD_ERRORS
         if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl,
                                  VERIFY) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("CRL file load failed, continuing");
         }
+#else
+        if (!skip) {
+            ret = ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl, VERIFY);
+            if (ret != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("CRL file load failed");
+                return ret;
+            }
+        }
+#endif
 
         ret = wc_ReadDirNext(readCtx, path, &name);
     }
     wc_ReadDirClose(readCtx);
-    ret = WOLFSSL_SUCCESS; /* load failures not reported, for backwards compat */
+
+    /* load failures not reported, for backwards compat */
+    ret = WOLFSSL_SUCCESS;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(readCtx, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
