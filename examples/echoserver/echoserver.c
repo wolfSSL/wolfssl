@@ -67,7 +67,7 @@
 
 static void SignalReady(void* args, word16 port)
 {
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;

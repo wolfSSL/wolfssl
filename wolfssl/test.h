@@ -536,7 +536,7 @@ typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
     char*  srfName;     /* server ready file name */
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
 #endif
@@ -551,7 +551,7 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
     ready->port = 0;
     ready->srfName = NULL;
 #ifdef SINGLE_THREADED
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
     PTHREAD_CHECK_RET(pthread_mutex_init(&ready->mutex, 0));
     PTHREAD_CHECK_RET(pthread_cond_init(&ready->cond, 0));
 #elif defined(NETOS)
@@ -567,7 +567,7 @@ static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 {
 #ifdef SINGLE_THREADED
     (void)ready;
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
     PTHREAD_CHECK_RET(pthread_mutex_destroy(&ready->mutex));
     PTHREAD_CHECK_RET(pthread_cond_destroy(&ready->cond));
 #elif defined(NETOS)
@@ -2208,7 +2208,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
     if (args != NULL && args->signal != NULL) {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
         /* signal ready to accept data */
         tcp_ready* ready = args->signal;
         PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
@@ -2255,7 +2255,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
