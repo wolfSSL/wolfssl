@@ -31,6 +31,8 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+#include <wolfssl/wolfcrypt/settings.h>
+
 #ifdef FUSION_RTOS
     #include <fclstdio.h>
     #include <fclstdlib.h>
@@ -43,7 +45,6 @@
 #ifdef HAVE_ERRNO_H
     #include <errno.h>
 #endif
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/random.h>
