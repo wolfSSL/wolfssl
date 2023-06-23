@@ -31,6 +31,12 @@
     extern "C" {
 #endif
 
+/* pick up compiler def; may need to turn on HAVE_PTHREAD for some configs */
+#ifdef _POSIX_THREADS
+    #undef HAVE_PTHREAD
+    #define HAVE_PTHREAD
+#endif
+
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 
