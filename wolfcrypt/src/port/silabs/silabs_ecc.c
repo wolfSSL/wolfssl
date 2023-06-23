@@ -206,7 +206,7 @@ int silabs_ecc_import(ecc_key* key, word32 keysize, int pub, int priv)
     word32 used;
 
     key->key.type = silabs_map_key_type(key->dp->id);
-    if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE)
+    if (key->key.type == SILABS_UNSUPPORTED_KEY_TYPE || keysize == 0)
         return WC_HW_E;
 
     key->key.size = keysize;

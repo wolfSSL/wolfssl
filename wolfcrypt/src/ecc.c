@@ -10865,7 +10865,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #endif
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_CRYPTOCELL)
+    defined(WOLFSSL_CRYPTOCELL)
     word32 keySz = 0;
 #endif
 
@@ -11116,7 +11116,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     if (err == MP_OKAY) {
-        err = silabs_ecc_import(key, keySz, 1, (d != NULL));
+        err = silabs_ecc_import(key, key->dp->size, 1, (d != NULL));
     }
 #endif
 
