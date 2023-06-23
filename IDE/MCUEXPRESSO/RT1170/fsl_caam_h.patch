@@ -1,6 +1,6 @@
---- fsl_caam-orig.h	2022-10-21 15:50:35.745560000 -0700
-+++ fsl_caam.h	2022-12-28 08:10:29.413415216 -0800
-@@ -3038,6 +3038,162 @@
+--- fsl_caam.h	2023-06-23 00:08:46.491699533 -0700
++++ fsl_caam-expanded.h	2023-06-23 00:10:22.702730462 -0700
+@@ -3038,6 +3038,164 @@
   *@}
   */ /* end of caam_driver_pkha */
  
@@ -127,10 +127,12 @@
 +
 +/* define for application to check for ECC CAAM additions */
 +#define CAAM_BLOB_EXPANSION
-+#define CAAM_RED_BLOB 0x00000C08
-+#define CAAM_BLACK_BLOB 0x00000010
++#define CAAM_RED_BLOB 1
++#define CAAM_BLACK_BLOB 2
 +#define CAAM_ENCAP_BLOB 0x07000000
 +#define CAAM_DECAP_BLOB 0x06000000
++#define CAAM_SM_KEYMODSZ 8
++#define CAAM_KEYMODSZ 16
 +#define CAAM_PADDING_SIZE_BLOB 48
 +
 +/*!
