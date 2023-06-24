@@ -233,7 +233,7 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\RTE\wolfSSL\user_settings.h</PathWithFileName>
+      <PathWithFileName>..\..\Conf\user_settings.h</PathWithFileName>
       <FilenameWithoutPath>user_settings.h</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>

@@ -1803,6 +1803,9 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     if (extensions == NULL || data == NULL || dataSz == NULL)
         return BAD_FUNC_ARG;
 
+    *data = NULL;
+    *dataSz = 0;
+
     extension = TLSX_Find(extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL) {
         WOLFSSL_MSG("TLS extension not found");
@@ -1813,8 +1816,6 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     alpn = (ALPN *)extension->data;
     if (alpn == NULL) {
         WOLFSSL_MSG("ALPN extension not found");
-        *data = NULL;
-        *dataSz = 0;
         WOLFSSL_ERROR_VERBOSE(WOLFSSL_FATAL_ERROR);
         return WOLFSSL_FATAL_ERROR;
     }

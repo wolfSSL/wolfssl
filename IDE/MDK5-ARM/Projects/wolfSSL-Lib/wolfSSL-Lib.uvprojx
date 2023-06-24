@@ -383,7 +383,7 @@
             <File>
               <FileName>user_settings.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\RTE\wolfSSL\user_settings.h</FilePath>
+              <FilePath>..\..\Conf\user_settings.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -832,7 +832,7 @@
         <targetInfos/>
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\user_settings.h" version="3.9.0">
-        <instance index="0">RTE\wolfSSL\user_settings.h</instance>
+        <instance index="0">..\..\Conf\user_settings.h</instance>
         <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfSSL" Csub="Core" Cvendor="wolfSSL" Cversion="3.15.7" condition="wolfCrypt-Core"/>
         <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.15.7"/>
         <targetInfos>

@@ -165,7 +165,7 @@
 #endif
 //  </e>
 //      <e>DSA
-#define MDK_CONF_DSA 1
+#define MDK_CONF_DSA 0
 #if MDK_CONF_DSA == 0
 #define NO_DSA
 #endif
@@ -202,6 +202,60 @@
 #define BUILD_AESGCM
 #endif
 //  </e>
+//  </h>
+
+// <h>Math / Memory
+//      <o> Math Library
+//        <0=>SP Math All (sp_int.c)
+//        <1=>Fast Math (tfm.c)
+//        <2=>Heap Math (integer.c)
+//        <3=>SP Math (RSA/DH 2048/3072/4096 and ECC 256/384/521 only)
+//        <4=>SP Math +ASM (faster)
+#define MDK_CONF_MATH 0
+#if MDK_CONF_MATH == 0
+    #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
+#elif MDK_CONF_MATH == 1
+    #define USE_FAST_MATH
+#elif MDK_CONF_MATH == 2
+    #define USE_INTEGER_HEAP_MATH
+#elif MDK_CONF_MATH == 3 || MDK_CONF_MATH == 4
+    #define WOLFSSL_SP_MATH     /* only SP math - disables integer.c/tfm.c */
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+
+    //#define WOLFSSL_SP_NO_2048
+    //#define WOLFSSL_SP_NO_3072
+    #define WOLFSSL_SP_4096
+    //#define WOLFSSL_SP_NO_256
+    //#define WOLFSSL_SP_384
+    //#define WOLFSSL_SP_521
+
+    #define WOLFSSL_SP_SMALL /* use smaller version of code */
+    //#define WOLFSSL_SP_NO_MALLOC /* do not use heap */
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
+
+    #if MDK_CONF_MATH == 4
+        /* SP Assembly Speedups - specific to chip type */
+        #define WOLFSSL_SP_ASM
+
+        //#define WOLFSSL_SP_ARM32_ASM
+        //#define WOLFSSL_SP_ARM64_ASM
+        //#define WOLFSSL_SP_ARM_THUMB_ASM
+        //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+    #endif
+#endif
+
+//      <e>Small Stack
+#define MDK_CONF_SmallStack 1
+#if MDK_CONF_SmallStack == 0
+    #define NO_WOLFSSL_SMALL_STACK
+    //#define WOLFSSL_SP_NO_MALLOC
+#else
+    #define WOLFSSL_SMALL_STACK
+#endif
+//      </e>
 //  </h>
 
 //  <h>Others
@@ -253,22 +307,9 @@
 #define NO_ERROR_STRINGS
 #endif
 //  </e>
-
-//      <e>Small Stack
-#define MDK_CONF_SmallStack 1
-#if MDK_CONF_SmallStack == 0
-#define NO_WOLFSSL_SMALL_STACK
-#endif
-//  </e>
-//      <e>Use Fast Math
-#define MDK_CONF_FASTMATH 0
-#if MDK_CONF_FASTMATH == 1
-#define USE_FAST_MATH
-#endif
-//  </e>
-
-
 //  </h>
+
+
 
 //</h>
 // <<< end of configuration section >>>

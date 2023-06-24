@@ -541,6 +541,10 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     return -1;
 }
 
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
+
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL)
 /* Set a general name from the DNS entry data.
  *
  * @param [in]      dns  DNS entry.
@@ -650,7 +654,9 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
 err:
     return ret;
 }
+#endif /* OPENSSL_ALL || WOLFSSL_WPAS_SMALL */
 
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 static int wolfssl_x509_alt_names_to_gn(WOLFSSL_X509* x509,
     WOLFSSL_X509_EXTENSION* ext)
 {
@@ -2118,7 +2124,7 @@ out:
     return found ? extCount : WOLFSSL_FATAL_ERROR;
 }
 
-#endif /* OPENSSL_ALL */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Looks for the extension matching the passed in nid

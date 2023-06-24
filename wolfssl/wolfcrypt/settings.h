@@ -1886,11 +1886,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef _MSC_VER
-    #ifndef HAVE_SSIZE_T
-        #include <BaseTsd.h>
-        typedef SSIZE_T ssize_t;
-    #endif
+#if defined(NO_WC_SSIZE_TYPE) || defined(ssize_t)
+    /* ssize_t comes from system headers or user_settings.h */
+#elif defined(WC_SSIZE_TYPE)
+    typedef WC_SSIZE_TYPE ssize_t;
+#elif defined(_MSC_VER)
+    #include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
 #endif
 
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
@@ -2612,6 +2614,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
+#if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
+    #define OPENSSL_EXTRA
+#endif
+
 #ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
@@ -3102,6 +3109,7 @@ extern void uITRON4_free(void *p) ;
     #endif
     /* Ciphersuite check done in internal.h */
 #endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

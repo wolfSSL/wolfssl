@@ -9256,6 +9256,13 @@ ProtocolVersion MakeDTLSv1_3(void)
         return sys_now()/1000;
     }
 
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+    word32 LowResTimer(void)
+    {
+        return (word32)osKernelGetTickCount() / 1000;
+    }
+
 #elif defined(WOLFSSL_TIRTOS)
 
     word32 LowResTimer(void)

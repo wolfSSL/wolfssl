@@ -9,6 +9,7 @@
 if [ "$1" == "keep" ]; then KEEP="yes"; else KEEP="no"; fi
 
 WOLFSSL_TEMPDIR=$(mktemp -d) || exit $?
+WOLFSSL_BRANCH=$(git symbolic-ref --short HEAD)
 
 function cleanup_on_exit() {
     if [ "$KEEP" == "no" ];
@@ -34,7 +35,7 @@ fi
 echo "Setting up work directory..."
 git clone -q -n --shared . "$WOLFSSL_TEMPDIR" || exit $?
 pushd "$WOLFSSL_TEMPDIR" >/dev/null || exit $?
-git checkout -q master || exit $?
+git checkout -q "$WOLFSSL_BRANCH"
 
 # cleanup example directories
 echo "Removing files not needed..."
