@@ -8726,7 +8726,7 @@ echo "" >> $OPTION_FILE
 # check for supported command to trim option with
 if colrm >/dev/null 2>&1 </dev/null; then
     TRIM="colrm 3"
-elif cut >/dev/null 2>&1 </dev/null; then
+elif cut -c1-2 >/dev/null 2>&1 </dev/null; then
     TRIM="cut -c1-2"
 else
     AC_MSG_ERROR([Could not find colrm or cut to make options file])
