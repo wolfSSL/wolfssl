@@ -31,6 +31,9 @@ decouple library dependencies with standard string, memory and so on.
 #ifndef WOLF_CRYPT_TYPES_H
 #define WOLF_CRYPT_TYPES_H
 
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+    #endif
     #include <wolfssl/wolfcrypt/settings.h>
     #include <wolfssl/wolfcrypt/wc_port.h>
 
@@ -1351,8 +1354,7 @@ typedef struct w64wrapper {
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
-        !defined(__MINGW32__) && !defined(SINGLE_THREADED)
+    #elif defined(HAVE_PTHREAD)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD

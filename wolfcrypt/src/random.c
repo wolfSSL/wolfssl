@@ -874,8 +874,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 
     return now.tv_nsec;
 }
-#elif !defined(SINGLE_THREADED) && defined(_POSIX_THREADS) && \
-      !defined(__MINGW32__)
+#elif defined(HAVE_PTHREAD)
 
 /* Start and stop thread that counts as a proxy for time counter. */
 #define ENTROPY_MEMUSE_THREADED
@@ -983,7 +982,7 @@ static void Entropy_StopThread(void)
         entropy_thread_started = 0;
     }
 }
-
+    /* end if defined(HAVE_PTHREAD) */
 #else
 
 #error "No high precision time available for MemUse Entropy."

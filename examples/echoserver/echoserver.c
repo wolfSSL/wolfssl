@@ -67,7 +67,7 @@
 
 static void SignalReady(void* args, word16 port)
 {
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__) && !defined(SINGLE_THREADED)
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_PTHREAD)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;
@@ -76,7 +76,7 @@ static void SignalReady(void* args, word16 port)
     ready->port = port;
     PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
     PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
-#endif
+#endif /* NO_MAIN_DRIVER && HAVE_PTHREAD */
     (void)args;
     (void)port;
 }
