@@ -4168,6 +4168,7 @@ WOLFSSL_API size_t wolfSSL_OBJ_length(const WOLFSSL_ASN1_OBJECT* o);
 WOLFSSL_API const unsigned char* wolfSSL_OBJ_get0_data(
     const WOLFSSL_ASN1_OBJECT* o);
 
+WOLFSSL_API const byte* wolfSSL_OBJ_txt2oidBuf(char* b, word32* sz, word32 t);
 WOLFSSL_API const char* wolfSSL_OBJ_nid2ln(int n);
 WOLFSSL_API int wolfSSL_OBJ_ln2nid(const char *ln);
 WOLFSSL_API int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* a,

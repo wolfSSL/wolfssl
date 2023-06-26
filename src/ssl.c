@@ -29369,6 +29369,51 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#if defined(OPENSSL_ALL)
+const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz, word32 oidType)
+    {
+        char *token;
+        byte*  oidBuf = NULL;
+        word32 oid;
+        word16 dotted[ASN1_OID_DOTTED_MAX_SZ];
+        word32 dottedCount = 0;
+        int    nid;
+
+        if (buf == NULL)
+            return NULL;
+
+        nid = wolfSSL_OBJ_txt2nid(buf);
+
+        if (nid != NID_undef) {
+            /* Handle named OID case */
+            oid    = nid2oid(nid, oidType);
+            oidBuf = (byte*)OidFromId(oid, oidType,inOutSz);
+        }
+    #if defined(HAVE_OID_ENCODING)
+        else {
+            /* Handle dotted form OID case*/
+            token = XSTRTOK(buf, ".", NULL);
+
+             while (token != NULL) {
+                 dotted[dottedCount] = XATOI(token);
+                 dottedCount++;
+                 token = XSTRTOK(NULL, ".", NULL);
+             }
+
+             if (EncodeObjectId(dotted, dottedCount, oidBuf, inOutSz) != 0) {
+                oidBuf = NULL;
+             }
+        }
+    #else
+        (void)token;
+        (void)dotted;
+        (void)dottedCount;
+    #endif
+
+        return (const byte*)oidBuf;
+    }
+#endif /* OPENSSL_ALL */
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
     defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
@@ -33912,6 +33957,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 
 word32 nid2oid(int nid, int grp)
 {
+    size_t i;
     /* get OID type */
     switch (grp) {
         /* oidHashType */
@@ -34269,10 +34315,33 @@ word32 nid2oid(int nid, int grp)
             }
             break;
 
+        /* oidCmsKeyAgreeType */
+    #ifdef WOLFSSL_CERT_REQ
+        case oidCsrAttrType:
+            switch (nid) {
+                case NID_pkcs9_contentType:
+                    return PKCS9_CONTENT_TYPE_OID;
+                case NID_pkcs9_challengePassword:
+                    return CHALLENGE_PASSWORD_OID;
+                case NID_serialNumber:
+                    return SERIAL_NUMBER_OID;
+                case NID_userId:
+                    return USER_ID_OID;
+                case NID_surname:
+                    return SURNAME_OID;
+            }
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("NID not in table");
-            /* MSVC warns without the cast */
-            return (word32)-1;
+    }
+
+    /* If not found in above switch then try the table */
+    for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+        if (wolfssl_object_info[i].nid == nid) {
+            return wolfssl_object_info[i].id;
+        }
     }
 
     /* MSVC warns without the cast */
@@ -34647,7 +34716,7 @@ int oid2nid(word32 oid, int grp)
 #endif
 
         default:
-            WOLFSSL_MSG("NID not in table");
+            WOLFSSL_MSG("OID not in table");
     }
     /* If not found in above switch then try the table */
     for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {

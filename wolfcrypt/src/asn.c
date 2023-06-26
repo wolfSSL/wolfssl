@@ -12350,9 +12350,13 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     int i, j, ret = 0;
     int nameSz;
     int tmpSize = MAX_OID_SZ;
+    int endChar = 0;
+    int nid     = 0;
+    word32 oid  = 0;
+    word32 idx  = 0;
     word16 tmpName[MAX_OID_SZ];
+    char finalName[MAX_OID_SZ];
     char* rid;
-    char dottedName[MAX_OID_SZ] = {0};
 
     if (entry == NULL || entry->type != ASN_RID_TYPE) {
         return BAD_FUNC_ARG;
@@ -12361,44 +12365,56 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     if (entry->len <= 0) {
         return BAD_FUNC_ARG;
     }
+
+    XMEMSET(&finalName, 0, MAX_OID_SZ);
     rid = entry->name;
 
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
-    /* Decode OBJECT_ID into dotted form array. */
-    ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
-            (word32*)&tmpSize);
-#else
-    ret = NOT_COMPILED_IN;
-#endif
+    ret = GetOID((const byte*)rid, &idx, &oid, oidIgnoreType, entry->len);
 
-    if (ret == 0) {
-        j = 0;
-        /* Append each number of dotted form. */
-        for (i = 0; i < tmpSize; i++) {
-            ret = XSNPRINTF(dottedName + j, MAX_OID_SZ, "%d", tmpName[i]);
-            if (ret >= 0) {
-                j += ret;
-                if (i < tmpSize - 1) {
-                    dottedName[j] = '.';
-                    j++;
+    if (ret == 0 && (nid = oid2nid(oid, oidCsrAttrType)) > 0) {
+        rid = (char*)wolfSSL_OBJ_nid2ln(nid);
+        XSTRNCPY(finalName, rid, XSTRLEN((const char*)rid));
+    }
+    else {
+    #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+        /* Decode OBJECT_ID into dotted form array. */
+        ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
+                (word32*)&tmpSize);
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+
+        if (ret == 0) {
+            endChar = 1;
+            j = 0;
+            /* Append each number of dotted form. */
+            for (i = 0; i < tmpSize; i++) {
+                ret = XSNPRINTF(finalName + j, MAX_OID_SZ, "%d", tmpName[i]);
+                if (ret >= 0) {
+                    j += ret;
+                    if (i < tmpSize - 1) {
+                        finalName[j] = '.';
+                        j++;
+                    }
+                }
+                else {
+                    return BUFFER_E;
                 }
             }
-            else {
-                return BUFFER_E;
-            }
+            ret = 0;
         }
-        ret = 0;
     }
 
     if (ret == 0) {
-        nameSz = (int)XSTRLEN((const char*)dottedName);
-        entry->ridString = (char*)XMALLOC(nameSz + 1, heap, DYNAMIC_TYPE_ALTNAME);
+        nameSz = (int)XSTRLEN((const char*)finalName);
+        entry->ridString = (char*)XMALLOC(nameSz + endChar, heap, DYNAMIC_TYPE_ALTNAME);
         if (entry->ridString == NULL) {
             ret = MEMORY_E;
         }
 
-        XMEMCPY(entry->ridString, dottedName, nameSz);
-        entry->ridString[nameSz] = '\0';
+        XMEMCPY(entry->ridString, finalName, nameSz);
+        if (endChar)
+            entry->ridString[nameSz] = '\0';
     }
 
     return ret;
@@ -37279,9 +37295,6 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file)
 
     return ret;
 }
-
-/* Maximum OID dotted form size. */
-#define ASN1_OID_DOTTED_MAX_SZ         16
 
 /* Print OID in dotted form or as hex bytes.
  *
