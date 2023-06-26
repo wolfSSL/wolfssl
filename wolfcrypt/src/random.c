@@ -2949,7 +2949,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-    #elif defined(WOLFSSL_STM32F427_RNG) || defined(WOLFSSL_STM32_RNG_NOLIB)
+    #elif defined(WOLFSSL_STM32F427_RNG) || defined(WOLFSSL_STM32_RNG_NOLIB) \
+        || defined(STM32_NUTTX_RNG)
+
+    #ifdef STM32_NUTTX_RNG
+        #include "hardware/stm32_rng.h"
+        /* Set CONFIG_STM32U5_RNG in NuttX to enable the RCC */
+        #define WC_RNG_CR *((volatile uint32_t*)(STM32_RNG_CR))
+        #define WC_RNG_SR *((volatile uint32_t*)(STM32_RNG_SR))
+        #define WC_RNG_DR *((volatile uint32_t*)(STM32_RNG_DR))
+    #else
+        /* Comes from "stm32xxxx_hal.h" */
+        #define WC_RNG_CR RNG->CR
+        #define WC_RNG_SR RNG->SR
+        #define WC_RNG_DR RNG->DR
+    #endif
+
 
     /* Generate a RNG seed using the hardware RNG on the STM32F427
      * directly, following steps outlined in STM32F4 Reference
@@ -2965,29 +2980,31 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return ret;
         }
 
+    #ifndef STM32_NUTTX_RNG
         /* enable RNG peripheral clock */
         RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
+    #endif
 
         /* enable RNG interrupt, set IE bit in RNG->CR register */
-        RNG->CR |= RNG_CR_IE;
+        WC_RNG_CR |= RNG_CR_IE;
 
         /* enable RNG, set RNGEN bit in RNG->CR. Activates RNG,
          * RNG_LFSR, and error detector */
-        RNG->CR |= RNG_CR_RNGEN;
+        WC_RNG_CR |= RNG_CR_RNGEN;
 
         /* verify no errors, make sure SEIS and CEIS bits are 0
          * in RNG->SR register */
-        if (RNG->SR & (RNG_SR_SECS | RNG_SR_CECS)) {
+        if (WC_RNG_SR & (RNG_SR_SECS | RNG_SR_CECS)) {
             wolfSSL_CryptHwMutexUnLock();
             return RNG_FAILURE_E;
         }
 
         for (i = 0; i < sz; i++) {
             /* wait until RNG number is ready */
-            while ((RNG->SR & RNG_SR_DRDY) == 0) { }
+            while ((WC_RNG_SR & RNG_SR_DRDY) == 0) { }
 
             /* get value */
-            output[i] = RNG->DR;
+            output[i] = WC_RNG_DR;
         }
 
         wolfSSL_CryptHwMutexUnLock();
