@@ -33957,7 +33957,6 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 
 word32 nid2oid(int nid, int grp)
 {
-    size_t i;
     /* get OID type */
     switch (grp) {
         /* oidHashType */
@@ -34335,13 +34334,8 @@ word32 nid2oid(int nid, int grp)
 
         default:
             WOLFSSL_MSG("NID not in table");
-    }
-
-    /* If not found in above switch then try the table */
-    for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
-        if (wolfssl_object_info[i].nid == nid) {
-            return wolfssl_object_info[i].id;
-        }
+            /* MSVC warns without the cast */
+            return (word32)-1;
     }
 
     /* MSVC warns without the cast */
