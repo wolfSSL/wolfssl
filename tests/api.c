@@ -342,7 +342,7 @@
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
-    defined(HAVE_ECH) || defined(HAVE_EX_DATA)
+    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -7346,8 +7346,8 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_1(void)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
 
-    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
 #ifdef WOLFSSL_TLS13
     client_cbf.method = wolfTLSv1_3_client_method;
@@ -7387,8 +7387,8 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_2(void)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
 
-    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
 #ifdef WOLFSSL_TLS13
     client_cbf.method = wolfTLSv1_3_client_method;
@@ -7432,8 +7432,8 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_3(void)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
 
-    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
 #ifdef WOLFSSL_TLS13
     client_cbf.method = wolfTLSv1_3_client_method;
@@ -11494,8 +11494,8 @@ static int test_wolfSSL_X509_TLS_version_test_2(void)
     test_ssl_cbf func_cb_client;
     test_ssl_cbf func_cb_server;
 
-    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
-    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
     func_cb_client.ctx_ready = &test_set_x509_badversion;
     func_cb_server.ctx_ready = &test_set_override_x509;
@@ -32872,8 +32872,8 @@ static int test_wolfSSL_Tls13_postauth(void)
     test_ssl_cbf client_cbf;
 
     /* test version failure doing post auth with TLS 1.2 connection */
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
-    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
     server_cbf.method = wolfTLSv1_2_server_method;
     server_cbf.ssl_ready = set_post_auth_cb;
     server_cbf.on_result = post_auth_version_cb;
@@ -32884,8 +32884,8 @@ static int test_wolfSSL_Tls13_postauth(void)
         &server_cbf, NULL), TEST_SUCCESS);
 
     /* tests on post auth with TLS 1.3 */
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
-    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
     server_cbf.method = wolfTLSv1_3_server_method;
     server_cbf.ssl_ready = set_post_auth_cb;
     client_cbf.ssl_ready = set_post_auth_cb;
@@ -34381,8 +34381,8 @@ static int test_wolfSSL_msgCb(void)
     test_ssl_cbf client_cb;
     test_ssl_cbf server_cb;
 
-    XMEMSET(&client_cb, 0, sizeof(callback_functions));
-    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    XMEMSET(&client_cb, 0, sizeof(client_cb));
+    XMEMSET(&server_cb, 0, sizeof(server_cb));
 #ifndef WOLFSSL_NO_TLS12
     client_cb.method  = wolfTLSv1_2_client_method;
     server_cb.method  = wolfTLSv1_2_server_method;
@@ -39006,8 +39006,8 @@ static int test_wolfSSL_cert_cb(void)
     test_ssl_cbf func_cb_client;
     test_ssl_cbf func_cb_server;
 
-    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
-    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
     func_cb_client.ctx_ready = clientCertSetupCb;
     func_cb_client.ssl_ready = clientCertClearCb;
@@ -39376,7 +39376,7 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
      * session object */
     test_ssl_cbf func_cb;
 
-    XMEMSET(&func_cb, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb, 0, sizeof(func_cb));
     func_cb.ctx_ready = SessRemCtxSetupCb;
     func_cb.on_result = SessRemSslSetupCb;
 
@@ -48660,8 +48660,8 @@ static int test_DhCallbacks(void)
         &func_cb_server, NULL), TEST_SUCCESS);
 
     /* Test fail */
-    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
-    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
     /* set callbacks to use DH functions */
     func_cb_client.ctx_ready = &test_dh_ctx_setup;
@@ -58937,7 +58937,8 @@ static int test_TLS_13_ticket_different_ciphers(void)
 #if defined(WOLFSSL_EXTRA_ALERTS) && !defined(WOLFSSL_NO_TLS12) &&             \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 
-#define TEST_WRONG_CS_CLIENT "TLS_DHE_RSA_WITH_AES_128_CBC_SHA"
+#define TEST_WRONG_CS_CLIENT "DHE-RSA-AES128-SHA"
+/* AKA TLS_DHE_RSA_WITH_AES_128_CBC_SHA */
 
 byte test_extra_alerts_wrong_cs_sh[] = {
   0x16, 0x03, 0x03, 0x00, 0x56, 0x02, 0x00, 0x00, 0x52, 0x03, 0x03, 0xef,
@@ -59283,7 +59284,8 @@ static int test_harden_no_secure_renegotiation(void)
     ExpectIntEQ(client_cbs.return_code, TEST_FAIL);
     ExpectIntEQ(client_cbs.last_err, SECURE_RENEGOTIATION_E);
     ExpectIntEQ(server_cbs.return_code, TEST_FAIL);
-    ExpectIntEQ(server_cbs.last_err, SOCKET_ERROR_E);
+    ExpectTrue(server_cbs.last_err == SOCKET_ERROR_E ||
+               server_cbs.last_err == FATAL_ERROR);
 
     return EXPECT_RESULT();
 }
@@ -59469,6 +59471,89 @@ static int test_dtls13_bad_epoch_ch(void)
 }
 #endif
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
+static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION *sess = NULL;
+    /* Setup the session to avoid errors */
+    ssl->session->timeout = -1;
+    ssl->session->side = WOLFSSL_CLIENT_END;
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+    ssl->session->version = ssl->version;
+#endif
+    /* Force a short session ID to be sent */
+    ssl->session->sessionIDSz = 4;
+#ifndef NO_SESSION_CACHE_REF
+    /* Allow the client cache to be used */
+    ssl->session->idLen = 4;
+#endif
+    ssl->session->isSetup = 1;
+    ExpectNotNull(sess = wolfSSL_get_session(ssl));
+    ExpectIntEQ(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_short_session_id(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+/* With WOLFSSL_TLS13_MIDDLEBOX_COMPAT a short ID will result in an error */
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3" },
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3" },
+#endif
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2" },
+#endif
+#endif
+#if !defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+        !defined(NO_DES3))
+        { wolfTLSv1_1_client_method, wolfTLSv1_1_server_method, "TLSv1_1" },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_client_method, wolfDTLSv1_server_method, "DTLSv1_0" },
+#endif
+#endif
+    };
+
+    printf("\n");
+
+    for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
+        XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+        XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+        printf("\tTesting short ID with %s\n", params[i].tls_version);
+
+        client_cbf.ssl_ready = test_short_session_id_ssl_ready;
+        client_cbf.method = params[i].client_meth;
+        server_cbf.method = params[i].server_meth;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+    }
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_short_session_id(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 
 #if defined(HAVE_NULL_CIPHER) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_DTLS13)
@@ -60902,10 +60987,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_dtls13_bad_epoch_ch),
+    TEST_DECL(test_short_session_id),
     TEST_DECL(test_wolfSSL_dtls13_null_cipher),
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_dtls_msg_from_other_peer),
     TEST_DECL(test_dtls_ipv6_check),
+    /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
 
@@ -61020,7 +61107,6 @@ int ApiTest(void)
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
     double timeDiff;
 #endif
-    EXPECT_DECLS;
 
     printf(" Begin API Tests\n");
     fflush(stdout);
@@ -61042,6 +61128,8 @@ int ApiTest(void)
 
     if (res == 0) {
         for (i = 0; i < TEST_CASE_CNT; ++i) {
+            EXPECT_DECLS;
+
             /* When not testing all cases then skip if not marked for running.
              */
             if (!testAll && !testCases[i].run) {

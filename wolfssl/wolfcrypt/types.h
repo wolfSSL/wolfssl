@@ -507,13 +507,14 @@ typedef struct w64wrapper {
         #else
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
-        #define XMALLOC(s, h, t)     malloc((size_t)(s))
+        #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc((size_t)(s)))
         #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-            #define XFREE(p, h, t)       free(xp)
+            #define XFREE(p, h, t)       ((void)(h), (void)(t), free(p))
         #else
             #define XFREE(p, h, t)       {void* xp = (p); if (xp) free(xp);}
         #endif
-        #define XREALLOC(p, n, h, t) realloc((p), (size_t)(n))
+        #define XREALLOC(p, n, h, t) \
+            ((void)(h), (void)(t), realloc((p), (size_t)(n)))
         #endif
 
     #elif defined(WOLFSSL_LINUXKM)

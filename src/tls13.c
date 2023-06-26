@@ -3984,6 +3984,49 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 }
 #endif
 
+static void GetTls13SessionId(WOLFSSL* ssl, byte* output, word32* idx)
+{
+    if (ssl->session->sessionIDSz > 0) {
+        /* Session resumption for old versions of protocol. */
+        if (ssl->session->sessionIDSz <= ID_LEN) {
+            if (output != NULL)
+                output[*idx] = ssl->session->sessionIDSz;
+            (*idx)++;
+            if (output != NULL) {
+                XMEMCPY(output + *idx, ssl->session->sessionID,
+                    ssl->session->sessionIDSz);
+            }
+            *idx += ssl->session->sessionIDSz;
+        }
+        else {
+            /* Invalid session ID length. Reset it. */
+            ssl->session->sessionIDSz = 0;
+            if (output != NULL)
+                output[*idx] = 0;
+            (*idx)++;
+        }
+    }
+    else {
+    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        if (ssl->options.tls13MiddleBoxCompat) {
+            if (output != NULL)
+                output[*idx] = ID_LEN;
+            (*idx)++;
+            if (output != NULL)
+                XMEMCPY(output + *idx, ssl->arrays->clientRandom, ID_LEN);
+            *idx += ID_LEN;
+        }
+        else
+    #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
+        {
+            /* TLS v1.3 does not use session id - 0 length. */
+            if (output != NULL)
+                output[*idx] = 0;
+            (*idx)++;
+        }
+    }
+}
+
 /* handle generation of TLS 1.3 client_hello (1) */
 /* Send a ClientHello message to the server.
  * Include the information required to start a handshake with servers using
@@ -4092,6 +4135,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     switch (ssl->options.asyncState) {
     case TLS_ASYNC_BEGIN:
     {
+    word32 sessIdSz = 0;
 
     args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
@@ -4100,26 +4144,21 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         args->idx += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
 #endif /* WOLFSSL_DTLS13 */
 
-    /* Version | Random | Session Id | Cipher Suites | Compression */
-    args->length = VERSION_SZ + RAN_LEN + ENUM_LEN + suites->suiteSz +
+    /* Version | Random | Cipher Suites | Compression */
+    args->length = VERSION_SZ + RAN_LEN + suites->suiteSz +
             SUITE_LEN + COMP_LEN + ENUM_LEN;
+#if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    ssl->options.tls13MiddleBoxCompat = 1;
+#endif
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
         /* RFC 9001 ch. 8.4 sessionID in ClientHello MUST be 0 length */
         ssl->session->sessionIDSz = 0;
         ssl->options.tls13MiddleBoxCompat = 0;
     }
-    else
 #endif
-#if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-    {
-        args->length += ID_LEN;
-        ssl->options.tls13MiddleBoxCompat = 1;
-    }
-#else
-    if (ssl->options.resuming && ssl->session->sessionIDSz > 0)
-        args->length += ssl->session->sessionIDSz;
-#endif
+    GetTls13SessionId(ssl, NULL, &sessIdSz);
+    args->length += (word16)sessIdSz;
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
@@ -4259,33 +4298,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     args->idx += RAN_LEN;
 
-    if (ssl->session->sessionIDSz > 0) {
-        /* Session resumption for old versions of protocol. */
-        if (ssl->options.resuming) {
-            args->output[args->idx++] = ID_LEN;
-            XMEMCPY(args->output + args->idx, ssl->session->sessionID,
-                ssl->session->sessionIDSz);
-            args->idx += ID_LEN;
-        }
-        else {
-            /* Not resuming, zero length session ID */
-            args->output[args->idx++] = 0;
-        }
-    }
-    else {
-    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-        if (ssl->options.tls13MiddleBoxCompat) {
-            args->output[args->idx++] = ID_LEN;
-            XMEMCPY(args->output + args->idx, ssl->arrays->clientRandom, ID_LEN);
-            args->idx += ID_LEN;
-        }
-        else
-    #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
-        {
-            /* TLS v1.3 does not use session id - 0 length. */
-            args->output[args->idx++] = 0;
-        }
-    }
+    GetTls13SessionId(ssl, args->output, &args->idx);
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
@@ -6536,7 +6549,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     sessIdSz = input[args->idx++];
-    if (sessIdSz != ID_LEN && sessIdSz != 0) {
+#ifndef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    if (sessIdSz > ID_LEN)
+#else
+    if (sessIdSz != ID_LEN && sessIdSz != 0)
+#endif
+    {
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }
 
@@ -6544,10 +6562,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
 
     ssl->session->sessionIDSz = sessIdSz;
-    if (sessIdSz == ID_LEN) {
+    if (sessIdSz > 0)
         XMEMCPY(ssl->session->sessionID, input + args->idx, sessIdSz);
-        args->idx += ID_LEN;
-    }
+    args->idx += sessIdSz;
 
 #ifdef WOLFSSL_DTLS13
     /* legacy_cookie */
