@@ -12373,7 +12373,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
     if (ret == 0 && (nid = oid2nid(oid, oidCsrAttrType)) > 0) {
         rid = (char*)wolfSSL_OBJ_nid2ln(nid);
-        XSTRNCPY(finalName, rid, XSTRLEN((const char*)rid));
+        XMEMCPY(finalName, rid, XSTRLEN((const char*)rid));
     }
     else {
     #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
