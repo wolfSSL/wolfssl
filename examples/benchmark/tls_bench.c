@@ -66,8 +66,17 @@ Or
 #endif
 
 /* PTHREAD requires server and client enabled */
-#if defined(HAVE_PTHREAD) && (defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER))
-    #undef HAVE_PTHREAD
+#if defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER)
+    #if defined(HAVE_PTHREAD)
+        #ifdef __GNUC__  /* GCC compiler */
+            #pragma message "PTHREAD requires server and client enabled."
+        #elif defined(_MSC_VER) /* Microsoft Visual C++ compiler */
+            #pragma message("PTHREAD requires server and client enabled.")
+        #else
+            #warning "PTHREAD requires server and client enabled."
+        #endif
+        #undef HAVE_PTHREAD
+    #endif
 #endif
 
 #ifdef HAVE_PTHREAD

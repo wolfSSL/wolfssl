@@ -431,7 +431,7 @@ static void simple_test(func_args* args)
  */
 void wait_tcp_ready(func_args* args)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(HAVE_PTHREAD)
     PTHREAD_CHECK_RET(pthread_mutex_lock(&args->signal->mutex));
 
     if (!args->signal->ready)
@@ -459,7 +459,7 @@ void wait_tcp_ready(func_args* args)
     (void)args;
 #else
     (void)args;
-#endif
+#endif /* thread checks */
 }
 
 
@@ -471,7 +471,7 @@ void wait_tcp_ready(func_args* args)
  */
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(HAVE_PTHREAD)
     PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
     return;
 #elif defined(WOLFSSL_TIRTOS)
@@ -527,10 +527,11 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     {
         printf("Ethernet Bypass Application: failed to create idle thread!\n");
     }
-
+    /* end if NETOS */
 #else
+    /* custom / external thread type */
     *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
-#endif
+#endif /* thread types */
 }
 
 
@@ -540,7 +541,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
  */
 void join_thread(THREAD_TYPE thread)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(HAVE_PTHREAD)
     PTHREAD_CHECK_RET(pthread_join(thread, 0));
 #elif defined(WOLFSSL_TIRTOS)
     while(1) {
