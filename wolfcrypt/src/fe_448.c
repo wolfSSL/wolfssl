@@ -167,7 +167,7 @@ void fe448_sub(word8* r, const word8* a, const word8* b)
     }
 }
 
-/* Mulitply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
+/* Multiply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -192,7 +192,7 @@ void fe448_mul39081(word8* r, const word8* a)
     }
 }
 
-/* Mulitply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
+/* Multiply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -448,7 +448,7 @@ void fe448_neg(word8* r, const word8* a)
 }
 
 /* Raise field element to (p-3) / 4: 2^446 - 2^222 - 1
- * Used for calcualting y-ordinate from x-ordinate for Ed448.
+ * Used for calculating y-ordinate from x-ordinate for Ed448.
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
@@ -788,7 +788,7 @@ void fe448_sub(sword64* r, const sword64* a, const sword64* b)
     r[7] = a[7] - b[7];
 }
 
-/* Mulitply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
+/* Multiply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -826,7 +826,7 @@ void fe448_mul39081(sword64* r, const sword64* a)
     r[7] = (sword64)t7;
 }
 
-/* Mulitply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
+/* Multiply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -1172,7 +1172,7 @@ void fe448_neg(sword64* r, const sword64* a)
 }
 
 /* Raise field element to (p-3) / 4: 2^446 - 2^222 - 1
- * Used for calcualting y-ordinate from x-ordinate for Ed448.
+ * Used for calculating y-ordinate from x-ordinate for Ed448.
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
@@ -1699,7 +1699,7 @@ void fe448_reduce(sword32* a)
     o = a[15] >> 28; a[0]  += (sword32)o;
                      a[8]  += (sword32)o; a[15] -= (sword32)(o << 28);
 }
-/* Mulitply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
+/* Multiply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -1761,7 +1761,7 @@ void fe448_mul39081(sword32* r, const sword32* a)
     r[15] = (sword32)t15;
 }
 
-/* Mulitply two field elements. r = a * b
+/* Multiply two field elements. r = a * b
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -1891,7 +1891,7 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     r[15] = (sword32)t15;
 }
 
-/* Mulitply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
+/* Multiply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
@@ -2271,7 +2271,7 @@ void fe448_neg(sword32* r, const sword32* a)
 }
 
 /* Raise field element to (p-3) / 4: 2^446 - 2^222 - 1
- * Used for calcualting y-ordinate from x-ordinate for Ed448.
+ * Used for calculating y-ordinate from x-ordinate for Ed448.
  *
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
