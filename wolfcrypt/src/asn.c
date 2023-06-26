@@ -15054,6 +15054,54 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                               int stopAfterPubKey);
 #endif
 
+/* Assumes the target is a Raw-Public-Key certificate and parsed up to the
+ * public key. Returns CRYPTOCB_UNAVAILABLE if it determines that the cert is
+ * different from the Paw-Public-Key cert. In that case, cert->srcIdx is not
+ * consumed so as successing parse function can take over.
+ * In case that the target is Raw-Public-Key cert and contains a public key,
+ * returns 0  and consumes cert->srcIdx so as a public key retrieval function
+ * can follow.
+ */
+#if defined(HAVE_RPK)
+int TryDecodeRPKToKey(DecodedCert* cert)
+{
+    int ret = 0, len;
+    word32 tmpIdx;
+    word32 oid;
+
+    WOLFSSL_ENTER("TryDecodeRPKToKey");
+
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
+
+    tmpIdx = cert->srcIdx;
+
+    /* both X509 cert and RPK cert should start with a Sequence tag */
+    if (ret == 0) {
+        if (GetSequence(cert->source, &tmpIdx, &len, cert->maxIdx) < 0)
+            ret = ASN_PARSE_E;
+    }
+    /* TBSCertificate of X509 or AlgorithmIdentifier of RPK cert */
+    if (ret == 0) {
+        if (GetSequence(cert->source, &tmpIdx, &len, cert->maxIdx) < 0)
+            ret = ASN_PARSE_E;
+    }
+    /* OBJ ID should be next in RPK cert */
+    if (ret == 0) {
+        if (GetObjectId(cert->source, &tmpIdx, &oid, oidKeyType, cert->maxIdx)
+                                                                            < 0)
+            ret = CRYPTOCB_UNAVAILABLE;
+    }
+    /* consume cert->srcIdx */
+    if (ret == 0) {
+        WOLFSSL_MSG("Looks like RPK certificate");
+        cert->srcIdx = tmpIdx;
+    }
+    WOLFSSL_LEAVE("TryDecodeRPKToKey", ret);
+    return ret;
+}
+#endif /* HAVE_RPK */
+
 /* Parse the certificate up to the X.509 public key.
  *
  * If cert data is invalid then badDate get set to error value.
@@ -15145,6 +15193,20 @@ int DecodeToKey(DecodedCert* cert, int verify)
 #ifndef WOLFSSL_ASN_TEMPLATE
     int badDate = 0;
     int ret;
+
+#if defined(HAVE_RPK)
+
+    /* Raw Public Key certificate has only a SubjectPublicKeyInfo structure
+     * as its contents. So try to call GetCertKey to get public key from it.
+     * If it fails, the cert should be a X509 cert and proceed to process as
+     * x509 cert. */
+    ret = GetCertKey(cert, cert->source, &cert->srcIdx, cert->maxIdx);
+    if (ret == 0) {
+        WOLFSSL_MSG("Raw Public Key certificate found and parsed");
+        cert->isRPK = 1;
+        return ret;
+    }
+#endif /* HAVE_RPK */
 
     if ( (ret = wc_GetPubX509(cert, verify, &badDate)) < 0)
         return ret;
@@ -20748,6 +20810,41 @@ end:
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
+
+#if defined(HAVE_RPK)
+/* ASN template for a Raw Public Key certificate defined RFC7250. */
+static const ASNItem RPKCertASN[] = {
+/* SubjectPublicKeyInfo ::= SEQUENCE */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+    /* algorithm    AlgorithmIdentifier */
+    /* AlgorithmIdentifier ::= SEQUENCE */   { 1, ASN_SEQUENCE, 1, 1, 0 },
+        /* Algorithm  OBJECT IDENTIFIER */
+        /* TBS_SPUBKEYINFO_ALGO_OID     */       { 2, ASN_OBJECT_ID, 0, 0, 0 },
+        /* parameters   ANY defined by algorithm OPTIONAL */
+        /* TBS_SPUBKEYINFO_ALGO_NULL     */      { 2, ASN_TAG_NULL, 0, 0, 2 },
+        /* TBS_SPUBKEYINFO_ALGO_CURVEID  */      { 2, ASN_OBJECT_ID, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+        /* TBS_SPUBKEYINFO_ALGO_P_SEQ    */      { 2, ASN_SEQUENCE, 1, 0, 2 },
+#endif
+        /* subjectPublicKey   BIT STRING */
+        /* TBS_SPUBKEYINFO_PUBKEY        */   { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+/* Number of items in ASN template for a RawPublicKey certificate. */
+#define RPKCertASN_Length (sizeof(RPKCertASN) / sizeof(ASNItem))
+
+enum {
+    RPKCERTASN_IDX_SPUBKEYINFO_SEQ = 0,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_SEQ,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_NULL,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID,
+#ifdef WC_RSA_PSS
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_P_SEQ,
+#endif
+    RPKCERTASN_IDX_SPUBKEYINFO_PUBKEY,
+};
+
+#endif /* HAVE_RPK */
+
 /* ASN template for an X509 certificate.
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
@@ -20951,6 +21048,40 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     word32 pubKeyOffset = 0;
     word32 pubKeyEnd = 0;
     int done = 0;
+
+#if defined(HAVE_RPK)
+    /* try to parse the cert as Raw Public Key cert */
+    DECL_ASNGETDATA(RPKdataASN, RPKCertASN_Length);
+    CALLOC_ASNGETDATA(RPKdataASN, RPKCertASN_Length, ret, cert->heap);
+    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
+                                                                oidKeyType);
+    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID],
+                                                                oidCurveType);
+    ret = GetASN_Items(RPKCertASN, RPKdataASN, RPKCertASN_Length, 1,
+                           cert->source, &cert->srcIdx, cert->maxIdx);
+    if (ret == 0) {
+        cert->keyOID =
+                RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID].data.oid.sum;
+
+        /* Parse the public key. */
+        pubKeyOffset = RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_SEQ].offset;
+        pubKeyEnd = cert->maxIdx;
+        ret = GetCertKey(cert, cert->source, &pubKeyOffset, pubKeyEnd);
+        if (ret == 0) {
+            WOLFSSL_MSG("Raw Public Key certificate found and parsed");
+            cert->isRPK = 1;
+        }
+    }
+    /* Dispose of memory before allocating for extension decoding. */
+    FREE_ASNGETDATA(RPKdataASN, cert->heap);
+
+    if (ret == 0) {
+        return ret;
+    }
+    else {
+        ret = 0;    /* proceed to the original x509 parsing */
+    }
+#endif /* HAVE_RPK */
 
     CALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, cert->heap);
 
@@ -22533,7 +22664,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
 
         WOLFSSL_MSG("Parsed Past Key");
-
+#if defined(HAVE_RPK)
+        if (cert->isRPK) {
+            return ret;
+        }
+#endif /* HAVE_RPK */
 
 #ifdef WOLFSSL_CERT_REQ
         /* Read attributes */
@@ -22778,6 +22913,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
             }
+#if defined(HAVE_RPK)
+            if (cert->isRPK) {
+                return ret;
+            }
+#endif /* HAVE_RPK */
         }
 #endif
 

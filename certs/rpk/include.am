@@ -1,0 +1,9 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         certs/rpk/client-cert-rpk.der \
+         certs/rpk/client-ecc-cert-rpk.der \
+         certs/rpk/server-cert-rpk.der \
+         certs/rpk/server-ecc-cert-rpk.der
