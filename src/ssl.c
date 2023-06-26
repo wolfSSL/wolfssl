@@ -4446,12 +4446,14 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         /* call wolfSSL_shutdown again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
             ret = ProcessReply(ssl);
-            if (ret == ZERO_RETURN) {
+            if ((ret == ZERO_RETURN) || (ret == SOCKET_ERROR_E)) {
                 /* simulate OpenSSL behavior */
                 ssl->options.shutdownDone = 1;
                 /* Clear error */
                 ssl->error = WOLFSSL_ERROR_NONE;
                 ret = WOLFSSL_SUCCESS;
+            } else if (ret == MEMORY_E) {
+                ret = WOLFSSL_FATAL_ERROR;
             } else if (ssl->error == WOLFSSL_ERROR_NONE) {
                 ret = WOLFSSL_SHUTDOWN_NOT_DONE;
             } else {
@@ -14479,6 +14481,10 @@ int wolfSSL_Cleanup(void)
     crypto_ex_cb_ctx_session = NULL;
 #endif
 
+#ifdef WOLFSSL_MEM_FAIL_COUNT
+    wc_MemFailCount_Free();
+#endif
+
     return ret;
 }
 
@@ -14777,7 +14783,7 @@ static int SessionTicketNoncePrealloc(byte** buf, byte* len, void *heap)
     if (*buf == NULL) {
         WOLFSSL_MSG("Failed to preallocate ticket nonce buffer");
         *len = 0;
-        return WOLFSSL_FAILURE;
+        return 1;
     }
 
     *len = PREALLOC_SESSION_TICKET_NONCE_LEN;
@@ -15548,9 +15554,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         WOLFSSL_MSG("Hash session failed");
     #ifdef HAVE_SESSION_TICKET
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
-        if (preallocNonce != NULL)
-            XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC)
+        XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
     #endif
     #endif
         return ret;
@@ -15560,9 +15565,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (SESSION_ROW_WR_LOCK(sessRow) != 0) {
     #ifdef HAVE_SESSION_TICKET
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
-        if (preallocNonce != NULL)
-            XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC)
+        XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
     #endif
     #endif
         WOLFSSL_MSG("Session row lock failed");
@@ -15600,9 +15604,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         if (cacheSession == NULL) {
         #ifdef HAVE_SESSION_TICKET
             XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
-            if (preallocNonce != NULL)
-                XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC)
+            XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
         #endif
         #endif
             SESSION_ROW_UNLOCK(sessRow);
@@ -15757,14 +15760,11 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifdef HAVE_SESSION_TICKET
     if (ticBuff != NULL && !ticBuffUsed)
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
-    if (cacheTicBuff != NULL)
-        XFREE(cacheTicBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+    XFREE(cacheTicBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&         \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-    if (preallocNonce != NULL)
-        XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
-    if (toFree != NULL)
-        XFREE(toFree, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    XFREE(toFree, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
 
@@ -16503,8 +16503,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_set_psk_use_session_callback");
 
-        ssl->options.havePSK = 1;
-        ssl->options.session_psk_cb = cb;
+        if (ssl != NULL) {
+            ssl->options.havePSK = 1;
+            ssl->options.session_psk_cb = cb;
+        }
 
         WOLFSSL_LEAVE("wolfSSL_set_psk_use_session_callback", WOLFSSL_SUCCESS);
     }
@@ -31030,7 +31032,8 @@ int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
 }
 #endif
 
-#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
 static wolfSSL_OSSL_Malloc_cb  ossl_malloc  = NULL;
 static wolfSSL_OSSL_Free_cb    ossl_free    = NULL;
 static wolfSSL_OSSL_Realloc_cb ossl_realloc = NULL;
@@ -31056,14 +31059,15 @@ static void* OSSL_Realloc(void *ptr, size_t size)
     else
         return NULL;
 }
-#endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_DEBUG_MEMORY */
+#endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_DEBUG_MEMORY &&
+        * !WOLFSSL_STATIC_MEMORY */
 
 int wolfSSL_CRYPTO_set_mem_functions(
         wolfSSL_OSSL_Malloc_cb  m,
         wolfSSL_OSSL_Realloc_cb r,
         wolfSSL_OSSL_Free_cb    f)
 {
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
 #ifdef WOLFSSL_DEBUG_MEMORY
     WOLFSSL_MSG("mem functions will receive function name instead of "
                 "file name");
@@ -37777,6 +37781,9 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             }
 
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+            if (lineLen < 0) {
+                goto error;
+            }
             while (XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
                             remainLen > 0) {
                 canonLineLen = lineLen;

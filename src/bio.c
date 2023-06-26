@@ -2069,9 +2069,15 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
             bio->ip = (char*)XMALLOC((port - str) + 1, /* +1 for null char */
                     bio->heap, DYNAMIC_TYPE_OPENSSL);
-            XMEMCPY(bio->ip, str, port - str);
-            bio->ip[port - str] = '\0';
-            bio->type  = WOLFSSL_BIO_SOCKET;
+            if (bio->ip != NULL) {
+                XMEMCPY(bio->ip, str, port - str);
+                bio->ip[port - str] = '\0';
+                bio->type  = WOLFSSL_BIO_SOCKET;
+            }
+            else {
+                BIO_free(bio);
+                bio = NULL;
+            }
         }
         return bio;
     }

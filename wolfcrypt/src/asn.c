@@ -36699,13 +36699,17 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
         goto error;
     }
     nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL, DYNAMIC_TYPE_PKCS7);
-    nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
-                                    DYNAMIC_TYPE_PKCS7);
-    if (nextHdr == NULL || nextParam == NULL) {
+    if (nextHdr == NULL) {
         ret = MEMORY_E;
         goto error;
     }
     XMEMSET(nextHdr, 0, sizeof(MimeHdr));
+    nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
+                                    DYNAMIC_TYPE_PKCS7);
+    if (nextParam == NULL) {
+        ret = MEMORY_E;
+        goto error;
+    }
     XMEMSET(nextParam, 0, sizeof(MimeParam));
 
     curLine = XSTRTOK(in, "\r\n", &ptr);
@@ -36841,10 +36845,8 @@ error:
     if (ret != 0)
         wc_MIME_free_hdrs(curHdr);
     wc_MIME_free_hdrs(nextHdr);
-    if (nameAttr != NULL)
-        XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
-    if (bodyVal != NULL)
-        XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
 
     return ret;

@@ -2154,7 +2154,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
 
     ctx->method   = method;
-    ctx->heap     = ctx;        /* defaults to self */
+    if (heap == NULL) {
+        ctx->heap = ctx;  /* defaults to self */
+    }
+    else {
+        ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
+    }
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
 
 #ifdef WOLFSSL_DTLS
@@ -13598,6 +13603,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == 0) {
                         ret = ProcessPeerCertCheckKey(ssl, args);
                     }
+                    else if (ret == ASN_PARSE_E || ret == BUFFER_E ||
+                             ret == MEMORY_E) {
+                        WOLFSSL_MSG(
+                            "Got Peer cert ASN PARSE_E, BUFFER E, MEMORY_E");
+                        ERROR_OUT(ret, exit_ppc);
+                    }
 
                     if (ret == 0 && args->dCert->isCA == 0) {
                         WOLFSSL_MSG("Chain cert is not a CA, not adding as one");
@@ -13882,8 +13893,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->fatal = 0;
                     }
                 }
-                else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
-                    WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
+                else if (ret == ASN_PARSE_E || ret == BUFFER_E ||
+                         ret == MEMORY_E) {
+                    WOLFSSL_MSG("Got Peer cert ASN PARSE_E, BUFFER E, MEMORY_E");
                 #if defined(WOLFSSL_EXTRA_ALERTS) || defined(OPENSSL_EXTRA) || \
                                                defined(OPENSSL_EXTRA_X509_SMALL)
                     DoCertFatalAlert(ssl, ret);
