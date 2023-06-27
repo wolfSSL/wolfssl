@@ -911,9 +911,6 @@ WOLFSSL_API int wc_GetUUIDFromCert(struct DecodedCert* cert,
 WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
                                     byte* fascn, word32* fascnSz);
 #endif /* WOLFSSL_FPKI */
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
 
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \
     defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_ASN_PRINT)
@@ -1014,5 +1011,9 @@ WOLFSSL_API int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts,
     unsigned char* data, word32 len);
 
 #endif /* WOLFSSL_ASN_PRINT */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* WOLF_CRYPT_ASN_PUBLIC_H */
