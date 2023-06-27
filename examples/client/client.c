@@ -1740,7 +1740,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
     size_t srtp_secret_length;
     byte *srtp_secret, *p;
     int ret;
-#ifdef HAVE_PTHREAD
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     srtp_test_helper *srtp_helper = args->srtp_helper;
     byte *other_secret = NULL;
     size_t other_size = 0;
@@ -1774,7 +1774,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         printf("%02X", *p);
     printf("\n");
 
-#ifdef HAVE_PTHREAD
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     if (srtp_helper != NULL) {
         srtp_helper_get_ekm(srtp_helper, &other_secret, &other_size);
 
@@ -1790,7 +1790,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         /* we are delegated from server to free this buffer  */
         XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_PTHREAD */
+#endif
 
     XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -4546,7 +4546,7 @@ exit:
 
         StartTCP();
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
         args.srtp_helper = NULL;
 #endif
         args.argc = argc;

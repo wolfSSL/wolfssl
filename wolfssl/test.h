@@ -28,11 +28,6 @@
 #ifndef wolfSSL_TEST_H
 #define wolfSSL_TEST_H
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
-
 #ifdef FUSION_RTOS
     #include <fclstdio.h>
     #include <fclstdlib.h>
@@ -187,9 +182,7 @@
     #include <sys/ioctl.h>
     #include <sys/time.h>
     #include <sys/socket.h>
-    #ifdef HAVE_PTHREAD
-        #include <pthread.h>
-    #endif
+    #include <pthread.h>
     #include <fcntl.h>
     #ifdef TEST_IPV6
         #include <netdb.h>
@@ -536,7 +529,7 @@ typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
     char*  srfName;     /* server ready file name */
-#ifdef HAVE_PTHREAD
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
 #endif
@@ -550,13 +543,12 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
     ready->ready = 0;
     ready->port = 0;
     ready->srfName = NULL;
-#if defined(HAVE_PTHREAD)
+#ifdef SINGLE_THREADED
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     PTHREAD_CHECK_RET(pthread_mutex_init(&ready->mutex, 0));
     PTHREAD_CHECK_RET(pthread_cond_init(&ready->cond, 0));
 #elif defined(NETOS)
     tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
-#else
-    /* no threading init or single threaded */
 #endif
 }
 
@@ -566,7 +558,9 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
 
 static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 {
-#if defined(HAVE_PTHREAD)
+#ifdef SINGLE_THREADED
+    (void)ready;
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     PTHREAD_CHECK_RET(pthread_mutex_destroy(&ready->mutex));
     PTHREAD_CHECK_RET(pthread_cond_destroy(&ready->cond));
 #elif defined(NETOS)
@@ -605,14 +599,14 @@ typedef struct callback_functions {
     unsigned char doUdp:1;
 } callback_functions;
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
 typedef struct srtp_test_helper {
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
     uint8_t* server_srtp_ekm;
     size_t   server_srtp_ekm_size;
 } srtp_test_helper;
-#endif /* WOLFSSL_SRTP HAVE_PTHREAD */
+#endif
 
 typedef struct func_args {
     int    argc;
@@ -620,7 +614,7 @@ typedef struct func_args {
     int    return_code;
     tcp_ready* signal;
     callback_functions *callbacks;
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     srtp_test_helper* srtp_helper;
 #endif
 } func_args;
@@ -661,7 +655,7 @@ static const word16      wolfSSLPort = 11111;
 extern int   myoptind;
 extern char* myoptarg;
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
 
 static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 {
@@ -2207,7 +2201,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
     if (args != NULL && args->signal != NULL) {
-#if defined(HAVE_PTHREAD)
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
         /* signal ready to accept data */
         tcp_ready* ready = args->signal;
         PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
@@ -2254,7 +2248,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-    #if defined(NO_MAIN_DRIVER) && defined(HAVE_PTHREAD)
+    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;

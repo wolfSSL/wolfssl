@@ -275,23 +275,6 @@
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
-/* AFTER user_settings.h is loaded,
-** determine if POSIX multi-threaded: HAVE_PTHREAD  */
-#if defined(SINGLE_THREADED) || defined(__MINGW32__)
-    /* Never HAVE_PTHREAD in single thread, or non-POSIX mode.
-    ** Reminder: MING32 is win32 threads, not POSIX threads */
-    #undef HAVE_PTHREAD
-#else
-    #ifdef _POSIX_THREADS
-        /* HAVE_PTHREAD == POSIX threads capable and enabled. */
-        #undef HAVE_PTHREAD
-        #define HAVE_PTHREAD 1
-    #else
-        /* Not manually disabled, but POSIX threads not found. */
-        #undef HAVE_PTHREAD
-    #endif
-#endif
-
 #define WOLFSSL_MAKE_FIPS_VERSION(major, minor) (((major) * 256) + (minor))
 #if !defined(HAVE_FIPS)
     #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(0,0)

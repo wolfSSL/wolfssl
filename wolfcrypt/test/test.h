@@ -35,11 +35,6 @@
     typedef sword32 wc_test_ret_t;
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
-
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else

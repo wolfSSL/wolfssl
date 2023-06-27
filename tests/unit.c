@@ -275,7 +275,9 @@ exit:
 
 void wait_tcp_ready(func_args* args)
 {
-#ifdef HAVE_PTHREAD
+#ifdef SINGLE_THREADED
+    (void)args;
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     PTHREAD_CHECK_RET(pthread_mutex_lock(&args->signal->mutex));
 
     if (!args->signal->ready)
@@ -285,7 +287,6 @@ void wait_tcp_ready(func_args* args)
 
     PTHREAD_CHECK_RET(pthread_mutex_unlock(&args->signal->mutex));
 #else
-    /* no threading wait or single threaded */
     (void)args;
 #endif
 }
@@ -293,11 +294,11 @@ void wait_tcp_ready(func_args* args)
 
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
-#if defined(SINGLE_THREADED)
+#ifdef SINGLE_THREADED
     (void)fun;
     (void)args;
     (void)thread;
-#elif defined(HAVE_PTHREAD)
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
     return;
 #elif defined (WOLFSSL_TIRTOS)
@@ -312,7 +313,6 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     }
     Task_yield();
 #else
-    /* custom / external thread type */
     *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
 #endif
 }
@@ -320,9 +320,9 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 
 void join_thread(THREAD_TYPE thread)
 {
-#if defined(SINGLE_THREADED)
+#ifdef SINGLE_THREADED
     (void)thread;
-#elif defined(HAVE_PTHREAD)
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     PTHREAD_CHECK_RET(pthread_join(thread, 0));
 #elif defined (WOLFSSL_TIRTOS)
     while(1) {
