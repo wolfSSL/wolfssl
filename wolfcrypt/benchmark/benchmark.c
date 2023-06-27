@@ -37,7 +37,8 @@
  * when the output should be in machine-parseable format:
  * GENERATE_MACHINE_PARSEABLE_REPORT
  *
- * Enable tracking of the stats into a static buffer (MAX_BENCH_STATS):
+ * Enable tracking of the stats into an allocated linked list:
+ * (use -print to display results):
  * WC_BENCH_TRACK_STATS
  */
 
@@ -269,6 +270,10 @@
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     #define WC_ENABLE_BENCH_THREADING
+#endif
+/* enable tracking of stats for threaded benchmark */
+#if defined(WC_ENABLE_BENCH_THREADING) && !defined(WC_BENCH_TRACK_STATS)
+    #define WC_BENCH_TRACK_STATS
 #endif
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -1570,12 +1575,11 @@ typedef enum bench_stat_type {
     BENCH_STAT_IGNORE,
 } bench_stat_type_t;
 
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
     static int gPrintStats = 0;
-#endif
-#ifdef WC_ENABLE_BENCH_THREADING
-    static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
-
+    #ifdef WC_ENABLE_BENCH_THREADING
+        static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
+    #endif
     #ifndef BENCH_MAX_NAME_SZ
     #define BENCH_MAX_NAME_SZ 24
     #endif
@@ -1601,8 +1605,10 @@ typedef enum bench_stat_type {
     {
         bench_stats_t* bstat = NULL;
 
+    #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
         PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+    #endif
 
         if (algo != NULL) {
             /* locate existing in list */
@@ -1649,8 +1655,9 @@ typedef enum bench_stat_type {
             if (bstat->lastRet > ret)
                 bstat->lastRet = ret; /* track last error */
         }
+    #ifdef WC_ENABLE_BENCH_THREADING
         PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
-
+    #endif
         return bstat;
     }
 
@@ -1658,8 +1665,10 @@ typedef enum bench_stat_type {
     {
         bench_stats_t* bstat;
 
+    #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
         PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+    #endif
 
         for (bstat = bench_stats_head; bstat != NULL; ) {
             if (bstat->type == BENCH_STAT_SYM) {
@@ -1678,71 +1687,15 @@ typedef enum bench_stat_type {
             bstat = bstat->next;
         }
 
+    #ifdef WC_ENABLE_BENCH_THREADING
         PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
-    }
-
-#elif defined(WC_BENCH_TRACK_STATS)
-    typedef struct bench_stats {
-        const char* algo;
-        const char* desc;
-        double perfsec;
-        const char* perftype;
-        int strength;
-        bench_stat_type_t type;
-        int ret;
-    } bench_stats_t;
-    /* Maximum number of stats to record */
-    #ifndef MAX_BENCH_STATS
-    #define MAX_BENCH_STATS (128)
     #endif
-    static bench_stats_t gStats[MAX_BENCH_STATS];
-    static int gStatsCount;
-
-    static bench_stats_t* bench_stats_add(bench_stat_type_t type,
-            const char* algo, int strength, const char* desc, int useDeviceID,
-            double perfsec, const char* perftype, int ret)
-    {
-        bench_stats_t* bstat = NULL;
-        if (gStatsCount >= MAX_BENCH_STATS)
-            return bstat;
-
-        bstat = &gStats[gStatsCount++];
-        bstat->algo = algo;
-        bstat->desc = desc;
-        bstat->perfsec = perfsec;
-        bstat->perftype = perftype;
-        bstat->strength = strength;
-        bstat->type = type;
-        bstat->ret = ret;
-
-        (void)useDeviceID;
-
-        return bstat;
     }
-
-    void bench_stats_print(void)
-    {
-        int i;
-
-        for (i=0; i<gStatsCount; i++) {
-            bench_stats_t* bstat = &gStats[i];
-            if (bstat->type == BENCH_STAT_SYM) {
-                printf("%-16s " FLT_FMT_PREC2 " %s/s\n", bstat->desc,
-                       FLT_FMT_PREC2_ARGS(8, 3, bstat->perfsec),
-                    base2 ? "MB" : "mB");
-            }
-            else if (bstat->type == BENCH_STAT_ASYM) {
-                printf("%-5s %4d %-9s " FLT_FMT_PREC " ops/sec\n",
-                    bstat->algo, bstat->strength, bstat->desc,
-                       FLT_FMT_PREC_ARGS(3, bstat->perfsec));
-            }
-        }
-    }
-#endif /* WC_ENABLE_BENCH_THREADING */
+#endif /* WC_BENCH_TRACK_STATS */
 
 static WC_INLINE void bench_stats_init(void)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_BENCH_TRACK_STATS
     bench_stats_head = NULL;
     bench_stats_tail = NULL;
 #endif
@@ -2057,7 +2010,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     XFFLUSH(stdout);
 #endif
 
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_SYM, desc, 0, desc, useDeviceID, persec,
         blockType, ret);
@@ -2082,7 +2035,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 {
     double total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
     const char* kOpsSec = "Ops/Sec";
 #endif
     char msg[256];
@@ -2215,7 +2168,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     XFFLUSH(stdout);
 #endif
 
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, useDeviceID, opsSec,
                     kOpsSec, ret);
@@ -2240,7 +2193,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 
 static WC_INLINE void bench_stats_free(void)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_BENCH_TRACK_STATS
     bench_stats_t* bstat;
     for (bstat = bench_stats_head; bstat != NULL; ) {
         bench_stats_t* next = bstat->next;
@@ -3063,7 +3016,7 @@ int benchmark_free(void)
 {
     int ret;
 
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
     if (gPrintStats || devId != INVALID_DEVID) {
         bench_stats_print();
     }
@@ -7360,7 +7313,8 @@ void bench_kyber(int type)
 
 #ifdef HAVE_ECC
 
-/* +8 for 'ECDSA [%s]' and null terminator */
+/* Maximum ECC name plus null terminator:
+ * "ECC   [%15s]" and "ECDHE [%15s]" and "ECDSA [%15s]" */
 #define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
 
 /* run all benchmarks on a curve */
@@ -7752,13 +7706,12 @@ void bench_eccEncrypt(int curveId)
     ecc_key *userA = NULL, *userB = NULL;
     byte    *msg = NULL;
     byte    *out = NULL;
-    char    *name = NULL;
 #else
     ecc_key userA[1], userB[1];
     byte    msg[BENCH_ECCENCRYPT_MSG_SIZE];
     byte    out[BENCH_ECCENCRYPT_OUT_SIZE];
-    char name[BENCH_ECC_NAME_SZ];
 #endif
+    char    name[BENCH_ECC_NAME_SZ];
     int     keySize;
     word32  bench_plainSz = bench_size;
     int     ret, i, count;
@@ -7774,9 +7727,7 @@ void bench_eccEncrypt(int curveId)
                           HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     out = (byte *)XMALLOC(outSz,
                           HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    name = (char *)XMALLOC(BENCH_ECC_NAME_SZ,
-                           HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if ((! userA) || (! userB) || (! msg) || (! out) || (! name)) {
+    if ((! userA) || (! userB) || (! msg) || (! out)) {
         printf("bench_eccEncrypt malloc failed\n");
         goto exit;
     }
@@ -7876,8 +7827,6 @@ exit:
         XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out)
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (name)
-        XFREE(name, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     wc_ecc_free(userB);
     wc_ecc_free(userA);
@@ -9412,7 +9361,9 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -threads <num> */
 #endif
     e++;
+#ifdef WC_BENCH_TRACK_STATS
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -print */
+#endif
 }
 
 /* Match the command line argument with the string.
@@ -9579,7 +9530,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             }
         }
 #endif
-#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
+#ifdef WC_BENCH_TRACK_STATS
         else if (string_matches(argv[1], "-print")) {
             gPrintStats = 1;
         }
