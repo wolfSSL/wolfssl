@@ -621,7 +621,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFREAD     fread
     #define XFWRITE    fwrite
     #define XFCLOSE    fclose
-    #define XSEEK_END  SEEK_SET
+    #define XSEEK_SET  SEEK_SET
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
     #define XFGETS     fgets
