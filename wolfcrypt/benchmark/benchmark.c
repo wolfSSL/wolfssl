@@ -1570,9 +1570,10 @@ typedef enum bench_stat_type {
     BENCH_STAT_IGNORE,
 } bench_stat_type_t;
 
-#ifdef WC_ENABLE_BENCH_THREADING
+#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
     static int gPrintStats = 0;
-
+#endif
+#ifdef WC_ENABLE_BENCH_THREADING
     static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
 
     #ifndef BENCH_MAX_NAME_SZ
@@ -9577,6 +9578,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                 }
             }
         }
+#endif
+#if defined(WC_ENABLE_BENCH_THREADING) || defined(WC_BENCH_TRACK_STATS)
         else if (string_matches(argv[1], "-print")) {
             gPrintStats = 1;
         }
