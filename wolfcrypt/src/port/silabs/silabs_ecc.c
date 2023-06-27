@@ -52,7 +52,7 @@ static sl_se_key_descriptor_t private_device_key =
     SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
 #endif
 
-static sl_se_key_type_t silabs_map_key_type (ecc_curve_id curve_id)
+static sl_se_key_type_t silabs_map_key_type(ecc_curve_id curve_id)
 {
     sl_se_key_type_t res = SILABS_UNSUPPORTED_KEY_TYPE;
 
@@ -286,7 +286,7 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
 
     sl_stat = sl_se_ecdh_compute_shared_secret(
         &cmd,
-        &(private_key->key),
+        &private_key->key,
         &pub_key,
         &key_out);
 
@@ -297,5 +297,67 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
 
     return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
 }
+
+int silabs_ecc_export_public(ecc_key* key, sl_se_key_descriptor_t* seKey)
+{
+    int ret;
+    sl_status_t sl_stat;
+    sl_se_command_context_t cmd;
+
+    if (key == NULL || seKey == NULL)
+        return BAD_FUNC_ARG;
+
+    if (seKey->type == SL_SE_KEY_TYPE_ECC_P192)
+        ret = wc_ecc_set_curve(key, 24, ECC_SECP192R1);
+    else if (seKey->type == SL_SE_KEY_TYPE_ECC_P256)
+        ret = wc_ecc_set_curve(key, 32, ECC_SECP256R1);
+#ifdef SL_SE_KEY_TYPE_ECC_P384
+    else if (seKey->type == SL_SE_KEY_TYPE_ECC_P384)
+        ret = wc_ecc_set_curve(key, 48, ECC_SECP384R1);
+#endif
+#ifdef SL_SE_KEY_TYPE_ECC_P521
+    else if (seKey->type == SL_SE_KEY_TYPE_ECC_P521)
+        ret = wc_ecc_set_curve(key, 66, ECC_SECP521R1);
+#endif
+    else
+        ret = ECC_CURVE_OID_E;
+    if (ret != 0)
+        return ret;
+
+    key->type = ECC_PUBLICKEY;
+    key->key.size = key->dp->size;
+    key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
+    key->key.flags = (SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY);
+
+    sl_stat = sl_se_get_storage_size(&key->key,
+        &key->key.storage.location.buffer.size);
+    key->key.storage.location.buffer.pointer = key->key_raw;
+    if (sl_stat == SL_STATUS_OK) {
+        sl_stat = sl_se_export_public_key(&cmd, seKey, &key->key);
+    }
+    if (sl_stat != SL_STATUS_OK) {
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        /* export public x and y */
+        ret = mp_read_unsigned_bin(key->pubkey.x,
+            key->key.storage.location.buffer.pointer,
+            key->key.size);
+    }
+    if (ret == 0) {
+        ret = mp_read_unsigned_bin(key->pubkey.y,
+            key->key.storage.location.buffer.pointer + key->key.size,
+            key->key.size);
+    }
+
+    return ret;
+}
+
+#if (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
+int silabs_ecc_load_vault(ecc_key* key)
+{
+    return silabs_ecc_export_public(key, &private_device_key);
+}
+#endif
 
 #endif /* WOLFSSL_SILABS_SE_ACCEL */
