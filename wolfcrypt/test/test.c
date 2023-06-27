@@ -23255,10 +23255,10 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
     void* receiverKey = NULL;
     void* ephemeralKey = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    uint8_t *pubKey = NULL; /* public key */
+    byte *pubKey = NULL; /* public key */
     word16 pubKeySz = (word16)HPKE_Npk_MAX;
 #else
-    uint8_t pubKey[HPKE_Npk_MAX]; /* public key */
+    byte pubKey[HPKE_Npk_MAX]; /* public key */
     word16 pubKeySz = (word16)sizeof(pubKey);
 #endif
 
@@ -23269,7 +23269,7 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        pubKey = (uint8_t *)XMALLOC(pubKeySz, HEAP_HINT,
+        pubKey = (byte *)XMALLOC(pubKeySz, HEAP_HINT,
                                     DYNAMIC_TYPE_TMP_BUFFER);
         if (pubKey == NULL)
             ret = MEMORY_E;
