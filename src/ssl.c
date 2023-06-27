@@ -29370,13 +29370,11 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_ALL)
+/* Returns the oid buffer from the short name or long name of an ASN1_object
+ * and NULL on failure */
 const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz, word32 oidType)
     {
-        char *token;
-        byte*  oidBuf = NULL;
         word32 oid;
-        word16 dotted[ASN1_OID_DOTTED_MAX_SZ];
-        word32 dottedCount = 0;
         int    nid;
 
         if (buf == NULL)
@@ -29385,32 +29383,11 @@ const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz, word32 oidType)
         nid = wolfSSL_OBJ_txt2nid(buf);
 
         if (nid != NID_undef) {
-            /* Handle named OID case */
             oid    = nid2oid(nid, oidType);
-            oidBuf = (byte*)OidFromId(oid, oidType,inOutSz);
+            return OidFromId(oid, oidType,inOutSz);
         }
-    #if defined(HAVE_OID_ENCODING)
-        else {
-            /* Handle dotted form OID case*/
-            token = XSTRTOK(buf, ".", NULL);
 
-             while (token != NULL) {
-                 dotted[dottedCount] = XATOI(token);
-                 dottedCount++;
-                 token = XSTRTOK(NULL, ".", NULL);
-             }
-
-             if (EncodeObjectId(dotted, dottedCount, oidBuf, inOutSz) != 0) {
-                oidBuf = NULL;
-             }
-        }
-    #else
-        (void)token;
-        (void)dotted;
-        (void)dottedCount;
-    #endif
-
-        return (const byte*)oidBuf;
+        return NULL;
     }
 #endif /* OPENSSL_ALL */
 
