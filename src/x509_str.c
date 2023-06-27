@@ -982,10 +982,11 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
     if ((flag & WOLFSSL_CRL_CHECKALL) || (flag & WOLFSSL_CRL_CHECK)) {
         ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
     }
+#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
     else if (flag == 0) {
         ret = wolfSSL_CertManagerDisableCRL(store->cm);
     }
-
+#endif
     return ret;
 }
 
