@@ -1354,7 +1354,8 @@ typedef struct w64wrapper {
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif defined(HAVE_PTHREAD)
+    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
+        !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD
