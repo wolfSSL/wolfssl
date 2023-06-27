@@ -417,6 +417,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -520,6 +521,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -3562,6 +3564,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         HAL_CRYP_DeInit(&hcryp);
 
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -3624,6 +3627,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         HAL_CRYP_DeInit(&hcryp);
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -3708,6 +3712,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -3802,6 +3807,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
         wolfSSL_CryptHwMutexUnLock();
+        wc_Stm32_Aes_Cleanup();
 
         return ret;
     }
@@ -4562,6 +4568,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #endif /* WOLFSSL_STM32_CUBEMX */
 
             wolfSSL_CryptHwMutexUnLock();
+            wc_Stm32_Aes_Cleanup();
             return ret;
         }
 
@@ -6708,6 +6715,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
     wolfSSL_CryptHwMutexUnLock();
+    wc_Stm32_Aes_Cleanup();
 
     if (ret == 0) {
         /* return authTag */
@@ -7242,6 +7250,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         XMEMCPY(tag, partialBlock, authTagSz);
 #endif /* WOLFSSL_STM32_CUBEMX */
     wolfSSL_CryptHwMutexUnLock();
+    wc_Stm32_Aes_Cleanup();
 
     /* Check authentication tag */
     if (ConstantCompare((const byte*)tagExpected, (byte*)tag, authTagSz) != 0) {
