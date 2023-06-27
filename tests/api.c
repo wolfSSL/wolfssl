@@ -39700,16 +39700,18 @@ static int test_wolfSSL_sk_GENERAL_NAME(void)
         for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
             ExpectNotNull(gn = sk_GENERAL_NAME_value(sk, i));
 
-            switch (gn->type) {
-            case GEN_DNS:
-                fprintf(stderr, "found type GEN_DNS\n");
-                break;
-            case GEN_EMAIL:
-                fprintf(stderr, "found type GEN_EMAIL\n");
-                break;
-            case GEN_URI:
-                fprintf(stderr, "found type GEN_URI\n");
-                break;
+            if (gn != NULL) {
+                switch (gn->type) {
+                case GEN_DNS:
+                    fprintf(stderr, "found type GEN_DNS\n");
+                    break;
+                case GEN_EMAIL:
+                    fprintf(stderr, "found type GEN_EMAIL\n");
+                    break;
+                case GEN_URI:
+                    fprintf(stderr, "found type GEN_URI\n");
+                    break;
+                }
             }
         }
         X509_free(x509);
@@ -40555,7 +40557,8 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     byte inb[BUFFSZ];
     byte outb[BUFFSZ+16];
-    int outl, inl;
+    int outl = 0;
+    int inl;
 
     iv = aes128_cbc_iv;
     ivlen = sizeof(aes128_cbc_iv);
@@ -49424,7 +49427,7 @@ static int test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
     byte out2Part[16];
     byte outTag2Part[16];
     byte decryptBuf[16];
-    int len;
+    int len = 0;
     int tlen;
     EVP_CIPHER_CTX* ctx = NULL;
 
@@ -53173,7 +53176,7 @@ static int test_wolfSSL_EC_POINT(void)
 #ifndef HAVE_SELFTEST
     EC_POINT *tmp = NULL;
     size_t bin_len;
-    unsigned int blen;
+    unsigned int blen = 0;
     unsigned char* buf = NULL;
     unsigned char bufInf[1] = { 0x00 };
 
