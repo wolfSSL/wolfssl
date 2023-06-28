@@ -12340,7 +12340,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_ASN_TEMPLATE)
+#if defined(OPENSSL_ALL)
 /* used to set the human readable string for the registeredID with an
  * ASN_RID_TYPE DNS entry
  * return 0 on success
@@ -17544,7 +17544,55 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_QT || OPENSSL_ALL */
+#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+#if defined(OPENSSL_ALL)
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
+            DNS_entry* rid;
+            int strLen;
+            word32 lenStartIdx = idx;
+            WOLFSSL_MSG("Decoding Subject Alt. Name: Registered Id");
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+            /* check that strLen at index is not past input buffer */
+            if (strLen + idx > sz) {
+                return BUFFER_E;
+            }
+
+            rid = AltNameNew(cert->heap);
+            if (rid == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            rid->type = ASN_RID_TYPE;
+            rid->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (rid->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+            rid->len = strLen;
+            XMEMCPY(rid->name, &input[idx], strLen);
+            rid->name[strLen] = '\0';
+
+            if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
+                WOLFSSL_MSG("\tOut of Memory for registerd Id string");
+                XFREE(rid->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+
+            AddAltName(cert, rid);
+
+            length -= strLen;
+            idx    += (word32)strLen;
+        }
+#endif /* OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
         else if (current_byte ==
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
