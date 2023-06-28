@@ -5513,7 +5513,8 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 }
 #endif /* HAVE_OID_ENCODING */
 
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
+    defined(OPENSSL_ALL)
 /* Encode dotted form of OID into byte array version.
  *
  * @param [in]      in     Byte array containing OID.
@@ -5560,7 +5561,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 
     return 0;
 }
-#endif /* HAVE_OID_DECODING */
+#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT || OPENSSL_ALL */
 
 /* Decode the header of a BER/DER encoded OBJECT ID.
  *
@@ -12376,13 +12377,9 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         XMEMCPY(finalName, rid, XSTRLEN((const char*)rid));
     }
     else {
-    #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
         /* Decode OBJECT_ID into dotted form array. */
         ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
                 (word32*)&tmpSize);
-    #else
-        ret = NOT_COMPILED_IN;
-    #endif
 
         if (ret == 0) {
             endChar = 1;
