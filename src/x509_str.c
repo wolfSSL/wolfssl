@@ -170,7 +170,7 @@ int GetX509Error(int e)
         case ASN_BEFORE_DATE_E:
             return WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
         case ASN_AFTER_DATE_E:
-            return WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
+            return WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
         case ASN_NO_SIGNER_E: /* get issuer error if no CA found locally */
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
         case ASN_SELF_SIGNED_E:
@@ -183,6 +183,8 @@ int GetX509Error(int e)
         case ASN_SIG_HASH_E:
         case ASN_SIG_KEY_E:
             return WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE;
+        case CRL_CERT_REVOKED:
+            return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         default:
 #ifdef HAVE_WOLFSSL_MSG_EX
             WOLFSSL_MSG_EX("Error not configured or implemented yet: %d", e);
@@ -980,7 +982,11 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
     if ((flag & WOLFSSL_CRL_CHECKALL) || (flag & WOLFSSL_CRL_CHECK)) {
         ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
     }
-
+#if defined(OPENSSL_COMPATIBLE_DEFAULTS)
+    else if (flag == 0) {
+        ret = wolfSSL_CertManagerDisableCRL(store->cm);
+    }
+#endif
     return ret;
 }
 
@@ -1023,7 +1029,8 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
 #ifdef HAVE_CRL
     if (str->cm->crl == NULL) {
-        if (wolfSSL_CertManagerEnableCRL(str->cm, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CertManagerEnableCRL(str->cm, WOLFSSL_CRL_CHECK)
+            != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Enable CRL failed");
             wolfSSL_CTX_free(ctx);
             return WOLFSSL_FAILURE;

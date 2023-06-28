@@ -2386,8 +2386,8 @@ enum {
                               * limit the possibility of an infinite retry loop
                               */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
-    /* Errors used in wolfSSL.
-     * Should map the defines in wolfssl/openssl/x509.h
+    /* Errors used in wolfSSL. utilize the values from the defines in
+     * wolfssl/openssl/x509.h, but without the WOLFSSL_ prefix.
      */
     WOLFSSL_X509_V_OK                                    = 0,
     WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE            = 7,

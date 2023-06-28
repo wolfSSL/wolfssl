@@ -5155,6 +5155,9 @@ typedef struct CIDInfo CIDInfo;
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
+#if defined(WOLFSSL_HAPROXY)
+    WOLFSSL_CTX*    initial_ctx; /* preserve session key materials */
+#endif
     Suites*         suites; /* Only need during handshake. Can be NULL when
                              * re-using the context's object. When WOLFSSL
                              * object needs separate instance of suites use
