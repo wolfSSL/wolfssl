@@ -2621,6 +2621,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
+#endif /* !NO_CERTS */
 
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
@@ -2668,7 +2669,6 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return n;
 }
 #endif /* WC_RSA_PSS && !NO_RSA */
-#endif /* !NO_CERTS */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
@@ -11097,6 +11097,10 @@ void InitDecodedCert(DecodedCert* cert,
 void InitDecodedCert_ex(DecodedCert* cert,
                      const byte* source, word32 inSz, void* heap, int devId)
 {
+#ifdef NO_CERTS
+    (void) devId;
+#endif
+
     if (cert != NULL) {
         XMEMSET(cert, 0, sizeof(DecodedCert));
 
