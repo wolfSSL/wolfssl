@@ -2621,6 +2621,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
+#endif /* !NO_CERTS */
 
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
@@ -2668,7 +2669,6 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return n;
 }
 #endif /* WC_RSA_PSS && !NO_RSA */
-#endif /* !NO_CERTS */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
@@ -3171,7 +3171,7 @@ int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
 #endif /* !WOLFSSL_ASN_TEMPLATE || HAVE_PKCS8 || HAVE_PKCS12 */
 #endif /* !NO_PWDBASED */
 
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_CERTS)
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
                               word32 maxIdx)
@@ -6032,6 +6032,7 @@ static int RsaPssHashOidToMgf1(word32 oid, int* mgf)
     return ret;
 }
 
+#ifndef NO_CERTS
 /* Convert a hash OID to a fake signature OID.
  *
  * @param  [in]   oid     Hash OID.
@@ -6079,6 +6080,7 @@ static int RsaPssHashOidToSigOid(word32 oid, word32* sigOid)
 
     return ret;
 }
+#endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN tag for hashAlgorigthm. */
@@ -6934,7 +6936,7 @@ int ToTraditional(byte* input, word32 sz)
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 
-#if defined(HAVE_PKCS8) && !defined(NO_CERTS)
+#if defined(HAVE_PKCS8)
 
 int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 {
@@ -7107,7 +7109,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#endif /* HAVE_PKCS8 && !NO_CERTS */
+#endif /* HAVE_PKCS8 */
 
 #if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
 /* check that the private key is a pair for the public key
@@ -11072,6 +11074,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
 
 #endif /* NO_DSA */
 
+#ifndef NO_CERTS
 /* Initialize decoded certificate object with buffer of DER encoding.
  *
  * @param [in, out] cert    Decoded certificate object.
@@ -11327,8 +11330,530 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     return ret;
 }
 #endif /* HAVE_ED25519 || HAVE_ED448 */
+#endif
 
-#if !defined(NO_RSA)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+
+static int SetCurve(ecc_key* key, byte* output, size_t outSz)
+{
+#ifdef HAVE_OID_ENCODING
+    int ret;
+#endif
+    int idx;
+    word32 oidSz = 0;
+
+    /* validate key */
+    if (key == NULL || key->dp == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_OID_ENCODING
+    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
+    if (ret != 0) {
+        return ret;
+    }
+#else
+    oidSz = key->dp->oidSz;
+#endif
+
+    idx = SetObjectId((int)oidSz, output);
+
+    /* length only */
+    if (output == NULL) {
+        return idx + (int)oidSz;
+    }
+
+    /* verify output buffer has room */
+    if (oidSz > outSz)
+        return BUFFER_E;
+
+#ifdef HAVE_OID_ENCODING
+    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, output+idx, &oidSz);
+    if (ret != 0) {
+        return ret;
+    }
+#else
+    XMEMCPY(output+idx, key->dp->oid, oidSz);
+#endif
+    idx += (int)oidSz;
+
+    return idx;
+}
+
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
+
+#ifdef HAVE_ECC
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for ECC public key (SubjectPublicKeyInfo).
+ * RFC 5480, 2 - Subject Public Key Information Fields
+ *           2.1.1 - Unrestricted Algorithm Identifier and Parameters
+ * X9.62 ECC point format.
+ * See ASN.1 template 'eccSpecifiedASN' for specifiedCurve.
+ */
+static const ASNItem eccPublicKeyASN[] = {
+/* SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                             /* AlgorithmIdentifier */
+/* ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                 /* algorithm */
+/* ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                                 /* namedCurve */
+/* ALGOID_CURVEID */         { 2, ASN_OBJECT_ID, 0, 0, 2 },
+                                                 /* specifiedCurve - explicit parameters */
+/* ALGOID_PARAMS  */         { 2, ASN_SEQUENCE, 1, 0, 2 },
+                                             /* Public Key */
+/* PUBKEY         */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    ECCPUBLICKEYASN_IDX_SEQ = 0,
+    ECCPUBLICKEYASN_IDX_ALGOID_SEQ,
+    ECCPUBLICKEYASN_IDX_ALGOID_OID,
+    ECCPUBLICKEYASN_IDX_ALGOID_CURVEID,
+    ECCPUBLICKEYASN_IDX_ALGOID_PARAMS,
+    ECCPUBLICKEYASN_IDX_PUBKEY
+};
+
+/* Number of items in ASN.1 template for ECC public key. */
+#define eccPublicKeyASN_Length (sizeof(eccPublicKeyASN) / sizeof(ASNItem))
+#endif /* WOLFSSL_ASN_TEMPLATE */
+#endif /* HAVE_ECC */
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+
+/* Encode public ECC key in DER format.
+ *
+ * RFC 5480, 2 - Subject Public Key Information Fields
+ *           2.1.1 - Unrestricted Algorithm Identifier and Parameters
+ * X9.62 ECC point format.
+ * SEC 1 Ver. 2.0, C.2 - Syntax for Elliptic Curve Domain Parameters
+ *
+ * @param [out] output       Buffer to put encoded data in.
+ * @param [in]  key          ECC key object.
+ * @param [in]  outLen       Size of buffer in bytes.
+ * @param [in]  with_header  Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
+                           int with_header, int comp)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    int ret;
+    word32 idx = 0, curveSz, algoSz, pubSz, bitStringSz;
+    byte bitString[1 + MAX_LENGTH_SZ + 1]; /* 6 */
+    byte algo[MAX_ALGO_SZ];  /* 20 */
+
+    /* public size */
+    pubSz = key->dp ? (word32)key->dp->size : MAX_ECC_BYTES;
+    if (comp)
+        pubSz = 1 + pubSz;
+    else
+        pubSz = 1 + 2 * pubSz;
+
+    /* check for buffer overflow */
+    if (output != NULL && pubSz > (word32)outLen) {
+        return BUFFER_E;
+    }
+
+    /* headers */
+    if (with_header) {
+        ret = SetCurve(key, NULL, 0);
+        if (ret <= 0) {
+            return ret;
+        }
+        curveSz = (word32)ret;
+        ret = 0;
+
+        /* calculate size */
+        algoSz  = SetAlgoID(ECDSAk, algo, oidKeyType, (int)curveSz);
+        bitStringSz = SetBitString(pubSz, 0, bitString);
+        idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz, NULL);
+
+        /* check for buffer overflow */
+        if (output != NULL &&
+                curveSz + algoSz + bitStringSz + idx + pubSz > (word32)outLen) {
+            return BUFFER_E;
+        }
+
+        idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz,
+            output);
+        /* algo */
+        if (output)
+            XMEMCPY(output + idx, algo, algoSz);
+        idx += algoSz;
+        /* curve */
+        if (output)
+            (void)SetCurve(key, output + idx, curveSz);
+        idx += curveSz;
+        /* bit string */
+        if (output)
+            XMEMCPY(output + idx, bitString, bitStringSz);
+        idx += bitStringSz;
+    }
+
+    /* pub */
+    if (output) {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963_ex(key, output + idx, &pubSz, comp);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            return ret;
+        }
+    }
+    idx += pubSz;
+
+    return (int)idx;
+#else
+    word32 pubSz = 0;
+    int sz = 0;
+    int ret = 0;
+    int curveIdSz = 0;
+    byte* curveOid = NULL;
+
+    /* Check key validity. */
+    if ((key == NULL) || (key->dp == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Calculate the size of the encoded public point. */
+        PRIVATE_KEY_UNLOCK();
+    #if defined(HAVE_COMP_KEY) && defined(HAVE_FIPS) && \
+            defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        /* in earlier versions of FIPS the get length functionality is not
+         * available with compressed keys */
+        pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
+        if (comp)
+            pubSz = 1 + pubSz;
+        else
+            pubSz = 1 + 2 * pubSz;
+        ret = LENGTH_ONLY_E;
+    #else
+        ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
+    #endif
+        PRIVATE_KEY_LOCK();
+        /* LENGTH_ONLY_E on success. */
+        if (ret == LENGTH_ONLY_E) {
+            ret = 0;
+        }
+    }
+    if ((ret == 0) && with_header) {
+        /* Including SubjectPublicKeyInfo header. */
+        DECL_ASNSETDATA(dataASN, eccPublicKeyASN_Length);
+
+        CALLOC_ASNSETDATA(dataASN, eccPublicKeyASN_Length, ret, key->heap);
+
+        /* Get the length of the named curve OID to put into the encoding. */
+        curveIdSz = SetCurve(key, NULL, 0);
+        if (curveIdSz < 0) {
+            ret = curveIdSz;
+        }
+
+        if (ret == 0) {
+            /* Set the key type OID. */
+            SetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], ECDSAk,
+                    oidKeyType);
+            /* Set the curve OID. */
+            SetASN_ReplaceBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID],
+                NULL, (word32)curveIdSz);
+            /* Don't try to write out explicit parameters. */
+            dataASN[ECCPUBLICKEYASN_IDX_ALGOID_PARAMS].noOut = 1;
+            /* Set size of public point to ensure space is made for it. */
+            SetASN_Buffer(&dataASN[ECCPUBLICKEYASN_IDX_PUBKEY], NULL, pubSz);
+            /* Calculate size of ECC public key. */
+            ret = SizeASN_Items(eccPublicKeyASN, dataASN,
+                                eccPublicKeyASN_Length, &sz);
+        }
+
+        /* Check buffer, if passed in, is big enough for encoded data. */
+        if ((ret == 0) && (output != NULL) && (sz > outLen)) {
+            ret = BUFFER_E;
+        }
+        if ((ret == 0) && (output != NULL)) {
+            /* Encode ECC public key. */
+            SetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length,
+                         output);
+            /* Skip to where public point is to be encoded. */
+            output += sz - (int)pubSz;
+            /* Cache the location to place the name curve OID. */
+            curveOid = (byte*)
+                dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID].data.buffer.data;
+        }
+
+        FREE_ASNSETDATA(dataASN, key->heap);
+    }
+    else if ((ret == 0) && (output != NULL) && (pubSz > (word32)outLen)) {
+        ret = BUFFER_E;
+    }
+    else {
+        /* Total size is the public point size. */
+        sz = (int)pubSz;
+    }
+
+    if ((ret == 0) && (output != NULL)) {
+        /* Put named curve OID data into encoding. */
+        curveIdSz = SetCurve(key, curveOid, (size_t)curveIdSz);
+        if (curveIdSz < 0) {
+            ret = curveIdSz;
+        }
+    }
+    if ((ret == 0) && (output != NULL)) {
+        /* Encode public point. */
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963_ex(key, output, &pubSz, comp);
+        PRIVATE_KEY_LOCK();
+    }
+    if (ret == 0) {
+        /* Return the size of the encoding. */
+        ret = sz;
+    }
+
+    return ret;
+#endif
+}
+
+
+/* Encode the public part of an ECC key in a DER.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key            ECC key object.
+ * @param [out] output         Buffer to hold DER encoding.
+ * @param [in]  inLen          Size of buffer in bytes.
+ * @param [in]  with_AlgCurve  Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+WOLFSSL_ABI
+int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
+                                                              int with_AlgCurve)
+{
+    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, 0);
+}
+
+int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 inLen,
+                                                    int with_AlgCurve, int comp)
+{
+    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, comp);
+}
+
+int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
+{
+    return SetEccPublicKey(NULL, key, 0, with_AlgCurve, 0);
+}
+
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
+/* ASN.1 template for Ed25519 and Ed448 public key (SubkectPublicKeyInfo).
+ * RFC 8410, 4 - Subject Public Key Fields
+ */
+static const ASNItem edPubKeyASN[] = {
+            /* SubjectPublicKeyInfo */
+/* SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* AlgorithmIdentifier */
+/* ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* Ed25519/Ed448 OID */
+/* ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
+                                     /* Public key stream */
+/* PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    EDPUBKEYASN_IDX_SEQ = 0,
+    EDPUBKEYASN_IDX_ALGOID_SEQ,
+    EDPUBKEYASN_IDX_ALGOID_OID,
+    EDPUBKEYASN_IDX_PUBKEY
+};
+
+/* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
+#define edPubKeyASN_Length (sizeof(edPubKeyASN) / sizeof(ASNItem))
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+
+/* Build ASN.1 formatted public key based on RFC 8410
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  pubKey       public key buffer
+ * @param [in]  pubKeyLen    public ket buffer length
+ * @param [out] output       Buffer to put encoded data in (optional)
+ * @param [in]  outLen       Size of buffer in bytes
+ * @param [in]  keyType      is "enum Key_Sum" like ED25519k
+ * @param [in]  withHeader   Whether to include SubjectPublicKeyInfo around key.
+ * @return  Size of encoded data in bytes on success
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
+    byte* output, word32 outLen, int keyType, int withHeader)
+{
+    int ret = 0;
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    word32 seqDataSz = 0;
+    word32 sz;
+#else
+    int sz = 0;
+    DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
+#endif
+
+    if (pubKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    /* calculate size */
+    if (withHeader) {
+        word32 algoSz      = SetAlgoID(keyType, NULL, oidKeyType, 0);
+        word32 bitStringSz = SetBitString(pubKeyLen, 0, NULL);
+
+        seqDataSz = algoSz + bitStringSz + pubKeyLen;
+        sz = SetSequence(seqDataSz, NULL) + seqDataSz;
+    }
+    else {
+        sz = pubKeyLen;
+    }
+
+    /* checkout output size */
+    if (output != NULL && sz > outLen) {
+        ret = BUFFER_E;
+    }
+
+    /* headers */
+    if (ret == 0 && output != NULL && withHeader) {
+        /* sequence */
+        idx = SetSequence(seqDataSz, output);
+        /* algo */
+        idx += SetAlgoID(keyType, output + idx, oidKeyType, 0);
+        /* bit string */
+        idx += SetBitString(pubKeyLen, 0, output + idx);
+    }
+
+    if (ret == 0 && output != NULL) {
+        /* pub */
+        XMEMCPY(output + idx, pubKey, pubKeyLen);
+        idx += pubKeyLen;
+
+        sz = idx;
+    }
+
+    if (ret == 0) {
+        ret = (int)sz;
+    }
+#else
+    if (withHeader) {
+        CALLOC_ASNSETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
+
+        if (ret == 0) {
+            /* Set the OID. */
+            SetASN_OID(&dataASN[EDPUBKEYASN_IDX_ALGOID_OID], (word32)keyType,
+                    oidKeyType);
+            /* Leave space for public point. */
+            SetASN_Buffer(&dataASN[EDPUBKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
+            /* Calculate size of public key encoding. */
+            ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
+        }
+        if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
+            ret = BUFFER_E;
+        }
+        if ((ret == 0) && (output != NULL)) {
+            /* Encode public key. */
+            SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
+            /* Set location to encode public point. */
+            output = (byte*)dataASN[EDPUBKEYASN_IDX_PUBKEY].data.buffer.data;
+        }
+
+        FREE_ASNSETDATA(dataASN, NULL);
+    }
+    else if ((output != NULL) && (pubKeyLen > outLen)) {
+        ret = BUFFER_E;
+    }
+    else if (ret == 0) {
+        sz = (int)pubKeyLen;
+    }
+
+    if ((ret == 0) && (output != NULL)) {
+        /* Put public key into space provided. */
+        XMEMCPY(output, pubKey, pubKeyLen);
+    }
+    if (ret == 0) {
+        ret = sz;
+    }
+#endif /* WOLFSSL_ASN_TEMPLATE */
+    return ret;
+}
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+/* Encode the public part of an Ed25519 key in DER.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       Ed25519 key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  outLen    Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
+                             int withAlg)
+{
+    int    ret;
+    byte   pubKey[ED25519_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_ed25519_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            ED25519k, withAlg);
+    }
+    return ret;
+}
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
+/* Encode the public part of an Ed448 key in DER.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       Ed448 key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  outLen    Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
+                           int withAlg)
+{
+    int    ret;
+    byte   pubKey[ED448_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_ed448_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            ED448k, withAlg);
+    }
+    return ret;
+}
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
+#if !defined(NO_RSA) && !defined(NO_CERTS)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before RSA key in certificate. */
 static const ASNItem rsaCertKeyASN[] = {
@@ -11424,9 +11949,9 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && !NO_CERTS */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_CERTS)
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before ECC key in certificate. */
@@ -11596,8 +12121,9 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && !NO_CERTS */
 
+#ifndef NO_CERTS
 #if !defined(NO_DSA)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for DSA key in certificate.
@@ -11883,6 +12409,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
     /* Return error code. */
     return ret;
 }
+#endif
 
 /* Calculate hash of the id using the SHA-1 or SHA-256.
  *
@@ -13953,7 +14480,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
         return 0;
     }
 
-    ltime -= (time_t)timeDiff ;
+    ltime -= (time_t)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (localTime == NULL) {
@@ -14124,7 +14651,7 @@ static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
 #endif
 }
 
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(NO_CERTS) && !defined(WOLFSSL_ASN_TEMPLATE)
 static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 {
     int    ret, length;
@@ -14192,7 +14719,7 @@ static int GetValidity(DecodedCert* cert, int verify, int maxIdx)
 
     return 0;
 }
-#endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* !NO_CERTS && !WOLFSSL_ASN_TEMPLATE */
 
 
 int wc_GetDateInfo(const byte* certDate, int certDateSz, const byte** date,
@@ -14246,7 +14773,7 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 #endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif /* !NO_ASN_TIME */
 
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_CERTS)
 static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
 {
     int length;
@@ -14287,6 +14814,7 @@ static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
 }
 #endif
 
+#ifndef NO_CERTS
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* TODO: move code around to not require this. */
 static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
@@ -14425,7 +14953,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#if !defined(NO_CERTS) && !defined(WOLFSSL_ASN_TEMPLATE)
+#if !defined(WOLFSSL_ASN_TEMPLATE)
 static int GetSignature(DecodedCert* cert)
 {
     int length;
@@ -14445,7 +14973,8 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
-#endif /* !NO_CERTS && !WOLFSSL_ASN_TEMPLATE */
+#endif /* !WOLFSSL_ASN_TEMPLATE */
+#endif /* !NO_CERTS */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 static word32 SetOctetString8Bit(word32 len, byte* output)
@@ -14634,56 +15163,6 @@ word32 SetOthername(void *name, byte *output)
     return len;
 }
 #endif /* OPENSSL_EXTRA */
-
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-
-static int SetCurve(ecc_key* key, byte* output, size_t outSz)
-{
-#ifdef HAVE_OID_ENCODING
-    int ret;
-#endif
-    int idx;
-    word32 oidSz = 0;
-
-    /* validate key */
-    if (key == NULL || key->dp == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifdef HAVE_OID_ENCODING
-    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
-    if (ret != 0) {
-        return ret;
-    }
-#else
-    oidSz = key->dp->oidSz;
-#endif
-
-    idx = SetObjectId((int)oidSz, output);
-
-    /* length only */
-    if (output == NULL) {
-        return idx + (int)oidSz;
-    }
-
-    /* verify output buffer has room */
-    if (oidSz > outSz)
-        return BUFFER_E;
-
-#ifdef HAVE_OID_ENCODING
-    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, output+idx, &oidSz);
-    if (ret != 0) {
-        return ret;
-    }
-#else
-    XMEMCPY(output+idx, key->dp->oid, oidSz);
-#endif
-    idx += (int)oidSz;
-
-    return idx;
-}
-
-#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 
 #ifdef HAVE_ECC
@@ -22320,24 +22799,6 @@ void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-int SetMyVersion(word32 version, byte* output, int header)
-{
-    int i = 0;
-
-    if (output == NULL)
-        return BAD_FUNC_ARG;
-
-    if (header) {
-        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
-        output[i++] = 3;
-    }
-    output[i++] = ASN_INTEGER;
-    output[i++] = 0x01;
-    output[i++] = (byte)version;
-
-    return i;
-}
-
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7)
 int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz)
@@ -22387,6 +22848,27 @@ int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 #endif /* !NO_CERTS */
+
+#if defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS12) || \
+    (defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT))
+int SetMyVersion(word32 version, byte* output, int header)
+{
+    int i = 0;
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (header) {
+        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+        output[i++] = 3;
+    }
+    output[i++] = ASN_INTEGER;
+    output[i++] = 0x01;
+    output[i++] = (byte)version;
+
+    return i;
+}
+#endif
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
@@ -24688,477 +25170,6 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
 
 #endif /* WOLFSSL_CERT_GEN */
 
-#ifdef HAVE_ECC
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for ECC public key (SubjectPublicKeyInfo).
- * RFC 5480, 2 - Subject Public Key Information Fields
- *           2.1.1 - Unrestricted Algorithm Identifier and Parameters
- * X9.62 ECC point format.
- * See ASN.1 template 'eccSpecifiedASN' for specifiedCurve.
- */
-static const ASNItem eccPublicKeyASN[] = {
-/* SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                             /* AlgorithmIdentifier */
-/* ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                                 /* algorithm */
-/* ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-                                                 /* namedCurve */
-/* ALGOID_CURVEID */         { 2, ASN_OBJECT_ID, 0, 0, 2 },
-                                                 /* specifiedCurve - explicit parameters */
-/* ALGOID_PARAMS  */         { 2, ASN_SEQUENCE, 1, 0, 2 },
-                                             /* Public Key */
-/* PUBKEY         */     { 1, ASN_BIT_STRING, 0, 0, 0 },
-};
-enum {
-    ECCPUBLICKEYASN_IDX_SEQ = 0,
-    ECCPUBLICKEYASN_IDX_ALGOID_SEQ,
-    ECCPUBLICKEYASN_IDX_ALGOID_OID,
-    ECCPUBLICKEYASN_IDX_ALGOID_CURVEID,
-    ECCPUBLICKEYASN_IDX_ALGOID_PARAMS,
-    ECCPUBLICKEYASN_IDX_PUBKEY
-};
-
-/* Number of items in ASN.1 template for ECC public key. */
-#define eccPublicKeyASN_Length (sizeof(eccPublicKeyASN) / sizeof(ASNItem))
-#endif /* WOLFSSL_ASN_TEMPLATE */
-#endif /* HAVE_ECC */
-
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-
-/* Encode public ECC key in DER format.
- *
- * RFC 5480, 2 - Subject Public Key Information Fields
- *           2.1.1 - Unrestricted Algorithm Identifier and Parameters
- * X9.62 ECC point format.
- * SEC 1 Ver. 2.0, C.2 - Syntax for Elliptic Curve Domain Parameters
- *
- * @param [out] output       Buffer to put encoded data in.
- * @param [in]  key          ECC key object.
- * @param [in]  outLen       Size of buffer in bytes.
- * @param [in]  with_header  Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
-                           int with_header, int comp)
-{
-#ifndef WOLFSSL_ASN_TEMPLATE
-    int ret;
-    word32 idx = 0, curveSz, algoSz, pubSz, bitStringSz;
-    byte bitString[1 + MAX_LENGTH_SZ + 1]; /* 6 */
-    byte algo[MAX_ALGO_SZ];  /* 20 */
-
-    /* public size */
-    pubSz = key->dp ? (word32)key->dp->size : MAX_ECC_BYTES;
-    if (comp)
-        pubSz = 1 + pubSz;
-    else
-        pubSz = 1 + 2 * pubSz;
-
-    /* check for buffer overflow */
-    if (output != NULL && pubSz > (word32)outLen) {
-        return BUFFER_E;
-    }
-
-    /* headers */
-    if (with_header) {
-        ret = SetCurve(key, NULL, 0);
-        if (ret <= 0) {
-            return ret;
-        }
-        curveSz = (word32)ret;
-        ret = 0;
-
-        /* calculate size */
-        algoSz  = SetAlgoID(ECDSAk, algo, oidKeyType, (int)curveSz);
-        bitStringSz = SetBitString(pubSz, 0, bitString);
-        idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz, NULL);
-
-        /* check for buffer overflow */
-        if (output != NULL &&
-                curveSz + algoSz + bitStringSz + idx + pubSz > (word32)outLen) {
-            return BUFFER_E;
-        }
-
-        idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz,
-            output);
-        /* algo */
-        if (output)
-            XMEMCPY(output + idx, algo, algoSz);
-        idx += algoSz;
-        /* curve */
-        if (output)
-            (void)SetCurve(key, output + idx, curveSz);
-        idx += curveSz;
-        /* bit string */
-        if (output)
-            XMEMCPY(output + idx, bitString, bitStringSz);
-        idx += bitStringSz;
-    }
-
-    /* pub */
-    if (output) {
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963_ex(key, output + idx, &pubSz, comp);
-        PRIVATE_KEY_LOCK();
-        if (ret != 0) {
-            return ret;
-        }
-    }
-    idx += pubSz;
-
-    return (int)idx;
-#else
-    word32 pubSz = 0;
-    int sz = 0;
-    int ret = 0;
-    int curveIdSz = 0;
-    byte* curveOid = NULL;
-
-    /* Check key validity. */
-    if ((key == NULL) || (key->dp == NULL)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0) {
-        /* Calculate the size of the encoded public point. */
-        PRIVATE_KEY_UNLOCK();
-    #if defined(HAVE_COMP_KEY) && defined(HAVE_FIPS) && \
-            defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
-        /* in earlier versions of FIPS the get length functionality is not
-         * available with compressed keys */
-        pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
-        if (comp)
-            pubSz = 1 + pubSz;
-        else
-            pubSz = 1 + 2 * pubSz;
-        ret = LENGTH_ONLY_E;
-    #else
-        ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
-    #endif
-        PRIVATE_KEY_LOCK();
-        /* LENGTH_ONLY_E on success. */
-        if (ret == LENGTH_ONLY_E) {
-            ret = 0;
-        }
-    }
-    if ((ret == 0) && with_header) {
-        /* Including SubjectPublicKeyInfo header. */
-        DECL_ASNSETDATA(dataASN, eccPublicKeyASN_Length);
-
-        CALLOC_ASNSETDATA(dataASN, eccPublicKeyASN_Length, ret, key->heap);
-
-        /* Get the length of the named curve OID to put into the encoding. */
-        curveIdSz = SetCurve(key, NULL, 0);
-        if (curveIdSz < 0) {
-            ret = curveIdSz;
-        }
-
-        if (ret == 0) {
-            /* Set the key type OID. */
-            SetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], ECDSAk,
-                    oidKeyType);
-            /* Set the curve OID. */
-            SetASN_ReplaceBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID],
-                NULL, (word32)curveIdSz);
-            /* Don't try to write out explicit parameters. */
-            dataASN[ECCPUBLICKEYASN_IDX_ALGOID_PARAMS].noOut = 1;
-            /* Set size of public point to ensure space is made for it. */
-            SetASN_Buffer(&dataASN[ECCPUBLICKEYASN_IDX_PUBKEY], NULL, pubSz);
-            /* Calculate size of ECC public key. */
-            ret = SizeASN_Items(eccPublicKeyASN, dataASN,
-                                eccPublicKeyASN_Length, &sz);
-        }
-
-        /* Check buffer, if passed in, is big enough for encoded data. */
-        if ((ret == 0) && (output != NULL) && (sz > outLen)) {
-            ret = BUFFER_E;
-        }
-        if ((ret == 0) && (output != NULL)) {
-            /* Encode ECC public key. */
-            SetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length,
-                         output);
-            /* Skip to where public point is to be encoded. */
-            output += sz - (int)pubSz;
-            /* Cache the location to place the name curve OID. */
-            curveOid = (byte*)
-                dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID].data.buffer.data;
-        }
-
-        FREE_ASNSETDATA(dataASN, key->heap);
-    }
-    else if ((ret == 0) && (output != NULL) && (pubSz > (word32)outLen)) {
-        ret = BUFFER_E;
-    }
-    else {
-        /* Total size is the public point size. */
-        sz = (int)pubSz;
-    }
-
-    if ((ret == 0) && (output != NULL)) {
-        /* Put named curve OID data into encoding. */
-        curveIdSz = SetCurve(key, curveOid, (size_t)curveIdSz);
-        if (curveIdSz < 0) {
-            ret = curveIdSz;
-        }
-    }
-    if ((ret == 0) && (output != NULL)) {
-        /* Encode public point. */
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963_ex(key, output, &pubSz, comp);
-        PRIVATE_KEY_LOCK();
-    }
-    if (ret == 0) {
-        /* Return the size of the encoding. */
-        ret = sz;
-    }
-
-    return ret;
-#endif
-}
-
-
-/* Encode the public part of an ECC key in a DER.
- *
- * Pass NULL for output to get the size of the encoding.
- *
- * @param [in]  key            ECC key object.
- * @param [out] output         Buffer to hold DER encoding.
- * @param [in]  inLen          Size of buffer in bytes.
- * @param [in]  with_AlgCurve  Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-WOLFSSL_ABI
-int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
-                                                              int with_AlgCurve)
-{
-    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, 0);
-}
-
-int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 inLen,
-                                                    int with_AlgCurve, int comp)
-{
-    return SetEccPublicKey(output, key, (int)inLen, with_AlgCurve, comp);
-}
-
-int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
-{
-    return SetEccPublicKey(NULL, key, 0, with_AlgCurve, 0);
-}
-
-#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
-
-#ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
-/* ASN.1 template for Ed25519 and Ed448 public key (SubkectPublicKeyInfo).
- * RFC 8410, 4 - Subject Public Key Fields
- */
-static const ASNItem edPubKeyASN[] = {
-            /* SubjectPublicKeyInfo */
-/* SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                     /* AlgorithmIdentifier */
-/* ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                         /* Ed25519/Ed448 OID */
-/* ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
-                                     /* Public key stream */
-/* PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
-};
-enum {
-    EDPUBKEYASN_IDX_SEQ = 0,
-    EDPUBKEYASN_IDX_ALGOID_SEQ,
-    EDPUBKEYASN_IDX_ALGOID_OID,
-    EDPUBKEYASN_IDX_PUBKEY
-};
-
-/* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
-#define edPubKeyASN_Length (sizeof(edPubKeyASN) / sizeof(ASNItem))
-#endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
-#endif /* WOLFSSL_ASN_TEMPLATE */
-
-#ifdef WC_ENABLE_ASYM_KEY_EXPORT
-
-/* Build ASN.1 formatted public key based on RFC 8410
- *
- * Pass NULL for output to get the size of the encoding.
- *
- * @param [in]  pubKey       public key buffer
- * @param [in]  pubKeyLen    public ket buffer length
- * @param [out] output       Buffer to put encoded data in (optional)
- * @param [in]  outLen       Size of buffer in bytes
- * @param [in]  keyType      is "enum Key_Sum" like ED25519k
- * @param [in]  withHeader   Whether to include SubjectPublicKeyInfo around key.
- * @return  Size of encoded data in bytes on success
- * @return  BAD_FUNC_ARG when key is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
-    byte* output, word32 outLen, int keyType, int withHeader)
-{
-    int ret = 0;
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0;
-    word32 seqDataSz = 0;
-    word32 sz;
-#else
-    int sz = 0;
-    DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
-#endif
-
-    if (pubKey == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifndef WOLFSSL_ASN_TEMPLATE
-    /* calculate size */
-    if (withHeader) {
-        word32 algoSz      = SetAlgoID(keyType, NULL, oidKeyType, 0);
-        word32 bitStringSz = SetBitString(pubKeyLen, 0, NULL);
-
-        seqDataSz = algoSz + bitStringSz + pubKeyLen;
-        sz = SetSequence(seqDataSz, NULL) + seqDataSz;
-    }
-    else {
-        sz = pubKeyLen;
-    }
-
-    /* checkout output size */
-    if (output != NULL && sz > outLen) {
-        ret = BUFFER_E;
-    }
-
-    /* headers */
-    if (ret == 0 && output != NULL && withHeader) {
-        /* sequence */
-        idx = SetSequence(seqDataSz, output);
-        /* algo */
-        idx += SetAlgoID(keyType, output + idx, oidKeyType, 0);
-        /* bit string */
-        idx += SetBitString(pubKeyLen, 0, output + idx);
-    }
-
-    if (ret == 0 && output != NULL) {
-        /* pub */
-        XMEMCPY(output + idx, pubKey, pubKeyLen);
-        idx += pubKeyLen;
-
-        sz = idx;
-    }
-
-    if (ret == 0) {
-        ret = (int)sz;
-    }
-#else
-    if (withHeader) {
-        CALLOC_ASNSETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
-
-        if (ret == 0) {
-            /* Set the OID. */
-            SetASN_OID(&dataASN[EDPUBKEYASN_IDX_ALGOID_OID], (word32)keyType,
-                    oidKeyType);
-            /* Leave space for public point. */
-            SetASN_Buffer(&dataASN[EDPUBKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
-            /* Calculate size of public key encoding. */
-            ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
-        }
-        if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
-            ret = BUFFER_E;
-        }
-        if ((ret == 0) && (output != NULL)) {
-            /* Encode public key. */
-            SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
-            /* Set location to encode public point. */
-            output = (byte*)dataASN[EDPUBKEYASN_IDX_PUBKEY].data.buffer.data;
-        }
-
-        FREE_ASNSETDATA(dataASN, NULL);
-    }
-    else if ((output != NULL) && (pubKeyLen > outLen)) {
-        ret = BUFFER_E;
-    }
-    else if (ret == 0) {
-        sz = (int)pubKeyLen;
-    }
-
-    if ((ret == 0) && (output != NULL)) {
-        /* Put public key into space provided. */
-        XMEMCPY(output, pubKey, pubKeyLen);
-    }
-    if (ret == 0) {
-        ret = sz;
-    }
-#endif /* WOLFSSL_ASN_TEMPLATE */
-    return ret;
-}
-#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
-
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
-/* Encode the public part of an Ed25519 key in DER.
- *
- * Pass NULL for output to get the size of the encoding.
- *
- * @param [in]  key       Ed25519 key object.
- * @param [out] output    Buffer to put encoded data in.
- * @param [in]  outLen    Size of buffer in bytes.
- * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
-                             int withAlg)
-{
-    int    ret;
-    byte   pubKey[ED25519_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
-
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    ret = wc_ed25519_export_public(key, pubKey, &pubKeyLen);
-    if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
-            ED25519k, withAlg);
-    }
-    return ret;
-}
-#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
-
-#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
-/* Encode the public part of an Ed448 key in DER.
- *
- * Pass NULL for output to get the size of the encoding.
- *
- * @param [in]  key       Ed448 key object.
- * @param [out] output    Buffer to put encoded data in.
- * @param [in]  outLen    Size of buffer in bytes.
- * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
-                           int withAlg)
-{
-    int    ret;
-    byte   pubKey[ED448_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
-
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    ret = wc_ed448_export_public(key, pubKey, &pubKeyLen);
-    if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
-            ED448k, withAlg);
-    }
-    return ret;
-}
-#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 #ifdef WOLFSSL_CERT_GEN
 
 #ifndef NO_ASN_TIME
