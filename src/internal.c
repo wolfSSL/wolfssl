@@ -33226,18 +33226,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      *  session ticket validation check in TLS1.2 and below, define
      *  WOLFSSL_NO_TICKET_EXPIRE.
      */
-    int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
+    int HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites)
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
-        (void)bogusID;
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket == 1) {
             session = ssl->session;
-        }
-        else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
-            WOLFSSL_MSG("Bogus session ID without session ticket");
-            return BUFFER_ERROR;
         }
         else
     #endif
@@ -33347,7 +33342,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
     {
         byte            b;
-        byte            bogusID = 0;   /* flag for a bogus session id */
         ProtocolVersion pv;
 #ifdef WOLFSSL_SMALL_STACK
         Suites*         clSuites = NULL;
@@ -33582,30 +33576,25 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* session id */
         b = input[i++];
-
-#ifdef HAVE_SESSION_TICKET
-        if (b > 0 && b < ID_LEN) {
-            bogusID = 1;
-            WOLFSSL_MSG("Client sent bogus session id, let's allow for echo");
+        if (b > ID_LEN) {
+            WOLFSSL_MSG("Invalid session ID size");
+            ret = BUFFER_ERROR; /* session ID greater than 32 bytes long */
+            goto out;
         }
-#endif
-
-        if (b == ID_LEN || bogusID) {
+        else if (b > 0) {
             if ((i - begin) + b > helloSz) {
                 ret = BUFFER_ERROR;
                 goto out;
             }
 
+            /* Always save session ID in case we want to echo it. */
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
             ssl->arrays->sessionIDSz = b;
-            i += b;
-            ssl->options.resuming = 1; /* client wants to resume */
+
+            if (b == ID_LEN)
+                ssl->options.resuming = 1; /* client wants to resume */
             WOLFSSL_MSG("Client wants to resume session");
-        }
-        else if (b) {
-            WOLFSSL_MSG("Invalid session ID size");
-            ret = BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
-            goto out;
+            i += b;
         }
 
 #ifdef WOLFSSL_DTLS
@@ -33885,7 +33874,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* ProcessOld uses same resume code */
         if (ssl->options.resuming) {
-            ret = HandleTlsResumption(ssl, bogusID, clSuites);
+            ret = HandleTlsResumption(ssl, clSuites);
             if (ret != 0)
                 goto out;
 
