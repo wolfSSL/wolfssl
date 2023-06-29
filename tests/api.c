@@ -25656,9 +25656,15 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         tempWrd32 = pkcs7->singleCertSz;
         pkcs7->singleCertSz = 0;
     }
+    #if defined(WOLFSSL_ASN_TEMPLATE)
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
         BUFFER_E);
+    #else
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+        ASN_PARSE_E);
+    #endif
     if (pkcs7 != NULL) {
         pkcs7->singleCertSz = tempWrd32;
 
