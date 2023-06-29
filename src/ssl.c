@@ -4103,6 +4103,8 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* Reset option to send certificate verify. */
         ssl->options.sendVerify = 0;
+        /* Reset resuming flag to do full secure handshake. */
+        ssl->options.resuming = 0;
     }
     else {
         /* Reset resuming flag to do full secure handshake. */
@@ -21328,8 +21330,13 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 {
     int resuming = 0;
     WOLFSSL_ENTER("wolfSSL_session_reused");
-    if (ssl)
+    if (ssl) {
+#ifndef HAVE_SECURE_RENEGOTIATION
         resuming = ssl->options.resuming;
+#else
+        resuming = ssl->options.resuming || ssl->options.resumed;
+#endif
+    }
     WOLFSSL_LEAVE("wolfSSL_session_reused", resuming);
     return resuming;
 }

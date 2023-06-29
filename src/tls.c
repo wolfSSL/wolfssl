@@ -5379,6 +5379,13 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
             return 0;
         }
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (IsSCR(ssl)) {
+            WOLFSSL_MSG("Client sent session ticket during SCR. Ignoring.");
+            return 0;
+        }
+#endif
+
         if (length > SESSION_TICKET_LEN) {
             ret = BAD_TICKET_MSG_SZ;
             WOLFSSL_ERROR_VERBOSE(ret);
