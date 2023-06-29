@@ -710,6 +710,8 @@ enum DN_Tags {
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
 
+    ASN_CONTENT_TYPE  = 0x03,   /* pkcs9_contentType */
+
     ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
     ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
 

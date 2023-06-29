@@ -10500,6 +10500,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_organizationName: return ASN_ORG_NAME;
         case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
         case NID_emailAddress: return ASN_EMAIL_NAME;
+        case NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
         case NID_serialNumber: return ASN_SERIAL_NUMBER;
         case NID_userId: return ASN_USER_ID;
         case NID_businessCategory: return ASN_BUS_CAT;
