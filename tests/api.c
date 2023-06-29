@@ -3785,7 +3785,7 @@ static int test_server_wolfSSL_new(void)
     /* invalid context */
     ExpectNull(ssl = wolfSSL_new(NULL));
 #if !defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_QT) && \
-        !defined(OPENSSL_EXTRA)
+        !defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_INIT_CTX_KEY)
     ExpectNull(ssl = wolfSSL_new(ctx_nocert));
 #endif
 

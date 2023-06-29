@@ -89,6 +89,9 @@
  *     - WOLFSSL_HARDEN_TLS_NO_SCR_CHECK
  *     - WOLFSSL_HARDEN_TLS_NO_PKEY_CHECK
  *     - WOLFSSL_HARDEN_TLS_ALLOW_ALL_CIPHERSUITES
+ * WOLFSSL_NO_INIT_CTX_KEY
+ *      Allows SSL objects to be created from a CTX without a loaded key/cert
+ *      pair
  */
 
 
@@ -7060,9 +7063,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* Initialize SSL with the appropriate fields from it's ctx */
     /* requires valid arrays and suites unless writeDup ing */
-    if ((ret = SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS)
+    if ((ret = SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS
+#ifdef WOLFSSL_NO_INIT_CTX_KEY
+        && ret != NO_PRIVATE_KEY
+#endif
+        ) {
         return ret;
-
+    }
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
 
 #ifdef HAVE_WRITE_DUP
