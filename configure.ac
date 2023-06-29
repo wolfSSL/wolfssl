@@ -4971,19 +4971,20 @@ AC_ARG_WITH([wnr],
 
 
 # SNI
+# enable SNI automatically for x86_64/x86/aarch64/amd64
+SNI_DEFAULT=no
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "x86" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
+then
+    SNI_DEFAULT=yes
+fi
 AC_ARG_ENABLE([sni],
-    [AS_HELP_STRING([--enable-sni],[Enable SNI (default: disabled)])],
+    [AS_HELP_STRING([--enable-sni],[Enable SNI (default: enabled on x86_64/x86/aarch64/amd64)])],
     [ ENABLED_SNI=$enableval ],
-    [ ENABLED_SNI=no ]
+    [ ENABLED_SNI=$SNI_DEFAULT ]
     )
-if test "x$ENABLED_QT" = "xyes"
+if test "x$ENABLED_QT" = "xyes" || test "$ENABLED_QUIC" = "yes"
 then
     ENABLED_SNI="yes"
-fi
-
-if test "$ENABLED_QUIC" = "yes"
-then
-    ENABLED_SNI=yes
 fi
 
 if test "x$ENABLED_SNI" = "xyes"
