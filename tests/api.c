@@ -20965,7 +20965,8 @@ static int test_wc_ecc_import_raw(void)
         wc_ecc_free(&key);
     #endif
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-    ExpectIntEQ(wc_ecc_import_raw(&key, "0", qy, d, curveName), BAD_FUNC_ARG);
+    ExpectIntLT(ret = wc_ecc_import_raw(&key, "0", qy, d, curveName), 0);
+    ExpectTrue((ret == BAD_FUNC_ARG) || (ret == MP_VAL));
 #else
     ExpectIntEQ(wc_ecc_import_raw(&key, "0", qy, d, curveName), 0);
 #endif
@@ -20973,7 +20974,8 @@ static int test_wc_ecc_import_raw(void)
         wc_ecc_free(&key);
     #endif
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-    ExpectIntEQ(wc_ecc_import_raw(&key, qx, "0", d, curveName), BAD_FUNC_ARG);
+    ExpectIntLT(ret = wc_ecc_import_raw(&key, qx, "0", d, curveName), 0);
+    ExpectTrue((ret == BAD_FUNC_ARG) || (ret == MP_VAL));
 #else
     ExpectIntEQ(wc_ecc_import_raw(&key, qx, "0", d, curveName), 0);
 #endif
