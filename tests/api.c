@@ -47,6 +47,20 @@
 #endif
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
+
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+         defined(SESSION_CERTS)
+        #ifdef OPENSSL_EXTRA
+            #define TEST_TLS_STATIC_MEMSZ (400000)
+        #else
+            #define TEST_TLS_STATIC_MEMSZ (320000)
+        #endif
+    #else
+            #define TEST_TLS_STATIC_MEMSZ (80000)
+    #endif
+#endif
+
 #endif /* WOLFSSL_STATIC_MEMORY */
 #ifndef HEAP_HINT
     #define HEAP_HINT NULL
@@ -6800,11 +6814,11 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     }
 #else
     ctx = wolfSSL_CTX_new(callbacks->method());
+#endif
     if (ctx == NULL) {
         fprintf(stderr, "CTX new failed\n");
         goto cleanup;
     }
-#endif
 
     /* set defaults */
     if (callbacks->caPemFile == NULL)
@@ -7053,14 +7067,12 @@ static void run_wolfssl_client(void* args)
         }
     }
 #else
-    if (ctx == NULL) {
-        ctx = wolfSSL_CTX_new(callbacks->method());
-    }
+    ctx = wolfSSL_CTX_new(callbacks->method());
+#endif
     if (ctx == NULL) {
         fprintf(stderr, "CTX new failed\n");
         goto cleanup;
     }
-#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -9353,90 +9365,117 @@ static int test_wolfSSL_UseSNI_connection(void)
     callback_functions client_cb;
     callback_functions server_cb;
     size_t i;
-
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte cliMem[TEST_TLS_STATIC_MEMSZ];
+    byte svrMem[TEST_TLS_STATIC_MEMSZ];
+#endif
     struct {
         method_provider client_meth;
         method_provider server_meth;
+    #ifdef WOLFSSL_STATIC_MEMORY
+        wolfSSL_method_func client_meth_ex;
+        wolfSSL_method_func server_meth_ex;
+    #endif
     } methods[] = {
 #if defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_TLS13)
-        {wolfSSLv23_client_method, wolfSSLv23_server_method},
+        {wolfSSLv23_client_method, wolfSSLv23_server_method
+        #ifdef WOLFSSL_STATIC_MEMORY
+            ,wolfSSLv23_client_method_ex, wolfSSLv23_server_method_ex
+        #endif
+        },
 #endif
 #ifndef WOLFSSL_NO_TLS12
-        {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method},
+        {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method
+        #ifdef WOLFSSL_STATIC_MEMORY
+            ,wolfTLSv1_2_client_method_ex, wolfTLSv1_2_server_method_ex
+        #endif
+        },
 #endif
 #ifdef WOLFSSL_TLS13
-        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method},
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method
+        #ifdef WOLFSSL_STATIC_MEMORY
+            ,wolfTLSv1_3_client_method_ex, wolfTLSv1_3_server_method_ex
+        #endif
+        },
 #endif
     };
     size_t methodsSz = sizeof(methods) / sizeof(*methods);
 
     for (i = 0; i < methodsSz; i++) {
-    XMEMSET(&client_cb, 0, sizeof(callback_functions));
-    XMEMSET(&server_cb, 0, sizeof(callback_functions));
-    client_cb.method = methods[i].client_meth;
-    server_cb.method = methods[i].server_meth;
-    client_cb.devId = testDevId;
-    server_cb.devId = testDevId;
+        XMEMSET(&client_cb, 0, sizeof(callback_functions));
+        XMEMSET(&server_cb, 0, sizeof(callback_functions));
+        client_cb.method = methods[i].client_meth;
+        server_cb.method = methods[i].server_meth;
+        client_cb.devId = testDevId;
+        server_cb.devId = testDevId;
+    #ifdef WOLFSSL_STATIC_MEMORY
+        client_cb.method_ex = methods[i].client_meth_ex;
+        server_cb.method_ex = methods[i].server_meth_ex;
+        client_cb.mem = cliMem;
+        client_cb.memSz = (word32)sizeof(cliMem);
+        server_cb.mem = svrMem;
+        server_cb.memSz = (word32)sizeof(svrMem);;
+    #endif
 
-    /* success case at ctx */
-    printf("success case at ctx\n");
-    client_cb.ctx_ready = use_SNI_at_ctx; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
-    server_cb.ctx_ready = use_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* success case at ctx */
+        printf("\n\tsuccess case at ctx\n");
+        client_cb.ctx_ready = use_SNI_at_ctx; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
+        server_cb.ctx_ready = use_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* success case at ssl */
-    printf("success case at ssl\n");
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_SNI_at_ssl; client_cb.on_result = verify_SNI_real_matching;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_real_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* success case at ssl */
+        printf("\tsuccess case at ssl\n");
+        client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_SNI_at_ssl; client_cb.on_result = verify_SNI_real_matching;
+        server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_real_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* default mismatch behavior */
-    printf("default mismatch behavior\n");
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = verify_FATAL_ERROR_on_client;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl;       server_cb.on_result = verify_UNKNOWN_SNI_on_server;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* default mismatch behavior */
+        printf("\tdefault mismatch behavior\n");
+        client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = verify_FATAL_ERROR_on_client;
+        server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl;       server_cb.on_result = verify_UNKNOWN_SNI_on_server;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* continue on mismatch */
-    printf("continue on mismatch\n");
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;         client_cb.on_result = NULL;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl; server_cb.on_result = verify_SNI_no_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* continue on mismatch */
+        printf("\tcontinue on mismatch\n");
+        client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;         client_cb.on_result = NULL;
+        server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl; server_cb.on_result = verify_SNI_no_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* fake answer on mismatch */
-    printf("fake answer on mismatch\n");
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;            client_cb.on_result = NULL;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl; server_cb.on_result = verify_SNI_fake_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* fake answer on mismatch */
+        printf("\tfake answer on mismatch\n");
+        client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;            client_cb.on_result = NULL;
+        server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl; server_cb.on_result = verify_SNI_fake_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* sni abort - success */
-    printf("sni abort - success\n");
-    client_cb.ctx_ready = use_SNI_at_ctx;           client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
-    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* sni abort - success */
+        printf("\tsni abort - success\n");
+        client_cb.ctx_ready = use_SNI_at_ctx;           client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
+        server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* sni abort - abort when absent (ctx) */
-    printf("sni abort - abort when absent (ctx)\n");
-    client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL; client_cb.on_result = verify_FATAL_ERROR_on_client;
-    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_ABSENT_on_server;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* sni abort - abort when absent (ctx) */
+        printf("\tsni abort - abort when absent (ctx)\n");
+        client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL; client_cb.on_result = verify_FATAL_ERROR_on_client;
+        server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_ABSENT_on_server;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* sni abort - abort when absent (ssl) */
-    printf("sni abort - abort when absent (ssl)\n");
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;                     client_cb.on_result = verify_FATAL_ERROR_on_client;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_MANDATORY_SNI_at_ssl; server_cb.on_result = verify_SNI_ABSENT_on_server;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* sni abort - abort when absent (ssl) */
+        printf("\tsni abort - abort when absent (ssl)\n");
+        client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;                     client_cb.on_result = verify_FATAL_ERROR_on_client;
+        server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_MANDATORY_SNI_at_ssl; server_cb.on_result = verify_SNI_ABSENT_on_server;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* sni abort - success when overwritten */
-    printf("sni abort - success when overwritten\n");
-    client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL;           client_cb.on_result = NULL;
-    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_no_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* sni abort - success when overwritten */
+        printf("\tsni abort - success when overwritten\n");
+        client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL;           client_cb.on_result = NULL;
+        server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_no_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    /* sni abort - success when allowing mismatches */
-    printf("sni abort - success when allowing mismatches\n");
-    client_cb.ctx_ready = NULL;                            client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = NULL;
-    server_cb.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL;                 server_cb.on_result = verify_SNI_fake_matching;
-    test_wolfSSL_client_server(&client_cb, &server_cb);
+        /* sni abort - success when allowing mismatches */
+        printf("\tsni abort - success when allowing mismatches\n");
+        client_cb.ctx_ready = NULL;                            client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = NULL;
+        server_cb.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL;                 server_cb.on_result = verify_SNI_fake_matching;
+        test_wolfSSL_client_server(&client_cb, &server_cb);
     }
 
     res = TEST_RES_CHECK(1);
@@ -57657,17 +57696,6 @@ static int test_wolfSSL_CTX_StaticMemory_TLS(int tlsVer,
 #endif /* WOLFSSL_STATIC_MEMORY && HAVE_IO_TESTS_DEPENDENCIES */
 
 #if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
-#if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
-        defined(SESSION_CERTS)
-    #ifdef OPENSSL_EXTRA
-    #define TEST_TLS_STATIC_MEMSZ (400000)
-    #else
-    #define TEST_TLS_STATIC_MEMSZ (320000)
-    #endif
-#else
-    #define TEST_TLS_STATIC_MEMSZ (80000)
-#endif
-
 static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;

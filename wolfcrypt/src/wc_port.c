@@ -385,7 +385,7 @@ int wolfCrypt_Init(void)
     return ret;
 }
 
-#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+#if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
 long wolfCrypt_heap_peakAllocs_checkpoint(void) {
     long ret = ourMemStats.peakAllocsTripOdometer;
     ourMemStats.peakAllocsTripOdometer = ourMemStats.totalAllocs -
