@@ -13772,8 +13772,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #if !defined(NO_ASN) && !defined(NO_DH)
     #if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) ||                \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
-        static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
-        static const char* dhKeyPubFile = CERT_ROOT "statickeys/dh-ffdhe2048-pub.der";
+        #if !defined(USE_CERT_BUFFERS_2048)
+            static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
+            static const char* dhKeyPubFile = CERT_ROOT "statickeys/dh-ffdhe2048-pub.der";
+        #endif
     #endif
 #endif
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
@@ -18489,6 +18491,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     #else
         byte  tmp2[DH_TEST_TMP_SIZE];
     #endif
+
+    #if defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, dh_ffdhe_statickey_der_2048, sizeof_dh_ffdhe_statickey_der_2048);
+        bytes = sizeof_dh_ffdhe_statickey_der_2048;
+    #else
         XFILE file = XFOPEN(dhKeyFile, "rb");
         if (!file)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
@@ -18496,7 +18503,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
         XFCLOSE(file);
         if (bytes == 0)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
-
+    #endif
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp2 = (byte*)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp2 == NULL)
@@ -18520,6 +18527,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
 
 
         /* DH Public Key - Export / Import */
+    #if defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, dh_ffdhe_pub_statickey_der_2048, sizeof_dh_ffdhe_pub_statickey_der_2048);
+        bytes = sizeof_dh_ffdhe_pub_statickey_der_2048;
+    #else
         file = XFOPEN(dhKeyPubFile, "rb");
         if (!file)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
@@ -18527,6 +18538,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
         XFCLOSE(file);
         if (bytes == 0)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    #endif
 
         /* for HAVE_WOLF_BIGINT prevent leak */
         wc_FreeDhKey(key);
