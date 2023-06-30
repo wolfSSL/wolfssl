@@ -46,10 +46,10 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 # shared library versioning
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
 # these numbers don't always line up nicely with the library version.
-WOLFSSL_LIBRARY_VERSION_FIRST=35
-WOLFSSL_LIBRARY_VERSION_SECOND=5
-WOLFSSL_LIBRARY_VERSION_THIRD=1
-WOLFSSL_LIBRARY_VERSION=40:1:5
+WOLFSSL_LIBRARY_VERSION_FIRST=40
+WOLFSSL_LIBRARY_VERSION_SECOND=0
+WOLFSSL_LIBRARY_VERSION_THIRD=0
+WOLFSSL_LIBRARY_VERSION=40:0:0
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
