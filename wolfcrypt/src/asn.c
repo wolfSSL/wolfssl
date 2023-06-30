@@ -12668,7 +12668,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
-    dName = wolfSSL_X509_NAME_new();
+    dName = wolfSSL_X509_NAME_new_ex(cert->heap);
     if (dName == NULL) {
         return MEMORY_E;
     }
@@ -13325,7 +13325,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
     if (ret == 0) {
         /* Create an X509_NAME to hold data for OpenSSL compatability APIs. */
-        dName = wolfSSL_X509_NAME_new();
+        dName = wolfSSL_X509_NAME_new_ex(cert->heap);
         if (dName == NULL) {
             ret = MEMORY_E;
         }

@@ -9477,7 +9477,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
         FreeX509Name(name);
-        XFREE(name, NULL, DYNAMIC_TYPE_X509);
+        XFREE(name, name->heap, DYNAMIC_TYPE_X509);
     }
 
 
@@ -9485,18 +9485,22 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
      *
      * returns NULL on failure, otherwise returns a new structure.
      */
-    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void)
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap)
     {
         WOLFSSL_X509_NAME* name;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_new");
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_new_ex");
 
-        name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL,
+        name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), heap,
                 DYNAMIC_TYPE_X509);
         if (name != NULL) {
-            InitX509Name(name, 1, NULL);
+            InitX509Name(name, 1, heap);
         }
         return name;
+    }
+
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void) {
+        return wolfSSL_X509_NAME_new_ex(NULL);
     }
 
     /* Creates a duplicate of a WOLFSSL_X509_NAME structure.
@@ -9512,7 +9516,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             return NULL;
         }
 
-        if (!(copy = wolfSSL_X509_NAME_new())) {
+        if (!(copy = wolfSSL_X509_NAME_new_ex(name->heap))) {
             return NULL;
         }
 
@@ -10734,8 +10738,8 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
             goto cleanup;
         }
 
-        if (!(tmp = wolfSSL_X509_NAME_new())) {
-            WOLFSSL_MSG("wolfSSL_X509_NAME_new error");
+        if (!(tmp = wolfSSL_X509_NAME_new_ex(cert->heap))) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_new_ex error");
             goto cleanup;
         }
 

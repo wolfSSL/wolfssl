@@ -27382,7 +27382,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 ret = GetName(cert, SUBJECT, dnSz);
 
                 if (ret == 0) {
-                    if ((name = wolfSSL_X509_NAME_new()) == NULL)
+                    if ((name = wolfSSL_X509_NAME_new_ex(cert->heap)) == NULL)
                         ret = MEMORY_ERROR;
                 }
 
