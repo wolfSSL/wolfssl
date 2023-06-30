@@ -892,9 +892,9 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][21] = {
+static const char* bench_Usage_msg1[][22] = {
     /* 0 English  */
-    {   "-? <num>    Help, print this usage\n"
+    {   "-? <num>    Help, print this usage\n",
         "            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
@@ -927,7 +927,7 @@ static const char* bench_Usage_msg1[][21] = {
     },
 #ifndef NO_MULTIBYTE_PRINT
     /* 1 Japanese */
-    {   "-? <num>    ヘルプ, 使い方を表示します。\n"
+    {   "-? <num>    ヘルプ, 使い方を表示します。\n",
         "            0: 英語、 1: 日本語\n",
         "-csv        csv 形式で端末に出力します。\n",
         "-base10     バイトを10のべき乗で表示します。(例 1 kB = 1000 Bytes)\n",
