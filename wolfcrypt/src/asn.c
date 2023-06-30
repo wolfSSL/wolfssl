@@ -5438,13 +5438,18 @@ static int CheckCurve(word32 oid)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
+int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
+{
+    return EncodeObjectId(in, inSz, out, outSz);
+}
+
 int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
 
     /* check args */
-    if (in == NULL || outSz == NULL) {
+    if (in == NULL || outSz == NULL || inSz <= 0) {
         return BAD_FUNC_ARG;
     }
 

@@ -2169,7 +2169,9 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                          word32 maxIdx);
 
 #ifdef HAVE_OID_ENCODING
-    WOLFSSL_API int EncodeObjectId(const word16* in, word32 inSz,
+    WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
+        byte* out, word32* outSz);
+    WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
