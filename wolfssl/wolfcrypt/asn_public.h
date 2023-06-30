@@ -422,6 +422,7 @@ typedef struct CertName {
 
 #ifndef NUM_CUSTOM_EXT
 #define NUM_CUSTOM_EXT 16
+#endif /* NUM_CUSTOM_EXT */
 
 /* for user to fill for certificate generation */
 typedef struct Cert {
@@ -618,7 +619,6 @@ WOLFSSL_API int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 #endif
 
 #endif /* WOLFSSL_CERT_EXT */
-#endif /* WOLFSSL_CERT_GEN */
 
 WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz,
     const byte** date, byte* format, int* length);
