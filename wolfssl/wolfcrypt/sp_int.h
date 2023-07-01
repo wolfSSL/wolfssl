@@ -731,6 +731,8 @@ typedef struct sp_ecc_ctx {
 /* ERROR VALUES */
 /** Error value on success. */
 #define MP_OKAY          0
+/* unexpected, generic error. xP_VAL elsewhere */
+#define MP_ERROR        (-1)
 /** Error value when dynamic memory allocation fails. */
 #define MP_MEM          (-2)
 /** Error value when value passed is not able to be used. */
@@ -739,10 +741,21 @@ typedef struct sp_ecc_ctx {
  * completion.
  */
 #define FP_WOULDBLOCK   (-4)
+#define MP_WOULDBLOCK   (-4)
 /* Unused error. Defined for backward compatibility. */
 #define MP_NOT_INF      (-5)
-/* Unused error. Defined for backward compatibility. */
-#define MP_RANGE        MP_NOT_INF
+/* hardware error, consider falling back to SW */
+#define MP_HW_ERROR     (-6)
+/* hardware busy; wait or fall back to SW */
+#define MP_HW_BUSY      (-7)
+/* signal to caller to fall back to SW (e.g unsupported, etc) */
+#define MP_HW_FALLBACK  (-8)
+/* typically used only during debugging, validation active
+ * will prevent recursive calls to HW for SW validation check.*/
+#define MP_HW_VALIDATION_ACTIVE (-9)
+#define MP_RANGE MP_HW_VALIDATION_ACTIVE /* last item is range */
+
+#define MP_SIZE SP_INT_DIGITS
 
 #ifdef USE_FAST_MATH
 /* For old FIPS, need FP_MEM defined for old implementation. */

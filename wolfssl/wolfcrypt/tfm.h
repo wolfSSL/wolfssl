@@ -290,6 +290,8 @@
 #define FP_MASK    (fp_digit)(-1)
 #define FP_DIGIT_MAX FP_MASK
 #define FP_SIZE    (FP_MAX_SIZE/DIGIT_BIT)
+#define MP_SIZE    (FP_MAX_SIZE/DIGIT_BIT) /* for compatibility with SP_INT */
+
 
 #define FP_MAX_PRIME_SIZE (FP_MAX_BITS/(2*CHAR_BIT))
 /* In terms of FP_MAX_BITS, it is double the size possible for a number
@@ -302,11 +304,18 @@
 #define FP_NEG      1
 
 /* return codes */
-#define FP_OKAY      0
-#define FP_VAL      (-1)
-#define FP_MEM      (-2)
-#define FP_NOT_INF  (-3)
-#define FP_WOULDBLOCK (-4)
+#define FP_OKAY        ( 0)
+#define FP_VAL         (-1)
+#define FP_MEM         (-2)
+#define FP_NOT_INF     (-3)
+#define FP_WOULDBLOCK  (-4)
+#define FP_NOT_USED    (-5) /* not used, here for consistency only   */
+#define FP_HW_ERROR    (-6) /* hardware error, consider SW fallback  */
+#define FP_HW_BUSY     (-7) /* assigned -7 to match SP_HW_BUSY       */
+#define FP_HW_FALLBACK (-8) /* signal to caller to fall back to SW   */
+#define FP_HW_VALIDATION_ACTIVE (-9) /* optional HW validation ative */
+
+#define FP_RANGE       MP_HW_VALIDATION_ACTIVE /* range is last item */
 
 /* equalities */
 #define FP_LT        (-1)   /* less than */
@@ -778,6 +787,12 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_MEM  FP_MEM  /* memory error */
 #define MP_NOT_INF FP_NOT_INF /* point not at infinity */
 #define MP_OKAY FP_OKAY /* ok result    */
+#define MP_HW_ERROR FP_HW_ERROR /* HW accleration error */
+#define MP_HW_BUSY FP_HW_BUSY /* hardware is busy, need to fall back to SW */
+#define MP_HW_FALLBACK FP_HW_FALLBACK /* detected data that needs SW */
+#define MP_HW_VALIDATION_ACTIVE FP_HW_VALIDATION_ACTIVE /* typically debug */
+#define MP_RANGE FP_RANGE /* range is last item */
+
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */
 #define MP_ZPOS FP_ZPOS
