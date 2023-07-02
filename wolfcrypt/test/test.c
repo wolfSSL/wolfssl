@@ -55,7 +55,7 @@
 #endif
 #endif
 
-#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+#if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
 #ifdef WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS
     static ssize_t max_relative_heap_allocs = WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS;
 #else
@@ -84,7 +84,7 @@
     }
 #else
 #define PRINT_HEAP_CHECKPOINT()
-#endif
+#endif /* WOLFSSL_TRACK_MEMORY_VERBOSE && !WOLFSSL_STATIC_MEMORY */
 
 #ifdef USE_FLAT_TEST_H
     #ifdef HAVE_CONFIG_H
@@ -832,7 +832,7 @@ wc_test_ret_t wolfcrypt_test(void* args)
 #endif
 {
     wc_test_ret_t ret;
-#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+#if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
     long heap_baselineAllocs, heap_baselineBytes;
 #endif
 #ifdef TEST_ALWAYS_RUN_TO_END
@@ -840,7 +840,7 @@ wc_test_ret_t wolfcrypt_test(void* args)
 #endif
     STACK_SIZE_INIT();
 
-#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+#if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
     (void)wolfCrypt_heap_peakAllocs_checkpoint();
     heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();
     (void)wolfCrypt_heap_peakBytes_checkpoint();

@@ -2903,7 +2903,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
-#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_BIO* bio = NULL;
     WOLFSSL_STACK* sk = NULL;
     X509* x509 = NULL;
@@ -2948,7 +2949,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
-#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(OPENSSL_EXTRA_X509_SMALL)
         /* avoid printing duplicate certs */
         if (store->depth == 1) {
             int i;

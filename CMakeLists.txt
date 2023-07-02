@@ -1299,7 +1299,6 @@ endif()
 #       - CRL monitor
 #       - User crypto
 #       - Whitewood netRandom client library
-#       - SNI
 #       - Max fragment length
 #       - ALPN
 #       - Trusted CA indication
@@ -1315,8 +1314,14 @@ add_option(WOLFSSL_CRL
     "Enable CRL (Use =io for inline CRL HTTP GET) (default: disabled)"
     "no" "yes;no;io")
 
+
+set(SNI_DEFAULT "no")
+if(("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|x86|AMD64|arm64") OR
+    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
+    set(SNI_DEFAULT "yes")
+endif()
 set(WOLFSSL_SNI_HELP_STRING "Enable SNI (default: disabled)")
-add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} "no" "yes;no")
+add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} ${SNI_DEFAULT} "yes;no")
 
 set(WOLFSSL_TLSX_HELP_STRING "Enable all TLS Extensions (default: disabled)")
 add_option(WOLFSSL_TLSX ${WOLFSSL_TLSX_HELP_STRING} "no" "yes;no")
