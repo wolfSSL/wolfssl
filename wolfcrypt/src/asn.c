@@ -11133,9 +11133,7 @@ void InitDecodedCert_ex(DecodedCert* cert,
     #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
     #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
-    #ifndef NO_CERTS
         InitSignatureCtx(&cert->sigCtx, heap, devId);
-    #endif
     }
 }
 
@@ -11246,9 +11244,7 @@ void FreeDecodedCert(DecodedCert* cert)
     if (cert->sce_tsip_encRsaKeyIdx != NULL)
         XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
 #endif
-#ifndef NO_CERTS
     FreeSignatureCtx(&cert->sigCtx);
-#endif
 }
 
 void wc_FreeDecodedCert(DecodedCert* cert)
