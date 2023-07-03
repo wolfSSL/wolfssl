@@ -55,6 +55,9 @@
 #endif
 #endif
 
+const byte const_byte_array[] = "A+Gd\0\0\0";
+#define CBPTR_EXPECTED 'A'
+
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
 #ifdef WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS
     static ssize_t max_relative_heap_allocs = WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS;
@@ -13556,9 +13559,41 @@ static wc_test_ret_t simple_mem_test(int sz)
 }
 #endif
 
+/* If successful, returns the first letter of the byte array `in`.
+**
+** This is a deceptively simple test of a read-only embedded Linux file system.
+** (e.g CFLAGS `-mfdpic` and `-mforce-l32`) for Xtensa Linux ESP32. When the
+** `-mforce-l32` is missing, access to `in` will fail with Illegal Instruction.
+** Const is on read-only memory-mapped file system, *not* loaded in app memory.
+**
+** Edit with caution. See PR #6523. */
+static wc_test_ret_t const_byte_ptr_test(const byte* in, word32 *outJ)
+{
+    wc_test_ret_t ret = 0;
+    volatile word32 j = -1; /* must be volatile to properly detect error */
+
+    ret = (wc_test_ret_t)*in; /* accessed *in value. */
+    j = *outJ; /* Found index to use in const array. */
+
+    if (j == 0) {
+#ifdef WOLFSSL_DEBUG
+        printf("Testing const byte ptr reference...\n");
+#endif
+        /* although j is zero, in[0] does not detect the Illegal instruction */
+        ret = in[j]; /* The big test: can we actually access the `in` data? */
+    }
+    else {
+        ret = -1;
+    }
+
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 {
     wc_test_ret_t ret = 0;
+    word32 j = 0; /* used in embedded const pointer test */
+
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
     int i;
 #endif
@@ -13703,6 +13738,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         }
     }
 #endif
+
+    if (ret == 0) {
+        /* This test is only interesting on embedded R/O Flash systems */
+        if (const_byte_ptr_test(const_byte_array, &j) != CBPTR_EXPECTED) {
+            ret = 1;
+        }
+    }
 
     return ret;
 }
