@@ -283,7 +283,7 @@ static int PrintPem(FILE* fp, int pem_skip)
 
 /* Usage lines to show. */
 const char* usage[] = {
-    "asn1 [OPTOIN]... [FILE]",
+    "asn1 [OPTION]... [FILE]",
     "Display a human-readable version of a DER/BER encoding.",
     "",
     "Options:",
@@ -317,8 +317,8 @@ static void Usage(void)
 
 /* Main entry of ASN.1 printing program.
  *
- * @param [in] argc  Count of command line argements.
- * @param [in] argv  Command line argements.
+ * @param [in] argc  Count of command line arguments.
+ * @param [in] argv  Command line arguments.
  * @return  0 on success.
  * @return  1 on failure.
  */
@@ -430,7 +430,7 @@ int main(int argc, char* argv[])
             Usage();
             return 0;
         }
-        /* Unknown option dectection. */
+        /* Unknown option detection. */
         else if (argv[0][0] == '-') {
             fprintf(stderr, "Bad option: %s\n", argv[0]);
             Usage();
@@ -476,8 +476,8 @@ int main(int argc, char* argv[])
 
 /* Main entry of ASN.1 printing program.
  *
- * @param [in] argc  Count of command line argements.
- * @param [in] argv  Command line argements.
+ * @param [in] argc  Count of command line arguments.
+ * @param [in] argv  Command line arguments.
  * @return  0 on success.
  * @return  1 on failure.
  */
@@ -489,6 +489,5 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-#endif
-
+#endif /* WOLFSSL_ASN_PRINT */
 

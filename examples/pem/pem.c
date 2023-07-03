@@ -637,7 +637,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
 
 /* Usage lines to show. */
 const char* usage[] = {
-    "pem [OPTOIN]...",
+    "pem [OPTION]...",
     "Convert to/from PEM and DER.",
     "",
     "Options:",
@@ -708,8 +708,8 @@ static void Usage(void)
 
 /* Main entry of ASN.1 printing program.
  *
- * @param [in] argc  Count of command line argements.
- * @param [in] argv  Command line argements.
+ * @param [in] argc  Count of command line arguments.
+ * @param [in] argv  Command line arguments.
  * @return  0 on success.
  * @return  1 on failure.
  */
@@ -1021,8 +1021,8 @@ int main(int argc, char* argv[])
 
 /* Main entry of ASN.1 printing program.
  *
- * @param [in] argc  Count of command line argements.
- * @param [in] argv  Command line argements.
+ * @param [in] argc  Count of command line arguments.
+ * @param [in] argv  Command line arguments.
  * @return  0 on success.
  * @return  1 on failure.
  */
@@ -1030,9 +1030,9 @@ int main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
-    fprintf(stderr, "ASN.1 Parsing and Printing not compiled in.\n");
+    fprintf(stderr, "PEM to DER conversion not compiled in.\n");
     return 0;
 }
 
-#endif
+#endif /* WOLFSSL_PEM_TO_DER */
 

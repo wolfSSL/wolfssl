@@ -45417,7 +45417,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)
         0x0B, 0x01, 0x00,     /* Nonce */
         0x0C, 0x01, 0x00,     /* Signed Nonce */
     };
-    /* PIV certificate data including certificate, info and error dectection. */
+    /* PIV certificate data including certificate, info and error detection. */
     WOLFSSL_SMALL_STACK_STATIC const byte pivCert[] = {
         0x53, 0x09,         /* NIST PIV Cert */
           0x70, 0x02,       /* Certificate */
