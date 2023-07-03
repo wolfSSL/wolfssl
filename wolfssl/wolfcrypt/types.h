@@ -1391,6 +1391,12 @@ typedef struct w64wrapper {
             #define INVALID_THREAD_VAL ((THREAD_TYPE)(-1))
         #endif
 
+        /* Internal wolfSSL threading interface. It does NOT need to be ported
+         * during initial porting efforts.
+         *
+         * It is currently used for:
+         * - CRL monitor */
+
         WOLFSSL_LOCAL int wolfSSL_NewThread(THREAD_TYPE* thread,
             THREAD_CB cb, void* arg);
         WOLFSSL_LOCAL int wolfSSL_JoinThread(THREAD_TYPE thread);
