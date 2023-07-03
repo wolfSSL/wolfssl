@@ -915,8 +915,9 @@ static const char* bench_Usage_msg1[][22] = {
         "-p521       Measure ECC using P-521 curve.\n",
         "-ecc-all    Bench all enabled ECC curves.\n",
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
-        "-lng <num>  Display benchmark result by specified language.\n"
-        "            0: English, 1: Japanese\n",
+        ("-lng <num>  Display benchmark result by specified language.\n"
+         "            0: English, 1: Japanese\n"
+        ),
         "<num>       Size of block in bytes\n",
        ("-blocks <num>  Number of blocks. Can be used together with the "
         "'Size of block'\n"
@@ -943,10 +944,12 @@ static const char* bench_Usage_msg1[][22] = {
         "-p384       Measure ECC using P-384 curve.\n",
         "-p521       Measure ECC using P-521 curve.\n",
         "-ecc-all    Bench all enabled ECC curves.\n",
-        "-<alg>      アルゴリズムのベンチマークを実施します。\n"
-        "            利用可能なアルゴリズムは下記を含みます:\n",
-        "-lng <num>  指定された言語でベンチマーク結果を表示します。\n"
-        "            0: 英語、 1: 日本語\n",
+       ("-<alg>      アルゴリズムのベンチマークを実施します。\n"
+        "            利用可能なアルゴリズムは下記を含みます:\n"
+       ),
+       ("-lng <num>  指定された言語でベンチマーク結果を表示します。\n"
+        "            0: 英語、 1: 日本語\n"
+       ),
         "<num>       ブロックサイズをバイト単位で指定します。\n",
         "-blocks <num>  TBD.\n",
         "-threads <num> 実行するスレッド数\n",

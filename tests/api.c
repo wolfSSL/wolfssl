@@ -45867,7 +45867,11 @@ static int test_wc_ecc_get_curve_id_from_dp_params(void)
         ExpectIntEQ(wc_ecc_get_curve_id_from_name("SECP256R1"), ECC_SECP256R1);
         ExpectNotNull(ecKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
 
-        ret = EC_KEY_generate_key(ecKey);
+        if (EXPECT_SUCCESS()) {
+            ret = EC_KEY_generate_key(ecKey);
+        } else
+            ret = 0;
+
         if (ret == 1) {
             /* normal test */
             key = (ecc_key*)ecKey->internal;
