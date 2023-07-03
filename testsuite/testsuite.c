@@ -778,7 +778,7 @@ int rem_file(const char* fileName)
 
 int copy_file(const char* in, const char* out)
 {
-    byte buf[2500];
+    byte buf[100];
     XFILE inFile = XBADFILE;
     XFILE outFile = XBADFILE;
     size_t sz;
@@ -792,14 +792,10 @@ int copy_file(const char* in, const char* out)
     if (outFile == XBADFILE)
         goto cleanup;
 
-    sz = XFREAD(buf, 1, sizeof(buf), inFile);
-    /* 2500 bytes should be more than enough to read the entire files.
-     * Error out if we can't read the file all at once. */
-    if (sz == sizeof(buf) || sz == 0)
-        goto cleanup;
-
-    if (XFWRITE(buf, 1, sz, outFile) != sz)
-        goto cleanup;
+    while ((sz = XFREAD(buf, 1, sizeof(buf), inFile)) != 0) {
+        if (XFWRITE(buf, 1, sz, outFile) != sz)
+            goto cleanup;
+    }
 
     ret = 0;
 cleanup:
