@@ -87,6 +87,8 @@ noinst_SCRIPTS+= scripts/unit.test.in
 endif
 endif
 
+dist_noinst_SCRIPTS+= scripts/pem.test
+
 EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
                scripts/sniffer-ipv6.pcap \
                scripts/sniffer-tls13-dh.pcap \

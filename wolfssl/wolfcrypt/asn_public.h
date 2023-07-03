@@ -116,6 +116,26 @@ enum Ecc_Sum {
 };
 
 
+enum EncPkcs8Types {
+    ENC_PKCS8_VER_PKCS12 = 1,
+    ENC_PKCS8_VER_PKCS5 =  5,
+
+    ENC_PKCS8_PBES2 =  13,
+
+    ENC_PKCS8_PBE_SHA1_RC4_128   = 1,
+    ENC_PKCS8_PBE_SHA1_DES       = 2,
+    ENC_PKCS8_PBE_SHA1_DES3      = 3,
+    ENC_PKCS8_PBE_SHA1_40RC2_CBC = 6,
+
+    ENC_PKCS8_PBES1_MD5_DES      = 3,
+    ENC_PKCS8_PBES1_SHA1_DES     = 10,
+
+    ENC_PKCS8_ALG_AES128CBC = 414,
+    ENC_PKCS8_ALG_AES256CBC = 454,
+    ENC_PKCS8_ALG_DES       = 69,
+    ENC_PKCS8_ALG_DES3      = 652
+};
+
 /* Certificate file Type */
 enum CertType {
     CERT_TYPE       = 0,

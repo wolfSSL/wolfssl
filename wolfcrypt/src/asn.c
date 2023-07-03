@@ -4362,6 +4362,9 @@ static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
 #if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
 #endif
+#if defined(WC_RC2) && !defined(NO_SHA)
+static const byte pbe40Rc2Cbc[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 6};
+#endif
 
 #ifdef HAVE_LIBZ
 /* zlib compression */
@@ -5167,6 +5170,13 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case PBE_SHA1_DES3:
                     oid = pbeSha1Des3;
                     *oidSz = sizeof(pbeSha1Des3);
+                    break;
+        #endif
+        #if !defined(NO_SHA) && defined(WC_RC2)
+                case PBE_SHA1_40RC2_CBC_SUM:
+                case PBE_SHA1_40RC2_CBC:
+                    oid = pbe40Rc2Cbc;
+                    *oidSz = sizeof(pbe40Rc2Cbc);
                     break;
         #endif
                 case PBES2_SUM:
@@ -7067,10 +7077,11 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         SetASN_Int8Bit(&dataASN[PKCS8KEYASN_IDX_VER], PKCS8v0);
         /* Set key OID that corresponds to key data. */
         SetASN_OID(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY], (word32)algoID,
-                   oidKeyType);
+            oidKeyType);
         if (curveOID != NULL && oidSz > 0) {
             /* ECC key and curveOID set to write. */
-            SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE], curveOID, oidSz);
+            SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE],
+                curveOID, oidSz);
         }
         else {
             /* EC curve OID to encode. */
@@ -8159,6 +8170,14 @@ static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
         *blkSz = 8;
         break;
 #endif
+#if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
+    case AES128CBCb:
+        *len = sizeof(blkAes128CbcOid);
+        *oid = blkAes128CbcOid;
+        *id = PBE_AES128_CBC;
+        *blkSz = 16;
+        break;
+#endif
 #if defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
     case AES256CBCb:
         *len = sizeof(blkAes256CbcOid);
@@ -8228,7 +8247,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         padSz = (word32)((blockSz - ((int)keySz & (blockSz - 1))) &
             (blockSz - 1));
         /* inner = OCT salt INT itt */
-        innerLen = 2 + saltSz + 2 + (itt < 256 ? 1 : 2);
+        innerLen = 2 + saltSz + 2 + ((itt < 256) ? 1 : ((itt < 65536) ? 2 : 3));
 
         if (version != PKCS5v2) {
             pbeOidBuf = OidFromId((word32)pbeId, oidPBEType, &pbeOidBufSz);
