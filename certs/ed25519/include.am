@@ -27,7 +27,9 @@ EXTRA_DIST += \
          certs/ed25519/server-ed25519-key.der \
          certs/ed25519/server-ed25519-key.pem \
          certs/ed25519/server-ed25519-priv.der \
-         certs/ed25519/server-ed25519-priv.pem
+         certs/ed25519/server-ed25519-priv.pem \
+         certs/ed25519/eddsa-ed25519.der \
+         certs/ed25519/eddsa-ed25519.pem
 
 EXTRA_DIST += \
          certs/ed25519/gen-ed25519.sh \

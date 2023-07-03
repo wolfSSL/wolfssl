@@ -2566,11 +2566,12 @@ enum PBESTypes {
     PBE_AES128_CBC     = 5,
     PBE_SHA1_40RC2_CBC = 6,
 
-    PBE_SHA1_RC4_128_SUM = 657,
-    PBE_SHA1_DES3_SUM    = 659,
-    PBE_MD5_DES_SUM      = 651,
-    PBE_SHA1_DES_SUM     = 658,
-    PBES2_SUM            = 661,
+    PBE_SHA1_RC4_128_SUM   = 657,
+    PBE_SHA1_DES3_SUM      = 659,
+    PBE_SHA1_40RC2_CBC_SUM = 662,
+    PBE_MD5_DES_SUM        = 651,
+    PBE_SHA1_DES_SUM       = 658,
+    PBES2_SUM              = 661,
 
     PBES2              = 13,       /* algo ID */
     PBES1_MD5_DES      = 3,

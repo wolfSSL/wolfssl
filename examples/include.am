@@ -9,4 +9,5 @@ include examples/server/include.am
 include examples/sctp/include.am
 include examples/configs/include.am
 include examples/asn1/include.am
+include examples/pem/include.am
 EXTRA_DIST += examples/README.md
