@@ -2123,6 +2123,7 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
 
     if (ret == 0) {
         switch(type) {
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         case RSA_PRIVATE_DECRYPT:
         case RSA_PRIVATE_ENCRYPT:
             ret = fp_exptmod_nb(&key->nb->exptmod, &key->nb->tmp, &key->d,
@@ -2132,7 +2133,7 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
             if (ret != MP_OKAY)
                 ret = MP_EXPTMOD_E;
             break;
-
+#endif
         case RSA_PUBLIC_ENCRYPT:
         case RSA_PUBLIC_DECRYPT:
             ret = fp_exptmod_nb(&key->nb->exptmod, &key->nb->tmp, &key->e,
