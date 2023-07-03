@@ -264,6 +264,7 @@ int testsuite_test(int argc, char** argv)
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
 #define CRL_MONITOR_TEST_ROUNDS 6
+#define CRL_MONITOR_REM_FILE_ATTEMPTS 20
 
 static int test_crl_monitor(void)
 {
@@ -291,7 +292,7 @@ static int test_crl_monitor(void)
         "-H", "exitWithRet"
     };
     int ret = -1;
-    int i;
+    int i = -1, j;
 
     printf("\nRunning CRL monitor test\n");
 
@@ -321,44 +322,74 @@ static int test_crl_monitor(void)
         if (i % 2 == 0) {
             /* succeed on even rounds */
             sprintf(buf, "%s/%s", tmpDir, "crl.pem");
-            copy_file("certs/crl/crl.pem", buf);
+            if (copy_file("certs/crl/crl.pem", buf) != 0) {
+                fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
+                goto cleanup;
+            }
             sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
             /* The monitor can be holding the file handle and this will cause
-             * the remove call to fail. Let's give the monitor a second to
+             * the remove call to fail. Let's give the monitor a some time to
              * finish up. */
-            XSLEEP_MS(1000);
-            rem_file(buf);
+            for (j = 0; j < CRL_MONITOR_REM_FILE_ATTEMPTS; j++) {
+                /* i == 0 since there is nothing to delete in the first round */
+                if (i == 0 || rem_file(buf) == 0)
+                    break;
+                XSLEEP_MS(100);
+            }
+            if (j == CRL_MONITOR_REM_FILE_ATTEMPTS) {
+                fprintf(stderr, "[%d] Failed to remove file %s\n", i, buf);
+                goto cleanup;
+            }
             expectFail = 0;
         }
         else {
             /* fail on odd rounds */
             sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
-            copy_file("certs/crl/crl.revoked", buf);
+            if (copy_file("certs/crl/crl.revoked", buf) != 0) {
+                fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
+                goto cleanup;
+            }
             sprintf(buf, "%s/%s", tmpDir, "crl.pem");
             /* The monitor can be holding the file handle and this will cause
-             * the remove call to fail. Let's give the monitor a second to
+             * the remove call to fail. Let's give the monitor a some time to
              * finish up. */
-            XSLEEP_MS(1000);
-            rem_file(buf);
+            for (j = 0; j < CRL_MONITOR_REM_FILE_ATTEMPTS; j++) {
+                if (rem_file(buf) == 0)
+                    break;
+                XSLEEP_MS(100);
+            }
+            if (j == CRL_MONITOR_REM_FILE_ATTEMPTS) {
+                fprintf(stderr, "[%d] Failed to remove file %s\n", i, buf);
+                goto cleanup;
+            }
             expectFail = 1;
         }
+        /* Give server a moment to register the file change */
+        XSLEEP_MS(100);
 
         client_args.return_code = 0;
         client_test(&client_args);
 
         if (!expectFail) {
-            if (client_args.return_code != 0)
+            if (client_args.return_code != 0) {
+                fprintf(stderr, "[%d] Incorrect return %d\n", i,
+                        client_args.return_code);
                 goto cleanup;
+            }
         }
         else {
-            if (client_args.return_code == 0)
+            if (client_args.return_code == 0) {
+                fprintf(stderr, "[%d] Expected failure\n", i);
                 goto cleanup;
+            }
         }
     }
 
     join_thread(serverThread);
     ret = 0;
 cleanup:
+    if (ret != 0 && i >= 0)
+        fprintf(stderr, "test_crl_monitor failed on iteration %d\n", i);
     sprintf(buf, "%s/%s", tmpDir, "crl.pem");
     rem_file(buf);
     sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
