@@ -582,6 +582,56 @@ int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     return ret;
 }
 
+int wolfSSL_CTX_GetEchConfigsBase64(WOLFSSL_CTX* ctx, byte* output,
+    word32* outputLen) {
+    byte* rawBuffer;
+    int ret = 0;
+    word32 startLen;
+    word32 rawLen;
+
+    if (ctx == NULL || outputLen == NULL)
+        return BAD_FUNC_ARG;
+
+    /* if we don't have ech configs */
+    if (ctx->echConfigs == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* save off the buffer capacity */
+    startLen = *outputLen;
+
+    rawBuffer = (byte*)XMALLOC(*outputLen, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* get the configs */
+    ret = GetEchConfigsEx(ctx->echConfigs, rawBuffer, outputLen);
+    rawLen = *outputLen;
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* set the length to the encoded length plus the null terminator */
+        *outputLen = *outputLen * 4 / 3 + 1;
+
+        /* check if we have enough room in the output buffer */
+        if (*outputLen > startLen) {
+            ret = INPUT_SIZE_E;
+        }
+        else if (output == NULL) {
+            ret = LENGTH_ONLY_E;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* encode the raw ech config */
+        ret = Base64_Encode_NoNl(rawBuffer, rawLen, output, outputLen);
+
+        if (ret == 0)
+            ret = WOLFSSL_SUCCESS;
+    }
+
+    XFREE(rawBuffer, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
 /* get the ech configs that the server context is using */
 int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
     word32* outputLen) {
