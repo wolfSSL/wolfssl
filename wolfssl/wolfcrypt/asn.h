@@ -64,6 +64,9 @@ that can be serialized and deserialized in a cross-platform way.
     #include <wolfssl/wolfcrypt/md5.h>
 #endif
 #include <wolfssl/wolfcrypt/sha256.h>
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
 
 #if defined(NO_SHA) && defined(NO_SHA256)
@@ -903,7 +906,9 @@ enum Misc_ASN {
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
-#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    KEYID_SIZE          = WC_SM3_DIGEST_SIZE,
+#elif defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     KEYID_SIZE          = WC_SHA256_DIGEST_SIZE,
 #else
     KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
@@ -1085,7 +1090,8 @@ enum Hash_Sum  {
     SHA3_384h = 422,
     SHA3_512h = 423,
     SHAKE128h = 424,
-    SHAKE256h = 425
+    SHAKE256h = 425,
+    SM3h      = 640
 };
 
 #if !defined(NO_DES3) || !defined(NO_AES)
@@ -1119,6 +1125,7 @@ enum Key_Sum {
     RSAPSSk           = 654,
     RSAESOAEPk        = 651, /* 1.2.840.113549.1.1.7 */
     ECDSAk            = 518,
+    SM2k              = 667,
     ED25519k          = 256, /* 1.3.101.112 */
     X25519k           = 254, /* 1.3.101.110 */
     ED448k            = 257, /* 1.3.101.113 */
@@ -1913,7 +1920,9 @@ struct DecodedCert {
 #endif
 };
 
-#ifdef NO_SHA
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    #define SIGNER_DIGEST_SIZE WC_SM3_DIGEST_SIZE
+#elif defined(NO_SHA)
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #else
     #define SIGNER_DIGEST_SIZE WC_SHA_DIGEST_SIZE
@@ -2021,7 +2030,10 @@ typedef enum MimeStatus
 #endif /* HAVE_SMIME */
 
 
+WOLFSSL_LOCAL int HashIdAlg(int oidSum);
 WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
+WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
+    int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 
 WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
@@ -2207,6 +2219,8 @@ WOLFSSL_LOCAL int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
 #endif
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                               int maxIdx);
+WOLFSSL_LOCAL int GetNameHash_ex(const byte* source, word32* idx, byte* hash,
+                                 int maxIdx, int sigOID);
 WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                                      const byte* pubKey, word32 pubKeySz, enum Key_Sum ks);
@@ -2364,7 +2378,9 @@ struct CertStatus {
 
 typedef struct OcspEntry OcspEntry;
 
-#ifdef NO_SHA
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+#define OCSP_DIGEST_SIZE WC_SM3_DIGEST_SIZE
+#elif defined(NO_SHA)
 #define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #else
 #define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
@@ -2427,6 +2443,9 @@ struct OcspResponse {
 struct OcspRequest {
     byte   issuerHash[KEYID_SIZE];
     byte   issuerKeyHash[KEYID_SIZE];
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    int    hashSz;
+#endif
     byte*  serial;   /* copy of the serial number in source cert */
     int    serialSz;
 #ifdef OPENSSL_EXTRA

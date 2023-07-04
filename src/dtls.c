@@ -718,8 +718,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 #ifdef HAVE_SUPPORTED_CURVES
         if (doKE) {
             byte searched = 0;
-            ret = TLSX_KeyShare_Choose(ssl, parsedExts, &cs.clientKSE,
-                    &searched);
+            ret = TLSX_KeyShare_Choose(ssl, parsedExts, cs.cipherSuite0,
+                    cs.cipherSuite, &cs.clientKSE, &searched);
             if (ret != 0)
                 goto dtls13_cleanup;
             if (cs.clientKSE == NULL && searched)

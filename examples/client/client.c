@@ -359,6 +359,19 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
                     err_sys("unable to use curve secp256r1");
             } while (ret == WC_PENDING_E);
         #endif
+        #ifdef WOLFSSL_SM2
+            do {
+                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SM2P256V1);
+                if (ret == WOLFSSL_SUCCESS)
+                    groups[count++] = WOLFSSL_ECC_SM2P256V1;
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                else if (ret == WC_PENDING_E)
+                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            #endif
+                else
+                    err_sys("unable to use curve sm2p256v1");
+            } while (ret == WC_PENDING_E);
+        #endif
     #endif
         }
     }

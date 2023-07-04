@@ -2755,17 +2755,23 @@ void FreeCiphers(WOLFSSL* ssl)
                                                  * check (enc->aes, dec->aes) */
     wc_AesFree(ssl->encrypt.aes);
     wc_AesFree(ssl->decrypt.aes);
-    #if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && \
-                                                      !defined(WOLFSSL_NO_TLS12)
-        XFREE(ssl->decrypt.additional, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-        XFREE(ssl->encrypt.additional, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-    #endif
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
+#if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+    wc_Sm4Free(ssl->encrypt.sm4);
+    wc_Sm4Free(ssl->decrypt.sm4);
+    XFREE(ssl->encrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if (defined(BUILD_AESGCM) || defined(BUILD_AESCCM)) && \
+    !defined(WOLFSSL_NO_TLS12)
+    XFREE(ssl->decrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->encrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
 #ifdef CIPHER_NONCE
-    XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-    XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+    XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_CAMELLIA
     XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -2848,12 +2854,16 @@ static int GetMacDigestSize(byte macAlgo)
         case sha512_mac:
             return WC_SHA512_DIGEST_SIZE;
     #endif
+    #ifdef WOLFSSL_SM3
+        case sm3_mac:
+            return WC_SM3_DIGEST_SIZE;
+    #endif
         default:
             break;
     }
     return NOT_COMPILED_IN;
 }
-#endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
+#endif /* USE_ECDSA_KEYSZ_HASH_ALGO || (WOLFSSL_TLS13 && HAVE_ECC) */
 
 #define ADD_HASH_SIG_ALGO(out, inOutIdx, major, minor)  \
     do {                                                \
@@ -2882,6 +2892,13 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
 #endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
 
     if (addSigAlgo) {
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        if (sigAlgo == sm2_sa_algo) {
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                SM2_SA_MAJOR, SM2_SA_MINOR);
+        }
+        else
+    #endif
     #ifdef HAVE_ED25519
         if (sigAlgo == ed25519_sa_algo) {
             ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
@@ -2945,18 +2962,8 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     }
 }
 
-void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
-    int haveFalconSig, int haveDilithiumSig, int haveAnon, int tls1_2,
-    int keySz)
-{
-    InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
-            haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
-            &suites->hashSigAlgoSz);
-}
-
-void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
-    int haveRSAsig, int haveFalconSig, int haveDilithiumSig, int haveAnon,
-    int tls1_2, int keySz, word16* len)
+void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int haveSig, int tls1_2,
+    int keySz, word16* len)
 {
     word16 idx = 0;
 
@@ -2964,7 +2971,7 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
     (void)keySz;
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
-    if (haveECDSAsig) {
+    if (haveSig & SIG_ECDSA) {
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_SHA512
         AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, ecc_dsa_sa_algo, keySz,
@@ -2991,29 +2998,33 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
     #endif
     }
 #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
-    if (haveFalconSig) {
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (haveSig & SIG_SM2) {
+        AddSuiteHashSigAlgo(hashSigAlgo, sm3_mac, sm2_sa_algo, keySz,
+            &idx);
+    }
+#endif
 #if defined(HAVE_PQC)
 #ifdef HAVE_FALCON
+    if (haveSig & SIG_FALCON) {
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level1_sa_algo, keySz,
             &idx);
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level5_sa_algo, keySz,
             &idx);
-#endif /* HAVE_FALCON */
-#endif /* HAVE_PQC */
     }
-    if (haveDilithiumSig) {
-#if defined(HAVE_PQC)
+#endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
+    if (haveSig & SIG_DILITHIUM) {
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level2_sa_algo,
             keySz, &idx);
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level3_sa_algo,
             keySz, &idx);
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level5_sa_algo,
             keySz, &idx);
+    }
 #endif /* HAVE_DILITHIUM */
 #endif /* HAVE_PQC */
-    }
-    if (haveRSAsig) {
+    if (haveSig & SIG_RSA) {
     #ifdef WC_RSA_PSS
         if (tls1_2) {
         #ifdef WOLFSSL_SHA512
@@ -3049,15 +3060,37 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
     }
 
 #ifdef HAVE_ANON
-    if (haveAnon) {
+    if (haveSig & SIG_ANON) {
         AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, anonymous_sa_algo, keySz,
             &idx);
     }
 #endif
 
-    (void)haveAnon;
-    (void)haveECDSAsig;
     *len = idx;
+}
+
+void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
+    int haveFalconSig, int haveDilithiumSig, int haveAnon, int tls1_2,
+    int keySz)
+{
+    InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
+            haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
+            &suites->hashSigAlgoSz);
+}
+
+void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
+    int haveRSAsig, int haveFalconSig, int haveDilithiumSig, int haveAnon,
+    int tls1_2, int keySz, word16* len)
+{
+    int have = 0;
+
+    if (haveECDSAsig)     have |= SIG_ECDSA;
+    if (haveRSAsig)       have |= SIG_RSA;
+    if (haveFalconSig)    have |= SIG_FALCON;
+    if (haveDilithiumSig) have |= SIG_DILITHIUM;
+    if (haveAnon)         have |= SIG_ANON;
+
+    InitSuitesHashSigAlgo_ex2(hashSigAlgo, have, tls1_2, keySz, len);
 }
 
 int AllocateCtxSuites(WOLFSSL_CTX* ctx)
@@ -3171,6 +3204,19 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (tls1_3) {
         suites->suites[idx++] = TLS13_BYTE;
         suites->suites[idx++] = TLS_AES_128_CCM_8_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_SM4_GCM_SM3
+    if (tls1_3) {
+        suites->suites[idx++] = CIPHER_BYTE;
+        suites->suites[idx++] = TLS_SM4_GCM_SM3;
+    }
+#endif
+#ifdef BUILD_TLS_SM4_CCM_SM3
+    if (tls1_3) {
+        suites->suites[idx++] = CIPHER_BYTE;
+        suites->suites[idx++] = TLS_SM4_CCM_SM3;
     }
 #endif
 
@@ -4054,14 +4100,41 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    if (tls && haveECC) {
+        suites->suites[idx++] = SM_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3;
+    }
+#endif
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    if (tls && haveECC) {
+        suites->suites[idx++] = SM_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3;
+    }
+#endif
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    if (tls && haveECC) {
+        suites->suites[idx++] = SM_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3;
+    }
+#endif
+
 #endif /* !WOLFSSL_NO_TLS12 */
 
     suites->suiteSz = idx;
 
     if (suites->hashSigAlgoSz == 0) {
-        InitSuitesHashSigAlgo(suites, haveECDSAsig | haveECC,
-                              haveRSAsig | haveRSA, haveFalconSig,
-                              haveDilithiumSig, 0, tls1_2, keySz);
+        int haveSig = 0;
+        haveSig |= (haveRSAsig | haveRSA) ? SIG_RSA : 0;
+        haveSig |= (haveECDSAsig | haveECC) ? SIG_ECDSA : 0;
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        haveSig |= (haveECDSAsig | haveECC) ? SIG_SM2 : 0;
+    #endif
+        haveSig |= haveFalconSig ? SIG_FALCON : 0;
+        haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
+        haveSig &= ~SIG_ANON;
+        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, tls1_2, keySz,
+            &suites->hashSigAlgoSz);
     }
 }
 
@@ -4110,6 +4183,16 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
                 *hashAlgo = input[1];
             }
             break;
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        case SM2_SA_MAJOR:
+            /* SM2: 0x0708 */
+            if (input[1] == SM2_SA_MINOR) {
+                *hsType = sm2_sa_algo;
+                /* Hash performed as part of sign/verify operation. */
+                *hashAlgo = sm3_mac;
+            }
+            break;
+    #endif
 #ifdef HAVE_PQC
         case PQC_SA_MAJOR:
             /* Hash performed as part of sign/verify operation. */
@@ -4162,6 +4245,10 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
             return WC_HASH_TYPE_SHA384;
+    #endif
+    #ifdef WOLFSSL_SM3
+        case sm3_mac:
+            return WC_HASH_TYPE_SM3;
     #endif
     #ifndef NO_SHA256
         case sha256_mac:
@@ -4393,6 +4480,13 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             (void)hashAlgo;
             break;
 #endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        case sm2_sa_algo:
+            output[0] = SM2_SA_MAJOR;
+            output[1] = SM2_SA_MINOR;
+            (void)hashAlgo;
+            break;
+#endif
 #ifndef NO_RSA
         case rsa_sa_algo:
             output[0] = hashAlgo;
@@ -4432,6 +4526,13 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
             ssl->buffers.digest.length = WC_SHA256_DIGEST_SIZE;
             break;
     #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SM3
+        case sm3_mac:
+            ssl->options.dontFreeDigest = 1;
+            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sm3;
+            ssl->buffers.digest.length = WC_SM3_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SM2 */
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
             ssl->options.dontFreeDigest = 1;
@@ -5184,6 +5285,24 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
         if (ssl->ecdhCurveOID > 0) {
             ecc_curve = wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL);
         }
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+        (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+         defined(WOLFSSL_SM4_CCM))
+        if ((ssl->options.cipherSuite0 == SM_BYTE) && (0
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+            || (ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3)
+        #endif
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+            || (ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3)
+        #endif
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+            || (ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3)
+        #endif
+            )) {
+            keySz = 32;
+            ecc_curve = ECC_SM2P256V1;
+        }
+    #endif
     }
     else {
         keySz = peer->dp->size;
@@ -5221,6 +5340,63 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     return ret;
 }
 #endif /* HAVE_ECC */
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+
+int Sm2wSm3Sign(WOLFSSL* ssl, const byte* id, word32 idSz, const byte* in,
+    word32 inSz, byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo)
+{
+    int ret;
+    byte hash[WC_SM3_DIGEST_SIZE];
+
+    (void)ssl;
+    (void)keyBufInfo;
+
+    WOLFSSL_ENTER("Sm2wSm3Sign");
+
+    ret = wc_ecc_sm2_create_digest(id, idSz, in, inSz, WC_HASH_TYPE_SM3, hash,
+        sizeof(hash), key);
+    if (ret == 0) {
+        ret = wc_ecc_sm2_sign_hash(hash, sizeof(hash), out, outSz, ssl->rng,
+            key);
+    }
+
+    WOLFSSL_LEAVE("Sm2wSm3Sign", ret);
+
+    return ret;
+}
+
+int Sm2wSm3Verify(WOLFSSL* ssl, const byte* id, word32 idSz, const byte* sig,
+    word32 sigSz, const byte* msg, word32 msgSz, ecc_key* key,
+    buffer* keyBufInfo)
+{
+    int ret = SIG_VERIFY_E;
+    byte hash[WC_SM3_DIGEST_SIZE];
+
+    (void)ssl;
+    (void)keyBufInfo;
+
+    WOLFSSL_ENTER("Sm2wSm3Verify");
+
+    ret = wc_ecc_sm2_create_digest(id, idSz, msg, msgSz, WC_HASH_TYPE_SM3, hash,
+        sizeof(hash), key);
+    if (ret == 0) {
+        ret = wc_ecc_sm2_verify_hash(sig, sigSz, hash, sizeof(hash),
+            &ssl->eccVerifyRes, key);
+        if (ret == 0 && ssl->eccVerifyRes == 0) {
+            ret = VERIFY_SIGN_ERROR;
+        }
+    }
+    if (ret != 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    WOLFSSL_LEAVE("Sm2wSm3Verify", ret);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SM2 */
 
 #ifdef HAVE_ED25519
 /* Check whether the key contains a public key.
@@ -6133,11 +6309,13 @@ int InitSSL_Suites(WOLFSSL* ssl)
         ssl->options.maxEarlyDataSz = ssl->ctx->maxEarlyDataSz;
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
     ssl->options.cacheMessages = ssl->options.side == WOLFSSL_SERVER_END ||
                                       ssl->buffers.keyType == ed25519_sa_algo ||
-                                      ssl->buffers.keyType == ed448_sa_algo;
+                                      ssl->buffers.keyType == ed448_sa_algo ||
+                                      ssl->buffers.keyType == sm2_sa_algo;
 #endif
 
 #ifndef NO_CERTS
@@ -6437,11 +6615,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
     ssl->options.cacheMessages = ssl->options.side == WOLFSSL_SERVER_END ||
                                       ssl->buffers.keyType == ed25519_sa_algo ||
-                                      ssl->buffers.keyType == ed448_sa_algo;
+                                      ssl->buffers.keyType == ed448_sa_algo ||
+                                      ssl->buffers.keyType == sm2_sa_algo;
 #endif
 
 
@@ -6567,6 +6747,14 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_Sha512SetFlags(&ssl->hsHashes->hashSha512, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
+#ifdef WOLFSSL_SM3
+    ret = wc_InitSm3(&ssl->hsHashes->hashSm3, ssl->heap, ssl->devId);
+    if (ret != 0)
+        return ret;
+    #ifdef WOLFSSL_HASH_FLAGS
+        wc_Sm3SetFlags(&ssl->hsHashes->hashSm3, WC_HASH_FLAG_WILLCOPY);
+    #endif
+#endif
 
     return ret;
 }
@@ -6591,8 +6779,12 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     #ifdef WOLFSSL_SHA512
         wc_Sha512Free(&ssl->hsHashes->hashSha512);
     #endif
-    #if (defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
-                                                !defined(WOLFSSL_NO_CLIENT_AUTH)
+    #ifdef WOLFSSL_SM3
+        wc_Sm3Free(&ssl->hsHashes->hashSm3);
+    #endif
+    #if (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+         (defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3))) && \
+        !defined(WOLFSSL_NO_CLIENT_AUTH)
         if (ssl->hsHashes->messages != NULL) {
             ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
             XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
@@ -6649,8 +6841,14 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
             ret = wc_Sha512Copy(&source->hashSha512,
                 &(*destination)->hashSha512);
     #endif
-    #if (defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
-                                              !defined(WOLFSSL_NO_CLIENT_AUTH)
+    #ifdef WOLFSSL_SM3
+        if (ret == 0)
+            ret = wc_Sm3Copy(&source->hashSm3,
+                &(*destination)->hashSm3);
+    #endif
+    #if (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+         (defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3))) && \
+        !defined(WOLFSSL_NO_CLIENT_AUTH)
         if (ret == 0 && source->messages != NULL) {
             (*destination)->messages = (byte*)XMALLOC(source->length, ssl->heap,
                 DYNAMIC_TYPE_HASHES);
@@ -8201,7 +8399,8 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
     !defined(WOLFSSL_NO_TLS12) || \
-    ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
+    ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) \
      && defined(HAVE_AEAD))
 
 #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
@@ -8325,7 +8524,8 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 }
 #endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
 #endif /* !NO_OLD_TLS || WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 ||
-        *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM) && HAVE_AEAD) */
+        *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_SM4_GCM ||
+        *       WOLFSSL_SM4_CCM) && HAVE_AEAD) */
 
 #ifdef WOLFSSL_DTLS
 
@@ -9388,7 +9588,8 @@ ProtocolVersion MakeDTLSv1_3(void)
 #endif /* !NO_ASN_TIME */
 
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
 /* Store the message for use with CertificateVerify using EdDSA.
  *
@@ -9494,8 +9695,19 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
         WOLFSSL_BUFFER(digest, WC_SHA512_DIGEST_SIZE);
     #endif
     #endif
+    #ifdef WOLFSSL_SM3
+        ret = wc_Sm3Update(&ssl->hsHashes->hashSm3, data, sz);
+        if (ret != 0)
+            return ret;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("SM3");
+        wc_Sm3GetHash(&ssl->hsHashes->hashSm3, digest);
+        WOLFSSL_BUFFER(digest, WC_SM3_DIGEST_SIZE);
+    #endif
+    #endif
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
         ret = EdDSA_Update(ssl, data, sz);
         if (ret != 0)
@@ -10874,31 +11086,31 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif /* WOLFSSL_NO_TLS12 */
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
-    /* cipher requirements */
-    enum {
-        REQUIRES_RSA,
-        REQUIRES_DHE,
-        REQUIRES_ECC,
-        REQUIRES_ECC_STATIC,
-        REQUIRES_PSK,
-        REQUIRES_RSA_SIG,
-        REQUIRES_AEAD
-    };
+/* cipher requirements */
+enum {
+    REQUIRES_RSA,
+    REQUIRES_DHE,
+    REQUIRES_ECC,
+    REQUIRES_ECC_STATIC,
+    REQUIRES_PSK,
+    REQUIRES_RSA_SIG,
+    REQUIRES_AEAD
+};
 
 
 
-    /* Does this cipher suite (first, second) have the requirement
-       an ephemeral key exchange will still require the key for signing
-       the key exchange so ECDHE_RSA requires an rsa key thus rsa_kea */
-    static int CipherRequires(byte first, byte second, int requirement)
-    {
+/* Does this cipher suite (first, second) have the requirement
+   an ephemeral key exchange will still require the key for signing
+   the key exchange so ECDHE_RSA requires an rsa key thus rsa_kea */
+static int CipherRequires(byte first, byte second, int requirement)
+{
 
-        (void)requirement;
+    (void)requirement;
 
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_CHACHA
-        if (first == CHACHA_BYTE) {
+    if (first == CHACHA_BYTE) {
 
         switch (second) {
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
@@ -10952,527 +11164,580 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 if (requirement == REQUIRES_DHE)
                     return 1;
                 break;
+
+            default:
+                WOLFSSL_MSG("Unsupported cipher suite, CipherRequires CHACHA");
+                return 0;
         }
 
         if (requirement == REQUIRES_AEAD)
             return 1;
-        }
+    }
 #endif /* HAVE_CHACHA */
 
-        /* ECC extensions */
-        if (first == ECC_BYTE) {
+    /* ECC extensions */
+    if (first == ECC_BYTE) {
 
         switch (second) {
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     #ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
+            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                break;
 
-    #ifndef NO_DES3
-        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+        #ifndef NO_DES3
+            case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-    #endif /* !NO_DES3 */
+            case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                break;
+        #endif /* !NO_DES3 */
 
-    #ifndef NO_RC4
-        case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+        #ifndef NO_RC4
+            case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-    #endif /* !NO_RC4 */
+            case TLS_ECDH_RSA_WITH_RC4_128_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                break;
+        #endif /* !NO_RC4 */
     #endif /* NO_RSA */
 
-    #ifndef NO_DES3
-        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+        #ifndef NO_DES3
+            case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-    #endif /* !NO_DES3  */
-    #ifndef NO_RC4
-        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
+        #endif /* !NO_DES3  */
+        #ifndef NO_RC4
+            case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-    #endif /* !NO_RC4 */
-    #ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
+        #endif /* !NO_RC4 */
+        #ifndef NO_RSA
+            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-    #endif /* !NO_RSA */
+            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                break;
+        #endif /* !NO_RSA */
 
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
 #ifndef NO_RSA
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
     #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
     #ifdef HAVE_AESCCM
-        case TLS_RSA_WITH_AES_128_CCM_8 :
-        case TLS_RSA_WITH_AES_256_CCM_8 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_128_CCM_8 :
+            case TLS_RSA_WITH_AES_256_CCM_8 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
     #endif /* HAVE_AESCCM */
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
+            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
     #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 #endif /* !NO_RSA */
 
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                if (requirement == REQUIRES_ECC_STATIC)
+                    return 1;
+                break;
+    #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
-#ifndef NO_PSK
-        case TLS_PSK_WITH_AES_128_CCM:
-        case TLS_PSK_WITH_AES_256_CCM:
-        case TLS_PSK_WITH_AES_128_CCM_8:
-        case TLS_PSK_WITH_AES_256_CCM_8:
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+    #ifndef NO_PSK
+            case TLS_PSK_WITH_AES_128_CCM:
+            case TLS_PSK_WITH_AES_256_CCM:
+            case TLS_PSK_WITH_AES_128_CCM_8:
+            case TLS_PSK_WITH_AES_256_CCM_8:
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_DHE_PSK_WITH_AES_128_CCM:
-        case TLS_DHE_PSK_WITH_AES_256_CCM:
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
-#endif /* !NO_PSK */
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-        case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
-            if (requirement == REQUIRES_ECC)
-                return 1;
-            break;
+            case TLS_DHE_PSK_WITH_AES_128_CCM:
+            case TLS_DHE_PSK_WITH_AES_256_CCM:
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
+    #endif /* !NO_PSK */
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+            case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
+            case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                break;
 
-        case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+            case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                break;
+    #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
-        case TLS_SHA256_SHA256:
-            break;
-        case TLS_SHA384_SHA384:
-            break;
-#endif
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+            case TLS_SHA256_SHA256:
+                break;
+            case TLS_SHA384_SHA384:
+                break;
+    #endif
 
-        default:
-            WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC");
-            return 0;
+            default:
+                WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC");
+                return 0;
         }   /* switch */
-        }   /* if     */
+    }   /* if */
 
-        /* ECC extensions */
-        if (first == ECDHE_PSK_BYTE) {
+    /* ECC extensions */
+    if (first == ECDHE_PSK_BYTE) {
 
         switch (second) {
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-        case TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
-        default:
-            WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC PSK");
-            return 0;
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+            case TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                break;
+    #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+            default:
+                WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC PSK");
+                return 0;
         }   /* switch */
-        }   /* if     */
+    }   /* if     */
 #endif /* !WOLFSSL_NO_TLS12 */
 
-        /* Distinct TLS v1.3 cipher suites with cipher and digest only. */
-        if (first == TLS13_BYTE) {
-
-            switch (second) {
 #ifdef WOLFSSL_TLS13
+    /* Distinct TLS v1.3 cipher suites with cipher and digest only. */
+    if (first == TLS13_BYTE) {
+
+        switch (second) {
             case TLS_AES_128_GCM_SHA256:
             case TLS_AES_256_GCM_SHA384:
             case TLS_CHACHA20_POLY1305_SHA256:
             case TLS_AES_128_CCM_SHA256:
             case TLS_AES_128_CCM_8_SHA256:
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                return 0;
                 break;
-#endif
 
             default:
                 WOLFSSL_MSG("Unsupported cipher suite, CipherRequires "
                             "TLS v1.3");
                 return 0;
-            }
         }
+    }
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && defined(WOLFSSL_SM4)
+    if (first == CIPHER_BYTE) {
+        /* Other cipher suites for TLS 1.2 below.  */
+        switch (second) {
+        #if defined(WOLFSSL_SM4_GCM)
+            case TLS_SM4_GCM_SM3:
+                return 0;
+                break;
+        #endif
+        #if defined(WOLFSSL_SM4_CCM)
+            case TLS_SM4_CCM_SM3:
+                return 0;
+                break;
+        #endif
+        }
+    }
+#endif /* WOLFSSL_SM2 && WOLFSSL_SM3 && WOLFSSL_SM4 */
+#endif /* WOLFSSL_TLS13 */
 
 #ifndef WOLFSSL_NO_TLS12
 
-        if (first != ECC_BYTE && first != CHACHA_BYTE &&
-            first != TLS13_BYTE && first != ECDHE_PSK_BYTE) {
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && defined(WOLFSSL_SM4)
+    if (first == SM_BYTE) {
+        switch (second) {
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+            case TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3:
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
+        #endif
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+            case TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3:
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
+        #endif
+        #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+            case TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3:
+                if (requirement == REQUIRES_ECC)
+                    return 1;
+                break;
+        #endif
+
+            default:
+                WOLFSSL_MSG("Unsupported cipher suite, CipherRequires SM");
+                return 0;
+        }
+    }
+#endif
+
+    if (first == CIPHER_BYTE) {
         /* normal suites */
         switch (second) {
 
-#ifndef NO_RSA
-    #ifndef NO_RC4
-        case SSL_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+    #ifndef NO_RSA
+        #ifndef NO_RC4
+            case SSL_RSA_WITH_RC4_128_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case SSL_RSA_WITH_RC4_128_MD5 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-    #endif /* NO_RC4 */
+            case SSL_RSA_WITH_RC4_128_MD5 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
+        #endif /* NO_RC4 */
 
-        case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_128_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_256_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_NULL_MD5 :
-        case TLS_RSA_WITH_NULL_SHA :
-        case TLS_RSA_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+            case TLS_RSA_WITH_NULL_MD5 :
+            case TLS_RSA_WITH_NULL_SHA :
+            case TLS_RSA_WITH_NULL_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-#endif /* !NO_RSA */
+    #endif /* !NO_RSA */
 
-#ifndef NO_PSK
-        case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+    #ifndef NO_PSK
+            case TLS_PSK_WITH_AES_128_GCM_SHA256 :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_PSK_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-        case TLS_PSK_WITH_AES_256_CBC_SHA384 :
-        case TLS_PSK_WITH_AES_128_CBC_SHA :
-        case TLS_PSK_WITH_AES_256_CBC_SHA :
-        case TLS_PSK_WITH_NULL_SHA384 :
-        case TLS_PSK_WITH_NULL_SHA256 :
-        case TLS_PSK_WITH_NULL_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
+            case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+            case TLS_PSK_WITH_AES_256_CBC_SHA384 :
+            case TLS_PSK_WITH_AES_128_CBC_SHA :
+            case TLS_PSK_WITH_AES_256_CBC_SHA :
+            case TLS_PSK_WITH_NULL_SHA384 :
+            case TLS_PSK_WITH_NULL_SHA256 :
+            case TLS_PSK_WITH_NULL_SHA :
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                break;
 
-        case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
-        case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
+            case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-        case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
-        case TLS_DHE_PSK_WITH_NULL_SHA384 :
-        case TLS_DHE_PSK_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-#endif /* NO_PSK */
+            case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
+            case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
+            case TLS_DHE_PSK_WITH_NULL_SHA384 :
+            case TLS_DHE_PSK_WITH_NULL_SHA256 :
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                if (requirement == REQUIRES_PSK)
+                    return 1;
+                break;
+    #endif /* NO_PSK */
 
-#ifndef NO_RSA
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
+    #ifndef NO_RSA
+            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
 
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
+            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
 
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
+            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
 
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
+            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
 
-        case TLS_RSA_WITH_AES_128_GCM_SHA256 :
-        case TLS_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_RSA_WITH_AES_128_GCM_SHA256 :
+            case TLS_RSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
-        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
+            case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
+            case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
 
-#ifdef HAVE_CAMELLIA
-        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
+        #ifdef HAVE_CAMELLIA
+            case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+            case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+            case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+            case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                break;
 
-        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-#endif /* HAVE_CAMELLIA */
+            case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+            case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+            case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+            case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
+        #endif /* HAVE_CAMELLIA */
 
-        case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-#endif
-#ifdef HAVE_ANON
-        case TLS_DH_anon_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-        case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_AEAD)
-                return 1;
-            break;
-#endif
-#ifdef WOLFSSL_MULTICAST
-        case WDM_WITH_NULL_SHA256 :
-            break;
-#endif
+            case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+                if (requirement == REQUIRES_RSA)
+                    return 1;
+                if (requirement == REQUIRES_RSA_SIG)
+                    return 1;
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
+    #endif /* !NO_RSA */
+    #ifdef HAVE_ANON
+            case TLS_DH_anon_WITH_AES_128_CBC_SHA :
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                break;
+            case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
+                if (requirement == REQUIRES_DHE)
+                    return 1;
+                if (requirement == REQUIRES_AEAD)
+                    return 1;
+                break;
+    #endif
+    #ifdef WOLFSSL_MULTICAST
+            case WDM_WITH_NULL_SHA256 :
+                break;
+    #endif
 
-        default:
-            WOLFSSL_MSG("Unsupported cipher suite, CipherRequires");
-            return 0;
+            default:
+                WOLFSSL_MSG("Unsupported cipher suite, CipherRequires");
+                return 0;
         }  /* switch */
-        }  /* if ECC / Normal suites else */
+    }  /* if ECC / Normal suites else */
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
-        return 0;
-    }
+    return 0;
+}
 
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
@@ -13979,8 +14244,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* compare against previous time */
                         if (ssl->secure_renegotiation->subject_hash_set) {
                             if (XMEMCMP(args->dCert->subjectHash,
-                                        ssl->secure_renegotiation->subject_hash,
-                                        KEYID_SIZE) != 0) {
+                                    ssl->secure_renegotiation->subject_hash,
+                                    KEYID_SIZE) != 0) {
                                 WOLFSSL_MSG(
                                   "Peer sent different cert during scr, fatal");
                                 args->fatal = 1;
@@ -14371,6 +14636,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* NO_RSA */
                 #ifdef HAVE_ECC
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                    case SM2k:
+                #endif
                     case ECDSAk:
                     {
                         int keyRet = 0;
@@ -15810,7 +16078,8 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("processing server hello");
         ret = DoServerHello(ssl, input, inOutIdx, size);
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
         if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
                                                IsAtLeastTLSv1_3(ssl->version)) {
@@ -15892,7 +16161,8 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("processing client hello");
         ret = DoClientHello(ssl, input, inOutIdx, size);
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
         if (ssl->options.resuming || !ssl->options.verifyPeer || \
                      !IsAtLeastTLSv1_2(ssl) || IsAtLeastTLSv1_3(ssl->version)) {
@@ -17407,6 +17677,25 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
 #endif
 
+#if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+
+/* The following type is used to share code between SM4-GCM and SM4-CCM. */
+typedef int (*Sm4AuthEncryptFunc)(wc_Sm4* sm4, byte* out, const byte* in,
+    word32 sz, const byte* nonce, word32 nonceSz, byte* tag, word32 tagSz,
+    const byte* aad, word32 aadSz);
+typedef int (*Sm4AuthDecryptFunc)(wc_Sm4* sm4, byte* out, const byte* in,
+    word32 sz, const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
+    const byte* aad, word32 aadSz);
+
+#define SM4_AUTH_ENCRYPT_FUNC Sm4AuthEncryptFunc
+#define SM4_AUTH_DECRYPT_FUNC Sm4AuthDecryptFunc
+#define SM4_GCM_ENCRYPT_FUNC wc_Sm4GcmEncrypt
+#define SM4_CCM_ENCRYPT_FUNC wc_Sm4CcmEncrypt
+#define SM4_GCM_DECRYPT_FUNC wc_Sm4GcmDecrypt
+#define SM4_CCM_DECRYPT_FUNC wc_Sm4CcmDecrypt
+
+#endif
+
 
 static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     word16 sz, int asyncOkay)
@@ -17575,6 +17864,95 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             break;
     #endif
 
+    #ifdef WOLFSSL_SM4_CBC
+        case wolfssl_sm4_cbc:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            asyncDev = &ssl->encrypt.sm4->asyncDev;
+            ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+            if (ret != 0)
+                break;
+        #endif
+            ret = wc_Sm4CbcEncrypt(ssl->encrypt.sm4, out, input, sz);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E && asyncOkay) {
+                ret = wolfSSL_AsyncPush(ssl, asyncDev);
+            }
+        #endif
+            break;
+    #endif
+
+    #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+        case wolfssl_sm4_gcm:
+        case wolfssl_sm4_ccm:/* GCM AEAD macros use same size as CCM */
+        {
+            SM4_AUTH_ENCRYPT_FUNC sm4_auth_fn;
+            const byte* additionalSrc;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            asyncDev = &ssl->encrypt.sm4->asyncDev;
+            ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+            if (ret != 0)
+                break;
+        #endif
+
+        #if defined(WOLFSSL_SM4_GCM) && defined(WOLFSSL_SM4_CCM)
+            sm4_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm)
+                            ? SM4_GCM_ENCRYPT_FUNC : SM4_CCM_ENCRYPT_FUNC;
+        #elif defined(WOLFSSL_SM4_GCM)
+            sm4_auth_fn = SM4_GCM_ENCRYPT_FUNC;
+        #else
+            sm4_auth_fn = SM4_CCM_ENCRYPT_FUNC;
+        #endif
+            additionalSrc = input - 5;
+
+            XMEMSET(ssl->encrypt.additional, 0, AEAD_AUTH_DATA_SZ);
+
+            /* sequence number field is 64-bits */
+            WriteSEQ(ssl, CUR_ORDER, ssl->encrypt.additional);
+
+            /* Store the type, version. Unfortunately, they are in
+             * the input buffer ahead of the plaintext. */
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+            }
+        #endif
+            XMEMCPY(ssl->encrypt.additional + AEAD_TYPE_OFFSET,
+                                                        additionalSrc, 3);
+
+            /* Store the length of the plain text minus the explicit
+             * IV length minus the authentication tag size. */
+            c16toa(sz - GCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                ssl->encrypt.additional + AEAD_LEN_OFFSET);
+            XMEMCPY(ssl->encrypt.nonce,
+                                ssl->keys.aead_enc_imp_IV, GCM_IMP_IV_SZ);
+            XMEMCPY(ssl->encrypt.nonce + GCM_IMP_IV_SZ,
+                                ssl->keys.aead_exp_IV, GCM_EXP_IV_SZ);
+            ret = sm4_auth_fn(ssl->encrypt.sm4,
+                    out + GCM_EXP_IV_SZ, input + GCM_EXP_IV_SZ,
+                    sz - GCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                    ssl->encrypt.nonce, GCM_NONCE_SZ,
+                    out + sz - ssl->specs.aead_mac_size,
+                    ssl->specs.aead_mac_size,
+                    ssl->encrypt.additional, AEAD_AUTH_DATA_SZ);
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E && asyncOkay) {
+                ret = wolfSSL_AsyncPush(ssl, asyncDev);
+            }
+        #endif
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+            XMEMCPY(out,
+                    ssl->encrypt.nonce + GCM_IMP_IV_SZ, GCM_EXP_IV_SZ);
+#endif
+        }
+        break;
+    #endif /* WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM */
+
     #ifdef HAVE_NULL_CIPHER
         case wolfssl_cipher_null:
             if (input != out) {
@@ -17639,10 +18017,10 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 /* make sure auth iv and auth are allocated */
                 if (ssl->encrypt.additional == NULL)
                     ssl->encrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
                 if (ssl->encrypt.nonce == NULL) {
                     ssl->encrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
                 #ifdef WOLFSSL_CHECK_MEM_ZERO
                     if (ssl->encrypt.nonce != NULL) {
                         wc_MemZero_Add("Encrypt nonce", ssl->encrypt.nonce,
@@ -17656,6 +18034,32 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 }
             }
         #endif /* BUILD_AESGCM || HAVE_AESCCM */
+
+        #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+            /* make sure SM4 GCM/CCM memory is allocated */
+            /* free for these happens in FreeCiphers */
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm) {
+                /* make sure auth iv and auth are allocated */
+                if (ssl->encrypt.additional == NULL)
+                    ssl->encrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
+                if (ssl->encrypt.nonce == NULL) {
+                    ssl->encrypt.nonce = (byte*)XMALLOC(GCM_NONCE_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    if (ssl->encrypt.nonce != NULL) {
+                        wc_MemZero_Add("Encrypt nonce", ssl->encrypt.nonce,
+                            GCM_NONCE_SZ);
+                    }
+                #endif
+                }
+                if (ssl->encrypt.additional == NULL ||
+                         ssl->encrypt.nonce == NULL) {
+                    return MEMORY_E;
+                }
+            }
+        #endif /* WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM */
 
             /* Advance state and proceed */
             ssl->encrypt.state = CIPHER_STATE_DO;
@@ -17707,6 +18111,16 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
             }
         #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm)
+            {
+                /* finalize authentication cipher */
+                AeadIncrementExpIV(ssl);
+                if (ssl->encrypt.nonce)
+                    ForceZero(ssl->encrypt.nonce, GCM_NONCE_SZ);
+            }
+        #endif /* WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM */
         #ifdef WOLFSSL_CHECK_MEM_ZERO
             if ((ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) &&
                     (out != input) && (ret == 0)) {
@@ -17876,6 +18290,88 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             break;
     #endif
 
+    #ifdef WOLFSSL_SM4_CBC
+        case wolfssl_sm4_cbc:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+            ret = wc_Sm4CbcDecrypt(ssl->decrypt.sm4, plain, input, sz);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+            }
+        #endif
+            break;
+    #endif
+
+    #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+        case wolfssl_sm4_gcm:
+        case wolfssl_sm4_ccm: /* GCM AEAD macros use same size as CCM */
+        {
+            SM4_AUTH_DECRYPT_FUNC sm4_auth_fn;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.sm4->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
+        #if defined(WOLFSSL_SM4_GCM) && defined(WOLFSSL_SM4_CCM)
+            sm4_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm)
+                            ? SM4_GCM_DECRYPT_FUNC : SM4_CCM_DECRYPT_FUNC;
+        #elif defined(WOLFSSL_SM4_GCM)
+            sm4_auth_fn = SM4_GCM_DECRYPT_FUNC;
+        #else
+            sm4_auth_fn = SM4_CCM_DECRYPT_FUNC;
+        #endif
+
+            XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
+
+            /* sequence number field is 64-bits */
+            WriteSEQ(ssl, PEER_ORDER, ssl->decrypt.additional);
+
+            ssl->decrypt.additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+            ssl->decrypt.additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+            ssl->decrypt.additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+
+            c16toa(sz - GCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                    ssl->decrypt.additional + AEAD_LEN_OFFSET);
+
+        #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+            if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
+                XMEMCPY(ssl->decrypt.nonce,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
+                        GCM_IMP_IV_SZ);
+            else
+        #endif
+                XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+                        GCM_IMP_IV_SZ);
+            XMEMCPY(ssl->decrypt.nonce + GCM_IMP_IV_SZ, input, GCM_EXP_IV_SZ);
+            if ((ret = sm4_auth_fn(ssl->decrypt.sm4,
+                        plain + GCM_EXP_IV_SZ,
+                        input + GCM_EXP_IV_SZ,
+                        sz - GCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        ssl->decrypt.nonce, GCM_NONCE_SZ,
+                        input + sz - ssl->specs.aead_mac_size,
+                        ssl->specs.aead_mac_size,
+                        ssl->decrypt.additional, AEAD_AUTH_DATA_SZ)) < 0) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret == WC_PENDING_E) {
+                    ret = wolfSSL_AsyncPush(ssl,
+                                            &ssl->decrypt.sm4->asyncDev);
+                }
+            #endif
+            }
+        }
+        break;
+    #endif /* WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM */
+
     #ifdef HAVE_NULL_CIPHER
         case wolfssl_cipher_null:
             if (input != plain) {
@@ -17940,10 +18436,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                 /* make sure auth iv and auth are allocated */
                 if (ssl->decrypt.additional == NULL)
                     ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
                 if (ssl->decrypt.nonce == NULL) {
                     ssl->decrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
                 #ifdef WOLFSSL_CHECK_MEM_ZERO
                     if (ssl->decrypt.nonce != NULL) {
                         wc_MemZero_Add("DecryptTls nonce", ssl->decrypt.nonce,
@@ -17957,6 +18453,32 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                 }
             }
         #endif /* BUILD_AESGCM || HAVE_AESCCM */
+
+        #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+            /* make sure SM4 GCM/CCM memory is allocated */
+            /* free for these happens in FreeCiphers */
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm) {
+                /* make sure auth iv and auth are allocated */
+                if (ssl->decrypt.additional == NULL)
+                    ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
+                if (ssl->decrypt.nonce == NULL) {
+                    ssl->decrypt.nonce = (byte*)XMALLOC(GCM_NONCE_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    if (ssl->decrypt.nonce != NULL) {
+                        wc_MemZero_Add("DecryptTls nonce", ssl->decrypt.nonce,
+                            GCM_NONCE_SZ);
+                    }
+                #endif
+                }
+                if (ssl->decrypt.additional == NULL ||
+                         ssl->decrypt.nonce == NULL) {
+                    return MEMORY_E;
+                }
+            }
+        #endif /* WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM */
 
             /* Advance state and proceed */
             ssl->decrypt.state = CIPHER_STATE_DO;
@@ -18010,6 +18532,19 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
                 if (ssl->decrypt.nonce)
                     ForceZero(ssl->decrypt.nonce, AESGCM_NONCE_SZ);
+
+                if (ret < 0) {
+                    ret = VERIFY_MAC_ERROR;
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
+            }
+        #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+            /* make sure SM4 GCM/CCM nonce is cleared */
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm) {
+                if (ssl->decrypt.nonce)
+                    ForceZero(ssl->decrypt.nonce, GCM_NONCE_SZ);
 
                 if (ret < 0) {
                     ret = VERIFY_MAC_ERROR;
@@ -20728,6 +21263,12 @@ int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
                 if (ret != 0)
                     return ret;
             #endif
+            #ifdef WOLFSSL_SM3
+                ret = wc_Sm3GetHash(&ssl->hsHashes->hashSm3,
+                                       hashes->sm3);
+                if (ret != 0)
+                    return ret;
+            #endif
         }
     }
     else {
@@ -21948,7 +22489,26 @@ int SendCertificateRequest(WOLFSSL* ssl)
          ssl->options.cipherSuite0 == CHACHA_BYTE) &&
                      ssl->specs.sig_algo == ecc_dsa_sa_algo) {
         output[i++] = ecdsa_sign;
-    } else
+    }
+    else
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+     defined(WOLFSSL_SM4_CCM))
+    if (ssl->options.cipherSuite0 == SM_BYTE && (0
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+        || ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    #endif
+        )) {
+        output[i++] = ecdsa_sign;
+    }
+    else
+#endif
 #endif /* HAVE_ECC */
     {
         output[i++] = rsa_sign;
@@ -22487,6 +23047,18 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
             else
 #endif
                 limit = AEAD_AES_LIMIT; /* Limit is 2^24.5 */
+            break;
+#endif
+#ifdef WOLFSSL_SM4_GCM
+        case wolfssl_sm4_gcm:
+            /* Limit is 2^22 - 1 */
+            limit = AEAD_SM4_GCM_LIMIT;
+            break;
+#endif
+#ifdef WOLFSSL_SM4_CCM
+        case wolfssl_sm4_ccm:
+            /* Limit is 2^10 - 1 */
+            limit = AEAD_SM4_CCM_LIMIT;
             break;
 #endif
         case wolfssl_cipher_null:
@@ -23762,6 +24334,14 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_ALIAS("TLS13-AES128-CCM8-SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256,TLSv1_3_MINOR, SSLv3_MAJOR)
 #endif
 
+#ifdef BUILD_TLS_SM4_GCM_SM3
+    SUITE_INFO("TLS13-SM4-GCM-SM3","TLS_SM4_GCM_SM3",CIPHER_BYTE,TLS_SM4_GCM_SM3, TLSv1_3_MINOR, SSLv3_MAJOR),
+#endif
+
+#ifdef BUILD_TLS_SM4_CCM_SM3
+    SUITE_INFO("TLS13-SM4-CCM-SM3","TLS_SM4_GCM_SM3",CIPHER_BYTE,TLS_SM4_CCM_SM3, TLSv1_3_MINOR, SSLv3_MAJOR),
+#endif
+
 #ifdef BUILD_TLS_SHA256_SHA256
     SUITE_INFO("TLS13-SHA256-SHA256","TLS_SHA256_SHA256",ECC_BYTE,TLS_SHA256_SHA256,TLSv1_3_MINOR, SSLv3_MAJOR),
 #endif
@@ -24138,6 +24718,18 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("DHE-RSA-CHACHA20-POLY1305-OLD","TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256",CHACHA_BYTE,TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256, TLSv1_2_MINOR, SSLv3_MAJOR),
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    SUITE_INFO("ECDHE-ECDSA-SM4-CBC-SM3","TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3",SM_BYTE,TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3, TLSv1_2_MINOR, SSLv3_MAJOR),
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    SUITE_INFO("ECDHE-ECDSA-SM4-GCM-SM3","TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3",SM_BYTE,TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3, TLSv1_2_MINOR, SSLv3_MAJOR),
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    SUITE_INFO("ECDHE-ECDSA-SM4-CCM-SM3","TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3",SM_BYTE,TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3, TLSv1_2_MINOR, SSLv3_MAJOR),
+#endif
+
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
     SUITE_INFO("ADH-AES128-SHA","TLS_DH_anon_WITH_AES_128_CBC_SHA",CIPHER_BYTE,TLS_DH_anon_WITH_AES_128_CBC_SHA, TLSv1_2_MINOR, SSLv3_MAJOR),
 #endif
@@ -24387,6 +24979,23 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     else if ((XSTRCMP(n[0],"CAMELLIA128") == 0) ||
              (XSTRCMP(n[2],"CAMELLIA128") == 0))
         encStr = "CAMELLIA(128)";
+#ifdef WOLFSSL_SM4_GCM
+    else if ((XSTRCMP(n[0],"SM4") == 0 && XSTRCMP(n[1],"GCM") == 0) ||
+             (XSTRCMP(n[1],"SM4") == 0 && XSTRCMP(n[2],"GCM") == 0) ||
+             (XSTRCMP(n[2],"SM4") == 0 && XSTRCMP(n[3],"GCM") == 0))
+        encStr = "SM4-GCM";
+#endif
+#ifdef WOLFSSL_SM4_CCM
+    else if ((XSTRCMP(n[0],"SM4") == 0 && XSTRCMP(n[1],"CCM") == 0) ||
+             (XSTRCMP(n[1],"SM4") == 0 && XSTRCMP(n[2],"CCM") == 0) ||
+             (XSTRCMP(n[2],"SM4") == 0 && XSTRCMP(n[3],"CCM") == 0))
+        encStr = "SM4-CCM";
+#endif
+#ifdef WOLFSSL_SM4_CBC
+    else if ((XSTRCMP(n[0],"SM4") == 0) ||
+             (XSTRCMP(n[2],"SM4") == 0))
+        encStr = "SM4";
+#endif
     else if ((XSTRCMP(n[0],"RC4") == 0) || (XSTRCMP(n[1],"RC4") == 0) ||
             (XSTRCMP(n[2],"RC4") == 0))
         encStr = "RC4";
@@ -24443,6 +25052,13 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRCMP(n[2],"SHA384") == 0) ||
              (XSTRCMP(n[1],"SHA384") == 0))
         macStr = "SHA384";
+#ifdef WOLFSSL_SM3
+    else if ((XSTRCMP(n[4],"SM3") == 0) ||
+             (XSTRCMP(n[3],"SM3") == 0) ||
+             (XSTRCMP(n[2],"SM3") == 0) ||
+             (XSTRCMP(n[1],"SM3") == 0))
+        macStr = "SM3";
+#endif
     else if ((XSTRCMP(n[4],"SHA") == 0) || (XSTRCMP(n[3],"SHA") == 0) ||
              (XSTRCMP(n[2],"SHA") == 0) || (XSTRCMP(n[1],"SHA") == 0) ||
              (XSTRCMP(n[1],"MD5") == 0))
@@ -24582,11 +25198,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 {
     int       ret              = 0;
     int       idx              = 0;
-    word16    haveRSAsig       = 0;
-    word16    haveECDSAsig     = 0;
-    word16    haveFalconSig    = 0;
-    word16    haveDilithiumSig = 0;
-    word16    haveAnon         = 0;
+    int       haveSig          = 0;
     word16    haveRSA          = 0;
 #ifdef OPENSSL_EXTRA
     word16    haveDH           = 0;
@@ -24599,8 +25211,6 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 #endif
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
-
-    (void)haveRSA;
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherList parameter error");
@@ -24694,11 +25304,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
         if (XSTRCMP(name, "DEFAULT") == 0 || XSTRCMP(name, "ALL") == 0) {
             if (XSTRCMP(name, "ALL") == 0)
-                haveAnon = 1;
+                haveSig |= SIG_ANON;
             else
-                haveAnon = 0;
+                haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
-            ctx->haveAnon = haveAnon;
+            ctx->haveAnon = (haveSig & SIG_ANON) == SIG_ANON;
         #endif
             haveRSA = 1;
             haveDH = 1;
@@ -24708,7 +25318,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
              * static ECC suites here
              * haveStaticECC = 1; */
             haveStaticRSA = 1;
-            haveRSAsig = 1;
+            haveSig |= SIG_RSA;
             havePSK = 1;
             haveNull = 0;
 
@@ -24721,7 +25331,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
          * ciphersuites. */
         if (XSTRCMP(name, "HIGH") == 0 && allowing) {
             /* Disable static, anonymous, and null ciphers */
-            haveAnon = 0;
+            haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
             ctx->haveAnon = 0;
         #endif
@@ -24730,7 +25340,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveECC = 1;
             haveStaticECC = 0;
             haveStaticRSA = 0;
-            haveRSAsig = 1;
+            haveSig |= SIG_RSA;
             havePSK = 1;
             haveNull = 0;
 
@@ -24740,7 +25350,10 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         }
 
         if (XSTRCMP(name, "aNULL") == 0) {
-            haveAnon = allowing;
+            if (allowing)
+                haveSig |= SIG_ANON;
+            else
+                haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
             ctx->haveAnon = allowing;
         #endif
@@ -24748,8 +25361,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 /* Allow RSA by default. */
                 if (!haveECC)
                     haveRSA = 1;
-                if (!haveECDSAsig)
-                    haveRSAsig = 1;
+                if ((haveSig & SIG_ECDSA) == 0)
+                    haveSig |= SIG_RSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24762,8 +25375,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 /* Allow RSA by default. */
                 if (!haveECC)
                     haveRSA = 1;
-                if (!haveECDSAsig)
-                    haveRSAsig = 1;
+                if ((haveSig & SIG_ECDSA) == 0)
+                    haveSig |= SIG_RSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24774,7 +25387,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveStaticECC = allowing;
             if (allowing) {
                 haveECC = 1;
-                haveECDSAsig = 1;
+                haveSig |= SIG_ECDSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24784,7 +25397,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         if (XSTRCMP(name, "ECDHE") == 0) {
             if (allowing) {
                 haveECC = 1;
-                haveECDSAsig = 1;
+                haveSig |= SIG_ECDSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24795,7 +25408,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveStaticRSA = allowing;
             if (allowing) {
                 haveRSA = 1;
-                haveRSAsig = 1;
+                haveSig |= SIG_RSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24804,13 +25417,13 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
         if (XSTRCMP(name, "PSK") == 0) {
             havePSK = allowing;
-            haveRSAsig = 1;
+            haveSig |= SIG_RSA;
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
                     haveRSA = 1;
-                if (!haveECDSAsig)
-                    haveRSAsig = 1;
+                if ((haveSig & SIG_ECDSA) == 0)
+                    haveSig |= SIG_RSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24822,7 +25435,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             if (allowing) {
                 /* Allow RSA by default */
                 haveRSA = 1;
-                haveRSAsig = 1;
+                haveSig |= SIG_RSA;
                 callInitSuites = 1;
                 ret = 1;
             }
@@ -24880,46 +25493,81 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 suites->suites[idx++] = cipher_names[i].cipherSuite;
                 /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
                  * suites don't necessarily have RSA in the name. */
-            #ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
                 if (cipher_names[i].cipherSuite0 == TLS13_BYTE ||
                          (cipher_names[i].cipherSuite0 == ECC_BYTE &&
                           (cipher_names[i].cipherSuite == TLS_SHA256_SHA256 ||
                            cipher_names[i].cipherSuite == TLS_SHA384_SHA384))) {
                 #ifndef NO_RSA
-                    haveRSAsig = 1;
+                    haveSig |= SIG_RSA;
                 #endif
                 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
                                                              defined(HAVE_ED448)
-                    haveECDSAsig = 1;
+                    haveSig |= SIG_ECDSA;
                 #endif
                 #if defined(HAVE_PQC)
                 #ifdef HAVE_FALCON
-                    haveFalconSig = 1;
+                    haveSig |= SIG_FALCON;
                 #endif /* HAVE_FALCON */
                 #ifdef HAVE_DILITHIUM
-                    haveDilithiumSig = 1;
+                    haveSig |= SIG_DILITHIUM;
                 #endif /* HAVE_DILITHIUM */
                 #endif /* HAVE_PQC */
+                }
+                else
+            #ifdef BUILD_TLS_SM4_GCM_SM3
+                if ((cipher_names[i].cipherSuite0 == CIPHER_BYTE) &&
+                       (cipher_names[i].cipherSuite == TLS_SM4_GCM_SM3)) {
+                    haveSig |= SIG_SM2;
+                }
+                else
+            #endif
+            #ifdef BUILD_TLS_SM4_CCM_SM3
+                if ((cipher_names[i].cipherSuite0 == CIPHER_BYTE) &&
+                       (cipher_names[i].cipherSuite == TLS_SM4_CCM_SM3)) {
+                    haveSig |= SIG_SM2;
+                }
+                else
+            #endif
+        #endif /* WOLFSSL_TLS13 */
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+            (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+             defined(WOLFSSL_SM4_CCM))
+                if ((cipher_names[i].cipherSuite0 == SM_BYTE) && (0
+                #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+                     || (cipher_names[i].cipherSuite ==
+                            TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3)
+                #endif
+                #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+                     || (cipher_names[i].cipherSuite ==
+                            TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3)
+                #endif
+                #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+                     || (cipher_names[i].cipherSuite ==
+                            TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3)
+                #endif
+                    )) {
+                    haveSig |= SIG_SM2;
                 }
                 else
             #endif
             #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
                                                              defined(HAVE_ED448)
-                if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
-                    haveECDSAsig = 1;
+                if (((haveSig && SIG_ECDSA) == 0) && XSTRSTR(name, "ECDSA"))
+                    haveSig |= SIG_ECDSA;
                 else
             #endif
             #ifdef HAVE_ANON
                 if (XSTRSTR(name, "ADH"))
-                    haveAnon = 1;
+                    haveSig |= SIG_ANON;
                 else
             #endif
-                if (haveRSAsig == 0
+                if (((haveSig & SIG_RSA) == 0)
                     #ifndef NO_PSK
                         && (XSTRSTR(name, "PSK") == NULL)
                     #endif
                    ) {
-                    haveRSAsig = 1;
+                    haveSig |= SIG_RSA;
                 }
 
                 ret = 1; /* found at least one */
@@ -24941,12 +25589,15 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             suites->setSuites = 0; /* Force InitSuites */
             suites->hashSigAlgoSz = 0; /* Force InitSuitesHashSigAlgo call
                                         * inside InitSuites */
-            InitSuites(suites, ctx->method->version, keySz, haveRSA,
-                       havePSK, haveDH, haveECDSAsig,
-                       haveECC, haveStaticRSA,
-                       haveStaticECC, haveFalconSig,
-                       haveDilithiumSig, haveAnon,
-                       haveNull, ctx->method->side);
+            InitSuites(suites, ctx->method->version, keySz, (word16)haveRSA,
+                       (word16)havePSK, (word16)haveDH,
+                       (word16)((haveSig & SIG_ECDSA) != 0),
+                       (word16)haveECC, (word16)haveStaticRSA,
+                       (word16)haveStaticECC,
+                       (word16)((haveSig & SIG_FALCON) != 0),
+                       (word16)((haveSig & SIG_DILITHIUM) != 0),
+                       (word16)((haveSig & SIG_ANON) != 0),
+                       (word16)haveNull, ctx->method->side);
             /* Restore user ciphers ahead of defaults */
             XMEMMOVE(suites->suites + idx, suites->suites,
                     min(suites->suiteSz, WOLFSSL_MAX_SUITE_SZ-idx));
@@ -24956,9 +25607,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     #endif
         {
             suites->suiteSz   = (word16)idx;
-            InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig,
-                                  haveFalconSig, haveDilithiumSig, haveAnon,
-                                  1, keySz);
+            InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+                 &suites->hashSigAlgoSz);
         }
         suites->setSuites = 1;
     }
@@ -25036,8 +25686,10 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
          * suites don't necessarily have RSA in the name. */
     #ifdef WOLFSSL_TLS13
         if (firstByte == TLS13_BYTE || (firstByte == ECC_BYTE &&
-                                        (secondByte == TLS_SHA256_SHA256 ||
-                                         secondByte == TLS_SHA384_SHA384))) {
+             (secondByte == TLS_SHA256_SHA256 ||
+              secondByte == TLS_SHA384_SHA384)) ||
+            (firstByte == CIPHER_BYTE && (secondByte == TLS_SM4_GCM_SM3 ||
+              secondByte == TLS_SM4_CCM_SM3))) {
         #ifndef NO_RSA
             haveRSAsig = 1;
         #endif
@@ -25078,13 +25730,21 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
 
     if (ret) {
         int keySz = 0;
+        int haveSig = 0;
     #ifndef NO_CERTS
         keySz = ctx->privateKeySz;
     #endif
         suites->suiteSz = (word16)idx;
-        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig,
-                              haveFalconSig, haveDilithiumSig, haveAnon, 1,
-                              keySz);
+        haveSig |= haveECDSAsig ? SIG_ECDSA : 0;
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        haveSig |= haveECDSAsig ? SIG_SM2 : 0;
+    #endif
+        haveSig |= haveRSAsig ? SIG_RSA : 0;
+        haveSig |= haveFalconSig ? SIG_FALCON : 0;
+        haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
+        haveSig |= haveAnon ? SIG_ANON : 0;
+        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+            &suites->hashSigAlgoSz);
         suites->setSuites = 1;
     }
 
@@ -25112,6 +25772,9 @@ struct mac_algs {
 #endif
 #ifdef WOLFSSL_SHA224
     { sha224_mac, "SHA224" },
+#endif
+#ifdef WOLFSSL_SM3
+    { sm3_mac,    "SM3" },
 #endif
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                                 defined(WOLFSSL_ALLOW_TLS_SHA1))
@@ -25159,6 +25822,9 @@ struct sig_algs {
 #endif
 #ifndef NO_DSA
     { dsa_sa_algo,     "DSA" },
+#endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    { sm2_sa_algo,     "SM2" },
 #endif
 };
 #define SIG_NAMES_SZ    (int)(sizeof(sig_names)/sizeof(*sig_names))
@@ -25325,9 +25991,15 @@ static int CmpEccStrength(int hashAlgo, int curveSz)
 static byte MinHashAlgo(WOLFSSL* ssl)
 {
 #ifdef WOLFSSL_TLS13
+#ifndef NO_SHA256
     if (IsAtLeastTLSv1_3(ssl->version)) {
         return sha256_mac;
     }
+#elif defined(WOLFSSL_SM3)
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        return sm3_mac;
+    }
+#endif
 #endif
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
     if (IsAtLeastTLSv1_2(ssl)) {
@@ -25428,6 +26100,23 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 
     #if defined(HAVE_ECC) && (defined(WOLFSSL_TLS13) || \
                                               defined(WOLFSSL_ECDSA_MATCH_HASH))
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        if (sigAlgo == sm2_sa_algo && hashAlgo == sm3_mac
+        #ifndef WOLFSSL_ECDSA_MATCH_HASH
+            && IsAtLeastTLSv1_3(ssl->version)
+        #endif
+           ) {
+            /* Must be exact match. */
+            if (CmpEccStrength(hashAlgo, ssl->buffers.keySz) != 0)
+                continue;
+            /* Matched SM2-SM3 - set chosen and finished. */
+            ssl->options.sigAlgo = sigAlgo;
+            ssl->options.hashAlgo = hashAlgo;
+            ret = 0;
+            break;
+        }
+        else
+    #endif
         if (sigAlgo == ecc_dsa_sa_algo
         #ifndef WOLFSSL_ECDSA_MATCH_HASH
             && IsAtLeastTLSv1_3(ssl->version)
@@ -25492,6 +26181,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         #ifdef WOLFSSL_SHA512
             case sha512_mac:
         #endif
+        #ifdef WOLFSSL_SM3
+            case sm3_mac:
+        #endif
             #ifdef WOLFSSL_STRONGEST_HASH_SIG
                 /* Is hash algorithm weaker than chosen/min? */
                 if (hashAlgo < ssl->options.hashAlgo)
@@ -25518,6 +26210,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                     #endif
                     #ifdef WOLFSSL_SHA512
                         && (hashAlgo != sha512_mac)
+                    #endif
+                    #ifdef WOLFSSL_SM3
+                        && (hashAlgo != sm3_mac)
                     #endif
                         )
                         {
@@ -25969,7 +26664,11 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
 #endif /* !NO_RSA */
 
-    if (ssl->buffers.keyType == ecc_dsa_sa_algo || ssl->buffers.keyType == 0) {
+    if (ssl->buffers.keyType == ecc_dsa_sa_algo || ssl->buffers.keyType == 0
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+         || ssl->buffers.keyType == sm2_sa_algo
+    #endif
+        ) {
         ssl->hsType = DYNAMIC_TYPE_ECC;
         ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
         if (ret != 0) {
@@ -26308,6 +27007,43 @@ exit_dpk:
       ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
        (defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_RSA)))) || \
      (!defined(NO_DH) && (!defined(NO_RSA) || defined(HAVE_ANON))))
+/* Returns whether the signature algorithm requires caching of messages.
+ *
+ * @param [in] sigAlgo  Signature algorithm.
+ * @return  1 when caching required.
+ * @return  0 when cacheing not required.
+ */
+static int SigAlgoCachesMsgs(int sigAlgo)
+{
+    int ret;
+
+    (void)sigAlgo;
+
+#ifdef HAVE_ED25519
+    if (sigAlgo == ed25519_sa_algo) {
+        ret = 1;
+    }
+    else
+#endif
+#ifdef HAVE_ED448
+    if (sigAlgo == ed448_sa_algo) {
+        ret = 1;
+    }
+    else
+#endif
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (sigAlgo == sm2_sa_algo) {
+        ret = 1;
+    }
+    else
+#endif
+    {
+        ret = 0;
+    }
+
+    return ret;
+}
+
 static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
     const byte* data, int sz, byte sigAlgo)
 {
@@ -26336,8 +27072,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         /* message */
         XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN * 2], data, sz);
     }
-    if (ret == 0 && sigAlgo != ed25519_sa_algo && sigAlgo != ed448_sa_algo) {
-         ssl->buffers.digest.length = (unsigned int)digest_sz;
+    if (ret == 0 && !SigAlgoCachesMsgs(sigAlgo)) {
+        ssl->buffers.digest.length = (unsigned int)digest_sz;
 
         /* buffer for hash */
         if (!ssl->buffers.digest.buffer) {
@@ -26354,7 +27090,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             ret = MEMORY_E;
         }
     }
-    if (ret == 0 && sigAlgo != ed25519_sa_algo && sigAlgo != ed448_sa_algo) {
+    if (ret == 0 && !SigAlgoCachesMsgs(sigAlgo)) {
         /* Perform hash. Only wc_Hash supports MD5_SHA1. */
         ret = wc_Hash(hashType, ssl->buffers.sig.buffer,
                                 ssl->buffers.sig.length,
@@ -27532,6 +28268,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP256R1: return ECC_BRAINPOOLP256R1_OID;
         #endif /* HAVE_ECC_BRAINPOOL */
+        #ifdef WOLFSSL_SM2
+            case WOLFSSL_ECC_SM2P256V1: return ECC_SM2P256V1_OID;
+        #endif /* WOLFSSL_SM2 */
     #endif
         #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
             case WOLFSSL_ECC_X448: return ECC_X448_OID;
@@ -28356,6 +29095,13 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
                         else
                     #endif
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        if (sigAlgo == sm2_sa_algo &&
+                                             args->sigAlgo == ecc_dsa_sa_algo) {
+                            args->sigAlgo = sigAlgo;
+                        }
+                        else
+                    #endif
                     #ifdef HAVE_ED25519
                         if (sigAlgo == ed25519_sa_algo &&
                                              args->sigAlgo == ecc_dsa_sa_algo) {
@@ -28426,6 +29172,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
                     #endif /* !NO_RSA */
                     #ifdef HAVE_ECC
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        case sm2_sa_algo:
+                    #endif
                         case ecc_dsa_sa_algo:
                         {
                             if (!ssl->peerEccDsaKeyPresent) {
@@ -28547,6 +29296,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
                     #endif /* !NO_RSA */
                     #ifdef HAVE_ECC
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        case sm2_sa_algo:
+                    #endif
                         case ecc_dsa_sa_algo:
                         {
                             ret = NOT_COMPILED_IN;
@@ -28561,17 +29313,36 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             }
                         #endif /* HAVE_PK_CALLBACKS */
                             if (ret == NOT_COMPILED_IN) {
-                                ret = EccVerify(ssl,
-                                    args->verifySig, args->verifySigSz,
-                                    ssl->buffers.digest.buffer,
-                                    ssl->buffers.digest.length,
-                                    ssl->peerEccDsaKey,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    &ssl->buffers.peerEccDsaKey
-                                #else
-                                    NULL
-                                #endif
-                                );
+                            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                                if (args->sigAlgo == sm2_sa_algo) {
+                                    ret = Sm2wSm3Verify(ssl,
+                                        TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                                        args->verifySig, args->verifySigSz,
+                                        ssl->buffers.sig.buffer,
+                                        ssl->buffers.sig.length,
+                                        ssl->peerEccDsaKey,
+                                    #ifdef HAVE_PK_CALLBACKS
+                                        &ssl->buffers.peerEccDsaKey
+                                    #else
+                                        NULL
+                                    #endif
+                                    );
+                                }
+                                else
+                            #endif
+                                {
+                                    ret = EccVerify(ssl,
+                                        args->verifySig, args->verifySigSz,
+                                        ssl->buffers.digest.buffer,
+                                        ssl->buffers.digest.length,
+                                        ssl->peerEccDsaKey,
+                                    #ifdef HAVE_PK_CALLBACKS
+                                        &ssl->buffers.peerEccDsaKey
+                                    #else
+                                        NULL
+                                    #endif
+                                    );
+                                }
                             }
 
                         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -28783,6 +29554,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             /* Nothing to do in this algo */
                             break;
                     #endif /* HAVE_ECC */
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        case sm2_sa_algo:
+                            /* Nothing to do in this algo */
+                            break;
+                    #endif /* WOLFSSL_SM2 && WOLFSSL_SM3 */
                     #if defined(HAVE_ED25519)
                         case ed25519_sa_algo:
                             /* Nothing to do in this algo */
@@ -30323,7 +31099,15 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     args->sigAlgo = rsa_sa_algo;
             }
             else if (ssl->hsType == DYNAMIC_TYPE_ECC)
-                args->sigAlgo = ecc_dsa_sa_algo;
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                if (ssl->buffers.keyType == sm2_sa_algo) {
+                    args->sigAlgo = sm2_sa_algo;
+                }
+                else
+        #endif
+                {
+                    args->sigAlgo = ecc_dsa_sa_algo;
+                }
             else if (ssl->hsType == DYNAMIC_TYPE_ED25519)
                 args->sigAlgo = ed25519_sa_algo;
             else if (ssl->hsType == DYNAMIC_TYPE_ED448)
@@ -30397,17 +31181,36 @@ int SendCertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 ecc_key* key = (ecc_key*)ssl->hsKey;
 
-                ret = EccSign(ssl,
-                    ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                    ssl->buffers.sig.buffer,
-                    (word32*)&ssl->buffers.sig.length,
-                    key,
-            #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.key
-            #else
-                    NULL
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                if (args->sigAlgo == sm2_sa_algo) {
+                    ret = Sm2wSm3Sign(ssl,
+                        TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                        ssl->hsHashes->messages, ssl->hsHashes->length,
+                        ssl->buffers.sig.buffer,
+                        (word32*)&ssl->buffers.sig.length,
+                        key,
+                #ifdef HAVE_PK_CALLBACKS
+                        ssl->buffers.key
+                #else
+                        NULL
+                #endif
+                    );
+                }
+                else
             #endif
-                );
+                {
+                    ret = EccSign(ssl,
+                        ssl->buffers.digest.buffer, ssl->buffers.digest.length,
+                        ssl->buffers.sig.buffer,
+                        (word32*)&ssl->buffers.sig.length,
+                        key,
+                #ifdef HAVE_PK_CALLBACKS
+                        ssl->buffers.key
+                #else
+                        NULL
+                #endif
+                    );
+                }
             }
         #endif /* HAVE_ECC */
         #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
@@ -30481,16 +31284,34 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 {
                     ecc_key* key = (ecc_key*)ssl->hsKey;
 
-                    ret = EccVerify(ssl,
-                        ssl->buffers.sig.buffer, ssl->buffers.sig.length,
-                        ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                        key,
-                    #ifdef HAVE_PK_CALLBACKS
-                        ssl->buffers.key
-                    #else
-                        NULL
-                    #endif
-                    );
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                    if (ssl->buffers.keyType == sm2_sa_algo) {
+                        ret = Sm3wSm2Verify(ssl,
+                            TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                            ssl->buffers.sig.buffer, ssl->buffers.sig.length,
+                            ssl->buffers.digest.buffer,
+                            ssl->buffers.digest.length, key,
+                        #ifdef HAVE_PK_CALLBACKS
+                            ssl->buffers.key
+                        #else
+                            NULL
+                        #endif
+                        );
+                    }
+                    else
+                #endif
+                    {
+                        ret = EccVerify(ssl,
+                            ssl->buffers.sig.buffer, ssl->buffers.sig.length,
+                            ssl->buffers.digest.buffer,
+                            ssl->buffers.digest.length, key,
+                        #ifdef HAVE_PK_CALLBACKS
+                            ssl->buffers.key
+                        #else
+                            NULL
+                        #endif
+                        );
+                    }
                     if (ret != 0) {
                         WOLFSSL_MSG("Failed to verify ECC signature");
                         goto exit_scv;
@@ -30843,6 +31664,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case ECC_BRAINPOOLP256R1_OID:
                 return WOLFSSL_ECC_BRAINPOOLP256R1;
         #endif /* HAVE_ECC_BRAINPOOL */
+        #ifdef WOLFSSL_SM2
+            case ECC_SM2P256V1_OID:
+                return WOLFSSL_ECC_SM2P256V1;
+        #endif /* WOLFSSL_SM2 */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -31924,6 +32749,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         #endif /* !NO_RSA */
                         #ifdef HAVE_ECC
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            case sm2_sa_algo:
+                        #endif
                             case ecc_dsa_sa_algo:
                             {
                                 word16 keySz;
@@ -32116,6 +32944,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                         #endif
                         #endif /* !NO_RSA */
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            case sm2_sa_algo:
+                        #endif
                             case ecc_dsa_sa_algo:
                             {
                                 break;
@@ -32395,6 +33226,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         #endif /* !NO_RSA */
                         #ifdef HAVE_ECC
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            case sm2_sa_algo:
+                            {
+                                ecc_key* key = (ecc_key*)ssl->hsKey;
+
+                                ret = Sm2wSm3Sign(ssl,
+                                    TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                                    ssl->buffers.sig.buffer,
+                                    ssl->buffers.sig.length,
+                                    args->output + LENGTH_SZ + args->idx,
+                                    &args->sigSz,
+                                    key,
+                            #ifdef HAVE_PK_CALLBACKS
+                                    ssl->buffers.key
+                            #else
+                                    NULL
+                            #endif
+                                );
+                                break;
+                            }
+                        #endif
                             case ecc_dsa_sa_algo:
                             {
                                 ecc_key* key = (ecc_key*)ssl->hsKey;
@@ -32576,23 +33428,46 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                             }
                         #endif
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            case sm2_sa_algo:
+                        #endif /* WOLFSSL_SM2 */
                             case ecc_dsa_sa_algo:
                         #ifdef WOLFSSL_CHECK_SIG_FAULTS
                             {
                                 ecc_key* key = (ecc_key*)ssl->hsKey;
 
-                                ret = EccVerify(ssl,
-                                    args->output + LENGTH_SZ + args->idx,
-                                    args->sigSz,
-                                    ssl->buffers.digest.buffer,
-                                    ssl->buffers.digest.length,
-                                    key,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    ssl->buffers.key
-                                #else
-                                    NULL
-                                #endif
-                                );
+                            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                                if (ssl->options.sigAlgo == sm2_sa_algo) {
+                                    ret = Sm2wSm3Verify(ssl,
+                                        TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                                        args->output + LENGTH_SZ + args->idx,
+                                        args->sigSz,
+                                        ssl->buffers.sig.buffer,
+                                        ssl->buffers.sig.length,
+                                        key,
+                                    #ifdef HAVE_PK_CALLBACKS
+                                        ssl->buffers.key
+                                    #else
+                                        NULL
+                                    #endif
+                                    );
+                                }
+                                else
+                            #endif /* WOLFSSL_SM2 */
+                                {
+                                    ret = EccVerify(ssl,
+                                        args->output + LENGTH_SZ + args->idx,
+                                        args->sigSz,
+                                        ssl->buffers.digest.buffer,
+                                        ssl->buffers.digest.length,
+                                        key,
+                                    #ifdef HAVE_PK_CALLBACKS
+                                        ssl->buffers.key
+                                    #else
+                                        NULL
+                                    #endif
+                                    );
+                                }
                                 if (ret != 0) {
                                     WOLFSSL_MSG(
                                         "Failed to verify ECC signature");
@@ -32889,8 +33764,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                       ssl->options.side == WOLFSSL_SERVER_END) {
     #ifdef HAVE_SUPPORTED_CURVES
             byte searched = 0;
-            int ret = TLSX_KeyShare_Choose(ssl, extensions, &cs->clientKSE,
-                                           &searched);
+            int ret = TLSX_KeyShare_Choose(ssl, extensions, first, second,
+                                           &cs->clientKSE, &searched);
 
             if (ret == MEMORY_E) {
                 WOLFSSL_MSG("TLSX_KeyShare_Choose() failed in "
@@ -32907,8 +33782,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return 0; /* not found */
     #endif /* HAVE_SUPPORTED_CURVES */
         }
-        else if (first == TLS13_BYTE || (first == ECC_BYTE &&
-                (second == TLS_SHA256_SHA256 || second == TLS_SHA384_SHA384))) {
+        else if ((first == TLS13_BYTE) || ((first == ECC_BYTE) &&
+                 ((second == TLS_SHA256_SHA256) ||
+                  (second == TLS_SHA384_SHA384))) ||
+                 ((first == CIPHER_BYTE) && ((second == TLS_SM4_GCM_SM3) ||
+                  (second == TLS_SM4_CCM_SM3)))) {
             /* Can't negotiate TLS 1.3 cipher suites with lower protocol
              * version. */
             return 0;
@@ -34082,8 +34960,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     args->sigAlgo = rsa_sa_algo;
             #endif
             #ifdef HAVE_ECC
-                else if (ssl->peerEccDsaKeyPresent)
-                    args->sigAlgo = ecc_dsa_sa_algo;
+                else if (ssl->peerEccDsaKeyPresent) {
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                    if (ssl->peerEccDsaKey->dp->id == ECC_SM2P256V1) {
+                        args->sigAlgo = sm2_sa_algo;
+                    }
+                    else
+                #endif
+                    {
+                        args->sigAlgo = ecc_dsa_sa_algo;
+                    }
+                }
             #endif
             #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
                 else if (ssl->peerEd25519KeyPresent)
@@ -34116,6 +35003,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     SetDigest(ssl, sha_mac);
                 #elif !defined(NO_SHA256)
                     SetDigest(ssl, sha256_mac);
+                #elif defined(WOLFSSL_SM3)
+                    SetDigest(ssl, sm3_mac);
                 #elif defined(WOLFSSL_SHA384)
                     SetDigest(ssl, sha384_mac);
                 #elif defined(WOLFSSL_SHA512)
@@ -34125,7 +35014,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
-                        if (args->sigAlgo != ecc_dsa_sa_algo) {
+                        if (args->sigAlgo != ecc_dsa_sa_algo
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            && args->sigAlgo != sm2_sa_algo
+                        #endif
+                            ) {
                             WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
                         }
 
@@ -34192,16 +35085,35 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (ssl->peerEccDsaKeyPresent) {
                     WOLFSSL_MSG("Doing ECC peer cert verify");
 
-                    ret = EccVerify(ssl,
-                        input + args->idx, args->sz,
-                        ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                        ssl->peerEccDsaKey,
-                    #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerEccDsaKey
-                    #else
-                        NULL
-                    #endif
-                    );
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                    if (args->sigAlgo == sm2_sa_algo) {
+                        ret = Sm2wSm3Verify(ssl,
+                            TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
+                            input + args->idx, args->sz,
+                            ssl->hsHashes->messages, ssl->hsHashes->prevLen,
+                            ssl->peerEccDsaKey,
+                        #ifdef HAVE_PK_CALLBACKS
+                            &ssl->buffers.peerEccDsaKey
+                        #else
+                            NULL
+                        #endif
+                        );
+                    }
+                    else
+                #endif
+                    {
+                        ret = EccVerify(ssl,
+                            input + args->idx, args->sz,
+                            ssl->buffers.digest.buffer,
+                            ssl->buffers.digest.length,
+                            ssl->peerEccDsaKey,
+                        #ifdef HAVE_PK_CALLBACKS
+                            &ssl->buffers.peerEccDsaKey
+                        #else
+                            NULL
+                        #endif
+                        );
+                    }
                     /* SERVER: Data verified with certificate's public key. */
                     ssl->options.peerAuthGood = ssl->options.havePeerCert &&
                                                 (ret == 0);
@@ -35577,6 +36489,75 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
 
     return ret;
 }
+#elif defined(WOLFSSL_SM4_GCM)
+/* Ticket encryption/decryption implementation.
+ *
+ * @param [in]   key     Key for encryption/decryption.
+ * @param [in]   keyLen  Length of key in bytes.
+ * @param [in]   iv      IV/Nonce for encryption/decryption.
+ * @param [in]   aad     Additional authentication data.
+ * @param [in]   aadSz   Length of additional authentication data.
+ * @param [in]   in      Data to encrypt/decrypt.
+ * @param [in]   inLen   Length of encrypted data.
+ * @param [out]  out     Resulting data from encrypt/decrypt.
+ * @param [out]  outLen  Size of resulting data.
+ * @param [in]   tag     Authentication tag for encrypted data.
+ * @param [in]   heap    Dynamic memory allocation data hint.
+ * @param [in]   enc     1 when encrypting, 0 when decrypting.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other value when encryption/decryption fails.
+ */
+static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
+                        byte* in, int inLen, byte* out, int* outLen, byte* tag,
+                        void* heap, int enc)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    wc_Sm4* sm4;
+#else
+    wc_Sm4 sm4[1];
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_SMALL_STACK
+    sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sm4 == NULL)
+        return MEMORY_E;
+#endif
+
+    if (enc) {
+        ret = wc_Sm4Init(sm4, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_Sm4GcmSetKey(sm4, key, keyLen);
+        }
+        if (ret == 0) {
+            ret = wc_Sm4GcmEncrypt(sm4, in, out, inLen, iv, GCM_NONCE_MID_SZ,
+                                   tag, SM4_BLOCK_SIZE, aad, aadSz);
+        }
+        wc_Sm4Free(sm4);
+    }
+    else {
+        ret = wc_Sm4Init(sm4, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_Sm4GcmSetKey(sm4, key, keyLen);
+        }
+        if (ret == 0) {
+            ret = wc_Sm4GcmDecrypt(sm4, in, out, inLen, iv, GCM_NONCE_MID_SZ,
+                                   tag, SM$_BLOCK_SIZE, aad, aadSz);
+        }
+        wc_Sm4Free(sm4);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sm4, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    *outLen = inLen;
+
+    return ret;
+}
 #else
     #error "No encryption algorithm available for default ticket encryption."
 #endif
@@ -35639,7 +36620,7 @@ static int TicketEncCbCtx_ChooseKey(TicketEncCbCtx* keyCtx, int ticketHint,
 
 /* Default Session Ticket encryption/decryption callback.
  *
- * Use ChaCha20-Poly1305 or AES-GCM to encrypt/decrypt the ticket.
+ * Use ChaCha20-Poly1305, AES-GCM or SM4-GCM to encrypt/decrypt the ticket.
  * Two keys are used:
  *  - When the first expires for encryption, then use the other.
  *  - Don't encrypt with key if the ticket lifetime will go beyond expirary.

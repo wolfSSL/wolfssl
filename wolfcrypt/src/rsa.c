@@ -2085,6 +2085,9 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
+#ifdef WOLFSSL_SM3
+    case WC_HASH_TYPE_SM3:
+#endif
     #ifdef WOLFSSL_SHAKE128
         case WC_HASH_TYPE_SHAKE128:
     #endif

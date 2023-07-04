@@ -260,7 +260,10 @@ enum {
     ASN_DEPTH_E         = -296,  /* Invalid ASN.1 - depth check */
     ASN_LEN_E           = -297,  /* ASN.1 length invalid */
 
-    WC_LAST_E           = -297,  /* Update this to indicate last error */
+    SM4_GCM_AUTH_E      = -298,  /* SM4-GCM Authentication check failure */
+    SM4_CCM_AUTH_E      = -299,  /* SM4-CCM Authentication check failure */
+
+    WC_LAST_E           = -299,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

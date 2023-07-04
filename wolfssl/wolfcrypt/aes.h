@@ -36,6 +36,33 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#if !defined(NO_AES) || defined(WOLFSSL_SM4)
+typedef struct Gcm {
+    ALIGN16 byte H[16];
+#ifdef OPENSSL_EXTRA
+    word32 aadH[4]; /* additional authenticated data GHASH */
+    word32 aadLen;  /* additional authenticated data len */
+#endif
+#ifdef GCM_TABLE
+    /* key-based fast multiplication table. */
+    ALIGN16 byte M0[256][16];
+#elif defined(GCM_TABLE_4BIT)
+    #if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
+        ALIGN16 byte M0[16][16];
+    #else
+        ALIGN16 byte M0[32][16];
+    #endif
+#endif /* GCM_TABLE */
+} Gcm;
+
+WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
+#ifdef WOLFSSL_ARMASM
+WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
+#endif
+WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
+                         word32 cSz, byte* s, word32 sSz);
+#endif
+
 #ifndef NO_AES
 
 #if defined(HAVE_FIPS) && \
@@ -184,7 +211,6 @@ enum {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(AES)
 };
 
-
 struct Aes {
     /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
@@ -199,11 +225,7 @@ struct Aes {
     word32 nonceSz;
 #endif
 #ifdef HAVE_AESGCM
-    ALIGN16 byte H[AES_BLOCK_SIZE];
-#ifdef OPENSSL_EXTRA
-    word32 aadH[4]; /* additional authenticated data GHASH */
-    word32 aadLen;  /* additional authenticated data len */
-#endif
+    Gcm gcm;
 
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
@@ -212,16 +234,6 @@ struct Aes {
     byte   keyIdSet;
     byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
-#ifdef GCM_TABLE
-    /* key-based fast multiplication table. */
-    ALIGN16 byte M0[256][AES_BLOCK_SIZE];
-#elif defined(GCM_TABLE_4BIT)
-    #if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
-        ALIGN16 byte M0[16][AES_BLOCK_SIZE];
-    #else
-        ALIGN16 byte M0[32][AES_BLOCK_SIZE];
-    #endif
-#endif /* GCM_TABLE */
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     word32 y0;
 #endif
@@ -505,8 +517,6 @@ WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
                                const byte* authIn, word32 authInSz,
                                const byte* authTag, word32 authTagSz);
 #endif /* WC_NO_RNG */
- WOLFSSL_LOCAL void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
-                               word32 cSz, byte* s, word32 sSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
  WOLFSSL_LOCAL int wc_AesCcmCheckTagSize(int sz);

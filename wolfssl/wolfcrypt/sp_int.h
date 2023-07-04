@@ -924,6 +924,8 @@ MP_API int sp_init_copy (sp_int* r, const sp_int* a);
 MP_API int sp_copy(const sp_int* a, sp_int* r);
 MP_API int sp_exch(sp_int* a, sp_int* b);
 MP_API int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap);
+MP_API int sp_cond_swap_ct_ex(sp_int* a, sp_int* b, int cnt, int swap,
+    sp_int* t);
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
 MP_API int sp_abs(const sp_int* a, sp_int* r);
@@ -1100,6 +1102,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_init_copy                        sp_init_copy
 #define mp_exch                             sp_exch
 #define mp_cond_swap_ct                     sp_cond_swap_ct
+#define mp_cond_swap_ct_ex                  sp_cond_swap_ct_ex
 #define mp_cmp_mag                          sp_cmp_mag
 #define mp_cmp                              sp_cmp
 #define mp_count_bits                       sp_count_bits

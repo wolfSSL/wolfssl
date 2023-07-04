@@ -144,6 +144,9 @@ typedef union {
 #ifdef WOLFSSL_SHA3
     wc_Sha3 sha3;
 #endif
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+#endif
 } wc_HmacHash;
 
 /* Hmac digest */

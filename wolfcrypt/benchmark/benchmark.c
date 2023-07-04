@@ -79,6 +79,9 @@
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
 #endif
@@ -93,6 +96,9 @@
 #endif
 #ifdef WOLFSSL_SHA3
     #include <wolfssl/wolfcrypt/sha3.h>
+#endif
+#ifdef WOLFSSL_SM3
+     #include <wolfssl/wolfcrypt/sm3.h>
 #endif
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
@@ -123,6 +129,9 @@
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef WOLFSSL_SM2
+    #include <wolfssl/wolfcrypt/sm2.h>
 #endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
@@ -472,6 +481,10 @@
 #define BENCH_AES_CFB            0x00010000
 #define BENCH_AES_OFB            0x00020000
 #define BENCH_AES_SIV            0x00040000
+#define BENCH_SM4_CBC            0x00080000
+#define BENCH_SM4_GCM            0x00100000
+#define BENCH_SM4_CCM            0x00200000
+#define BENCH_SM4                (BENCH_SM4_CBC | BENCH_SM4_GCM | BENCH_SM4_CCM)
 /* Digest algorithms. */
 #define BENCH_MD5                0x00000001
 #define BENCH_POLY1305           0x00000002
@@ -494,6 +507,7 @@
 #define BENCH_RIPEMD             0x00004000
 #define BENCH_BLAKE2B            0x00008000
 #define BENCH_BLAKE2S            0x00010000
+#define BENCH_SM3                0x00020000
 
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
@@ -530,6 +544,7 @@
 #define BENCH_ECC_P256           0x01000000
 #define BENCH_ECC_P384           0x02000000
 #define BENCH_ECC_P521           0x04000000
+#define BENCH_SM2                0x08000000
 #define BENCH_ECCSI_KEYGEN       0x00000020
 #define BENCH_ECCSI_PAIRGEN      0x00000040
 #define BENCH_ECCSI_VALIDATE     0x00000080
@@ -646,6 +661,18 @@ static const bench_alg bench_cipher_opt[] = {
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     { "-chacha20-poly1305",  BENCH_CHACHA20_POLY1305 },
 #endif
+#ifdef WOLFSSL_SM4_CBC
+    { "-sm4-cbc",            BENCH_SM4_CBC           },
+#endif
+#ifdef WOLFSSL_SM4_GCM
+    { "-sm4-gcm",            BENCH_SM4_GCM           },
+#endif
+#ifdef WOLFSSL_SM4_CCM
+    { "-sm4-ccm",            BENCH_SM4_CCM           },
+#endif
+#ifdef WOLFSSL_SM4
+    { "-sm4",                BENCH_SM4               },
+#endif
 #ifndef NO_DES3
     { "-des",                BENCH_DES               },
 #endif
@@ -703,6 +730,9 @@ static const bench_alg bench_digest_opt[] = {
     #ifdef WOLFSSL_SHAKE256
     { "-shake256",           BENCH_SHAKE256          },
     #endif
+#endif
+#ifdef WOLFSSL_SM3
+    { "-sm3",                BENCH_SM3               },
 #endif
 #ifdef WOLFSSL_RIPEMD
     { "-ripemd",             BENCH_RIPEMD            },
@@ -775,6 +805,9 @@ static const bench_alg bench_asym_opt[] = {
     { "-ecc-enc",            BENCH_ECC_ENCRYPT       },
     #endif
     { "-ecc-all",            BENCH_ECC_ALL           },
+#endif
+#ifdef WOLFSSL_SM2
+    { "-sm2",                BENCH_SM2               },
 #endif
 #ifdef HAVE_CURVE25519
     { "-curve25519-kg",      BENCH_CURVE25519_KEYGEN },
@@ -2401,6 +2434,18 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_cipher_algs & BENCH_CAMELLIA))
         bench_camellia();
 #endif
+#ifdef WOLFSSL_SM4_CBC
+    if (bench_all || (bench_cipher_algs & BENCH_SM4_CBC))
+        bench_sm4_cbc();
+#endif
+#ifdef WOLFSSL_SM4_GCM
+    if (bench_all || (bench_cipher_algs & BENCH_SM4_GCM))
+        bench_sm4_gcm();
+#endif
+#ifdef WOLFSSL_SM4_CCM
+    if (bench_all || (bench_cipher_algs & BENCH_SM4_CCM))
+        bench_sm4_ccm();
+#endif
 #ifndef NO_RC4
     if (bench_all || (bench_cipher_algs & BENCH_ARC4)) {
     #ifndef NO_SW_BENCH
@@ -2579,6 +2624,16 @@ static void* benchmarks_do(void* args)
     #endif
     }
     #endif /* WOLFSSL_SHAKE256 */
+#endif
+#ifdef WOLFSSL_SM3
+    if (bench_all || (bench_digest_algs & BENCH_SM3)) {
+    #ifndef NO_SW_BENCH
+        bench_sm3(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_sm3(1);
+    #endif
+    }
 #endif
 #ifdef WOLFSSL_RIPEMD
     if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
@@ -2808,6 +2863,11 @@ static void* benchmarks_do(void* args)
             bench_ecc_curve((int)ECC_BRAINPOOLP256R1);
             #endif
         }
+    }
+#endif
+#ifdef WOLFSSL_SM2
+    if (bench_all || (bench_asym_algs & BENCH_SM2)) {
+        bench_sm2(0);
     }
 #endif
 
@@ -4284,7 +4344,171 @@ void bench_camellia(void)
 }
 #endif
 
+#ifdef WOLFSSL_SM4_CBC
+void bench_sm4_cbc(void)
+{
+    wc_Sm4 sm4;
+    double start;
+    int    ret;
+    int    i;
+    int    count;
 
+    ret = wc_Sm4SetKey(&sm4, bench_key, SM4_KEY_SIZE);
+    if (ret != 0) {
+        printf("Sm4SetKey failed, ret = %d\n", ret);
+        return;
+    }
+    ret = wc_Sm4SetIV(&sm4, bench_iv);
+    if (ret != 0) {
+        printf("Sm4SetIV failed, ret = %d\n", ret);
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_Sm4CbcEncrypt(&sm4, bench_cipher, bench_plain, bench_size);
+            if (ret < 0) {
+                printf("Sm4CbcEncrypt failed: %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-CBC-enc", 0, count, bench_size, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_Sm4CbcDecrypt(&sm4, bench_plain, bench_cipher, bench_size);
+            if (ret < 0) {
+                printf("Sm4CbcDecrypt failed: %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-CBC-dec", 0, count, bench_size, start, ret);
+}
+#endif
+
+#ifdef WOLFSSL_SM4_GCM
+void bench_sm4_gcm(void)
+{
+    wc_Sm4 sm4;
+    double start;
+    int    ret;
+    int    i;
+    int    count;
+
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesgcm_internal malloc failed\n");
+        return;
+    }
+#endif
+
+    ret = wc_Sm4GcmSetKey(&sm4, bench_key, SM4_KEY_SIZE);
+    if (ret != 0) {
+        printf("Sm4GcmSetKey failed, ret = %d\n", ret);
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_Sm4GcmEncrypt(&sm4, bench_cipher, bench_plain, bench_size,
+                bench_iv, GCM_NONCE_MID_SZ, bench_tag, SM4_BLOCK_SIZE,
+                bench_additional, aesAuthAddSz);
+            if (ret < 0) {
+                printf("Sm4GcmEncrypt failed: %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-GCM-enc", 0, count, bench_size, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_Sm4GcmDecrypt(&sm4, bench_plain, bench_cipher, bench_size,
+                bench_iv, GCM_NONCE_MID_SZ, bench_tag, SM4_BLOCK_SIZE,
+                bench_additional, aesAuthAddSz);
+            if (ret < 0) {
+                printf("Sm4GcmDecrypt failed: %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-GCM-dec", 0, count, bench_size, start, ret);
+}
+#endif
+
+#ifdef WOLFSSL_SM4_CCM
+void bench_sm4_ccm()
+{
+    wc_Sm4 enc;
+    double start;
+    int    ret, i, count;
+
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesccm malloc failed\n");
+        goto exit;
+    }
+#endif
+
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+
+    if ((ret = wc_Sm4SetKey(&enc, bench_key, 16)) != 0) {
+        printf("wc_Sm4SetKey failed, ret = %d\n", ret);
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret |= wc_Sm4CcmEncrypt(&enc, bench_cipher, bench_plain, bench_size,
+                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                bench_additional, 0);
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-CCM-enc", 0, count, bench_size, start, ret);
+    if (ret != 0) {
+        printf("wc_Sm4Encrypt failed, ret = %d\n", ret);
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret |= wc_Sm4CcmDecrypt(&enc, bench_plain, bench_cipher, bench_size,
+                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                bench_additional, 0);
+        }
+        count += i;
+    } while (bench_stats_check(start));
+    bench_stats_sym_finish("SM4-CCM-dec", 0, count, bench_size, start, ret);
+    if (ret != 0) {
+        printf("wc_Sm4Decrypt failed, ret = %d\n", ret);
+        goto exit;
+    }
+
+  exit:
+
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
+}
+#endif /* HAVE_AESCCM */
 #ifndef NO_DES3
 void bench_des(int useDeviceID)
 {
@@ -5769,6 +5993,96 @@ exit:
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_SHAKE256 */
+#endif
+
+#ifdef WOLFSSL_SM3
+void bench_sm3(int useDeviceID)
+{
+    wc_Sm3 hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret = 0, i, count = 0, times, pending = 0;
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SM3_DIGEST_SIZE,
+        HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SM3_DIGEST_SIZE,
+        HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (digest_stream) {
+        /* init keys */
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            ret = wc_InitSm3(&hash[i], HEAP_HINT,
+                useDeviceID ? devId: INVALID_DEVID);
+            if (ret != 0) {
+                printf("InitSm3 failed, ret = %d\n", ret);
+                goto exit;
+            }
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Sm3Update(&hash[i], bench_plain,
+                            bench_size);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_sm3;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Sm3Final(&hash[i], digest[i]);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_sm3;
+                        }
+                    }
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks; times++) {
+                ret = wc_InitSm3(hash, HEAP_HINT,
+                    useDeviceID ? devId: INVALID_DEVID);
+                if (ret == 0)
+                    ret = wc_Sm3Update(hash, bench_plain, bench_size);
+                if (ret == 0)
+                    ret = wc_Sm3Final(hash, digest[0]);
+                if (ret != 0)
+                    goto exit_sm3;
+            } /* for times */
+            count += times;
+        } while (bench_stats_check(start));
+    }
+exit_sm3:
+    bench_stats_sym_finish("SM3", useDeviceID, count, bench_size, start, ret);
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sm3Free(&hash[i]);
+    }
+
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
 #endif
 
 
@@ -7836,6 +8150,286 @@ exit:
 #endif
 }
 #endif
+
+#ifdef WOLFSSL_SM2
+static void bench_sm2_MakeKey(int useDeviceID)
+{
+    int ret = 0, i, times, count, pending = 0;
+    int deviceID;
+    int keySize;
+    ecc_key genKey[BENCH_MAX_PENDING];
+    char name[BENCH_ECC_NAME_SZ];
+    double start;
+    const char**desc = bench_desc_words[lng_index];
+
+    deviceID = useDeviceID ? devId : INVALID_DEVID;
+    keySize = wc_ecc_get_curve_size_from_id(ECC_SM2P256V1);
+
+    /* clear for done cleanup */
+    XMEMSET(&genKey, 0, sizeof(genKey));
+
+    /* ECC Make Key */
+    bench_stats_start(&count, &start);
+    do {
+        /* while free pending slots in queue, submit ops */
+        for (times = 0; times < agreeTimes || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0,
+                            &times, agreeTimes, &pending)) {
+
+                    wc_ecc_free(&genKey[i]);
+                    ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, deviceID);
+                    if (ret < 0) {
+                        goto exit;
+                    }
+
+                    ret = wc_ecc_sm2_make_key(&gRng, &genKey[i],
+                        WC_ECC_FLAG_NONE);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times,
+                                &pending)) {
+                        goto exit;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+exit:
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
+            wc_ecc_get_name(ECC_SM2P256V1));
+    bench_stats_asym_finish(name, keySize * 8, desc[2], useDeviceID, count, start,
+            ret);
+
+    /* cleanup */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_ecc_free(&genKey[i]);
+    }
+}
+
+
+void bench_sm2(int useDeviceID)
+{
+    int ret = 0, i, times, count, pending = 0;
+    int deviceID;
+    int  keySize;
+    char name[BENCH_ECC_NAME_SZ];
+    ecc_key genKey[BENCH_MAX_PENDING];
+#ifdef HAVE_ECC_DHE
+    ecc_key genKey2[BENCH_MAX_PENDING];
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+#ifdef HAVE_ECC_VERIFY
+    int    verify[BENCH_MAX_PENDING];
+#endif
+#endif
+    word32 x[BENCH_MAX_PENDING];
+    double start = 0;
+    const char**desc = bench_desc_words[lng_index];
+
+#ifdef HAVE_ECC_DHE
+    WC_DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+    WC_DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+#endif
+
+#ifdef HAVE_ECC_DHE
+    WC_INIT_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+    WC_INIT_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+#endif
+    deviceID = useDeviceID ? devId : INVALID_DEVID;
+
+    bench_sm2_MakeKey(useDeviceID);
+
+    /* clear for done cleanup */
+    XMEMSET(&genKey, 0, sizeof(genKey));
+#ifdef HAVE_ECC_DHE
+    XMEMSET(&genKey2, 0, sizeof(genKey2));
+#endif
+    keySize = wc_ecc_get_curve_size_from_id(ECC_SM2P256V1);
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        /* setup an context for each key */
+        if ((ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, deviceID)) < 0) {
+            goto exit;
+        }
+        ret = wc_ecc_sm2_make_key(&gRng, &genKey[i], WC_ECC_FLAG_NONE);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ret = wc_AsyncWait(ret, &genKey[i].asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret < 0) {
+            goto exit;
+        }
+
+    #ifdef HAVE_ECC_DHE
+        if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, deviceID)) < 0) {
+            goto exit;
+        }
+        if ((ret = wc_ecc_sm2_make_key(&gRng, &genKey2[i],
+                WC_ECC_FLAG_NONE)) > 0) {
+            goto exit;
+        }
+    #endif
+    }
+
+#ifdef HAVE_ECC_DHE
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        (void)wc_ecc_set_rng(&genKey[i], &gRng);
+    }
+#endif
+
+    /* ECC Shared Secret */
+    bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
+    do {
+        for (times = 0; times < agreeTimes || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
+                    x[i] = (word32)keySize;
+                    ret = wc_ecc_sm2_shared_secret(&genKey[i], &genKey2[i],
+                            shared[i], &x[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
+                        goto exit_ecdhe;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+    PRIVATE_KEY_UNLOCK();
+exit_ecdhe:
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(ECC_SM2P256V1));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[3], useDeviceID, count, start,
+            ret);
+
+    if (ret < 0) {
+        goto exit;
+    }
+#endif /* HAVE_ECC_DHE */
+
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+
+    /* Init digest to sign */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        for (count = 0; count < keySize; count++) {
+            digest[i][count] = (byte)count;
+        }
+    }
+
+    /* ECC Sign */
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < agreeTimes || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
+                    if (genKey[i].state == 0)
+                        x[i] = ECC_MAX_SIG_SIZE;
+                    ret = wc_ecc_sm2_sign_hash(digest[i], (word32)keySize,
+                            sig[i], &x[i], &gRng, &genKey[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
+                        goto exit_ecdsa_sign;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+exit_ecdsa_sign:
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(ECC_SM2P256V1));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[4], useDeviceID, count, start,
+            ret);
+
+    if (ret < 0) {
+        goto exit;
+    }
+
+#ifdef HAVE_ECC_VERIFY
+
+    /* ECC Verify */
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < agreeTimes || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
+                    if (genKey[i].state == 0)
+                        verify[i] = 0;
+                    ret = wc_ecc_sm2_verify_hash(sig[i], x[i], digest[i],
+                                       (word32)keySize, &verify[i], &genKey[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
+                        goto exit_ecdsa_verify;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+exit_ecdsa_verify:
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(ECC_SM2P256V1));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[5], useDeviceID, count, start,
+            ret);
+#endif /* HAVE_ECC_VERIFY */
+#endif /* !NO_ASN && HAVE_ECC_SIGN */
+
+exit:
+
+    /* cleanup */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_ecc_free(&genKey[i]);
+    #ifdef HAVE_ECC_DHE
+        wc_ecc_free(&genKey2[i]);
+    #endif
+    }
+
+#ifdef HAVE_ECC_DHE
+    WC_FREE_ARRAY(shared, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+    WC_FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
+
+    (void)useDeviceID;
+    (void)pending;
+    (void)x;
+    (void)count;
+    (void)times;
+    (void)desc;
+    (void)start;
+    (void)name;
+}
+#endif /* WOLFSSL_SM2 */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519

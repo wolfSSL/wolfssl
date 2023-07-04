@@ -329,6 +329,8 @@ MP_API int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
 MP_API void mp_zero (mp_int * a);
 MP_API void mp_clamp (mp_int * a);
 MP_API int  mp_exch (mp_int * a, mp_int * b);
+MP_API int  mp_cond_swap_ct_ex (mp_int * a, mp_int * b, int c, int m,
+                                mp_int * t);
 MP_API int  mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m);
 MP_API void mp_rshd (mp_int * a, int b);
 MP_API void mp_rshb (mp_int * a, int b);

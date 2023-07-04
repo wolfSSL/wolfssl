@@ -157,6 +157,12 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
             hashSz = WC_SHA384_DIGEST_SIZE;
         }
 #endif
+#ifdef WOLFSSL_SM3
+        if (ssl->specs.mac_algorithm == sm3_mac) {
+            ret |= wc_Sm3GetHash(&ssl->hsHashes->hashSm3, hash);
+            hashSz = WC_SM3_DIGEST_SIZE;
+        }
+#endif
     }
 
     *hashLen = hashSz;
@@ -686,7 +692,12 @@ int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
         {
             return WC_SHA384;
         }
-
+        #endif
+        #ifdef WOLFSSL_SM3
+        case sm3_mac:
+        {
+            return WC_SM3;
+        }
         #endif
         #ifndef NO_SHA
         case sha_mac:
@@ -775,6 +786,12 @@ static int Hmac_HashUpdate(Hmac* hmac, const byte* data, word32 sz)
             break;
     #endif /* WOLFSSL_SHA512 */
 
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            ret = wc_Sm3Update(&hmac->hash.sm3, data, sz);
+            break;
+    #endif /* WOLFSSL_SM3 */
+
         default:
             break;
     }
@@ -816,6 +833,12 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
             ret = wc_Sha512FinalRaw(&hmac->hash.sha512, hash);
             break;
     #endif /* WOLFSSL_SHA512 */
+
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            ret = wc_Sm3FinalRaw(&hmac->hash.sm3, hash);
+            break;
+    #endif /* WOLFSSL_SM3 */
 
         default:
             break;
@@ -912,6 +935,14 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             padSz = WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE + 1;
             break;
     #endif /* WOLFSSL_SHA512 */
+
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            blockSz = WC_SM3_BLOCK_SIZE;
+            blockBits = 6;
+            padSz = WC_SM3_BLOCK_SIZE - WC_SM3_PAD_SIZE + 1;
+            break;
+    #endif /* WOLFSSL_SM3 */
 
         default:
             return BAD_FUNC_ARG;
@@ -3860,7 +3891,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
                        && !defined(HAVE_FFDHE) && !defined(HAVE_PQC)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography or liboqs groups. \
        Use --enable-ecc and/or --enable-liboqs in the configure script or \
-       define HAVE_ECC. Alternatively use FFDHE for DH ciphersuites.
+       define HAVE_ECC. Alternatively use FFDHE for DH cipher suites.
 #endif
 
 static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
@@ -3987,6 +4018,21 @@ static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
     for (i = 0; i < suites->suiteSz; i += 2) {
         if (suites->suites[i] == TLS13_BYTE)
             return;
+    #ifdef BUILD_TLS_SM4_GCM_SM3
+        if ((suites->suites[i] == CIPHER_BYTE) &&
+            (suites->suites[i+1] == TLS_SM4_GCM_SM3))
+            return;
+    #endif
+    #ifdef BUILD_TLS_SM4_CCM_SM3
+        if ((suites->suites[i] == CIPHER_BYTE) &&
+            (suites->suites[i+1] == TLS_SM4_CCM_SM3))
+            return;
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        if ((suites->suites[i] == SM_BYTE) &&
+            (suites->suites[i+1] == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3))
+            return;
+    #endif
         if ((suites->suites[i] == ECC_BYTE) ||
             (suites->suites[i] == ECDHE_PSK_BYTE) ||
             (suites->suites[i] == CHACHA_BYTE)) {
@@ -4024,6 +4070,21 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
     for (i = 0; i < suites->suiteSz; i += 2) {
         if (suites->suites[i] == TLS13_BYTE)
             return;
+    #ifdef BUILD_TLS_SM4_GCM_SM3
+        if ((suites->suites[i] == CIPHER_BYTE) &&
+            (suites->suites[i+1] == TLS_SM4_GCM_SM3))
+            return;
+    #endif
+    #ifdef BUILD_TLS_SM4_CCM_SM3
+        if ((suites->suites[i] == CIPHER_BYTE) &&
+            (suites->suites[i+1] == TLS_SM4_CCM_SM3))
+            return;
+    #endif
+    #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        if ((suites->suites[i] == SM_BYTE) &&
+            (suites->suites[i+1] == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3))
+            return;
+    #endif
         if ((suites->suites[i] == ECC_BYTE) ||
             (suites->suites[i] == ECDHE_PSK_BYTE) ||
             (suites->suites[i] == CHACHA_BYTE)) {
@@ -4051,6 +4112,21 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 
     if (ssl->options.cipherSuite0 == TLS13_BYTE)
         return;
+#ifdef BUILD_TLS_SM4_GCM_SM3
+    if ((ssl->options.cipherSuite0 == CIPHER_BYTE) &&
+        (ssl->options.cipherSuite == TLS_SM4_GCM_SM3))
+        return;
+#endif
+#ifdef BUILD_TLS_SM4_CCM_SM3
+    if ((ssl->options.cipherSuite0 == CIPHER_BYTE) &&
+        (ssl->options.cipherSuite == TLS_SM4_CCM_SM3))
+        return;
+#endif
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    if ((ssl->options.cipherSuite0 == SM_BYTE) &&
+        (ssl->options.cipherSuite == TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3))
+        return;
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     if (ssl->options.cipherSuite0 == ECC_BYTE ||
         ssl->options.cipherSuite0 == ECDHE_PSK_BYTE ||
@@ -4671,6 +4747,12 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
+        #ifdef WOLFSSL_SM2
+            case WOLFSSL_ECC_SM2P256V1:
+                oid = ECC_SM2P256V1_OID;
+                octets = 32;
+                break;
+        #endif /* WOLFSSL_SM2 */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -7098,6 +7180,12 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             keySize = 32;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef WOLFSSL_SM2
+        case WOLFSSL_ECC_SM2P256V1:
+            curveId = ECC_SM2P256V1;
+            keySize = 32;
+            break;
+        #endif /* !NO_ECC_SECP */
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -7888,6 +7976,11 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             curveId = ECC_SECP256R1;
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef WOLFSSL_SM2
+        case WOLFSSL_ECC_SM2P256V1:
+            curveId = ECC_SM2P256V1;
+            break;
+        #endif
     #endif
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
@@ -8834,6 +8927,10 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_ECC_BRAINPOOLP256R1:
             break;
         #endif
+        #ifdef WOLFSSL_SM2
+        case WOLFSSL_ECC_SM2P256V1:
+            break;
+        #endif /* WOLFSSL_SM2 */
     #endif
     #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
         case WOLFSSL_ECC_X25519:
@@ -8949,6 +9046,9 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
     WOLFSSL_ECC_SECP256R1,
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_SM2)
+    WOLFSSL_ECC_SM2P256V1,
+#endif
 #endif
 #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
     WOLFSSL_ECC_X25519,
@@ -9124,7 +9224,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
 
 /* Server side KSE processing */
 int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
-                         KeyShareEntry** kse, byte* searched)
+    byte cipherSuite0, byte cipherSuite, KeyShareEntry** kse, byte* searched)
 {
     TLSX*          extension;
     KeyShareEntry* clientKSE = NULL;
@@ -9132,6 +9232,9 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     KeyShareEntry* preferredKSE = NULL;
     int preferredRank = WOLFSSL_MAX_GROUP_COUNT;
     int rank;
+
+    (void)cipherSuite0;
+    (void)cipherSuite;
 
     if (ssl == NULL || ssl->options.side != WOLFSSL_SERVER_END)
         return BAD_FUNC_ARG;
@@ -9162,6 +9265,19 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     for (clientKSE = list; clientKSE != NULL; clientKSE = clientKSE->next) {
         if (clientKSE->ke == NULL)
             continue;
+
+#ifdef WOLFSSL_SM2
+        if ((cipherSuite0 == CIPHER_BYTE) &&
+            ((cipherSuite == TLS_SM4_GCM_SM3) ||
+             (cipherSuite == TLS_SM4_CCM_SM3))) {
+           if (clientKSE->group != WOLFSSL_ECC_SM2P256V1) {
+               continue;
+           }
+        }
+        else if (clientKSE->group == WOLFSSL_ECC_SM2P256V1) {
+           continue;
+        }
+#endif
 
         /* Check consistency now - extensions in any order. */
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group, extensions))
@@ -9298,7 +9414,8 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
     *doHelloRetry = 0;
 
-    ret = TLSX_KeyShare_Choose(ssl, ssl->extensions, &clientKSE, &searched);
+    ret = TLSX_KeyShare_Choose(ssl, ssl->extensions, ssl->cipher.cipherSuite0,
+        ssl->cipher.cipherSuite, &clientKSE, &searched);
     if (ret != 0 || !searched)
         return ret;
 
@@ -9780,6 +9897,10 @@ static WC_INLINE byte GetHmacLength(int hmac)
         case sha512_mac:
             return WC_SHA512_DIGEST_SIZE;
     #endif
+    #ifdef WOLFSSL_SM3
+        case sm3_mac:
+            return WC_SM3_DIGEST_SIZE;
+    #endif
     }
     return 0;
 }
@@ -9791,8 +9912,8 @@ static WC_INLINE byte GetHmacLength(int hmac)
  * len           The length of the identity data.
  * age           The age of the identity.
  * hmac          The HMAC algorithm.
- * ciphersuite0  The first byte of the ciphersuite to use.
- * ciphersuite   The second byte of the ciphersuite to use.
+ * cipherSuite0  The first byte of the cipher suite to use.
+ * cipherSuite   The second byte of the cipher suite to use.
  * resumption    The PSK is for resumption of a session.
  * preSharedKey  The new pre-shared key object.
  * returns 0 on success and other values indicate failure.
@@ -11738,6 +11859,11 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                                         WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
+            #ifdef WOLFSSL_SM2
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SM2P256V1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
         #endif
 #endif /* HAVE_ECC */
 
@@ -12136,6 +12262,16 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     }
                     else
                 #endif
+                #if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+                    defined(WOLFSSL_SM3)
+                    if (cipherSuite0 == CIPHER_BYTE) {
+                        if ((cipherSuite != TLS_SM4_GCM_SM3) &&
+                            (cipherSuite != TLS_SM4_CCM_SM3)) {
+                            continue;
+                        }
+                    }
+                    else
+                #endif
                     if (cipherSuite0 != TLS13_BYTE)
                         continue;
 
@@ -12175,7 +12311,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
             if (ssl->options.client_psk_cb != NULL ||
                                      ssl->options.client_psk_tls13_cb != NULL) {
-                /* Default ciphersuite. */
+                /* Default cipher suite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
                 int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;

@@ -3267,6 +3267,11 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
                 info->curve_id = ECC_SECP256R1;
                 break;
             #endif /* !NO_ECC_SECP */
+            #ifdef WOLFSSL_SM2
+            case WOLFSSL_ECC_SM2P256V1:
+                info->curve_id = ECC_SM2P256V1;
+                break;
+            #endif /* WOLFSSL_SM2 */
         #endif
         #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
