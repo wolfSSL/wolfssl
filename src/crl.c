@@ -1339,7 +1339,32 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
     return 0;
 }
 
-#define DM_ERROR() do { status = MONITOR_SETUP_E; goto cleanup; } while(0)
+#ifdef DEBUG_WOLFSSL
+#define SHOW_WINDOWS_ERROR() do {                               \
+    LPVOID lpMsgBuf;                                            \
+    DWORD dw = GetLastError();                                  \
+    FormatMessageA(                                             \
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |                        \
+        FORMAT_MESSAGE_FROM_SYSTEM |                            \
+        FORMAT_MESSAGE_IGNORE_INSERTS,                          \
+        NULL,                                                   \
+        dw,                                                     \
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),              \
+        (LPSTR) &lpMsgBuf,                                      \
+        0, NULL );                                              \
+    WOLFSSL_MSG_EX("DoMonitor failed with error %d: %s\n",      \
+        dw, lpMsgBuf);                                          \
+    LocalFree(lpMsgBuf);                                        \
+} while(0)
+#else
+#define SHOW_WINDOWS_ERROR()
+#endif
+
+#define DM_ERROR() do {                                         \
+    SHOW_WINDOWS_ERROR();                                       \
+    status = MONITOR_SETUP_E;                                   \
+    goto cleanup;                                               \
+} while(0)
 
 /* windows monitoring
  * Tested initially by hand by running

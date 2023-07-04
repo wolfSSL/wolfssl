@@ -166,7 +166,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
     WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void);
-#if !defined(_WIN32) && defined(XVSNPRINTF)
+#if defined(XVSNPRINTF)
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else
