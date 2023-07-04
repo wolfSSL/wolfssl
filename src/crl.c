@@ -1036,7 +1036,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #ifdef __MACH__
     #define XEVENT_MODE O_EVTONLY
 #elif defined(__FreeBSD__)
-    #define XEVENT_MODE EVFILT_VNODE
+    #define XEVENT_MODE O_RDONLY
 #endif
 
 
@@ -1115,11 +1115,11 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     }
 
     if (fPEM != -1)
-        EV_SET(&change, fPEM, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+        EV_SET(&change, fPEM, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
                 NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
 
     if (fDER != -1)
-        EV_SET(&change, fDER, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+        EV_SET(&change, fDER, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
                 NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
 
     /* signal to calling thread we're setup */
