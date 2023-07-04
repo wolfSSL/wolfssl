@@ -8816,7 +8816,7 @@ rm cyassl/options.h.bak
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -I. -I$srcdir"
+    CFLAGS="$CFLAGS $DEFS -I. -I$srcdir"
     if test "$ENABLED_INTEL_QA" = "yes"
     then
         CFLAGS="$CFLAGS $QAT_FLAGS"

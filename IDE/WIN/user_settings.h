@@ -37,6 +37,9 @@
     #define WC_RSA_BLINDING
     #define NO_MULTIBYTE_PRINT
 
+    #define HAVE_CRL
+    #define HAVE_CRL_MONITOR
+
     #if defined(WOLFSSL_LIB)
         /* The lib */
         #define OPENSSL_EXTRA

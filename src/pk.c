@@ -10209,7 +10209,7 @@ static int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WOLFSSL_EC_POINT *point)
 {
     int err = 0;
-    mp_digit mp;
+    mp_digit mp = 0;
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* modulus;
 #else

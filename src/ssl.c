@@ -7441,8 +7441,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* add trusted peer cert. der is freed within */
         if (ctx != NULL)
             ret = AddTrustedPeer(ctx->cm, &der, !ctx->verifyNone);
-        else
+        else {
+            SSL_CM_WARNING(ssl);
             ret = AddTrustedPeer(SSL_CM(ssl), &der, !ssl->options.verifyNone);
+        }
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error adding trusted peer");
         }
@@ -8198,6 +8200,7 @@ int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl, const unsigned char* buff,
     if (ssl == NULL || ssl->ctx == NULL)
         return BAD_FUNC_ARG;
 
+    SSL_CM_WARNING(ssl);
     return wolfSSL_CertManagerLoadCRLBuffer(SSL_CM(ssl), buff, sz, type);
 }
 
@@ -8648,6 +8651,7 @@ int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER* cm,
 int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSP");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerEnableOCSP(SSL_CM(ssl), options);
     else
@@ -8657,6 +8661,7 @@ int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSP");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerDisableOCSP(SSL_CM(ssl));
     else
@@ -8667,6 +8672,7 @@ int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSPStapling");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerEnableOCSPStapling(SSL_CM(ssl));
     else
@@ -8676,6 +8682,7 @@ int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSPStapling");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerDisableOCSPStapling(SSL_CM(ssl));
     else
@@ -8685,6 +8692,7 @@ int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_SetOCSP_OverrideURL(WOLFSSL* ssl, const char* url)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_OverrideURL");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerSetOCSPOverrideURL(SSL_CM(ssl), url);
     else
@@ -8696,6 +8704,7 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl,
                         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_Cb");
+    SSL_CM_WARNING(ssl);
     if (ssl) {
         ssl->ocspIOCtx = ioCbCtx; /* use SSL specific ioCbCtx */
         return wolfSSL_CertManagerSetOCSP_Cb(SSL_CM(ssl),
@@ -9484,6 +9493,7 @@ int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableCRL");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerEnableCRL(SSL_CM(ssl), options);
     else
@@ -9494,6 +9504,7 @@ int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 int wolfSSL_DisableCRL(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableCRL");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerDisableCRL(SSL_CM(ssl));
     else
@@ -9504,6 +9515,7 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl)
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRL");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerLoadCRL(SSL_CM(ssl), path, type, monitor);
     else
@@ -9513,6 +9525,7 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRL");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerLoadCRLFile(SSL_CM(ssl), file, type);
     else
@@ -9524,6 +9537,7 @@ int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerSetCRL_Cb(SSL_CM(ssl), cb);
     else
@@ -9534,6 +9548,7 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
+    SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerSetCRL_IOCb(SSL_CM(ssl), cb);
     else
@@ -17117,6 +17132,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ssl == NULL)
             return BAD_FUNC_ARG;
 
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerUnload_trust_peers(SSL_CM(ssl));
     }
 #endif /* WOLFSSL_LOCAL_X509_STORE */
@@ -20773,6 +20789,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         if (ret == 0 && i == ssl->session->chain.count-1) {
             /* On the last element in the chain try to add the CA chain
              * first if we have one for this cert */
+            SSL_CM_WARNING(ssl);
             if (PushCAx509Chain(SSL_CM(ssl), x509, sk)
                     == WOLFSSL_FATAL_ERROR) {
                 ret = WOLFSSL_FATAL_ERROR;

@@ -2408,6 +2408,19 @@ struct CRL_Monitor {
     #undef HAVE_CRL_MONITOR
 #endif
 
+/* PEM and DER possible */
+#define WOLFSSL_CRL_MONITORS_LEN (2)
+
+#if defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__)
+typedef int    wolfSSL_CRL_mfd_t; /* monitor fd, -1 if no init yet */
+/* mfd for bsd is kqueue fd, eventfd for linux */
+#define WOLFSSL_CRL_MFD_INIT_VAL (-1)
+#elif defined(_MSC_VER)
+typedef HANDLE wolfSSL_CRL_mfd_t; /* monitor fd, INVALID_HANDLE_VALUE if
+                                   * no init yet */
+#define WOLFSSL_CRL_MFD_INIT_VAL (INVALID_HANDLE_VALUE)
+#endif
+
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
@@ -2417,11 +2430,11 @@ struct WOLFSSL_CRL {
     CbCrlIO               crlIOCb;
 #endif
     wolfSSL_Mutex         crlLock;       /* CRL list lock */
-    CRL_Monitor           monitors[2];   /* PEM and DER possible */
+    CRL_Monitor           monitors[WOLFSSL_CRL_MONITORS_LEN];
 #ifdef HAVE_CRL_MONITOR
-    pthread_cond_t        cond;          /* condition to signal setup */
-    pthread_t             tid;           /* monitoring thread */
-    int                   mfd;           /* monitor fd, -1 if no init yet */
+    COND_TYPE             cond;          /* condition to signal setup */
+    THREAD_TYPE           tid;           /* monitoring thread */
+    wolfSSL_CRL_mfd_t     mfd;
     int                   setup;         /* thread is setup predicate */
 #endif
     void*                 heap;          /* heap hint for dynamic memory */
@@ -5670,6 +5683,13 @@ struct WOLFSSL {
 #else
 #define SSL_CM(ssl) (ssl)->ctx->cm
 #endif
+/* Issue warning when we are modifying the overall context CM */
+#define SSL_CM_WARNING(ssl) \
+    do {                                                             \
+        if (SSL_CM( (ssl) ) == (ssl)->ctx->cm) {                     \
+            WOLFSSL_MSG("Modifying SSL_CTX CM not SSL specific CM"); \
+        }                                                            \
+    } while (0)
 
 #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? (ssl)->ca_names : \
         (ssl)->ctx->ca_names)

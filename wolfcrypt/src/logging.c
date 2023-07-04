@@ -323,7 +323,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 
 #ifndef WOLFSSL_DEBUG_ERRORS_ONLY
 
-#if !defined(_WIN32) && defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
+#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
 #include <stdarg.h> /* for var args */
 #ifndef WOLFSSL_MSG_EX_BUF_SZ
 #define WOLFSSL_MSG_EX_BUF_SZ 100

@@ -517,7 +517,7 @@ static void wolfssl_memstats(WOLFSSL* ssl)
 
 
 /* Start the server thread. */
-void start_thread(THREAD_FUNC func, func_args* args, THREAD_TYPE* thread)
+void start_thread(THREAD_CB func, func_args* args, THREAD_TYPE* thread)
 {
     k_thread_create(thread, server_stack, K_THREAD_STACK_SIZEOF(server_stack),
                     func, args, NULL, NULL, 5, 0, K_NO_WAIT);

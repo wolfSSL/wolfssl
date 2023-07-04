@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>
@@ -57,6 +58,10 @@ static THREAD_RETURN simple_test(func_args *args);
 static void simple_test(func_args *args);
 #endif
 static int test_tls(func_args* server_args);
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
+static int test_crl_monitor(void);
+#endif
 static void show_ciphers(void);
 static void cleanup_output(void);
 static int validate_cleanup_output(void);
@@ -214,6 +219,16 @@ int testsuite_test(int argc, char** argv)
         cleanup_output();
         return server_args.return_code;
     }
+
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
+    ret = test_crl_monitor();
+    if (ret != 0) {
+        cleanup_output();
+        return ret;
+    }
+#endif
+
 #endif /* !NETOS */
 
     show_ciphers();
@@ -247,6 +262,144 @@ int testsuite_test(int argc, char** argv)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL) && defined(HAVE_CRL_MONITOR)
+#define CRL_MONITOR_TEST_ROUNDS 6
+#define CRL_MONITOR_REM_FILE_ATTEMPTS 20
+
+static int test_crl_monitor(void)
+{
+    func_args server_args;
+    func_args client_args;
+    THREAD_TYPE serverThread;
+    tcp_ready ready;
+    char buf[128];
+    char tmpDir[16];
+    char rounds[4];
+    const char* serverArgv[] = {
+        "testsuite",
+        "-A", "certs/ca-cert.pem",
+        "--crl-dir", tmpDir,
+        "-C", rounds,
+        "--quieter",
+        "-x"
+    };
+    const char* clientArgv[] = {
+        "testsuite",
+        "-C",
+        "-c", "certs/server-cert.pem",
+        "-k", "certs/server-key.pem",
+        "--quieter",
+        "-H", "exitWithRet"
+    };
+    int ret = -1;
+    int i = -1, j;
+
+    printf("\nRunning CRL monitor test\n");
+
+    sprintf(rounds, "%d", CRL_MONITOR_TEST_ROUNDS);
+
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&client_args, 0, sizeof(func_args));
+
+    /* Create temp dir */
+    if (create_tmp_dir(tmpDir, sizeof(tmpDir) - 1) == NULL) {
+        fprintf(stderr, "Failed to create tmp dir");
+        goto cleanup;
+    }
+
+    server_args.argv = (char**)serverArgv;
+    server_args.argc = sizeof(serverArgv) / sizeof(*serverArgv);
+    client_args.signal = server_args.signal = &ready;
+    client_args.argv = (char**)clientArgv;
+    client_args.argc = sizeof(clientArgv) / sizeof(*clientArgv);
+
+    InitTcpReady(&ready);
+    start_thread(server_test, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    for (i = 0; i < CRL_MONITOR_TEST_ROUNDS; i++) {
+        int expectFail;
+        if (i % 2 == 0) {
+            /* succeed on even rounds */
+            sprintf(buf, "%s/%s", tmpDir, "crl.pem");
+            if (copy_file("certs/crl/crl.pem", buf) != 0) {
+                fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
+                goto cleanup;
+            }
+            sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
+            /* The monitor can be holding the file handle and this will cause
+             * the remove call to fail. Let's give the monitor a some time to
+             * finish up. */
+            for (j = 0; j < CRL_MONITOR_REM_FILE_ATTEMPTS; j++) {
+                /* i == 0 since there is nothing to delete in the first round */
+                if (i == 0 || rem_file(buf) == 0)
+                    break;
+                XSLEEP_MS(100);
+            }
+            if (j == CRL_MONITOR_REM_FILE_ATTEMPTS) {
+                fprintf(stderr, "[%d] Failed to remove file %s\n", i, buf);
+                goto cleanup;
+            }
+            expectFail = 0;
+        }
+        else {
+            /* fail on odd rounds */
+            sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
+            if (copy_file("certs/crl/crl.revoked", buf) != 0) {
+                fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
+                goto cleanup;
+            }
+            sprintf(buf, "%s/%s", tmpDir, "crl.pem");
+            /* The monitor can be holding the file handle and this will cause
+             * the remove call to fail. Let's give the monitor a some time to
+             * finish up. */
+            for (j = 0; j < CRL_MONITOR_REM_FILE_ATTEMPTS; j++) {
+                if (rem_file(buf) == 0)
+                    break;
+                XSLEEP_MS(100);
+            }
+            if (j == CRL_MONITOR_REM_FILE_ATTEMPTS) {
+                fprintf(stderr, "[%d] Failed to remove file %s\n", i, buf);
+                goto cleanup;
+            }
+            expectFail = 1;
+        }
+        /* Give server a moment to register the file change */
+        XSLEEP_MS(100);
+
+        client_args.return_code = 0;
+        client_test(&client_args);
+
+        if (!expectFail) {
+            if (client_args.return_code != 0) {
+                fprintf(stderr, "[%d] Incorrect return %d\n", i,
+                        client_args.return_code);
+                goto cleanup;
+            }
+        }
+        else {
+            if (client_args.return_code == 0) {
+                fprintf(stderr, "[%d] Expected failure\n", i);
+                goto cleanup;
+            }
+        }
+    }
+
+    join_thread(serverThread);
+    ret = 0;
+cleanup:
+    if (ret != 0 && i >= 0)
+        fprintf(stderr, "test_crl_monitor failed on iteration %d\n", i);
+    sprintf(buf, "%s/%s", tmpDir, "crl.pem");
+    rem_file(buf);
+    sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
+    rem_file(buf);
+    (void)rem_dir(tmpDir);
+    return ret;
+}
+#endif
+
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
 /* Perform a basic TLS handshake.
  *
@@ -262,6 +415,8 @@ static int test_tls(func_args* server_args)
     func_args echo_args;
     char* myArgv[NUMARGS];
     char arg[3][128];
+
+    printf("\nRunning TLS test\n");
 
     /* Set up command line arguments for echoclient to send input file
      * and write echoed data to temporary output file. */
@@ -374,6 +529,8 @@ static void simple_test(func_args* args)
     char *cliArgv[NUMARGS];
     char argvc[3][32];
 
+    printf("\nRunning simple test\n");
+
     for (i = 0; i < 9; i++)
         svrArgv[i] = argvs[i];
     for (i = 0; i < 3; i++)
@@ -462,6 +619,7 @@ void wait_tcp_ready(func_args* args)
 #endif /* thread checks */
 }
 
+#ifndef SINGLE_THREADED
 
 /* Start a thread.
  *
@@ -469,7 +627,7 @@ void wait_tcp_ready(func_args* args)
  * @param [in]  args    Object to send to function in thread.
  * @param [out] thread  Handle to thread.
  */
-void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(HAVE_PTHREAD)
     PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
@@ -529,8 +687,8 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     }
     /* end if NETOS */
 #else
-    /* custom / external thread type */
-    *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
+    /* windows thread type */
+    *thread = (THREAD_TYPE)_beginthreadex(NULL, 0, fun, args, 0, 0);
 #endif /* thread types */
 }
 
@@ -554,7 +712,7 @@ void join_thread(THREAD_TYPE thread)
 #elif defined(NETOS)
     /* TODO: */
 #else
-    int res = WaitForSingleObject((HANDLE)thread, INFINITE);
+    DWORD res = WaitForSingleObject((HANDLE)thread, INFINITE);
     assert(res == WAIT_OBJECT_0);
     res = CloseHandle((HANDLE)thread);
     assert(res);
@@ -562,6 +720,92 @@ void join_thread(THREAD_TYPE thread)
 #endif
 }
 
+#endif /* SINGLE_THREADED */
+
+#ifndef NO_FILESYSTEM
+
+#ifdef _MSC_VER
+#include <direct.h>
+#endif
+
+#define TMP_DIR_PREFIX "tmpDir-"
+/* len is length of tmpDir name, assuming
+ * len does not include null terminating character */
+char* create_tmp_dir(char *tmpDir, int len)
+{
+    if (len < (int)XSTR_SIZEOF(TMP_DIR_PREFIX))
+        return NULL;
+
+    XMEMCPY(tmpDir, TMP_DIR_PREFIX, XSTR_SIZEOF(TMP_DIR_PREFIX));
+
+    if (mymktemp(tmpDir, len, len - XSTR_SIZEOF(TMP_DIR_PREFIX)) == NULL)
+        return NULL;
+
+#ifdef _MSC_VER
+    if (_mkdir(tmpDir) != 0)
+        return NULL;
+#else
+    if (mkdir(tmpDir, 0700) != 0)
+        return NULL;
+#endif
+
+    return tmpDir;
+}
+
+int rem_dir(const char* dirName)
+{
+#ifdef _MSC_VER
+    if (_rmdir(dirName) != 0)
+        return -1;
+#else
+    if (rmdir(dirName) != 0)
+        return -1;
+#endif
+    return 0;
+}
+
+int rem_file(const char* fileName)
+{
+#ifdef _MSC_VER
+    if (_unlink(fileName) != 0)
+        return -1;
+#else
+    if (unlink(fileName) != 0)
+        return -1;
+#endif
+    return 0;
+}
+
+int copy_file(const char* in, const char* out)
+{
+    byte buf[100];
+    XFILE inFile = XBADFILE;
+    XFILE outFile = XBADFILE;
+    size_t sz;
+    int ret = -1;
+
+    inFile = XFOPEN(in, "rb");
+    if (inFile == XBADFILE)
+        goto cleanup;
+
+    outFile = XFOPEN(out, "wb");
+    if (outFile == XBADFILE)
+        goto cleanup;
+
+    while ((sz = XFREAD(buf, 1, sizeof(buf), inFile)) != 0) {
+        if (XFWRITE(buf, 1, sz, outFile) != sz)
+            goto cleanup;
+    }
+
+    ret = 0;
+cleanup:
+    if (inFile != XBADFILE)
+        XFCLOSE(inFile);
+    if (outFile != XBADFILE)
+        XFCLOSE(outFile);
+    return ret;
+}
+#endif /* !NO_FILESYSTEM */
 
 #ifndef NO_SHA256
 /* Create SHA-256 hash of the file based on filename.

@@ -27,6 +27,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #include <stdio.h>
 #include <tests/unit.h>
@@ -290,8 +291,9 @@ void wait_tcp_ready(func_args* args)
 #endif
 }
 
+#ifndef SINGLE_THREADED
 
-void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(SINGLE_THREADED)
     (void)fun;
@@ -341,4 +343,5 @@ void join_thread(THREAD_TYPE thread)
 #endif
 }
 
+#endif /* SINGLE_THREADED */
 
