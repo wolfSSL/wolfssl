@@ -18332,6 +18332,10 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
+        if ((ret == 0) && cert->pathLength > WOLFSSL_MAX_PATH_LEN) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+            ret = ASN_PATHLEN_SIZE_E;
+        }
         /* Store CA boolean and whether a path length was seen. */
         if (ret == 0) {
             /* isCA in certificate is a 1 bit of a byte. */
@@ -22550,6 +22554,17 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
 #endif
 
+    #ifndef ALLOW_INVALID_CERTSIGN
+        /* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9
+         *   If the cA boolean is not asserted, then the keyCertSign bit in the
+         *   key usage extension MUST NOT be asserted. */
+        if (!cert->isCA && cert->extKeyUsageSet &&
+                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
+            WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
+            return KEYUSAGE_E;
+        }
+    #endif
+
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
@@ -22614,93 +22629,32 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         }
 
-        if (cert->selfSigned) {
-            cert->maxPathLen = WOLFSSL_MAX_PATH_LEN;
-        } else {
-            /* RFC 5280 Section 4.2.1.9:
-             *
-             * load/receive check
-             *
-             * 1) Is CA boolean set?
-             *      No  - SKIP CHECK
-             *      Yes - Check key usage
-             * 2) Is Key usage extension present?
-             *      No  - goto 3
-             *      Yes - check keyCertSign assertion
-             *     2.a) Is keyCertSign asserted?
-             *          No  - goto 4
-             *          Yes - goto 3
-             * 3) Is pathLen set?
-             *      No  - goto 4
-             *      Yes - check pathLen against maxPathLen.
-             *      3.a) Is pathLen less than maxPathLen?
-             *           No - goto 4
-             *           Yes - set maxPathLen to pathLen and EXIT
-             * 4) Is maxPathLen > 0?
-             *      Yes - Reduce by 1
-             *      No  - ERROR
-             */
+        /* Set to WOLFSSL_MAX_PATH_LEN by default in InitDecodedCert_ex */
+        if (cert->pathLengthSet)
+            cert->maxPathLen = cert->pathLength;
 
-            if (cert->ca && cert->pathLengthSet) {
-                int checkPathLen = 0;
-                int decrementMaxPathLen = 0;
-                cert->maxPathLen = cert->pathLength;
-                if (cert->isCA) {
-                    WOLFSSL_MSG("\tCA boolean set");
-                    if (cert->extKeyUsageSet) {
-                        WOLFSSL_MSG("\tExtension Key Usage Set");
-                        if ((cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
-                            checkPathLen = 1;
-                        }
-                        else {
-                            decrementMaxPathLen = 1;
-                        }
-                    }
-                    else {
-                        checkPathLen = 1;
-                    } /* !cert->ca check */
-                } /* cert is not a CA (assuming entity cert) */
-
-                if (checkPathLen && cert->pathLengthSet) {
-                    if (cert->pathLength < cert->ca->maxPathLen) {
-                        WOLFSSL_MSG("\tmaxPathLen status: set to pathLength");
-                        cert->maxPathLen = cert->pathLength;
-                    }
-                    else {
-                        decrementMaxPathLen = 1;
-                    }
-                }
-
-                if (decrementMaxPathLen && cert->ca->maxPathLen > 0) {
-                    WOLFSSL_MSG("\tmaxPathLen status: reduce by 1");
-                    cert->maxPathLen = (byte)(cert->ca->maxPathLen - 1);
-                    if (verify != NO_VERIFY && type != CA_TYPE &&
-                                                    type != TRUSTED_PEER_TYPE) {
-                        WOLFSSL_MSG("\tmaxPathLen status: OK");
-                    }
-                } else if (decrementMaxPathLen && cert->ca->maxPathLen == 0) {
+        if (!cert->selfSigned) {
+            if (/* Need to perform a pathlen check on anything that will be used
+                 * to sign certificates later on. Otherwise, pathLen doesn't
+                 * mean anything. */
+                type != CERT_TYPE && cert->isCA && cert->extKeyUsageSet &&
+                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0 &&
+                /* Nothing to check if we don't have the issuer of this cert. */
+                cert->ca) {
+                if (cert->ca->maxPathLen == 0) {
+                    /* This cert CAN NOT be used as an intermediate cert. The
+                     * issuer does not allow it. */
                     cert->maxPathLen = 0;
-                    if (verify != NO_VERIFY && type != CA_TYPE &&
-                                                    type != TRUSTED_PEER_TYPE) {
+                    if (verify != NO_VERIFY) {
                         WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
                         WOLFSSL_MSG("\tmaxPathLen status: ERROR");
                         WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_INV_E);
                         return ASN_PATHLEN_INV_E;
                     }
                 }
-            } else if (cert->ca && cert->isCA) {
-                /* case where cert->pathLength extension is not set */
-                if (cert->ca->maxPathLen > 0) {
-                    cert->maxPathLen = (byte)(cert->ca->maxPathLen - 1);
-                } else {
-                    cert->maxPathLen = 0;
-                    if (verify != NO_VERIFY && type != CA_TYPE &&
-                                                    type != TRUSTED_PEER_TYPE) {
-                        WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
-                        WOLFSSL_MSG("\tmaxPathLen status: ERROR");
-                        WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_INV_E);
-                        return ASN_PATHLEN_INV_E;
-                    }
+                else {
+                    cert->maxPathLen = min(cert->ca->maxPathLen - 1,
+                                           cert->maxPathLen);
                 }
             }
         }
@@ -23107,6 +23061,7 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
         /* Determine dynamic type */
         switch (type) {
             case CA_TYPE:   dynType = DYNAMIC_TYPE_CA;   break;
+            case CHAIN_CERT_TYPE:
             case CERT_TYPE: dynType = DYNAMIC_TYPE_CERT; break;
             case CRL_TYPE:  dynType = DYNAMIC_TYPE_CRL;  break;
             case DSA_TYPE:  dynType = DYNAMIC_TYPE_DSA;  break;
@@ -23271,6 +23226,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
     switch (type) {
         case CA_TYPE:       /* same as below */
         case TRUSTED_PEER_TYPE:
+        case CHAIN_CERT_TYPE:
         case CERT_TYPE:
             if (header) *header = BEGIN_CERT;
             if (footer) *footer = END_CERT;
@@ -24330,7 +24286,8 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
         return BAD_FUNC_ARG;
     }
 
-    if (type != CERT_TYPE && type != CA_TYPE && type != CERTREQ_TYPE) {
+    if (type != CERT_TYPE && type != CHAIN_CERT_TYPE && type != CA_TYPE &&
+            type != CERTREQ_TYPE) {
         WOLFSSL_MSG("Bad cert type");
         return BAD_FUNC_ARG;
     }

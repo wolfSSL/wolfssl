@@ -12653,7 +12653,8 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     alertWhy = bad_certificate;
     if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
         alertWhy = certificate_expired;
-    } else if (ret == ASN_NO_SIGNER_E) {
+    } else if (ret == ASN_NO_SIGNER_E || ret == ASN_PATHLEN_INV_E ||
+            ret == ASN_PATHLEN_SIZE_E) {
         alertWhy = unknown_ca;
     }
 #ifdef OPENSSL_EXTRA
@@ -13864,7 +13865,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* select last certificate */
                     args->certIdx = args->count - 1;
 
-                    ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
+                    ret = ProcessPeerCertParse(ssl, args, CHAIN_CERT_TYPE,
                         !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
@@ -13879,7 +13880,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             FreeDecodedCert(args->dCert);
                             args->dCertInit = 0;
                             /* once again */
-                            ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
+                            ret = ProcessPeerCertParse(ssl, args, CHAIN_CERT_TYPE,
                                 !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                                 &subjectHash, &alreadySigner);
                         }
@@ -14085,6 +14086,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (!ssl->options.verifyNone) {
                             WOLFSSL_ERROR_VERBOSE(ret);
                             DoCertFatalAlert(ssl, ret);
+                            args->lastErr = ret;
+                            break; /* We sent a fatal alert.
+                                    * No point continuing. */
                         }
                         if (args->lastErr == 0) {
                             args->lastErr = ret; /* save error from last time */

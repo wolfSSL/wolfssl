@@ -69,5 +69,6 @@ EXTRA_DIST += tests/unit.h \
               tests/test-sm2.conf \
               tests/NCONF_test.cnf \
               tests/test-tls-downgrade.conf \
-              tests/TXT_DB.txt
+              tests/TXT_DB.txt \
+              tests/utils.c
 DISTCLEANFILES+= tests/.libs/unit.test
