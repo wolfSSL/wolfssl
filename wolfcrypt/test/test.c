@@ -27079,7 +27079,7 @@ static wc_test_ret_t ecc_test_custom_curves(WC_RNG* rng)
         #define ecc_oid_sm2p256v1_sz CODED_SM2P256V1_SZ
     #endif /* WOLFSSL_SM2 */
     #define ECC_SM2P256V1_TEST 102
-static int test_sm2_verify_caseA2()
+static int test_sm2_verify_caseA2(void)
 {
     ecc_key key;
     int ret, res;
@@ -27163,7 +27163,7 @@ done:
 }
 #endif /* WOLFSSL_PUBLIC_MP && WOLFSSL_CUSTOM_CURVES */
 
-static int test_sm2_verify_case()
+static int test_sm2_verify_case(void)
 {
     ecc_key key;
     int ret, res;
@@ -27527,7 +27527,7 @@ done:
 }
 #endif /* HAVE_ECC_VERIFY */
 
-static int test_sm2_create_digest()
+static int test_sm2_create_digest(void)
 {
     const byte msg[] = "message to sign";
     const byte id[] = "0123456789";
@@ -27581,7 +27581,7 @@ done:
     return ret;
 }
 
-static int test_sm2_verify()
+static int test_sm2_verify(void)
 {
     int ret = 0;
 
