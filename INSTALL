@@ -254,3 +254,43 @@
 The wolfssl port in vcpkg is kept up to date by wolfSSL.
 
 We also have vcpkg ports for wolftpm, wolfmqtt and curl.
+
+17. Building with hash-sigs lib for LMS/HSS support [EXPERIMENTAL]
+
+    Using LMS/HSS requires that the hash-sigs lib has been built on
+    your system. At present we support the current master branch of
+    the hash-sigs project.
+
+    At present the hash-sigs project only builds static libraries.
+    It can be modified though to build and install a shared library
+    in /usr/local.
+
+    wolfSSL supports either option, and by default will look for
+    hss_lib_thread.a in a specified hash-sigs dir. If hash-sigs has
+    been built as a shared lib and installed in /usr/local/ , then
+    wolfSSL will look for libhss.so there.
+
+    How to get and build the hash-sigs library:
+      $ mkdir ~/hash_sigs
+      $ cd ~/hash_sigs
+      $ git clone https://github.com/cisco/hash-sigs.git src
+      $ cd src
+
+    In sha256.h, set USE_OPENSSl to 0:
+      #define USE_OPENSSL 0
+
+    Now build:
+      $ make
+      $ ls *.a
+      hss_lib.a  hss_lib_thread.a  hss_verify.a
+
+    Build wolfSSL with
+    $ ./configure \
+        --enable-static \
+        --disable-shared \
+        --enable-lms=yes \
+        --with-liblms=<path to dir containing hss_lib_thread.a>
+    $ make
+
+    Run the benchmark against LMS/HSS with:
+    $ ./wolfcrypt/benchmark/benchmark -lms_hss

@@ -78,7 +78,10 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ext_kyber.h \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
-                         wolfssl/wolfcrypt/sm4.h
+                         wolfssl/wolfcrypt/sm4.h \
+                         wolfssl/wolfcrypt/lms.h \
+                         wolfssl/wolfcrypt/wc_lms.h \
+                         wolfssl/wolfcrypt/ext_lms.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \

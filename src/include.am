@@ -654,6 +654,10 @@ endif
 endif
 endif
 
+if BUILD_WC_LMS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
+endif
+
 if BUILD_CURVE25519
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
@@ -731,6 +735,10 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sphincs.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_kyber.c
+endif
+
+if BUILD_LIBLMS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_lms.c
 endif
 
 if BUILD_LIBZ
