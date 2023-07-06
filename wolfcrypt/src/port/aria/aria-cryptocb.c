@@ -37,6 +37,8 @@ size and a key size of 128, 192, or 256 bits.
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 
+#ifdef HAVE_ARIA
+
 int wc_AriaInit(void)
 {
     MC_RV rv = MC_OK;
@@ -587,3 +589,5 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
         return ret;
     }
 #endif /* WOLF_CRYPTO_CB */
+
+#endif /* HAVE_ARIA */
