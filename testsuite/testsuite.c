@@ -720,8 +720,6 @@ void join_thread(THREAD_TYPE thread)
 #endif
 }
 
-#endif /* SINGLE_THREADED */
-
 #ifndef NO_SHA256
 /* Create SHA-256 hash of the file based on filename.
  *
