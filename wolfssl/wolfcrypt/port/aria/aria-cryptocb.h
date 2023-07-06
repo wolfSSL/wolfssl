@@ -51,6 +51,11 @@ int wc_AriaFree(MC_HSESSION* hSession, MC_HOBJECT *obj1);
 int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key);
 int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz, int* res, ecc_key* key);
 int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* outSz);
+
+#ifndef ARIA_KEYASN1_MAXSZ
+#define ARIA_KEYASN1_MAXSZ 128
+#endif
+
 #ifdef WOLF_CRYPTO_CB
 
 #define WOLFSSL_ARIA_DEVID 8

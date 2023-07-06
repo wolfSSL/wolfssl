@@ -181,7 +181,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
 
     MC_APIMODE gApimode = MC_MODE_KCMV;
     MC_ALGORITHM mcAlg = {MC_ALGID_NONE, NULL, 0};
-    byte keyAsn1[128];
+    byte keyAsn1[ARIA_KEYASN1_MAXSZ];
     word32 keyAsn1Sz=(word32)sizeof(keyAsn1);
 
     WOLFSSL_ENTER("AriaSign");
@@ -255,7 +255,7 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz, int* res, 
 
     MC_APIMODE gApimode = MC_MODE_KCMV;
     MC_ALGORITHM mcAlg = {MC_ALGID_NONE, NULL, 0};
-    byte keyarr[128];
+    byte keyarr[ARIA_KEYASN1_MAXSZ];
     word32 keySz=sizeof(keyarr);
 
     WOLFSSL_ENTER("AriaVerify");
@@ -332,9 +332,9 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
 
     MC_APIMODE gApimode = MC_MODE_KCMV;
     MC_ALGORITHM mcAlg = {MC_ALGID_NONE, NULL, 0};
-    byte pubAsn1[128];
+    byte pubAsn1[ARIA_KEYASN1_MAXSZ];
     word32 pubAsn1Sz=sizeof(pubAsn1);
-    byte privAsn1[128];
+    byte privAsn1[ARIA_KEYASN1_MAXSZ];
     word32 privAsn1Sz=sizeof(privAsn1);
 
     WOLFSSL_ENTER("AriaDerive");
@@ -461,7 +461,7 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
                 printOutput((char *)"eccsign.key(before)",
                             (byte *)info->pk.eccsign.key,sizeof(info->pk.eccsign.key));
 
-                byte buf[128];
+                byte buf[ARIA_KEYASN1_MAXSZ];
                 word32 bufSz = sizeof(buf);
                 ret = wc_AriaSign((byte *)info->pk.eccsign.in,info->pk.eccsign.inlen,
                             buf,&bufSz,
