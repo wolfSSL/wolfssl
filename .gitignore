@@ -85,6 +85,7 @@ testsuite/testsuite.test
 tests/unit.test
 tests/bio_write_test.txt
 tests/test-log-dump-to-file.txt
+tests/cert_cache.tmp
 test-write-dhparams.pem
 testsuite/*.der
 testsuite/*.pem

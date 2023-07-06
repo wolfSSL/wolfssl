@@ -21584,7 +21584,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, int sigOID,
                     ret = GetHashId(
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                            hash, sigOID);
+                            hash, HashIdAlg(sigOID));
                 }
                 break;
             }

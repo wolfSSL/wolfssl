@@ -203,8 +203,12 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
     return ret;
 }
 #endif /* !NO_BIO */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
-#if !defined(NO_FILESYSTEM)
+#if (defined(OPENSSL_EXTRA) || defined(PERSIST_CERT_CACHE) || \
+     (!defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+      !defined(WOLFSSL_NO_CLIENT_AUTH)))) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_FILESYSTEM)
 /* Read all the data from a file.
  *
  * @param [in]  fp          File pointer to read with.
@@ -253,7 +257,10 @@ static int wolfssl_file_len(XFILE fp, long* fileSz)
 
     return ret;
 }
+#endif
 
+#if (defined(OPENSSL_EXTRA) || defined(PERSIST_CERT_CACHE)) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
 /* Read all the data from a file.
  *
  * @param [in]  fp          File pointer to read with.
@@ -290,7 +297,7 @@ static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
     XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* !NO_FILESYSTEM */
-#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
+#endif /* (OPENSSL_EXTRA || PERSIST_CERT_CACHE) && !WOLFCRYPT_ONLY &&
+        * !NO_FILESYSTEM */
 #endif /* !WOLFSSL_SSL_MISC_INCLUDED */
 
