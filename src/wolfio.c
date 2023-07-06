@@ -418,12 +418,12 @@ static int PeerIsIpv6(const SOCKADDR_S *peer, XSOCKLENT len)
 
 static int isDGramSock(int sfd)
 {
-    char type = 0;
+    int type = 0;
     /* optvalue 'type' is of size int */
-    XSOCKLENT length = (XSOCKLENT)sizeof(char);
+    XSOCKLENT length = (XSOCKLENT)sizeof(type);
 
-    if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
-            type != SOCK_DGRAM) {
+    if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, (XSOCKOPT_TYPE_OPTVAL_TYPE)&type,
+            &length) == 0 && type != SOCK_DGRAM) {
         return 0;
     }
     else {

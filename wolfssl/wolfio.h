@@ -381,6 +381,13 @@
             #define XSOCKLENT socklen_t
         #endif
     #endif
+    #ifndef XSOCKOPT_TYPE_OPTVAL_TYPE
+        #ifdef USE_WINDOWS_API
+            #define XSOCKOPT_TYPE_OPTVAL_TYPE void*
+        #else
+            #define XSOCKOPT_TYPE_OPTVAL_TYPE char*
+        #endif
+    #endif
 
     /* Socket Addr Support */
     #ifdef HAVE_SOCKADDR
