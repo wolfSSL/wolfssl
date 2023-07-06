@@ -68,6 +68,10 @@
 #include <wolfssl/wolfcrypt/coding.h>
 #endif
 
+#ifdef HAVE_ARIA
+    #include <wolfssl/wolfcrypt/port/aria/aria-crypt.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -142,6 +146,11 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ccm(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void);
+#if defined(HAVE_ARIA)
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_128_gcm(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_192_gcm(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_256_gcm(void);
+#endif
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ecb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
@@ -235,6 +244,9 @@ typedef union {
 #ifdef WOLFSSL_AES_XTS
     XtsAes xts;
 #endif
+#endif
+#ifdef HAVE_ARIA
+    wc_Aria aria;
 #endif
 #ifndef NO_DES3
     Des  des;
@@ -381,6 +393,9 @@ typedef union {
 #define NID_auth_null                   1054
 #define NID_auth_any                    1055
 /* Curve */
+#define NID_aria_128_gcm                1123
+#define NID_aria_192_gcm                1124
+#define NID_aria_256_gcm                1125
 #define NID_sm2                         1172
 
 #define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
@@ -446,7 +461,10 @@ enum {
     SM4_CBC_TYPE           = 44,
     SM4_CTR_TYPE           = 45,
     SM4_GCM_TYPE           = 46,
-    SM4_CCM_TYPE           = 47
+    SM4_CCM_TYPE           = 47,
+    ARIA_128_GCM_TYPE      = 48,
+    ARIA_192_GCM_TYPE      = 49,
+    ARIA_256_GCM_TYPE      = 50
 };
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -490,10 +508,10 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     byte*   key;                 /* used in partial Init()s */
 #endif
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
 #elif defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     ALIGN16 unsigned char authTag[SM4_BLOCK_SIZE];
@@ -973,6 +991,9 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_rc4               wolfSSL_EVP_rc4
 #define EVP_chacha20          wolfSSL_EVP_chacha20
 #define EVP_chacha20_poly1305 wolfSSL_EVP_chacha20_poly1305
+#define EVP_aria_128_gcm      wolfSSL_EVP_aria_128_gcm
+#define EVP_aria_192_gcm      wolfSSL_EVP_aria_192_gcm
+#define EVP_aria_256_gcm      wolfSSL_EVP_aria_256_gcm
 #define EVP_sm4_ecb           wolfSSL_EVP_sm4_ecb
 #define EVP_sm4_cbc           wolfSSL_EVP_sm4_cbc
 #define EVP_sm4_ctr           wolfSSL_EVP_sm4_ctr

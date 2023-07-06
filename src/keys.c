@@ -1019,6 +1019,42 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+    case TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256 :
+        specs->bulk_cipher_algorithm = wolfssl_aria_gcm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sha256_mac;
+        specs->kea                   = ecc_diffie_hellman_kea;
+        specs->sig_algo              = ecc_dsa_sa_algo;
+        specs->hash_size             = WC_SHA256_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = ARIA_128_KEY_SIZE;
+        specs->block_size            = ARIA_BLOCK_SIZE;
+        specs->iv_size               = AESGCM_IMP_IV_SZ;
+        specs->aead_mac_size         = ARIA_GCM_AUTH_SZ;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+    case TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384 :
+        specs->bulk_cipher_algorithm = wolfssl_aria_gcm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sha384_mac;
+        specs->kea                   = ecc_diffie_hellman_kea;
+        specs->sig_algo              = ecc_dsa_sa_algo;
+        specs->hash_size             = WC_SHA384_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = ARIA_256_KEY_SIZE;
+        specs->block_size            = ARIA_BLOCK_SIZE;
+        specs->iv_size               = AESGCM_IMP_IV_SZ;
+        specs->aead_mac_size         = ARIA_GCM_AUTH_SZ;
+
+        break;
+#endif
+
 #endif /* HAVE_ECC */
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
@@ -2828,6 +2864,106 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif /* HAVE_AESCCM */
+
+#ifdef HAVE_ARIA
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for AES
+    #endif
+
+    if (specs->bulk_cipher_algorithm == wolfssl_aria_gcm) {
+        int ret = 0;
+        MC_ALGID algo;
+
+        switch(specs->key_size) {
+            case ARIA_128_KEY_SIZE:
+                algo = MC_ALGID_ARIA_128BITKEY;
+                break;
+            case ARIA_192_KEY_SIZE:
+                algo = MC_ALGID_ARIA_192BITKEY;
+                break;
+            case ARIA_256_KEY_SIZE:
+                algo = MC_ALGID_ARIA_256BITKEY;
+                break;
+            default:
+                return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
+        }
+
+        if (enc) {
+            if (enc->aria == NULL) {
+                enc->aria = (wc_Aria*)XMALLOC(sizeof(wc_Aria), heap, DYNAMIC_TYPE_CIPHER);
+                if (enc->aria == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AriaFreeCrypt(enc->aria);
+            }
+
+            XMEMSET(enc->aria, 0, sizeof(wc_Aria));
+            if (wc_AriaInitCrypt(enc->aria, algo) != 0) {
+                WOLFSSL_MSG("AriaInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (dec->aria == NULL) {
+                dec->aria = (wc_Aria*)XMALLOC(sizeof(wc_Aria), heap, DYNAMIC_TYPE_CIPHER);
+                if (dec->aria == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AriaFreeCrypt(dec->aria);
+            }
+
+            XMEMSET(dec->aria, 0, sizeof(wc_Aria));
+            if (wc_AriaInitCrypt(dec->aria, algo) != 0) {
+                WOLFSSL_MSG("AriaInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
+        if (side == WOLFSSL_CLIENT_END) {
+            if (enc) {
+                ret = wc_AriaSetKey(enc->aria, keys->client_write_key);
+                if (ret != 0) return ret;
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+                if (!tls13) {
+                    ret = wc_AriaGcmSetIV(enc->aria, AESGCM_NONCE_SZ,
+                            keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
+                    if (ret != 0) return ret;
+                }
+            }
+            if (dec) {
+                ret = wc_AriaSetKey(dec->aria, keys->server_write_key);
+                if (ret != 0) return ret;
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        else {
+            if (enc) {
+                ret = wc_AriaSetKey(enc->aria, keys->server_write_key);
+                if (ret != 0) return ret;
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+                if (!tls13) {
+                    ret = wc_AriaGcmSetIV(enc->aria, AESGCM_NONCE_SZ,
+                            keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
+                    if (ret != 0) return ret;
+                }
+            }
+            if (dec) {
+                ret = wc_AriaSetKey(dec->aria, keys->client_write_key);
+                if (ret != 0) return ret;
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
+    }
+#endif /* HAVE_ARIA */
 
 #ifdef HAVE_CAMELLIA
     /* check that buffer sizes are sufficient */

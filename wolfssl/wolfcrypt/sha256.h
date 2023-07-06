@@ -169,6 +169,11 @@ enum {
     #include <wolfssl/wolfcrypt/port/maxim/maxq10xx.h>
 #endif
 
+#ifdef HAVE_ARIA
+    #include "mcapi.h"
+    #include "mcapi_error.h"
+#endif
+
 /* wc_Sha256 digest */
 struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
@@ -234,6 +239,9 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_IMXRT1170_CAAM
     caam_hash_ctx_t ctx;
     caam_handle_t hndl;
+#endif
+#ifdef HAVE_ARIA
+    MC_HSESSION hSession;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
@@ -329,4 +337,3 @@ WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst);
 
 #endif /* NO_SHA256 */
 #endif /* WOLF_CRYPT_SHA256_H */
-

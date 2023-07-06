@@ -32955,6 +32955,12 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
     return wc_BuildEccKeyDer(key, output, &inLen, 0, 1);
 }
 
+/* Write only private ecc key to DER format,
+ * length on success else < 0 */
+int wc_EccPrivateKeyToDerNoCurve(ecc_key* key, byte* output, word32 inLen)
+{
+    return wc_BuildEccKeyDer(key, output, &inLen, 0, 0);
+}
 
 
 #ifdef HAVE_PKCS8

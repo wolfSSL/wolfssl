@@ -2824,7 +2824,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_SNIFFER
     if (cipherList == NULL && version < 4) {
         /* static RSA or static ECC cipher suites */
-        const char* staticCipherList = "AES128-SHA:ECDH-ECDSA-AES128-SHA";
+        const char* staticCipherList = "AES128-SHA:ECDH-ECDSA-AES128-SHA"
+        #if defined(HAVE_ARIA)
+            ":ECDHE-ECDSA-ARIA128-GCM-SHA256:ECDHE-ECDSA-ARIA256-GCM-SHA384"
+        #endif
+        ;
         if (SSL_CTX_set_cipher_list(ctx, staticCipherList) != WOLFSSL_SUCCESS) {
             err_sys_ex(runWithErrors, "server can't set cipher list 3");
         }

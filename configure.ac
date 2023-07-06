@@ -2512,6 +2512,31 @@ fi
 ]
 )
 
+AC_ARG_ENABLE([aria],
+    [AS_HELP_STRING([--enable-aria],[Enable wolfSSL support for ARIA (default: disabled)])],
+    [ ENABLED_ARIA=$enableval ],
+    [ ENABLED_ARIA=no ]
+    )
+if test "$ENABLED_ARIA" = "yes"
+then
+    ARIA_DIR=MagicCrypto
+    # Enable dependency
+    ENABLED_OPENSSLEXTRA="yes"
+    CFLAGS="$CFLAGS -I$ARIA_DIR/include"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ARIA -DOPENSSL_EXTRA"
+    AM_LDFLAGS="$AM_LDFLAGS -L$ARIA_DIR/lib -lMagicCrypto"
+    build_pwd="$(pwd)"
+    headers="mcapi_error.h mcapi_type.h mcapi.h"
+    for header in $headers
+    do
+        AC_CHECK_HEADER([$header], [], [
+                AC_MSG_ERROR([Error including $header. Please put the MagicCrypto library in $build_pwd.])
+            ], [
+            extern int dummy_int_to_make_compiler_happy;
+        ])
+    done
+fi
+
 AC_ARG_ENABLE([caam],
     [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
     [ ENABLED_CAAM=$enableval ],
@@ -8779,6 +8804,7 @@ AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
 AM_CONDITIONAL([BUILD_HPKE],[test "x$ENABLED_HPKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
+AM_CONDITIONAL([BUILD_ARIA],[test "x$ENABLED_ARIA" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -9089,6 +9115,7 @@ echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * AES-OFB:                    $ENABLED_AESOFB"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
+echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
 echo "   * SM4-ECB:                    $ENABLED_SM4_ECB"

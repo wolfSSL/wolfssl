@@ -628,6 +628,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memcb_test(void);
 #ifdef WOLFSSL_CAAM_BLOB
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t blob_test(void);
 #endif
+#ifdef HAVE_ARIA
+#include "wolfssl/wolfcrypt/port/aria/aria-crypt.h"
+void printOutput(const char *strName, unsigned char *data, unsigned int dataSz);
+WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID);
+#endif
 
 #ifdef WOLF_CRYPTO_CB
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
@@ -1385,6 +1390,23 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("AES-SIV  test passed!\n");
 #endif
+#endif
+
+#ifdef HAVE_ARIA
+    if ( (ret = ariagcm_test(MC_ALGID_ARIA_128BITKEY)) != 0)
+        TEST_FAIL("ARIA128  test failed!\n", ret);
+    else
+        TEST_PASS("ARIA128   test passed!\n");
+
+    if ( (ret = ariagcm_test(MC_ALGID_ARIA_192BITKEY)) != 0)
+        TEST_FAIL("ARIA192  test failed!\n", ret);
+    else
+        TEST_PASS("ARIA192   test passed!\n");
+
+    if ( (ret = ariagcm_test(MC_ALGID_ARIA_256BITKEY)) != 0)
+        TEST_FAIL("ARIA256  test failed!\n", ret);
+    else
+        TEST_PASS("ARIA256   test passed!\n");
 #endif
 
 #ifdef HAVE_CAMELLIA
@@ -13006,6 +13028,86 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
 
 
 #endif /* NO_AES */
+
+#ifdef HAVE_ARIA
+void printOutput(const char *strName, unsigned char *data, unsigned int dataSz)
+{
+    #ifndef DEBUG_WOLFSSL
+    (void)strName;
+    (void)data;
+    (void)dataSz;
+    #else
+    WOLFSSL_MSG_EX("%s (%d):", strName,dataSz);
+    WOLFSSL_BUFFER(data,dataSz);
+    #endif
+}
+
+WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID algo)
+{
+    int ret = 0;
+    byte data[] = TEST_STRING;
+    word32 dataSz = TEST_STRING_SZ;
+
+    /* Arbitrarily random long key that we will truncate to the right size */
+    byte key[] = { 0x1E, 0xCC, 0x95, 0xCB, 0xD3, 0x74, 0x58, 0x4F,
+                       0x6F, 0x8A, 0x70, 0x26, 0xF7, 0x3C, 0x8D, 0xB6,
+                       0xDC, 0x32, 0x76, 0x20, 0xCF, 0x05, 0x4A, 0xCF,
+                       0x11, 0x86, 0xCD, 0x23, 0x5E, 0xC1, 0x6E, 0x2B };
+    byte cipher[2*TEST_STRING_SZ], plain[TEST_STRING_SZ], ad[256], authTag[AES_BLOCK_SIZE];
+    word32 keySz, adSz = 256, authTagSz = sizeof(authTag);
+
+    wc_Aria aria;
+    XMEMSET((void *)&aria, 0, sizeof(aria));
+    ret = wc_AriaInitCrypt(&aria, algo);
+    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret),out); }
+
+    ret = wc_AriaSetKey(&aria, key);
+    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret),out); }
+
+    MC_GetObjectValue(aria.hSession, aria.hKey, key, &keySz);
+    printOutput("Key", key, keySz);
+
+    WC_RNG rng;
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AriaGcmSetIV(&aria, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_FreeRng(&rng);
+
+    printOutput("Plaintext", data, sizeof(data));
+    XMEMSET(cipher, 0, sizeof(cipher));
+
+    ret = wc_AriaEncrypt(&aria, cipher, data, dataSz,
+                         (byte *)aria.nonce, aria.nonceSz, ad, adSz,
+                         authTag, authTagSz);
+    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret),out); }
+
+    printOutput("Ciphertext", cipher, sizeof(cipher));
+    printOutput("AuthTag", authTag, sizeof(authTag));
+
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ret = wc_AriaDecrypt(&aria, plain, cipher, dataSz,
+                         (byte *)aria.nonce, aria.nonceSz, ad, adSz,
+                         authTag, authTagSz);
+    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret),out); }
+
+    printOutput("Plaintext", plain, sizeof(plain));
+
+    if (XMEMCMP(plain, data, dataSz) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC,out);
+out:
+    if (ret != 0) { wc_AriaFreeCrypt(&aria); }
+    else { ret = wc_AriaFreeCrypt(&aria); }
+
+    return ret;
+}
+#endif /* HAVE_ARIA */
 
 
 #ifdef HAVE_CAMELLIA

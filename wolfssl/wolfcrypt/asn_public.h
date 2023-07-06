@@ -750,6 +750,8 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
     WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
                                           word32 inLen);
+    WOLFSSL_API int wc_EccPrivateKeyToDerNoCurve(ecc_key* key, byte* output,
+                                          word32 inLen);
     WOLFSSL_API int wc_EccKeyDerSize(ecc_key* key, int pub);
     WOLFSSL_API int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
                                             word32* outLen);

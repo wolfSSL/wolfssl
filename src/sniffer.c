@@ -4761,6 +4761,18 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         break;
     #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
+    #ifdef HAVE_ARIA
+        case wolfssl_aria_gcm:
+            ret = wc_AriaDecrypt(ssl->decrypt.aria,
+                        plain,
+                        (byte *)input + AESGCM_EXP_IV_SZ,
+                          sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                        ssl->decrypt.additional, ssl->specs.aead_mac_size,
+                        NULL, 0);
+            break;
+    #endif
+
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             ret = wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);

@@ -128,6 +128,11 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#ifdef HAVE_ARIA
+    /* included to get ARIA devId value */
+    #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
+#endif
+
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || \
     defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
     #ifndef NO_STDIO_FILESYSTEM
@@ -2302,6 +2307,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #ifdef WOLFSSL_QNX_CAAM
     /* default to try using CAAM when built */
     ctx->devId = WOLFSSL_CAAM_DEVID;
+#elif defined(HAVE_ARIA) && defined(WOLF_CRYPTO_CB)
+    ctx->devId = WOLFSSL_ARIA_DEVID;
 #else
     ctx->devId = INVALID_DEVID;
 #endif
@@ -2707,6 +2714,10 @@ void InitCiphers(WOLFSSL* ssl)
     ssl->encrypt.aes = NULL;
     ssl->decrypt.aes = NULL;
 #endif
+#ifdef HAVE_ARIA
+    ssl->encrypt.aria = NULL;
+    ssl->decrypt.aria = NULL;
+#endif
 #ifdef HAVE_CAMELLIA
     ssl->encrypt.cam = NULL;
     ssl->decrypt.cam = NULL;
@@ -2750,9 +2761,8 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
-#if defined(BUILD_AES) || defined(BUILD_AESGCM) /* See: InitKeys() in keys.c
-                                                 * on addition of BUILD_AESGCM
-                                                 * check (enc->aes, dec->aes) */
+#if defined(BUILD_AES) || defined(BUILD_AESGCM) || defined(HAVE_ARIA)
+    /* See: InitKeys() in keys.c on addition of BUILD_AESGCM check (enc->aes, dec->aes) */
     wc_AesFree(ssl->encrypt.aes);
     wc_AesFree(ssl->decrypt.aes);
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -2764,7 +2774,7 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
-#if (defined(BUILD_AESGCM) || defined(BUILD_AESCCM)) && \
+#if (defined(BUILD_AESGCM) || defined(BUILD_AESCCM) || defined(HAVE_ARIA)) && \
     !defined(WOLFSSL_NO_TLS12)
     XFREE(ssl->decrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->encrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -2772,6 +2782,12 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef CIPHER_NONCE
     XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_ARIA
+    wc_AriaFreeCrypt(ssl->encrypt.aria);
+    wc_AriaFreeCrypt(ssl->decrypt.aria);
+    XFREE(ssl->encrypt.aria, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.aria, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_CAMELLIA
     XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -3352,6 +3368,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (tls1_2 && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+    if (tls1_2 && haveECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+    if (tls1_2 && haveECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256;
     }
 #endif
 
@@ -11370,15 +11400,23 @@ static int CipherRequires(byte first, byte second, int requirement)
     #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 #endif /* !NO_RSA */
 
-    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
-                if (requirement == REQUIRES_ECC)
-                    return 1;
-                if (requirement == REQUIRES_AEAD)
-                    return 1;
-                break;
+#ifdef HAVE_ARIA
+        case TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256 :
+        case TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384 :
+            if (requirement == REQUIRES_ECC)
+                return 1;
+            break;
+#endif /* HAVE_ARIA */
+
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
+            if (requirement == REQUIRES_ECC)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
+            break;
 
             case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
             case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
@@ -17850,6 +17888,58 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         break;
     #endif /* BUILD_AESGCM || HAVE_AESCCM */
 
+    #ifdef HAVE_ARIA
+        case wolfssl_aria_gcm:
+        {
+            const byte* additionalSrc = input - 5;
+            byte *outBuf = NULL;
+            XMEMSET(ssl->encrypt.additional, 0, AEAD_AUTH_DATA_SZ);
+
+            /* sequence number field is 64-bits */
+            WriteSEQ(ssl, CUR_ORDER, ssl->encrypt.additional);
+
+            /* Store the type, version. Unfortunately, they are in
+             * the input buffer ahead of the plaintext. */
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+            }
+        #endif
+            XMEMCPY(ssl->encrypt.additional + AEAD_TYPE_OFFSET,
+                                                        additionalSrc, 3);
+
+            /* Store the length of the plain text minus the explicit
+             * IV length minus the authentication tag size. */
+            c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                ssl->encrypt.additional + AEAD_LEN_OFFSET);
+            XMEMCPY(ssl->encrypt.nonce,
+                                ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
+                                ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+            outBuf = (byte*)XMALLOC(sz - AESGCM_EXP_IV_SZ, ssl->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (outBuf == NULL) {
+                ret = MEMORY_ERROR;
+                break;
+            }
+            ret = wc_AriaEncrypt(ssl->encrypt.aria, outBuf,
+                        (byte*) input + AESGCM_EXP_IV_SZ,
+                        sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        ssl->encrypt.nonce, AESGCM_NONCE_SZ,
+                        ssl->encrypt.additional, AEAD_AUTH_DATA_SZ,
+                        out + sz - ssl->specs.aead_mac_size,
+                        ssl->specs.aead_mac_size
+                        );
+            if (ret != 0)
+                break;
+            XMEMCPY(out,
+                    ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
+            XMEMCPY(out + AESGCM_EXP_IV_SZ,outBuf,sz - AESGCM_EXP_IV_SZ);
+            XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            break;
+        }
+    #endif
+
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             ret = wc_CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
@@ -18008,11 +18098,12 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 ssl->fuzzerCb(ssl, input, sz, FUZZ_ENCRYPT, ssl->fuzzerCtx);
         #endif
 
-        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
             /* make sure AES GCM/CCM memory is allocated */
             /* free for these happens in FreeCiphers */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
-                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aria_gcm) {
                 /* make sure auth iv and auth are allocated */
                 if (ssl->encrypt.additional == NULL)
                     ssl->encrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
@@ -18032,7 +18123,7 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                     return MEMORY_E;
                 }
             }
-        #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #endif /* BUILD_AESGCM || HAVE_AESCCM || HAVE_ARIA */
 
         #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             /* make sure SM4 GCM/CCM memory is allocated */
@@ -18096,9 +18187,10 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 sizeof(ssl->encrypt.sanityCheck));
         #endif
 
-        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
-                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aria_gcm)
             {
                 /* finalize authentication cipher */
 #if !defined(NO_PUBLIC_GCM_SET_IV) && \
@@ -18109,7 +18201,7 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
             }
-        #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #endif /* BUILD_AESGCM || HAVE_AESCCM || HAVE_ARIA */
         #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
                 ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_gcm)
@@ -18276,6 +18368,55 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         break;
     #endif /* BUILD_AESGCM || HAVE_AESCCM */
 
+    #ifdef HAVE_ARIA
+        case wolfssl_aria_gcm:
+        {
+            byte *outBuf = NULL;
+            XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
+
+            /* sequence number field is 64-bits */
+            WriteSEQ(ssl, PEER_ORDER, ssl->decrypt.additional);
+
+            ssl->decrypt.additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+            ssl->decrypt.additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+            ssl->decrypt.additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+
+            c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                    ssl->decrypt.additional + AEAD_LEN_OFFSET);
+
+        #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+            if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
+                XMEMCPY(ssl->decrypt.nonce,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
+                        AESGCM_IMP_IV_SZ);
+            else
+        #endif
+                XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+                        AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
+                                                            AESGCM_EXP_IV_SZ);
+            outBuf = (byte*)XMALLOC(sz - AESGCM_EXP_IV_SZ, ssl->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (outBuf == NULL) {
+                ret = MEMORY_ERROR;
+                break;
+            }
+            ret = wc_AriaDecrypt(ssl->decrypt.aria, outBuf,
+                                (byte *)input + AESGCM_EXP_IV_SZ,
+                                sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                                ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
+                                (byte *)input + sz - ssl->specs.aead_mac_size,
+                                ssl->specs.aead_mac_size
+                                );
+            XMEMCPY(plain + AESGCM_EXP_IV_SZ,
+                    outBuf,
+                    sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size);
+            XFREE(outBuf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            break;
+        }
+    #endif /* HAVE_ARIA */
+
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             ret = wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
@@ -18427,11 +18568,12 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                 return DECRYPT_ERROR;
             }
 
-        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
             /* make sure AES GCM/CCM memory is allocated */
             /* free for these happens in FreeCiphers */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
-                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aria_gcm) {
                 /* make sure auth iv and auth are allocated */
                 if (ssl->decrypt.additional == NULL)
                     ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
@@ -18451,7 +18593,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                     return MEMORY_E;
                 }
             }
-        #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #endif /* BUILD_AESGCM || HAVE_AESCCM || HAVE_ARIA */
 
         #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             /* make sure SM4 GCM/CCM memory is allocated */
@@ -18525,7 +18667,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
         FALL_THROUGH;
         case CIPHER_STATE_END:
         {
-        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+        #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
             /* make sure AES GCM/CCM nonce is cleared */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
@@ -18537,7 +18679,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                     WOLFSSL_ERROR_VERBOSE(ret);
                 }
             }
-        #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #endif /* BUILD_AESGCM || HAVE_AESCCM || HAVE_ARIA */
         #if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             /* make sure SM4 GCM/CCM nonce is cleared */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_sm4_ccm ||
@@ -24773,6 +24915,14 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("EDH-RSA-DES-CBC3-SHA","TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA",CIPHER_BYTE,TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+    SUITE_INFO("ECDHE-ECDSA-ARIA128-GCM-SHA256","TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256, TLSv1_2_MINOR, SSLv3_MAJOR),
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+    SUITE_INFO("ECDHE-ECDSA-ARIA256-GCM-SHA384","TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384, TLSv1_2_MINOR, SSLv3_MAJOR),
+#endif
+
 #ifdef BUILD_WDM_WITH_NULL_SHA256
     SUITE_INFO("WDM-NULL-SHA256","WDM_WITH_NULL_SHA256",CIPHER_BYTE,WDM_WITH_NULL_SHA256, TLSv1_3_MINOR, SSLv3_MAJOR)
 #endif
@@ -24972,6 +25122,14 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRCMP(n[2],"AES") == 0 && XSTRCMP(n[3],"256") == 0))
         encStr = "AES(256)";
 
+#ifdef HAVE_ARIA
+    else if ((XSTRCMP(n[0],"ARIA256") == 0) ||
+             (XSTRCMP(n[2],"ARIA256") == 0))
+        encStr = "ARIA(256)";
+    else if ((XSTRCMP(n[0],"ARIA128") == 0) ||
+             (XSTRCMP(n[2],"ARIA128") == 0))
+        encStr = "ARIA(128)";
+#endif
     else if ((XSTRCMP(n[0],"CAMELLIA256") == 0) ||
              (XSTRCMP(n[2],"CAMELLIA256") == 0))
         encStr = "CAMELLIA(256)";

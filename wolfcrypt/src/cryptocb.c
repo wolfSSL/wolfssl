@@ -34,6 +34,10 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifdef HAVE_ARIA
+    #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
+#endif
+
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
@@ -1337,6 +1341,8 @@ int wc_CryptoCb_DefaultDevID(void)
     /* conditional macro selection based on build */
 #ifdef WOLFSSL_CAAM_DEVID
     ret = WOLFSSL_CAAM_DEVID;
+#elif defined(HAVE_ARIA)
+    ret = WOLFSSL_ARIA_DEVID;
 #else
     ret = INVALID_DEVID;
 #endif

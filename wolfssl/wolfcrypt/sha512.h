@@ -150,6 +150,10 @@ enum {
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
+#ifdef HAVE_ARIA
+    #include "mcapi.h"
+    #include "mcapi_error.h"
+#endif
 /* wc_Sha512 digest */
 struct wc_Sha512 {
 #ifdef WOLFSSL_PSOC6_CRYPTO
@@ -200,6 +204,9 @@ struct wc_Sha512 {
 #ifdef WOLFSSL_IMXRT1170_CAAM
     caam_hash_ctx_t ctx;
     caam_handle_t hndl;
+#endif
+#ifdef HAVE_ARIA
+    MC_HSESSION hSession;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
@@ -342,4 +349,3 @@ WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
 
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* WOLF_CRYPT_SHA512_H */
-
