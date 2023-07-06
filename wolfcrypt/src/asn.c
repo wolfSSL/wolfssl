@@ -22634,13 +22634,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->maxPathLen = cert->pathLength;
 
         if (!cert->selfSigned) {
-            if (/* Need to perform a pathlen check on anything that will be used
-                 * to sign certificates later on. Otherwise, pathLen doesn't
-                 * mean anything. */
-                type != CERT_TYPE && cert->isCA && cert->extKeyUsageSet &&
-                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0 &&
-                /* Nothing to check if we don't have the issuer of this cert. */
-                cert->ca) {
+            /* Need to perform a pathlen check on anything that will be used
+             * to sign certificates later on. Otherwise, pathLen doesn't
+             * mean anything.
+             * Nothing to check if we don't have the issuer of this cert. */
+            if (type != CERT_TYPE && cert->isCA && cert->extKeyUsageSet &&
+                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0 && cert->ca) {
                 if (cert->ca->maxPathLen == 0) {
                     /* This cert CAN NOT be used as an intermediate cert. The
                      * issuer does not allow it. */
