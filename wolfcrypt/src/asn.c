@@ -11972,7 +11972,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
         ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
-                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
+                         cert->subjectKeyHash, HashIdAlg((int)cert->signatureOID));
     #endif
     }
 
@@ -12125,7 +12125,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         /* Calculate the hash of the subject public key for OCSP. */
         ret = CalcHashId_ex(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.data,
                          dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length,
-                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
+                         cert->subjectKeyHash, HashIdAlg((int)cert->signatureOID));
     }
     if (ret == 0) {
     #endif
@@ -13948,7 +13948,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
     if (CalcHashId_ex(input + srcIdx, maxIdx - srcIdx, hash,
-            HashIdAlg(cert->signatureOID)) != 0) {
+            HashIdAlg((int)cert->signatureOID)) != 0) {
         ret = ASN_PARSE_E;
     }
 
@@ -18873,7 +18873,7 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                         (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                        cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
+                        cert->extAuthKeyId, HashIdAlg((int)cert->signatureOID));
         }
     }
 
@@ -18911,7 +18911,7 @@ static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
 
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(input + idx, length, cert->extSubjKeyId,
-            HashIdAlg(cert->signatureOID));
+            HashIdAlg((int)cert->signatureOID));
     }
 
     return ret;
@@ -22557,11 +22557,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 /* TODO: GmSSL creates IDs this way but whole public key info
                  * block should be hashed. */
                 ret = CalcHashId_ex(cert->publicKey + cert->pubKeySize - 65, 65,
-                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
+                    cert->extSubjKeyId, HashIdAlg((int)cert->signatureOID));
             }
             else {
                 ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
-                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
+                    cert->extSubjKeyId, HashIdAlg((int)cert->signatureOID));
             }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -30419,7 +30419,7 @@ static int SetAuthKeyIdFromDcert(Cert* cert, DecodedCert* decoded)
         cert->akidSz = KEYID_SIZE;
     #endif
         /* Put the SKID of CA to AKID of certificate */
-        XMEMCPY(cert->akid, decoded->extSubjKeyId, cert->akidSz);
+        XMEMCPY(cert->akid, decoded->extSubjKeyId, (size_t)cert->akidSz);
     }
 
     return ret;

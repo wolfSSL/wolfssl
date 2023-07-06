@@ -11476,7 +11476,6 @@ static int CipherRequires(byte first, byte second, int requirement)
                 if (requirement == REQUIRES_AEAD)
                     return 1;
                 return 0;
-                break;
 
             default:
                 WOLFSSL_MSG("Unsupported cipher suite, CipherRequires "

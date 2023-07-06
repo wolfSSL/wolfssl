@@ -56697,10 +56697,10 @@ static int test_wolfSSL_CTX_LoadCRL(void)
                                                 WOLFSSL_SUCCESS)
 #ifndef NO_WOLFSSL_CLIENT
     #define NEW_CTX(ctx) AssertNotNull( \
-            ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()))
+            (ctx) = wolfSSL_CTX_new(wolfSSLv23_client_method()))
 #elif !defined(NO_WOLFSSL_SERVER)
     #define NEW_CTX(ctx) AssertNotNull( \
-            ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()))
+            (ctx) = wolfSSL_CTX_new(wolfSSLv23_server_method()))
 #else
     #define NEW_CTX(ctx) return
 #endif

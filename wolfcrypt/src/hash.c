@@ -303,8 +303,8 @@ enum wc_HashType wc_OidGetHash(int oid)
     #ifdef WOLFSSL_SM3
         case SM3h:
             hash_type = WC_HASH_TYPE_SM3;
-    #endif
             break;
+    #endif
         default:
             break;
     }
@@ -1172,8 +1172,8 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
     #ifdef WOLFSSL_SM3
         case WC_HASH_TYPE_SM3:
             ret = wc_Sm3SetFlags(&hash->sm3, flags);
-    #endif
             break;
+    #endif
 
         /* not supported */
         case WC_HASH_TYPE_MD5_SHA:

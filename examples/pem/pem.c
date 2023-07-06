@@ -323,7 +323,8 @@ static int FindPem(char* data, word32 offset, word32 len, word32* start,
             ret = 1;
         }
         if (ret == 0) {
-            memcpy(str, data + type_off, type_len);
+            if (type_len > 0)
+                memcpy(str, data + type_off, type_len);
             str[type_len] = '\0';
             ret = StringToType(str, type);
         }
@@ -537,6 +538,9 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
     WC_RNG rng;
     unsigned char salt[SALT_MAX_LEN];
 
+    if (password == NULL)
+        return 1;
+
     XMEMSET(&rng, 0, sizeof(rng));
 
     /* Create a random number generator. */
@@ -610,7 +614,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
     if (ret > 0) {
         ret = 0;
     }
-    if (ret == 0) {
+    if ((ret == 0) && (pem_len > 0)) {
         /* Allocate memory to hold PEM encoding. */
         pem = (unsigned char*)malloc(pem_len);
         if (pem == NULL) {
@@ -944,7 +948,7 @@ int main(int argc, char* argv[])
         ret = 1;
     }
 
-    if (pem) {
+    if ((ret == 0) && pem) {
         /* Convert PEM to DER. */
         ret = ConvPemToDer((char*)in, offset, in_len, &der, type, &info,
             padding);

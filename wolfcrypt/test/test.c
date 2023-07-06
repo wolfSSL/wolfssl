@@ -14282,6 +14282,7 @@ static wc_test_ret_t const_byte_ptr_test(const byte* in, word32 *outJ)
     volatile word32 j = -1; /* must be volatile to properly detect error */
 
     ret = (wc_test_ret_t)*in; /* accessed *in value. */
+    (void)ret;
     j = *outJ; /* Found index to use in const array. */
 
     if (j == 0) {
@@ -28440,7 +28441,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #if !defined(NO_ECC_SECP) || defined(WOLFSSL_CUSTOM_CURVES)
     ret = ecc_def_curve_test(&rng);
     if (ret < 0) {
-        fprintf(stderr, "Default\n");
+        printf("Default\n");
         goto done;
     }
 #endif
@@ -28476,7 +28477,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #ifdef WOLFSSL_SM2
     ret = ecc_test_curve(&rng, 32, ECC_SM2P256V1);
     if (ret < 0) {
-        fprintf(stderr, "SM2\n");
+        printf("SM2\n");
         goto done;
     }
 #endif
@@ -28484,7 +28485,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #if defined(WOLFSSL_CUSTOM_CURVES)
     ret = ecc_test_custom_curves(&rng);
     if (ret != 0) {
-        fprintf(stderr, "Custom\n");
+        printf("Custom\n");
         goto done;
     }
 #endif
@@ -28492,12 +28493,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #if defined(WOLFSSL_SM2)
     ret = test_sm2_verify();
     if (ret != 0) {
-        fprintf(stderr, "SM2 Verify\n");
+        printf("SM2 Verify\n");
         goto done;
     }
     ret = ecc_sm2_test_curve(&rng, ECC_TEST_VERIFY_COUNT);
     if (ret != 0) {
-        fprintf(stderr, "SM2 test\n");
+        printf("SM2 test\n");
         goto done;
     }
 #endif
