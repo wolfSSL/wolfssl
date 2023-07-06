@@ -34320,6 +34320,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* Reset to sane value for SCR */
         ssl->options.resuming = 0;
+        ssl->arrays->sessionIDSz = 0;
 
         /* protocol version, random and session id length check */
         if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
@@ -34528,12 +34529,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->options.resuming = 1; /* client wants to resume */
             WOLFSSL_MSG("Client wants to resume session");
         }
-#ifdef HAVE_SECURE_RENEGOTIATION
-        else {
-            /* We don't want to resume in SCR */
-            ssl->arrays->sessionIDSz = 0;
-        }
-#endif
         i += b;
 
 #ifdef WOLFSSL_DTLS
