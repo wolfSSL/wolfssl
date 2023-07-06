@@ -2287,6 +2287,14 @@ WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
 WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
 WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+WOLFSSL_LOCAL int ParseKeyUsageStr(const char* value, word16* keyUsage,
+        void* heap);
+WOLFSSL_LOCAL int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage,
+        void* heap);
+#endif /* (CERT_GEN && CERT_EXT) || (OPENSSL_ALL || OPENSSL_EXTRA) */
+
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_SMIME

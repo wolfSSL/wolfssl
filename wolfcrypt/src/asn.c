@@ -26660,6 +26660,132 @@ int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
 }
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+
+/* Convert key usage string (comma delimited, null terminated) to word16
+ * Returns 0 on success, negative on error */
+int ParseKeyUsageStr(const char* value, word16* keyUsage, void* heap)
+{
+    int ret = 0;
+    char *token, *str, *ptr;
+    word32 len = 0;
+    word16 usage = 0;
+
+    if (value == NULL || keyUsage == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* duplicate string (including terminator) */
+    len = (word32)XSTRLEN(value);
+    str = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(str, value, len + 1);
+
+    /* parse value, and set corresponding Key Usage value */
+    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+        XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return KEYUSAGE_E;
+    }
+    while (token != NULL) {
+        if (!XSTRCASECMP(token, "digitalSignature"))
+            usage |= KEYUSE_DIGITAL_SIG;
+        else if (!XSTRCASECMP(token, "nonRepudiation") ||
+                 !XSTRCASECMP(token, "contentCommitment"))
+            usage |= KEYUSE_CONTENT_COMMIT;
+        else if (!XSTRCASECMP(token, "keyEncipherment"))
+            usage |= KEYUSE_KEY_ENCIPHER;
+        else if (!XSTRCASECMP(token, "dataEncipherment"))
+            usage |= KEYUSE_DATA_ENCIPHER;
+        else if (!XSTRCASECMP(token, "keyAgreement"))
+            usage |= KEYUSE_KEY_AGREE;
+        else if (!XSTRCASECMP(token, "keyCertSign"))
+            usage |= KEYUSE_KEY_CERT_SIGN;
+        else if (!XSTRCASECMP(token, "cRLSign"))
+            usage |= KEYUSE_CRL_SIGN;
+        else if (!XSTRCASECMP(token, "encipherOnly"))
+            usage |= KEYUSE_ENCIPHER_ONLY;
+        else if (!XSTRCASECMP(token, "decipherOnly"))
+            usage |= KEYUSE_DECIPHER_ONLY;
+        else {
+            ret = KEYUSAGE_E;
+            break;
+        }
+
+        token = XSTRTOK(NULL, ",", &ptr);
+    }
+
+    XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ret == 0) {
+        *keyUsage = usage;
+    }
+
+    return ret;
+}
+
+/* Convert extended key usage string (comma delimited, null terminated) to byte
+ * Returns 0 on success, negative on error */
+int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage, void* heap)
+{
+    int ret = 0;
+    char *token, *str, *ptr;
+    word32 len = 0;
+    byte usage = 0;
+
+    if (value == NULL || extKeyUsage == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* duplicate string (including terminator) */
+    len = (word32)XSTRLEN(value);
+    str = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(str, value, len + 1);
+
+    /* parse value, and set corresponding Key Usage value */
+    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+        XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXTKEYUSAGE_E;
+    }
+    while (token != NULL) {
+        if (!XSTRCASECMP(token, "any"))
+            usage |= EXTKEYUSE_ANY;
+        else if (!XSTRCASECMP(token, "serverAuth"))
+            usage |= EXTKEYUSE_SERVER_AUTH;
+        else if (!XSTRCASECMP(token, "clientAuth"))
+            usage |= EXTKEYUSE_CLIENT_AUTH;
+        else if (!XSTRCASECMP(token, "codeSigning"))
+            usage |= EXTKEYUSE_CODESIGN;
+        else if (!XSTRCASECMP(token, "emailProtection"))
+            usage |= EXTKEYUSE_EMAILPROT;
+        else if (!XSTRCASECMP(token, "timeStamping"))
+            usage |= EXTKEYUSE_TIMESTAMP;
+        else if (!XSTRCASECMP(token, "OCSPSigning"))
+            usage |= EXTKEYUSE_OCSP_SIGN;
+        else {
+            ret = EXTKEYUSAGE_E;
+            break;
+        }
+
+        token = XSTRTOK(NULL, ",", &ptr);
+    }
+
+    XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ret == 0) {
+        *extKeyUsage = usage;
+    }
+
+    return ret;
+}
+
+#endif /* (CERT_GEN && CERT_EXT) || (OPENSSL_ALL || OPENSSL_EXTRA) */
+
 #ifdef WOLFSSL_CERT_GEN
 /* Encodes one attribute of the name (issuer/subject)
  * call we_EncodeName_ex with 0x16, IA5String for email type
@@ -30484,56 +30610,14 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
 int wc_SetKeyUsage(Cert *cert, const char *value)
 {
     int ret = 0;
-    char *token, *str, *ptr;
-    word32 len;
 
     if (cert == NULL || value == NULL)
         return BAD_FUNC_ARG;
 
     cert->keyUsage = 0;
 
-    /* duplicate string (including terminator) */
-    len = (word32)XSTRLEN(value);
-    str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (str == NULL)
-        return MEMORY_E;
-    XMEMCPY(str, value, len+1);
+    ret = ParseKeyUsageStr(value, &cert->keyUsage, cert->heap);
 
-    /* parse value, and set corresponding Key Usage value */
-    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
-        XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return KEYUSAGE_E;
-    }
-    while (token != NULL)
-    {
-        if (!XSTRCASECMP(token, "digitalSignature"))
-            cert->keyUsage |= KEYUSE_DIGITAL_SIG;
-        else if (!XSTRCASECMP(token, "nonRepudiation") ||
-                 !XSTRCASECMP(token, "contentCommitment"))
-            cert->keyUsage |= KEYUSE_CONTENT_COMMIT;
-        else if (!XSTRCASECMP(token, "keyEncipherment"))
-            cert->keyUsage |= KEYUSE_KEY_ENCIPHER;
-        else if (!XSTRCASECMP(token, "dataEncipherment"))
-            cert->keyUsage |= KEYUSE_DATA_ENCIPHER;
-        else if (!XSTRCASECMP(token, "keyAgreement"))
-            cert->keyUsage |= KEYUSE_KEY_AGREE;
-        else if (!XSTRCASECMP(token, "keyCertSign"))
-            cert->keyUsage |= KEYUSE_KEY_CERT_SIGN;
-        else if (!XSTRCASECMP(token, "cRLSign"))
-            cert->keyUsage |= KEYUSE_CRL_SIGN;
-        else if (!XSTRCASECMP(token, "encipherOnly"))
-            cert->keyUsage |= KEYUSE_ENCIPHER_ONLY;
-        else if (!XSTRCASECMP(token, "decipherOnly"))
-            cert->keyUsage |= KEYUSE_DECIPHER_ONLY;
-        else {
-            ret = KEYUSAGE_E;
-            break;
-        }
-
-        token = XSTRTOK(NULL, ",", &ptr);
-    }
-
-    XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -30541,52 +30625,14 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
 int wc_SetExtKeyUsage(Cert *cert, const char *value)
 {
     int ret = 0;
-    char *token, *str, *ptr;
-    word32 len;
 
     if (cert == NULL || value == NULL)
         return BAD_FUNC_ARG;
 
     cert->extKeyUsage = 0;
 
-    /* duplicate string (including terminator) */
-    len = (word32)XSTRLEN(value);
-    str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (str == NULL)
-        return MEMORY_E;
-    XMEMCPY(str, value, len+1);
+    ret = ParseExtKeyUsageStr(value, &cert->extKeyUsage, cert->heap);
 
-    /* parse value, and set corresponding Key Usage value */
-    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
-        XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return EXTKEYUSAGE_E;
-    }
-
-    while (token != NULL)
-    {
-        if (!XSTRCASECMP(token, "any"))
-            cert->extKeyUsage |= EXTKEYUSE_ANY;
-        else if (!XSTRCASECMP(token, "serverAuth"))
-            cert->extKeyUsage |= EXTKEYUSE_SERVER_AUTH;
-        else if (!XSTRCASECMP(token, "clientAuth"))
-            cert->extKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
-        else if (!XSTRCASECMP(token, "codeSigning"))
-            cert->extKeyUsage |= EXTKEYUSE_CODESIGN;
-        else if (!XSTRCASECMP(token, "emailProtection"))
-            cert->extKeyUsage |= EXTKEYUSE_EMAILPROT;
-        else if (!XSTRCASECMP(token, "timeStamping"))
-            cert->extKeyUsage |= EXTKEYUSE_TIMESTAMP;
-        else if (!XSTRCASECMP(token, "OCSPSigning"))
-            cert->extKeyUsage |= EXTKEYUSE_OCSP_SIGN;
-        else {
-            ret = EXTKEYUSAGE_E;
-            break;
-        }
-
-        token = XSTRTOK(NULL, ",", &ptr);
-    }
-
-    XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

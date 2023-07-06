@@ -46250,6 +46250,7 @@ static int test_wolfSSL_X509V3_EXT_nconf(void)
         "authorityKeyIdentifier",
         "subjectAltName",
         "keyUsage",
+        "extendedKeyUsage",
     };
     size_t ext_names_count = sizeof(ext_names)/sizeof(*ext_names);
     int ext_nids[] = {
@@ -46257,19 +46258,42 @@ static int test_wolfSSL_X509V3_EXT_nconf(void)
         NID_authority_key_identifier,
         NID_subject_alt_name,
         NID_key_usage,
+        NID_ext_key_usage,
     };
     size_t ext_nids_count = sizeof(ext_nids)/sizeof(*ext_nids);
     const char *ext_values[] = {
         "hash",
         "hash",
         "DNS:example.com, IP:127.0.0.1",
-        "digitalSignature,keyEncipherment,dataEncipherment",
+        "digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,"
+            "keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly",
+        "serverAuth,clientAuth,codeSigning,emailProtection,timeStamping,"
+            "OCSPSigning",
     };
     size_t i;
     X509_EXTENSION* ext = NULL;
     X509* x509 = NULL;
+    unsigned int keyUsageFlags;
+    unsigned int extKeyUsageFlags;
 
     ExpectNotNull(x509 = X509_new());
+
+    /* keyUsage / extKeyUsage should match string above */
+    keyUsageFlags = KU_DIGITAL_SIGNATURE
+                  | KU_NON_REPUDIATION
+                  | KU_KEY_ENCIPHERMENT
+                  | KU_DATA_ENCIPHERMENT
+                  | KU_KEY_AGREEMENT
+                  | KU_KEY_CERT_SIGN
+                  | KU_CRL_SIGN
+                  | KU_ENCIPHER_ONLY
+                  | KU_DECIPHER_ONLY;
+    extKeyUsageFlags = XKU_SSL_CLIENT
+                     | XKU_SSL_SERVER
+                     | XKU_CODE_SIGN
+                     | XKU_SMIME
+                     | XKU_TIMESTAMP
+                     | XKU_OCSP_SIGN;
 
     for (i = 0; i < ext_names_count; i++) {
         ExpectNotNull(ext = X509V3_EXT_nconf(NULL, NULL, ext_names[i],
@@ -46290,6 +46314,13 @@ static int test_wolfSSL_X509V3_EXT_nconf(void)
         ExpectNotNull(ext = X509V3_EXT_nconf(NULL, NULL, ext_names[i],
             ext_values[i]));
         ExpectIntEQ(X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);
+
+        if (ext_nids[i] == NID_key_usage) {
+            ExpectIntEQ(X509_get_key_usage(x509), keyUsageFlags);
+        }
+        else if (ext_nids[i] == NID_ext_key_usage) {
+            ExpectIntEQ(X509_get_extended_key_usage(x509), extKeyUsageFlags);
+        }
         X509_EXTENSION_free(ext);
         ext = NULL;
     }
