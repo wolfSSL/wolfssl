@@ -28,7 +28,10 @@ jobs:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 1.7.3 ]
+        include:
+          - ref: 1.7.3
+            ignore-tests: >-
+              test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     needs: build_wolfssl
@@ -42,9 +45,7 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v3
         with:
-          # TODO: change to wolfssl repo once merged
-          repository: kareem-wolfssl/osp
-          ref: hitch
+          repository: wolfssl/osp
           path: osp
 
       - name: Install dependencies
@@ -59,6 +60,14 @@ jobs:
           repository: varnish/hitch
           ref: 1.7.3
           path: hitch
+
+      # Do this before configuring so that it only detects the updated list of
+      # tests
+      - if: ${{ matrix.ignore-tests }}
+        name: Remove tests that we want to ignore (13, 15, 39)
+        working-directory: ./hitch/src/tests
+        run: |
+          rm ${{ matrix.ignore-tests }}
 
       - name: Configure and build hitch
         run: |
@@ -79,8 +88,4 @@ jobs:
         working-directory: ./hitch/src/tests
         run: |
           export TESTDIR=`pwd`/; export PATH=$PATH:`pwd`/../:`pwd`/../util/:`pwd`; export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
-          for test in ./test*.sh; do
-            if ! [[ "$test" = ./test13* ]] && ! [[ "$test" = ./test15* ]] && ! [[ "$test" = ./test39* ]]; then
-              $test && echo "PASS: $test" || (ret=$?; if [[ $ret != 77 ]]; then echo "FAIL: $test (exit status: $ret)" && exit $ret; else echo "SKIP: $test"; fi)
-            fi
-          done
+          make check

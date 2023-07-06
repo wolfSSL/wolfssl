@@ -16811,7 +16811,7 @@ cleanup:
         return 0;
     }
 
-    void wolfSSL_set_locking_callback(void (*f)(int, int, const char*, int))
+    void wolfSSL_set_locking_callback(mutex_cb* f)
     {
         WOLFSSL_ENTER("wolfSSL_set_locking_callback");
 
@@ -16820,7 +16820,7 @@ cleanup:
         }
     }
 
-    void (*wolfSSL_get_locking_callback(void))(int, int, const char*, int)
+    mutex_cb* wolfSSL_get_locking_callback(void)
     {
         WOLFSSL_ENTER("wolfSSL_get_locking_callback");
 

@@ -2360,7 +2360,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         return WOLFSSL_SUCCESS;
     }
 
-#ifdef OPENSSL_ALL
     WOLFSSL_BIO* wolfSSL_BIO_new_ssl(WOLFSSL_CTX* ctx, int client)
     {
         WOLFSSL* ssl = NULL;
@@ -2407,11 +2406,9 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
         return sslBio;
     }
-#endif
 
     WOLFSSL_BIO* wolfSSL_BIO_new_ssl_connect(WOLFSSL_CTX* ctx)
     {
-        WOLFSSL* ssl = NULL;
         WOLFSSL_BIO* sslBio = NULL;
         WOLFSSL_BIO* connBio = NULL;
         int err = 0;
@@ -2424,23 +2421,11 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
 
         if (err == 0) {
-            ssl = wolfSSL_new(ctx);
-            if (ssl == NULL) {
-                WOLFSSL_MSG("Failed to create SSL object from ctx.");
-                err = 1;
-            }
-        }
-        if (err == 0) {
-            sslBio = wolfSSL_BIO_new(wolfSSL_BIO_f_ssl());
+            sslBio = wolfSSL_BIO_new_ssl(ctx, 1);
             if (sslBio == NULL) {
                 WOLFSSL_MSG("Failed to create SSL BIO.");
                 err = 1;
             }
-        }
-        if (err == 0 && wolfSSL_BIO_set_ssl(sslBio, ssl, BIO_CLOSE) !=
-            WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Failed to set SSL pointer in BIO.");
-            err = 1;
         }
         if (err == 0) {
             connBio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
@@ -2454,7 +2439,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
 
         if (err == 1) {
-            wolfSSL_free(ssl);
             wolfSSL_BIO_free(sslBio);
             sslBio = NULL;
             wolfSSL_BIO_free(connBio);

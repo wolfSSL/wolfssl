@@ -1777,9 +1777,7 @@ WOLFSSL_API long wolfSSL_BIO_set_conn_hostname(WOLFSSL_BIO* b, char* name);
 WOLFSSL_API long wolfSSL_BIO_set_conn_port(WOLFSSL_BIO *b, char* port);
 WOLFSSL_API long wolfSSL_BIO_do_connect(WOLFSSL_BIO *b);
 WOLFSSL_API int wolfSSL_BIO_do_accept(WOLFSSL_BIO *b);
-#ifdef OPENSSL_ALL
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_ssl(WOLFSSL_CTX* ctx, int client);
-#endif
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_ssl_connect(WOLFSSL_CTX* ctx);
 
 WOLFSSL_API long wolfSSL_BIO_do_handshake(WOLFSSL_BIO *b);
@@ -1825,10 +1823,10 @@ WOLFSSL_API int wolfSSL_COMP_add_compression_method(int method, void* data);
 
 WOLFSSL_API unsigned long wolfSSL_thread_id(void);
 WOLFSSL_API void wolfSSL_set_id_callback(unsigned long (*f)(void));
-WOLFSSL_API void wolfSSL_set_locking_callback(void (*f)(int, int, const char*,
-                                                      int));
-WOLFSSL_API void (*wolfSSL_get_locking_callback(void))(int, int, const char*,
-                                                       int);
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+WOLFSSL_API void wolfSSL_set_locking_callback(mutex_cb* f);
+WOLFSSL_API mutex_cb* wolfSSL_get_locking_callback(void);
+#endif
 WOLFSSL_API void wolfSSL_set_dynlock_create_callback(WOLFSSL_dynlock_value* (*f)
                                                    (const char*, int));
 WOLFSSL_API void wolfSSL_set_dynlock_lock_callback(void (*f)(int,
