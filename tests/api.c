@@ -8275,7 +8275,8 @@ static int test_wolfSSL_CTX_add_session_ext(
                     /* (D)TLSv1.3 creates a new ticket,
                      * updates both internal and external cache */
                     ExpectIntEQ(twcase_new_session_called, 1);
-                    ExpectIntEQ(twcase_remove_session_called, 1);
+                    /* A new session ID is created for a new ticket */
+                    ExpectIntEQ(twcase_remove_session_called, 2);
 
                 }
                 else {

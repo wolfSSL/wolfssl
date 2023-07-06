@@ -5763,6 +5763,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     int         found = 0;
     byte        foundSuite[SUITE_LEN];
 
+    WOLFSSL_ENTER("FindPsk");
+
     ret = FindPskSuite(ssl, psk, ssl->arrays->psk_key, &ssl->arrays->psk_keySz,
                        suite, &found, foundSuite);
     if (ret == 0 && found) {
@@ -5797,6 +5799,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     }
 
     *err = ret;
+    WOLFSSL_LEAVE("FindPsk", found);
+    WOLFSSL_LEAVE("FindPsk", ret);
     return found;
 }
 #endif /* !NO_PSK */
@@ -10601,9 +10605,24 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
             ssl->session->ticketNonce.data[0]++;
     }
 
-    if (!ssl->options.noTicketTls13) {
-        if ((ret = CreateTicket(ssl)) != 0)
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        /* In this case we only send the ID as the ticket. Let's generate a new
+         * ID for the new ticket so that we don't overwrite any old ones */
+        ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
+                                   ID_LEN);
+        if (ret != 0)
             return ret;
+        ssl->session->haveAltSessionID = 1;
+    }
+
+    if (!ssl->options.noTicketTls13) {
+        if ((ret = SetupTicket(ssl)) != 0)
+            return ret;
+        /* No need to create the ticket if we only send the ID */
+        if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == 0) {
+            if ((ret = CreateTicket(ssl)) != 0)
+                return ret;
+        }
     }
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -10662,7 +10681,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         if (ssl->session->haveAltSessionID)
             XMEMCPY(output + idx, ssl->session->altSessionID, ID_LEN);
         else
-            XMEMCPY(output + idx, ssl->session->sessionID, ID_LEN);
+            return BAD_FUNC_ARG; /* Should not happen */
         idx += ID_LEN;
     }
     else {
@@ -13665,6 +13684,73 @@ int wolfSSL_set_tls13_secret_cb(WOLFSSL* ssl, Tls13SecretCb cb, void* ctx)
 
     return WOLFSSL_SUCCESS;
 }
+
+#if defined(SHOW_SECRETS) && defined(WOLFSSL_SSLKEYLOGFILE)
+int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
+    int secretSz, void* ctx)
+{
+    int i;
+    const char* str = NULL;
+    byte clientRandom[RAN_LEN];
+    int clientRandomSz;
+    XFILE fp;
+
+    (void) ctx;
+#ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+    fp = XFOPEN(WOLFSSL_SSLKEYLOGFILE_OUTPUT, "ab");
+    if (fp == XBADFILE) {
+        return BAD_FUNC_ARG;
+    }
+#else
+    fp = stderr;
+#endif
+
+    clientRandomSz = (int)wolfSSL_get_client_random(ssl, clientRandom,
+        sizeof(clientRandom));
+
+    if (clientRandomSz <= 0) {
+        printf("Error getting server random %d\n", clientRandomSz);
+    }
+
+#if 0
+    printf("TLS Server Secret CB: Rand %d, Secret %d\n",
+        serverRandomSz, secretSz);
+#endif
+
+    switch (id) {
+        case CLIENT_EARLY_TRAFFIC_SECRET:
+            str = "CLIENT_EARLY_TRAFFIC_SECRET"; break;
+        case EARLY_EXPORTER_SECRET:
+            str = "EARLY_EXPORTER_SECRET"; break;
+        case CLIENT_HANDSHAKE_TRAFFIC_SECRET:
+            str = "CLIENT_HANDSHAKE_TRAFFIC_SECRET"; break;
+        case SERVER_HANDSHAKE_TRAFFIC_SECRET:
+            str = "SERVER_HANDSHAKE_TRAFFIC_SECRET"; break;
+        case CLIENT_TRAFFIC_SECRET:
+            str = "CLIENT_TRAFFIC_SECRET_0"; break;
+        case SERVER_TRAFFIC_SECRET:
+            str = "SERVER_TRAFFIC_SECRET_0"; break;
+        case EXPORTER_SECRET:
+            str = "EXPORTER_SECRET"; break;
+    }
+
+    fprintf(fp, "%s ", str);
+    for (i = 0; i < (int)clientRandomSz; i++) {
+        fprintf(fp, "%02x", clientRandom[i]);
+    }
+    fprintf(fp, " ");
+    for (i = 0; i < secretSz; i++) {
+        fprintf(fp, "%02x", secret[i]);
+    }
+    fprintf(fp, "\n");
+
+#ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+    XFCLOSE(fp);
+#endif
+
+    return 0;
+}
+#endif
 #endif
 
 #undef ERROR_OUT

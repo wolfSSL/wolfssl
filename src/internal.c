@@ -2541,8 +2541,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
     #endif
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-        wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
-        ctx->ca_names = NULL;
+        wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
+        ctx->client_ca_names = NULL;
     #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
@@ -7416,6 +7416,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         return ret;
 #endif
 
+#if defined(HAVE_SECRET_CALLBACK) && defined(SHOW_SECRETS) && \
+    defined(WOLFSSL_SSLKEYLOGFILE)
+    (void)wolfSSL_set_tls13_secret_cb(ssl, tls13ShowSecrets, NULL);
+#endif
+
     return 0;
 }
 
@@ -8143,8 +8148,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-    wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
-    ssl->ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
+    ssl->client_ca_names = NULL;
 #endif
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
@@ -11927,7 +11932,7 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
+void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
 {
     if (nameType == SUBJECT) {
         XSTRNCPY(name->name, dCert->subject, ASN_NAME_MAX);
@@ -13942,7 +13947,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                             SSL_CM(ssl)->ocspCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
                             ret = CheckCertOCSP_ex(SSL_CM(ssl)->ocsp,
-                                                    args->dCert, NULL, ssl);
+                                                    args->dCert, ssl);
                         #ifdef WOLFSSL_NONBLOCK_OCSP
                             if (ret == OCSP_WANT_READ) {
                                 args->lastErr = ret;
@@ -14331,7 +14336,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (doLookup && SSL_CM(ssl)->ocspEnabled) {
                         WOLFSSL_MSG("Doing Leaf OCSP check");
                         ret = CheckCertOCSP_ex(SSL_CM(ssl)->ocsp,
-                                                    args->dCert, NULL, ssl);
+                                                    args->dCert, ssl);
                     #ifdef WOLFSSL_NONBLOCK_OCSP
                         if (ret == OCSP_WANT_READ) {
                             goto exit_ppc;
@@ -22078,7 +22083,8 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
     if (ret == 0) {
         request->ssl = ssl;
-        ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling, request, response);
+        ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling, request, response,
+                               ssl->heap);
 
         /* Suppressing, not critical */
         if (ret == OCSP_CERT_REVOKED ||
@@ -22418,7 +22424,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+#ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
     const Suites* suites = WOLFSSL_SUITES(ssl);
@@ -22432,7 +22438,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + suites->hashSigAlgoSz;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+#ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
     names = SSL_CA_NAMES(ssl);
     while (names != NULL) {
@@ -22525,7 +22531,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+#ifndef WOLFSSL_NO_CA_NAMES
     names = SSL_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
@@ -22775,6 +22781,8 @@ int SendCertificateStatus(WOLFSSL* ssl)
             if (ret == 0 && response.buffer) {
                 ret = BuildCertificateStatus(ssl, status_type, &response, 1);
 
+            }
+            if (response.buffer) {
                 XFREE(response.buffer, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 response.buffer = NULL;
             }
@@ -22851,7 +22859,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                         if (ret == 0) {
                             request->ssl = ssl;
                         ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                                    request, &responses[i + 1]);
+                                        request, &responses[i + 1], ssl->heap);
 
                             /* Suppressing, not critical */
                             if (ret == OCSP_CERT_REVOKED ||
@@ -22877,7 +22885,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
                     request->ssl = ssl;
                     ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
-                                                request, &responses[++i]);
+                                           request, &responses[++i], ssl->heap);
 
                     /* Suppressing, not critical */
                     if (ret == OCSP_CERT_REVOKED ||
@@ -28086,10 +28094,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return BUFFER_ERROR;
 
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-        if (ssl->ca_names != ssl->ctx->ca_names)
-            wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
-        ssl->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-        if (ssl->ca_names == NULL) {
+        if (ssl->client_ca_names != ssl->ctx->client_ca_names)
+            wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
+        ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+        if (ssl->client_ca_names == NULL) {
             return MEMORY_ERROR;
         }
     #endif
@@ -28134,7 +28142,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 }
 
                 if (ret == 0) {
-                    if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
+                    if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
                         == WOLFSSL_FAILURE)
                     {
                         ret = MEMORY_ERROR;
@@ -35441,7 +35449,61 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_SESSION_TICKET
 
-    /* create a new session ticket, 0 on success */
+#ifdef WOLFSSL_TICKET_HAVE_ID
+    static void GetRealSessionID(WOLFSSL* ssl, const byte** id, byte* idSz)
+    {
+        if (ssl->session->haveAltSessionID) {
+            *id = ssl->session->altSessionID;
+            *idSz = ID_LEN;
+        }
+        else if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
+            *id = ssl->arrays->sessionID;
+            *idSz = ssl->arrays->sessionIDSz;
+        }
+        else {
+            *id = ssl->session->sessionID;
+            *idSz = ssl->session->sessionIDSz;
+        }
+    }
+#endif
+
+    int SetupTicket(WOLFSSL* ssl)
+    {
+        int ret = 0;
+
+        (void)ssl;
+
+#ifdef WOLFSSL_TLS13
+        {
+            /* Client adds to ticket age to obfuscate. */
+            byte ageAdd[AGEADD_LEN]; /* Obfuscation of age */
+            ret = wc_RNG_GenerateBlock(ssl->rng, ageAdd, AGEADD_LEN);
+            if (ret != 0)
+                return ret;
+            ato32(ageAdd, &ssl->session->ticketAdd);
+        }
+#endif
+
+#ifdef WOLFSSL_TICKET_HAVE_ID
+        {
+            const byte* id = NULL;
+            byte idSz = 0;
+
+            GetRealSessionID(ssl, &id, &idSz);
+            if (idSz == 0) {
+                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
+                                           ID_LEN);
+                if (ret != 0)
+                    return ret;
+                ssl->session->haveAltSessionID = 1;
+            }
+        }
+#endif
+        return ret;
+    }
+
+    /* create a new session ticket, 0 on success
+     * Do any kind of setup in SetupTicket */
     int CreateTicket(WOLFSSL* ssl)
     {
         InternalTicket* it;
@@ -35502,14 +35564,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 goto error;
             }
 
-            /* Client adds to ticket age to obfuscate. */
-            ret = wc_RNG_GenerateBlock(ssl->rng, it->ageAdd,
-                                       sizeof(it->ageAdd));
-            if (ret != 0) {
-                ret = BAD_TICKET_ENCRYPT;
-                goto error;
-            }
-            ato32(it->ageAdd, &ssl->session->ticketAdd);
+            c32toa(ssl->session->ticketAdd, it->ageAdd);
             c16toa(ssl->session->namedGroup, it->namedGroup);
         #ifdef WOLFSSL_32BIT_MILLI_TIME
             c32toa(now, it->timestamp);
@@ -35530,31 +35585,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         }
 
+#ifdef OPENSSL_EXTRA
+        it->sessionCtxSz = ssl->sessionCtxSz;
+        XMEMCPY(it->sessionCtx, ssl->sessionCtx, ID_LEN);
+#endif
+
 #ifdef WOLFSSL_TICKET_HAVE_ID
         {
             const byte* id = NULL;
             byte idSz = 0;
-            if (ssl->session->haveAltSessionID) {
-                id = ssl->session->altSessionID;
-                idSz = ID_LEN;
-            }
-            else if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
-                id = ssl->arrays->sessionID;
-                idSz = ssl->arrays->sessionIDSz;
-            }
-            else {
-                id = ssl->session->sessionID;
-                idSz = ssl->session->sessionIDSz;
-            }
-            if (idSz == 0) {
-                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
-                                           ID_LEN);
-                if (ret != 0)
-                    goto error;
-                ssl->session->haveAltSessionID = 1;
-                id = ssl->session->altSessionID;
-                idSz = ID_LEN;
-            }
+            GetRealSessionID(ssl, &id, &idSz);
             /* make sure idSz is not larger than ID_LEN */
             if (idSz > ID_LEN)
                 idSz = ID_LEN;
@@ -35830,6 +35870,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (!FindSuiteSSL(ssl, psk->it->suite))
             return -1;
 #endif
+#ifdef OPENSSL_EXTRA
+        if (ssl->sessionCtxSz > 0 &&
+               (psk->it->sessionCtxSz != ssl->sessionCtxSz ||
+                XMEMCMP(psk->it->sessionCtx, ssl->sessionCtx,
+                        ssl->sessionCtxSz) != 0))
+            return -1;
+#endif
         return 0;
     }
 #endif /* WOLFSSL_SLT13 */
@@ -35962,6 +36009,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else
             XMEMCPY(it->id, sess->sessionID, ID_LEN);
 #endif
+#ifdef OPENSSL_EXTRA
+        it->sessionCtxSz = sess->sessionCtxSz;
+        XMEMCPY(it->sessionCtx, sess->sessionCtx, sess->sessionCtxSz);
+#endif
     }
 
 
@@ -36067,6 +36118,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             break;
         default:
             psk->decryptRet = PSK_DECRYPT_FAIL;
+            WOLFSSL_LEAVE("DoClientTicket_ex", decryptRet);
             return decryptRet;
         }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -36082,8 +36134,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
             wc_MemZero_Check(psk->it, sizeof(InternalTicket));
 #endif
+            WOLFSSL_LEAVE("DoClientTicket_ex", ret);
             return ret;
         }
+        WOLFSSL_LEAVE("DoClientTicket_ex", decryptRet);
         return decryptRet;
     }
 #endif /* WOLFSL_TLS13 */
@@ -36186,6 +36240,9 @@ cleanup:
         WOLFSSL_ENTER("SendTicket");
 
         if (ssl->options.createTicket) {
+            ret = SetupTicket(ssl);
+            if (ret != 0)
+                return ret;
             ret = CreateTicket(ssl);
             if (ret != 0)
                 return ret;

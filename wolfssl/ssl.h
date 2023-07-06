@@ -1233,6 +1233,7 @@ WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *
 
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_API long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t);
+WOLFSSL_API long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm);
 WOLFSSL_API void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm);
@@ -2251,25 +2252,25 @@ enum {
     WOLFSSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
     WOLFSSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
     WOLFSSL_OP_EPHEMERAL_RSA                          = 0x00000800,
-    WOLFSSL_OP_NO_SSLv3                           = 0x00001000,
-    WOLFSSL_OP_NO_TLSv1                           = 0x00002000,
+    WOLFSSL_OP_NO_SSLv3                               = 0x00001000,
+    WOLFSSL_OP_NO_TLSv1                               = 0x00002000,
     WOLFSSL_OP_PKCS1_CHECK_1                          = 0x00004000,
     WOLFSSL_OP_PKCS1_CHECK_2                          = 0x00008000,
     WOLFSSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
     WOLFSSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00020000,
-    WOLFSSL_OP_SINGLE_DH_USE                      = 0x00040000,
+    WOLFSSL_OP_SINGLE_DH_USE                          = 0x00040000,
     WOLFSSL_OP_NO_TICKET                              = 0x00080000,
     WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00100000,
     WOLFSSL_OP_NO_QUERY_MTU                           = 0x00200000,
     WOLFSSL_OP_COOKIE_EXCHANGE                        = 0x00400000,
     WOLFSSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
-    WOLFSSL_OP_SINGLE_ECDH_USE                    = 0x01000000,
-    WOLFSSL_OP_CIPHER_SERVER_PREFERENCE           = 0x02000000,
-    WOLFSSL_OP_NO_TLSv1_1                         = 0x04000000,
-    WOLFSSL_OP_NO_TLSv1_2                         = 0x08000000,
-    WOLFSSL_OP_NO_COMPRESSION                     = 0x10000000,
-    WOLFSSL_OP_NO_TLSv1_3                         = 0x20000000,
-    WOLFSSL_OP_NO_SSLv2                           = 0x40000000,
+    WOLFSSL_OP_SINGLE_ECDH_USE                        = 0x01000000,
+    WOLFSSL_OP_CIPHER_SERVER_PREFERENCE               = 0x02000000,
+    WOLFSSL_OP_NO_TLSv1_1                             = 0x04000000,
+    WOLFSSL_OP_NO_TLSv1_2                             = 0x08000000,
+    WOLFSSL_OP_NO_COMPRESSION                         = 0x10000000,
+    WOLFSSL_OP_NO_TLSv1_3                             = 0x20000000,
+    WOLFSSL_OP_NO_SSLv2                               = 0x40000000,
     WOLFSSL_OP_ALL   =
                    (WOLFSSL_OP_MICROSOFT_SESS_ID_BUG
                   | WOLFSSL_OP_NETSCAPE_CHALLENGE_BUG
@@ -2535,7 +2536,9 @@ enum { /* ssl Constants */
     WOLFSSL_SESS_CACHE_NO_AUTO_CLEAR      = 0x0008,
     WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 0x0100,
     WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE  = 0x0200,
-    WOLFSSL_SESS_CACHE_NO_INTERNAL        = 0x0300,
+    WOLFSSL_SESS_CACHE_NO_INTERNAL        =
+            (WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE |
+                    WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP),
 
     WOLFSSL_ERROR_WANT_READ        =  2,
     WOLFSSL_ERROR_WANT_WRITE       =  3,
