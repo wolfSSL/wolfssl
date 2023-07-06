@@ -85,7 +85,7 @@ jobs:
 
       # Note: Exit status 77 means a test was skipped, this is valid and expected.
       - name: Run hitch tests, skipping 13, 15 and 39
-        working-directory: ./hitch/src/tests
+        working-directory: ./hitch
         run: |
-          export TESTDIR=`pwd`/; export PATH=$PATH:`pwd`/../:`pwd`/../util/:`pwd`; export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
           make check
