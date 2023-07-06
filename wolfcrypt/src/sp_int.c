@@ -5291,9 +5291,11 @@ int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
     /* Allocate temporary to hold masked xor of a and b. */
     ALLOC_SP_INT(t, cnt, err, NULL);
 
-    err = sp_cond_swap_ct_ex(a, b, cnt, swap, t);
+    if (err == MP_OKAY) {
+        err = sp_cond_swap_ct_ex(a, b, cnt, swap, t);
+        FREE_SP_INT(t, NULL);
+    }
 
-    FREE_SP_INT(t, NULL);
     return err;
 }
 #endif /* HAVE_ECC && ECC_TIMING_RESISTANT && !WC_NO_CACHE_RESISTANT */

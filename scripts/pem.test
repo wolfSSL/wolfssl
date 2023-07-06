@@ -148,7 +148,7 @@ check_der() {
 convert_to_der() {
     if [ "$SKIP" = "" -a "$FAILED" = "" ]; then
         echo "    $PEM_EXE $* -out $tmp_pem_file"
-        $PEM_EXE $* -out $tmp_der_file
+        $PEM_EXE "$@" -out $tmp_der_file
         if [ "$?" != "0" ]; then
             echo "  Failed to convert to DER"
             test_fail
@@ -176,7 +176,7 @@ compare_der() {
 convert_to_pem() {
     if [ "$SKIP" = "" -a "$FAILED" = "" ]; then
         echo "    $PEM_EXE --der -t \"$PEM_TYPE\" $* -out $tmp_pem_file"
-        $PEM_EXE --der $* -t "$PEM_TYPE" -out $tmp_pem_file
+        $PEM_EXE --der "$@" -t "$PEM_TYPE" -out $tmp_pem_file
         if [ "$?" != "0" ]; then
             test_fail
         fi

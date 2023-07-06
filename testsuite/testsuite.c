@@ -619,8 +619,6 @@ void wait_tcp_ready(func_args* args)
 #endif /* thread checks */
 }
 
-#ifndef SINGLE_THREADED
-
 /* Start a thread.
  *
  * @param [in]  fun     Function to executre in thread.
@@ -719,8 +717,6 @@ void join_thread(THREAD_TYPE thread)
     (void)res; /* Suppress un-used variable warning */
 #endif
 }
-
-#endif /* SINGLE_THREADED */
 
 #ifndef NO_FILESYSTEM
 
