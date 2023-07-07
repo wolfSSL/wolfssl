@@ -1030,6 +1030,13 @@
 
 #undef WSSL_HARDEN_TLS
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+#define SSL_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? (ssl)->client_ca_names : \
+        (ssl)->ctx->client_ca_names)
+#else
+#define WOLFSSL_NO_CA_NAMES
+#endif
+
 /* actual cipher values, 2nd byte */
 enum {
     TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA = 0x16,
@@ -1991,10 +1998,18 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
-#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) do {                           \
-    typedef char _args_test_[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
-    (void)sizeof(_args_test_);                                        \
+/* A static check to assert a relation between x and y */
+#define WOLFSSL_ASSERT_TEST(x, y, op) do {         \
+    typedef char _args_test_[(x) op (y) ? 1 : -1]; \
+    (void)sizeof(_args_test_);                     \
 } while(0)
+
+#define WOLFSSL_ASSERT_EQ(x, y) WOLFSSL_ASSERT_TEST(x, y, ==)
+
+#define WOLFSSL_ASSERT_SIZEOF_TEST(x, y, op) \
+    WOLFSSL_ASSERT_TEST(sizeof((x)), sizeof((y)), op)
+
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) WOLFSSL_ASSERT_SIZEOF_TEST(x, y, >=)
 
 /* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {
@@ -2154,7 +2169,9 @@ WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
+WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
+WOLFSSL_LOCAL int  SetupTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  HashRaw(WOLFSSL* ssl, const byte* output, int sz);
 WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
@@ -2779,6 +2796,9 @@ typedef enum {
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
     #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
+    TLSX_CERTIFICATE_AUTHORITIES    = 0x002f,
+    #endif
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
     #endif
@@ -3008,7 +3028,7 @@ typedef struct {
     union {
         OcspRequest ocsp;
     } request;
-#if defined(WOLFSSL_TLS13)
+#ifdef WOLFSSL_TLS13
     buffer response;
 #endif
 } CertificateStatusRequest;
@@ -3163,6 +3183,10 @@ typedef struct InternalTicket {
 #ifdef WOLFSSL_TICKET_HAVE_ID
     byte            id[ID_LEN];
 #endif
+#ifdef OPENSSL_EXTRA
+    byte            sessionCtxSz;          /* sessionCtx length        */
+    byte            sessionCtx[ID_LEN];    /* app specific context id */
+#endif /* OPENSSL_EXTRA */
 } InternalTicket;
 
 #ifndef WOLFSSL_TICKET_EXTRA_PADDING_SZ
@@ -3449,8 +3473,8 @@ struct WOLFSSL_CTX {
     DerBuffer*  certificate;
     DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+    #ifndef WOLFSSL_NO_CA_NAMES
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* client_ca_names;
     #endif
     #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
@@ -4822,7 +4846,7 @@ struct WOLFSSL_X509_NAME {
     WOLFSSL_X509_NAME_ENTRY entry[MAX_NAME_ENTRIES]; /* all entries i.e. CN */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+#ifndef WOLFSSL_NO_CA_NAMES
     byte  raw[ASN_NAME_MAX];
     int   rawLen;
 
@@ -5720,8 +5744,8 @@ struct WOLFSSL {
     byte clientFinished_len;
     byte serverFinished_len;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+#ifndef WOLFSSL_NO_CA_NAMES
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* client_ca_names;
 #endif
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
     IOTSAFE iotsafe;
@@ -5791,9 +5815,6 @@ struct WOLFSSL {
             WOLFSSL_MSG("Modifying SSL_CTX CM not SSL specific CM"); \
         }                                                            \
     } while (0)
-
-#define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? (ssl)->ca_names : \
-        (ssl)->ctx->ca_names)
 
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
@@ -6079,7 +6100,11 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                                              DecodedCert* cert);
     #endif
 
-    WOLFSSL_LOCAL Signer* GetCA(void* cm, byte* hash);
+    WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
+    #ifdef WOLFSSL_AKID_NAME
+        WOLFSSL_LOCAL Signer* GetCAByAKID(void* vp, const byte* issuer,
+                word32 issuerSz, const byte* serial, word32 serialSz);
+    #endif
     #ifndef NO_SKID
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
@@ -6508,6 +6533,17 @@ WOLFSSL_LOCAL int wolfSSL_quic_keys_active(WOLFSSL* ssl, enum encrypt_side side)
 #define WOLFSSL_IS_QUIC(s) 0
 #endif /* WOLFSSL_QUIC (else) */
 
+#if defined(SHOW_SECRETS) && defined(WOLFSSL_SSLKEYLOGFILE)
+WOLFSSL_LOCAL int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
+    int secretSz, void* ctx);
+#endif
+
+/* Optional Pre-Master-Secret logging for Wireshark */
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SSLKEYLOGFILE)
+#ifndef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+    #define WOLFSSL_SSLKEYLOGFILE_OUTPUT "sslkeylog.log"
+#endif
+#endif
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
 WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,

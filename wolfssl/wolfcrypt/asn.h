@@ -1660,6 +1660,12 @@ struct DecodedCert {
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
+#ifdef WOLFSSL_AKID_NAME
+    const byte* extAuthKeyIdIssuer;  /* Authority Key ID authorityCertIssuer */
+    word32  extAuthKeyIdIssuerSz;    /* Authority Key ID authorityCertIssuer length */
+    const byte* extAuthKeyIdIssuerSN; /* Authority Key ID authorityCertSerialNumber */
+    word32  extAuthKeyIdIssuerSNSz;   /* Authority Key ID authorityCertSerialNumber length */
+#endif
     byte    pathLength;              /* CA basic constraint path length  */
     byte    maxPathLen;              /* max_path_len see RFC 5280 section
                                       * 6.1.2 "Initialization" - (k) for
@@ -1945,13 +1951,22 @@ struct Signer {
 #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
+    #ifdef HAVE_OCSP
+        byte    issuerNameHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of issuer names in certificate.
+                                      * Used in OCSP to check for authorized
+                                      * responders. */
+    #endif
     #ifndef NO_SKID
         byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of names in certificate */
+                                     /* sha hash of key in certificate */
     #endif
     #ifdef HAVE_OCSP
         byte subjectKeyHash[KEYID_SIZE];
     #endif
+#ifdef WOLFSSL_AKID_NAME
+    byte serialHash[SIGNER_DIGEST_SIZE]; /* serial number hash */
+#endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
 #endif
@@ -2448,6 +2463,11 @@ struct OcspRequest {
     int    serialSz;
 #ifdef OPENSSL_EXTRA
     WOLFSSL_ASN1_INTEGER* serialInt;
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
+    defined(HAVE_LIGHTY)
+    void* cid; /* WOLFSSL_OCSP_CERTID kept to free */
 #endif
     byte*  url;      /* copy of the extAuthInfo in source cert */
     int    urlSz;

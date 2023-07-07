@@ -63,7 +63,7 @@ ASN Options:
     does not perform a PKI validation, so it is not a secure solution.
     Only enabled for OCSP.
  * WOLFSSL_NO_OCSP_ISSUER_CHECK: Can be defined for backwards compatibility to
-    disable checking of OCSP subject hash with issuer hash.
+    disable checking of https://www.rfc-editor.org/rfc/rfc6960#section-4.2.2.2.
  * WOLFSSL_SMALL_CERT_VERIFY: Verify the certificate signature without using
     DecodedCert. Doubles up on some code but allows smaller dynamic memory
     usage.
@@ -190,8 +190,8 @@ ASN Options:
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#include <wolfssl/internal.h>
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    #include <wolfssl/internal.h>
     #include <wolfssl/openssl/objects.h>
 #endif
 
@@ -18847,7 +18847,6 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
 #else
     DECL_ASNGETDATA(dataASN, authKeyIdASN_Length);
     int ret = 0;
-    word32 idx = 0;
 
     WOLFSSL_ENTER("DecodeAuthKeyId");
 
@@ -18855,30 +18854,58 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
 
     if (ret == 0) {
         /* Parse an authority key identifier. */
+        word32 idx = 0;
         ret = GetASN_Items(authKeyIdASN, dataASN, authKeyIdASN_Length, 1, input,
                            &idx, sz);
     }
-    if (ret == 0) {
-        /* Key id is optional. */
-        if (dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data == NULL) {
-            WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
-        }
-        else {
+    /* Each field is optional */
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
 #ifdef OPENSSL_EXTRA
-            /* Store the authority key id. */
-#ifdef WOLFSSL_AKID_NAME
-            cert->extRawAuthKeyIdSrc = input;
-            cert->extRawAuthKeyIdSz = sz;
-#endif
-            GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID], &cert->extAuthKeyIdSrc,
-                               &cert->extAuthKeyIdSz);
+        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID],
+                &cert->extAuthKeyIdSrc, &cert->extAuthKeyIdSz);
 #endif /* OPENSSL_EXTRA */
+        /* Get the hash or hash of the hash if wrong size. */
+        ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
+                    (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
+                    cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
+    }
+#ifdef WOLFSSL_AKID_NAME
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
+        /* We only support using one (first) name. Parse the name to perform
+         * a sanity check. */
+        word32 idx = 0;
+        ASNGetData nameASN[altNameASN_Length];
+        XMEMSET(nameASN, 0, sizeof(nameASN));
+        /* Parse GeneralName with the choices supported. */
+        GetASN_Choice(&nameASN[ALTNAMEASN_IDX_GN], generalNameChoice);
+        /* Decode a GeneralName choice. */
+        ret = GetASN_Items(altNameASN, nameASN, altNameASN_Length, 0,
+                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
+                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
 
-            /* Get the hash or hash of the hash if wrong size. */
-            ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
-                        (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                        cert->extAuthKeyId, HashIdAlg((int)cert->signatureOID));
+        if (ret == 0) {
+            GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
+                    &cert->extAuthKeyIdIssuer, &cert->extAuthKeyIdIssuerSz);
         }
+    }
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
+        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
+                &cert->extAuthKeyIdIssuerSN, &cert->extAuthKeyIdIssuerSNSz);
+    }
+    if (ret == 0) {
+        if ((cert->extAuthKeyIdIssuerSz > 0) ^
+                (cert->extAuthKeyIdIssuerSNSz > 0)) {
+            WOLFSSL_MSG("authorityCertIssuer and authorityCertSerialNumber MUST"
+                       " both be present or both be absent");
+        }
+    }
+#endif /* WOLFSSL_AKID_NAME */
+    if (ret == 0) {
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AKID_NAME)
+        /* Store the raw authority key id. */
+        cert->extRawAuthKeyIdSrc = input;
+        cert->extRawAuthKeyIdSz = sz;
+#endif /* OPENSSL_EXTRA */
     }
 
     FREE_ASNGETDATA(dataASN, cert->heap);
@@ -21458,6 +21485,19 @@ Signer* GetCAByName(void* signers, byte* hash)
 }
 #endif /* NO_SKID */
 
+#ifdef WOLFSSL_AKID_NAME
+Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
+        const byte* serial, word32 serialSz)
+{
+    (void)issuer;
+    (void)issuerSz;
+    (void)serial;
+    (void)serialSz;
+
+    return (Signer*)vp;
+}
+#endif
+
 #endif /* WOLFCRYPT_ONLY */
 
 #if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
@@ -22591,6 +22631,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
             if (cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
+        #ifdef WOLFSSL_AKID_NAME
+                if (cert->ca == NULL) {
+                    cert->ca = GetCAByAKID(cm, cert->extAuthKeyIdIssuer,
+                        cert->extAuthKeyIdIssuerSz, cert->extAuthKeyIdIssuerSN,
+                        cert->extAuthKeyIdIssuerSNSz);
+                }
+        #endif
             }
             if (cert->ca == NULL && cert->extSubjKeyIdSet
                                  && verify != VERIFY_OCSP) {
@@ -34096,6 +34143,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     if (ret == 0) {
         /* Store serial size. */
         cs->serialSz = serialSz;
+        /* Set the hash algorithm OID */
+        single->hashAlgoOID =
+                dataASN[SINGLERESPONSEASN_IDX_CID_HASHALGO_OID].data.oid.sum;
 
         /* Determine status by which item was found. */
         if (dataASN[SINGLERESPONSEASN_IDX_CS_GOOD].tag != 0) {
@@ -34865,7 +34915,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     if ((ret == 0) &&
             (dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ].data.ref.data != NULL)) {
     #endif
-        /* Initialize the crtificate object. */
+        /* Initialize the certificate object. */
         InitDecodedCert(cert, resp->cert, resp->certSz, heap);
         certInit = 1;
         /* Parse the certificate and don't verify if we don't have access to
@@ -34876,6 +34926,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
         }
     }
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
+    if ((ret == 0) &&
+            (dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ].data.ref.data != NULL) &&
+            !noVerify) {
+        ret = CheckOcspResponder(resp, cert, cm);
+    }
+#endif /* WOLFSSL_NO_OCSP_ISSUER_CHECK */
     if ((ret == 0) &&
             (dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ].data.ref.data != NULL)) {
         /* TODO: ConfirmSignature is blocking here */
@@ -35543,6 +35600,14 @@ void FreeOcspRequest(OcspRequest* req)
         if (req->url)
             XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->url = NULL;
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
+    defined(HAVE_LIGHTY)
+        if (req->cid != NULL)
+            wolfSSL_OCSP_CERTID_free((WOLFSSL_OCSP_CERTID*)req->cid);
+        req->cid = NULL;
+#endif
     }
 }
 

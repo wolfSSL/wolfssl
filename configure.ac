@@ -5844,6 +5844,8 @@ fi
 if test "$ENABLED_NGINX" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX -DWOLFSSL_SIGNER_DER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ERROR_CODE_OPENSSL"
 fi
 
 if test "$ENABLED_HAPROXY" = "yes"
@@ -7836,6 +7838,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PRIORITIZE_PSK"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHECK_ALERT_ON_ERR"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_HAVE_ID"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OCSP_ISSUER_CHECK"
     ENABLED_TRUSTED_PEER_CERT=yes
 fi
 
@@ -8855,8 +8859,14 @@ fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" | sed 's/\\/\\\\/g' > "${output_objdir}/.build_params" &&
-        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" | sed 's/\\/\\\\/g' >> "${output_objdir}/.build_params" ||
+    ESCAPED_ARGS="$ac_configure_args"
+    ESCAPED_ARGS=$(echo "$ESCAPED_ARGS" | sed 's/\\/\\\\/g')
+    ESCAPED_ARGS=$(echo "$ESCAPED_ARGS" | sed 's/\"/\\\"/g')
+    ESCAPED_GLOBAL_ARGS="$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS"
+    ESCAPED_GLOBAL_ARGS=$(echo "$ESCAPED_GLOBAL_ARGS" | sed 's/\\/\\\\/g')
+    ESCAPED_GLOBAL_ARGS=$(echo "$ESCAPED_GLOBAL_ARGS" | sed 's/\"/\\\"/g')
+    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ESCAPED_ARGS\"" > "${output_objdir}/.build_params" &&
+        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$ESCAPED_GLOBAL_ARGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> "${output_objdir}/.build_params" ||
         AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
 else
     rm -f "${output_objdir}/.build_params"

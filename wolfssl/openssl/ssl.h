@@ -1083,6 +1083,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
                                         wolfSSL_SESSION_get_ticket_lifetime_hint
 #define SSL_SESSION_set_timeout         wolfSSL_SSL_SESSION_set_timeout
 #define SSL_SESSION_get_timeout         wolfSSL_SESSION_get_timeout
+#define SSL_SESSION_set_time            wolfSSL_SESSION_set_time
 #define SSL_SESSION_get_time            wolfSSL_SESSION_get_time
 
 #define SSL_CTX_get_ex_new_index        wolfSSL_CTX_get_ex_new_index
@@ -1510,6 +1511,11 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_UNEXPECTED_MESSAGE                   OUT_OF_ORDER_E
 #define SSL_R_UNEXPECTED_RECORD                    SANITY_MSG_E
 #define SSL_R_UNKNOWN_ALERT_TYPE                   BUFFER_ERROR
+#define SSL_R_BAD_DIGEST_LENGTH                    BUFFER_ERROR
+#define SSL_R_BAD_PACKET_LENGTH                    BUFFER_ERROR
+#define SSL_R_DATA_LENGTH_TOO_LONG                 BUFFER_ERROR
+#define SSL_R_ENCRYPTED_LENGTH_TOO_LONG            BUFFER_ERROR
+#define SSL_R_BAD_LENGTH                           BUFFER_ERROR
 #define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
 #define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
@@ -1519,6 +1525,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
 #define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 #define SSL_R_NULL_SSL_METHOD_PASSED               BAD_FUNC_ARG
+#define SSL_R_CCS_RECEIVED_EARLY                   OUT_OF_ORDER_E
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
