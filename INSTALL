@@ -276,7 +276,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
       $ git clone https://github.com/cisco/hash-sigs.git src
       $ cd src
 
-    In sha256.h, set USE_OPENSSl to 0:
+    In sha256.h, set USE_OPENSSL to 0:
       #define USE_OPENSSL 0
 
     Now build:

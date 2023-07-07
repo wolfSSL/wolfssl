@@ -34823,6 +34823,23 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 
 
 #ifdef WOLFSSL_HAVE_LMS
+static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! Production applications should
+    * write only to non-volatile storage. */
+    XMEMCPY(context, priv, privSz);
+    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! */
+    XMEMCPY(priv, context, privSz);
+    return WC_LMS_RC_READ_TO_MEMORY;
+}
+
 WOLFSSL_TEST_SUBROUTINE int lms_test(void)
 {
     int           ret;
@@ -34834,6 +34851,7 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
     word32        sigSz = 0;
     const char *  msg = "LMS HSS post quantum signature test";
     word32        msgSz = (word32) XSTRLEN(msg);
+    unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
     unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
 
     XMEMSET(old_priv, 0, sizeof(old_priv));
@@ -34856,10 +34874,19 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
     ret = wc_LmsKey_Init_ex(&signingKey, 1, 5, 1, NULL, INVALID_DEVID);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
+    ret = wc_LmsKey_SetWriteCb(&signingKey, lms_write_key_mem);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetReadCb(&signingKey, lms_read_key_mem);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetContext(&signingKey, (void *) priv);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
     ret = wc_LmsKey_MakeKey(&signingKey, &rng);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
-    XMEMCPY(old_priv, signingKey.priv, sizeof(signingKey.priv));
+    XMEMCPY(old_priv, priv, sizeof(priv));
 
     ret = wc_LmsKey_ExportPub(&verifyKey, &signingKey);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
@@ -34885,12 +34912,12 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
         if (ret != 0) { return WC_TEST_RET_ENC_I(i); }
 
         /* The updated private key should not match the old one. */
-        if (XMEMCMP(old_priv, signingKey.priv, sizeof(signingKey.priv)) == 0) {
+        if (XMEMCMP(old_priv, priv, sizeof(priv)) == 0) {
             printf("error: current priv key should not match old: %zu\n", i);
             return WC_TEST_RET_ENC_I(i);
         }
 
-        XMEMCPY(old_priv, signingKey.priv, sizeof(signingKey.priv));
+        XMEMCPY(old_priv, priv, sizeof(priv));
 
         ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { return WC_TEST_RET_ENC_I(i); }

@@ -7818,6 +7818,23 @@ static const byte lms_pub_L4_H5_W8[60] =
     0x74,0x24,0x12,0xC8
 };
 
+static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! Production applications should
+    * write only to non-volatile storage. */
+    XMEMCPY(context, priv, privSz);
+    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! */
+    XMEMCPY(priv, context, privSz);
+    return WC_LMS_RC_READ_TO_MEMORY;
+}
+
 static void bench_lms_sign_verify(enum wc_LmsParm parm)
 {
     LmsKey       key;
@@ -7831,6 +7848,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     int          times = 0;
     int          count = 0;
     double       start = 0.0F;
+    byte         priv[HSS_MAX_PRIVATE_KEY_LEN];
     const char * str = wc_LmsKey_ParmToStr(parm);
 
     ret = wc_LmsKey_Init(&key, parm);
@@ -7841,32 +7859,32 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
 
     switch (parm) {
     case WC_LMS_PARM_L2_H10_W2:
-        XMEMCPY(key.priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
+        XMEMCPY(priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
         XMEMCPY(key.pub, lms_pub_L2_H10_W2, sizeof(lms_pub_L2_H10_W2));
         break;
 
     case WC_LMS_PARM_L2_H10_W4:
-        XMEMCPY(key.priv, lms_priv_L2_H10_W4, sizeof(lms_priv_L2_H10_W4));
+        XMEMCPY(priv, lms_priv_L2_H10_W4, sizeof(lms_priv_L2_H10_W4));
         XMEMCPY(key.pub, lms_pub_L2_H10_W4, sizeof(lms_pub_L2_H10_W4));
         break;
 
     case WC_LMS_PARM_L3_H5_W4:
-        XMEMCPY(key.priv, lms_priv_L3_H5_W4, sizeof(lms_priv_L3_H5_W4));
+        XMEMCPY(priv, lms_priv_L3_H5_W4, sizeof(lms_priv_L3_H5_W4));
         XMEMCPY(key.pub, lms_pub_L3_H5_W4, sizeof(lms_pub_L3_H5_W4));
         break;
 
     case WC_LMS_PARM_L3_H5_W8:
-        XMEMCPY(key.priv, lms_priv_L3_H5_W8, sizeof(lms_priv_L3_H5_W8));
+        XMEMCPY(priv, lms_priv_L3_H5_W8, sizeof(lms_priv_L3_H5_W8));
         XMEMCPY(key.pub, lms_pub_L3_H5_W8, sizeof(lms_pub_L3_H5_W8));
         break;
 
     case WC_LMS_PARM_L3_H10_W4:
-        XMEMCPY(key.priv, lms_priv_L3_H10_W4, sizeof(lms_priv_L3_H10_W4));
+        XMEMCPY(priv, lms_priv_L3_H10_W4, sizeof(lms_priv_L3_H10_W4));
         XMEMCPY(key.pub, lms_pub_L3_H10_W4, sizeof(lms_pub_L3_H10_W4));
         break;
 
     case WC_LMS_PARM_L4_H5_W8:
-        XMEMCPY(key.priv, lms_priv_L4_H5_W8, sizeof(lms_priv_L4_H5_W8));
+        XMEMCPY(priv, lms_priv_L4_H5_W8, sizeof(lms_priv_L4_H5_W8));
         XMEMCPY(key.pub, lms_pub_L4_H5_W8, sizeof(lms_pub_L4_H5_W8));
         break;
 
@@ -7877,6 +7895,24 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     case WC_LMS_PARM_L3_H5_W2:
         printf("bench_lms_sign_verify: unsupported benchmark option: %d\n",
                parm);
+        goto exit_lms_sign_verify;
+    }
+
+    ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
+    if (ret) {
+        fprintf(stderr, "error: wc_LmsKey_SetWriteCb failed: %d\n", ret);
+        goto exit_lms_sign_verify;
+    }
+
+    ret = wc_LmsKey_SetReadCb(&key, lms_read_key_mem);
+    if (ret) {
+        fprintf(stderr, "error: wc_LmsKey_SetReadCb failed: %d\n", ret);
+        goto exit_lms_sign_verify;
+    }
+
+    ret = wc_LmsKey_SetContext(&key, (void *) priv);
+    if (ret) {
+        fprintf(stderr, "error: wc_LmsKey_SetContext failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
 
@@ -7933,12 +7969,6 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
                 printf("wc_LmsKey_Sign failed: %d\n", ret);
                 goto exit_lms_sign_verify;
             }
-
-          /*ret = wc_LmsKey_Verify(&key, sig, sigSz, (byte *) msg, msgSz);
-            if (ret) {
-                printf("wc_LmsKey_Verify failed: %d\n", ret);
-                goto exit_lms_sign_verify;
-            }*/
         }
 
         count += times;

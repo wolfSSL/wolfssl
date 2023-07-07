@@ -104,8 +104,10 @@ enum wc_LmsState {
 WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, enum wc_LmsParm lmsParm);
 WOLFSSL_API int  wc_LmsKey_Init_ex(LmsKey * key, int levels,
     int height, int winternitz, void* heap, int devId);
-WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb wf);
-WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb rf);
+WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
+    write_private_key_cb write_cb);
+WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,
+    read_private_key_cb read_cb);
 WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey * key, void * context);
 WOLFSSL_API void wc_LmsKey_Free(LmsKey * key);
 WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey * key, WC_RNG * rng);
@@ -126,6 +128,4 @@ WOLFSSL_API const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsRc);
 #endif
 
 #endif /* WOLFSSL_HAVE_LMS */
-
 #endif /* WOLF_CRYPT_LMS_H */
-

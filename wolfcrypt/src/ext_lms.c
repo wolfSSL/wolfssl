@@ -83,27 +83,20 @@ static bool LmsWritePrivKey(unsigned char *private_key,
         return false;
     }
 
-    if (key->write_private_key != NULL) {
-        /* Use write callback. */
-        ret = key->write_private_key(private_key, len_private_key, key->context);
-
-        if (ret != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
-            WOLFSSL_MSG("error: LmsKey write_private_key failed");
-            WOLFSSL_MSG(wc_LmsKey_RcToStr(ret));
-            key->state = WC_LMS_STATE_BAD;
-            return false;
-        }
+    if (key->write_private_key == NULL) {
+        WOLFSSL_MSG("error: LmsWritePrivKey: LMS key write callback not set");
+        key->state = WC_LMS_STATE_NOT_INITED;
+        return false;
     }
-    else {
-        /* Save to memory. */
-        if (len_private_key > sizeof(key->priv)) {
-            WOLFSSL_MSG("error: LmsWritePrivKey: private key too large");
-            key->state = WC_LMS_STATE_BAD;
-            return false;
-        }
 
-        XMEMSET(key->priv, 0, sizeof(key->priv));
-        XMEMCPY(key->priv, private_key, len_private_key);
+    /* Use write callback. */
+    ret = key->write_private_key(private_key, len_private_key, key->context);
+
+    if (ret != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
+        WOLFSSL_MSG("error: LmsKey write_private_key failed");
+        WOLFSSL_MSG(wc_LmsKey_RcToStr(ret));
+        key->state = WC_LMS_STATE_BAD;
+        return false;
     }
 
     return true;
@@ -128,26 +121,20 @@ static bool LmsReadPrivKey(unsigned char *private_key,
         return false;
     }
 
-    if (key->read_private_key != NULL) {
-        /* Use read callback. */
-        ret = key->read_private_key(private_key, len_private_key, key->context);
-
-        if (ret != WC_LMS_RC_READ_TO_MEMORY) {
-            WOLFSSL_MSG("error: LmsKey read_private_key failed");
-            WOLFSSL_MSG(wc_LmsKey_RcToStr(ret));
-            key->state = WC_LMS_STATE_BAD;
-            return false;
-        }
+    if (key->read_private_key == NULL) {
+        WOLFSSL_MSG("error: LmsReadPrivKey: LMS key read callback not set");
+        key->state = WC_LMS_STATE_NOT_INITED;
+        return false;
     }
-    else {
-        /* Read from memory. */
-        if (len_private_key > sizeof(key->priv)) {
-            WOLFSSL_MSG("error: LmsReadPrivKey: private key too large");
-            key->state = WC_LMS_STATE_BAD;
-            return false;
-        }
 
-        XMEMCPY(private_key, key->priv, len_private_key);
+    /* Use read callback. */
+    ret = key->read_private_key(private_key, len_private_key, key->context);
+
+    if (ret != WC_LMS_RC_READ_TO_MEMORY) {
+        WOLFSSL_MSG("error: LmsKey read_private_key failed");
+        WOLFSSL_MSG(wc_LmsKey_RcToStr(ret));
+        key->state = WC_LMS_STATE_BAD;
+        return false;
     }
 
     return true;
@@ -362,11 +349,6 @@ int wc_LmsKey_Init_ex(LmsKey * key, int levels, int height,
 
     hss_init_extra_info(&key->info);
 
-   /* The hash-sigs lib API will accept either:
-    *   1. private key callbacks with context pointer, or
-    *   2. context that points at private key.
-    * Do the 2nd by default, unless user sets the callbacks through API. */
-
     key->working_key = NULL;
     key->write_private_key = NULL;
     key->read_private_key = NULL;
@@ -404,6 +386,16 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
 
     if (key->state != WC_LMS_STATE_INITED) {
         WOLFSSL_MSG("error: LmsKey not ready for generation");
+        return -1;
+    }
+
+    if (key->write_private_key == NULL || key->read_private_key == NULL) {
+        WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
+        return -1;
+    }
+
+    if (key->context == NULL) {
+        WOLFSSL_MSG("error: LmsKey context is not set");
         return -1;
     }
 
@@ -449,24 +441,24 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
     return 0;
 }
 
-int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb wf)
+int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb write_cb)
 {
-    if (key == NULL || wf == NULL) {
+    if (key == NULL || write_cb == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    key->write_private_key = wf;
+    key->write_private_key = write_cb;
 
     return 0;
 }
 
-int wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb rf)
+int wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb read_cb)
 {
-    if (key == NULL || rf == NULL) {
+    if (key == NULL || read_cb == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    key->read_private_key = rf;
+    key->read_private_key = read_cb;
 
     return 0;
 }
@@ -496,6 +488,16 @@ int wc_LmsKey_Reload(LmsKey * key)
 
     if (key->state != WC_LMS_STATE_INITED) {
         WOLFSSL_MSG("error: LmsKey not ready for reload");
+        return -1;
+    }
+
+    if (key->write_private_key == NULL || key->read_private_key == NULL) {
+        WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
+        return -1;
+    }
+
+    if (key->context == NULL) {
+        WOLFSSL_MSG("error: LmsKey context is not set");
         return -1;
     }
 

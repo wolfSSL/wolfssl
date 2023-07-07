@@ -50,7 +50,6 @@ struct LmsKey {
     unsigned             levels;                      /* Number of tree levels. */
     param_set_t          lm_type[MAX_HSS_LEVELS];     /* Height parm per level. */
     param_set_t          lm_ots_type[MAX_HSS_LEVELS]; /* Winternitz parm per level. */
-    unsigned char        priv[HSS_MAX_PRIVATE_KEY_LEN];
     unsigned char        pub[HSS_MAX_PUBLIC_KEY_LEN];
     hss_working_key *    working_key;
     write_private_key_cb write_private_key; /* Callback to write/update key. */
