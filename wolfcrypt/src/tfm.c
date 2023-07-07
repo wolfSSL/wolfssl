@@ -232,8 +232,8 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
     int   ret = 0;
     int   y, yy, oldused;
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
   ret = esp_mp_mul(A, B, C);
   if(ret != -2) return ret;
 #endif
@@ -2997,8 +2997,8 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    int x = fp_count_bits (X);
 #endif
 
@@ -3019,8 +3019,8 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       return FP_OKAY;
    }
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    if(x > EPS_RSA_EXPT_XBTIS) {
       return esp_mp_exptmod(G, X, x, P, Y);
    }
@@ -3082,8 +3082,8 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
 {
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    int x = fp_count_bits (X);
 #endif
 
@@ -3104,8 +3104,8 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
       return FP_OKAY;
    }
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    if(x > EPS_RSA_EXPT_XBTIS) {
       return esp_mp_exptmod(G, X, x, P, Y);
    }
@@ -3166,8 +3166,8 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
 
 int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    int x = fp_count_bits (X);
 #endif
 
@@ -3181,8 +3181,8 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       return FP_VAL;
    }
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
    if(x > EPS_RSA_EXPT_XBTIS) {
       return esp_mp_exptmod(G, X, x, P, Y);
    }
@@ -4498,8 +4498,8 @@ int wolfcrypt_mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 #endif
 {
- #if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+ #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
     int A = fp_count_bits (a);
     int B = fp_count_bits (b);
 

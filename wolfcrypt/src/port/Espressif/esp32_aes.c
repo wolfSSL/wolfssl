@@ -33,8 +33,8 @@
 
 #ifndef NO_AES
 
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+#if defined(WOLFSSL_ESP32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <wolfssl/wolfcrypt/aes.h>
 #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
@@ -428,5 +428,5 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return 0;
 } /* wc_esp32AesCbcDecrypt */
 
-#endif /* WOLFSSL_ESP32WROOM32_CRYPT */
+#endif /* WOLFSSL_ESP32_CRYPT */
 #endif /* NO_AES */
