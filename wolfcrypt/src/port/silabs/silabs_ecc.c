@@ -328,7 +328,8 @@ int silabs_ecc_export_public(ecc_key* key, sl_se_key_descriptor_t* seKey)
     key->key.type = seKey->type;
     key->key.size = key->dp->size;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
-    key->key.flags = (SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY);
+    key->key.flags = (SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY |
+        SL_SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY);
 
     sl_stat = sl_se_get_storage_size(&key->key,
         &key->key.storage.location.buffer.size);
