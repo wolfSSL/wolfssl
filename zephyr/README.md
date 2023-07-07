@@ -60,6 +60,14 @@ then "Open Terminal".
 
 ## Build and Run wolfCrypt Test Application
 
+If you want to run build apps without running `west zephyr-export` then it is
+possible by setting the `CMAKE_PREFIX_PATH` variable to the location of the
+zephyr sdk and building from the `zephyr` directory. For example:
+
+```
+CMAKE_PREFIX_PATH=/path/to/zephyr-sdk-<VERSION> west build -p always -b qemu_x86 ../modules/crypto/wolfssl/zephyr/samples/wolfssl_test/
+```
+
 build and execute `wolfssl_test`
 
 ```
