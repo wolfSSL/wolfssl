@@ -7654,7 +7654,10 @@ int wc_ecc_free(ecc_key* key)
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);
 
-    mp_forcezero(key->k);
+#ifdef ALT_ECC_SIZE
+    if (key->k)
+#endif
+        mp_forcezero(key->k);
 
 #ifdef WOLFSSL_CUSTOM_CURVES
     if (key->deallocSet && key->dp != NULL)

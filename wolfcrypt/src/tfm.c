@@ -4398,6 +4398,9 @@ void fp_clear(fp_int *a)
 
 void fp_forcezero (mp_int * a)
 {
+    if (a == NULL)
+      return;
+
     int size;
     a->used = 0;
     a->sign = FP_ZPOS;
