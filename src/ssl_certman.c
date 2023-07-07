@@ -518,6 +518,10 @@ int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
         ret = WOLFSSL_FATAL_ERROR;
     }
     if (ret == WOLFSSL_SUCCESS) {
+        /* Some configurations like OPENSSL_COMPATIBLE_DEFAULTS may turn off
+         * verification by default. Let's restore our desired defaults. */
+        wolfSSL_CTX_set_verify(tmp, WOLFSSL_VERIFY_DEFAULT, NULL);
+
         /* Replace certificate manager with one to load certificate/s into. */
         wolfSSL_CertManagerFree(tmp->cm);
         tmp->cm = cm;
@@ -663,7 +667,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         buffer certBuf;
 
     #ifdef WOLFSSL_SMALL_STACK
-        /* Allocate memory for object to hold arguements for callback. */
+        /* Allocate memory for object to hold arguments for callback. */
         args = (ProcPeerCertArgs*)XMALLOC(sizeof(ProcPeerCertArgs), cm->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (args == NULL) {
@@ -721,7 +725,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FUNC_ARG when cm or buff is NULL ot sz is negativei or zero.
+ * @return  BAD_FUNC_ARG when cm or buff is NULL ot sz is negative or zero.
  * @return  WOLFSSL_BAD_FILETYPE when format is invalid.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when converting from PEM to DER is not a feature of
@@ -848,7 +852,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
  * @param [in] file  Name of CA file.
  * @param [in] path  Path to a directory containing certificates.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FATAL_ERROR when cm is NULL or unalbe to create WOLFSSL_CTX.
+ * @return  WOLFSSL_FATAL_ERROR when cm is NULL or unable to create WOLFSSL_CTX.
  * @return  Otherwise failure.
  */
 int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
@@ -867,16 +871,20 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
     }
     /* Create temporary WOLFSSL_CTX. */
     if ((ret == WOLFSSL_SUCCESS) && ((tmp = wolfSSL_CTX_new(cm_pick_method()))
-        == NULL)) {
+            == NULL)) {
         WOLFSSL_MSG("CTX new failed");
         ret = WOLFSSL_FATAL_ERROR;
     }
-
     if (ret == WOLFSSL_SUCCESS) {
+        /* Some configurations like OPENSSL_COMPATIBLE_DEFAULTS may turn off
+         * verification by default. Let's restore our desired defaults. */
+        wolfSSL_CTX_set_verify(tmp, WOLFSSL_VERIFY_DEFAULT, NULL);
+
         /* Replace certificate manager with one to load certificate/s into. */
         wolfSSL_CertManagerFree(tmp->cm);
         tmp->cm = cm;
 
+        /* Load certificate from file and path. */
         ret = wolfSSL_CTX_load_verify_locations(tmp, file, path);
 
         /* Clear certificate manager in WOLFSSL_CTX so it won't be freed. */
@@ -897,11 +905,11 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 
 /* CA certificates cache information. */
 typedef struct {
-    /* Cache certficate layout version id. */
+    /* Cache certificate layout version id. */
     int version;
     /* Number of hash table rows. Maximum of CA_TABLE_SIZE. */
     int rows;
-    /* Number of colums per row. */
+    /* Number of columns per row. */
     int columns[CA_TABLE_SIZE];
     /* Size of Signer object. */
     int signerSz;
@@ -987,7 +995,7 @@ static WC_INLINE int cm_get_cert_cache_mem_size(WOLFSSL_CERT_MANAGER* cm)
 }
 
 
-/* Get count of colums for each row.
+/* Get count of columns for each row.
  *
  * Assumes we have locked CA table.
  *
@@ -1827,7 +1835,7 @@ int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm, CbCrlIO cb)
  *                        WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] monitor  Whether to monitor path for changes to files.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FNUC_ARG when cm or path is NULL.
+ * @return  BAD_FUNC_ARG when cm or path is NULL.
  * @return  WOLFSSL_FATAL_ERROR when enabling CRLs fails.
  */
 int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
@@ -1851,7 +1859,7 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        /* Load CRLs from path into CRL object of ceritifcate manager. */
+        /* Load CRLs from path into CRL object of certificate manager. */
         ret = LoadCRL(cm->crl, path, type, monitor);
     }
 
@@ -1865,7 +1873,7 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
  * @param [in] type  Format of encoding. Valid values:
  *                       WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FNUC_ARG when cm or file is NULL.
+ * @return  BAD_FUNC_ARG when cm or file is NULL.
  * @return  WOLFSSL_FATAL_ERROR when enabling CRLs fails.
  */
 int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
@@ -1889,7 +1897,7 @@ int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm, const char* file,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        /* Load CRL file into CRL object of ceritifcate manager. */
+        /* Load CRL file into CRL object of certificate manager. */
         ret = ProcessFile(NULL, file, type, CRL_TYPE, NULL, 0, cm->crl, VERIFY);
     }
 

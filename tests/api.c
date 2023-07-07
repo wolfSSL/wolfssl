@@ -1505,7 +1505,7 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
         ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache, cacheSz),
             CACHE_MATCH_ERROR);
         p[0] = t; p++;
-        /* colums[0] */
+        /* columns[0] */
         t = p[0]; p[0] = -1;
         ExpectIntEQ(wolfSSL_CTX_memrestore_cert_cache(ctx, cache, cacheSz),
             PARSE_ERROR);
@@ -2003,7 +2003,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 #elif defined(NO_RSA)
     ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
-    !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_ASN_TIME)
+      !defined(NO_ASN_TIME)
     ExpectIntEQ(ret, ASN_AFTER_DATE_E);
 #else
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
@@ -2036,6 +2036,9 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
     ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
 #elif defined(NO_RSA)
     ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
+#elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
+      !defined(NO_ASN_TIME)
+    ExpectIntEQ(ret, ASN_AFTER_DATE_E);
 #else
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
@@ -58273,7 +58276,7 @@ static int verify_cert_with_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 
 #define VERIFY_ONE_CERT(a, b, c, d)                     \
                     do {                                \
-                        (a) = verify_cert_with_cm(c, d); \
+                        (a) = verify_cert_with_cm(c, d);\
                         if ((a) != 0)                   \
                             return (b);                 \
                         else                            \
@@ -58312,8 +58315,8 @@ static int test_chainG(WOLFSSL_CERT_MANAGER* cm)
     VERIFY_ONE_CERT(ret, i, cm, chainGArr[7]); /* if failure, i = -15 here */
     VERIFY_ONE_CERT(ret, i, cm, chainGArr[8]); /* if failure, i = -16 here */
 
-/* test validating the entity twice, should have no effect on pathLen since
- * entity/leaf cert */
+    /* test validating the entity twice, should have no effect on pathLen since
+     * entity/leaf cert */
     VERIFY_ONE_CERT(ret, i, cm, chainGArr[8]); /* if failure, i = -17 here */
 
     return ret;
