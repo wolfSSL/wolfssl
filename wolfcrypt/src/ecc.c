@@ -216,11 +216,28 @@ ECC Curve Sizes:
 #endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(NO_ECC_MAKE_PUB) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    #undef  HAVE_ECC_VERIFY_HELPER
+    #define HAVE_ECC_VERIFY_HELPER
+#endif
+
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     #undef  HAVE_ECC_MAKE_PUB
     #define HAVE_ECC_MAKE_PUB
+#endif
+
+#if !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    #undef  HAVE_ECC_CHECK_PUBKEY_ORDER
+    #define HAVE_ECC_CHECK_PUBKEY_ORDER
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) && SP_INT_BITS < MAX_ECC_BITS_NEEDED
@@ -1309,18 +1326,11 @@ const size_t ecc_sets_count = ECC_SET_COUNT - 1;
     static oid_cache_t ecc_oid_cache[ECC_SET_COUNT];
 #endif
 
-
+/* Forward declarations */
 #if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
 static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen);
 #endif
-
-
-
-#if !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_STM32_PKA)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     mp_int* prime, mp_int* order);
 #endif
@@ -8362,6 +8372,7 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 }
 #endif /* !WOLFSSL_STM32_PKA && !WOLFSSL_PSOC6_CRYPTO */
 
+#ifdef HAVE_ECC_VERIFY_HELPER
 static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     word32 hashlen, int* res, ecc_key* key)
 {
@@ -8749,6 +8760,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    return err;
 }
 #endif /* !WOLFSSL_SP_MATH || FREESCALE_LTC_ECC */
+#endif /* HAVE_ECC_VERIFY_HELPER */
 
 /**
    Verify an ECC signature
@@ -8825,10 +8837,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
-    defined(WOLFSSL_KCAPI_ECC) || defined(WOLFSSL_SE050) || \
-    defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#ifndef HAVE_ECC_VERIFY_HELPER
 
 #ifndef WOLFSSL_SE050
     /* Extract R and S with front zero padding (if required),
@@ -8975,7 +8984,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    (void)curveLoaded;
    wc_ecc_curve_free(curve);
    FREE_CURVE_SPECS();
-#endif /* WOLFSSL_ATECC508A */
+#endif /* HAVE_ECC_VERIFY_HELPER */
 
    (void)keySz;
    (void)hashlen;
@@ -9936,7 +9945,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 }
 #endif /* (FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN) &&!WOLFSSL_KCAPI_ECC */
 
-#ifndef WOLFSSL_SP_MATH
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 /* validate order * pubkey = point at infinity, 0 on success */
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order)
@@ -10107,11 +10116,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif
 
 #ifndef WOLFSSL_SP_MATH
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
-    defined(WOLFSSL_SE050) || defined(WOLF_CRYPTO_CB_ONLY_ECC) || \
-    defined(WOLFSSL_XILINX_CRYPT_VERSAL) || defined(WOLFSSL_STM32_PKA)
-
+#ifndef HAVE_ECC_CHECK_PUBKEY_ORDER
     /* consider key check success on HW crypto
      * ex: ATECC508/608A, CryptoCell and Silabs
      *
@@ -10243,7 +10248,8 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif
 
     FREE_CURVE_SPECS();
-#endif /* HW Based Crypto */
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
+
 #else
     err = WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
@@ -10522,7 +10528,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     if (err == MP_OKAY)
-        err = silabs_ecc_import(key, keysize);
+        err = silabs_ecc_import(key, keysize, 1, 0);
 #elif defined(WOLFSSL_SE050)
     if (err == MP_OKAY) {
         /* reset key ID, in case used before */
@@ -10769,18 +10775,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
         ret = mp_read_unsigned_bin(key->k, priv, privSz);
     }
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(key->k, priv, privSz);
-
-    if (ret == MP_OKAY) {
-        if (pub) {
-            ret = silabs_ecc_import(key, key->dp->size);
-        }
-        else {
-            ret = silabs_ecc_import_private(key, key->dp->size);
-        }
-    }
 #elif defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
     #ifdef WOLFSSL_CAAM_BLACK_KEY_SM
@@ -10897,6 +10891,10 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if (ret == 0) {
         ret = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (ret == 0) {
+        ret = silabs_ecc_import(key, key->dp->size, (pub != NULL), 1);
     }
 #endif
 
@@ -11038,7 +11036,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #endif
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_CRYPTOCELL)
+    defined(WOLFSSL_CRYPTOCELL)
     word32 keySz = 0;
 #endif
 
@@ -11127,11 +11125,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             err = wc_export_int(key->pubkey.y, &key->pubkey_raw[keySz],
                 &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
     }
-#elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    keySz = key->dp->size;
-    if (err == MP_OKAY) {
-        err = silabs_ecc_sig_to_rs(key, keySz);
-    }
 #elif defined(WOLFSSL_CRYPTOCELL)
     if (err == MP_OKAY) {
         keyRaw[0] = ECC_POINT_UNCOMP;
@@ -11210,9 +11203,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
             /* Hardware doesn't support loading private key */
             err = NOT_COMPILED_IN;
-
-        #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-            err = silabs_ecc_import_private_raw(key, keySz, d, encType);
 
         #elif defined(WOLFSSL_CRYPTOCELL)
             key->type = ECC_PRIVATEKEY;
@@ -11294,6 +11284,10 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     if (err == MP_OKAY) {
         err = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (err == MP_OKAY) {
+        err = silabs_ecc_import(key, key->dp->size, 1, (d != NULL));
     }
 #endif
 
