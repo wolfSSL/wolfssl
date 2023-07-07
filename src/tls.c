@@ -10101,7 +10101,8 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (ret == 0)
         ret = TLSX_PskKeyModes_Use(ssl, modes);
 
-    WOLFSSL_ERROR_VERBOSE(ret);
+    if (ret != 0)
+        WOLFSSL_ERROR_VERBOSE(ret);
     return ret;
 }
 

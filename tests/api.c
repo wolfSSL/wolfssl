@@ -382,6 +382,9 @@
 #endif
 #include <wolfssl/certs_test.h>
 
+#define WOLFSSL_TEST_UTILS_INCLUDED
+#include "tests/utils.c"
+
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
     #define wc_ecc_key_get_priv(key) (&((key)->k))
@@ -477,6 +480,12 @@ typedef struct test_ssl_memio_ctx {
 
 int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, test_cbType client_on_handshake);
+
+#ifdef WOLFSSL_DUMP_MEMIO_STREAM
+const char* currentTestName;
+char tmpDirName[16];
+int tmpDirNameSet = 0;
+#endif
 
 /*----------------------------------------------------------------------------*
  | Constants
@@ -5168,6 +5177,24 @@ static WC_INLINE int test_ssl_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
 
     XMEMCPY(buf + *len, data, sz);
     *len += sz;
+
+#ifdef WOLFSSL_DUMP_MEMIO_STREAM
+    {
+        /* This can be imported into Wireshark by transforming the file with
+         *   od -Ax -tx1 -v test_output.dump > test_output.dump.hex
+         * And then loading test_output.dump.hex into Wireshark using the
+         * "Import from Hex Dump..." option ion and selecting the TCP
+         * encapsulation option. */
+        char dump_file_name[64];
+        WOLFSSL_BIO *dump_file;
+        sprintf(dump_file_name, "%s/%s.dump", tmpDirName, currentTestName);
+        dump_file = wolfSSL_BIO_new_file(dump_file_name, "a");
+        if (dump_file != NULL) {
+            (void)wolfSSL_BIO_write(dump_file, data, sz);
+            wolfSSL_BIO_free(dump_file);
+        }
+    }
+#endif
 
     return sz;
 }
@@ -37558,7 +37585,7 @@ static WC_INLINE int test_wolfSSL_check_domain_verify_cb(int preverify,
     ExpectIntEQ(X509_STORE_CTX_get_error(store), 0);
     ExpectIntEQ(preverify, 1);
     ExpectIntGT(++test_wolfSSL_check_domain_verify_count, 0);
-    return EXPECT_RESULT() == TEST_SUCCESS;
+    return EXPECT_SUCCESS();
 }
 
 static int test_wolfSSL_check_domain_client_cb(WOLFSSL* ssl)
@@ -63424,9 +63451,25 @@ int ApiTest(void)
     #endif
     }
 
+    #ifdef WOLFSSL_DUMP_MEMIO_STREAM
+    if (res == 0) {
+        if (create_tmp_dir(tmpDirName, sizeof(tmpDirName) - 1) == NULL) {
+            printf("failed to create tmp dir\n");
+            res = 1;
+        }
+        else {
+            tmpDirNameSet = 1;
+        }
+    }
+    #endif
+
     if (res == 0) {
         for (i = 0; i < TEST_CASE_CNT; ++i) {
             EXPECT_DECLS;
+
+        #ifdef WOLFSSL_DUMP_MEMIO_STREAM
+            currentTestName = testCases[i].name;
+        #endif
 
             /* When not testing all cases then skip if not marked for running.
              */
@@ -63491,6 +63534,18 @@ int ApiTest(void)
         printf("\n");
         fflush(stdout);
     }
+
+#ifdef WOLFSSL_DUMP_MEMIO_STREAM
+    if (tmpDirNameSet) {
+        printf("\nBinary dumps of the memio streams can be found in the\n"
+                "%s directory. This can be imported into\n"
+                "Wireshark by transforming the file with\n"
+                "\tod -Ax -tx1 -v stream.dump > stream.dump.hex\n"
+                "And then loading test_output.dump.hex into Wireshark using\n"
+                "the \"Import from Hex Dump...\" option and selecting the\n"
+                "TCP encapsulation option.\n", tmpDirName);
+    }
+#endif
 
     printf(" End API Tests\n");
     fflush(stdout);

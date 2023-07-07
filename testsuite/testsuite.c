@@ -45,6 +45,8 @@
 #include <examples/server/server.h>
 #include <examples/client/client.h>
 
+#define WOLFSSL_TEST_UTILS_INCLUDED
+#include "tests/utils.c"
 
 #ifndef NO_SHA256
 void file_test(const char* file, byte* check);
@@ -717,91 +719,6 @@ void join_thread(THREAD_TYPE thread)
     (void)res; /* Suppress un-used variable warning */
 #endif
 }
-
-#ifndef NO_FILESYSTEM
-
-#ifdef _MSC_VER
-#include <direct.h>
-#endif
-
-#define TMP_DIR_PREFIX "tmpDir-"
-/* len is length of tmpDir name, assuming
- * len does not include null terminating character */
-char* create_tmp_dir(char *tmpDir, int len)
-{
-    if (len < (int)XSTR_SIZEOF(TMP_DIR_PREFIX))
-        return NULL;
-
-    XMEMCPY(tmpDir, TMP_DIR_PREFIX, XSTR_SIZEOF(TMP_DIR_PREFIX));
-
-    if (mymktemp(tmpDir, len, len - XSTR_SIZEOF(TMP_DIR_PREFIX)) == NULL)
-        return NULL;
-
-#ifdef _MSC_VER
-    if (_mkdir(tmpDir) != 0)
-        return NULL;
-#else
-    if (mkdir(tmpDir, 0700) != 0)
-        return NULL;
-#endif
-
-    return tmpDir;
-}
-
-int rem_dir(const char* dirName)
-{
-#ifdef _MSC_VER
-    if (_rmdir(dirName) != 0)
-        return -1;
-#else
-    if (rmdir(dirName) != 0)
-        return -1;
-#endif
-    return 0;
-}
-
-int rem_file(const char* fileName)
-{
-#ifdef _MSC_VER
-    if (_unlink(fileName) != 0)
-        return -1;
-#else
-    if (unlink(fileName) != 0)
-        return -1;
-#endif
-    return 0;
-}
-
-int copy_file(const char* in, const char* out)
-{
-    byte buf[100];
-    XFILE inFile = XBADFILE;
-    XFILE outFile = XBADFILE;
-    size_t sz;
-    int ret = -1;
-
-    inFile = XFOPEN(in, "rb");
-    if (inFile == XBADFILE)
-        goto cleanup;
-
-    outFile = XFOPEN(out, "wb");
-    if (outFile == XBADFILE)
-        goto cleanup;
-
-    while ((sz = XFREAD(buf, 1, sizeof(buf), inFile)) != 0) {
-        if (XFWRITE(buf, 1, sz, outFile) != sz)
-            goto cleanup;
-    }
-
-    ret = 0;
-cleanup:
-    if (inFile != XBADFILE)
-        XFCLOSE(inFile);
-    if (outFile != XBADFILE)
-        XFCLOSE(outFile);
-    return ret;
-}
-#endif /* !NO_FILESYSTEM */
 
 #ifndef NO_SHA256
 /* Create SHA-256 hash of the file based on filename.

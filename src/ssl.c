@@ -6122,9 +6122,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             signer->nameLen        = cert->subjectCNLen;
             signer->name           = cert->subjectCN;
         }
-        signer->pathLength     = cert->pathLength;
         signer->maxPathLen     = cert->maxPathLen;
-        signer->pathLengthSet  = cert->pathLengthSet;
         signer->selfSigned     = cert->selfSigned;
     #ifndef IGNORE_NAME_CONSTRAINTS
         signer->permittedNames = cert->permittedNames;
@@ -6543,7 +6541,8 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     /* we may have a user cert chain, try to consume */
-    if ((type == CERT_TYPE || type == CA_TYPE) && (info->consumed < sz)) {
+    if ((type == CERT_TYPE || type == CHAIN_CERT_TYPE || type == CA_TYPE) &&
+            (info->consumed < sz)) {
     #ifdef WOLFSSL_SMALL_STACK
         byte   staticBuffer[1];                 /* force heap usage */
     #else
@@ -7347,6 +7346,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (ctx == NULL && ssl == NULL)
         return BAD_FUNC_ARG;
 
+    /* This API does not handle CHAIN_CERT_TYPE */
+    if (type == CHAIN_CERT_TYPE)
+        return BAD_FUNC_ARG;
+
 #ifdef WOLFSSL_SMALL_STACK
     info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), heap,
                                    DYNAMIC_TYPE_ENCRYPTEDINFO);
@@ -7424,8 +7427,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
          * Remainder are processed using ProcessUserChain and are loaded into
          *   ssl->buffers.certChain. */
         if (userChain) {
-            ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info,
-                                   verify);
+            ret = ProcessUserChain(ctx, buff, sz, format, CHAIN_CERT_TYPE, ssl,
+                                   used, info, verify);
             if (ret == ASN_NO_PEM_HEADER) { /* Additional chain is optional */
                 unsigned long pemErr = 0;
                 CLEAR_ASN_NO_PEM_HEADER_ERROR(pemErr);
@@ -9429,6 +9432,10 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
         WOLFSSL_MSG("CTX new failed");
         return ret;
     }
+
+    /* Some configurations like OPENSSL_COMPATIBLE_DEFAULTS may turn off
+     * verification by default. Let's restore our desired defaults. */
+    wolfSSL_CTX_set_verify(tmp, WOLFSSL_VERIFY_DEFAULT, NULL);
 
     /* for tmp use */
     wolfSSL_CertManagerFree(tmp->cm);
