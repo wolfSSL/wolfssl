@@ -7189,6 +7189,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         XMEMCPY(ssl->group, ctx->group, sizeof(*ctx->group) * ctx->numGroups);
         ssl->numGroups = ctx->numGroups;
     }
+
+    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        ssl->options.tls13MiddleBoxCompat = 1;
+    #endif
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
