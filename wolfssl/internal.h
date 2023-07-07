@@ -5810,7 +5810,7 @@ struct WOLFSSL {
 #define SSL_STORE(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt : \
                   ((ssl)->ctx->x509_store_pt ? (ssl)->ctx->x509_store_pt : \
                                             &(ssl)->ctx->x509_store))
-#define CTX_STORE(ssl) ((ctx)->x509_store_pt ? (ctx)->x509_store_pt : \
+#define CTX_STORE(ctx) ((ctx)->x509_store_pt ? (ctx)->x509_store_pt : \
                                             &(ctx)->x509_store)
 #else
 #define SSL_CM(ssl) (ssl)->ctx->cm
