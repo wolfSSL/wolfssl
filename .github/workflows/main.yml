@@ -28,6 +28,8 @@ jobs:
         uses: ./.github/workflows/hostap.yml
     nginx:
         uses: ./.github/workflows/nginx.yml
+    zephyr:
+        uses: ./.github/workflows/zephyr.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml

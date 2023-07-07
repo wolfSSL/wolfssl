@@ -519,8 +519,10 @@ static void wolfssl_memstats(WOLFSSL* ssl)
 /* Start the server thread. */
 void start_thread(THREAD_CB func, func_args* args, THREAD_TYPE* thread)
 {
+    /* Casting to k_thread_entry_t should be fine since we just ignore the
+     * extra arguments being passed in */
     k_thread_create(thread, server_stack, K_THREAD_STACK_SIZEOF(server_stack),
-                    func, args, NULL, NULL, 5, 0, K_NO_WAIT);
+                    (k_thread_entry_t)func, args, NULL, NULL, 5, 0, K_NO_WAIT);
 }
 
 void join_thread(THREAD_TYPE thread)
@@ -530,7 +532,7 @@ void join_thread(THREAD_TYPE thread)
 
 
 /* Thread to do the server operations. */
-void server_thread(void* arg1, void* arg2, void* arg3)
+void server_thread(void* arg1)
 {
     int ret = 0;
     WOLFSSL_CTX* server_ctx = NULL;

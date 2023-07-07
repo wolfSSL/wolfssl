@@ -2,9 +2,14 @@ sample:
   description: wolfCrypt test sample app
   name: wolfCrypt test
 common:
-  min_flash: 65
-  min_ram: 36
-  tags: crypto wolfssl userspace random
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "Exiting main with return code: 0"
 tests:
-  crypto.wolfssl_test:
-    platform_allow: qemu_x86 nrf5340dk_nrf5340_cpuapp_ns nrf5340dk_nrf5340_cpuapp
+  sample.crypto.wolfssl_test:
+    timeout: 120
+    platform_allow: qemu_x86
+    integration_platforms:
+      - qemu_x86

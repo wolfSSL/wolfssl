@@ -253,10 +253,6 @@
     #include <esp_log.h>
 #endif /* WOLFSSL_ESPIDF */
 
-#ifdef HAVE_PTHREAD
-    #include <pthread.h>
-#endif
-
 #if defined(HAVE_PTHREAD) ||                                          \
     (!defined(NO_CRYPT_BENCHMARK) && !defined(NO_STDIO_FILESYSTEM) && \
      !defined(NO_ERROR_STRINGS) && !defined(NO_MAIN_DRIVER) &&        \
