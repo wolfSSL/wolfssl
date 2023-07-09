@@ -2037,7 +2037,8 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 #elif defined(NO_RSA)
     ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
-      !defined(NO_ASN_TIME)
+      !defined(NO_ASN_TIME) && defined(WOLFSSL_TRUST_PEER_CERT) && \
+      defined(OPENSSL_COMPATIBLE_DEFAULTS)
     ExpectIntEQ(ret, ASN_AFTER_DATE_E);
 #else
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
