@@ -25671,9 +25671,17 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         tmpBytePtr = pkcs7->singleCert;
         pkcs7->singleCert = NULL;
     }
+    #if defined(NO_PKCS7_STREAM)
+    /* when none streaming mode is used and PKCS7 is in bad state buffer error
+     * is returned from kari parse which gets set to bad func arg */
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+        BAD_FUNC_ARG);
+    #else
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
         ASN_PARSE_E);
+    #endif
     if (pkcs7 != NULL) {
         pkcs7->singleCert = tmpBytePtr;
     }
