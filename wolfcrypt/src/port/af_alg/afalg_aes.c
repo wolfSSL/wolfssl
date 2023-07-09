@@ -669,7 +669,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
-        GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
+        GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0) {
             return ret;
@@ -822,7 +822,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(initalCounter, iv, ivSz);
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         tag = buf;
-        GHASH(aes, NULL, 0, in, sz, tag, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, in, sz, tag, AES_BLOCK_SIZE);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0)
             return ret;
@@ -874,7 +874,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* check on tag */
     if (authIn != NULL && authInSz > 0) {
-        GHASH(aes, authIn, authInSz, in, sz, tag, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, authIn, authInSz, in, sz, tag, AES_BLOCK_SIZE);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0)
             return ret;

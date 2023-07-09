@@ -4721,13 +4721,13 @@ static void AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz)
     else {
         /* Counter is GHASH of IV. */
     #ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->aadLen;
-        aes->aadLen = 0;
+        word32 aadTemp = aes->gcm.aadLen;
+        aes->gcm.aadLen = 0;
     #endif
         GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
         GMULT(counter, aes->gcm.H);
     #ifdef OPENSSL_EXTRA
-        aes->aadLen = aadTemp;
+        aes->gcm.aadLen = aadTemp;
     #endif
     }
 
@@ -4816,7 +4816,7 @@ static void AesGcmFinal_C(Aes* aes, byte* authTag, word32 authTagSz)
     xorbuf(authTag, AES_INITCTR(aes), authTagSz);
 #ifdef OPENSSL_EXTRA
     /* store AAD size for next call */
-    aes->aadLen = aes->aSz;
+    aes->gcm.aadLen = aes->aSz;
 #endif
     /* Zeroize last block to protect sensitive data. */
     ForceZero(AES_LASTBLOCK(aes), AES_BLOCK_SIZE);
