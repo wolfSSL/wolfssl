@@ -78,7 +78,7 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-#ifdef WOLFSSL_ESP32WROOM32_CRYPT
+#ifdef WOLFSSL_ESP32_CRYPT
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
@@ -173,8 +173,8 @@ struct wc_Sha {
         word32 len;
     #endif
 #endif
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if defined(WOLFSSL_ESP32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     WC_ESP32SHA ctx;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS

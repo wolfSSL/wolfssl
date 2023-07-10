@@ -29,18 +29,18 @@
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
 /* determine if we are using Espressif SHA hardware acceleration */
-#undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
+#if defined(WOLFSSL_ESP32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     /* define a single keyword for simplicity & readability
      *
      * by default the HW acceleration is on for ESP32-WROOM32
      * but individual components can be turned off.
      */
-    #define WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
+    #define WOLFSSL_USE_ESP32_CRYPT_HASH_HW
     static const char* TAG = "wc_sha_512";
 #else
-    #undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
+    #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #endif
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
@@ -294,7 +294,7 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
 
     /* HW needs to be carefully initialized, taking into account soft copy.
     ** If already in use; copy may revert to SW as needed. */
@@ -334,7 +334,7 @@ static int InitSha512_224(wc_Sha512* sha512)
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     /* HW needs to be carefully initialized, taking into account soft copy.
     ** If already in use; copy may revert to SW as needed.
     **
@@ -376,7 +376,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
 
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     /* HW needs to be carefully initialized, taking into account soft copy.
     ** If already in use; copy may revert to SW as needed.
     **
@@ -616,7 +616,7 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 
 int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     if (sha512->ctx.mode != ESP32_SHA_INIT) {
         ESP_LOGV(TAG, "Set ctx mode from prior value: "
                       "%d", sha512->ctx.mode);
@@ -632,7 +632,7 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-#ifdef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
+#ifdef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
     /* No SHA512/224 HW support is available, set to SW. */
     sha512->ctx.mode = ESP32_SHA_SW; /* no SHA224 HW, so always SW */
 #endif
@@ -644,7 +644,7 @@ int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-#ifdef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
+#ifdef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
     /* No SHA512/256 HW support is available on ESP32, set to SW. */
     sha512->ctx.mode = ESP32_SHA_SW;
 #endif
@@ -835,15 +835,15 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
             if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
             {
-        #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-             defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+        #if !defined(WOLFSSL_ESP32_CRYPT) || \
+             defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
         #endif
             }
     #endif
-    #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-         defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if !defined(WOLFSSL_ESP32_CRYPT) || \
+         defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
             ret = Transform_Sha512(sha512);
     #else
             if(sha512->ctx.mode == ESP32_SHA_INIT) {
@@ -908,13 +908,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
             data += WC_SHA512_BLOCK_SIZE;
             len  -= WC_SHA512_BLOCK_SIZE;
-    #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-         defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if !defined(WOLFSSL_ESP32_CRYPT) || \
+         defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
             ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                        WC_SHA512_BLOCK_SIZE);
     #endif
-    #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-         defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if !defined(WOLFSSL_ESP32_CRYPT) || \
+         defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
             ret = Transform_Sha512(sha512);
     #else
             if(sha512->ctx.mode == ESP32_SHA_INIT) {
@@ -1014,15 +1014,15 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     #endif
         {
 
-       #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-            defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+       #if !defined(WOLFSSL_ESP32_CRYPT) || \
+            defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
             ByteReverseWords64(sha512->buffer,sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
        #endif
         }
 
 #endif /* LITTLE_ENDIAN_ORDER */
-    #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+    #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
         if (sha512->ctx.mode == ESP32_SHA_INIT) {
             esp_sha_try_hw_lock(&sha512->ctx);
         }
@@ -1056,15 +1056,15 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
-    #if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-         defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    #if !defined(WOLFSSL_ESP32_CRYPT) || \
+         defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
             ByteReverseWords64(sha512->buffer, sha512->buffer, WC_SHA512_PAD_SIZE);
     #endif
 #endif
     /* ! length ordering dependent on digest endian type ! */
 
-#if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-     defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if !defined(WOLFSSL_ESP32_CRYPT) || \
+     defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
     sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 #endif
@@ -1077,8 +1077,8 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
                            WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE);
 #endif
 
-#if !defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-    defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+#if !defined(WOLFSSL_ESP32_CRYPT) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     ret = Transform_Sha512(sha512);
 #else
     if(sha512->ctx.mode == ESP32_SHA_INIT) {
@@ -1354,7 +1354,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
 
-#if  defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if  defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     /* HW needs to be carefully initialized, taking into account soft copy.
     ** If already in use; copy may revert to SW as needed. */
     esp_sha_init(&(sha384->ctx), WC_HASH_TYPE_SHA384);
@@ -1476,7 +1476,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     sha384->devId = devId;
     sha384->devCtx = NULL;
 #endif
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     if (sha384->ctx.mode != ESP32_SHA_INIT) {
         ESP_LOGV(TAG, "Set ctx mode from prior value: "
                            "%d", sha384->ctx.mode);
@@ -1626,7 +1626,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     if (ret == 0) {
         ret = esp_sha512_ctx_copy(src, dst);
     }
@@ -1878,7 +1878,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     esp_sha384_ctx_copy(src, dst);
 #endif
 

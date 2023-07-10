@@ -224,7 +224,7 @@
 /* #define WOLFSSL_ESPIDF */
 
 /* Uncomment next line if using Espressif ESP32-WROOM-32 */
-/* #define WOLFSSL_ESPWROOM32 */
+/* #define WOLFSSL_ESP32 */
 
 /* Uncomment next line if using Espressif ESP32-WROOM-32SE */
 /* #define WOLFSSL_ESPWROOM32SE */
@@ -350,12 +350,19 @@
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
 
-#if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
-   #ifndef NO_ESP32WROOM32_CRYPT
-        #define WOLFSSL_ESP32WROOM32_CRYPT
+#if defined(WOLFSSL_ESPWROOM32)
+    /* WOLFSSL_ESPWROOM32 is a legacy macro gate.
+    ** Not be be confused with WOLFSSL_ESPWROOM32SE, naming a specific board */
+    #undef WOLFSSL_ESP32
+    #define WOLFSSL_ESP32
+#endif
+
+#if defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
+   #ifndef NO_ESP32_CRYPT
+        #define WOLFSSL_ESP32_CRYPT
         #if defined(ESP32_USE_RSA_PRIMITIVE) && \
-            !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
-            #define WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
+            !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
+            #define WOLFSSL_ESP32_CRYPT_RSA_PRI
             #define WOLFSSL_SMALL_STACK
         #endif
    #endif

@@ -170,17 +170,17 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
     /* check to see if we are using hardware encryption */
-#if defined(NO_ESP32WROOM32_CRYPT)
-    ESP_LOGI(TAG, "NO_ESP32WROOM32_CRYPT defined! HW acceleration DISABLED.");
+#if defined(NO_ESP32_CRYPT)
+    ESP_LOGI(TAG, "NO_ESP32_CRYPT defined! HW acceleration DISABLED.");
 #else
     #if defined(CONFIG_IDF_TARGET_ESP32C3)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-C3"
+        #error "ESP32_CRYPT not yet supported on ESP32-C3"
     #elif defined(CONFIG_IDF_TARGET_ESP32S2)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S2"
+        #error "ESP32_CRYPT not yet supported on ESP32-S2"
     #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S3"
+        #error "ESP32_CRYPT not yet supported on ESP32-S3"
     #else
-        ESP_LOGI(TAG, "ESP32WROOM32_CRYPT is enabled.");
+        ESP_LOGI(TAG, "ESP32_CRYPT is enabled.");
     #endif
 #endif
 
