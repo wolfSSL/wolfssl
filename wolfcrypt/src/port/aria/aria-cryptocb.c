@@ -202,7 +202,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_EccPrivateKeyToDerNoCurve(key,keyAsn1,keyAsn1Sz);
+        int ret = wc_BuildEccKeyDer(key,keyAsn1,&keyAsn1Sz,0,0);
         if (ret < 0) { rv = ret; }
         else { keyAsn1Sz = ret; }
     }
@@ -369,7 +369,7 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
     mcAlg.nParam=pubAsn1Sz;
 
     if (rv == MC_OK) {
-        int ret = wc_EccPrivateKeyToDerNoCurve(private_key,privAsn1,privAsn1Sz);
+        int ret = wc_BuildEccKeyDer(private_key,privAsn1,&privAsn1Sz,0,0);
         if (ret < 0) {
             rv = ret;
         } else {
