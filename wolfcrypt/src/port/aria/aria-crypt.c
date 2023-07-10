@@ -72,6 +72,10 @@ int wc_AriaInitCrypt(wc_Aria* aria, MC_ALGID algo)
     }
 
     if (rv != MC_OK) {
+        if (aria->hSession != NULL) {
+            MC_CloseSession(aria->hSession);
+            aria->hSession = NULL;
+        }
         WOLFSSL_MSG(MC_GetErrorString(rv));
         return WC_INIT_E;
     }
