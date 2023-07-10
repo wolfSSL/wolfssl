@@ -22694,6 +22694,8 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
         case wolfssl_aria_gcm:
             if (key_size == 128)
                 encStr = "Aria(128)";
+            else if (key_size == 192)
+                encStr = "Aria(192)";
             else if (key_size == 256)
                 encStr = "Aria(256)";
             else
