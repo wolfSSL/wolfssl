@@ -62082,6 +62082,87 @@ static int test_dtls_ipv6_check(void)
 }
 #endif
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
+
+static WOLFSSL_SESSION* test_wolfSSL_SCR_after_resumption_session = NULL;
+
+static void test_wolfSSL_SCR_after_resumption_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx), WOLFSSL_SUCCESS);
+}
+
+static void test_wolfSSL_SCR_after_resumption_on_result(WOLFSSL* ssl)
+{
+    if (test_wolfSSL_SCR_after_resumption_session == NULL) {
+        test_wolfSSL_SCR_after_resumption_session = wolfSSL_get1_session(ssl);
+        AssertNotNull(test_wolfSSL_SCR_after_resumption_session);
+    }
+    else {
+        char testMsg[] = "Message after SCR";
+        char msgBuf[sizeof(testMsg)];
+        int ret;
+        if (!wolfSSL_is_server(ssl)) {
+            AssertIntEQ(WOLFSSL_SUCCESS,
+                    wolfSSL_set_session(ssl,
+                       test_wolfSSL_SCR_after_resumption_session));
+        }
+        AssertIntEQ(wolfSSL_Rehandshake(ssl), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_write(ssl, testMsg, sizeof(testMsg)),
+                    sizeof(testMsg));
+        ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        if (ret != sizeof(msgBuf)) /* Possibly APP_DATA_READY error. Retry. */
+            ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        AssertIntEQ(ret, sizeof(msgBuf));
+    }
+}
+
+static void test_wolfSSL_SCR_after_resumption_ssl_ready(WOLFSSL* ssl)
+{
+    AssertIntEQ(WOLFSSL_SUCCESS,
+           wolfSSL_set_session(ssl, test_wolfSSL_SCR_after_resumption_session));
+}
+
+static int test_wolfSSL_SCR_after_resumption(void)
+{
+    EXPECT_DECLS;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.method = wolfTLSv1_2_client_method;
+    func_cb_client.ctx_ready = test_wolfSSL_SCR_after_resumption_ctx_ready;
+    func_cb_client.on_result = test_wolfSSL_SCR_after_resumption_on_result;
+    func_cb_server.method = wolfTLSv1_2_server_method;
+    func_cb_server.ctx_ready = test_wolfSSL_SCR_after_resumption_ctx_ready;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    func_cb_client.ssl_ready = test_wolfSSL_SCR_after_resumption_ssl_ready;
+    func_cb_server.on_result = test_wolfSSL_SCR_after_resumption_on_result;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    wolfSSL_SESSION_free(test_wolfSSL_SCR_after_resumption_session);
+
+    return EXPECT_RESULT();
+}
+
+#else
+static int test_wolfSSL_SCR_after_resumption(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 static int test_wolfSSL_configure_args(void)
 {
     EXPECT_DECLS;
@@ -63332,6 +63413,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_dtls_msg_from_other_peer),
     TEST_DECL(test_dtls_ipv6_check),
+    TEST_DECL(test_wolfSSL_SCR_after_resumption),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

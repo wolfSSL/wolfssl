@@ -7387,7 +7387,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             ret = wolfSSL_UseSecureRenegotiation(ssl);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
-            }
+        }
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -15410,6 +15410,9 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
+#ifdef HAVE_SECURE_RENEGOTIATION
+            ssl->options.resumed = ssl->options.resuming;
+#endif
         }
     }
     else {
@@ -15426,6 +15429,9 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
+#ifdef HAVE_SECURE_RENEGOTIATION
+            ssl->options.resumed = ssl->options.resuming;
+#endif
         }
     }
 #ifdef WOLFSSL_DTLS
@@ -15975,8 +15981,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.dtls == 0 &&
-               ssl->options.serverState == NULL_STATE && type != server_hello) {
-        WOLFSSL_MSG("First server message not server hello");
+               ssl->options.serverState == NULL_STATE && type != server_hello &&
+               type != hello_request) {
+        WOLFSSL_MSG("First server message not server hello or "
+                    "hello request");
         SendAlert(ssl, alert_fatal, unexpected_message);
         WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
         return OUT_OF_ORDER_E;
@@ -21927,6 +21935,9 @@ int SendFinished(WOLFSSL* ssl)
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
+#ifdef HAVE_SECURE_RENEGOTIATION
+            ssl->options.resumed = ssl->options.resuming;
+#endif
         }
     }
     else {
@@ -21939,6 +21950,9 @@ int SendFinished(WOLFSSL* ssl)
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
+#ifdef HAVE_SECURE_RENEGOTIATION
+            ssl->options.resumed = ssl->options.resuming;
+#endif
         }
     }
 
@@ -27143,12 +27157,19 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return BAD_FUNC_ARG;
         }
 
-        idSz = ssl->options.resuming ? ssl->session->sessionIDSz : 0;
-
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version))
             return SendTls13ClientHello(ssl);
 #endif
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        /* We don't want to resume in SCR */
+        if (IsSCR(ssl))
+            ssl->options.resuming = 0;
+#endif
+
+        idSz = ssl->options.resuming ? ssl->session->sessionIDSz : 0;
+
 
         WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
         WOLFSSL_ENTER("SendClientHello");
@@ -34310,6 +34331,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.dtlsStateful = 1;
 #endif /* WOLFSSL_DTLS */
 
+        /* Reset to sane value for SCR */
+        ssl->options.resuming = 0;
+        ssl->arrays->sessionIDSz = 0;
+
         /* protocol version, random and session id length check */
         if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
@@ -34503,7 +34528,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = BUFFER_ERROR; /* session ID greater than 32 bytes long */
             goto out;
         }
-        else if (b > 0) {
+        else if (b > 0 && !IsSCR(ssl)) {
             if ((i - begin) + b > helloSz) {
                 ret = BUFFER_ERROR;
                 goto out;
@@ -34516,8 +34541,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (b == ID_LEN)
                 ssl->options.resuming = 1; /* client wants to resume */
             WOLFSSL_MSG("Client wants to resume session");
-            i += b;
         }
+        i += b;
 
 #ifdef WOLFSSL_DTLS
             /* cookie */
