@@ -1342,6 +1342,14 @@ int wolfSSL_CryptHwMutexUnLock(void)
         compat_mutex_cb = cb;
         return 0;
     }
+
+    /* Gets the current callback function in use for locking/unlocking mutex
+     *
+     */
+    mutex_cb* wc_GetMutexCb(void)
+    {
+        return compat_mutex_cb;
+    }
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
 #ifdef SINGLE_THREADED
 
