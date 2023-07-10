@@ -5771,29 +5771,30 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     int ret;
     word32 idx;
 
-    if (kari == NULL || kari->decoded == NULL ||
-        cert == NULL || certSz == 0)
+    if (kari == NULL || kari->decoded == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* decode certificate */
-    InitDecodedCert(kari->decoded, (byte*)cert, certSz, kari->heap);
-    kari->decodedInit = 1;
-    ret = ParseCert(kari->decoded, CA_TYPE, NO_VERIFY, 0);
-    if (ret < 0)
-        return ret;
+    if (cert != NULL) {
+        InitDecodedCert(kari->decoded, (byte*)cert, certSz, kari->heap);
+        kari->decodedInit = 1;
+        ret = ParseCert(kari->decoded, CA_TYPE, NO_VERIFY, 0);
+        if (ret < 0)
+            return ret;
 
-    /* only supports ECDSA for now */
-    if (kari->decoded->keyOID != ECDSAk) {
-        WOLFSSL_MSG("CMS KARI only supports ECDSA key types");
-        return BAD_FUNC_ARG;
+        /* only supports ECDSA for now */
+        if (kari->decoded->keyOID != ECDSAk) {
+            WOLFSSL_MSG("CMS KARI only supports ECDSA key types");
+            return BAD_FUNC_ARG;
+        }
+
+        /* make sure subject key id was read from cert */
+        if (kari->decoded->extSubjKeyIdSet == 0) {
+            WOLFSSL_MSG("Failed to read subject key ID from recipient cert");
+            return BAD_FUNC_ARG;
+        }
     }
-
-    /* make sure subject key id was read from cert */
-    if (kari->decoded->extSubjKeyIdSet == 0) {
-        WOLFSSL_MSG("Failed to read subject key ID from recipient cert");
-        return BAD_FUNC_ARG;
-    }
-
     ret = wc_ecc_init_ex(kari->recipKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
@@ -5802,6 +5803,10 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
 
     /* get recip public key */
     if (kari->direction == WC_PKCS7_ENCODE) {
+        if (cert == NULL) {
+            WOLFSSL_MSG("Error recipient cert can not be null with encode");
+            return BAD_FUNC_ARG;
+        }
 
         idx = 0;
         ret = wc_EccPublicKeyDecode(kari->decoded->publicKey, &idx,
@@ -9270,7 +9275,14 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
     }
 
     /* if we found correct recipient, issuer hashes will match */
-    if (XMEMCMP(rid, kari->decoded->issuerHash, keyIdSize) == 0) {
+    if (kari->decodedInit == 1) {
+        if (XMEMCMP(rid, kari->decoded->issuerHash, keyIdSize) == 0) {
+            *recipFound = 1;
+        }
+    }
+    else {
+        /* can not confirm recipient serial number with no cert provided */
+        WOLFSSL_MSG("No recipient cert loaded to match with CMS serial number");
         *recipFound = 1;
     }
 
@@ -9308,7 +9320,8 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
         return ret;
     }
 
-    if (mp_cmp(recipSerial, serial) != MP_EQ) {
+    if (kari->decodedInit == 1 &&
+            mp_cmp(recipSerial, serial) != MP_EQ) {
         mp_clear(serial);
         mp_clear(recipSerial);
         WOLFSSL_MSG("CMS serial number does not match recipient");
@@ -9944,8 +9957,6 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
 
     WOLFSSL_ENTER("wc_PKCS7_DecryptKari");
     if (pkcs7 == NULL || pkiMsg == NULL ||
-            ((pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) &&
-              pkcs7->wrapCEKCb == NULL) ||
         idx == NULL || decryptedKey == NULL || decryptedKeySz == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -9986,17 +9997,15 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
             encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
             /* parse cert and key */
-            if (pkcs7->singleCert != NULL) {
-                ret = wc_PKCS7_KariParseRecipCert(kari, (byte*)pkcs7->singleCert,
-                                              pkcs7->singleCertSz, pkcs7->privateKey,
-                                              pkcs7->privateKeySz);
-                if (ret != 0) {
-                    wc_PKCS7_KariFree(kari);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                #endif
-                    return ret;
-                }
+            ret = wc_PKCS7_KariParseRecipCert(kari, (byte*)pkcs7->singleCert,
+                                          pkcs7->singleCertSz, pkcs7->privateKey,
+                                          pkcs7->privateKeySz);
+            if (ret != 0) {
+                wc_PKCS7_KariFree(kari);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            #endif
+                return ret;
             }
 
             /* remove OriginatorIdentifierOrKey */
