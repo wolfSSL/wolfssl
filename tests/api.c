@@ -51354,7 +51354,7 @@ static int test_wolfssl_EVP_aria_gcm(void)
     byte *iv = (byte*)"0123456789012345";
     int ivSz = ARIA_BLOCK_SIZE;
     /* Message to be encrypted */
-    int plaintxtSz = 40;
+    const int plaintxtSz = 40;
     byte plaintxt[WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(plaintxtSz)];
     XMEMCPY(plaintxt,"for things to change you have to change",plaintxtSz);
     /* Additional non-confidential data */

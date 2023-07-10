@@ -17891,7 +17891,7 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     #ifdef HAVE_ARIA
         case wolfssl_aria_gcm:
         {
-            const byte* additionalSrc = input - 5;
+            const byte* additionalSrc = input - RECORD_HEADER_SZ;
             byte *outBuf = NULL;
             XMEMSET(ssl->encrypt.additional, 0, AEAD_AUTH_DATA_SZ);
 
@@ -17923,13 +17923,13 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                 break;
             }
             ret = wc_AriaEncrypt(ssl->encrypt.aria, outBuf,
-                        (byte*) input + AESGCM_EXP_IV_SZ,
-                        sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                        ssl->encrypt.nonce, AESGCM_NONCE_SZ,
-                        ssl->encrypt.additional, AEAD_AUTH_DATA_SZ,
-                        out + sz - ssl->specs.aead_mac_size,
-                        ssl->specs.aead_mac_size
-                        );
+                    (byte*) input + AESGCM_EXP_IV_SZ,
+                    sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                    ssl->encrypt.nonce, AESGCM_NONCE_SZ,
+                    ssl->encrypt.additional, AEAD_AUTH_DATA_SZ,
+                    out + sz - ssl->specs.aead_mac_size,
+                    ssl->specs.aead_mac_size
+                    );
             if (ret != 0)
                 break;
             XMEMCPY(out,
@@ -18409,6 +18409,8 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                                 (byte *)input + sz - ssl->specs.aead_mac_size,
                                 ssl->specs.aead_mac_size
                                 );
+            if (ret != 0)
+                break;
             XMEMCPY(plain + AESGCM_EXP_IV_SZ,
                     outBuf,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size);

@@ -32,12 +32,13 @@ size and a key size of 128, 192, or 256 bits.
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_ARIA
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
-
-#ifdef HAVE_ARIA
 
 int wc_AriaInit(void)
 {
@@ -247,7 +248,8 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
     return 0;
 }
 
-int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz, int* res, ecc_key* key)
+int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz,
+        int* res, ecc_key* key)
 {
     MC_HOBJECT hPubkey = 0;
     MC_HSESSION hSession = 0;
@@ -324,7 +326,8 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz, int* res, 
     return 0;
 }
 
-int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* outSz)
+int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
+        byte* out, word32* outSz)
 {
     MC_HOBJECT hPrikey = 0;
     MC_HSESSION hSession = 0;
@@ -341,7 +344,8 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
 
     WOLFSSL_ENTER("AriaDerive");
 
-    if (private_key == NULL || public_key == NULL || out == NULL || outSz == NULL) {
+    if (private_key == NULL || public_key == NULL ||
+            out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -412,7 +416,8 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key, byte* out, word32* 
 }
 
 #ifdef WOLF_CRYPTO_CB
-    static void printOutput(const char* strName, unsigned char* data, unsigned int dataSz)
+    static void printOutput(const char* strName, unsigned char* data,
+            unsigned int dataSz)
     {
         #ifdef DEBUG_WOLFSSL
         WOLFSSL_MSG_EX("%s (%d):", strName,dataSz);
