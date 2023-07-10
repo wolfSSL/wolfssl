@@ -4249,9 +4249,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     /* Version | Random | Cipher Suites | Compression */
     args->length = VERSION_SZ + RAN_LEN + suites->suiteSz +
             SUITE_LEN + COMP_LEN + ENUM_LEN;
-#if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-    ssl->options.tls13MiddleBoxCompat = 1;
-#endif
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
         /* RFC 9001 ch. 8.4 sessionID in ClientHello MUST be 0 length */

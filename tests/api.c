@@ -34642,6 +34642,8 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
     }
     /* a log starting with "CLIENT_RANDOM " should exit in the file */
     ExpectIntEQ(found, 1);
+    /* clean up */
+    ExpectIntEQ(rem_file("./MyKeyLog.txt"), 0);
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
     return EXPECT_RESULT();
 }
