@@ -1528,6 +1528,7 @@ extern void uITRON4_free(void *p) ;
 #ifdef MICRIUM
     #include <stdlib.h>
     #include <os.h>
+    #include <app_cfg.h>
     #if defined(RTOS_MODULE_NET_AVAIL) || (APP_CFG_TCPIP_EN == DEF_ENABLED)
         #include <net_cfg.h>
         #include <net_sock.h>

@@ -35,8 +35,9 @@
 #ifdef DEBUG_WOLFSSL
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
+#include <stdio.h>
 
-#ifdef WOLFSSL_PEM_TO_DER
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM)
 
 /* Increment allocated data by this much. */
 #define DATA_INC_LEN        256
@@ -1034,9 +1035,9 @@ int main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
-    fprintf(stderr, "PEM to DER conversion not compiled in.\n");
+    fprintf(stderr, "PEM to DER conversion of file system support not compiled"
+                    " in.\n");
     return 0;
 }
 
-#endif /* WOLFSSL_PEM_TO_DER */
-
+#endif /* WOLFSSL_PEM_TO_DER && !NO_FILESYSTEM */

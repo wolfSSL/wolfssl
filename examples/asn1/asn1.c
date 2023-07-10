@@ -30,8 +30,9 @@
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <stdio.h>
 
-#ifdef WOLFSSL_ASN_PRINT
+#if defined(WOLFSSL_ASN_PRINT) && !defined(NO_FILESYSTEM)
 
 /* Increment allocated data by this much. */
 #define DATA_INC_LEN    256
@@ -485,9 +486,9 @@ int main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
-    fprintf(stderr, "ASN.1 Parsing and Printing not compiled in.\n");
+    fprintf(stderr, "ASN.1 Parsing and Printing or file system not compiled"
+                    " in.\n");
     return 0;
 }
 
-#endif /* WOLFSSL_ASN_PRINT */
-
+#endif /* WOLFSSL_ASN_PRINT && !defined(NO_FILESYSTEM)*/
