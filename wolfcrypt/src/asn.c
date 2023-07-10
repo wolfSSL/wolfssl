@@ -20818,7 +20818,8 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         i = (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].tag != 0)
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT;
-        if ((CheckDate(&dataASN[i], BEFORE) < 0) && verify) {
+        if ((CheckDate(&dataASN[i], BEFORE) < 0) && (verify != NO_VERIFY) &&
+                (verify != VERIFY_SKIP_DATE)) {
             badDate = ASN_BEFORE_DATE_E;
         }
         /* Store reference to BEFOREdate. */
@@ -20829,7 +20830,8 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         i = (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC].tag != 0)
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT;
-        if ((CheckDate(&dataASN[i], AFTER) < 0) && verify) {
+        if ((CheckDate(&dataASN[i], AFTER) < 0) && (verify != NO_VERIFY) &&
+                (verify != VERIFY_SKIP_DATE)) {
             badDate = ASN_AFTER_DATE_E;
         }
         /* Store reference to AFTER date. */
@@ -21584,7 +21586,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, int sigOID,
                     ret = GetHashId(
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                            hash, sigOID);
+                            hash, HashIdAlg(sigOID));
                 }
                 break;
             }

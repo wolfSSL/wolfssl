@@ -9477,7 +9477,9 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
         FreeX509Name(name);
-        XFREE(name, name->heap, DYNAMIC_TYPE_X509);
+        if (name != NULL) {
+            XFREE(name, name->heap, DYNAMIC_TYPE_X509);
+        }
     }
 
 

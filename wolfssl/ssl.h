@@ -3548,70 +3548,73 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
 
-    WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* f,
-                                                                 const char* d);
+    WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,
+        const char* f, const char* d);
     WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
-            const unsigned char* in, long sz, int format, int userChain,
-            word32 flags);
+        const unsigned char* buff, long sz, int format, int userChain,
+        word32 flags);
     WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
-            const unsigned char* in, long sz, int format);
+        const unsigned char* buff, long sz, int format);
 
     WOLFSSL_API int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
 #ifdef WOLFSSL_TRUST_PEER_CERT
-    WOLFSSL_API int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wolfSSL_CertManagerUnload_trust_peers(
+        WOLFSSL_CERT_MANAGER* cm);
 #endif
-    WOLFSSL_API int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* f,
-                                                                    int format);
+    WOLFSSL_API int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm,
+        const char* f, int format);
     WOLFSSL_API int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
-                                const unsigned char* buff, long sz, int format);
+        const unsigned char* buff, long sz, int format);
     WOLFSSL_API int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
-                                                        unsigned char* der, int sz);
+        const unsigned char* der, int sz);
     WOLFSSL_API int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm,
-                                                                   int options);
+        int options);
     WOLFSSL_API int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
-            VerifyCallback vc);
+        VerifyCallback vc);
     WOLFSSL_API int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
-                                                         const char* path, int type, int monitor);
+        const char* path, int type, int monitor);
     WOLFSSL_API int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm,
-                                                         const char* file, int type);
+        const char* file, int type);
     WOLFSSL_API int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
-                                            const unsigned char* buff, long sz, int type);
+        const unsigned char* buff, long sz, int type);
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
-                                                                  CbMissingCRL cb);
+        CbMissingCRL cb);
     WOLFSSL_API int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm);
 #ifdef HAVE_CRL_IO
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm,
-                                                                       CbCrlIO cb);
+        CbCrlIO cb);
 #endif
 #if defined(HAVE_OCSP)
-    WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER* cm,
-        byte *response, int responseSz, WOLFSSL_BUFFER_INFO *responseBuffer,
-        CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest);
+    WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(
+        WOLFSSL_CERT_MANAGER* cm, unsigned char *response, int responseSz,
+        WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
+        OcspEntry *entry, OcspRequest *ocspRequest);
 #endif
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
-                                                        unsigned char* der, int sz);
+        const unsigned char* der, int sz);
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm,
-                                                                   int options);
+        int options);
     WOLFSSL_API int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER* cm);
-    WOLFSSL_API int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
-                                                                   const char* url);
+    WOLFSSL_API int wolfSSL_CertManagerSetOCSPOverrideURL(
+        WOLFSSL_CERT_MANAGER* cm, const char* url);
     WOLFSSL_API int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER* cm,
-                                               CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx);
+        CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx);
 
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSPStapling(
-                                                      WOLFSSL_CERT_MANAGER* cm);
+        WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManagerDisableOCSPStapling(
-                                                      WOLFSSL_CERT_MANAGER* cm);
+        WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSPMustStaple(
-                                                      WOLFSSL_CERT_MANAGER* cm);
+        WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManagerDisableOCSPMustStaple(
-                                                      WOLFSSL_CERT_MANAGER* cm);
+        WOLFSSL_CERT_MANAGER* cm);
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && \
     !defined(NO_FILESYSTEM)
-WOLFSSL_API WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm);
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(
+    WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
-                               WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509_NAME* name);
+    WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509_NAME* name);
 #endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
