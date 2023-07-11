@@ -2871,6 +2871,12 @@ extern void uITRON4_free(void *p) ;
     #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
 
+/* If malloc is disabled make sure it is also disabled in SP math */
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SP_NO_MALLOC) && \
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+    #define WOLFSSL_SP_NO_MALLOC
+#endif
+
 /* Enable DH Extra for QT, openssl all, openssh and static ephemeral */
 /* Allows export/import of DH key and params as DER */
 #if !defined(NO_DH) && !defined(WOLFSSL_DH_EXTRA) && \
