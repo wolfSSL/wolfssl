@@ -41,7 +41,11 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/sp_int.h>
 
-#include <wolfssl/wolfcrypt/ecc.h>
+#if defined(HAVE_ECC) && defined(WOLFSSL_HAVE_SP_ECC)
+    #include <wolfssl/wolfcrypt/ecc.h>
+#else
+    #undef WOLFSSL_HAVE_SP_ECC
+#endif
 
 #ifdef noinline
     #define SP_NOINLINE noinline

@@ -2040,17 +2040,22 @@ extern void uITRON4_free(void *p) ;
          *      Constant time: Always
          *      Enable:        WOLFSSL_SP_MATH_ALL
          */
+        #undef USE_FAST_MATH
+        #undef USE_INTEGER_HEAP_MATH
     #elif defined(WOLFSSL_SP_MATH)
         /*  2) SP Math with restricted key sizes: wolfSSL proprietary math
          *         implementation (sp_*.c).
          *      Constant time: Always
          *      Enable:        WOLFSSL_SP_MATH
          */
+        #undef USE_FAST_MATH
+        #undef USE_INTEGER_HEAP_MATH
     #elif defined(USE_FAST_MATH)
         /*  3) Tom's Fast Math: Stack based (tfm.c)
          *      Constant time: Only with TFM_TIMING_RESISTANT
          *      Enable:        USE_FAST_MATH
          */
+        #undef USE_INTEGER_HEAP_MATH
     #elif defined(USE_INTEGER_HEAP_MATH)
         /*  4) Integer Heap Math:  Heap based (integer.c)
          *      Constant time: Not supported
