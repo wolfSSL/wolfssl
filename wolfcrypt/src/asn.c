@@ -32644,7 +32644,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
-static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
+int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
                              int pubIn, int curveIn)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -32959,8 +32959,6 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     return wc_BuildEccKeyDer(key, output, &inLen, 0, 1);
 }
-
-
 
 #ifdef HAVE_PKCS8
 

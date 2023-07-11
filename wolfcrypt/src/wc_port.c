@@ -85,6 +85,9 @@
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
+#if defined(HAVE_ARIA)
+    #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
+#endif
 #if defined(WOLFSSL_DEVCRYPTO)
     #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
@@ -363,6 +366,12 @@ int wolfCrypt_Init(void)
 
 #if defined(WOLFSSL_CAAM)
         if ((ret = wc_caamInit()) != 0) {
+            return ret;
+        }
+#endif
+
+#if defined(HAVE_ARIA)
+        if ((ret = wc_AriaInit()) != 0) {
             return ret;
         }
 #endif

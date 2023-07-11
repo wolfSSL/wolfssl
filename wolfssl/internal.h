@@ -55,6 +55,9 @@
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
+#ifdef HAVE_ARIA
+    #include <wolfssl/wolfcrypt/port/aria/aria-crypt.h>
+#endif
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
@@ -649,6 +652,10 @@
                 #endif
             #endif
         #endif /* NO_AES */
+        #ifdef HAVE_ARIA
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+        #endif /* HAVE_ARIA */
         #if !defined(NO_RC4) && !defined(WSSL_HARDEN_TLS)
             /* MUST NOT negotiate RC4 cipher suites
              * https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -954,6 +961,11 @@
     #define NO_AESGCM_AEAD
 #endif
 
+#if defined(BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384)
+    #define BUILD_ARIA
+#endif
+
 #if defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
     defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
     defined(BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
@@ -999,6 +1011,7 @@
 #if defined(WOLFSSL_MAX_STRENGTH) || \
     (defined(HAVE_AESGCM) && !defined(NO_AESGCM_AEAD)) || \
      defined(HAVE_AESCCM) || \
+     defined(HAVE_ARIA) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
      !defined(NO_CHAPOL_AEAD)) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
@@ -1177,6 +1190,12 @@ enum {
     /* TLS v1.3 Integrity only cipher suites - 0xC0 (ECC) first byte */
     TLS_SHA256_SHA256            = 0xB4,
     TLS_SHA384_SHA384            = 0xB5,
+
+    /* ARIA-GCM, first byte is 0xC0 (ECC_BYTE)
+    * See: https://www.rfc-editor.org/rfc/rfc6209.html#section-5
+    */
+    TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256   = 0x5c,
+    TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384   = 0x5d,
 
     /* TLS v1.3 SM cipher suites - 0x00 (CIPHER_BYTE) is first byte */
     TLS_SM4_GCM_SM3              = 0xC6,
@@ -4010,8 +4029,8 @@ enum CipherType { aead };
 #endif
 
 
-#if defined(BUILD_AES) || defined(BUILD_AESGCM) || (defined(HAVE_CHACHA) && \
-                               defined(HAVE_POLY1305)) || defined(WOLFSSL_TLS13)
+#if defined(BUILD_AES) || defined(BUILD_AESGCM) || defined(HAVE_ARIA) || \
+        (defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(WOLFSSL_TLS13)
     #define CIPHER_NONCE
 #endif
 
@@ -4040,10 +4059,12 @@ typedef struct Ciphers {
 #endif
 #if defined(BUILD_AES) || defined(BUILD_AESGCM)
     Aes*    aes;
-    #if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && \
-                                                      !defined(WOLFSSL_NO_TLS12)
-        byte* additional;
-    #endif
+#endif
+#if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && !defined(WOLFSSL_NO_TLS12)
+    byte* additional;
+#endif
+#ifdef HAVE_ARIA
+    wc_Aria* aria;
 #endif
 #ifdef CIPHER_NONCE
     byte* nonce;

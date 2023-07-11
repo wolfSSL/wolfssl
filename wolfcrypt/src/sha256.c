@@ -266,6 +266,10 @@ static int InitSha256(wc_Sha256* sha256)
     XMEMSET(&sha256->maxq_ctx, 0, sizeof(sha256->maxq_ctx));
 #endif
 
+#ifdef HAVE_ARIA
+    sha256->hSession = NULL;
+#endif
+
     return ret;
 }
 #endif
@@ -1831,6 +1835,13 @@ void wc_Sha256Free(wc_Sha256* sha256)
     wc_MAXQ10XX_Sha256Free(sha256);
 #endif
 
+#ifdef HAVE_ARIA
+    if (sha256->hSession != NULL) {
+        MC_CloseSession(sha256->hSession);
+        sha256->hSession = NULL;
+    }
+#endif
+
 /* Espressif embedded hardware acceleration specific: */
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     if (sha256->ctx.lockDepth > 0) {
@@ -2083,6 +2094,13 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     esp_sha256_ctx_copy(src, dst);
+#endif
+
+#ifdef HAVE_ARIA
+    dst->hSession = NULL;
+    if((src->hSession != NULL) && (MC_CopySession(src->hSession, &(dst->hSession)) != MC_OK)) {
+        return MEMORY_E;
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS

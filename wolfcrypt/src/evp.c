@@ -47,7 +47,6 @@
 #include <wolfssl/openssl/kdf.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
-
 static const struct s_ent {
     const enum wc_HashType macType;
     const int nid;
@@ -235,6 +234,13 @@ static const struct s_ent {
         static const char EVP_AES_256_ECB[] = "AES-256-ECB";
     #endif
     #endif
+#endif
+
+#ifdef HAVE_ARIA
+    #include <wolfssl/wolfcrypt/port/aria/aria-crypt.h>
+    static const char EVP_ARIA_128_GCM[] = "ARIA-128-GCM";
+    static const char EVP_ARIA_192_GCM[] = "ARIA-192-GCM";
+    static const char EVP_ARIA_256_GCM[] = "ARIA-256-GCM";
 #endif
 
 #ifndef NO_DES3
@@ -859,6 +865,69 @@ static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
 }
 #endif /* HAVE_AESCCM || WOLFSSL_SM4_CCM */
 
+#if defined(HAVE_ARIA)
+static int wolfSSL_EVP_CipherUpdate_AriaGCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
+        const unsigned char *in, int inl)
+{
+    if (in && inl > 0) {
+        byte* tmp = (byte*)XREALLOC(ctx->authIn,
+                ctx->authInSz + inl, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (tmp) {
+            ctx->authIn = tmp;
+            XMEMCPY(ctx->authIn + ctx->authInSz, in, inl);
+            ctx->authInSz += inl;
+        }
+        else {
+            WOLFSSL_MSG("realloc error");
+            return MEMORY_E;
+        }
+    }
+    return 0;
+}
+
+static int wolfSSL_EVP_CipherUpdate_AriaGCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl,
+                                   const unsigned char *in, int inl)
+{
+    int ret = 0;
+
+    *outl = inl;
+    if (out) {
+        /* Buffer input for one-shot API */
+        if (inl > 0) {
+            byte* tmp;
+            int size = ctx->authBufferLen + inl;
+            if (ctx->enc == 0) { /* Append extra space for the tag */
+                size = WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(size);
+            }
+            tmp = (byte*)XREALLOC(ctx->authBuffer,
+                    size, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (tmp) {
+                XMEMCPY(tmp + ctx->authBufferLen, in, inl);
+                ctx->authBufferLen += inl;
+                ctx->authBuffer = tmp;
+                *outl = 0;
+            }
+            else {
+                ret = MEMORY_E;
+            }
+        }
+    }
+    else {
+        ret = wolfSSL_EVP_CipherUpdate_AriaGCM_AAD(ctx, in, inl);
+    }
+
+    if (ret != 0) {
+        *outl = 0;
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_ARIA */
+
+
 /* returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
 int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
@@ -900,6 +969,13 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
              * additional auth data */
             return wolfSSL_EVP_CipherUpdate_CCM(ctx, out, outl, in, inl);
 #endif /* !defined(NO_AES) && defined(HAVE_AESCCM) */
+#if defined(HAVE_ARIA)
+        case ARIA_128_GCM_TYPE:
+        case ARIA_192_GCM_TYPE:
+        case ARIA_256_GCM_TYPE:
+            /* if out == NULL, in/inl contains the additional auth data */
+            return wolfSSL_EVP_CipherUpdate_AriaGCM(ctx, out, outl, in, inl);
+#endif /* defined(HAVE_ARIA) */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case CHACHA20_POLY1305_TYPE:
             if (out == NULL) {
@@ -1230,6 +1306,61 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
             }
             break;
 #endif /* HAVE_AESCCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
+        * HAVE_FIPS_VERSION >= 2 */
+#if defined(HAVE_ARIA) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+    || FIPS_VERSION_GE(2,0))
+        case ARIA_128_GCM_TYPE:
+        case ARIA_192_GCM_TYPE:
+        case ARIA_256_GCM_TYPE:
+            if ((ctx->authBuffer && ctx->authBufferLen > 0)
+             || (ctx->authBufferLen == 0)) {
+                if (ctx->enc)
+                    ret = wc_AriaEncrypt(&ctx->cipher.aria, out,
+                            ctx->authBuffer, ctx->authBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authIn, ctx->authInSz,
+                            ctx->authTag, ctx->authTagSz);
+                else
+                    ret = wc_AriaDecrypt(&ctx->cipher.aria, out,
+                            ctx->authBuffer, ctx->authBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authIn, ctx->authInSz,
+                            ctx->authTag, ctx->authTagSz);
+
+                if (ret == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                    *outl = ctx->authBufferLen;
+                }
+                else {
+                    ret = WOLFSSL_FAILURE;
+                    *outl = 0;
+                }
+
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+
+                if (ctx->authIncIv) {
+                    IncCtr((byte*)ctx->cipher.aria.nonce,
+                           ctx->cipher.aria.nonceSz);
+                    ctx->authIncIv = 0;
+                }
+            }
+            else {
+                *outl = 0;
+            }
+            if (ret == WOLFSSL_SUCCESS) {
+                if (ctx->authIncIv) {
+                    ctx->authIncIv = 0;
+                }
+                else {
+                    /* Clear IV, since IV reuse is not recommended for AES GCM. */
+                    XMEMSET(ctx->iv, 0, ARIA_BLOCK_SIZE);
+                }
+                if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
+                    ret = WOLFSSL_FAILURE;
+                }
+            }
+            break;
+#endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case CHACHA20_POLY1305_TYPE:
@@ -1569,6 +1700,11 @@ int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     case AES_128_XTS_TYPE:
     case AES_256_XTS_TYPE:
 #endif
+#if defined(HAVE_ARIA)
+    case ARIA_128_GCM_TYPE:
+    case ARIA_192_GCM_TYPE:
+    case ARIA_256_GCM_TYPE:
+#endif
 
     case AES_128_ECB_TYPE:
     case AES_192_ECB_TYPE:
@@ -1751,6 +1887,14 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
     #endif
 #endif
 #endif /* !NO_AES */
+#if defined(HAVE_ARIA)
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARIA_128_GCM))
+        return ARIA_128_GCM_TYPE;
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARIA_192_GCM))
+        return ARIA_192_GCM_TYPE;
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARIA_256_GCM))
+        return ARIA_256_GCM_TYPE;
+#endif /* HAVE_ARIA */
 
 #ifndef NO_RC4
     else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARC4))
@@ -1857,6 +2001,12 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
         case ARC4_TYPE:
             return 1;
   #endif
+#if defined(HAVE_ARIA)
+    case ARIA_128_GCM_TYPE:
+    case ARIA_192_GCM_TYPE:
+    case ARIA_256_GCM_TYPE:
+        return 1;
+#endif
 
 #ifndef NO_DES3
         case DES_CBC_TYPE: return 8;
@@ -1959,6 +2109,13 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_256_ECB_TYPE:
             return WOLFSSL_EVP_CIPH_ECB_MODE;
 #endif /* !NO_AES */
+    #if defined(HAVE_ARIA)
+        case ARIA_128_GCM_TYPE:
+        case ARIA_192_GCM_TYPE:
+        case ARIA_256_GCM_TYPE:
+            return WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
+    #endif
     #ifndef NO_DES3
         case DES_CBC_TYPE:
         case DES_EDE3_CBC_TYPE:
@@ -4718,6 +4875,12 @@ static const struct cipher{
     #endif
 #endif
 
+#ifdef HAVE_ARIA
+    {ARIA_128_GCM_TYPE, EVP_ARIA_128_GCM, NID_aria_128_gcm},
+    {ARIA_192_GCM_TYPE, EVP_ARIA_192_GCM, NID_aria_192_gcm},
+    {ARIA_256_GCM_TYPE, EVP_ARIA_256_GCM, NID_aria_256_gcm},
+#endif
+
 #ifndef NO_DES3
     {DES_CBC_TYPE, EVP_DES_CBC, NID_des_cbc},
     {DES_ECB_TYPE, EVP_DES_ECB, NID_des_ecb},
@@ -4862,6 +5025,14 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         #endif
     #endif
 #endif
+#ifdef HAVE_ARIA
+        {EVP_ARIA_128_GCM, "aria-128-gcm"},
+        {EVP_ARIA_128_GCM, "id-aria128-GCM"},
+        {EVP_ARIA_192_GCM, "aria-192-gcm"},
+        {EVP_ARIA_192_GCM, "id-aria192-GCM"},
+        {EVP_ARIA_256_GCM, "aria-256-gcm"},
+        {EVP_ARIA_256_GCM, "id-aria256-GCM"},
+#endif
 #ifdef WOLFSSL_SM4_EBC
         {EVP_SM4_ECB, "sm4-ecb"},
 #endif
@@ -4997,6 +5168,15 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_aes_256_ccm();
         #endif
     #endif
+#endif
+
+#ifdef HAVE_ARIA
+    case NID_aria_128_gcm:
+        return wolfSSL_EVP_aria_128_gcm();
+    case NID_aria_192_gcm:
+        return wolfSSL_EVP_aria_192_gcm();
+    case NID_aria_256_gcm:
+        return wolfSSL_EVP_aria_256_gcm();
 #endif
 
 #ifndef NO_DES3
@@ -5476,6 +5656,24 @@ void wolfSSL_EVP_init(void)
     #endif /* HAVE_AES_ECB */
     #endif /* NO_AES */
 
+#ifdef HAVE_ARIA
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_128_gcm(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aria_128_gcm");
+        return EVP_ARIA_128_GCM;
+    }
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_192_gcm(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aria_192_gcm");
+        return EVP_ARIA_192_GCM;
+    }
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aria_256_gcm(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aria_256_gcm");
+        return EVP_ARIA_256_GCM;
+    }
+#endif /* HAVE_ARIA */
+
 #ifndef NO_DES3
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void)
     {
@@ -5607,7 +5805,7 @@ void wolfSSL_EVP_init(void)
             case EVP_CTRL_SET_KEY_LENGTH:
                 ret = wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, arg);
                 break;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
         defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
         (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
             case EVP_CTRL_AEAD_SET_IVLEN:
@@ -5832,7 +6030,7 @@ void wolfSSL_EVP_init(void)
                 }
                 break;
 #endif /* HAVE_AESGCM || HAVE_AESCCM || WOLFSSL_SM4_GCM || WOLFSSL_SM4_CCM ||
-        * (HAVE_CHACHA && HAVE_POLY1305) */
+        * HAVE_ARIA || (HAVE_CHACHA && HAVE_POLY1305) */
             default:
                 WOLFSSL_MSG("EVP_CIPHER_CTX_ctrl operation not yet handled");
                 break;
@@ -5843,10 +6041,12 @@ void wolfSSL_EVP_init(void)
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_CIPHER_CTX_cleanup(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
+        int ret = WOLFSSL_SUCCESS;
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_cleanup");
         if (ctx) {
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+            switch (ctx->cipherType) {
 #if (defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)) || \
     defined(HAVE_AESCCM) || \
     defined(HAVE_AESCBC) || \
@@ -5856,7 +6056,6 @@ void wolfSSL_EVP_init(void)
     defined(HAVE_AES_OFB) || \
     defined(WOLFSSL_AES_XTS)
 
-            switch (ctx->cipherType) {
     #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
                 case AES_128_GCM_TYPE:
                 case AES_192_GCM_TYPE:
@@ -5903,9 +6102,23 @@ void wolfSSL_EVP_init(void)
                 case AES_256_XTS_TYPE:
     #endif
                     wc_AesFree(&ctx->cipher.aes);
+                    break;
+#endif /* AES */
+    #ifdef HAVE_ARIA
+                case ARIA_128_GCM_TYPE:
+                case ARIA_192_GCM_TYPE:
+                case ARIA_256_GCM_TYPE:
+                    {
+                        int result = wc_AriaFreeCrypt(&ctx->cipher.aria);
+                        if (result != 0) {
+                            WOLFSSL_MSG("wc_AriaFreeCrypt failure");
+                            ret = result;
+                        }
+                    }
+                    break;
+    #endif
             }
 
-#endif /* AES */
 #endif /* not FIPS or FIPS v2+ */
 
 #ifdef WOLFSSL_SM4
@@ -5938,7 +6151,7 @@ void wolfSSL_EVP_init(void)
             }
 #endif
             ctx->keyLen     = 0;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
             if (ctx->authBuffer) {
                 XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -5955,7 +6168,7 @@ void wolfSSL_EVP_init(void)
 #endif
         }
 
-        return WOLFSSL_SUCCESS;
+        return ret;
     }
 
     /* Permanent stub for Qt compilation. */
@@ -6381,6 +6594,86 @@ void wolfSSL_EVP_init(void)
         return ret;
     }
 #endif /* HAVE_AESCCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
+        * HAVE_FIPS_VERSION >= 2 */
+
+#if defined(HAVE_ARIA) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+    || FIPS_VERSION_GE(2,0))
+    static int EvpCipherInitAriaGCM(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                    const WOLFSSL_EVP_CIPHER* type,
+                                    const byte* key, const byte* iv, int enc)
+    {
+        int ret = WOLFSSL_SUCCESS;
+
+        if (ctx->cipherType == ARIA_128_GCM_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_128_GCM))) {
+            WOLFSSL_MSG("EVP_ARIA_128_GCM");
+            ctx->cipherType = ARIA_128_GCM_TYPE;
+            ctx->keyLen = ARIA_128_KEY_SIZE;
+        } else if (ctx->cipherType == ARIA_192_GCM_TYPE ||
+                   (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_192_GCM))) {
+            WOLFSSL_MSG("EVP_ARIA_192_GCM");
+            ctx->cipherType = ARIA_192_GCM_TYPE;
+            ctx->keyLen = ARIA_192_KEY_SIZE;
+        } else if (ctx->cipherType == ARIA_256_GCM_TYPE ||
+                   (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_256_GCM))) {
+            WOLFSSL_MSG("EVP_ARIA_256_GCM");
+            ctx->cipherType = ARIA_256_GCM_TYPE;
+            ctx->keyLen = ARIA_256_KEY_SIZE;
+        } else {
+            WOLFSSL_MSG("Unrecognized cipher type");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (ctx->authIn) {
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
+        }
+        ctx->authInSz = 0;
+
+        ctx->block_size = AES_BLOCK_SIZE;
+        ctx->authTagSz = AES_BLOCK_SIZE;
+        if (ctx->ivSz == 0) {
+            ctx->ivSz = GCM_NONCE_MID_SZ;
+        }
+        ctx->flags &= ~WOLFSSL_EVP_CIPH_MODE;
+        ctx->flags |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                      WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
+        if (enc == 0 || enc == 1) {
+            ctx->enc = enc ? 1 : 0;
+        }
+
+        switch(ctx->cipherType) {
+            case ARIA_128_GCM_TYPE:
+                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_128BITKEY);
+                break;
+            case ARIA_192_GCM_TYPE:
+                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_192BITKEY);
+                break;
+            case ARIA_256_GCM_TYPE:
+                ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_256BITKEY);
+                break;
+            default:
+                WOLFSSL_MSG("Not implemented cipherType");
+                return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
+        }
+        if (ret != 0) {
+            WOLFSSL_MSG(MC_GetErrorString(ret));
+            WOLFSSL_MSG(MC_GetError(ctx->cipher.aria.hSession));
+            return WOLFSSL_FAILURE;
+        }
+
+        if (key && wc_AriaSetKey(&ctx->cipher.aria, (byte *)key)) {
+            WOLFSSL_MSG("wc_AriaSetKey() failed");
+            return WOLFSSL_FAILURE;
+        }
+        if (iv && wc_AriaGcmSetExtIV(&ctx->cipher.aria, iv, ctx->ivSz)) {
+            WOLFSSL_MSG("wc_AriaGcmSetIV() failed");
+            return WOLFSSL_FAILURE;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* HAVE_ARIA && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
         * HAVE_FIPS_VERSION >= 2 */
 
     /* return WOLFSSL_SUCCESS on ok, 0 on failure to match API compatibility */
@@ -7063,6 +7356,23 @@ void wolfSSL_EVP_init(void)
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_XTS */
 #endif /* NO_AES */
+    #if defined(HAVE_ARIA)
+        if (ctx->cipherType == ARIA_128_GCM_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_128_GCM))
+            || ctx->cipherType == ARIA_192_GCM_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_192_GCM))
+            || ctx->cipherType == ARIA_256_GCM_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARIA_256_GCM))
+          ) {
+            if (EvpCipherInitAriaGCM(ctx, type, key, iv, enc)
+                != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+    #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
+            * HAVE_FIPS_VERSION >= 2 */
+
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         if (ctx->cipherType == CHACHA20_POLY1305_TYPE ||
             (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_CHACHA20_POLY1305))) {
@@ -7440,6 +7750,15 @@ void wolfSSL_EVP_init(void)
 
 #endif /* NO_AES */
 
+#ifdef HAVE_ARIA
+            case ARIA_128_GCM_TYPE :
+                return NID_aria_128_gcm;
+            case ARIA_192_GCM_TYPE :
+                return NID_aria_192_gcm;
+            case ARIA_256_GCM_TYPE :
+                return NID_aria_256_gcm;
+#endif
+
 #ifndef NO_DES3
             case DES_CBC_TYPE :
                 return NID_des_cbc;
@@ -7608,6 +7927,11 @@ void wolfSSL_EVP_init(void)
              ctx->cipherType != AES_192_CCM_TYPE &&
              ctx->cipherType != AES_256_CCM_TYPE
         #endif
+        #ifdef HAVE_ARIA
+            && ctx->cipherType != ARIA_128_GCM_TYPE &&
+             ctx->cipherType != ARIA_192_GCM_TYPE &&
+             ctx->cipherType != ARIA_256_GCM_TYPE
+        #endif
         #ifdef WOLFSSL_SM4_GCM
             && ctx->cipherType != SM4_GCM_TYPE
         #endif
@@ -7751,6 +8075,26 @@ void wolfSSL_EVP_init(void)
                 break;
 #endif /* WOLFSSL_AES_COUNTER */
 #endif /* NO_AES */
+
+#if defined(HAVE_ARIA) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+    || FIPS_VERSION_GE(2,0))
+            case ARIA_128_GCM_TYPE :
+            case ARIA_192_GCM_TYPE :
+            case ARIA_256_GCM_TYPE :
+                WOLFSSL_MSG("ARIA GCM");
+                if (ctx->enc) {
+                    ret = wc_AriaEncrypt(&ctx->cipher.aria, dst, src, len,
+                                         ctx->iv, ctx->ivSz, NULL, 0,
+                                         ctx->authTag, ctx->authTagSz);
+                }
+                else {
+                    ret = wc_AriaDecrypt(&ctx->cipher.aria, dst, src, len,
+                                         ctx->iv, ctx->ivSz, NULL, 0,
+                                         ctx->authTag, ctx->authTagSz);
+                }
+                break;
+#endif /* HAVE_ARIA&& ((!HAVE_FIPS && !HAVE_SELFTEST) ||
+        * HAVE_FIPS_VERSION >= 2 */
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :
@@ -8770,6 +9114,16 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES XTS");
             return AES_BLOCK_SIZE;
 #endif /* WOLFSSL_AES_XTS */
+#ifdef HAVE_ARIA
+        case ARIA_128_GCM_TYPE :
+        case ARIA_192_GCM_TYPE :
+        case ARIA_256_GCM_TYPE :
+            WOLFSSL_MSG("ARIA GCM");
+            if (ctx->ivSz != 0) {
+                return ctx->ivSz;
+            }
+            return GCM_NONCE_MID_SZ;
+#endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case CHACHA20_POLY1305_TYPE:
             WOLFSSL_MSG("CHACHA20 POLY1305");
@@ -8896,6 +9250,14 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
 #endif /* WOLFSSL_AES_XTS */
 
 #endif
+#ifdef HAVE_ARIA
+    if (XSTRCMP(name, EVP_ARIA_128_GCM) == 0)
+        return GCM_NONCE_MID_SZ;
+    if (XSTRCMP(name, EVP_ARIA_192_GCM) == 0)
+        return GCM_NONCE_MID_SZ;
+    if (XSTRCMP(name, EVP_ARIA_256_GCM) == 0)
+        return GCM_NONCE_MID_SZ;
+#endif /* HAVE_ARIA */
 
 #ifndef NO_DES3
     if ((XSTRCMP(name, EVP_DES_CBC) == 0) ||

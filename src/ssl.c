@@ -21353,6 +21353,18 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
             encStr = "CHACHA20/POLY1305(256)";
             break;
 #endif
+#ifdef HAVE_ARIA
+        case wolfssl_aria_gcm:
+            if (key_size == 128)
+                encStr = "Aria(128)";
+            else if (key_size == 192)
+                encStr = "Aria(192)";
+            else if (key_size == 256)
+                encStr = "Aria(256)";
+            else
+                encStr = "Aria(?)";
+            break;
+#endif
 #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             if (key_size == 128)
@@ -28434,7 +28446,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
                 return obj_info->sName;
             }
         }
-        WOLFSSL_MSG("SN not found");
+        WOLFSSL_MSG_EX("SN not found (nid:%d)",n);
         return NULL;
     }
 
@@ -35277,6 +35289,15 @@ int wolfSSL_RAND_poll(void)
 #endif /* WOLFSSL_AES_XTS */
 #endif /* NO_AES */
 
+#ifdef HAVE_ARIA
+            case ARIA_128_GCM_TYPE :
+            case ARIA_192_GCM_TYPE :
+            case ARIA_256_GCM_TYPE :
+                WOLFSSL_MSG("ARIA GCM");
+                XMEMCPY(ctx->iv, &ctx->cipher.aria.nonce, ARIA_BLOCK_SIZE);
+                break;
+#endif /* HAVE_ARIA */
+
 #ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
@@ -35398,6 +35419,15 @@ int wolfSSL_RAND_poll(void)
 #endif
 
 #endif /* NO_AES */
+
+#ifdef HAVE_ARIA
+            case ARIA_128_GCM_TYPE :
+            case ARIA_192_GCM_TYPE :
+            case ARIA_256_GCM_TYPE :
+                WOLFSSL_MSG("ARIA GCM");
+                XMEMCPY(&ctx->cipher.aria.nonce, ctx->iv, ARIA_BLOCK_SIZE);
+                break;
+#endif /* HAVE_ARIA */
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :

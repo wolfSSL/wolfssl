@@ -791,3 +791,8 @@ endif !BUILD_CRYPTONLY
 
 
 endif !BUILD_FIPS_RAND
+
+if BUILD_ARIA
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-crypt.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-cryptocb.c
+endif

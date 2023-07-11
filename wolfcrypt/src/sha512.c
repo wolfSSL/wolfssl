@@ -1364,6 +1364,10 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->flags = 0;
 #endif
 
+#ifdef HAVE_ARIA
+    sha384->hSession = NULL;
+#endif
+
 #ifdef WOLFSSL_HASH_KEEP
     sha384->msg  = NULL;
     sha384->len  = 0;
@@ -1549,6 +1553,13 @@ void wc_Sha384Free(wc_Sha384* sha384)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     wolfAsync_DevCtxFree(&sha384->asyncDev, WOLFSSL_ASYNC_MARKER_SHA384);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef HAVE_ARIA
+    if (sha384->hSession != NULL) {
+        MC_CloseSession(sha384->hSession);
+        sha384->hSession = NULL;
+    }
+#endif
 }
 
 #endif /* WOLFSSL_SHA384 */
@@ -1880,6 +1891,13 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     esp_sha384_ctx_copy(src, dst);
+#endif
+
+#ifdef HAVE_ARIA
+    dst->hSession = NULL;
+    if((src->hSession != NULL) && (MC_CopySession(src->hSession, &(dst->hSession)) != MC_OK)) {
+        return MEMORY_E;
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS
