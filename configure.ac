@@ -7743,13 +7743,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HASH_FLAGS"
 fi
 
-# Support for enabling setting default DH parameters in
+# Support for enabling setting default DH parameters in TLS
 AC_ARG_ENABLE([defaultdhparams],
-    [AS_HELP_STRING([--enable-dhdefaultparams],[Enables option for default dh parameters (default: disabled)])],
+    [AS_HELP_STRING([--enable-defaultdhparams],[Enables option for default dh parameters (default: disabled)])],
     [ ENABLED_DHDEFAULTPARAMS=$enableval ],
-    [ ENABLED_DHDEFAULTPARAMS=no ]
+    [ ENABLED_DHDEFAULTPARAMS=yes ]
     )
-if test "$ENABLED_DHDEFAULTPARAMS" = "yes" || test "$ENABLED_QT" = "no"
+if test "x$ENABLED_DH" = "xyes" && test "x$ENABLED_DHDEFAULTPARAMS" = "xyes" && test "x$ENABLED_QT" != "xyes"
 then
     ENABLED_DHDEFAULTPARAMS=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DH_DEFAULT_PARAMS"
