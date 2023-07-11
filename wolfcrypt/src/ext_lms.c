@@ -401,7 +401,7 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
 
     LmsRng = rng;
 
-   /* todo: The has-sigs lib allows you to save variable length auxiliary
+   /* TODO: The hash-sigs lib allows you to save variable length auxiliary
     * data, which can be used to speed up key reloading when signing. The
     * aux data can be 300B - 1KB in size.
     *

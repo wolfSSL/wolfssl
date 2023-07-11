@@ -1160,7 +1160,16 @@ AC_ARG_WITH([liblms],
                 tryliblmsdir="/usr/local"
             fi
 
-            if test -e $tryliblmsdir/hss_lib_thread.a; then
+            # 1. By default use the hash-sigs single-threaded static library.
+            # 2. If 1 not found, then use the multi-threaded static lib.
+            # 3. If 2 not found, then use the multi-threaded dynamic lib.
+            if test -e $tryliblmsdir/hss_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            elif test -e $tryliblmsdir/hss_lib_thread.a; then
                 CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
                 LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib_thread.a"
                 enable_shared=no

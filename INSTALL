@@ -261,14 +261,21 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     your system. At present we support the current master branch of
     the hash-sigs project.
 
-    At present the hash-sigs project only builds static libraries.
-    It can be modified though to build and install a shared library
-    in /usr/local.
+    Currently the hash-sigs project only builds static libraries:
+      - hss_lib.a: a single-threaded static lib.
+      - hss_lib_thread.a: a multi-threaded static lib.
+
+    The multi-threaded version will mainly have speedups for key
+    generation and signing.
+
+    Additionally, the hash-sigs project can be modified to build
+    and install a shared library in /usr/local with either single
+    or multi-threaded versions.  If the shared version has been
+    built, libhss.so is the assumed name.
 
     wolfSSL supports either option, and by default will look for
-    hss_lib_thread.a in a specified hash-sigs dir. If hash-sigs has
-    been built as a shared lib and installed in /usr/local/ , then
-    wolfSSL will look for libhss.so there.
+    hss_lib.a first, and hss_lib_thread.a second, and libhss.so
+    lastly, in a specified hash-sigs dir.
 
     How to get and build the hash-sigs library:
       $ mkdir ~/hash_sigs
@@ -279,10 +286,15 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     In sha256.h, set USE_OPENSSL to 0:
       #define USE_OPENSSL 0
 
-    Now build:
-      $ make
+    To build the single-threaded version:
+      $ make hss_lib.a
       $ ls *.a
-      hss_lib.a  hss_lib_thread.a  hss_verify.a
+      hss_lib.a
+
+    To build multi-threaded:
+      $ make hss_lib_thread.a
+      $ ls *.a
+      hss_lib_thread.a
 
     Build wolfSSL with
     $ ./configure \
