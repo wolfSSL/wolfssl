@@ -1,0 +1,40 @@
+name: CURL Test
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+    - name: autogen
+      run: ./autogen.sh
+    - name: configure
+      run: ./configure --enable-all
+    - name: make
+      run: make
+    - name: install
+      run: sudo make install
+    - uses: actions/checkout@master
+      with:
+        repository: curl/curl
+        path: curl
+    - name: curl buildconf
+      working-directory: ./curl
+      run: ./buildconf
+    - name: curl configure
+      working-directory: ./curl
+      run: ./configure --with-wolfssl
+    - name: curl make
+      working-directory: ./curl
+      run: make
+    - name: curl unit tests
+      working-directory: ./curl
+      run: make test
+
