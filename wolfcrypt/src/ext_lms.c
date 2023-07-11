@@ -37,6 +37,16 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* If built against hss_lib_thread.a, the hash-sigs lib will spawn
+ * worker threads to parallelize cpu intensive tasks. This will mainly
+ * speedup key generation and signing, and to a lesser extent
+ * verifying for larger levels values.
+ *
+ * Their default max is 16 worker threads, but can be capped with
+ * hss_extra_info_set_threads(). To be safe we are capping at 4 here.
+ * */
+#define EXT_LMS_MAX_THREADS (4)
+
 /* The hash-sigs hss_generate_private_key API requires a generate_random
  * callback that only has output and length args. The RNG struct must be global
  * to the function. Maybe there should be a wc_LmsKey_SetRngCb. */
@@ -347,7 +357,9 @@ int wc_LmsKey_Init_ex(LmsKey * key, int levels, int height,
         key->lm_ots_type[i] = ots;
     }
 
+    /* Set the max number of worker threads that hash-sigs can spawn. */
     hss_init_extra_info(&key->info);
+    hss_extra_info_set_threads(&key->info, EXT_LMS_MAX_THREADS);
 
     key->working_key = NULL;
     key->write_private_key = NULL;

@@ -258,8 +258,10 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 17. Building with hash-sigs lib for LMS/HSS support [EXPERIMENTAL]
 
     Using LMS/HSS requires that the hash-sigs lib has been built on
-    your system. At present we support the current master branch of
-    the hash-sigs project.
+    your system. We support hash-sigs lib at this git commit:
+      b0631b8891295bf2929e68761205337b7c031726
+    At the time of writing this, this is the HEAD of the master
+    branch of the hash-sigs project.
 
     Currently the hash-sigs project only builds static libraries:
       - hss_lib.a: a single-threaded static lib.
@@ -282,6 +284,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
       $ cd ~/hash_sigs
       $ git clone https://github.com/cisco/hash-sigs.git src
       $ cd src
+      $ git checkout b0631b8891295bf2929e68761205337b7c031726
 
     In sha256.h, set USE_OPENSSL to 0:
       #define USE_OPENSSL 0
