@@ -34729,7 +34729,8 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return EXPECT_RESULT();
 }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int test_wolfSSL_Tls13_ECH_params(void)
 {
     EXPECT_DECLS;
