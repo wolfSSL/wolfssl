@@ -195,6 +195,9 @@ function(generate_build_flags)
     endif()
     if(WOLFSSL_OQS OR WOLFSSL_USER_SETTINGS)
         set(BUILD_FALCON "yes" PARENT_SCOPE)
+        set(BUILD_SPHINCS "yes" PARENT_SCOPE)
+        set(BUILD_DILITHIUM "yes" PARENT_SCOPE)
+        set(BUILD_EXT_KYBER "yes" PARENT_SCOPE)
     endif()
     set(BUILD_INLINE ${WOLFSSL_INLINE} PARENT_SCOPE)
     if(WOLFSSL_OCSP OR WOLFSSL_USER_SETTINGS)
@@ -802,6 +805,18 @@ function(generate_lib_src_list LIB_SOURCES)
 
          if(BUILD_FALCON)
               list(APPEND LIB_SOURCES wolfcrypt/src/falcon.c)
+         endif()
+
+         if(BUILD_SPHINCS)
+              list(APPEND LIB_SOURCES wolfcrypt/src/sphincs.c)
+         endif()
+
+         if(BUILD_DILITHIUM)
+              list(APPEND LIB_SOURCES wolfcrypt/src/dilithium.c)
+         endif()
+
+         if(BUILD_EXT_KYBER)
+              list(APPEND LIB_SOURCES wolfcrypt/src/ext_kyber.c)
          endif()
 
          if(BUILD_LIBZ)
