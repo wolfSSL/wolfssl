@@ -1447,7 +1447,8 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     /* Get cert cache size */
     ExpectIntGT(cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
 
-    ExpectNotNull(cache = XMALLOC(cacheSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(cache = (byte*)XMALLOC(cacheSz, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(NULL, NULL, -1, NULL),
         BAD_FUNC_ARG);

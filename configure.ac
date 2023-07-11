@@ -1726,7 +1726,8 @@ AC_ARG_ENABLE([error-queue-per-thread],
 
 if test "$ENABLED_ERRORQUEUEPERTHREAD" = "check"
 then
-    AS_IF([test "$thread_ls_on" = "no"],
+    AS_IF([test "$thread_ls_on" = "no" ||
+           test "$ENABLED_SINGLETHREADED" = "yes"],
         [ENABLED_ERRORQUEUEPERTHREAD=no],
         [ENABLED_ERRORQUEUEPERTHREAD=yes])
 fi

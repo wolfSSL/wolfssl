@@ -1137,7 +1137,7 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
         return NULL;
 
     if (req->cid != NULL)
-        wolfSSL_OCSP_CERTID_free(req->cid);
+        wolfSSL_OCSP_CERTID_free((WOLFSSL_OCSP_CERTID*)req->cid);
     /* Keep to free */
     req->cid = (void*)cid;
 
