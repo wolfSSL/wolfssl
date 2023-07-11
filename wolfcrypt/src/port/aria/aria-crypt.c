@@ -199,16 +199,18 @@ int wc_AriaEncrypt(wc_Aria* aria, byte* out, byte* in, word32 inSz,
 {
     MC_RV rv = MC_OK;
 
-    MC_ALGPARAM param = {
-        .pNonce = iv,
-        .nNonce = ivSz,
-        .pAData = aad,
-        .nAData = aadSz,
-        .nTLen = authTagSz,
-        .nDataLen = inSz
-    };
+    MC_ALGPARAM param;
     MC_UINT outSz = inSz + authTagSz;
-    MC_ALGORITHM mcAlg = {aria->algo, NULL, 0};
+    MC_ALGORITHM mcAlg;
+    XMEMSET(&param,0,sizeof(MC_ALGPARAM));
+    param.pNonce = iv;
+    param.pAData = aad;
+    param.nNonce = ivSz;
+    param.nAData = aadSz;
+    param.nTLen = authTagSz;
+    param.nDataLen = inSz;
+    XMEMSET(&mcAlg,0,sizeof(MC_ALGORITHM));
+    mcAlg.mcAlgId = aria->algo;
     mcAlg.pParam = (MC_UCHAR*)&param;
     mcAlg.nParam = sizeof(param);
 
@@ -248,16 +250,18 @@ int wc_AriaDecrypt(wc_Aria* aria, byte* out, byte* in, word32 inSz,
 {
     MC_RV rv = MC_OK;
 
-    MC_ALGPARAM param = {
-        .pNonce = iv,
-        .nNonce = ivSz,
-        .pAData = aad,
-        .nAData = aadSz,
-        .nTLen = authTagSz,
-        .nDataLen = inSz
-    };
+    MC_ALGPARAM param;
     MC_UINT outSz = inSz;
-    MC_ALGORITHM mcAlg = {aria->algo, NULL, 0};
+    MC_ALGORITHM mcAlg;
+    XMEMSET(&param,0,sizeof(MC_ALGPARAM));
+    param.pNonce = iv;
+    param.pAData = aad;
+    param.nNonce = ivSz;
+    param.nAData = aadSz;
+    param.nTLen = authTagSz;
+    param.nDataLen = inSz;
+    XMEMSET(&mcAlg,0,sizeof(MC_ALGORITHM));
+    mcAlg.mcAlgId = aria->algo;
     mcAlg.pParam = (MC_UCHAR*)&param;
     mcAlg.nParam = sizeof(param);
 
