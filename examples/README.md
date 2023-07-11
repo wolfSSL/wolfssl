@@ -84,3 +84,9 @@ and
 This directory contains example wolfSSL configuration file templates for use when autoconf is not available, such as building with a custom IDE.
 
 See [configs/README.md](configs/README.md) for more details.
+
+## asn1
+This directory contains an example that prints the ASN.1 data of a BER/DER or PEM encoded file. Configure wolfSSL with `--enable-asn-print`.
+
+## pem
+This directory contains an example of converting to/from PEM and DER. Configure wolfSSL with `--enable-coding`
