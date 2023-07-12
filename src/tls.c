@@ -1693,7 +1693,6 @@ int ALPN_Select(WOLFSSL *ssl)
                 SendAlert(ssl, alert_fatal, no_application_protocol);
                 WOLFSSL_ERROR_VERBOSE(UNKNOWN_ALPN_PROTOCOL_NAME_E);
                 return UNKNOWN_ALPN_PROTOCOL_NAME_E;
-                break;
         }
     }
     else
@@ -10290,8 +10289,10 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (ret == 0)
         ret = TLSX_PskKeyModes_Use(ssl, modes);
 
-    if (ret != 0)
+    if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
     return ret;
 }
 

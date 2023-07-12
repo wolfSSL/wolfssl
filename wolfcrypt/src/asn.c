@@ -190,7 +190,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#include <wolfssl/internal.h>
+#ifndef WOLFCRYPT_ONLY
+    #include <wolfssl/internal.h>
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #include <wolfssl/openssl/objects.h>
 #endif
@@ -18867,7 +18870,7 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                     (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                    cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
+                    cert->extAuthKeyId, HashIdAlg((int)cert->signatureOID));
     }
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
@@ -21448,29 +21451,10 @@ int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ParseCert(cert, type, verify, cm);
 }
 
-#if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL) && \
-    !defined(GetCA)
-/* from SSL proper, for locking can't do find here anymore.
- * brought in from internal.h if built with compat layer.
- * if defined(GetCA), it's a predefined macro and these prototypes
- * would conflict.
- */
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    Signer* GetCA(void* signers, byte* hash);
-    #ifndef NO_SKID
-        Signer* GetCAByName(void* signers, byte* hash);
-    #endif
-#ifdef __cplusplus
-    }
-#endif
-
-#endif /* !OPENSSL_EXTRA && !OPENSSL_EXTRA_X509_SMALL && !GetCA */
-
-#if defined(WOLFCRYPT_ONLY)
+#ifdef WOLFCRYPT_ONLY
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
+Signer* GetCA(void* signers, byte* hash);
 Signer* GetCA(void* signers, byte* hash)
 {
     (void)hash;
@@ -21479,6 +21463,7 @@ Signer* GetCA(void* signers, byte* hash)
 }
 
 #ifndef NO_SKID
+Signer* GetCAByName(void* signers, byte* hash);
 Signer* GetCAByName(void* signers, byte* hash)
 {
     (void)hash;
@@ -21488,6 +21473,8 @@ Signer* GetCAByName(void* signers, byte* hash)
 #endif /* NO_SKID */
 
 #ifdef WOLFSSL_AKID_NAME
+Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
+        const byte* serial, word32 serialSz);
 Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
         const byte* serial, word32 serialSz)
 {
@@ -22701,7 +22688,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     }
                 }
                 else {
-                    cert->maxPathLen = min(cert->ca->maxPathLen - 1,
+                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1,
                                            cert->maxPathLen);
                 }
             }

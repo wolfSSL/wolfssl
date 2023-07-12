@@ -65,7 +65,7 @@ run_sequence() {
         run_test "" "-v 4 -g" "-v 4 -J"
     else
         echo "Invalid test"
-        exit -1
+        exit 1
     fi
 }
 

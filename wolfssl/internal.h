@@ -6128,12 +6128,14 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                                              DecodedCert* cert);
     #endif
 
-    WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
+    #ifndef GetCA
+        WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
+    #endif
     #ifdef WOLFSSL_AKID_NAME
         WOLFSSL_LOCAL Signer* GetCAByAKID(void* vp, const byte* issuer,
                 word32 issuerSz, const byte* serial, word32 serialSz);
     #endif
-    #ifndef NO_SKID
+    #if !defined(NO_SKID) && !defined(GetCAByName)
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
 #endif /* !NO_CERTS */

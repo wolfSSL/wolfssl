@@ -508,6 +508,9 @@ AC_SUBST([ENABLED_LINUXKM_BENCHMARKS])
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWOLFSSL_TEST_SUBROUTINE=static"
+    if test "$ENABLED_LINUXKM_PIE" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OCSP_ISSUER_CHECK"
+    fi
     if test "$ENABLED_FIPS" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OLD_PRIME_CHECK"
     fi
@@ -4391,6 +4394,14 @@ then
 fi
 
 
+# MD4
+AC_ARG_ENABLE([md4],
+    [AS_HELP_STRING([--enable-md4],[Enable MD4 (default: disabled)])],
+    [ ENABLED_MD4=$enableval ],
+    [ ENABLED_MD4=no ]
+    )
+
+
 # DES3
 AC_ARG_ENABLE([des3],
     [AS_HELP_STRING([--enable-des3],[Enable DES3 (default: disabled)])],
@@ -4701,7 +4712,7 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])
     ])
 
-AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno"],
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno" && test "$ENABLE_LINUXKM" = "no"],
     [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
 
 
@@ -6299,6 +6310,11 @@ AC_ARG_ENABLE([curl],
 # curl support requires all the features enabled within this conditional.
 if test "$ENABLED_CURL" = "yes"
 then
+    if test "$ENABLED_MD4" = "no"
+    then
+        ENABLED_MD4="yes"
+    fi
+
     if test "x$ENABLED_DES3" = "xno"
     then
         ENABLED_DES3="yes"
@@ -6512,14 +6528,6 @@ then
         AC_MSG_WARN([Enabling DSA with --enable-dsa is recommended for libest])
     fi
 fi
-
-# MD4
-AC_ARG_ENABLE([md4],
-    [AS_HELP_STRING([--enable-md4],[Enable MD4 (default: disabled)])],
-    [ ENABLED_MD4=$enableval ],
-    [ ENABLED_MD4=no ]
-    )
-
 
 if test "$ENABLED_MD4" = "no"
 then
@@ -8933,14 +8941,10 @@ fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    ESCAPED_ARGS="$ac_configure_args"
-    ESCAPED_ARGS=$(echo "$ESCAPED_ARGS" | sed 's/\\/\\\\/g')
-    ESCAPED_ARGS=$(echo "$ESCAPED_ARGS" | sed 's/\"/\\\"/g')
-    ESCAPED_GLOBAL_ARGS="$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS"
-    ESCAPED_GLOBAL_ARGS=$(echo "$ESCAPED_GLOBAL_ARGS" | sed 's/\\/\\\\/g')
-    ESCAPED_GLOBAL_ARGS=$(echo "$ESCAPED_GLOBAL_ARGS" | sed 's/\"/\\\"/g')
+    ESCAPED_ARGS=$(echo "$ac_configure_args" | sed 's/\\/\\\\/g;s/\"/\\\"/g')
+    ESCAPED_GLOBAL_CFLAGS=$(echo "$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS" | sed 's/\\/\\\\/g;s/\"/\\\"/g')
     echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ESCAPED_ARGS\"" > "${output_objdir}/.build_params" &&
-        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$ESCAPED_GLOBAL_ARGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> "${output_objdir}/.build_params" ||
+        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$ESCAPED_GLOBAL_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> "${output_objdir}/.build_params" ||
         AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
 else
     rm -f "${output_objdir}/.build_params"

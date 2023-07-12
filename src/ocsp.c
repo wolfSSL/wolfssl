@@ -549,8 +549,6 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     return ret;
 }
 
-#ifdef HAVE_OCSP
-
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK
 static int CheckOcspResponderChain(OcspEntry* single, DecodedCert *cert,
         void* vp) {
@@ -646,7 +644,6 @@ int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert, void* vp)
     }
     return ret;
 }
-#endif /* HAVE_OCSP */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIGHTY)
