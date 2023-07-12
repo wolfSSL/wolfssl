@@ -247,7 +247,7 @@ add_option("WOLFSSL_SINGLE_THREADED"
     "no" "yes;no")
 
 # TODO: Logic here isn't complete, yet (see AX_PTHREAD)
-if(NOT WOLFSSL_SINGLE_THREADED)
+if(NOT SINGLE_THREADED)
     if(CMAKE_USE_PTHREADS_INIT)
         list(APPEND WOLFSSL_LINK_LIBS Threads::Threads)
         set(HAVE_PTHREAD 1)
