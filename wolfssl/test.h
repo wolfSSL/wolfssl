@@ -28,10 +28,8 @@
 #ifndef wolfSSL_TEST_H
 #define wolfSSL_TEST_H
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifdef FUSION_RTOS
     #include <fclstdio.h>

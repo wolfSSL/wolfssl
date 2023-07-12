@@ -32,6 +32,8 @@ jobs:
         uses: ./.github/workflows/zephyr.yml
     hitch:
         uses: ./.github/workflows/hitch.yml
+    curl:
+        uses: ./.github/workflows/curl.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml

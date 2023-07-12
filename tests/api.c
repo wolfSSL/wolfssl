@@ -1447,7 +1447,8 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     /* Get cert cache size */
     ExpectIntGT(cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx), 0);
 
-    ExpectNotNull(cache = XMALLOC(cacheSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(cache = (byte*)XMALLOC(cacheSz, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(wolfSSL_CTX_memsave_cert_cache(NULL, NULL, -1, NULL),
         BAD_FUNC_ARG);
@@ -34728,7 +34729,8 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return EXPECT_RESULT();
 }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int test_wolfSSL_Tls13_ECH_params(void)
 {
     EXPECT_DECLS;
