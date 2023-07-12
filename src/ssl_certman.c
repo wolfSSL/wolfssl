@@ -291,15 +291,16 @@ static WC_INLINE int wolfssl_cm_get_certs_der(WOLFSSL_CERT_MANAGER* cm,
 
     if (!err) {
         /* Allocate memory for pointers to each DER buffer. */
-        certBuffers = (DerBuffer**)XMALLOC(sizeof(DerBuffer*) * numCerts,
-            cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certBuffers = (DerBuffer**)XMALLOC(
+            sizeof(DerBuffer*) * (size_t)numCerts, cm->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (certBuffers == NULL) {
             err = 1;
         }
     }
     if (!err) {
         /* Reset pointers. */
-        XMEMSET(certBuffers, 0, sizeof(DerBuffer*) * numCerts);
+        XMEMSET(certBuffers, 0, sizeof(DerBuffer*) * (size_t)numCerts);
     }
 
     /* Copy the certs locally so that we can release the caLock. If the lock
@@ -382,7 +383,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
         /* Get pointer to DER encoding of certificate. */
         derBuffer = certBuffers[i]->buffer;
         /* Decode certificate. */
-        wolfSSL_d2i_X509(&x509, &derBuffer, certBuffers[i]->length);
+        wolfSSL_d2i_X509(&x509, &derBuffer, (int)certBuffers[i]->length);
         if (x509 == NULL) {
             err = 1;
         }
@@ -816,13 +817,13 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 #endif
     {
         WOLFSSL_MSG("Getting dynamic buffer");
-        buff = (byte*)XMALLOC(sz, cm->heap, DYNAMIC_TYPE_FILE);
+        buff = (byte*)XMALLOC((size_t)sz, cm->heap, DYNAMIC_TYPE_FILE);
         if (buff == NULL) {
             ret = WOLFSSL_BAD_FILE;
         }
     }
     /* Read all the file into buffer. */
-    if ((ret == WOLFSSL_SUCCESS) && ((size_t)XFREAD(buff, 1, sz, file) !=
+    if ((ret == WOLFSSL_SUCCESS) && (XFREAD(buff, 1, (size_t)sz, file) !=
             (size_t)sz)) {
         ret = WOLFSSL_BAD_FILE;
     }
@@ -942,7 +943,7 @@ static WC_INLINE int cm_get_signer_memory(Signer* signer)
 #endif
 
     /* Add dynamic bytes needed. */
-    sz += signer->pubKeySize;
+    sz += (int)signer->pubKeySize;
     sz += signer->nameLen;
 
     return sz;
@@ -1103,7 +1104,7 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
             /* Copy in public key. */
             XMEMCPY(publicKey, current + idx, signer->pubKeySize);
             signer->publicKey = publicKey;
-            idx += signer->pubKeySize;
+            idx += (int)signer->pubKeySize;
 
             /* Copy in certificate name length. */
             XMEMCPY(&signer->nameLen, current + idx, sizeof(signer->nameLen));
@@ -1117,7 +1118,7 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
         }
         if (ret == 0) {
             /* Allocate memory for public key to be stored in. */
-            signer->name = (char*)XMALLOC(signer->nameLen, cm->heap,
+            signer->name = (char*)XMALLOC((size_t)signer->nameLen, cm->heap,
                 DYNAMIC_TYPE_SUBJECT_CN);
             if (signer->name == NULL) {
                 ret = MEMORY_E;
@@ -1126,7 +1127,7 @@ static WC_INLINE int cm_restore_cert_row(WOLFSSL_CERT_MANAGER* cm,
 
         if (ret == 0) {
             /* Copy in certificate name. */
-            XMEMCPY(signer->name, current + idx, signer->nameLen);
+            XMEMCPY(signer->name, current + idx, (size_t)signer->nameLen);
             idx += signer->nameLen;
 
             /* Copy in hash of subject name. */
@@ -1190,15 +1191,15 @@ static WC_INLINE int cm_store_cert_row(WOLFSSL_CERT_MANAGER* cm, byte* current,
         added += (int)sizeof(list->keyOID);
 
         /* Public key. */
-        XMEMCPY(current + added, list->publicKey, list->pubKeySize);
-        added += list->pubKeySize;
+        XMEMCPY(current + added, list->publicKey, (size_t)list->pubKeySize);
+        added += (int)list->pubKeySize;
 
         /* Certificate name length. */
         XMEMCPY(current + added, &list->nameLen, sizeof(list->nameLen));
         added += (int)sizeof(list->nameLen);
 
         /* Certificate name. */
-        XMEMCPY(current + added, list->name, list->nameLen);
+        XMEMCPY(current + added, list->name, (size_t)list->nameLen);
         added += list->nameLen;
 
         /* Hash of subject name. */
@@ -1287,8 +1288,6 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
 {
     XFILE file;
     int   ret = WOLFSSL_SUCCESS;
-    int   memSz;
-    byte* mem;
 
     WOLFSSL_ENTER("CM_SaveCertCache");
 
@@ -1306,17 +1305,18 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
+        byte* mem;
         /* Calculate size of memory required to store CA table. */
-        memSz = cm_get_cert_cache_mem_size(cm);
+        size_t memSz = (size_t)cm_get_cert_cache_mem_size(cm);
         /* Allocate memory to hold CA table. */
-        mem   = (byte*)XMALLOC(memSz, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        mem = (byte*)XMALLOC(memSz, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (mem == NULL) {
             WOLFSSL_MSG("Alloc for tmp buffer failed");
             ret = MEMORY_E;
         }
         if (ret == WOLFSSL_SUCCESS) {
             /* Store CA table in memory. */
-            ret = cm_do_mem_save_cert_cache(cm, mem, memSz);
+            ret = cm_do_mem_save_cert_cache(cm, mem, (int)memSz);
         }
         if (ret == WOLFSSL_SUCCESS) {
             /* Write memory to file. */
@@ -1753,7 +1753,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
     #endif
         {
             /* Initialize decoded certificate with buffer. */
-            InitDecodedCert(cert, der, sz, NULL);
+            InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm);
@@ -2224,7 +2224,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
     #endif
         {
             /* Initialize decoded certificate with buffer. */
-            InitDecodedCert(cert, der, sz, NULL);
+            InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm);
@@ -2307,14 +2307,14 @@ int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
             /* Calculate size of URL string. Include terminator character. */
             int urlSz = (int)XSTRLEN(url) + 1;
             /* Allocate memory for URL to be copied into. */
-            cm->ocspOverrideURL = (char*)XMALLOC(urlSz, cm->heap,
+            cm->ocspOverrideURL = (char*)XMALLOC((size_t)urlSz, cm->heap,
                 DYNAMIC_TYPE_URL);
             if (cm->ocspOverrideURL == NULL) {
                 ret = MEMORY_E;
             }
             if (ret == WOLFSSL_SUCCESS) {
                 /* Copy URL into certificate manager. */
-                XMEMCPY(cm->ocspOverrideURL, url, urlSz);
+                XMEMCPY(cm->ocspOverrideURL, url, (size_t)urlSz);
             }
         }
         else {

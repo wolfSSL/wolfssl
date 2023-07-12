@@ -2043,7 +2043,7 @@ typedef enum MimeStatus
 #endif /* HAVE_SMIME */
 
 
-WOLFSSL_LOCAL int HashIdAlg(int oidSum);
+WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
 WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
 WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
     int hashAlg);
@@ -2233,7 +2233,7 @@ WOLFSSL_LOCAL int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                               int maxIdx);
 WOLFSSL_LOCAL int GetNameHash_ex(const byte* source, word32* idx, byte* hash,
-                                 int maxIdx, int sigOID);
+                                 int maxIdx, word32 sigOID);
 WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                                      const byte* pubKey, word32 pubKeySz, enum Key_Sum ks);
