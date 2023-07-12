@@ -9802,7 +9802,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
                                                         aes->heap, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#ifdef WOLFSSL_AFALG
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
     aes->alFd = WC_SOCK_NOTSET;
     aes->rdFd = WC_SOCK_NOTSET;
 #endif
