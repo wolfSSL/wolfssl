@@ -1606,6 +1606,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
         dupl->grp   = obj->grp;
         dupl->nid   = obj->nid;
         dupl->objSz = obj->objSz;
+    #ifdef OPENSSL_EXTRA
+        dupl->ca    = obj->ca;
+    #endif
         /* Check for encoding. */
         if (obj->obj) {
             /* Allocate memory for ASN.1 OBJECT_ID DER encoding. */

@@ -5850,6 +5850,9 @@ then
         ENABLED_ALPN="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ALPN"
     fi
+
+    # cert gen requires alt names
+    ENABLED_ALTNAMES="yes"
 fi
 
 if test "$ENABLED_LIGHTY" = "yes"

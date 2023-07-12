@@ -1360,11 +1360,45 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         break;
     }
     case NID_key_usage:
-        if (ext && ext->value.data &&
-                ext->value.length == sizeof(word16)) {
-            x509->keyUsage = *(word16*)ext->value.data;
-            x509->keyUsageCrit = (byte)ext->crit;
-            x509->keyUsageSet = 1;
+        if (ext && ext->value.data) {
+            if (ext->value.length == sizeof(word16)) {
+                /* if ext->value is already word16, set directly */
+                x509->keyUsage = *(word16*)ext->value.data;
+                x509->keyUsageCrit = (byte)ext->crit;
+                x509->keyUsageSet = 1;
+            }
+            else if (ext->value.length > 0) {
+                /* ext->value is comma-delimited string, convert to word16 */
+                if (ParseKeyUsageStr(ext->value.data, &x509->keyUsage,
+                                     x509->heap) != 0) {
+                    return WOLFSSL_FAILURE;
+                }
+                x509->keyUsageCrit = (byte)ext->crit;
+                x509->keyUsageSet = 1;
+            }
+            else {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        break;
+    case NID_ext_key_usage:
+        if (ext && ext->value.data) {
+            if (ext->value.length == sizeof(byte)) {
+                /* if ext->value is already word16, set directly */
+                x509->extKeyUsage = *(byte*)ext->value.data;
+                x509->extKeyUsageCrit = (byte)ext->crit;
+            }
+            else if (ext->value.length > 0) {
+                /* ext->value is comma-delimited string, convert to word16 */
+                if (ParseExtKeyUsageStr(ext->value.data, &x509->extKeyUsage,
+                                        x509->heap) != 0) {
+                    return WOLFSSL_FAILURE;
+                }
+                x509->extKeyUsageCrit = (byte)ext->crit;
+            }
+            else {
+                return WOLFSSL_FAILURE;
+            }
         }
         break;
     case NID_basic_constraints:
@@ -2780,6 +2814,14 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
                 goto err_cleanup;
             }
             ext->value.type = KEY_USAGE_OID;
+            break;
+        case NID_ext_key_usage:
+            if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
+                goto err_cleanup;
+            }
+            ext->value.type = EXT_KEY_USAGE_OID;
             break;
         default:
             WOLFSSL_MSG("invalid or unsupported NID");
