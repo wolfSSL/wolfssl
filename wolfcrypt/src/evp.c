@@ -10308,8 +10308,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 break;
         #ifdef WOLFSSL_SM3
             case WC_HASH_TYPE_SM3:
-                ret = wc_Sm3Update(&ctx->hash.digest.sm3, data,
-                                     (unsigned long)sz);
+                ret = wc_Sm3Update(&ctx->hash.digest.sm3, data, (word32)sz);
                 if (ret == 0) {
                     ret = WOLFSSL_SUCCESS;
                 }
