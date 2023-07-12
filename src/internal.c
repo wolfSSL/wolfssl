@@ -35791,6 +35791,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
 
         if (!ssl->options.tls1_3) {
+            if (ssl->arrays == NULL) {
+                WOLFSSL_MSG("CreateTicket called with null arrays");
+                ret = BAD_FUNC_ARG;
+                goto error;
+            }
             XMEMCPY(it->msecret, ssl->arrays->masterSecret, SECRET_LEN);
 #ifndef NO_ASN_TIME
             c32toa(LowResTimer(), it->timestamp);

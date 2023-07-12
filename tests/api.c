@@ -40233,12 +40233,15 @@ static int test_wolfSSL_BIO_gets(void)
     ExpectNotNull(emp_bm = BUF_MEM_new());
     ExpectNotNull(msg_bm = BUF_MEM_new());
     ExpectIntEQ(BUF_MEM_grow(msg_bm, sizeof(msg)), sizeof(msg));
-    XFREE(msg_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (EXPECT_SUCCESS())
+        XFREE(msg_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
     /* emp size is 1 for terminator */
     ExpectIntEQ(BUF_MEM_grow(emp_bm, sizeof(emp)), sizeof(emp));
-    XFREE(emp_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
-    emp_bm->data = emp;
-    msg_bm->data = msg;
+    if (EXPECT_SUCCESS()) {
+        XFREE(emp_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        emp_bm->data = emp;
+        msg_bm->data = msg;
+    }
     ExpectIntEQ(BIO_set_mem_buf(bio, emp_bm, BIO_CLOSE), WOLFSSL_SUCCESS);
 
     /* check reading an empty string */
@@ -40256,9 +40259,11 @@ static int test_wolfSSL_BIO_gets(void)
     ExpectIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 8);
     ExpectIntEQ(BIO_gets(bio, bio_buffer, -1), 0);
 
-    emp_bm->data = NULL;
+    if (EXPECT_SUCCESS())
+        emp_bm->data = NULL;
     BUF_MEM_free(emp_bm);
-    msg_bm->data = NULL;
+    if (EXPECT_SUCCESS())
+        msg_bm->data = NULL;
     BUF_MEM_free(msg_bm);
 #endif
 
