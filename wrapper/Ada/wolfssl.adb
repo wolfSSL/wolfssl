@@ -1,3 +1,24 @@
+-- wolfssl.adb
+--
+-- Copyright (C) 2006-2023 wolfSSL Inc.
+--
+-- This file is part of wolfSSL.
+--
+-- wolfSSL is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; either version 2 of the License, or
+-- (at your option) any later version.
+--
+-- wolfSSL is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+--
+
 with Interfaces.C.Strings;
 
 package body WolfSSL is
@@ -31,6 +52,11 @@ package body WolfSSL is
       end if;
    end Finalize;
 
+   function Is_Valid (Context : Context_Type) return Boolean is
+   begin
+      return Context /= null;
+   end Is_Valid;
+
    function WolfTLSv1_2_Server_Method return Method_Type with
      Convention    => C,
      External_Name => "wolfTLSv1_2_server_method",
@@ -51,28 +77,33 @@ package body WolfSSL is
       return WolfTLSv1_3_Server_Method;
    end TLSv1_3_Server_Method;
 
+   function WolfTLSv1_3_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfTLSv1_3_client_method",
+     Import        => True;
+
+   function TLSv1_3_Client_Method return Method_Type is
+   begin
+      return WolfTLSv1_3_Client_Method;
+   end TLSv1_3_Client_Method;
+
    function WolfSSL_CTX_new (Method : Method_Type)
                              return Context_Type with
      Convention => C, External_Name => "wolfSSL_CTX_new", Import => True;
 
    procedure Create_Context (Method  : Method_Type;
-                             Context : out Optional_Context) is
-      C : constant Context_Type := WolfSSL_CTX_new (Method);
+                             Context : out Context_Type) is
    begin
-      if C = null then
-         Context := (Exists => False);
-      else
-         Context := (Exists => True, Instance => C);
-      end if;
+      Context := WolfSSL_CTX_new (Method);
    end Create_Context;
 
    procedure WolfSSL_CTX_free (Context : Context_Type) with
      Convention => C, External_Name => "wolfSSL_CTX_free", Import => True;
 
-   procedure Free (Context : in out Optional_Context) is
+   procedure Free (Context : in out Context_Type) is
    begin
-      WolfSSL_CTX_free (Context.Instance);
-      Context := (Exists => False);
+      WolfSSL_CTX_free (Context);
+      Context := null;
    end Free;
 
    type Opaque_X509_Store_Context is limited null record;
@@ -145,6 +176,7 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
+      Ctx : constant Context_Type := Context;
       C : size_t;
       F : char_array (1 .. File'Length + 1);
       Result : int;
@@ -153,7 +185,7 @@ package body WolfSSL is
                          Target     => F,
                          Count      => C,
                          Append_Nul => True);
-      Result := Use_Certificate_File (Context, F (1 .. C), int (Format));
+      Result := Use_Certificate_File (Ctx, F (1 .. C), int (Format));
       if Result = WOLFSSL_SUCCESS then
          return Success;
       else
@@ -197,6 +229,7 @@ package body WolfSSL is
                                   File    : String;
                                   Format  : File_Format)
                                   return Subprogram_Result is
+      Ctx : constant Context_Type := Context;
       C : size_t;
       F : char_array (1 .. File'Length + 1);
       Result : int;
@@ -205,7 +238,7 @@ package body WolfSSL is
                          Target     => F,
                          Count      => C,
                          Append_Nul => True);
-      Result := Use_Private_Key_File (Context, F (1 .. C), int (Format));
+      Result := Use_Private_Key_File (Ctx, F (1 .. C), int (Format));
       if Result = WOLFSSL_SUCCESS then
          return Success;
       else
@@ -290,6 +323,7 @@ package body WolfSSL is
                                    File    : String;
                                    Path    : String)
                                    return Subprogram_Result is
+      Ctx : constant Context_Type := Context;
       FC : size_t;  -- File Count, specifies the characters used in F.
       F : aliased char_array := (1 .. File'Length + 1 => '#');
 
@@ -300,13 +334,13 @@ package body WolfSSL is
    begin
       if File = "" then
          if Path = "" then
-            Result := Load_Verify_Locations4 (Context, null, null);
+            Result := Load_Verify_Locations4 (Ctx, null, null);
          else
             Interfaces.C.To_C (Item       => Path,
                                Target     => P,
                                Count      => PC,
                                Append_Nul => True);
-            Result := Load_Verify_Locations3 (Context, null, P);
+            Result := Load_Verify_Locations3 (Ctx, null, P);
          end if;
       else
          Interfaces.C.To_C (Item       => File,
@@ -314,7 +348,7 @@ package body WolfSSL is
                             Count      => FC,
                             Append_Nul => True);
          if Path = "" then
-            Result := Load_Verify_Locations2 (Context, F, null);
+            Result := Load_Verify_Locations2 (Ctx, F, null);
          else
             Interfaces.C.To_C (Item       => Path,
                                Target     => P,
@@ -324,7 +358,9 @@ package body WolfSSL is
                                Target     => P,
                                Count      => PC,
                                Append_Nul => True);
-            Result := Load_Verify_Locations1 (Context, F, P);
+            Result := Load_Verify_Locations1 (Context => Ctx,
+                                              File    => F,
+                                              Path    => P);
          end if;
       end if;
       if Result = WOLFSSL_SUCCESS then
@@ -334,7 +370,7 @@ package body WolfSSL is
       end if;
    end Load_Verify_Locations;
 
-   function Load_Verify_Buffer1
+   function Load_Verify_Buffer
       (Context : Context_Type;
        Input   : char_array;
        Size    : int;
@@ -357,7 +393,7 @@ package body WolfSSL is
                                 return Subprogram_Result is
       Result : int;
    begin
-      Result := Load_Verify_Buffer1 (Context => Context,
+      Result := Load_Verify_Buffer (Context => Context,
                                      Input   => Input,
                                      Size    => Input'Length,
                                      Format  => int(Format));
@@ -368,6 +404,11 @@ package body WolfSSL is
       end if;
    end Load_Verify_Buffer;
 
+   function Is_Valid (Ssl : WolfSSL_Type) return Boolean is
+   begin
+      return Ssl /= null;
+   end Is_Valid;
+
    function WolfSSL_New (Context : Context_Type)
                          return WolfSSL_Type with
      Convention    => C,
@@ -375,16 +416,114 @@ package body WolfSSL is
      Import        => True;
 
    procedure Create_WolfSSL (Context : Context_Type;
-                             Ssl     : out Optional_WolfSSL) is
-      Result : WolfSSL_Type := WolfSSL_New (Context);
+                             Ssl     : out WolfSSL_Type) is
    begin
-      if Result /= null then
-         Ssl := (Exists   => True,
-                 Instance => Result);
-      else
-         Ssl := (Exists => False);
-      end if;
+      Ssl := WolfSSL_New (Context);
    end Create_WolfSSL;
+
+   function Use_Certificate_File (Ssl     : WolfSSL_Type;
+                                  File    : char_array;
+                                  Format  : int)
+                                  return int with
+     Convention    => C,
+     External_Name => "wolfSSL_use_certificate_file",
+     Import        => True;
+
+   function Use_Certificate_File (Ssl     : WolfSSL_Type;
+                                  File    : String;
+                                  Format  : File_Format)
+                                  return Subprogram_Result is
+      C : size_t;
+      F : char_array (1 .. File'Length + 1);
+      Result : int;
+   begin
+      Interfaces.C.To_C (Item       => File,
+                         Target     => F,
+                         Count      => C,
+                         Append_Nul => True);
+      Result := Use_Certificate_File (Ssl, F (1 .. C), int (Format));
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
+      end if;
+   end Use_Certificate_File;
+
+   function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : char_array;
+                                    Size    : long;
+                                    Format  : int)
+                                    return int with
+      Convention    => C,
+      External_Name => "wolfSSL_use_certificate_buffer",
+      Import        => True;
+
+   function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : char_array;
+                                    Format  : File_Format)
+                                    return Subprogram_Result is
+      Result : int;
+   begin
+      Result := Use_Certificate_Buffer (Ssl, Input,
+                                        Input'Length, int (Format));
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
+      end if;
+   end Use_Certificate_Buffer;
+
+   function Use_Private_Key_File (Ssl     : WolfSSL_Type;
+                                  File    : char_array;
+                                  Format  : int)
+                                   return int with
+      Convention    => C,
+      External_Name => "wolfSSL_use_PrivateKey_file",
+      Import        => True;
+
+   function Use_Private_Key_File (Ssl     : WolfSSL_Type;
+                                  File    : String;
+                                  Format  : File_Format)
+                                  return Subprogram_Result is
+      C : size_t;
+      F : char_array (1 .. File'Length + 1);
+      Result : int;
+   begin
+      Interfaces.C.To_C (Item       => File,
+                         Target     => F,
+                         Count      => C,
+                         Append_Nul => True);
+      Result := Use_Private_Key_File (Ssl, F (1 .. C), int (Format));
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
+      end if;
+   end Use_Private_Key_File;
+
+   function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : char_array;
+                                    Size    : long;
+                                    Format  : int)
+                                    return int with
+     Convention    => C,
+     External_Name => "wolfSSL_use_PrivateKey_buffer",
+     Import        => True;
+
+   function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : Byte_Array;
+                                    Format  : File_Format)
+                                    return Subprogram_Result is
+      Result : int;
+   begin
+      Result := Use_Private_Key_Buffer (Ssl, Input,
+                                        Input'Length, int (Format));
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
+      end if;
+   end Use_Private_Key_Buffer;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
      Convention    => C,
@@ -581,12 +720,12 @@ package body WolfSSL is
       External_Name => "wolfSSL_free",
       Import        => True;
 
-   procedure Free (Ssl : in out Optional_WolfSSL) is
+   procedure Free (Ssl : in out WolfSSL_Type) is
    begin
-      if Ssl.Exists then
-         WolfSSL_Free (Ssl.Instance);
+      if Ssl /= null then
+         WolfSSL_Free (Ssl);
       end if;
-      Ssl := (Exists => False);
+      Ssl := null;
    end Free;
 
    Result : constant int := Initialize_WolfSSL;

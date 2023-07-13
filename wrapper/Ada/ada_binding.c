@@ -24,10 +24,10 @@
 
 #include <wolfssl/ssl.h>
 
-// These functions give access to the integer values of the enumeration
-// constants used in WolfSSL. These functions make it possible
-// for the WolfSSL implementation to change the values of the constants
-// without the need to make a corresponding change in the Ada code.
+/* These functions give access to the integer values of the enumeration
+   constants used in WolfSSL. These functions make it possible
+   for the WolfSSL implementation to change the values of the constants
+   without the need to make a corresponding change in the Ada code. */
 extern int get_wolfssl_success(void);
 extern int get_wolfssl_verify_none(void);
 extern int get_wolfssl_verify_peer(void);

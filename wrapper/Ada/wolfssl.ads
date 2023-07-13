@@ -1,10 +1,28 @@
+-- wolfssl.ads
+--
+-- Copyright (C) 2006-2023 wolfSSL Inc.
+--
+-- This file is part of wolfSSL.
+--
+-- wolfSSL is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; either version 2 of the License, or
+-- (at your option) any later version.
+--
+-- wolfSSL is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+--
+
 with Interfaces.C;
 
 --  This package is annotated "with SPARK_Mode" that SPARK can verify
---  the API of this package is used correctly. The body of this package
---  cannot be formally verified since it calls C functions and uses
---  access-to-object types which are not part of the SPARK subset of
---  the Ada programming language.
+--  the API of this package is used correctly.
 package WolfSSL with SPARK_Mode is
 
    procedure Finalize;
@@ -21,6 +39,7 @@ package WolfSSL with SPARK_Mode is
 
    subtype char_array is Interfaces.C.char_array;  --  Remove?
 
+   subtype Byte_Type  is Interfaces.C.char;
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
    subtype Byte_Array is Interfaces.C.char_array;
 
@@ -28,25 +47,22 @@ package WolfSSL with SPARK_Mode is
 
    type Context_Type is limited private;
 
-   type Optional_Context (Exists : Boolean := False) is record
-      case Exists is
-         when True  => Instance : Context_Type;
-         when False => null;
-      end case;
-   end record;
+   function Is_Valid (Context : Context_Type) return Boolean;
 
    type Method_Type is limited private;
 
    function TLSv1_2_Server_Method return Method_Type;
    function TLSv1_3_Server_Method return Method_Type;
+   function TLSv1_3_Client_Method return Method_Type;
 
    procedure Create_Context (Method  : Method_Type;
-                             Context : out Optional_Context);
+                             Context : out Context_Type);
    --  Create and initialize a WolfSSL context.
+   --  If successful Is_Valid (Context) = True, otherwise False.
 
-   procedure Free (Context : in out Optional_Context) with
-      Pre  => Context.Exists,
-      Post => not Context.Exists;
+   procedure Free (Context : in out Context_Type) with
+      Pre  => Is_Valid (Context),
+      Post => not Is_Valid (Context);
 
    type Mode_Type is private;
 
@@ -67,7 +83,8 @@ package WolfSSL with SPARK_Mode is
    Verify_Default : constant Mode_Type;
 
    procedure Set_Verify (Context : Context_Type;
-                         Mode    : Mode_Type);
+                         Mode    : Mode_Type) with
+      Pre => Is_Valid (Context);
 
    type File_Format is private;
 
@@ -78,58 +95,89 @@ package WolfSSL with SPARK_Mode is
    function Use_Certificate_File (Context : Context_Type;
                                   File    : String;
                                   Format  : File_Format)
-                                  return Subprogram_Result;
+                                  return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    function Use_Certificate_Buffer (Context : Context_Type;
                                     Input   : char_array;
                                     Format  : File_Format)
-                                    return Subprogram_Result;
+                                    return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    function Use_Private_Key_File (Context : Context_Type;
                                   File    : String;
                                   Format  : File_Format)
-                                  return Subprogram_Result;
+                                  return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    function Use_Private_Key_Buffer (Context : Context_Type;
                                     Input   : Byte_Array;
                                     Format  : File_Format)
-                                    return Subprogram_Result;
+                                    return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    function Load_Verify_Locations (Context : Context_Type;
                                    File    : String;
                                    Path    : String)
-                                   return Subprogram_Result;
+                                   return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    function Load_Verify_Buffer (Context : Context_Type;
                                 Input   : Byte_Array;
                                 Format  : File_Format)
-                                return Subprogram_Result;
+                                return Subprogram_Result with
+      Pre => Is_Valid (Context);
 
    type WolfSSL_Type is limited private;
 
-   type Optional_WolfSSL (Exists : Boolean := False) is record
-      case Exists is
-         when True  => Instance : WolfSSL_Type;
-         when False => null;
-      end case;
-   end record;
+   function Is_Valid (Ssl : WolfSSL_Type) return Boolean;
 
    procedure Create_WolfSSL (Context : Context_Type;
-                             Ssl     : out Optional_WolfSSL);
+                             Ssl     : out WolfSSL_Type) with
+      Pre => Is_Valid (Context);
+
+
+   function Use_Certificate_File (Ssl     : WolfSSL_Type;
+                                  File    : String;
+                                  Format  : File_Format)
+                                  return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
+
+   function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : char_array;
+                                    Format  : File_Format)
+                                    return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
+
+   function Use_Private_Key_File (Ssl     : WolfSSL_Type;
+                                  File    : String;
+                                  Format  : File_Format)
+                                  return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
+
+   function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
+                                    Input   : Byte_Array;
+                                    Format  : File_Format)
+                                    return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
 
    --  Attach wolfSSL to the socket.
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
-                    return Subprogram_Result;
+                    return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
 
-   procedure Keep_Arrays (Ssl : WolfSSL_Type);
+   procedure Keep_Arrays (Ssl : WolfSSL_Type) with
+      Pre => Is_Valid (Ssl);
    --  Don't free temporary arrays at end of handshake.
 
-   procedure Free_Arrays (Ssl : WolfSSL_Type);
+   procedure Free_Arrays (Ssl : WolfSSL_Type) with
+      Pre => Is_Valid (Ssl);
    --  User doesn't need temporary arrays anymore, Free.
 
    function Accept_Connection (Ssl : WolfSSL_Type)
-                               return Subprogram_Result;
+                               return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
 
    --  This record type has discriminants with default values to be able
    --  to compile this code under the restriction no secondary stack.
@@ -141,18 +189,23 @@ package WolfSSL with SPARK_Mode is
       end case;
    end record;
 
-   function Read (Ssl : WolfSSL_Type) return Read_Result;
+   function Read (Ssl : WolfSSL_Type) return Read_Result with
+      Pre => Is_Valid (Ssl);
 
    --  The number of bytes written is returned.
-   function Write (Ssl  : WolfSSL_Type; Data : Byte_Array) return Integer;
+   function Write (Ssl  : WolfSSL_Type;
+                   Data : Byte_Array) return Integer with
+      Pre => Is_Valid (Ssl);
 
-   function Shutdown (Ssl : WolfSSL_Type) return Subprogram_Result;
+   function Shutdown (Ssl : WolfSSL_Type) return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
 
-   procedure Free (Ssl : in out Optional_WolfSSL) with
-      Pre  => Ssl.Exists,
-      Post => not Ssl.Exists;
+   procedure Free (Ssl : in out WolfSSL_Type) with
+      Pre  => Is_Valid (Ssl),
+      Post => not Is_Valid (Ssl);
 
-   function Connect (Ssl : WolfSSL_Type) return Subprogram_Result;
+   function Connect (Ssl : WolfSSL_Type) return Subprogram_Result with
+      Pre => Is_Valid (Ssl);
 
 private
    pragma SPARK_Mode (Off);

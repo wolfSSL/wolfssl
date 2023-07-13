@@ -22,7 +22,7 @@ project Default is
 
    package Compiler is
       for Switches ("C") use
-         ("-DWOLFSSL_USER_SETTINGS",
+         ("-DWOLFSSL_USER_SETTINGS", --  Use the user_settings.h file.
           "-Wno-pragmas",
           "-Wall",
           "-Wextra",
@@ -56,6 +56,8 @@ project Default is
           "-Wunused-variable",
           "-Wwrite-strings",
           "-fwrapv");
+
+      for Switches ("Ada") use ("-g");
    end Compiler;
 
    package Linker is
@@ -65,5 +67,9 @@ project Default is
       for Switches ("Ada") use
          ("-lm");  --  To include the math library (used by WolfSSL).
    end Linker;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");  --  To include stack traces.
+   end Binder;
 
 end Default;

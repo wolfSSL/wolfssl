@@ -144,7 +144,7 @@ static void sig_handler(const int sig)
 #endif
 
 
-// To execute the application: ./main
+/* To execute the application: ./main */
 int main(int argc, char** argv)
 {
     int ret = 0;

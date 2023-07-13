@@ -1,3 +1,24 @@
+-- tls_server.adb
+--
+-- Copyright (C) 2006-2023 wolfSSL Inc.
+--
+-- This file is part of wolfSSL.
+--
+-- wolfSSL is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; either version 2 of the License, or
+-- (at your option) any later version.
+--
+-- wolfSSL is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+--
+
 --  Ada Standard Library packages.
 with Ada.Characters.Handling;
 with Ada.Command_Line;
@@ -81,9 +102,9 @@ package body Tls_Server is
 
       Ch : Character;
 
-      Ssl : WolfSSL.Optional_WolfSSL;
+      Ssl : WolfSSL.WolfSSL_Type;
 
-      Ctx : WolfSSL.Optional_Context;
+      Ctx : WolfSSL.Context_Type;
       Result : WolfSSL.Subprogram_Result;
       M : Messages.Bounded_String;
       Shall_Continue : Boolean := True;
@@ -107,7 +128,7 @@ package body Tls_Server is
       --  Create and initialize WOLFSSL_CTX.
       WolfSSL.Create_Context (Method  => WolfSSL.TLSv1_3_Server_Method,
                               Context => Ctx);
-      if not Ctx.Exists then
+      if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
          Set (Exit_Status_Failure);
          return;
@@ -115,11 +136,11 @@ package body Tls_Server is
 
       --  Require mutual authentication.
       WolfSSL.Set_Verify
-         (Context => Ctx.Instance,
+         (Context => Ctx,
           Mode    => WolfSSL.Verify_Peer & WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
       --  Load server certificates into WOLFSSL_CTX.
-      Result := WolfSSL.Use_Certificate_File (Context => Ctx.Instance,
+      Result := WolfSSL.Use_Certificate_File (Context => Ctx,
                                               File    => CERT_FILE,
                                               Format  => WolfSSL.Format_Pem);
       if Result = Failure then
@@ -132,7 +153,7 @@ package body Tls_Server is
       end if;
 
       --  Load server key into WOLFSSL_CTX.
-      Result := WolfSSL.Use_Private_Key_File (Context => Ctx.Instance,
+      Result := WolfSSL.Use_Private_Key_File (Context => Ctx,
                                               File    => KEY_FILE,
                                               Format  => WolfSSL.Format_Pem);
       if Result = Failure then
@@ -144,10 +165,8 @@ package body Tls_Server is
          return;
       end if;
 
-      Put_Line ("success to here at least");
-
       --  Load client certificate as "trusted" into WOLFSSL_CTX.
-      Result := WolfSSL.Load_Verify_Locations (Context => Ctx.Instance,
+      Result := WolfSSL.Load_Verify_Locations (Context => Ctx,
                                                File    => CA_FILE,
                                                Path    => "");
       if Result = Failure then
@@ -172,18 +191,24 @@ package body Tls_Server is
          end;
 
          --  Create a WOLFSSL object.
-         WolfSSL.Create_WolfSSL (Context => Ctx.Instance, Ssl => Ssl);
-         if not Ssl.Exists then
+         WolfSSL.Create_WolfSSL (Context => Ctx, Ssl => Ssl);
+         if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
             Set (Exit_Status_Failure);
             return;
          end if;
 
          --  Attach wolfSSL to the socket.
-         Result := WolfSSL.Attach (Ssl    => Ssl.Instance,
+         Result := WolfSSL.Attach (Ssl    => Ssl,
                                    Socket => GNAT.Sockets.To_C (C));
+         if Result = Failure then
+            Put_Line ("ERROR: Failed to set the file descriptor.");
+            Set (Exit_Status_Failure);
+            return;
+         end if;
+
          --  Establish TLS connection.
-         Result := WolfSSL.Accept_Connection (Ssl.Instance);
+         Result := WolfSSL.Accept_Connection (Ssl);
          if Result = Failure then
             Put_Line ("Accept error.");
             Set (Exit_Status_Failure);
@@ -192,7 +217,7 @@ package body Tls_Server is
 
          Put_Line ("Client connected successfully.");
 
-         Input := WolfSSL.Read (Ssl.Instance);
+         Input := WolfSSL.Read (Ssl);
 
          if Input.Result /= Success then
             Put_Line ("Read error.");
@@ -221,12 +246,12 @@ package body Tls_Server is
             end if;
          end if;
 
-         Bytes_Written := WolfSSL.Write (Ssl.Instance, Reply);
+         Bytes_Written := WolfSSL.Write (Ssl, Reply);
          if Bytes_Written /= Reply'Length then
             Put_Line ("ERROR: failed to write.");
          end if;
 
-         Result := WolfSSL.Shutdown (Ssl.Instance);
+         Result := WolfSSL.Shutdown (Ssl);
          WolfSSL.Free (Ssl);
          GNAT.Sockets.Close_Socket (C);
 
