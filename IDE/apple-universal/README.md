@@ -1,6 +1,8 @@
 # Overview
 This example shows how to build a wolfSSL static library for Apple targets on all architectures using GNU autotools/`configure` and demonstrates how to create a [universal binary framework]() suitable for use in an Xcode project. It also provides a demo Xcode project using the wolfSSL framework in a simple multiplatform app.
 
+The example was created using Xcode version 14.3.1.
+
 # Why?
 Configuring and building wolfSSL through the `configure` interface can be simpler and more user friendly than manually adding the wolfSSL source files to your project and customizing through `user_settings.h`. Building via `configure` also streamlines integration with other open-source projects that expect an installation directory, such as `cURL`'s `--with-wolfssl` option. Finally, some developer teams might prefer to build wolfSSL once with the desired settings and then distribute it as a library framework for app developers to use. Packaging wolfSSL as a framework makes it highly portable and allows for drag-and-drop integration into Xcode projects without needing to worry about compiling the library every time they build their app.
 
@@ -22,7 +24,7 @@ This example consists of a build script and an Xcode example project. The build 
     │   ├── ContentView.swift # <-- boilerplate swiftUI modified to call wolfSSL test driver on UI init
     │   ├── wolfssl_multiplatformApp.swift  # <-- basic swift hello world
 
-    │   ├── simple_client_example.c # <-- Simple TLS example that conects to wolfssl.com
+    │   ├── simple_client_example.c # <-- Simple TLS example that connects to wolfssl.com
     │   ├── simple_client_example.h
 
     │   ├── wolfssl-multiplatform-Bridging-Header.h # <-- "bridging header" that exposes wolfssl_test_driver app to swift
