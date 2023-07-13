@@ -66,6 +66,7 @@ enum {
 
     MEMORY_E           = -125,  /* out of memory error */
     VAR_STATE_CHANGE_E = -126,  /* var state modified by different thread */
+    DEGRADED_FIPS_E    = -127,  /* FIPS Module in degraded mode */
 
     RSA_WRONG_TYPE_E   = -130,  /* RSA wrong block type for RSA function */
     RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or
