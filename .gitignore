@@ -344,6 +344,8 @@ doc/pdf
 
 # XCODE Index
 IDE/XCODE/Index
+IDE/**/xcshareddata
+IDE/**/DerivedData
 
 # ARM DS-5 && Eclipse
 \.settings/
