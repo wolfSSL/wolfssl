@@ -54,7 +54,9 @@ int simple_client_example(void)
     }
 
     /* Create a TCP socket */
-    sockfd = socket(server_addr->ai_family, server_addr->ai_socktype, server_addr->ai_protocol);
+    sockfd = socket(server_addr->ai_family,
+                    server_addr->ai_socktype,
+                    server_addr->ai_protocol);
     if (sockfd == -1) {
         perror("Failed to create socket");
         freeaddrinfo(server_addr);
@@ -84,10 +86,12 @@ int simple_client_example(void)
     }
     
     /* Load CA certificate into WOLFSSL_CTX
-     * NOTE: CERT_PATH macro is set relative to Xcode $(PROJECT_DIR) environment variable
-     *   in the preprocessor macros section of the project build settings to avoid hardcoding
-     *   a path in the source code. The CA cert is located at wolfssl/certs/wolfssl-website-ca.pem. */
-    if ((ret = wolfSSL_CTX_load_verify_locations(ctx, CERT_PATH, NULL)) != WOLFSSL_SUCCESS) {
+     * NOTE: CERT_PATH macro is set relative to Xcode $(PROJECT_DIR) environment
+     * variable in the preprocessor macros section of the project build settings
+     * to avoid hardcoding a path in the source code. The CA cert is located at
+     * wolfssl/certs/wolfssl-website-ca.pem. */
+    ret = wolfSSL_CTX_load_verify_locations(ctx, CERT_PATH, NULL);
+    if (ret != WOLFSSL_SUCCESS) {
         printf("ERROR: failed to load %s, please check the file.\n", CERT_PATH);
         wolfSSL_CTX_free(ctx);
         close(sockfd);
