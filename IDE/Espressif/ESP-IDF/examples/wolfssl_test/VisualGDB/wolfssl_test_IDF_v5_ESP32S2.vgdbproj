@@ -71,10 +71,10 @@
           <Subdirectory>esp-idf/v5.0</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
-        <COMPort>COM23</COMPort>
+        <COMPort>COM30</COMPort>
         <SuppressTestPrerequisiteChecks>false</SuppressTestPrerequisiteChecks>
         <UseCCache>false</UseCCache>
-        <DeviceID>ESP32</DeviceID>
+        <DeviceID>ESP32S2</DeviceID>
       </ESPIDFExtension>
     </ProjectModeSettings>
   </Build>
@@ -93,7 +93,7 @@
   </CustomDebug>
   <DeviceTerminalSettings>
     <Connection xsi:type="com.sysprogs.terminal.connection.serial">
-      <ComPortName>COM23</ComPortName>
+      <ComPortName>COM24</ComPortName>
       <AdvancedSettings>
         <BaudRate>115200</BaudRate>
         <DataBits>8</DataBits>
@@ -220,7 +220,7 @@
     <DebugMethod>
       <ID>openocd</ID>
       <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/ftdi/tigard.cfg -c "adapter_khz 15000" -f target/esp32.cfg</CommandLine>
+        <CommandLine>-f interface/ftdi/tigard.cfg -f target/esp32s2.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />
