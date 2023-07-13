@@ -4687,7 +4687,7 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
 
     if (aes->cOver > 0) {
         /* Cipher text block incomplete. */
-        over = aes->cOver; 
+        over = aes->cOver;
     }
     if (over > 0) {
         /* Zeroize the unused part of the block. */
@@ -6038,7 +6038,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
-    
+
     if (ret == 0) {
         AES_ECB_encrypt(iv, aes->gcm.H, AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);

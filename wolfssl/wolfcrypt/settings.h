@@ -2229,8 +2229,15 @@ extern void uITRON4_free(void *p) ;
 
 /* Ed25519 Configs */
 #ifdef HAVE_ED25519
-    /* By default enable sign, verify, key export and import */
+    /* By default enable make key, sign, verify, key export and import */
+    #ifndef NO_ED25519_MAKE_KEY
+        #undef HAVE_ED25519_MAKE_KEY
+        #define HAVE_ED25519_MAKE_KEY
+    #endif
     #ifndef NO_ED25519_SIGN
+        #ifndef HAVE_ED25519_MAKE_KEY
+           #error "Need HAVE_ED25519_MAKE_KEY with HAVE_ED25519_SIGN"
+        #endif
         #undef HAVE_ED25519_SIGN
         #define HAVE_ED25519_SIGN
     #endif

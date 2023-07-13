@@ -1318,7 +1318,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 extern void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len);
 
-/* ARMv8 hardware acceleration Aarch32 */
+/* ARMv8 hardware acceleration Aarch32 and Thumb2 */
 static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 {
     int ret = 0;

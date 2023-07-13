@@ -8922,6 +8922,7 @@ exit:
 #ifdef HAVE_ED25519
 void bench_ed25519KeyGen(void)
 {
+#ifdef HAVE_ED25519_MAKE_KEY
     ed25519_key genKey;
     double start;
     int    i, count;
@@ -8938,12 +8939,15 @@ void bench_ed25519KeyGen(void)
         count += i;
     } while (bench_stats_check(start));
     bench_stats_asym_finish("ED", 25519, desc[2], 0, count, start, 0);
+#endif /* HAVE_ED25519_MAKE_KEY */
 }
 
 
 void bench_ed25519KeySign(void)
 {
+#ifdef HAVE_ED25519_MAKE_KEY
     int    ret;
+#endif
     ed25519_key genKey;
 #ifdef HAVE_ED25519_SIGN
     double start;
@@ -8956,11 +8960,13 @@ void bench_ed25519KeySign(void)
 
     wc_ed25519_init(&genKey);
 
+#ifdef HAVE_ED25519_MAKE_KEY
     ret = wc_ed25519_make_key(&gRng, ED25519_KEY_SIZE, &genKey);
     if (ret != 0) {
         printf("ed25519_make_key failed\n");
         return;
     }
+#endif
 
 #ifdef HAVE_ED25519_SIGN
     /* make dummy msg */

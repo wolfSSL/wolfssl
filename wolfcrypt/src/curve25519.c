@@ -325,13 +325,10 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         }
     }
 #endif
-    if (ret != 0) {
-        ForceZero(&o, sizeof(o));
-        return ret;
+    if (ret == 0) {
+        curve25519_copy_point(out, o.point, endian);
+        *outlen = CURVE25519_KEYSIZE;
     }
-
-    curve25519_copy_point(out, o.point, endian);
-    *outlen = CURVE25519_KEYSIZE;
 
     ForceZero(&o, sizeof(o));
 
