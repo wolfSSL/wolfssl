@@ -477,7 +477,7 @@ static int get_abs_idx(int relative_idx)
         return (int)((wc_errors.head_idx + wc_errors.count - 1)
                       % ERROR_QUEUE_MAX);
     }
-    return (int)((wc_errors.head_idx + relative_idx) % ERROR_QUEUE_MAX);
+    return (int)((wc_errors.head_idx + (size_t)relative_idx) % ERROR_QUEUE_MAX);
 }
 
 /**
@@ -526,13 +526,13 @@ static int pass_entry(struct wc_error_entry *entry,
 static void set_entry(struct wc_error_entry *entry, int error,
                       const char *file, const char *reason, int line)
 {
-    int sz;
+    size_t sz;
 
     XMEMSET(entry, 0, sizeof(struct wc_error_entry));
     entry->err = error;
 
     entry->line  = line;
-    sz = (int)XSTRLEN(reason);
+    sz = XSTRLEN(reason);
     if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
         sz = WOLFSSL_MAX_ERROR_SZ - 1;
     }
@@ -541,7 +541,7 @@ static void set_entry(struct wc_error_entry *entry, int error,
         entry->reason[WOLFSSL_MAX_ERROR_SZ - 1] = '\0';
     }
 
-    sz = (int)XSTRLEN(file);
+    sz = XSTRLEN(file);
     if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
         sz = WOLFSSL_MAX_ERROR_SZ - 1;
     }
@@ -628,7 +628,7 @@ void wc_RemoveErrorNode(int relative_idx)
         if (abs_idx >= (int)wc_errors.head_idx) {
             /* removed entry sits "above" head (or is head),
              * move entries below it "up" */
-            move_count = (abs_idx - (int)wc_errors.head_idx);
+            move_count = (size_t)abs_idx - wc_errors.head_idx;
             if (move_count > 0) {
                 XMEMMOVE(&wc_errors.entries[wc_errors.head_idx + 1],
                          &wc_errors.entries[wc_errors.head_idx],
@@ -642,7 +642,7 @@ void wc_RemoveErrorNode(int relative_idx)
              * move entries above it "down" */
             int last_idx = get_abs_idx(-1);
             if (last_idx >= abs_idx) {  /* this SHOULD always be true */
-                move_count = (last_idx - abs_idx);
+                move_count = (size_t)(last_idx - abs_idx);
                 if (move_count > 0) {
                     XMEMMOVE(&wc_errors.entries[abs_idx],
                              &wc_errors.entries[abs_idx + 1],
@@ -746,7 +746,7 @@ unsigned long wc_GetErrorNodeErr(void)
             wc_ClearErrorNodes();
         }
     }
-    return ret;
+    return (unsigned long)ret;
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -1495,7 +1495,7 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d line:%u file:%s",
                     error, line, file);
 
-            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+            if (wc_AddErrorNode(error, (int)line, buffer, (char*)file) != 0) {
                 WOLFSSL_MSG("Error creating logging node");
                 /* with void function there is no return here, continue on
                  * to unlock mutex and log what buffer was created. */

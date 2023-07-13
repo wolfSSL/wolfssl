@@ -233,7 +233,7 @@ static int password_from_userdata(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     /* Copy user data into buffer. */
-    strncpy(passwd, (const char*)userdata, sz);
+    strncpy(passwd, (const char*)userdata, (size_t)sz);
     passwd[sz - 1] = '\0';
     /* Return length of password returned. */
     return (int)XSTRLEN((const char*)passwd);
@@ -397,7 +397,7 @@ static int ConvPemToDer(char* in, word32 offset, word32 len, DerBuffer** der,
     /* Remove padding from encryption if requested. */
     if ((ret == 0) && padding) {
         unsigned char pad = (*der)->buffer[(*der)->length - 1];
-        int i;
+        word32 i;
 
         /* Simple padding validation. */
         if ((pad == 0) || (pad > (*der)->length)) {
@@ -553,8 +553,8 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
     if (ret == 0) {
         /* Get length of encrypted DER data. */
         ret = wc_CreateEncryptedPKCS8Key(in, in_len, NULL, enc_len, password,
-            (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, (int)salt_sz,
-            iterations, &rng, NULL);
+            (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, salt_sz,
+            (int)iterations, &rng, NULL);
         if (ret == LENGTH_ONLY_E) {
             ret = 0;
         }
@@ -572,8 +572,8 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
     if (ret == 0) {
         /* Encrypt DER data. */
         ret = wc_CreateEncryptedPKCS8Key(in, in_len, *enc, enc_len, password,
-            (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, (int)salt_sz,
-            iterations, &rng, NULL);
+            (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, salt_sz,
+            (int)iterations, &rng, NULL);
         if (ret > 0) {
             ret = 0;
         }
@@ -601,7 +601,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
 {
     int ret = 0;
     unsigned char* pem = NULL;
-    int pem_len = 0;
+    unsigned int pem_len = 0;
     /* Set point to start looking and length. */
     unsigned char* der = in + offset;
     word32 der_len = len - offset;
@@ -611,7 +611,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
     if (ret <= 0) {
         fprintf(stderr, "Could not determine length of PEM\n");
     }
-    pem_len = ret;
+    pem_len = (unsigned int)ret;
     if (ret > 0) {
         ret = 0;
     }
@@ -631,7 +631,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
         }
         if (ret > 0) {
             *out = pem;
-            *out_len = ret;
+            *out_len = (word32)ret;
             ret = 0;
         }
     }

@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
     /* Default to reading STDIN. */
     FILE* fp = stdin;
     int file_format = FORMAT_DER;
-    int indent = 0;
+    word32 indent = 0;
     int pem_skip = 0;
 
     /* Reset options. */
@@ -376,7 +376,7 @@ int main(int argc, char* argv[])
             argc--;
             argv++;
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_LENGTH,
-                atoi(argv[0]));
+                (word32)atoi(argv[0]));
         }
         /* Do not show text representations of ASN.1 item data. */
         else if ((strcmp(argv[0], "-n") == 0) ||
@@ -398,7 +398,7 @@ int main(int argc, char* argv[])
             argc--;
             argv++;
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_OFFSET,
-                atoi(argv[0]));
+                (word32)atoi(argv[0]));
         }
         /* Show wolfSSL OID value for all OBJECT_IDs. */
         else if ((strcmp(argv[0], "-O") == 0) ||

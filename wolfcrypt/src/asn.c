@@ -11975,7 +11975,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
         ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
-                         cert->subjectKeyHash, HashIdAlg((int)cert->signatureOID));
+                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
     #endif
     }
 
@@ -12128,7 +12128,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         /* Calculate the hash of the subject public key for OCSP. */
         ret = CalcHashId_ex(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.data,
                          dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length,
-                         cert->subjectKeyHash, HashIdAlg((int)cert->signatureOID));
+                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
     }
     if (ret == 0) {
     #endif
@@ -12452,7 +12452,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
  * @param [in] oidSum  Signature id.
  * @return  Hash algorithm id.
  */
-int HashIdAlg(int oidSum)
+int HashIdAlg(word32 oidSum)
 {
     (void)oidSum;
 
@@ -12912,9 +12912,9 @@ static const byte rdnChoice[] = {
 static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 {
     int ret = 0;
-    int nameSz;
+    size_t nameSz;
     char tmpName[WOLFSSL_MAX_IPSTR] = {0};
-    char* ip;
+    unsigned char* ip;
 
     if (entry == NULL || entry->type != ASN_IP_TYPE) {
         return BAD_FUNC_ARG;
@@ -12925,7 +12925,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         WOLFSSL_MSG("Unexpected IP size");
         return BAD_FUNC_ARG;
     }
-    ip = entry->name;
+    ip = (unsigned char*)entry->name;
 
     /* store IP addresses as a string */
     if (entry->len == WOLFSSL_IP4_ADDR_LEN) {
@@ -12939,7 +12939,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
     }
 
     if (entry->len == WOLFSSL_IP6_ADDR_LEN) {
-        int i;
+        size_t i;
         for (i = 0; i < 8; i++) {
             if (XSNPRINTF(tmpName + i * 5, sizeof(tmpName) - i * 5,
                     "%02X%02X%s", 0xFF & ip[2 * i], 0xFF & ip[2 * i + 1],
@@ -12952,8 +12952,9 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         }
     }
 
-    nameSz = (int)XSTRLEN(tmpName);
-    entry->ipString = (char*)XMALLOC(nameSz + 1, heap, DYNAMIC_TYPE_ALTNAME);
+    nameSz = XSTRLEN(tmpName);
+    entry->ipString = (char*)XMALLOC(nameSz + 1, heap,
+        DYNAMIC_TYPE_ALTNAME);
     if (entry->ipString == NULL) {
         ret = MEMORY_E;
     }
@@ -13951,7 +13952,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
     if (CalcHashId_ex(input + srcIdx, maxIdx - srcIdx, hash,
-            HashIdAlg((int)cert->signatureOID)) != 0) {
+            HashIdAlg(cert->signatureOID)) != 0) {
         ret = ASN_PARSE_E;
     }
 
@@ -14030,7 +14031,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 if (nid != 0) {
                     /* Add an entry to the X509_NAME. */
                     if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc, str,
-                            strLen, -1, -1) != WOLFSSL_SUCCESS) {
+                            (int)strLen, -1, -1) != WOLFSSL_SUCCESS) {
                         ret = ASN_PARSE_E;
                     }
                 }
@@ -14050,15 +14051,17 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
              defined(HAVE_LIGHTY)) && \
             (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-            dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
-            XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
+            dName->rawLen = (int)min((word32)cert->issuerRawLen,
+                WC_ASN_NAME_MAX);
+            XMEMCPY(dName->raw, cert->issuerRaw, (size_t)dName->rawLen);
         #endif
             cert->issuerName = dName;
         }
         else {
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-            dName->rawLen = min(cert->subjectRawLen, WC_ASN_NAME_MAX);
-            XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
+            dName->rawLen = (int)min((word32)cert->subjectRawLen,
+                WC_ASN_NAME_MAX);
+            XMEMCPY(dName->raw, cert->subjectRaw, (size_t)dName->rawLen);
         #endif
             cert->subjectName = dName;
         }
@@ -14336,7 +14339,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     }
     idx = 4; /* use idx now for char buffer */
 
-    if (XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
+    if (XSNPRINTF(buf + idx, (size_t)(len - idx), "%2d %02d:%02d:%02d %d GMT",
               t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900)
         >= len - idx)
     {
@@ -15239,7 +15242,7 @@ word32 SetOthername(void *name, byte *output)
 {
     WOLFSSL_ASN1_OTHERNAME *nm = (WOLFSSL_ASN1_OTHERNAME *)name;
     char *nameStr = NULL;
-    int nameSz = 0;
+    word32 nameSz = 0;
     word32 len = 0;
 
     if ((nm == NULL) || (nm->value == NULL)) {
@@ -15248,7 +15251,7 @@ word32 SetOthername(void *name, byte *output)
     }
 
     nameStr = nm->value->value.utf8string->data;
-    nameSz = nm->value->value.utf8string->length;
+    nameSz = (word32)nm->value->value.utf8string->length;
 
     len = nm->type_id->objSz +
           SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL) +
@@ -17573,7 +17576,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         ret = SetDNSEntry(cert, (const char*)(input + idx), len, ASN_IP_TYPE,
                 &cert->altNames);
         if (ret == 0) {
-            idx += len;
+            idx += (word32)len;
         }
     }
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
@@ -18757,7 +18760,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
                 /* Set CaIssuers entry */
                 GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
                         &cert->extAuthInfoCaIssuer, &sz32);
-                cert->extAuthInfoCaIssuerSz = sz32;
+                cert->extAuthInfoCaIssuerSz = (int)sz32;
                 count++;
             }
             #endif
@@ -18940,12 +18943,12 @@ static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
     if (ret > 0) {
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extSubjKeyIdSrc = &input[idx];
-        cert->extSubjKeyIdSz = length;
+        cert->extSubjKeyIdSz = (word32)length;
     #endif /* OPENSSL_EXTRA */
 
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(input + idx, length, cert->extSubjKeyId,
-            HashIdAlg((int)cert->signatureOID));
+            HashIdAlg(cert->signatureOID));
     }
 
     return ret;
@@ -19126,7 +19129,7 @@ static int DecodeExtKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         /* Keep reference for WOLFSSL_X509. */
         cert->extExtKeyUsageSrc = input + idx;
-        cert->extExtKeyUsageSz = length;
+        cert->extExtKeyUsageSz = (word32)length;
     #endif
     }
 
@@ -19563,7 +19566,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
         w = BUFFER_E;
         goto exit;
     }
-    outIdx += w;
+    outIdx += (word32)w;
     val = 0;
 
     while (inIdx < inSz && outIdx < outSz) {
@@ -19581,7 +19584,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
                 w = BUFFER_E;
                 goto exit;
             }
-            outIdx += w;
+            outIdx += (word32)w;
             val = 0;
         }
         inIdx++;
@@ -19872,7 +19875,7 @@ enum {
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  */
-static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
+static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
@@ -19969,7 +19972,8 @@ static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
                 ret = ASN_PARSE_E;
             }
             if (ret == 0) {
-                XMEMCPY(cert->countryOfCitizenship, setData + setIdx, cuLen);
+                XMEMCPY(cert->countryOfCitizenship, setData + setIdx,
+                    (size_t)cuLen);
                 cert->countryOfCitizenship[COUNTRY_CODE_LEN] = 0;
             }
         }
@@ -19994,7 +19998,7 @@ static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
+static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
@@ -20047,11 +20051,11 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
 
         /* Set caRepo entry */
         if (b == GENERALNAME_URI && oid == AIA_CA_REPO_OID) {
-            cert->extSubjInfoAccCaRepoSz = length;
+            cert->extSubjInfoAccCaRepoSz = (word32)length;
             cert->extSubjInfoAccCaRepo = input + idx;
             break;
         }
-        idx += length;
+        idx += (word32)length;
     }
 
     if (cert->extSubjInfoAccCaRepo == NULL ||
@@ -21522,7 +21526,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int GetAKIHash(const byte* input, word32 maxIdx, int sigOID,
+static int GetAKIHash(const byte* input, word32 maxIdx, word32 sigOID,
                       byte* hash, int* set, void* heap)
 {
     /* AKI and Certificate Extenion ASN.1 templates are the same length. */
@@ -21571,9 +21575,9 @@ static int GetAKIHash(const byte* input, word32 maxIdx, int sigOID,
                     *set = 1;
                     /* Get the hash or hash of the hash if wrong size. */
                     ret = GetHashId(
-                            dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
-                            dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                            hash, HashIdAlg(sigOID));
+                        dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
+                        (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
+                        hash, HashIdAlg(sigOID));
                 }
                 break;
             }
@@ -22120,7 +22124,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
             /* Extract public key information. */
             pubKey = ca->publicKey;
             pubKeySz = ca->pubKeySize;
-            pubKeyOID = ca->keyOID;
+            pubKeyOID = (int)ca->keyOID;
         }
         else {
             /* No public key to verify with. */
@@ -22142,7 +22146,8 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 
             /* Check signature. */
             ret = ConfirmSignature(sigCtx, tbs, tbsSz, pubKey, pubKeySz,
-                pubKeyOID, sig, sigSz, sigOID, sigParams, sigParamsSz, NULL);
+                (word32)pubKeyOID, sig, sigSz, sigOID, sigParams, sigParamsSz,
+                NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("Confirm signature failed");
             }
@@ -22281,7 +22286,7 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
             }
             /* Skip data if required. */
             else if (op.op == DECODE_INSTR_OVER) {
-                o += l;
+                o += (word32)l;
             }
         }
     }
@@ -22290,7 +22295,7 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
         /* Return the public key data and length.
          * Skip first byte of BIT_STRING data: unused bits. */
         *pubKey = cert + o + 1;
-        *pubKeySz = l - 1;
+        *pubKeySz = (word32)(l - 1);
     }
 
     return ret;
@@ -22601,11 +22606,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 /* TODO: GmSSL creates IDs this way but whole public key info
                  * block should be hashed. */
                 ret = CalcHashId_ex(cert->publicKey + cert->pubKeySize - 65, 65,
-                    cert->extSubjKeyId, HashIdAlg((int)cert->signatureOID));
+                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
             }
             else {
                 ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
-                    cert->extSubjKeyId, HashIdAlg((int)cert->signatureOID));
+                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
             }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -23807,7 +23812,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     const char* bufferEnd   = (const char*)(buff + longSz);
     long        neededSz;
     int         ret         = 0;
-    int         sz          = (int)longSz;
+    word32      sz          = (word32)longSz;
     int         encrypted_key = 0;
     DerBuffer*  der;
     word32      algId = 0;
@@ -23826,7 +23831,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* map header if not found for type */
     for (;;) {
-        headerEnd = XSTRNSTR((char*)buff, header, (word32)sz);
+        headerEnd = XSTRNSTR((char*)buff, header, sz);
         if (headerEnd) {
             break;
         }
@@ -23909,7 +23914,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             headerEnd = XSTRNSTR((char*)buff, PRIV_KEY_SUFFIX, sz);
             if (headerEnd) {
                 const char* beginEnd;
-                int endLen;
+                unsigned int endLen;
 
                 beginEnd = headerEnd + XSTR_SIZEOF(PRIV_KEY_SUFFIX);
                 if (beginEnd >= (char*)buff + sz) {
@@ -23933,7 +23938,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 }
 
                 /* headerEnd now points to beginning of header */
-                XMEMCPY(beginBuf, headerEnd, beginEnd - headerEnd);
+                XMEMCPY(beginBuf, headerEnd, (size_t)(beginEnd - headerEnd));
                 beginBuf[beginEnd - headerEnd] = '\0';
                 /* look for matching footer */
                 footer = XSTRNSTR(beginEnd,
@@ -23953,10 +23958,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                     return BUFFER_E;
                 }
 
-                endLen = (unsigned int)(beginEnd - headerEnd -
+                endLen = (unsigned int)((size_t)(beginEnd - headerEnd) -
                             (XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX) -
                                     XSTR_SIZEOF(END_PRIV_KEY_PREFIX)));
-                XMEMCPY(endBuf, footer, endLen);
+                XMEMCPY(endBuf, footer, (size_t)endLen);
                 endBuf[endLen] = '\0';
 
                 header = beginBuf;
@@ -24042,7 +24047,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* set up der buffer */
     neededSz = (long)(footerEnd - headerEnd);
-    if (neededSz > sz || neededSz <= 0)
+    if (neededSz > (long)sz || neededSz <= 0)
         return BUFFER_E;
 
     ret = AllocDer(pDer, (word32)neededSz, type, heap);
@@ -24679,7 +24684,7 @@ int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
             }
 
             if (uuid == NULL) {
-                *uuidSz = id->len;
+                *uuidSz = (word32)id->len;
                 return LENGTH_ONLY_E;
             }
 
@@ -24687,7 +24692,7 @@ int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
                 return BUFFER_E;
             }
 
-            XMEMCPY(uuid, id->name, id->len);
+            XMEMCPY(uuid, id->name, (size_t)id->len);
             ret = 0; /* success */
             break;
         }
@@ -24707,7 +24712,7 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
         id = FindAltName(cert, ASN_OTHER_TYPE, id);
         if (id != NULL && id->oidSum == FASCN_OID) {
             if (fascn == NULL) {
-                *fascnSz = id->len;
+                *fascnSz = (word32)id->len;
                 return LENGTH_ONLY_E;
             }
 
@@ -24715,7 +24720,7 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
                 return BUFFER_E;
             }
 
-            XMEMCPY(fascn, id->name, id->len);
+            XMEMCPY(fascn, id->name, (size_t)id->len);
             ret = 0; /* success */
         }
     } while (id != NULL);
@@ -27445,7 +27450,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         #ifdef WOLFSSL_AKID_NAME
             if (cert->rawAkid) {
                 SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_AKID_STR],
-                        cert->akid, cert->akidSz);
+                        cert->akid, (word32)cert->akidSz);
                 /* cert->akid contains the internal ext structure */
                 SetASNItem_NoOutBelow(dataASN, certExtsASN,
                         CERTEXTSASN_IDX_AKID_STR, certExtsASN_Length);
@@ -30281,7 +30286,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 
     /* Compute SKID by hashing public key */
     if (kid_type == SKID_TYPE) {
-        int hashId = HashIdAlg(cert->sigType);
+        int hashId = HashIdAlg((word32)cert->sigType);
         ret = CalcHashId_ex(buf, (word32)bufferSz, cert->skid, hashId);
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         cert->skidSz = wc_HashGetDigestSize(wc_HashTypeConvert(hashId));
@@ -30290,7 +30295,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     #endif
     }
     else if (kid_type == AKID_TYPE) {
-        int hashId = HashIdAlg(cert->sigType);
+        int hashId = HashIdAlg((word32)cert->sigType);
         ret = CalcHashId_ex(buf, (word32)bufferSz, cert->akid, hashId);
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         cert->akidSz = wc_HashGetDigestSize(wc_HashTypeConvert(hashId));
@@ -31364,7 +31369,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
         /* Encode the DH parameters into buffer. */
         SetASN_Items(dhParamASN, dataASN, dhParamASN_Length, out);
         /* Set the actual encoding size. */
-        *outLen = sz;
+        *outLen = (word32)sz;
     }
 
     return ret;
@@ -34162,8 +34167,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     if (ret == 0) {
         single->hashAlgoOID =
             dataASN[SINGLERESPONSEASN_IDX_CID_HASHALGO_OID].data.oid.sum;
-        ocspDigestSize = wc_HashGetDigestSize(
-            wc_OidGetHash(single->hashAlgoOID));
+        ocspDigestSize = (word32)wc_HashGetDigestSize(
+            wc_OidGetHash((int)single->hashAlgoOID));
     }
     /* Validate the issuer hash length is the size required. */
     if ((ret == 0) && (issuerHashLen != ocspDigestSize)) {
@@ -34175,7 +34180,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     }
     if (ret == 0) {
         /* Store serial size. */
-        cs->serialSz = serialSz;
+        cs->serialSz = (int)serialSz;
         /* Set the hash algorithm OID */
         single->hashAlgoOID =
                 dataASN[SINGLERESPONSEASN_IDX_CID_HASHALGO_OID].data.oid.sum;
@@ -34209,7 +34214,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         at = &cs->thisDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->thisDate, thisDateLen);
-        at->length = thisDateLen;
+        at->length = (int)thisDateLen;
     #endif
     }
     if ((ret == 0) &&
@@ -34233,7 +34238,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         at = &cs->nextDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->nextDate, nextDateLen);
-        at->length = nextDateLen;
+        at->length = (int)nextDateLen;
     #endif
     }
     if (ret == 0) {
@@ -34374,7 +34379,7 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
                            source, &idx, sz);
         if (ret == 0) {
             word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
-            int length = dataASN[CERTEXTASN_IDX_VAL].length;
+            int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
             if (oid == OCSP_NONCE_OID) {
                 /* Extract nonce data. */
@@ -34389,7 +34394,7 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
             /* Ignore all other extension types. */
 
             /* Skip over rest of extension. */
-            idx += length;
+            idx += (word32)length;
         }
     }
 
@@ -34609,8 +34614,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         if (ret == 0) {
             /* Decode SingleResponse into OcspEntry. */
             ret = DecodeSingleResponse(source, &idx,
-                    dataASN[OCSPRESPDATAASN_IDX_RESPEXT].offset,
-                    dataASN[OCSPRESPDATAASN_IDX_RESP].length, single);
+                dataASN[OCSPRESPDATAASN_IDX_RESPEXT].offset,
+                (int)dataASN[OCSPRESPDATAASN_IDX_RESP].length, single);
             /* single->used set on successful decode. */
         }
     }
@@ -35318,7 +35323,7 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
         SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], NonceObjId,
                 sizeof(NonceObjId));
         SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_NONCE], req->nonce,
-                req->nonceSz);
+                (word32)req->nonceSz);
         /* Calculate size of nonce extension. */
         ret = SizeASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
                             &sz);
@@ -35339,7 +35344,7 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
         FREE_ASNSETDATA(dataASN, req->heap);
     }
 
-    return ret;
+    return (word32)ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
@@ -35475,7 +35480,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     word32 extSz = 0;
     int sz = 0;
     int ret = 0;
-    int keyIdSz;
+    word32 keyIdSz;
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
@@ -35499,11 +35504,11 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY],
                 req->issuerKeyHash, keyIdSz);
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_SERIAL],
-                req->serial, req->serialSz);
+                req->serial, (word32)req->serialSz);
         /* Only extension to write is nonce - check if one to encode. */
         if (req->nonceSz) {
             /* Get size of extensions and leave space for them in encoding. */
-            ret = extSz = EncodeOcspRequestExtensions(req, NULL, 0);
+            ret = (int)(extSz = EncodeOcspRequestExtensions(req, NULL, 0));
             SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT], NULL, extSz);
             if (ret > 0) {
                 ret = 0;
@@ -35528,7 +35533,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         SetASN_Items(ocspRequestASN, dataASN, ocspRequestASN_Length, output);
         if (req->nonceSz) {
             /* Encode extensions into space provided. */
-            ret = EncodeOcspRequestExtensions(req,
+            ret = (int)EncodeOcspRequestExtensions(req,
                 (byte*)dataASN[OCSPREQUESTASN_IDX_TBS_REQEXT].data.buffer.data,
                 extSz);
             if (ret > 0) {
@@ -35565,24 +35570,24 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
         XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
 
-        req->serial = (byte*)XMALLOC(cert->serialSz, req->heap,
+        req->serial = (byte*)XMALLOC((size_t)cert->serialSz, req->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
         if (req->serial == NULL)
             return MEMORY_E;
 
-        XMEMCPY(req->serial, cert->serial, cert->serialSz);
+        XMEMCPY(req->serial, cert->serial, (size_t)cert->serialSz);
         req->serialSz = cert->serialSz;
 
         if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
-            req->url = (byte*)XMALLOC(cert->extAuthInfoSz + 1, req->heap,
-                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+            req->url = (byte*)XMALLOC((size_t)cert->extAuthInfoSz + 1,
+                                          req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             if (req->url == NULL) {
                 XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
                 req->serial = NULL;
                 return MEMORY_E;
             }
 
-            XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
+            XMEMCPY(req->url, cert->extAuthInfo, (size_t)cert->extAuthInfoSz);
             req->urlSz = cert->extAuthInfoSz;
             req->url[req->urlSz] = 0;
         }
@@ -35675,7 +35680,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
             return cmp;
         }
 
-        cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
+        cmp = XMEMCMP(req->nonce, resp->nonce, (size_t)req->nonceSz);
         if (cmp != 0) {
             WOLFSSL_MSG("\tnonce mismatch");
             return cmp;
@@ -35692,9 +35697,12 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
     #endif
         cmp = req->serialSz - single->status->serialSz;
         if (cmp == 0) {
-            cmp = XMEMCMP(req->serial, single->status->serial, req->serialSz)
-               || XMEMCMP(req->issuerHash, single->issuerHash, ocspDigestSize)
-               || XMEMCMP(req->issuerKeyHash, single->issuerKeyHash, ocspDigestSize);
+            cmp = XMEMCMP(req->serial, single->status->serial,
+                                                          (size_t)req->serialSz)
+               || XMEMCMP(req->issuerHash, single->issuerHash,
+                                                         (size_t)ocspDigestSize)
+               || XMEMCMP(req->issuerKeyHash, single->issuerKeyHash,
+                                                        (size_t)ocspDigestSize);
             if (cmp == 0) {
                 /* match found */
                 if (resp->single != single && prev) {
@@ -35746,7 +35754,7 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 
 /* store WC_SHA hash of NAME */
 int GetNameHash_ex(const byte* source, word32* idx, byte* hash, int maxIdx,
-    int sigOID)
+    word32 sigOID)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;  /* length of all distinguished names */
@@ -35813,13 +35821,13 @@ static char* GetNameFromDer(const byte* source, int sz)
 {
     char* out;
 
-    out = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+    out = (char*)XMALLOC((size_t)sz, NULL, DYNAMIC_TYPE_OPENSSL);
     if (out == NULL) {
         WOLFSSL_MSG("Name malloc failed");
         return NULL;
     }
 
-    XMEMCPY(out, source, sz);
+    XMEMCPY(out, source, (size_t)sz);
 
     return out;
 }
@@ -35885,7 +35893,7 @@ enum {
 
 /* Get Revoked Cert list, 0 on success */
 static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
-                      DecodedCRL* dcrl, int maxIdx)
+                      DecodedCRL* dcrl, word32 maxIdx)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret;
@@ -35989,7 +35997,7 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
     }
     if (ret == 0) {
         /* Store size of serial number. */
-        rc->serialSz = serialSz;
+        rc->serialSz = (int)serialSz;
         rc->revDateFormat = (dataASN[REVOKEDASN_IDX_TIME_UTC].tag != 0)
                 ? dataASN[REVOKEDASN_IDX_TIME_UTC].tag
                 : dataASN[REVOKEDASN_IDX_TIME_GT].tag;
@@ -36292,7 +36300,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     if (ret == 0) {
         /* Parse an authority key identifier. */
         ret = GetASN_Items(authKeyIdASN, dataASN, authKeyIdASN_Length, 1, input,
-                           &idx, sz);
+                           &idx, (word32)sz);
     }
     if (ret == 0) {
         /* Key id is optional. */
@@ -36302,7 +36310,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
         else {
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
-                dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
+                (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
                 dcrl->extAuthKeyId, HashIdAlg(dcrl->signatureOID));
         }
     }
@@ -36493,7 +36501,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             /* OID in extension. */
             word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
             /* Length of extension data. */
-            int length = dataASN[CERTEXTASN_IDX_VAL].length;
+            int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
             if (oid == AUTH_KEY_OID) {
             #ifndef NO_SKID
@@ -36508,7 +36516,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             /* TODO: Parse CRL Number extension */
             /* TODO: check criticality */
             /* Move index on to next extension. */
-            idx += length;
+            idx += (word32)length;
         }
     }
 

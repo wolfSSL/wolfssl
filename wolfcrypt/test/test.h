@@ -59,7 +59,7 @@ int wolf_test_task(void);
 #define WC_TEST_RET_TAG_I      3L
 
 #define WC_TEST_RET_ENC(line, i, tag)                           \
-        (-((wc_test_ret_t)(line) + ((wc_test_ret_t)((word32)(i) & 0x7ffL) * 100000L) + ((wc_test_ret_t)(tag) << 29L)))
+        ((wc_test_ret_t)(-((wc_test_ret_t)(line) + ((wc_test_ret_t)((word32)(i) & 0x7ffL) * 100000L) + ((wc_test_ret_t)(tag) << 29L))))
 
 #ifndef WC_TEST_RET_LN
 #define WC_TEST_RET_LN __LINE__
