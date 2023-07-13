@@ -10296,7 +10296,11 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
     }
 
     /* check size */
-    if (sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+#if ECC_MIN_KEY_SZ > 0
+    if (sz < ECC_MINSIZE)
+        return BAD_FUNC_ARG;
+#endif
+    if (sz > ECC_MAXSIZE)
         return BAD_FUNC_ARG;
 
     ctx->eccTempKeySz = sz;
@@ -10312,7 +10316,11 @@ int wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL* ssl, word16 sz)
         return BAD_FUNC_ARG;
 
     /* check size */
-    if (sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+#if ECC_MIN_KEY_SZ > 0
+    if (sz < ECC_MINSIZE)
+        return BAD_FUNC_ARG;
+#endif
+    if (sz > ECC_MAXSIZE)
         return BAD_FUNC_ARG;
 
     ssl->eccTempKeySz = sz;
