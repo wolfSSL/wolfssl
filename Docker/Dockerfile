@@ -16,7 +16,7 @@ ARG GID=1000
 RUN groupadd -f -g ${GID} docker && ( getent passwd ${UID} || useradd -ms /bin/bash ${USER} -u ${UID} -g ${GID} )
 
 # install liboqs
-RUN git clone --single-branch https://github.com/open-quantum-safe/liboqs.git && cd liboqs && git checkout af76ca3b1f2fbc1f4f0967595f3bb07692fb3d82 \
+RUN git clone --single-branch https://github.com/open-quantum-safe/liboqs.git && cd liboqs && git checkout db08f12b5a96aa6582a82aac7f65cf8a4d8b231f \
     && mkdir build && cd build && cmake -DOQS_DIST_BUILD=ON -DOQS_USE_CPUFEATURE_INSTRUCTIONS=OFF -DOQS_USE_OPENSSL=0 .. && make -j8 all && make install && cd ../.. && rm -rf liboqs
 
 # Allow non-root to use tcpdump (will need NET_RAW and NET_ADMIN capability when running the container)
