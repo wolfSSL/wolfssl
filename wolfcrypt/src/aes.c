@@ -1046,6 +1046,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
 /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
+
 #else
 
     /* using wolfCrypt software implementation */
@@ -1056,12 +1057,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifdef NEED_AES_TABLES
 
+#if !defined(WOLFSSL_SILABS_SE_ACCEL)
 static const FLASH_QUALIFIER word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1B000000, 0x36000000,
     /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
+#endif
 
 #ifndef WOLFSSL_AES_SMALL_TABLES
 static const FLASH_QUALIFIER word32 Te[4][256] = {
@@ -1331,7 +1334,7 @@ static const FLASH_QUALIFIER word32 Te[4][256] = {
 }
 };
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL)
 static const FLASH_QUALIFIER word32 Td[4][256] = {
 {
     0x51f4a750U, 0x7e416553U, 0x1a17a4c3U, 0x3a275e96U,
@@ -1603,8 +1606,9 @@ static const FLASH_QUALIFIER word32 Td[4][256] = {
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
 #ifdef HAVE_AES_DECRYPT
-#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) \
-            || defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
+                              !defined(WOLFSSL_SILABS_SE_ACCEL)) || \
+    defined(WOLFSSL_AES_DIRECT)
 static const FLASH_QUALIFIER byte Td4[256] =
 {
     0x52U, 0x09U, 0x6aU, 0xd5U, 0x30U, 0x36U, 0xa5U, 0x38U,
@@ -2323,8 +2327,9 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
-#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
-     defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
+                              !defined(WOLFSSL_SILABS_SE_ACCEL)) || \
+    defined(WOLFSSL_AES_DIRECT)
 
 #ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_AES_SMALL_TABLES
@@ -2998,7 +3003,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+    /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
 #else
 
@@ -4186,7 +4191,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+    /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
