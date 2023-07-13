@@ -988,22 +988,13 @@ static void Entropy_StopThread(void)
 
 /* Get the high resolution time counter.
  *
- * @return  64-bit time that is the nanoseconds of current time.
+ * @return  64-bit timer
  */
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    static int           init = 0;
-    static LARGE_INTEGER freq;
-    LARGE_INTEGER        count;
-
-    if (!init) {
-        QueryPerformanceFrequency(&freq);
-        init = 1;
-    }
-
+    LARGE_INTEGER count;
     QueryPerformanceCounter(&count);
-
-    return (word64)(count.QuadPart / (freq.QuadPart / 1000 / 1000));
+    return (word64)(count.QuadPart);
 }
 
 #else
