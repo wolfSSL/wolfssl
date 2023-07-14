@@ -18873,7 +18873,7 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
         /* Get the hash or hash of the hash if wrong size. */
         ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                     (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                    cert->extAuthKeyId, HashIdAlg((int)cert->signatureOID));
+                    cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
     }
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
