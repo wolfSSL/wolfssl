@@ -78,6 +78,13 @@ Or
         #undef HAVE_PTHREAD
     #endif
 #endif
+/* Conversely, if both server and client are enabled, we must require pthreads */
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
+    && !defined(HAVE_PTHREAD)
+    #error "pthreads must be enabled if building benchmark suite \
+to run both client and server. Please define HAVE_PTHREAD if your \
+platform supports it"
+#endif
 
 #ifdef HAVE_PTHREAD
     #include <pthread.h>
@@ -2103,7 +2110,7 @@ int bench_tls(void* args)
         #endif
         #endif
                 if (argClientOnly) {
-            #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+            #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_PTHREAD)
                     /* to avoid to wait server forever */
                     info->serverListening = 1;
             #endif
