@@ -131,6 +131,12 @@ package body Tls_Client with SPARK_Mode is
 
       Result : WolfSSL.Subprogram_Result;
    begin
+      Result := WolfSSL.Initialize;
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to initialize the WolfSSL library.");
+         return;
+      end if;
+
       if Argument_Count < 1 then
          Put_Line ("usage: tcl_client <IPv4 address>");
          return;
@@ -297,7 +303,10 @@ package body Tls_Client with SPARK_Mode is
       SPARK_Sockets.Close_Socket (C);
       WolfSSL.Free (Ssl);
       WolfSSL.Free (Context => Ctx);
-      WolfSSL.Finalize;
+      Result := WolfSSL.Finalize;
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to finalize the WolfSSL library.");
+      end if;
    end Run;
 
 end Tls_Client;

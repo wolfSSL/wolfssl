@@ -111,6 +111,12 @@ package body Tls_Server with SPARK_Mode is
       Input : WolfSSL.Read_Result;
       Option : Option_Type;
    begin
+      Result := WolfSSL.Initialize;
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to initialize the WolfSSL library.");
+         return;
+      end if;
+
       SPARK_Sockets.Create_Socket (Socket => L);
       if not L.Exists then
          Put_Line ("ERROR: Failed to create socket.");
@@ -308,7 +314,11 @@ package body Tls_Server with SPARK_Mode is
       end loop;
       SPARK_Sockets.Close_Socket (L);
       WolfSSL.Free (Context => Ctx);
-      WolfSSL.Finalize;
+      Result := WolfSSL.Finalize;
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to finalize the WolfSSL library.");
+         return;
+      end if;
    end Run;
 
 end Tls_Server;

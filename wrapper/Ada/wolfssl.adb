@@ -44,11 +44,23 @@ package body WolfSSL is
      External_Name => "wolfSSL_Cleanup",
      Import        => True;
 
-   procedure Finalize is
+   function Initialize return Subprogram_Result is
+      Result : constant int := Initialize_WolfSSL;
+   begin
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
+      end if;
+   end Initialize;
+
+   function Finalize return Subprogram_Result is
       Result : constant int := Finalize_WolfSSL;
    begin
-      if Result /= WOLFSSL_SUCCESS then
-         raise Cleanup_Error;
+      if Result = WOLFSSL_SUCCESS then
+         return Success;
+      else
+         return Failure;
       end if;
    end Finalize;
 
@@ -728,9 +740,4 @@ package body WolfSSL is
       Ssl := null;
    end Free;
 
-   Result : constant int := Initialize_WolfSSL;
-begin
-   if Result /= WOLFSSL_SUCCESS then
-      raise Initialization_Error;
-   end if;
 end WolfSSL;

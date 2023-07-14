@@ -25,25 +25,19 @@ with Interfaces.C;
 --  the API of this package is used correctly.
 package WolfSSL with SPARK_Mode is
 
-   procedure Finalize;
-   --  Must be called before application exit.
+   type Subprogram_Result is (Success, Failure);
 
-   Initialization_Error : exception;
-   --  Raised if error was encountered during initialization of the
-   --  WolfSSL library. The WolfSSL libray is initialized during
-   --  elaboration time.
+   function Initialize return Subprogram_Result;
+   --  Must be called before usage of the WolfSSL library.
 
-   Cleanup_Error : exception;
-   --  Raised if error was encountered during application shutdown
-   --  and cleanup of resources allocated by WolfSSL has failed.
+   function Finalize return Subprogram_Result;
+   --  Must be called before application exit to cleanup resources.
 
    subtype char_array is Interfaces.C.char_array;  --  Remove?
 
    subtype Byte_Type  is Interfaces.C.char;
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
    subtype Byte_Array is Interfaces.C.char_array;
-
-   type Subprogram_Result is (Success, Failure);
 
    type Context_Type is limited private;
 
