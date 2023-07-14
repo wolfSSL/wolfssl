@@ -4860,7 +4860,9 @@ void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME *a, int type,
 
     wolfSSL_GENERAL_NAME_type_free(a);
     a->type = type;
-    a->d.dNSName = value;
+    if (type == GEN_DNS) {
+        a->d.dNSName = value;
+    }
 }
 
 /* Frees GENERAL_NAME objects.
