@@ -1562,6 +1562,8 @@ WOLFSSL_API WOLFSSL_GENERAL_NAMES* wolfSSL_GENERAL_NAMES_dup(
 WOLFSSL_API int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
                                                     WOLFSSL_ASN1_OBJECT* oid,
                                                     WOLFSSL_ASN1_TYPE* value);
+WOLFSSL_API void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME *a,
+                                                 int type, void *value);
 
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_GENERAL_NAME_new(void *cmpFunc);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,

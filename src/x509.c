@@ -4426,8 +4426,9 @@ error:
  * @return  WOLFSSL_FAILURE on invalid parameter or memory error,
  *          WOLFSSL_SUCCESS otherwise.
  */
-int wolfSSL_GENERAL_NAME_set0_othername(GENERAL_NAME* gen, ASN1_OBJECT* oid,
-                                        ASN1_TYPE* value) {
+int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
+                                        ASN1_OBJECT* oid, ASN1_TYPE* value)
+{
     WOLFSSL_ASN1_OBJECT *x = NULL;
 
     if ((gen == NULL) || (oid == NULL) || (value == NULL)) {
@@ -4830,6 +4831,39 @@ int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ)
     return ret;
 }
 
+/* Set the value in a general name. This is a compat layer API.
+ *
+ * @param [out] a       Pointer to the GENERAL_NAME where the othername is set.
+ * @param [in]  type    The type of this general name.
+ * @param [in]  value   The ASN.1 string that is the value.
+ * @return none
+ * @note the set0 indicates we take ownership so the user does NOT free value.
+ */
+void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME *a, int type,
+                                     void *value)
+{
+    WOLFSSL_ASN1_STRING *val = (WOLFSSL_ASN1_STRING *)value;
+    if (a == NULL) {
+        WOLFSSL_MSG("a is NULL");
+        return;
+    }
+
+    if (val == NULL) {
+        WOLFSSL_MSG("value is NULL");
+        return;
+    }
+
+    if (type != GEN_DNS) {
+        WOLFSSL_MSG("Only GEN_DNS is supported");
+        return;
+    }
+
+    wolfSSL_GENERAL_NAME_type_free(a);
+    a->type = type;
+    if (type == GEN_DNS) {
+        a->d.dNSName = val;
+    }
+}
 
 /* Frees GENERAL_NAME objects.
 */

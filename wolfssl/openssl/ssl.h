@@ -887,6 +887,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_UTF8STRING_free            wolfSSL_ASN1_STRING_free
 #define ASN1_UTF8STRING_set             wolfSSL_ASN1_STRING_set
 
+#define ASN1_IA5STRING                 WOLFSSL_ASN1_STRING
+#define ASN1_IA5STRING_new             wolfSSL_ASN1_STRING_new
+#define ASN1_IA5STRING_free            wolfSSL_ASN1_STRING_free
+#define ASN1_IA5STRING_set             wolfSSL_ASN1_STRING_set
+
 #define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
@@ -1360,6 +1365,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define GENERAL_NAME_dup                wolfSSL_GENERAL_NAME_dup
 #define GENERAL_NAME_print              wolfSSL_GENERAL_NAME_print
 #define GENERAL_NAME_set0_othername     wolfSSL_GENERAL_NAME_set0_othername
+#define GENERAL_NAME_set0_value         wolfSSL_GENERAL_NAME_set0_value
 #define sk_GENERAL_NAME_push            wolfSSL_sk_GENERAL_NAME_push
 #define sk_GENERAL_NAME_value           wolfSSL_sk_GENERAL_NAME_value
 

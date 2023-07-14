@@ -41889,6 +41889,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     X509_EXTENSION* ext = NULL;
     AUTHORITY_INFO_ACCESS* aia = NULL;
     ACCESS_DESCRIPTION* ad = NULL;
+    ASN1_IA5STRING *dnsname = NULL;
 
     const unsigned char v4Addr[] = {192,168,53,1};
     const unsigned char v6Addr[] =
@@ -41942,6 +41943,18 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     sk = NULL;
     X509_free(x509);
     x509 = NULL;
+
+    /* Lets test for setting as well. */
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(dnsname = ASN1_IA5STRING_new());
+    ExpectIntEQ(ASN1_STRING_set(dnsname, "example.com", -1), 1);
+    GENERAL_NAME_set0_value(gn, GEN_DNS, dnsname);
+    dnsname = NULL;
+    ExpectIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf, 0, sizeof(outbuf));
+    ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    ExpectIntEQ(XSTRNCMP((const char*)outbuf, dnsStr, XSTRLEN(dnsStr)), 0);
+    GENERAL_NAME_free(gn);
 
     /* test for GEN_URI */
 
