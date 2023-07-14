@@ -25,6 +25,10 @@ RUN mkdir /opt/sources
 RUN cd /opt/sources && git clone --single-branch https://github.com/cisco/hash-sigs.git && cd hash-sigs && git checkout b0631b8891295bf2929e68761205337b7c031726 \
     && sed -i 's/USE_OPENSSL 1/USE_OPENSSL 0/g' sha256.h && make -j4 hss_lib_thread.a
 
+# Install pkixssh to /opt/pkixssh for X509 interop testing with wolfSSH
+￼RUN mkdir /var/empty
+￼RUN cd /opt/sources && wget https://roumenpetrov.info/secsh/src/pkixssh-14.1.1.tar.gz && tar xvf pkixssh-14.1.1.tar.gz && cd pkixssh-14.1.1 && ./configure --prefix=/opt/pkixssh/ --exec-prefix=/opt/pkixssh/ && make install
+
 # Allow non-root to use tcpdump (will need NET_RAW and NET_ADMIN capability when running the container)
 RUN setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/tcpdump
 
