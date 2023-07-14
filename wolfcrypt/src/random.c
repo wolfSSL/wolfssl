@@ -983,6 +983,20 @@ static void Entropy_StopThread(void)
     }
 }
     /* end if defined(HAVE_PTHREAD) */
+
+#elif defined(_WIN32) /* USE_WINDOWS_API */
+
+/* Get the high resolution time counter.
+ *
+ * @return  64-bit timer
+ */
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    return (word64)(count.QuadPart);
+}
+
 #else
 
 #error "No high precision time available for MemUse Entropy."
@@ -1283,7 +1297,7 @@ static int Entropy_HealthTest_Proportion(byte noise)
     }
     else {
         /* Get first value in queue - value to test. */
-        byte val = prop_samples[prop_first];
+        byte val = (byte)prop_samples[prop_first];
         /* Store new sample in queue. */
         prop_samples[prop_last] = noise;
         /* Update first index now that we have removed in from the queue. */
