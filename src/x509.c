@@ -4842,7 +4842,7 @@ int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ)
 void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME *a, int type,
                                      void *value)
 {
-    WOLFSSL_ASN1_STRING *val = value;
+    WOLFSSL_ASN1_STRING *val = (WOLFSSL_ASN1_STRING *)value;
     if (a == NULL) {
         WOLFSSL_MSG("a is NULL");
         return;
@@ -4861,7 +4861,7 @@ void wolfSSL_GENERAL_NAME_set0_value(WOLFSSL_GENERAL_NAME *a, int type,
     wolfSSL_GENERAL_NAME_type_free(a);
     a->type = type;
     if (type == GEN_DNS) {
-        a->d.dNSName = value;
+        a->d.dNSName = val;
     }
 }
 
