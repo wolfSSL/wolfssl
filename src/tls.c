@@ -1887,7 +1887,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
 #else /* HAVE_ALPN */
 
-#define ALPN_FREE_ALL(list, heap)
+#define ALPN_FREE_ALL(list, heap) WC_DO_NOTHING
 #define ALPN_GET_SIZE(list)     0
 #define ALPN_WRITE(a, b)        0
 #define ALPN_PARSE(a, b, c, d)  0
@@ -2504,7 +2504,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #else
 
-#define SNI_FREE_ALL(list, heap)
+#define SNI_FREE_ALL(list, heap) WC_DO_NOTHING
 #define SNI_GET_SIZE(list)     0
 #define SNI_WRITE(a, b)        0
 #define SNI_PARSE(a, b, c, d)  0
@@ -2844,7 +2844,7 @@ int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 
 #else /* HAVE_TRUSTED_CA */
 
-#define TCA_FREE_ALL(list, heap)
+#define TCA_FREE_ALL(list, heap) WC_DO_NOTHING
 #define TCA_GET_SIZE(list)     0
 #define TCA_WRITE(a, b)        0
 #define TCA_PARSE(a, b, c, d)  0
@@ -2938,7 +2938,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 
 #else
 
-#define MFL_FREE_ALL(a, b)
+#define MFL_FREE_ALL(a, b) WC_DO_NOTHING
 #define MFL_GET_SIZE(a)       0
 #define MFL_WRITE(a, b)       0
 #define MFL_PARSE(a, b, c, d) 0
@@ -3445,7 +3445,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR_FREE_ALL(data, heap)
+#define CSR_FREE_ALL(data, heap) WC_DO_NOTHING
 #define CSR_GET_SIZE(a, b)    0
 #define CSR_WRITE(a, b, c)    0
 #define CSR_PARSE(a, b, c, d) 0
@@ -3891,7 +3891,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR2_FREE_ALL(data, heap)
+#define CSR2_FREE_ALL(data, heap) WC_DO_NOTHING
 #define CSR2_GET_SIZE(a, b)    0
 #define CSR2_WRITE(a, b, c)    0
 #define CSR2_PARSE(a, b, c, d) 0
@@ -5113,18 +5113,18 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 
 #else
 
-#define EC_FREE_ALL(list, heap)
+#define EC_FREE_ALL(list, heap) WC_DO_NOTHING
 #define EC_GET_SIZE(list)         0
 #define EC_WRITE(a, b)            0
 #define EC_PARSE(a, b, c, d, e)   0
-#define EC_VALIDATE_REQUEST(a, b)
+#define EC_VALIDATE_REQUEST(a, b) WC_DO_NOTHING
 
-#define PF_FREE_ALL(list, heap)
+#define PF_FREE_ALL(list, heap)   WC_DO_NOTHING
 #define PF_GET_SIZE(list)         0
 #define PF_WRITE(a, b)            0
 #define PF_PARSE(a, b, c, d)      0
-#define PF_VALIDATE_REQUEST(a, b)
-#define PF_VALIDATE_RESPONSE(a, b)
+#define PF_VALIDATE_REQUEST(a, b) WC_DO_NOTHING
+#define PF_VALIDATE_RESPONSE(a, b) WC_DO_NOTHING
 
 #endif /* HAVE_SUPPORTED_CURVES */
 
@@ -5319,7 +5319,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #else
 
-#define SCR_FREE_ALL(a, heap)
+#define SCR_FREE_ALL(a, heap) WC_DO_NOTHING
 #define SCR_GET_SIZE(a, b)    0
 #define SCR_WRITE(a, b, c)    0
 #define SCR_PARSE(a, b, c, d) 0
@@ -5525,8 +5525,8 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 
 #else
 
-#define WOLF_STK_FREE(a, b)
-#define WOLF_STK_VALIDATE_REQUEST(a)
+#define WOLF_STK_FREE(a, b) WC_DO_NOTHING
+#define WOLF_STK_VALIDATE_REQUEST(a) WC_DO_NOTHING
 #define WOLF_STK_GET_SIZE(a, b)      0
 #define WOLF_STK_WRITE(a, b, c)      0
 #define WOLF_STK_PARSE(a, b, c, d)   0
@@ -5882,7 +5882,7 @@ static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
     #define SRTP_WRITE    TLSX_UseSRTP_Write
     #define SRTP_GET_SIZE TLSX_UseSRTP_GetSize
 #else
-    #define SRTP_FREE(a, b)
+    #define SRTP_FREE(a, b) WC_DO_NOTHING
     #define SRTP_PARSE(a, b, c, d)      0
     #define SRTP_WRITE(a, b)            0
     #define SRTP_GET_SIZE(a)            0
@@ -9657,7 +9657,7 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
 
 #else
 
-#define KS_FREE_ALL(a, b)
+#define KS_FREE_ALL(a, b) WC_DO_NOTHING
 #define KS_GET_SIZE(a, b)    0
 #define KS_WRITE(a, b, c)    0
 #define KS_PARSE(a, b, c, d) 0
@@ -10167,7 +10167,7 @@ int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity, word16 len,
 
 #else
 
-#define PSK_FREE_ALL(a, b)
+#define PSK_FREE_ALL(a, b) WC_DO_NOTHING
 #define PSK_GET_SIZE(a, b, c) 0
 #define PSK_WRITE(a, b, c, d) 0
 #define PSK_PARSE(a, b, c, d) 0

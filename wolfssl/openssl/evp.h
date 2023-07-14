@@ -30,7 +30,7 @@
 #ifndef WOLFSSL_EVP_H_
 #define WOLFSSL_EVP_H_
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_PREFIX
 #include "prefix_evp.h"
@@ -1017,7 +1017,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_MD_block_size       wolfSSL_EVP_MD_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
 #ifndef NO_WOLFSSL_STUB
-#define EVP_MD_CTX_set_flags(...)
+#define EVP_MD_CTX_set_flags(...) WC_DO_NOTHING
 #endif
 
 #define EVP_Digest             wolfSSL_EVP_Digest
@@ -1200,7 +1200,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CTRL_CCM_SET_MSGLEN        0x15
 
 #define EVP_PKEY_print_public           wolfSSL_EVP_PKEY_print_public
-#define EVP_PKEY_print_private(arg1, arg2, arg3, arg4)
+#define EVP_PKEY_print_private(arg1, arg2, arg3, arg4) WC_DO_NOTHING
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */

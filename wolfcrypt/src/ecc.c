@@ -1454,8 +1454,8 @@ static int xil_mpi_import(mp_int *mpi,
     #endif
 
     #define DECLARE_CURVE_SPECS(intcount) ecc_curve_spec* curve = NULL
-    #define ALLOC_CURVE_SPECS(intcount, err)
-    #define FREE_CURVE_SPECS()
+    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #elif defined(WOLFSSL_SMALL_STACK)
 #ifdef WOLFSSL_SP_MATH_ALL
     #define DECLARE_CURVE_SPECS(intcount)                               \
@@ -1510,8 +1510,8 @@ static int xil_mpi_import(mp_int *mpi,
         curve->spec_ints = spec_ints;                                   \
         curve->spec_count = (intcount)
 #endif
-    #define ALLOC_CURVE_SPECS(intcount, err)
-    #define FREE_CURVE_SPECS()
+    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #endif /* ECC_CACHE_CURVE */
 
 static void wc_ecc_curve_cache_free_spec_item(ecc_curve_spec* curve, mp_int* item,

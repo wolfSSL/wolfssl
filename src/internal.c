@@ -24483,18 +24483,18 @@ void SetErrorString(int error, char* str)
     #ifndef NO_ERROR_STRINGS
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #endif
     #else
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #endif
     #endif
 #else /* !NO_CIPHER_SUITE_ALIASES */

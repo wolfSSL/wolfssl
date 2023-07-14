@@ -2189,8 +2189,8 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName)
     }
 }
 #else
-#define DEBUG_WRITE_CERT_X509(x509, fileName)
-#define DEBUG_WRITE_DER(der, derSz, fileName)
+#define DEBUG_WRITE_CERT_X509(x509, fileName) WC_DO_NOTHING
+#define DEBUG_WRITE_DER(der, derSz, fileName) WC_DO_NOTHING
 #endif
 
 

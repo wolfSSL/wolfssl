@@ -5211,7 +5211,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -5412,7 +5412,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -5712,7 +5712,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -5962,7 +5962,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -6246,7 +6246,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *

@@ -509,7 +509,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in, out] err   Error variable.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define ALLOC_ASNGETDATA(name, cnt, err, heap)
+    #define ALLOC_ASNGETDATA(name, cnt, err, heap) WC_DO_NOTHING
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -526,7 +526,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define FREE_ASNGETDATA(name, heap)
+    #define FREE_ASNGETDATA(name, heap) WC_DO_NOTHING
 
     /* Declare the variable that is the dynamic data for encoding DER data.
      *
@@ -543,7 +543,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in, out] err   Error variable.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define ALLOC_ASNSETDATA(name, cnt, err, heap)
+    #define ALLOC_ASNSETDATA(name, cnt, err, heap) WC_DO_NOTHING
 
     /* Clears the memory of the dynamic BER encoding data.
      *
@@ -560,7 +560,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
      */
-    #define FREE_ASNSETDATA(name, heap)
+    #define FREE_ASNSETDATA(name, heap) WC_DO_NOTHING
 #endif
 
 

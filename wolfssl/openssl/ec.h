@@ -24,6 +24,7 @@
 #ifndef WOLFSSL_EC_H_
 #define WOLFSSL_EC_H_
 
+#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -352,7 +353,7 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 #define EC_GROUP_order_bits             wolfSSL_EC_GROUP_order_bits
 #define EC_GROUP_method_of              wolfSSL_EC_GROUP_method_of
 #ifndef NO_WOLFSSL_STUB
-#define EC_GROUP_set_point_conversion_form(...)
+#define EC_GROUP_set_point_conversion_form(...) WC_DO_NOTHING
 #endif
 
 #define EC_METHOD_get_field_type        wolfSSL_EC_METHOD_get_field_type
