@@ -10,7 +10,6 @@
 		8BC456822A5DCC3D008A4AF7 /* wolfssl_multiplatformApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC456812A5DCC3D008A4AF7 /* wolfssl_multiplatformApp.swift */; };
 		8BC456842A5DCC3D008A4AF7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC456832A5DCC3D008A4AF7 /* ContentView.swift */; };
 		8BC456862A5DCC3F008A4AF7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8BC456852A5DCC3F008A4AF7 /* Assets.xcassets */; };
-		8BC4568A2A5DCC3F008A4AF7 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8BC456892A5DCC3F008A4AF7 /* Preview Assets.xcassets */; };
 		8BC456922A5DD04E008A4AF7 /* libwolfssl.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC456912A5DD04E008A4AF7 /* libwolfssl.xcframework */; };
 		8BC456972A5DD1F2008A4AF7 /* wolfssl_test_driver.c in Sources */ = {isa = PBXBuildFile; fileRef = 8BC456962A5DD1F2008A4AF7 /* wolfssl_test_driver.c */; };
 		8BC456AB2A5DF7A6008A4AF7 /* test.c in Sources */ = {isa = PBXBuildFile; fileRef = 8BC456AA2A5DF7A6008A4AF7 /* test.c */; settings = {COMPILER_FLAGS = "-DUSE_FLAT_TEST_H -DNO_MAIN_DRIVER -DNO_FILESYSTEM -DSINGLE_THREADED"; }; };
@@ -24,7 +23,6 @@
 		8BC456832A5DCC3D008A4AF7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8BC456852A5DCC3F008A4AF7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8BC456872A5DCC3F008A4AF7 /* wolfssl_multiplatform.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = wolfssl_multiplatform.entitlements; sourceTree = "<group>"; };
-		8BC456892A5DCC3F008A4AF7 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		8BC456912A5DD04E008A4AF7 /* libwolfssl.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libwolfssl.xcframework; path = ../artifacts/xcframework/libwolfssl.xcframework; sourceTree = "<group>"; };
 		8BC456942A5DD1F2008A4AF7 /* wolfssl-multiplatform-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "wolfssl-multiplatform-Bridging-Header.h"; sourceTree = "<group>"; };
 		8BC456952A5DD1F2008A4AF7 /* wolfssl_test_driver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = wolfssl_test_driver.h; sourceTree = "<group>"; };
@@ -74,20 +72,11 @@
 				8BC456832A5DCC3D008A4AF7 /* ContentView.swift */,
 				8BC456852A5DCC3F008A4AF7 /* Assets.xcassets */,
 				8BC456872A5DCC3F008A4AF7 /* wolfssl_multiplatform.entitlements */,
-				8BC456882A5DCC3F008A4AF7 /* Preview Content */,
 				8BC456952A5DD1F2008A4AF7 /* wolfssl_test_driver.h */,
 				8BC456962A5DD1F2008A4AF7 /* wolfssl_test_driver.c */,
 				8BC456942A5DD1F2008A4AF7 /* wolfssl-multiplatform-Bridging-Header.h */,
 			);
 			path = "wolfssl-multiplatform";
-			sourceTree = "<group>";
-		};
-		8BC456882A5DCC3F008A4AF7 /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-				8BC456892A5DCC3F008A4AF7 /* Preview Assets.xcassets */,
-			);
-			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 		8BC456902A5DD04E008A4AF7 /* Frameworks */ = {
@@ -170,7 +159,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8BC4568A2A5DCC3F008A4AF7 /* Preview Assets.xcassets in Resources */,
 				8BC456862A5DCC3F008A4AF7 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -312,8 +300,8 @@
 				CODE_SIGN_ENTITLEMENTS = "wolfssl-multiplatform/wolfssl_multiplatform.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"wolfssl-multiplatform/Preview Content\"";
-				ENABLE_PREVIEWS = YES;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = "CERT_PATH=\\\"$PROJECT_DIR/../../../certs/wolfssl-website-ca.pem\\\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -355,8 +343,8 @@
 				CODE_SIGN_ENTITLEMENTS = "wolfssl-multiplatform/wolfssl_multiplatform.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"wolfssl-multiplatform/Preview Content\"";
-				ENABLE_PREVIEWS = YES;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = "CERT_PATH=\\\"$PROJECT_DIR/../../../certs/wolfssl-website-ca.pem\\\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
