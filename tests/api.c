@@ -41954,6 +41954,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     XMEMSET(outbuf, 0, sizeof(outbuf));
     ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     ExpectIntEQ(XSTRNCMP((const char*)outbuf, dnsStr, XSTRLEN(dnsStr)), 0);
+    GENERAL_NAME_free(gn);
 
     /* test for GEN_URI */
 
