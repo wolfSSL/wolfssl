@@ -6739,9 +6739,11 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
                 *keyFormat = ED25519k;
                 if (ssl != NULL) {
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && !defined(NO_ED25519_CLIENT_AUTH)
                     /* ED25519 requires caching enabled for tracking message
                      * hash used in EdDSA_Update for signing */
                     ssl->options.cacheMessages = 1;
+#endif
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                         *resetSuites = 1;
                     }
