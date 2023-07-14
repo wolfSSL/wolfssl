@@ -284,6 +284,12 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
+#ifdef WOLFSSL_HAVE_LMS
+    #include <wolfssl/wolfcrypt/lms.h>
+#ifdef HAVE_LIBLMS
+    #include <wolfssl/wolfcrypt/ext_lms.h>
+#endif
+#endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     #include <wolfssl/wolfcrypt/eccsi.h>
 #endif
@@ -554,6 +560,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
 #ifdef WOLFSSL_HAVE_KYBER
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  kyber_test(void);
+#endif
+#ifdef WOLFSSL_HAVE_LMS
+    WOLFSSL_TEST_SUBROUTINE int  lms_test(void);
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  eccsi_test(void);
@@ -1578,6 +1587,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("KYBER    test failed!\n", ret);
     else
         TEST_PASS("KYBER    test passed!\n");
+#endif
+
+#ifdef WOLFSSL_HAVE_LMS
+    if ( (ret = lms_test()) != 0)
+        TEST_FAIL("LMS      test failed!\n", ret);
+    else
+        TEST_PASS("LMS      test passed!\n");
 #endif
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
@@ -34907,6 +34923,144 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
     return 0;
 }
 #endif /* WOLFSSL_HAVE_KYBER */
+
+
+#ifdef WOLFSSL_HAVE_LMS
+static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! Production applications should
+    * write only to non-volatile storage. */
+    XMEMCPY(context, priv, privSz);
+    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
+{
+   /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
+    * BE USED FOR TESTING PURPOSES! */
+    XMEMCPY(priv, context, privSz);
+    return WC_LMS_RC_READ_TO_MEMORY;
+}
+
+/* LMS signature sizes are a function of their parameters. This
+ * test has a signature of 8688 bytes. */
+#define WC_TEST_LMS_SIG_LEN (8688)
+
+WOLFSSL_TEST_SUBROUTINE int lms_test(void)
+{
+    int           ret;
+    int           sigsLeft = 0;
+    LmsKey        signingKey;
+    LmsKey        verifyKey;
+    WC_RNG        rng;
+    word32        sigSz = 0;
+    const char *  msg = "LMS HSS post quantum signature test";
+    word32        msgSz = (word32) XSTRLEN(msg);
+    unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
+    unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte *        sig = XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL) {
+        return WC_TEST_RET_ENC_ERRNO;
+    }
+#else
+    byte          sig[WC_TEST_LMS_SIG_LEN];
+#endif
+
+    XMEMSET(priv, 0, sizeof(priv));
+    XMEMSET(old_priv, 0, sizeof(old_priv));
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+   /* This test:
+    * levels: 1
+    * height: 5
+    * winternitz: 1
+    *
+    * max sigs: 2 ** (1 * 5) = 32
+    * signature length: 8688
+    */
+
+    ret = wc_LmsKey_Init(&signingKey, NULL, INVALID_DEVID);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_Init(&verifyKey, NULL, INVALID_DEVID);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetParameters(&signingKey, 1, 5, 1);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetWriteCb(&signingKey, lms_write_key_mem);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetReadCb(&signingKey, lms_read_key_mem);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetContext(&signingKey, (void *) priv);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_MakeKey(&signingKey, &rng);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    XMEMCPY(old_priv, priv, sizeof(priv));
+
+    ret = wc_LmsKey_ExportPub(&verifyKey, &signingKey);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_GetSigLen(&verifyKey, &sigSz);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    if (sigSz != WC_TEST_LMS_SIG_LEN) {
+        printf("error: got %d, expected %d\n", sigSz, WC_TEST_LMS_SIG_LEN);
+        return WC_TEST_RET_ENC_EC(sigSz);
+    }
+
+    /* 2 ** 5 should be the max number of signatures */
+    for (size_t i = 0; i < 32; ++i) {
+        /* We should have remaining signstures. */
+        sigsLeft = wc_LmsKey_SigsLeft(&signingKey);
+        if (sigsLeft == 0) {
+            return WC_TEST_RET_ENC_EC(sigsLeft);
+        }
+
+        /* Sign with key. The private key will be updated on every signature. */
+        ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, (byte *) msg, msgSz);
+        if (ret != 0) { return WC_TEST_RET_ENC_I(i); }
+
+        /* The updated private key should not match the old one. */
+        if (XMEMCMP(old_priv, priv, sizeof(priv)) == 0) {
+            printf("error: current priv key should not match old: %zu\n", i);
+            return WC_TEST_RET_ENC_I(i);
+        }
+
+        XMEMCPY(old_priv, priv, sizeof(priv));
+
+        ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
+        if (ret != 0) { return WC_TEST_RET_ENC_I(i); }
+    }
+
+    /* This should be the last signature. */
+    sigsLeft = wc_LmsKey_SigsLeft(&signingKey);
+    if (sigsLeft != 0) {
+        return WC_TEST_RET_ENC_EC(sigsLeft);
+    }
+
+    wc_LmsKey_Free(&signingKey);
+    wc_LmsKey_Free(&verifyKey);
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_HAVE_LMS */
 
 static const int fiducial3 = WC_TEST_RET_LN; /* source code reference point --
                                               * see print_fiducials() below.

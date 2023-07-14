@@ -1144,6 +1144,109 @@ then
 fi
 
 
+# liblms
+# Get the path to the hash-sigs LMS HSS lib.
+ENABLED_LIBLMS="no"
+tryliblmsdir=""
+AC_ARG_WITH([liblms],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
+    [
+        AC_MSG_CHECKING([for liblms])
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
+
+        if test "x$liblms_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryliblmsdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                tryliblmsdir="/usr/local"
+            fi
+
+            # 1. By default use the hash-sigs single-threaded static library.
+            # 2. If 1 not found, then use the multi-threaded static lib.
+            # 3. If 2 not found, then use the multi-threaded dynamic lib.
+            if test -e $tryliblmsdir/hss_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            elif test -e $tryliblmsdir/hss_lib_thread.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib_thread.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            elif test -e $tryliblmsdir/lib/libhss.so; then
+                LIBS="$LIBS -lhss"
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir/include/hss"
+                LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliblmsdir/lib"
+
+                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
+            else
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            if test "x$liblms_linked" = "xno" ; then
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$CPPFLAGS"
+            AM_LDFLAGS="$LDFLAGS"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBLMS"
+        ENABLED_LIBLMS="yes"
+    ]
+)
+
+
+# LMS
+AC_ARG_ENABLE([lms],
+    [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
+    [ ENABLED_LMS=$enableval ],
+    [ ENABLED_LMS=no ]
+    )
+
+ENABLED_WC_LMS=no
+for v in `echo $ENABLED_LMS | tr "," " "`
+do
+  case $v in
+  yes)
+    ;;
+  no)
+    ;;
+  wolfssl)
+    ENABLED_WC_LMS=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for LMS []: $ENABLED_LMS.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_LMS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
+
+    if test "$ENABLED_WC_LMS" = "no";
+    then
+        # Default is to use hash-sigs LMS lib. Make sure it's enabled.
+        if test "$ENABLED_LIBLMS" = "no"; then
+            AC_MSG_ERROR([The default implementation for LMS is the hash-sigs LMS/HSS lib.
+            Please use --with-liblms.])
+        fi
+    fi
+fi
+
+
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
     [AS_HELP_STRING([--enable-singlethreaded],[Enable wolfSSL single threaded (default: disabled)])],
@@ -8753,6 +8856,7 @@ AM_CONDITIONAL([BUILD_FE448], [test "x$ENABLED_FE448" = "xyes" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_GE448], [test "x$ENABLED_GE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -8792,6 +8896,7 @@ AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
 AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
 AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
+AM_CONDITIONAL([BUILD_LIBLMS],[test "x$ENABLED_LIBLMS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9242,6 +9347,8 @@ echo "   * ED25519 streaming:          $ENABLED_ED25519_STREAM"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
 echo "   * ED448:                      $ENABLED_ED448"
 echo "   * ED448 streaming:            $ENABLED_ED448_STREAM"
+echo "   * LMS:                        $ENABLED_LMS"
+echo "   * LMS wolfSSL impl:           $ENABLED_WC_LMS"
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
 echo "   * ECCSI                       $ENABLED_ECCSI"
@@ -9297,6 +9404,7 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
+echo "   * liblms:                     $ENABLED_LIBLMS"
 echo "   * liboqs:                     $ENABLED_LIBOQS"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
