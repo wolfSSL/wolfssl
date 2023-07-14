@@ -21,18 +21,13 @@
 
 --  Ada Standard Library packages.
 with Ada.Characters.Handling;
-with Ada.Command_Line;
 with Ada.Strings.Bounded;
-with Ada.Text_IO.Bounded_IO;
+with Ada.Text_IO;
 with Interfaces.C;
 
---  GNAT Library packages.
-with GNAT.Sockets;
+with SPARK_Terminal;
 
---  The WolfSSL package.
-with WolfSSL;
-
-package body Tls_Client is
+package body Tls_Client with SPARK_Mode is
 
    use type WolfSSL.Mode_Type;
    use type WolfSSL.Byte_Index;
@@ -42,12 +37,7 @@ package body Tls_Client is
 
    subtype Byte_Type is WolfSSL.Byte_Type;
 
-   package Messages is new Ada.Strings.Bounded.Generic_Bounded_Length (Max => 200);
-   use all type Messages.Bounded_String;
-
    package Integer_IO is new Ada.Text_IO.Integer_IO (Integer);
-
-   package Messages_IO is new Ada.Text_IO.Bounded_IO (Messages);
 
    procedure Put (Text : String) is
    begin
@@ -69,42 +59,39 @@ package body Tls_Client is
       Ada.Text_IO.New_Line;
    end New_Line;
 
-   procedure Put_Line (Text : Messages.Bounded_String) is
+   subtype Exit_Status is SPARK_Terminal.Exit_Status;
+
+   Exit_Status_Success : Exit_Status renames SPARK_Terminal.Exit_Status_Success;
+   Exit_Status_Failure : Exit_Status renames SPARK_Terminal.Exit_Status_Failure;
+
+   procedure Set (Status : Exit_Status) with Global => null is
    begin
-      Messages_IO.Put_Line (Text);
-   end Put_Line;
-
-   subtype Exit_Status is Ada.Command_Line.Exit_Status;
-
-   Exit_Status_Success : Exit_Status renames Ada.Command_Line.Success;
-   Exit_Status_Failure : Exit_Status renames Ada.Command_Line.Failure;
-
-   procedure Set (Status : Exit_Status) is
-   begin
-      Ada.Command_Line.Set_Exit_Status (Status);
+      SPARK_Terminal.Set_Exit_Status (Status);
    end Set;
 
-   subtype Port_Type is GNAT.Sockets.Port_Type;
+   subtype Port_Type is SPARK_Sockets.Port_Type;
 
-   subtype Level_Type is GNAT.Sockets.Level_Type;
+   subtype Level_Type is SPARK_Sockets.Level_Type;
 
-   subtype Socket_Type is GNAT.Sockets.Socket_Type;
-   subtype Option_Name is GNAT.Sockets.Option_Name;
-   subtype Option_Type is GNAT.Sockets.Option_Type;
-   subtype Family_Type is GNAT.Sockets.Family_Type;
+   subtype Socket_Type is SPARK_Sockets.Socket_Type;
+   subtype Option_Name is SPARK_Sockets.Option_Name;
+   subtype Option_Type is SPARK_Sockets.Option_Type;
+   subtype Family_Type is SPARK_Sockets.Family_Type;
 
-   subtype Sock_Addr_Type is GNAT.Sockets.Sock_Addr_Type;
-   subtype Inet_Addr_Type is GNAT.Sockets.Inet_Addr_Type;
+   subtype Sock_Addr_Type is SPARK_Sockets.Sock_Addr_Type;
+   subtype Inet_Addr_Type is SPARK_Sockets.Inet_Addr_Type;
 
-   Socket_Error : exception renames GNAT.Sockets.Socket_Error;
+   use type Family_Type;
 
-   Reuse_Address : Option_Name renames GNAT.Sockets.Reuse_Address;
+   Socket_Error : exception renames SPARK_Sockets.Socket_Error;
 
-   Socket_Level : Level_Type renames GNAT.Sockets.Socket_Level;
+   Reuse_Address : Option_Name renames SPARK_Sockets.Reuse_Address;
 
-   Family_Inet : Family_Type renames GNAT.Sockets.Family_Inet;
+   Socket_Level : Level_Type renames SPARK_Sockets.Socket_Level;
 
-   Any_Inet_Addr : Inet_Addr_Type renames GNAT.Sockets.Any_Inet_Addr;
+   Family_Inet : Family_Type renames SPARK_Sockets.Family_Inet;
+
+   Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
    CERT_FILE : constant String := "../certs/client-cert.pem";
    KEY_FILE  : constant String := "../certs/client-key.pem";
@@ -112,24 +99,26 @@ package body Tls_Client is
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
-   function Argument_Count return Natural is
-   begin
-      return Ada.Command_Line.Argument_Count;
-   end Argument_Count;
+   function Argument_Count return Natural renames
+      SPARK_Terminal.Argument_Count;
+
+   function Argument (Number : Positive) return String with
+      Pre => Number <= Argument_Count;
 
    function Argument (Number : Positive) return String is
    begin
-      return Ada.Command_Line.Argument (Number);
+      return SPARK_Terminal.Argument (Number);
    end Argument;
 
-   procedure Run is
+   procedure Run (Ssl    : in out WolfSSL.WolfSSL_Type;
+                  Ctx    : in out WolfSSL.Context_Type;
+                  Client : in out SPARK_Sockets.Optional_Socket) is
       A : Sock_Addr_Type;
-      C : Socket_Type;  --  Client socket.
+      C : SPARK_Sockets.Optional_Socket renames Client;
       D : Byte_Array (1 .. 200);
       P : constant Port_Type := 11111;
 
-      Ssl : WolfSSL.WolfSSL_Type;
-      Ctx : WolfSSL.Context_Type;
+      Addr : SPARK_Sockets.Optional_Inet_Addr;
 
       Bytes_Written : Integer;
 
@@ -142,24 +131,44 @@ package body Tls_Client is
 
       Result : WolfSSL.Subprogram_Result;
    begin
-      if Argument_Count /= 1 then
+      if Argument_Count < 1 then
          Put_Line ("usage: tcl_client <IPv4 address>");
          return;
       end if;
-      GNAT.Sockets.Create_Socket (Socket => C);
+      SPARK_Sockets.Create_Socket (C);
+      if not C.Exists then
+         Put_Line ("ERROR: Failed to create socket.");
+         return;
+      end if;
 
+      Addr := SPARK_Sockets.Inet_Addr (Argument (1));
+      if not Addr.Exists or
+         (Addr.Exists and then Addr.Addr.Family /= Family_Inet)
+      then
+         Put_Line ("ERROR: please specify IPv4 address.");
+         SPARK_Sockets.Close_Socket (C);
+         Set (Exit_Status_Failure);
+         return;
+      end if;
       A := (Family => Family_Inet,
-            Addr   => GNAT.Sockets.Inet_Addr (Argument (1)),
+            Addr   => Addr.Addr,
             Port   => P);
 
-      GNAT.Sockets.Connect_Socket (Socket => C,
-                                   Server => A);
+      Result := SPARK_Sockets.Connect_Socket (Socket => C.Socket,
+                                              Server => A);
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to connect to server.");
+         SPARK_Sockets.Close_Socket (C);
+         Set (Exit_Status_Failure);
+         return;
+      end if;
 
       --  Create and initialize WOLFSSL_CTX.
       WolfSSL.Create_Context (Method  => WolfSSL.TLSv1_3_Client_Method,
                               Context => Ctx);
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
+         SPARK_Sockets.Close_Socket (C);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -173,6 +182,8 @@ package body Tls_Client is
          Put (CERT_FILE);
          Put (", please check the file.");
          New_Line;
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -186,6 +197,8 @@ package body Tls_Client is
          Put (KEY_FILE);
          Put (", please check the file.");
          New_Line;
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -199,6 +212,8 @@ package body Tls_Client is
          Put (CA_FILE);
          Put (", please check the file.");
          New_Line;
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -207,15 +222,20 @@ package body Tls_Client is
       WolfSSL.Create_WolfSSL (Context => Ctx, Ssl => Ssl);
       if not WolfSSL.Is_Valid (Ssl) then
          Put_Line ("ERROR: failed to create WOLFSSL object.");
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
 
       --  Attach wolfSSL to the socket.
       Result := WolfSSL.Attach (Ssl    => Ssl,
-                                Socket => GNAT.Sockets.To_C (C));
+                                Socket => SPARK_Sockets.To_C (C.Socket));
       if Result = Failure then
          Put_Line ("ERROR: Failed to set the file descriptor.");
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -223,6 +243,9 @@ package body Tls_Client is
       Result := WolfSSL.Connect (Ssl);
       if Result = Failure then
          Put_Line ("ERROR: failed to connect to wolfSSL.");
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -230,10 +253,9 @@ package body Tls_Client is
       Put ("Message for server: ");
       Ada.Text_IO.Get_Line (Text, Last);
 
-      Interfaces.C.To_C (Item       => Text (1 .. Last),
-                         Target     => D,
-                         Count      => Count,
-                         Append_Nul => False);
+      SPARK_Sockets.To_C (Item       => Text (1 .. Last),
+                          Target     => D,
+                          Count      => Count);
       Bytes_Written := WolfSSL.Write (Ssl  => Ssl,
                                       Data => D (1 .. Count));
       if Bytes_Written < Last then
@@ -244,6 +266,9 @@ package body Tls_Client is
          Put (Last);
          Put ("bytes were sent");
          New_Line;
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
+         WolfSSL.Free (Context => Ctx);
          return;
       end if;
 
@@ -251,19 +276,28 @@ package body Tls_Client is
       if Input.Result /= Success then
          Put_Line ("Read error.");
          Set (Exit_Status_Failure);
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
+         WolfSSL.Free (Context => Ctx);
          return;
       end if;
-      Interfaces.C.To_Ada (Item     => Input.Buffer,
-                           Target   => Text,
-                           Count    => Last,
-                           Trim_Nul => False);
+      if Input.Buffer'Length > Text'Length then
+         SPARK_Sockets.To_Ada (Item     => Input.Buffer (1 .. 200),
+                               Target   => Text,
+                               Count    => Last);
+      else
+         SPARK_Sockets.To_Ada (Item     => Input.Buffer,
+                               Target   => Text,
+                               Count    => Last);
+      end if;
       Put ("Server: ");
       Put (Text (1 .. Last));
       New_Line;
 
-      GNAT.Sockets.Close_Socket (C);
+      SPARK_Sockets.Close_Socket (C);
       WolfSSL.Free (Ssl);
       WolfSSL.Free (Context => Ctx);
+      WolfSSL.Finalize;
    end Run;
 
 end Tls_Client;

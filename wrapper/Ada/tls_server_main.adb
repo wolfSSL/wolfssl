@@ -21,9 +21,19 @@
 
 with Tls_Server; pragma Elaborate_All (Tls_Server);
 
+--  SPARK wrapper package around GNAT Library packages.
+with SPARK_Sockets; pragma Elaborate_All (SPARK_Sockets);
+
+--  The WolfSSL package.
+with WolfSSL; pragma Elaborate_All (WolfSSL);
+
 --  Application entry point for the Ada translation of the
 --  tls server v1.3 example in C.
 procedure Tls_Server_Main is
+   Ssl : WolfSSL.WolfSSL_Type;
+   Ctx : WolfSSL.Context_Type;
+   L   : SPARK_Sockets.Optional_Socket;
+   C   : SPARK_Sockets.Optional_Socket;
 begin
-   Tls_Server.Run;
+   Tls_Server.Run (Ssl, Ctx, L, C);
 end Tls_Server_Main;

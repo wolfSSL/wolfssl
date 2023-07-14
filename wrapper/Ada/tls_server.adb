@@ -21,17 +21,12 @@
 
 --  Ada Standard Library packages.
 with Ada.Characters.Handling;
-with Ada.Command_Line;
 with Ada.Strings.Bounded;
 with Ada.Text_IO.Bounded_IO;
 
---  GNAT Library packages.
-with GNAT.Sockets;
+with SPARK_Terminal; pragma Elaborate_All (SPARK_Terminal);
 
---  The WolfSSL package.
-with WolfSSL;
-
-package body Tls_Server is
+package body Tls_Server with SPARK_Mode is
 
    use type WolfSSL.Mode_Type;
    use type WolfSSL.Byte_Index;
@@ -39,52 +34,57 @@ package body Tls_Server is
 
    use all type WolfSSL.Subprogram_Result;
 
-   package Messages is new Ada.Strings.Bounded.Generic_Bounded_Length (Max => 200);
-   use all type Messages.Bounded_String;
+   procedure Put (Char : Character) is
+   begin
+      Ada.Text_IO.Put (Char);
+   end Put;
 
-   package Messages_IO is new Ada.Text_IO.Bounded_IO (Messages);
+   procedure Put (Text : String) is
+   begin
+      Ada.Text_IO.Put (Text);
+   end Put;
 
    procedure Put_Line (Text : String) is
    begin
       Ada.Text_IO.Put_Line (Text);
    end Put_Line;
 
-   procedure Put_Line (Text : Messages.Bounded_String) is
+   procedure New_Line is
    begin
-      Messages_IO.Put_Line (Text);
-   end Put_Line;
+      Ada.Text_IO.New_Line;
+   end New_Line;
 
-   subtype Exit_Status is Ada.Command_Line.Exit_Status;
+   subtype Exit_Status is SPARK_Terminal.Exit_Status;
 
-   Exit_Status_Success : Exit_Status renames Ada.Command_Line.Success;
-   Exit_Status_Failure : Exit_Status renames Ada.Command_Line.Failure;
+   Exit_Status_Success : Exit_Status renames SPARK_Terminal.Exit_Status_Success;
+   Exit_Status_Failure : Exit_Status renames SPARK_Terminal.Exit_Status_Failure;
 
-   procedure Set (Status : Exit_Status) is
+   procedure Set (Status : Exit_Status) with Global => null is
    begin
-      Ada.Command_Line.Set_Exit_Status (Status);
+      SPARK_Terminal.Set_Exit_Status (Status);
    end Set;
 
-   subtype Port_Type is GNAT.Sockets.Port_Type;
+   subtype Port_Type is SPARK_Sockets.Port_Type;
 
-   subtype Level_Type is GNAT.Sockets.Level_Type;
+   subtype Level_Type is SPARK_Sockets.Level_Type;
 
-   subtype Socket_Type is GNAT.Sockets.Socket_Type;
-   subtype Option_Name is GNAT.Sockets.Option_Name;
-   subtype Option_Type is GNAT.Sockets.Option_Type;
-   subtype Family_Type is GNAT.Sockets.Family_Type;
+   subtype Socket_Type is SPARK_Sockets.Socket_Type;
+   subtype Option_Name is SPARK_Sockets.Option_Name;
+   subtype Option_Type is SPARK_Sockets.Option_Type;
+   subtype Family_Type is SPARK_Sockets.Family_Type;
 
-   subtype Sock_Addr_Type is GNAT.Sockets.Sock_Addr_Type;
-   subtype Inet_Addr_Type is GNAT.Sockets.Inet_Addr_Type;
+   subtype Sock_Addr_Type is SPARK_Sockets.Sock_Addr_Type;
+   subtype Inet_Addr_Type is SPARK_Sockets.Inet_Addr_Type;
 
-   Socket_Error : exception renames GNAT.Sockets.Socket_Error;
+   Socket_Error : exception renames SPARK_Sockets.Socket_Error;
 
-   Reuse_Address : Option_Name renames GNAT.Sockets.Reuse_Address;
+   Reuse_Address : Option_Name renames SPARK_Sockets.Reuse_Address;
 
-   Socket_Level : Level_Type renames GNAT.Sockets.Socket_Level;
+   Socket_Level : Level_Type renames SPARK_Sockets.Socket_Level;
 
-   Family_Inet : Family_Type renames GNAT.Sockets.Family_Inet;
+   Family_Inet : Family_Type renames SPARK_Sockets.Family_Inet;
 
-   Any_Inet_Addr : Inet_Addr_Type renames GNAT.Sockets.Any_Inet_Addr;
+   Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
    CERT_FILE : constant String := "../certs/server-cert.pem";
    KEY_FILE  : constant String := "../certs/server-key.pem";
@@ -94,42 +94,64 @@ package body Tls_Server is
 
    Reply : constant Byte_Array := "I hear ya fa shizzle!";
 
-   procedure Run is
+   procedure Run (Ssl : in out WolfSSL.WolfSSL_Type;
+                  Ctx : in out WolfSSL.Context_Type;
+                  L   : in out SPARK_Sockets.Optional_Socket;
+                  C   : in out SPARK_Sockets.Optional_Socket) is
       A : Sock_Addr_Type;
-      L : Socket_Type;  --  Listener socket.
-      C : Socket_Type;  --  Client socket.
       P : constant Port_Type := 11111;
 
       Ch : Character;
 
-      Ssl : WolfSSL.WolfSSL_Type;
-
-      Ctx : WolfSSL.Context_Type;
       Result : WolfSSL.Subprogram_Result;
-      M : Messages.Bounded_String;
       Shall_Continue : Boolean := True;
 
       Bytes_Written : Integer;
 
       Input : WolfSSL.Read_Result;
+      Option : Option_Type;
    begin
-      GNAT.Sockets.Create_Socket (Socket => L);
-      GNAT.Sockets.Set_Socket_Option (Socket => L,
-                                      Level  => Socket_Level,
-                                      Option => (Name    => Reuse_Address,
-                                                 Enabled => True));
-      GNAT.Sockets.Bind_Socket (Socket  => L,
-                                Address => (Family => Family_Inet,
-                                            Addr   => Any_Inet_Addr,
-                                            Port   => P));
-      GNAT.Sockets.Listen_Socket (Socket => L,
-                                  Length => 5);
+      SPARK_Sockets.Create_Socket (Socket => L);
+      if not L.Exists then
+         Put_Line ("ERROR: Failed to create socket.");
+         return;
+      end if;
+
+      Option := (Name => Reuse_Address, Enabled => True);
+      Result := SPARK_Sockets.Set_Socket_Option (Socket => L.Socket,
+                                                 Level  => Socket_Level,
+                                                 Option => Option);
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to set socket option.");
+         SPARK_Sockets.Close_Socket (L);
+         return;
+      end if;
+
+      A := (Family => Family_Inet,
+            Addr   => Any_Inet_Addr,
+            Port   => P);
+      Result := SPARK_Sockets.Bind_Socket (Socket  => L.Socket,
+                                           Address => A);
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to bind socket.");
+         SPARK_Sockets.Close_Socket (L);
+         return;
+      end if;
+
+      Result := SPARK_Sockets.Listen_Socket (Socket => L.Socket,
+                                             Length => 5);
+      if Result = Failure then
+         Put_Line ("ERROR: Failed to configure listener socket.");
+         SPARK_Sockets.Close_Socket (L);
+         return;
+      end if;
 
       --  Create and initialize WOLFSSL_CTX.
       WolfSSL.Create_Context (Method  => WolfSSL.TLSv1_3_Server_Method,
                               Context => Ctx);
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
+         SPARK_Sockets.Close_Socket (L);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -144,10 +166,12 @@ package body Tls_Server is
                                               File    => CERT_FILE,
                                               Format  => WolfSSL.Format_Pem);
       if Result = Failure then
-         M := Messages.To_Bounded_String ("ERROR: failed to load ");
-         Messages.Append (M, CERT_FILE);
-         Messages.Append (M, ", please check the file.");
-         Put_Line (M);
+         Put ("ERROR: failed to load ");
+         Put (CERT_FILE);
+         Put (", please check the file.");
+         New_Line;
+         SPARK_Sockets.Close_Socket (L);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -157,10 +181,12 @@ package body Tls_Server is
                                               File    => KEY_FILE,
                                               Format  => WolfSSL.Format_Pem);
       if Result = Failure then
-         M := Messages.To_Bounded_String ("ERROR: failed to load ");
-         Messages.Append (M, KEY_FILE);
-         Messages.Append (M, ", please check the file.");
-         Put_Line (M);
+         Put ("ERROR: failed to load ");
+         Put (KEY_FILE);
+         Put (", please check the file.");
+         New_Line;
+         SPARK_Sockets.Close_Socket (L);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
@@ -170,39 +196,53 @@ package body Tls_Server is
                                                File    => CA_FILE,
                                                Path    => "");
       if Result = Failure then
-         M := Messages.To_Bounded_String ("ERROR: failed to load ");
-         Messages.Append (M, CA_FILE);
-         Messages.Append (M, ", please check the file.");
-         Put_Line (M);
+         Put ("ERROR: failed to load ");
+         Put (CA_FILE);
+         Put (", please check the file.");
+         New_Line;
+         SPARK_Sockets.Close_Socket (L);
+         WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
       end if;
 
       while Shall_Continue loop
+         pragma Loop_Invariant (not C.Exists and
+                                   not WolfSSL.Is_Valid (Ssl) and
+                                   WolfSSL.Is_Valid (Ctx));
+
          Put_Line ("Waiting for a connection...");
-         begin
-            GNAT.Sockets.Accept_Socket (Server  => L,
-                                        Socket  => C,
-                                        Address => A);
-         exception
-            when Socket_Error =>
-               Shall_Continue := False;
-               Put_Line ("ERROR: failed to accept the connection.");
-         end;
+         SPARK_Sockets.Accept_Socket (Server  => L.Socket,
+                                      Socket  => C,
+                                      Address => A,
+                                      Result  => Result);
+         if Result = Failure then
+            Put_Line ("ERROR: failed to accept the connection.");
+            SPARK_Sockets.Close_Socket (L);
+            WolfSSL.Free (Context => Ctx);
+            return;
+         end if;
 
          --  Create a WOLFSSL object.
          WolfSSL.Create_WolfSSL (Context => Ctx, Ssl => Ssl);
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
+            SPARK_Sockets.Close_Socket (L);
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
 
          --  Attach wolfSSL to the socket.
          Result := WolfSSL.Attach (Ssl    => Ssl,
-                                   Socket => GNAT.Sockets.To_C (C));
+                                   Socket => SPARK_Sockets.To_C (C.Socket));
          if Result = Failure then
             Put_Line ("ERROR: Failed to set the file descriptor.");
+            WolfSSL.Free (Ssl);
+            SPARK_Sockets.Close_Socket (L);
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
@@ -211,6 +251,10 @@ package body Tls_Server is
          Result := WolfSSL.Accept_Connection (Ssl);
          if Result = Failure then
             Put_Line ("Accept error.");
+            WolfSSL.Free (Ssl);
+            SPARK_Sockets.Close_Socket (L);
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
@@ -218,25 +262,27 @@ package body Tls_Server is
          Put_Line ("Client connected successfully.");
 
          Input := WolfSSL.Read (Ssl);
-
          if Input.Result /= Success then
             Put_Line ("Read error.");
+            WolfSSL.Free (Ssl);
+            SPARK_Sockets.Close_Socket (L);
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
 
          --  Print to stdout any data the client sends.
-         M := Messages.To_Bounded_String ("");
          for I in Input.Buffer'Range loop
             Ch := Character (Input.Buffer (I));
             if Ada.Characters.Handling.Is_Graphic (Ch) then
-               Messages.Append (M, Ch);
+               Put (Ch);
             else
                null;
                --  Ignore the "newline" characters at end of message.
             end if;
          end loop;
-         Put_Line (M);
+         New_Line;
 
          --  Check for server shutdown command.
          if Input.Last >= 8  then
@@ -252,12 +298,15 @@ package body Tls_Server is
          end if;
 
          Result := WolfSSL.Shutdown (Ssl);
+         if Result = Failure then
+            Put_Line ("ERROR: Failed to shutdown WolfSSL context.");
+         end if;
          WolfSSL.Free (Ssl);
-         GNAT.Sockets.Close_Socket (C);
+         SPARK_Sockets.Close_Socket (C);
 
          Put_Line ("Shutdown complete.");
       end loop;
-      GNAT.Sockets.Close_Socket (L);
+      SPARK_Sockets.Close_Socket (L);
       WolfSSL.Free (Context => Ctx);
       WolfSSL.Finalize;
    end Run;

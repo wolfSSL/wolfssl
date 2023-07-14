@@ -19,8 +19,19 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
-package Tls_Client is
+--  The WolfSSL package.
+with WolfSSL; pragma Elaborate_All (WolfSSL);
 
-   procedure Run;
+with SPARK_Sockets; pragma Elaborate_All (SPARK_Sockets);
+
+package Tls_Client with SPARK_Mode is
+
+   procedure Run (Ssl    : in out WolfSSL.WolfSSL_Type;
+                  Ctx    : in out WolfSSL.Context_Type;
+                  Client : in out SPARK_Sockets.Optional_Socket) with
+      Pre  => (not Client.Exists and not
+                  WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx)),
+      Post => (not Client.Exists and not WolfSSL.Is_Valid (Ssl) and
+                  not WolfSSL.Is_Valid (Ctx));
 
 end Tls_Client;

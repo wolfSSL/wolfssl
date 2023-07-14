@@ -1,4 +1,4 @@
--- tls_server.ads
+-- spark_sockets.ads
 --
 -- Copyright (C) 2006-2023 wolfSSL Inc.
 --
@@ -19,21 +19,25 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
---  SPARK wrapper package around GNAT Library packages.
-with SPARK_Sockets; pragma Elaborate_All (SPARK_Sockets);
+with Ada.Command_Line;
 
---  The WolfSSL package.
-with WolfSSL; pragma Elaborate_All (WolfSSL);
+--  SPARK wrapper package around Ada.Command_Line and Interfaces.C
+--  packages because these packages lack contracts in their specification
+--  files that SPARK can use to verify the context in which
+--  subprograms can safely be called.
+package SPARK_Terminal with SPARK_Mode is
 
-package Tls_Server with SPARK_Mode is
+   subtype Exit_Status is Ada.Command_Line.Exit_Status;
 
-   procedure Run (Ssl : in out WolfSSL.WolfSSL_Type;
-                  Ctx : in out WolfSSL.Context_Type;
-                  L   : in out SPARK_Sockets.Optional_Socket;
-                  C   : in out SPARK_Sockets.Optional_Socket) with
-      Pre  => (not C.Exists and not L.Exists and not
-                  WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx)),
-      Post => (not C.Exists and not L.Exists and not
-                  WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx));
+   Exit_Status_Success : Exit_Status renames Ada.Command_Line.Success;
+   Exit_Status_Failure : Exit_Status renames Ada.Command_Line.Failure;
 
-end Tls_Server;
+   procedure Set_Exit_Status (Status : Exit_Status) with
+      Global => null;
+
+   function Argument_Count return Natural;
+
+   function Argument (Number : Positive) return String with
+      Pre => Number <= Argument_Count;
+
+end SPARK_Terminal;
