@@ -34840,6 +34840,10 @@ static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
     return WC_LMS_RC_READ_TO_MEMORY;
 }
 
+/* LMS signature sizes are a function of their parameters. This
+ * test has a signature of 8688 bytes. */
+#define WC_TEST_LMS_SIG_LEN (8688)
+
 WOLFSSL_TEST_SUBROUTINE int lms_test(void)
 {
     int           ret;
@@ -34847,13 +34851,22 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
     LmsKey        signingKey;
     LmsKey        verifyKey;
     WC_RNG        rng;
-    byte          sig[8688];
     word32        sigSz = 0;
     const char *  msg = "LMS HSS post quantum signature test";
     word32        msgSz = (word32) XSTRLEN(msg);
     unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
     unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte *        sig = XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL) {
+        return WC_TEST_RET_ENC_ERRNO;
+    }
+#else
+    byte          sig[WC_TEST_LMS_SIG_LEN];
+#endif
 
+    XMEMSET(priv, 0, sizeof(priv));
     XMEMSET(old_priv, 0, sizeof(old_priv));
 
 #ifndef HAVE_FIPS
@@ -34863,7 +34876,7 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
 #endif
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
-   /*
+   /* This test:
     * levels: 1
     * height: 5
     * winternitz: 1
@@ -34871,7 +34884,14 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
     * max sigs: 2 ** (1 * 5) = 32
     * signature length: 8688
     */
-    ret = wc_LmsKey_Init_ex(&signingKey, 1, 5, 1, NULL, INVALID_DEVID);
+
+    ret = wc_LmsKey_Init(&signingKey, NULL, INVALID_DEVID);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_Init(&verifyKey, NULL, INVALID_DEVID);
+    if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
+
+    ret = wc_LmsKey_SetParameters(&signingKey, 1, 5, 1);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     ret = wc_LmsKey_SetWriteCb(&signingKey, lms_write_key_mem);
@@ -34894,8 +34914,8 @@ WOLFSSL_TEST_SUBROUTINE int lms_test(void)
     ret = wc_LmsKey_GetSigLen(&verifyKey, &sigSz);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
-    if (sigSz != sizeof(sig)) {
-        printf("error: got %d, expected %zu\n", sigSz, sizeof(sig));
+    if (sigSz != WC_TEST_LMS_SIG_LEN) {
+        printf("error: got %d, expected %d\n", sigSz, WC_TEST_LMS_SIG_LEN);
         return WC_TEST_RET_ENC_EC(sigSz);
     }
 

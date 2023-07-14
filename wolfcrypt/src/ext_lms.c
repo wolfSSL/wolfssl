@@ -74,7 +74,9 @@ static bool LmsGenerateRand(void * output, size_t length)
     return true;
 }
 
-/* Write callback passed into hash-sigs hss lib. */
+/* Write callback passed into hash-sigs hss lib.
+ *
+ * Returns true on success. */
 static bool LmsWritePrivKey(unsigned char *private_key,
                             size_t len_private_key, void *lmsKey)
 {
@@ -86,20 +88,19 @@ static bool LmsWritePrivKey(unsigned char *private_key,
         return false;
     }
 
-    if (key->state != WC_LMS_STATE_INITED && key->state != WC_LMS_STATE_OK) {
-       /* The key had an error the last time it was used, and we
-        * can't guarantee its state. */
-        WOLFSSL_MSG("error: LmsWritePrivKey: LMS key not in good state");
+    if (key->state != WC_LMS_STATE_PARMSET && key->state != WC_LMS_STATE_OK) {
+       /* The LmsKey is not ready for writing. */
+        WOLFSSL_MSG("error: LmsWritePrivKey: LMS key not in writeable state");
         return false;
     }
 
     if (key->write_private_key == NULL) {
         WOLFSSL_MSG("error: LmsWritePrivKey: LMS key write callback not set");
-        key->state = WC_LMS_STATE_NOT_INITED;
+        key->state = WC_LMS_STATE_BAD;
         return false;
     }
 
-    /* Use write callback. */
+    /* Use write callback that saves private key to non-volatile storage. */
     ret = key->write_private_key(private_key, len_private_key, key->context);
 
     if (ret != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
@@ -112,7 +113,9 @@ static bool LmsWritePrivKey(unsigned char *private_key,
     return true;
 }
 
-/* Read callback passed into hash-sigs hss lib. */
+/* Read callback passed into hash-sigs hss lib.
+ *
+ * Returns true on success. */
 static bool LmsReadPrivKey(unsigned char *private_key,
                            size_t len_private_key, void *lmsKey)
 {
@@ -124,20 +127,19 @@ static bool LmsReadPrivKey(unsigned char *private_key,
         return false;
     }
 
-    if (key->state != WC_LMS_STATE_INITED && key->state != WC_LMS_STATE_OK) {
-       /* The key had an error the last time it was used, and we
-        * can't guarantee its state. */
-        WOLFSSL_MSG("error: LmsReadPrivKey: LMS key not in good state");
+    if (key->state != WC_LMS_STATE_PARMSET && key->state != WC_LMS_STATE_OK) {
+       /* The LmsKey is not ready for reading. */
+        WOLFSSL_MSG("error: LmsReadPrivKey: LMS key not in readable state");
         return false;
     }
 
     if (key->read_private_key == NULL) {
         WOLFSSL_MSG("error: LmsReadPrivKey: LMS key read callback not set");
-        key->state = WC_LMS_STATE_NOT_INITED;
+        key->state = WC_LMS_STATE_BAD;
         return false;
     }
 
-    /* Use read callback. */
+    /* Use read callback that reads private key from non-volatile storage. */
     ret = key->read_private_key(private_key, len_private_key, key->context);
 
     if (ret != WC_LMS_RC_READ_TO_MEMORY) {
@@ -223,45 +225,83 @@ const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsEc)
     return "LMS_RC_INVALID";
 }
 
-int wc_LmsKey_Init(LmsKey * key, enum wc_LmsParm lmsParm)
+/* Init an LMS key.
+ *
+ * Call this before setting the parms of an LMS key.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_Init(LmsKey * key, void * heap, int devId)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
+    (void) heap;
+    (void) devId;
+
+    ForceZero(key, sizeof(LmsKey));
+
+    /* Set the max number of worker threads that hash-sigs can spawn. */
+    hss_init_extra_info(&key->info);
+    hss_extra_info_set_threads(&key->info, EXT_LMS_MAX_THREADS);
+
+    key->working_key = NULL;
+    key->write_private_key = NULL;
+    key->read_private_key = NULL;
+    key->context = NULL;
+    key->state = WC_LMS_STATE_INITED;
+
+    return 0;
+}
+
+/* Set the wc_LmsParm of an LMS key.
+ *
+ * Use this if you wish to set a key with a predefined parameter set,
+ * such as WC_LMS_PARM_L2_H10_W8.
+ *
+ * Key must be inited before calling this.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* If NONE is passed, default to the lowest predefined set. */
     switch (lmsParm) {
     case WC_LMS_PARM_NONE:
-        return wc_LmsKey_Init_ex(key, 1, 15, 2, NULL, INVALID_DEVID);
-
     case WC_LMS_PARM_L1_H15_W2:
-        return wc_LmsKey_Init_ex(key, 1, 15, 2, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 1, 15, 2);
 
     case WC_LMS_PARM_L1_H15_W4:
-        return wc_LmsKey_Init_ex(key, 1, 15, 4, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 1, 15, 4);
 
     case WC_LMS_PARM_L2_H10_W2:
-        return wc_LmsKey_Init_ex(key, 2, 10, 2, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 2, 10, 2);
 
     case WC_LMS_PARM_L2_H10_W4:
-        return wc_LmsKey_Init_ex(key, 2, 10, 4, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 2, 10, 4);
 
     case WC_LMS_PARM_L2_H10_W8:
-        return wc_LmsKey_Init_ex(key, 2, 10, 8, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 2, 10, 8);
 
     case WC_LMS_PARM_L3_H5_W2:
-        return wc_LmsKey_Init_ex(key, 3, 5, 2, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 3, 5, 2);
 
     case WC_LMS_PARM_L3_H5_W4:
-        return wc_LmsKey_Init_ex(key, 3, 5, 4, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 3, 5, 4);
 
     case WC_LMS_PARM_L3_H5_W8:
-        return wc_LmsKey_Init_ex(key, 3, 5, 8, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 3, 5, 8);
 
     case WC_LMS_PARM_L3_H10_W4:
-        return wc_LmsKey_Init_ex(key, 3, 10, 4, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 3, 10, 4);
 
     case WC_LMS_PARM_L4_H5_W8:
-        return wc_LmsKey_Init_ex(key, 4, 5, 8, NULL, INVALID_DEVID);
+        return wc_LmsKey_SetParameters(key, 4, 5, 8);
 
     default:
         WOLFSSL_MSG("error: invalid LMS parameter set");
@@ -271,44 +311,45 @@ int wc_LmsKey_Init(LmsKey * key, enum wc_LmsParm lmsParm)
     return BAD_FUNC_ARG;
 }
 
-int wc_LmsKey_Init_ex(LmsKey * key, int levels, int height,
-    int winternitz, void* heap, int devId)
+/* Set the parameters of an LMS key.
+ *
+ * Use this if you wish to set specific parameters not found in the
+ * wc_LmsParm predefined sets. See comments in lms.h for allowed
+ * parameters.
+ *
+ * Key must be inited before calling this.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_SetParameters(LmsKey * key, int levels, int height,
+    int winternitz)
 {
-    int         ret = 0;
     int         i = 0;
     param_set_t lm = LMS_SHA256_N32_H5;
-    param_set_t ots = LMOTS_SHA256_N32_W8;
-    (void)      heap;
-    (void)      devId;
-
-    key->state = WC_LMS_STATE_NOT_INITED;
+    param_set_t ots = LMOTS_SHA256_N32_W1;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(LmsKey));
-
-    /* Verify inputs make sense. Values of 0 may be passed to signify
-     * using minimum defaults. */
-    if (levels == 0) {
-        levels = MIN_HSS_LEVELS;
+    if (key->state != WC_LMS_STATE_INITED) {
+        WOLFSSL_MSG("error: LmsKey needs init");
+        return -1;
     }
-    else if (levels < MIN_HSS_LEVELS || levels > MAX_HSS_LEVELS) {
+
+    /* Verify inputs make sense.
+     *
+     * Note: there does not seem to be a define for min or
+     * max Winternitz integer in hash-sigs lib or RFC8554. */
+
+    if (levels < MIN_HSS_LEVELS || levels > MAX_HSS_LEVELS) {
         WOLFSSL_MSG("error: invalid level parameter");
         return BAD_FUNC_ARG;
     }
 
-    if (height == 0) {
-        height = MIN_MERKLE_HEIGHT;
-    }
-    else if (height < MIN_MERKLE_HEIGHT || height > MAX_MERKLE_HEIGHT) {
+    if (height < MIN_MERKLE_HEIGHT || height > MAX_MERKLE_HEIGHT) {
         WOLFSSL_MSG("error: invalid height parameter");
         return BAD_FUNC_ARG;
-    }
-
-    if (winternitz == 0) {
-        winternitz = 2;
     }
 
     switch (height) {
@@ -357,19 +398,17 @@ int wc_LmsKey_Init_ex(LmsKey * key, int levels, int height,
         key->lm_ots_type[i] = ots;
     }
 
-    /* Set the max number of worker threads that hash-sigs can spawn. */
-    hss_init_extra_info(&key->info);
-    hss_extra_info_set_threads(&key->info, EXT_LMS_MAX_THREADS);
+    /* Move the state to parms set.
+     * Key is ready for MakeKey or Reload. */
+    key->state = WC_LMS_STATE_PARMSET;
 
-    key->working_key = NULL;
-    key->write_private_key = NULL;
-    key->read_private_key = NULL;
-    key->context = NULL;
-    key->state = WC_LMS_STATE_INITED;
-
-    return ret;
+    return 0;
 }
 
+/* Frees the LMS key from memory.
+ *
+ * This does not affect the private key saved to non-volatile storage.
+ * */
 void wc_LmsKey_Free(LmsKey* key)
 {
     if (key == NULL) {
@@ -383,12 +422,91 @@ void wc_LmsKey_Free(LmsKey* key)
 
     ForceZero(key, sizeof(LmsKey));
 
-    key->state = WC_LMS_STATE_NOT_INITED;
+    key->state = WC_LMS_STATE_FREED;
 
     return;
 }
 
-int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
+/* Set the write private key callback to the LMS key structure.
+ *
+ * The callback must be able to write/update the private key to
+ * non-volatile storage.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb write_cb)
+{
+    if (key == NULL || write_cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Changing the write callback of an already working key is forbidden. */
+    if (key->state == WC_LMS_STATE_OK) {
+        WOLFSSL_MSG("error: wc_LmsKey_SetWriteCb: key in use");
+        return -1;
+    }
+
+    key->write_private_key = write_cb;
+
+    return 0;
+}
+
+/* Set the read private key callback to the LMS key structure.
+ *
+ * The callback must be able to read the private key from
+ * non-volatile storage.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb read_cb)
+{
+    if (key == NULL || read_cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Changing the read callback of an already working key is forbidden. */
+    if (key->state == WC_LMS_STATE_OK) {
+        WOLFSSL_MSG("error: wc_LmsKey_SetReadCb: key in use");
+        return -1;
+    }
+
+    key->read_private_key = read_cb;
+
+    return 0;
+}
+
+/* Sets the context to be used by write and read callbacks.
+ *
+ * E.g. this could be a filename if the callbacks write/read to file.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_SetContext(LmsKey * key, void * context)
+{
+    if (key == NULL || context == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Setting context of an already working key is forbidden. */
+    if (key->state == WC_LMS_STATE_OK) {
+        WOLFSSL_MSG("error: wc_LmsKey_SetContext: key in use");
+        return -1;
+    }
+
+    key->context = context;
+
+    return 0;
+}
+
+/* Make the LMS private/public key pair. The key must have its parameters
+ * set before calling this.
+ *
+ * Write/read callbacks, and context data, must be set prior.
+ * Key must have parameters set.
+ *
+ * Returns 0 on success.
+ * */
+int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
 {
     bool result = true;
 
@@ -396,7 +514,7 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
         return BAD_FUNC_ARG;
     }
 
-    if (key->state != WC_LMS_STATE_INITED) {
+    if (key->state != WC_LMS_STATE_PARMSET) {
         WOLFSSL_MSG("error: LmsKey not ready for generation");
         return -1;
     }
@@ -427,6 +545,9 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
     *                         DYNAMIC_TYPE_TMP_BUFFER);
     */
 
+    /* First generate the private key using the parameters and callbacks.
+     * If successful, private key will be saved to non-volatile storage,
+     * and the public key will be in memory. */
     result = hss_generate_private_key(LmsGenerateRand, key->levels,
                                       key->lm_type, key->lm_ots_type,
                                       LmsWritePrivKey, key,
@@ -439,6 +560,8 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
         return -1;
     }
 
+    /* Once generated, now we must load the private key so we have
+     * an hss working key for signing operations. */
     key->working_key = hss_load_private_key(LmsReadPrivKey, key,
                                             0, NULL, 0, &key->info);
 
@@ -448,48 +571,25 @@ int  wc_LmsKey_MakeKey(LmsKey* key, WC_RNG * rng)
         return -1;
     }
 
+    /* This should not happen, but check just in case. */
+    if (wc_LmsKey_SigsLeft(key) == 0) {
+        WOLFSSL_MSG("error: generated LMS key signatures exhausted");
+        key->state = WC_LMS_STATE_NOSIGS;
+        return -1;
+    }
+
     key->state = WC_LMS_STATE_OK;
 
     return 0;
 }
 
-int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb write_cb)
-{
-    if (key == NULL || write_cb == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    key->write_private_key = write_cb;
-
-    return 0;
-}
-
-int wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb read_cb)
-{
-    if (key == NULL || read_cb == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    key->read_private_key = read_cb;
-
-    return 0;
-}
-
-/* Sets the context to be used by write and read callbacks.
- * E.g. this could be a filename if the callbacks write/read to file. */
-int wc_LmsKey_SetContext(LmsKey * key, void * context)
-{
-    if (key == NULL || context == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    key->context = context;
-
-    return 0;
-}
-
-/* Reload a key that has been prepared with the appropriate read callbacks
- * or data. */
+/* Reload a key that has been prepared with the appropriate parms and
+ * data. Use this if you wish to resume signing with an existing key.
+ *
+ * Write/read callbacks, and context data, must be set prior.
+ * Key must have parameters set.
+ *
+ * Returns 0 on success. */
 int wc_LmsKey_Reload(LmsKey * key)
 {
     bool result = true;
@@ -498,7 +598,7 @@ int wc_LmsKey_Reload(LmsKey * key)
         return BAD_FUNC_ARG;
     }
 
-    if (key->state != WC_LMS_STATE_INITED) {
+    if (key->state != WC_LMS_STATE_PARMSET) {
         WOLFSSL_MSG("error: LmsKey not ready for reload");
         return -1;
     }
@@ -533,6 +633,13 @@ int wc_LmsKey_Reload(LmsKey * key)
         return -1;
     }
 
+    /* Double check the key actually has signatures left. */
+    if (wc_LmsKey_SigsLeft(key) == 0) {
+        WOLFSSL_MSG("error: reloaded LMS key signatures exhausted");
+        key->state = WC_LMS_STATE_NOSIGS;
+        return -1;
+    }
+
     key->state = WC_LMS_STATE_OK;
 
     return 0;
@@ -540,7 +647,7 @@ int wc_LmsKey_Reload(LmsKey * key)
 
 /* Given a levels, height, winternitz parameter set, determine
  * the private key length */
-int  wc_LmsKey_GetPrivLen(LmsKey * key, word32 * len)
+int wc_LmsKey_GetPrivLen(LmsKey * key, word32 * len)
 {
     if (key == NULL || len == NULL) {
         return BAD_FUNC_ARG;
@@ -554,7 +661,7 @@ int  wc_LmsKey_GetPrivLen(LmsKey * key, word32 * len)
 
 /* Given a levels, height, winternitz parameter set, determine
  * the public key length */
-int  wc_LmsKey_GetPubLen(LmsKey * key, word32 * len)
+int wc_LmsKey_GetPubLen(LmsKey * key, word32 * len)
 {
     if (key == NULL || len == NULL) {
         return BAD_FUNC_ARG;
@@ -566,9 +673,14 @@ int  wc_LmsKey_GetPubLen(LmsKey * key, word32 * len)
     return 0;
 }
 
-/* Export a generated public key. Use this to prepare a signature verification
- * key that is pub only. */
-int  wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc)
+/* Export a generated public key and parameter set from one LmsKey
+ * to another. Use this to prepare a signature verification LmsKey
+ * that is pub only.
+ *
+ * Though the public key is all that is used to verify signatures,
+ * the parameter set is needed to calculate the signature length
+ * before hand. */
+int wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc)
 {
     if (keyDst == NULL || keySrc == NULL) {
         return BAD_FUNC_ARG;
@@ -582,7 +694,9 @@ int  wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc)
             sizeof(keySrc->lm_ots_type));
 
     keyDst->levels = keySrc->levels;
-    keyDst->state = keySrc->state;
+
+    /* Mark this key as verify only, to prevent misuse. */
+    keyDst->state = WC_LMS_STATE_VERIFYONLY;
 
     return 0;
 }
@@ -591,8 +705,8 @@ int  wc_LmsKey_ExportPub(LmsKey * keyDst, const LmsKey * keySrc)
  * the signature length.
  *
  * Call this before wc_LmsKey_Sign so you know the length of
- * the required sig buffer. */
-int  wc_LmsKey_GetSigLen(LmsKey * key, word32 * len)
+ * the required signature buffer. */
+int wc_LmsKey_GetSigLen(LmsKey * key, word32 * len)
 {
     if (key == NULL || len == NULL) {
         return BAD_FUNC_ARG;
@@ -679,18 +793,18 @@ int wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
     return 0;
 }
 
-int  wc_LmsKey_SigsLeft(LmsKey * key)
-{
-    /* Returns 1 if there are signatures remaining.
-     * Returns 0 if available signatures are exhausted.
-     *
-     * Note: the number of remaining signatures is hidden behind an opaque
-     * pointer in the hash-sigs lib. We could add a counter here that is
-     * decremented on every signature. The number of available signatures
-     * grows as
-     *   N = 2 ** (levels * height)
-     * so it would need to be a big integer. */
 
+/* Returns 1 if there are signatures remaining.
+ * Returns 0 if available signatures are exhausted.
+ *
+ * Note: the number of remaining signatures is hidden behind an opaque
+ * pointer in the hash-sigs lib. We could add a counter here that is
+ * decremented on every signature. The number of available signatures
+ * grows as
+ *   N = 2 ** (levels * height)
+ * so it would need to be a big integer. */
+int wc_LmsKey_SigsLeft(LmsKey * key)
+{
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }

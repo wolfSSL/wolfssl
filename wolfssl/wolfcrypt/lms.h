@@ -73,7 +73,10 @@ enum wc_LmsRc {
  * of available signatures is the same.
  * */
 
-/* Predefined LMS/HSS parameter sets for convenience. */
+/* Predefined LMS/HSS parameter sets for convenience.
+ *
+ * Not predefining a set with Winternitz=1, because the signatures
+ * will be large. */
 enum wc_LmsParm {
     WC_LMS_PARM_NONE      =  0,
     WC_LMS_PARM_L1_H15_W2 =  1, /* 1 level Merkle tree of 15 height. */
@@ -88,22 +91,24 @@ enum wc_LmsParm {
     WC_LMS_PARM_L4_H5_W8  = 10, /* 4 level Merkle tree of 5 height. */
 };
 
+/* enum wc_LmsState is to help track the state of an LMS/HSS Key. */
 enum wc_LmsState {
-    WC_LMS_STATE_OK         = 0,
-    WC_LMS_STATE_NOT_INITED = 1,
-    WC_LMS_STATE_INITED     = 2,
-    WC_LMS_STATE_BAD        = 3, /* Can't guarantee key's state. */
-    WC_LMS_STATE_NOSIGS     = 4, /* Signatures exhausted. */
+    WC_LMS_STATE_FREED,      /* Key has been freed from memory. */
+    WC_LMS_STATE_INITED,     /* Key has been inited, ready to set parms.*/
+    WC_LMS_STATE_PARMSET,    /* Parms are set, ready to MakeKey or Reload. */
+    WC_LMS_STATE_OK,         /* Able to sign signatures and verify. */
+    WC_LMS_STATE_VERIFYONLY, /* A public only LmsKey. */
+    WC_LMS_STATE_BAD,        /* Can't guarantee key's state. */
+    WC_LMS_STATE_NOSIGS      /* Signatures exhausted. */
 };
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-/* Need an update_key_cb setting function.
- * Also maybe a generate rand cb setter. */
-WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, enum wc_LmsParm lmsParm);
-WOLFSSL_API int  wc_LmsKey_Init_ex(LmsKey * key, int levels,
-    int height, int winternitz, void* heap, int devId);
+WOLFSSL_API int  wc_LmsKey_Init(LmsKey * key, void * heap, int devId);
+WOLFSSL_API int  wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm);
+WOLFSSL_API int  wc_LmsKey_SetParameters(LmsKey * key, int levels,
+    int height, int winternitz);
 WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
     write_private_key_cb write_cb);
 WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,

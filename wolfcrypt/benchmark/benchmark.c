@@ -7851,9 +7851,15 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     byte         priv[HSS_MAX_PRIVATE_KEY_LEN];
     const char * str = wc_LmsKey_ParmToStr(parm);
 
-    ret = wc_LmsKey_Init(&key, parm);
+    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
+        goto exit_lms_sign_verify;
+    }
+
+    ret = wc_LmsKey_SetLmsParm(&key, parm);
+    if (ret) {
+        printf("wc_LmsKey_SetLmsParm failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
 
