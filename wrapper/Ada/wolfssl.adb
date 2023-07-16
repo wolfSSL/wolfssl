@@ -26,11 +26,7 @@ package body WolfSSL is
    subtype size_t is Interfaces.C.size_t; use type size_t;
 
    subtype long is Interfaces.C.long;
-
-   function Get_WolfSSL_Success return int with
-     Convention    => C,
-     External_Name => "get_wolfssl_success",
-     Import        => True;
+   subtype unsigned_long is Interfaces.C.unsigned_long;
 
    WOLFSSL_SUCCESS : constant int := Get_WolfSSL_Success;
 
@@ -47,21 +43,13 @@ package body WolfSSL is
    function Initialize return Subprogram_Result is
       Result : constant int := Initialize_WolfSSL;
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Initialize;
 
    function Finalize return Subprogram_Result is
       Result : constant int := Finalize_WolfSSL;
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Finalize;
 
    function Is_Valid (Context : Context_Type) return Boolean is
@@ -78,6 +66,16 @@ package body WolfSSL is
    begin
       return WolfTLSv1_2_Server_Method;
    end TLSv1_2_Server_Method;
+
+   function WolfTLSv1_2_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfTLSv1_2_client_method",
+     Import        => True;
+
+   function TLSv1_2_Client_Method return Method_Type is
+   begin
+      return WolfTLSv1_2_Client_Method;
+   end TLSv1_2_Client_Method;
 
    function WolfTLSv1_3_Server_Method return Method_Type with
      Convention    => C,
@@ -198,11 +196,7 @@ package body WolfSSL is
                          Count      => C,
                          Append_Nul => True);
       Result := Use_Certificate_File (Ctx, F (1 .. C), int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Context : Context_Type;
@@ -222,11 +216,7 @@ package body WolfSSL is
    begin
       Result := Use_Certificate_Buffer (Context, Input,
                                         Input'Length, int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Context : Context_Type;
@@ -251,11 +241,7 @@ package body WolfSSL is
                          Count      => C,
                          Append_Nul => True);
       Result := Use_Private_Key_File (Ctx, F (1 .. C), int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Context : Context_Type;
@@ -275,11 +261,7 @@ package body WolfSSL is
    begin
       Result := Use_Private_Key_Buffer (Context, Input,
                                         Input'Length, int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Private_Key_Buffer;
 
    function Load_Verify_Locations1
@@ -375,11 +357,7 @@ package body WolfSSL is
                                               Path    => P);
          end if;
       end if;
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Load_Verify_Locations;
 
    function Load_Verify_Buffer
@@ -390,14 +368,6 @@ package body WolfSSL is
       Convention    => C,
       External_Name => "wolfSSL_CTX_load_verify_buffer",
       Import        => True;
-   --  This function loads a CA certificate buffer into the WOLFSSL
-   --  Context. It behaves like the non-buffered version, only differing
-   --  in its ability to be called with a buffer as input instead of
-   --  a file. The buffer is provided by the in argument of size sz.
-   --  format specifies the format type of the buffer; SSL_FILETYPE_ASN1
-   --  or SSL_FILETYPE_PEM. More than one CA certificate may be loaded
-   --  per buffer as long as the format is in PEM. Please see
-   --  the examples for proper usage.
 
    function Load_Verify_Buffer (Context : Context_Type;
                                 Input   : Byte_Array;
@@ -409,11 +379,7 @@ package body WolfSSL is
                                      Input   => Input,
                                      Size    => Input'Length,
                                      Format  => int(Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Load_Verify_Buffer;
 
    function Is_Valid (Ssl : WolfSSL_Type) return Boolean is
@@ -454,11 +420,7 @@ package body WolfSSL is
                          Count      => C,
                          Append_Nul => True);
       Result := Use_Certificate_File (Ssl, F (1 .. C), int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
@@ -478,11 +440,7 @@ package body WolfSSL is
    begin
       Result := Use_Certificate_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Ssl     : WolfSSL_Type;
@@ -506,11 +464,7 @@ package body WolfSSL is
                          Count      => C,
                          Append_Nul => True);
       Result := Use_Private_Key_File (Ssl, F (1 .. C), int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
@@ -530,11 +484,7 @@ package body WolfSSL is
    begin
       Result := Use_Private_Key_Buffer (Ssl, Input,
                                         Input'Length, int (Format));
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Use_Private_Key_Buffer;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
@@ -547,11 +497,7 @@ package body WolfSSL is
                     return Subprogram_Result is
       Result : int := WolfSSL_Set_Fd (Ssl, int (Socket));
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Attach;
 
    procedure WolfSSL_Keep_Arrays (Ssl : WolfSSL_Type) with
@@ -573,11 +519,7 @@ package body WolfSSL is
                                return Subprogram_Result is
       Result : int := WolfSSL_Accept (Ssl);
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Accept_Connection;
 
    procedure WolfSSL_Free_Arrays (Ssl : WolfSSL_Type) with
@@ -631,12 +573,14 @@ package body WolfSSL is
       Size   : int;
    begin
       Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
-      if Size < 0 then
-         return (Result => Failure, Last => 0);
+      if Size <= 0 then
+         return (Success => False,
+                 Last    => 0,
+                 Code    => Subprogram_Result (Size));
       else
-         return (Result => Success,
-                 Last   => Byte_Index (Size),
-                 Buffer => Data (1 .. Byte_Index (Size)));
+         return (Success => True,
+                 Last    => Byte_Index (Size),
+                 Buffer  => Data (1 .. Byte_Index (Size)));
       end if;
    end Read;
 
@@ -648,83 +592,39 @@ package body WolfSSL is
      Import        => True;
 
    function Write (Ssl  : WolfSSL_Type;
-                   Data : Byte_Array) return Integer is
+                   Data : Byte_Array) return Write_Result is
       Size   : constant int := Data'Length;
       Result : int;
    begin
       Result := WolfSSL_Write (Ssl, Data, Size);
-      return Integer (Result);
+      if Result > 0 then
+         return (Success       => True,
+                 Bytes_Written => Byte_Index (Result));
+      else
+         return (Success => False, Code => Subprogram_Result (Result));
+      end if;
    end Write;
 
    function WolfSSL_Shutdown (Ssl : WolfSSL_Type) return int with
      Convention    => C,
      External_Name => "wolfSSL_shutdown",
      Import        => True;
-   --  This function shuts down an active SSL/TLS connection using
-   --  the SSL session, ssl. This function will try to send a
-   --  "close notify" alert to the peer. The calling application can
-   --  choose to wait for the peer to send its "close notify" alert
-   --  in response or just go ahead and shut down the underlying
-   --  connection after directly calling wolfSSL_shutdown (to save
-   --  resources). Either option is allowed by the TLS specification.
-   --  If the underlying connection will be used again in the future,
-   --  the complete two_directional shutdown procedure must be performed
-   --  to keep synchronization intact between the peers.
-   --  wolfSSL_shutdown() works with both blocking and non_blocking I/O.
-   --  When the underlying I/O is non_blocking, wolfSSL_shutdown() will
-   --  return an error if the underlying I/O could not satisfy the needs
-   --  of wolfSSL_shutdown() to continue. In this case, a call to
-   --  wolfSSL_get_error() will yield either SSL_ERROR_WANT_READ or
-   --  SSL_ERROR_WANT_WRITE. The calling process must then repeat
-   --  the call to wolfSSL_shutdown() when the underlying I/O is ready.
 
    function Shutdown (Ssl : WolfSSL_Type) return Subprogram_Result is
       Result : constant int := WolfSSL_Shutdown (Ssl);
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Shutdown;
 
    function WolfSSL_Connect (Ssl : WolfSSL_Type) return int with
       Convention    => C,
       External_Name => "wolfSSL_connect",
       Import        => True;
-   --  This function is called on the client side and initiates
-   --  an SSL/TLS handshake with a server. When this function is called,
-   --  the underlying communication channel has already been set up.
-   --  wolfSSL_connect() works with both blocking and non_blocking I/O.
-   --  When the underlying I/O is non_blocking, wolfSSL_connect() will
-   --  return when the underlying I/O could not satisfy the needs
-   --  of wolfSSL_connect to continue the handshake. In this case,
-   --  a call to wolfSSL_get_error() will yield either
-   --  SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE. The calling process
-   --  must then repeat the call to wolfSSL_connect() when
-   --  the underlying I/O is ready and wolfSSL will pick up where
-   --  it left off. When using a non_blocking socket, nothing needs
-   --  to be done, but select() can be used to check for the required
-   --  condition. If the underlying I/O is blocking, wolfSSL_connect()
-   --  will only return once the handshake has been finished or an error
-   --  occurred. wolfSSL takes a different approach to certificate
-   --  verification than OpenSSL does. The default policy for the client
-   --  is to verify the server, this means that if you don't load CAs
-   --  to verify the server you'll get a connect error,
-   --  unable to verify (_155). It you want to mimic OpenSSL behavior
-   --  of having SSL_connect succeed even if verifying the server fails
-   --  and reducing security you can do this by calling:
-   --  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0); before calling
-   --  SSL_new(); Though it's not recommended.
 
    function Connect (Ssl : WolfSSL_Type) return Subprogram_Result is
       Result : constant int := WolfSSL_Connect (Ssl);
    begin
-      if Result = WOLFSSL_SUCCESS then
-         return Success;
-      else
-         return Failure;
-      end if;
+      return Subprogram_Result (Result);
    end Connect;
 
    procedure WolfSSL_Free (Ssl : WolfSSL_Type) with
@@ -739,5 +639,50 @@ package body WolfSSL is
       end if;
       Ssl := null;
    end Free;
+
+   function WolfSSL_Get_Error (Ssl : WolfSSL_Type;
+                               Ret : int) return int with
+      Convention    => C,
+      External_Name => "wolfSSL_get_error",
+      Import        => True;
+
+   function Get_Error (Ssl    : WolfSSL_Type;
+                       Result : Subprogram_Result) return Error_Code is
+   begin
+      return Error_Code (WolfSSL_Get_Error (Ssl, int (Result)));
+   end Get_Error;
+
+   procedure WolfSSL_Error_String (Error : unsigned_long;
+                                   Data  : out Byte_Array;
+                                   Size  : unsigned_long) with
+      Convention    => C,
+      External_Name => "wolfSSL_ERR_error_string_n",
+      Import        => True;
+
+   function Error (Code : Error_Code) return Error_Message is
+      S : String (1 .. Error_Message_Index'Last);
+      B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
+      C : Natural;
+   begin
+      WolfSSL_Error_String (Error => unsigned_long (Code),
+                            Data  => B,
+                            Size  => unsigned_long (B'Last));
+      Interfaces.C.To_Ada (Item     => B,
+                           Target   => S,
+                           Count    => C,
+                           Trim_Nul => True);
+      return (Last => C,
+              Text => S (1 .. C));
+   end Error;
+
+   function Get_WolfSSL_Max_Error_Size return int with
+     Convention    => C,
+     External_Name => "get_wolfssl_max_error_size",
+     Import        => True;
+
+   function Max_Error_Size return Natural is
+   begin
+      return Natural (Get_WolfSSL_Max_Error_Size);
+   end Max_Error_Size;
 
 end WolfSSL;

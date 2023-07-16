@@ -31,8 +31,9 @@ package body Tls_Server with SPARK_Mode is
    use type WolfSSL.Mode_Type;
    use type WolfSSL.Byte_Index;
    use type WolfSSL.Byte_Array;
+   use type WolfSSL.Subprogram_Result;
 
-   use all type WolfSSL.Subprogram_Result;
+   Success : WolfSSL.Subprogram_Result renames WolfSSL.Success;
 
    procedure Put (Char : Character) is
    begin
@@ -106,13 +107,12 @@ package body Tls_Server with SPARK_Mode is
       Result : WolfSSL.Subprogram_Result;
       Shall_Continue : Boolean := True;
 
-      Bytes_Written : Integer;
-
-      Input : WolfSSL.Read_Result;
+      Input  : WolfSSL.Read_Result;
+      Output : WolfSSL.Write_Result;
       Option : Option_Type;
    begin
       Result := WolfSSL.Initialize;
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to initialize the WolfSSL library.");
          return;
       end if;
@@ -127,7 +127,7 @@ package body Tls_Server with SPARK_Mode is
       Result := SPARK_Sockets.Set_Socket_Option (Socket => L.Socket,
                                                  Level  => Socket_Level,
                                                  Option => Option);
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to set socket option.");
          SPARK_Sockets.Close_Socket (L);
          return;
@@ -138,7 +138,7 @@ package body Tls_Server with SPARK_Mode is
             Port   => P);
       Result := SPARK_Sockets.Bind_Socket (Socket  => L.Socket,
                                            Address => A);
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to bind socket.");
          SPARK_Sockets.Close_Socket (L);
          return;
@@ -146,7 +146,7 @@ package body Tls_Server with SPARK_Mode is
 
       Result := SPARK_Sockets.Listen_Socket (Socket => L.Socket,
                                              Length => 5);
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to configure listener socket.");
          SPARK_Sockets.Close_Socket (L);
          return;
@@ -171,7 +171,7 @@ package body Tls_Server with SPARK_Mode is
       Result := WolfSSL.Use_Certificate_File (Context => Ctx,
                                               File    => CERT_FILE,
                                               Format  => WolfSSL.Format_Pem);
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (CERT_FILE);
          Put (", please check the file.");
@@ -186,7 +186,7 @@ package body Tls_Server with SPARK_Mode is
       Result := WolfSSL.Use_Private_Key_File (Context => Ctx,
                                               File    => KEY_FILE,
                                               Format  => WolfSSL.Format_Pem);
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (KEY_FILE);
          Put (", please check the file.");
@@ -201,7 +201,7 @@ package body Tls_Server with SPARK_Mode is
       Result := WolfSSL.Load_Verify_Locations (Context => Ctx,
                                                File    => CA_FILE,
                                                Path    => "");
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (CA_FILE);
          Put (", please check the file.");
@@ -213,16 +213,16 @@ package body Tls_Server with SPARK_Mode is
       end if;
 
       while Shall_Continue loop
-         pragma Loop_Invariant (not C.Exists and
-                                   not WolfSSL.Is_Valid (Ssl) and
-                                   WolfSSL.Is_Valid (Ctx));
+         pragma Loop_Invariant (not C.Exists);
+         pragma Loop_Invariant (not WolfSSL.Is_Valid (Ssl));
+         pragma Loop_Invariant (WolfSSL.Is_Valid (Ctx));
 
          Put_Line ("Waiting for a connection...");
          SPARK_Sockets.Accept_Socket (Server  => L.Socket,
                                       Socket  => C,
                                       Address => A,
                                       Result  => Result);
-         if Result = Failure then
+         if Result /= Success then
             Put_Line ("ERROR: failed to accept the connection.");
             SPARK_Sockets.Close_Socket (L);
             WolfSSL.Free (Context => Ctx);
@@ -243,7 +243,7 @@ package body Tls_Server with SPARK_Mode is
          --  Attach wolfSSL to the socket.
          Result := WolfSSL.Attach (Ssl    => Ssl,
                                    Socket => SPARK_Sockets.To_C (C.Socket));
-         if Result = Failure then
+         if Result /= Success then
             Put_Line ("ERROR: Failed to set the file descriptor.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
@@ -255,7 +255,7 @@ package body Tls_Server with SPARK_Mode is
 
          --  Establish TLS connection.
          Result := WolfSSL.Accept_Connection (Ssl);
-         if Result = Failure then
+         if Result /= Success then
             Put_Line ("Accept error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
@@ -268,7 +268,7 @@ package body Tls_Server with SPARK_Mode is
          Put_Line ("Client connected successfully.");
 
          Input := WolfSSL.Read (Ssl);
-         if Input.Result /= Success then
+         if not  Input.Success then
             Put_Line ("Read error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
@@ -298,13 +298,15 @@ package body Tls_Server with SPARK_Mode is
             end if;
          end if;
 
-         Bytes_Written := WolfSSL.Write (Ssl, Reply);
-         if Bytes_Written /= Reply'Length then
-            Put_Line ("ERROR: failed to write.");
+         Output := WolfSSL.Write (Ssl, Reply);
+         if not Output.Success then
+            Put_Line ("ERROR: write failure.");
+         elsif Output.Bytes_Written /= Reply'Length then
+            Put_Line ("ERROR: failed to write full response.");
          end if;
 
          Result := WolfSSL.Shutdown (Ssl);
-         if Result = Failure then
+         if Result /= Success then
             Put_Line ("ERROR: Failed to shutdown WolfSSL context.");
          end if;
          WolfSSL.Free (Ssl);
@@ -315,7 +317,7 @@ package body Tls_Server with SPARK_Mode is
       SPARK_Sockets.Close_Socket (L);
       WolfSSL.Free (Context => Ctx);
       Result := WolfSSL.Finalize;
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to finalize the WolfSSL library.");
          return;
       end if;

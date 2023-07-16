@@ -32,21 +32,29 @@ package body Tls_Client with SPARK_Mode is
    use type WolfSSL.Mode_Type;
    use type WolfSSL.Byte_Index;
    use type WolfSSL.Byte_Array;
+   use type WolfSSL.Subprogram_Result;
 
-   use all type WolfSSL.Subprogram_Result;
+   subtype Byte_Index is WolfSSL.Byte_Index;
+
+   Success : WolfSSL.Subprogram_Result renames WolfSSL.Success;
 
    subtype Byte_Type is WolfSSL.Byte_Type;
 
-   package Integer_IO is new Ada.Text_IO.Integer_IO (Integer);
+   package Natural_IO is new Ada.Text_IO.Integer_IO (Natural);
 
    procedure Put (Text : String) is
    begin
       Ada.Text_IO.Put (Text);
    end Put;
 
-   procedure Put (Number : Integer) is
+   procedure Put (Number : Natural) is
    begin
-      Integer_IO.Put (Item => Number, Width => 0, Base => 10);
+      Natural_IO.Put (Item => Number, Width => 0, Base => 10);
+   end Put;
+
+   procedure Put (Number : Byte_Index) is
+   begin
+      Natural_IO.Put (Item => Natural (Number), Width => 0, Base => 10);
    end Put;
 
    procedure Put_Line (Text : String) is
@@ -120,19 +128,18 @@ package body Tls_Client with SPARK_Mode is
 
       Addr : SPARK_Sockets.Optional_Inet_Addr;
 
-      Bytes_Written : Integer;
-
       Count : WolfSSL.Byte_Index;
 
       Text : String (1 .. 200);
-      Last : Integer;
+      Last : Natural;
 
-      Input : WolfSSL.Read_Result;
+      Input  : WolfSSL.Read_Result;
+      Output : WolfSSL.Write_Result;
 
       Result : WolfSSL.Subprogram_Result;
    begin
       Result := WolfSSL.Initialize;
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to initialize the WolfSSL library.");
          return;
       end if;
@@ -162,7 +169,7 @@ package body Tls_Client with SPARK_Mode is
 
       Result := SPARK_Sockets.Connect_Socket (Socket => C.Socket,
                                               Server => A);
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to connect to server.");
          SPARK_Sockets.Close_Socket (C);
          Set (Exit_Status_Failure);
@@ -183,7 +190,7 @@ package body Tls_Client with SPARK_Mode is
       Result := WolfSSL.Use_Certificate_File (Context => Ctx,
                                               File    => CERT_FILE,
                                               Format  => WolfSSL.Format_Pem);
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (CERT_FILE);
          Put (", please check the file.");
@@ -198,7 +205,7 @@ package body Tls_Client with SPARK_Mode is
       Result := WolfSSL.Use_Private_Key_File (Context => Ctx,
                                               File    => KEY_FILE,
                                               Format  => WolfSSL.Format_Pem);
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (KEY_FILE);
          Put (", please check the file.");
@@ -213,7 +220,7 @@ package body Tls_Client with SPARK_Mode is
       Result := WolfSSL.Load_Verify_Locations (Context => Ctx,
                                                File    => CA_FILE,
                                                Path    => "");
-      if Result = Failure then
+      if Result /= Success then
          Put ("ERROR: failed to load ");
          Put (CA_FILE);
          Put (", please check the file.");
@@ -237,7 +244,7 @@ package body Tls_Client with SPARK_Mode is
       --  Attach wolfSSL to the socket.
       Result := WolfSSL.Attach (Ssl    => Ssl,
                                 Socket => SPARK_Sockets.To_C (C.Socket));
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to set the file descriptor.");
          SPARK_Sockets.Close_Socket (C);
          WolfSSL.Free (Ssl);
@@ -247,7 +254,7 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       Result := WolfSSL.Connect (Ssl);
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: failed to connect to wolfSSL.");
          SPARK_Sockets.Close_Socket (C);
          WolfSSL.Free (Ssl);
@@ -262,12 +269,21 @@ package body Tls_Client with SPARK_Mode is
       SPARK_Sockets.To_C (Item       => Text (1 .. Last),
                           Target     => D,
                           Count      => Count);
-      Bytes_Written := WolfSSL.Write (Ssl  => Ssl,
-                                      Data => D (1 .. Count));
-      if Bytes_Written < Last then
+      Output := WolfSSL.Write (Ssl  => Ssl,
+                               Data => D (1 .. Count));
+      if not Output.Success then
+         Put ("ERROR: write failure");
+         New_Line;
+         SPARK_Sockets.Close_Socket (C);
+         WolfSSL.Free (Ssl);
+         WolfSSL.Free (Context => Ctx);
+         return;
+      end if;
+
+      if Natural (Output.Bytes_Written) < Last then
          Put ("ERROR: failed to write entire message");
          New_Line;
-         Put (Bytes_Written);
+         Put (Output.Bytes_Written);
          Put (" bytes of ");
          Put (Last);
          Put ("bytes were sent");
@@ -279,7 +295,7 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       Input := WolfSSL.Read (Ssl);
-      if Input.Result /= Success then
+      if not Input.Success then
          Put_Line ("Read error.");
          Set (Exit_Status_Failure);
          SPARK_Sockets.Close_Socket (C);
@@ -304,7 +320,7 @@ package body Tls_Client with SPARK_Mode is
       WolfSSL.Free (Ssl);
       WolfSSL.Free (Context => Ctx);
       Result := WolfSSL.Finalize;
-      if Result = Failure then
+      if Result /= Success then
          Put_Line ("ERROR: Failed to finalize the WolfSSL library.");
       end if;
    end Run;
