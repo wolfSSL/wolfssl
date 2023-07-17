@@ -6,6 +6,13 @@ project Default is
                         "../../src",
                         "../../wolfcrypt/src");
 
+   --  Don't build the tls client application because it makes use
+   --  of the Secondary Stack due to usage of the Ada.Command_Line
+   --  package. All other Ada source code does not use the secondary stack.
+   for Excluded_Source_Files use ("tls_client_main.adb",
+                                  "tls_client.ads",
+                                  "tls_client.adb");
+
    for Object_Dir use "obj";
 
    for Main use ("c_tls_client_main.c",

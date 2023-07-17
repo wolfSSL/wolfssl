@@ -63,6 +63,7 @@ chmod +x gnat-2021-20210519-x86_64-linux-bin
 
 ```sh
 export PATH="/opt/GNAT/2021/bin:$PATH"
+cd wrapper/Ada
 gprclean
 gprbuild default.gpr
 gprbuild client.gpr
