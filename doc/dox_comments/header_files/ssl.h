@@ -1268,7 +1268,8 @@ const char** wolfSSL_get_system_CA_dirs(word32* num);
 
     \brief This function attempts to load CA certificates into a WOLFSSL_CTX
     from an OS-dependent CA certificate store. Loaded certificates will be
-    trusted.
+    trusted. The platforms supported and tested are: Linux (Debian, Ubuntu, 
+    Gentoo, Fedora, RHEL), Windows 10/11, Android, Apple OS X and iOS.
 
     \return WOLFSSL_SUCCESS on success.
     \return WOLFSSL_BAD_PATH if no system CA certs were loaded.
