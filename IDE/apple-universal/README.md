@@ -14,6 +14,17 @@ This example consists of a build script and an Xcode example project. The build 
 ## The build script
 `build-wolfssl-framework.sh` compiles wolfSSL as static library for all modern Apple platforms and simulators. This includes MacOS (`arm64`,`x86_64`), iPhone (`arm64`), iPhoneSimulator (`arm64`,`x86_64`), appleTV (`arm64`), appleTVSimulator (`arm64`,`x86_64`), appleWatch (`arm64`), and appleWatchSimulator (`arm64`,`x86_64`). The script compiles wolfSSL for each platform, creates universal binaries for platforms that support multiple architectures (macOS and simulators) using [lipo](https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary), then combines all the static libraries together into an `xcframework` that can be imported into Xcode. It is meant to be used as an example rather than a build tool, and chooses simplicity and readability over flexibility (no command line options). For an explanation of how the script cross compiles wolfSSL, see the [Technical Details](technical-details) section.
 
+To use the build script, you can run it without arguments to build a default configuration, or you can use the `-c` option to pass in a quoted string containing any additional flags to `configure` that you need. Note that `--enable-static --disable-shared` is always passed to `configure` by default. Consider the following usage example, with descriptions in the comments:
+
+```
+# default configuration
+./build-wolfssl-framework.sh
+
+# hardened configuration with curl support and FIPS-ready crypto
+./build-wolfssl-framework.sh -c "--enable-harden --enable-curl --enable-fips=ready"
+
+```
+
 ## Example project
 `wolfssl-multiplatform` is an xcode project containing a simple swiftUI "hello world" app that has been modified to run the wolfCrypt tests and establish a TLS connection to `www.wolfssl.com` on startup. It also provides an example for basic Swift/C interoperability using a "bridging header". When the app launches, the swiftUI initialization handler calls a C test driver function, which is responsible for running the wolfSSL examples. An overview of the additional files is as follows:
 
