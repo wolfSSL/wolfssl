@@ -2376,8 +2376,7 @@ install(FILES
 # Install the export set
 install(EXPORT wolfssl-targets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
-        FILE wolfssl-targets.cmake
-        NAMESPACE wolfssl::)
+        FILE wolfssl-config.cmake)
 
 # TODO: Distro build + rules for what to include in the distro.
 #       See various include.am files.

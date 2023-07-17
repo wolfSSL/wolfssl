@@ -30686,9 +30686,9 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     ext = &cert->customCertExt[cert->customCertExtCount];
 
-    ext->oid = oid;
+    ext->oid = (char*)oid;
     ext->crit = (critical == 0) ? 0 : 1;
-    ext->val = der;
+    ext->val = (byte*)der;
     ext->valSz = derSz;
 
     cert->customCertExtCount++;
