@@ -1,5 +1,5 @@
 /*!
-    \brief  
+    \brief
     \return pointer  この関数は、新しいwolfssl_method構造体へのポインタを返します。
     _Example_
     \code
@@ -15,7 +15,7 @@
 WOLFSSL_METHOD *wolfDTLSv1_2_client_method_ex(void* heap);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、Wolfsslv23_client_methodと同様のwolfssl_methodを返します（サーバー/クライアント）。
     \return WOLFSSL_METHOD*  成功した作成では、wolfssl_methodポインタを返します
     \return NULL  メモリ割り当てエラーまたはメソッドの作成の失敗の場合はnull
@@ -31,7 +31,7 @@ WOLFSSL_METHOD *wolfDTLSv1_2_client_method_ex(void* heap);
 WOLFSSL_METHOD *wolfSSLv23_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFSSLV3_SERVER_METHOD（）関数は、アプリケーションがサーバーであることを示すために使用され、SSL 3.0プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -61,7 +61,7 @@ WOLFSSL_METHOD *wolfSSLv23_method(void);
 WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfsslv3_client_method（）関数は、アプリケーションがクライアントであり、SSL 3.0プロトコルのみをサポートすることを示すために使用されます。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -91,7 +91,7 @@ WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 WOLFSSL_METHOD *wolfSSLv3_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFTLSV1_SERVER_METHOD（）関数は、アプリケーションがサーバーであることを示すために使用され、TLS 1.0プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -121,7 +121,7 @@ WOLFSSL_METHOD *wolfSSLv3_client_method(void);
 WOLFSSL_METHOD *wolfTLSv1_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolftlsv1_client_method（）関数は、アプリケーションがクライアントであり、TLS 1.0プロトコルのみをサポートすることを示すために使用されます。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -151,7 +151,7 @@ WOLFSSL_METHOD *wolfTLSv1_server_method(void);
 WOLFSSL_METHOD *wolfTLSv1_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFTLSV1_1_SERVER_METHOD（）関数は、アプリケーションがサーバーであることを示すために使用され、TLS 1.1プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -181,7 +181,7 @@ WOLFSSL_METHOD *wolfTLSv1_client_method(void);
 WOLFSSL_METHOD *wolfTLSv1_1_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFTLSV1_1_CLIENT_METHOD（）関数は、アプリケーションがクライアントであり、TLS 1.0プロトコルのみをサポートすることを示すために使用されます。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -211,7 +211,7 @@ WOLFSSL_METHOD *wolfTLSv1_1_server_method(void);
 WOLFSSL_METHOD *wolfTLSv1_1_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFTLSV1_2_SERVER_METHOD（）関数は、アプリケーションがサーバーであることを示すために使用され、TLS 1.2プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -241,7 +241,7 @@ WOLFSSL_METHOD *wolfTLSv1_1_client_method(void);
 WOLFSSL_METHOD *wolfTLSv1_2_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolftlsv1_2_client_method（）関数は、アプリケーションがクライアントであり、TLS 1.2プロトコルのみをサポートすることを示すために使用されます。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -271,7 +271,7 @@ WOLFSSL_METHOD *wolfTLSv1_2_server_method(void);
 WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfdtlsv1_client_method（）関数は、アプリケーションがクライアントであり、DTLS 1.0プロトコルのみをサポートすることを示すために使用されます。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。この関数は、WolfSSLがDTLSサポート（ -  enable-dtls、またはWolfSSL_DTLSを定義することによって）コンパイルされている場合にのみ使用できます。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -299,7 +299,7 @@ WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 WOLFSSL_METHOD *wolfDTLSv1_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  WOLFDTLSV1_SERVER_METHOD（）関数は、アプリケーションがサーバーであることを示すために使用され、DTLS 1.0プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。この関数は、WolfSSLがDTLSサポート（ -  enable-dtls、またはWolfSSL_DTLSを定義することによって）コンパイルされている場合にのみ使用できます。
     \return *  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return FAIL  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -340,7 +340,7 @@ WOLFSSL_METHOD *wolfDTLSv1_server_method(void);
 WOLFSSL_METHOD *wolfDTLSv1_2_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  Chacha-Poly Aead Constructionの最初のリリースと新しいバージョンの間にいくつかの違いがあるため、古いバージョンを使用してサーバー/クライアントと通信するオプションを追加しました。デフォルトでは、WolfSSLは新しいバージョンを使用します。
     \return 0  成功すると
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -595,7 +595,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl,
                                             WOLFSSL_MEM_CONN_STATS* mem_stats);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は証明書ファイルをSSLコンテキストにロードします（wolfssl_ctx）。ファイルはファイル引数によって提供されます。format引数は、ファイルのフォーマットタイプ（SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM）を指定します。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因が誤った形式にある場合、または「format」引数を使用して誤ったフォーマットが指定されている場合があります。ファイルは存在しません。読み取られない、または破損しているメモリ状態が発生すると、ベース16のデコードはファイルで失敗します。
@@ -621,7 +621,7 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
                                      int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、秘密鍵ファイルをSSLコンテキスト（WolfSSL_CTX）にロードします。ファイルはファイル引数によって提供されます。format引数は、ファイルのフォーマットタイプを指定します.SSL_FILETYPE_ASN1OR SSL_FILETYPE_PEM。適切な使用法の例をご覧ください。外部キーストアを使用し、秘密鍵を持っていない場合は、代わりに公開鍵を入力してCryProコールバックを登録して署名を処理することができます。このためには、CryptoコールバックまたはPKコールバックを使用したビルドで構築できます。Cryptoコールバックを有効にするには、-enable-cryptocbまたはwolf_crypto_cbを使用し、wc_cryptocb_registerDeviceを使用して暗号コールバックを登録し、wolfssl_ctx_setdevidを使用して関連するdevidを設定します。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  ファイルは間違った形式で、または「format」引数を使用して誤った形式が与えられています。ファイルが存在しない、読み込めない、または破損しています。メモリ不足状態が発生します。base16デコードはファイルで失敗します。キーファイルは暗号化されていますが、パスワードは提供されません。
@@ -646,7 +646,7 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
 int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、PEM形式のCA証明書ファイルをSSLコンテキスト（WolfSSL_CTX）にロードします。これらの証明書は、信頼できるルート証明書として扱われ、SSLハンドシェイク中にピアから受信した証明書を検証するために使用されます。ファイル引数によって提供されるルート証明書ファイルは、単一の証明書または複数の証明書を含むファイルであり得る。複数のCA CERTが同じファイルに含まれている場合、WolfSSLはファイルに表示されているのと同じ順序でそれらをロードします。 path引数は、信頼できるルートCAの証明書を含むディレクトリの名前へのポインタです。ファイルの値がNULLではない場合、パスを必要な場合はパスをNULLとして指定できます。 Libraryの構築時にパスが指定されていない場合は、WOLFSSLが指定されたディレクトリにあるすべてのCA証明書をロードします。この関数はディレクトリ内のすべてのファイルをロードしようとします。この関数は、ヘッダー "-----証明書-----"を持つpemフォーマットされたcert_typeファイルを期待しています。
     \return SSL_SUCCESS  成功しました。
     \return SSL_FAILURE  CTXがNULLの場合、またはファイルとパスの両方がNULLの場合は返されます。
@@ -684,7 +684,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                                 const char* format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、PEM形式のCA証明書ファイルをSSLコンテキスト（WolfSSL_CTX）にロードします。これらの証明書は、信頼できるルート証明書として扱われ、SSLハンドシェイク中にピアから受信した証明書を検証するために使用されます。ファイル引数によって提供されるルート証明書ファイルは、単一の証明書または複数の証明書を含むファイルであり得る。複数のCA CERTが同じファイルに含まれている場合、WolfSSLはファイルに表示されているのと同じ順序でそれらをロードします。 path引数は、信頼できるルートCAの証明書を含むディレクトリの名前へのポインタです。ファイルの値がNULLではない場合、パスを必要な場合はパスをNULLとして指定できます。 Libraryの構築時にパスが指定されていない場合は、WOLFSSLが指定されたディレクトリにあるすべてのCA証明書をロードします。この関数は、指定されたフラグに基づいてディレクトリ内のすべてのファイルをロードしようとします。この関数は、ヘッダー "-----証明書-----"を持つPEM形式のcert_typeファイルを想定しています。
     \return SSL_SUCCESS  成功しました。
     \return SSL_FAILURE  CTXがNULLの場合、またはファイルとパスの両方がNULLの場合は返されます。少なくとも1つの証明書が正常にロードされているが、失敗した1つ以上がある場合、これも返されます。理由でエラースタックを確認してください。
@@ -722,7 +722,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                                          const char* path, unsigned int flags);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS / SSLハンドシェイクを実行するときにピアを検証するために使用する証明書をロードします。ハンドシェイク中に送信されたピア証明書は、使用可能なときにスキッドを使用することによって比較されます。これら2つのことが一致しない場合は、ロードされたCASが使用されます。マクロwolfssl_trust_peer_certを定義することで機能が有効になっています。適切な使用法の例をご覧ください。
     \return SSL_SUCCES  成功すると。
     \return SSL_FAILURE  CTXがNULLの場合、または両方のファイルと種類が無効な場合は返されます。
@@ -758,7 +758,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
 int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int type);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、Chain of chainをSSLコンテキスト（WolfSSL_CTX）にロードします。証明書チェーンを含むファイルはファイル引数によって提供され、PEM形式の証明書を含める必要があります。この関数は、最大MAX_CHAIN_DEPTH（Default = 9、internal.hで定義されている）証明書に加えて、サブジェクト証明書を処理します。
     \return SSL_SUCCESS  成功すると
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因が誤った形式にある場合、または「format」引数を使用して誤ったフォーマットが指定されている場合があります。ファイルは存在しません。読み取られない、または破損しているメモリ状態が発生します。
@@ -783,7 +783,7 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX *ctx,
                                                      const char *file);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、SSL接続で使用されているプライベートRSAキーをSSLコンテキスト（WolfSSL_CTX）にロードします。この関数は、wolfsslがOpenSSL互換層有効（--enable-openSSlextra、#define openssl_extra）でコンパイルされている場合にのみ利用可能で、より一般的に使用されているwolfssl_ctx_use_privatekey_file（）関数と同じです。ファイル引数には、RSA秘密鍵ファイルへのポインタが、フォーマットで指定された形式で含まれています。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因には次のようになります。入力キーファイルが誤った形式であるか、または「format」引数を使用して誤った形式が与えられている場合は、ファイルが存在しない、読み込めない、または破損していない、メモリ不足状態が発生します。
@@ -810,7 +810,7 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX *ctx,
 int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int format);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、有効なセッションのために、デフォルトで9の最大チェーン深度を返します。これは、NULL以外のセッションオブジェクト（SSL）があります。
     \return MAX_CHAIN_DEPTH  wolfssl_ctx構造がnullではない場合に返されます。デフォルトでは値は9です。
     \return BAD_FUNC_ARG  wolfssl_ctx構造がnullの場合に返されます。
@@ -832,7 +832,7 @@ int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int f
 long wolfSSL_get_verify_depth(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、CTX構造を使用して証明書チェーン深度を取得します。
     \return MAX_CHAIN_DEPTH  CTX構造体がNULLではない場合に返されます。最大証明書チェーンピア深度の定数表現。
     \return BAD_FUNC_ARG  CTX構造がNULLの場合に返されます。
@@ -855,7 +855,7 @@ long wolfSSL_get_verify_depth(WOLFSSL* ssl);
 long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は証明書ファイルをSSLセッション（WolfSSL構造体）にロードします。証明書ファイルはファイル引数によって提供されます。format引数は、ファイルのフォーマットタイプ（SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM）を指定します。
     \return SSL_SUCCESS  成功すると
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因には次のようになります。ファイルは誤った形式で、または「format」引数を使用して誤った形式が与えられています。メモリ不足状態が発生すると、ファイルでbase16のデコードが失敗する
@@ -880,7 +880,7 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、秘密鍵ファイルをSSLセッション（WolfSSL構造体）にロードします。キーファイルはファイル引数によって提供されます。format引数は、ファイルの形式タイプを指定します -  SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。外部キーストアを使用し、秘密鍵を持っていない場合は、代わりに公開鍵を入力してCryProコールバックを登録して署名を処理することができます。このためには、CryptoコールバックまたはPKコールバックを使用したビルドで構築できます。Cryptoコールバックを有効にするには、--enable-cryptocbまたはwolf_crypto_cbを使用し、wc_cryptocb_registerDeviceを使用して暗号コールバックを登録し、wolfssl_setdevidを使用して関連するdevidを設定します。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因には次のようになります。ファイルは誤った形式で、または「format」引数を使用して誤った形式が与えられていますが、ファイルは存在しません。メモリ不足状態が発生すると、ベース16のデコードがファイルで失敗し、キーファイルは暗号化されていますが、パスワードは提供されていません。
@@ -907,7 +907,7 @@ int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format);
 int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、Chain of chainをSSLセッション（WolfSSL構造体）にロードします。証明書チェーンを含むファイルはファイル引数によって提供され、PEM形式の証明書を含める必要があります。この関数は、MAX_CHAIN_DEPTH（Default = 9、internal.hで定義されている）証明書に加えて、サブジェクト証明書を処理します。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因には次のようになります。ファイルは誤った形式で、または「format」引数を使用して誤った形式が与えられています。メモリの状態が発生します
@@ -930,7 +930,7 @@ int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format);
 int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char *file);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、SSL接続で使用されているプライベートRSAキーをSSLセッション（WolfSSL構造体）にロードします。この関数は、wolfsslがOpenSSL互換層有効（--enable-openSSlextra、#define openssl_extra）でコンパイルされている場合にのみ利用可能で、より一般的に使用されるwolfssl_use_privatekey_file（）関数と同じです。ファイル引数には、RSA秘密鍵ファイルへのポインタが、フォーマットで指定された形式で含まれています。
     \return SSL_SUCCESS  成功すると
     \return SSL_FAILURE  関数呼び出しが失敗した場合、可能な原因には次のようになります。入力キーファイルが誤った形式であるか、または「format」引数を使用して誤った形式が与えられている場合は、ファイルが存在しない、読み込めない、または破損していない、メモリ不足状態が発生します
@@ -956,7 +956,7 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char *file);
 int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はwolfssl_ctx_load_verify_locationsと似ていますが、DerフォーマットされたCAファイルをSSLコンテキスト（WolfSSL_CTX）にロードすることを許可します。それはまだPEM形式のCAファイルをロードするためにも使用されるかもしれません。これらの証明書は、信頼できるルート証明書として扱われ、SSLハンドシェイク中にピアから受信した証明書を検証するために使用されます。ファイル引数によって提供されるルート証明書ファイルは、単一の証明書または複数の証明書を含むファイルであり得る。複数のCA CERTが同じファイルに含まれている場合、WolfSSLはファイルに表示されているのと同じ順序でそれらをロードします。 format引数は、証明書がSSL_FILETYPE_PEMまたはSSL_FILETYPE_ASN1（DER）のいずれかにある形式を指定します。 wolfssl_ctx_load_verify_locationsとは異なり、この関数は特定のディレクトリパスからのCA証明書のロードを許可しません。この関数は、WolfSSLライブラリがwolfssl_der_doad定義された状態でコンパイルされたときにのみ利用可能です。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  失敗すると。
@@ -981,7 +981,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx,
                                           const char* file, int format);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、入力のための所望のSSL / TLSプロトコル方式を取って、新しいSSLコンテキストを作成します。
     \return pointer  正常にコールが新しく作成されたwolfssl_ctxへのポインタを返します。
     \return NULL  失敗すると。
@@ -1005,7 +1005,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx,
 WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は新しいSSLセッションを作成し、すでに作成されたSSLコンテキストを入力として作成します。
     \return *  成功した場合、呼び出しが新しく作成されたWolfSSL構造へのポインタを返します。
     \return NULL  失敗すると。
@@ -1031,7 +1031,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、SSL接続の入出力機能としてファイル記述子（FD）を割り当てます。通常これはソケットファイル記述子になります。
     \return SSL_SUCCESS  成功すると。
     \return Bad_FUNC_ARG  失敗すると。
@@ -1086,7 +1086,7 @@ int  wolfSSL_set_fd (WOLFSSL* ssl, int fd);
 int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  渡された優先順位の暗号の名前を取得します。
     \return string  成功
     \return 0  優先順位は範囲外または無効です。
@@ -1100,7 +1100,7 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
 char* wolfSSL_get_cipher_list(int priority);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はwolfsslでイネーブルされた暗号を取得します。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  bufパラメータがnullの場合、またはlen引数がゼロ以下の場合に返されます。
@@ -1124,7 +1124,7 @@ char* wolfSSL_get_cipher_list(int priority);
 int  wolfSSL_get_ciphers(char* buf, int len);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、引数をwolfssl_get_cipher_name_internalに渡すことによって、DHE-RSAの形式の暗号名を取得します。
     \return string  この関数は、一致した暗号スイートの文字列表現を返します。
     \return NULL  エラーまたは暗号が見つかりません。
@@ -1149,7 +1149,7 @@ int  wolfSSL_get_ciphers(char* buf, int len);
 const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、SSL接続の入出力機能として使用されるファイル記述子（FD）を返します。通常これはソケットファイル記述子になります。
     \return fd  正常にコールがSSLセッションファイル記述子を返します。
     _Example_
@@ -1165,7 +1165,7 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 int  wolfSSL_get_fd(const WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfsslオブジェクトに基礎となるI / Oがブロックされていないことを通知します。アプリケーションがWolfSSLオブジェクトを作成した後、ブロッキング以外のソケットで使用される場合は、wolfssl_set_using_nonblock（）を呼び出します。これにより、wolfsslオブジェクトは、Ewouldblockを受信することを意味します。
     \return none  返品不可。
     \param ssl  wolfssl_new（）で作成されたSSLセッションへのポインタ。
@@ -1182,7 +1182,7 @@ int  wolfSSL_get_fd(const WOLFSSL*);
 void wolfSSL_set_using_nonblock(WOLFSSL* ssl, int nonblock);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この機能により、WolfSSLが非ブロッキングI / Oを使用しているかどうかをアプリケーションが判断できます。WolfSSLがノンブロッキングI / Oを使用している場合、この関数は1を返します。これにより、wolfsslオブジェクトは、Ewouldblockを受信することを意味します。
     \return 0  基礎となるI / Oがブロックされています。
     \return 1  基礎となるI / Oは非ブロッキングです。
@@ -1202,7 +1202,7 @@ void wolfSSL_set_using_nonblock(WOLFSSL* ssl, int nonblock);
 int  wolfSSL_get_using_nonblock(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、バッファ、データ、SSL接続、SSLにSZバイトを書き込みます。必要に応じて、wolfssl_write（）はまだwolfssl_connect（）またはwolfssl_accept（）によってまだ実行されていない場合、wolfssl_write（）はSSL / TLSセッションをネゴシエートします。wolfssl_write（）は、ブロックと非ブロッキングI / Oの両方で動作します。基礎となる入出力がブロックされていない場合、wolfssl_write（）がwolfssl_write（）のニーズを満たすことができなかったときにwolfssl_write（）が戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。その結果、基礎となるI / Oが準備ができたら、呼び出し側プロセスはwolfssl_write（）への呼び出しを繰り返す必要があります。基礎となる入出力がブロックされている場合、WolfSSL_WRITE（）は、サイズSZのバッファデータが完全に書かれたかエラーが発生したら、戻るだけです。
     \return >0  成功時に書かれたバイト数。
     \return 0  失敗したときに返されます。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -1230,7 +1230,7 @@ int  wolfSSL_get_using_nonblock(WOLFSSL*);
 int  wolfSSL_write(WOLFSSL* ssl, const void* data, int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、SSLセッション（SSL）内部読み取りバッファからSZバイトをバッファデータに読み出します。読み取られたバイトは内部受信バッファから削除されます。必要に応じて、wolfssl_read（）がまだwolfssl_connect（）またはwolfssl_accept（）によってまだ実行されていない場合は、wolfssl_read（）がSSL / TLSセッションをネゴシエートします。 SSL / TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。そのため、WolfSSLは、レコードを処理および復号化することができる前に、SSLレコード全体を内部的に読み取る必要があります。このため、wolfssl_read（）への呼び出しは、呼び出し時に復号化された最大バッファサイズを返すことができます。検索され、次回のwolfssl_read（）への呼び出しで復号化される内部WolfSSL受信バッファで待機していない追加の復号化データがあるかもしれません。 SZが内部読み取りバッファ内のバイト数より大きい場合、SSL_READ（）は内部読み取りバッファで使用可能なバイトを返します。 BYTESが内部読み取りバッファにバッファされていない場合は、WOLFSSL_READ（）への呼び出しは次のレコードの処理をトリガーします。
     \return >0  成功時に読み取られたバイト数。
     \return 0  失敗したときに返されます。これは、クリーン（通知アラートを閉じる）シャットダウンまたはピアが接続を閉じただけであることによって発生する可能性があります。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -1259,7 +1259,7 @@ int  wolfSSL_write(WOLFSSL* ssl, const void* data, int sz);
 int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はSSLセッション（SSL）内部読み取りバッファからSZバイトをバッファデータにコピーします。この関数は、内部SSLセッション受信バッファ内のデータが削除されていないか変更されていないことを除いて、wolfssl_read（）と同じです。必要に応じて、wolfssl_read（）のように、wolfssl_peek（）はまだwolfssl_connect（）またはwolfssl_accept（）によってまだ実行されていない場合、wolfssl_peek（）はSSL / TLSセッションをネゴシエートします。 SSL / TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。そのため、WolfSSLは、レコードを処理および復号化することができる前に、SSLレコード全体を内部的に読み取る必要があります。このため、wolfssl_peek（）への呼び出しは、呼び出し時に復号化された最大バッファサイズを返すことができます。 wolfssl_peek（）/ wolfssl_read（）への次の呼び出しで検索および復号化される内部WolfSSL受信バッファ内で待機していない追加の復号化データがあるかもしれません。 SZが内部読み取りバッファ内のバイト数よりも大きい場合、SSL_PEEK（）は内部読み取りバッファで使用可能なバイトを返します。バイトが内部読み取りバッファにバッファされていない場合、Wolfssl_peek（）への呼び出しは次のレコードの処理をトリガーします。
     \return >0  成功時に読み取られたバイト数。
     \return 0  失敗したときに返されます。これは、クリーン（通知アラートを閉じる）シャットダウンまたはピアが接続を閉じただけであることによって発生する可能性があります。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -1282,7 +1282,7 @@ int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
 int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はサーバー側で呼び出され、SSLクライアントがSSL / TLSハンドシェイクを開始するのを待ちます。この関数が呼び出されると、基礎となる通信チャネルはすでに設定されています。wolfssl_accept（）は、ブロックと非ブロッキングI / Oの両方で動作します。基礎となる入出力がノンブロッキングである場合、wolfssl_accept（）は、基礎となるI / Oがwolfssl_acceptのニーズを満たすことができなかったときに戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。通話プロセスは、読み取り可能なデータが使用可能であり、wolfsslが停止した場所を拾うときに、wolfssl_acceptの呼び出しを繰り返す必要があります。ノンブロッキングソケットを使用する場合は、何も実行する必要がありますが、select（）を使用して必要な条件を確認できます。基礎となるI / Oがブロックされている場合、wolfssl_accept（）はハンドシェイクが終了したら、またはエラーが発生したら戻ります。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FATAL_ERROR  エラーが発生した場合は返されます。より詳細なエラーコードを取得するには、wolfssl_get_error（）を呼び出します。
@@ -1306,7 +1306,7 @@ int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 int  wolfSSL_accept(WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、割り当てられたwolfssl_ctxオブジェクトを解放します。この関数はCTX参照数を減らし、参照カウントが0に達したときにのみコンテキストを解放します。
     \return none  返品不可。
     _Example_
@@ -1322,7 +1322,7 @@ int  wolfSSL_accept(WOLFSSL*);
 void wolfSSL_CTX_free(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は割り当てられたwolfsslオブジェクトを解放します。
     \return none  返品不可。
     _Example_
@@ -1340,7 +1340,7 @@ void wolfSSL_CTX_free(WOLFSSL_CTX*);
 void wolfSSL_free(WOLFSSL*);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、SSLセッションSSLを使用してアクティブなSSL / TLS接続をシャットダウンします。この関数は、ピアに「Close Notify」アラートを送信しようとします。呼び出し側アプリケーションは、Peerがその「閉じる通知」アラートを応答に送信するのを待つか、または直接wolfssl_shutdownを呼び出した後（リソースを保存するために）wolfssl_shutdownを直接通話した後に基礎となる接続を停止するのを待つことができます。どちらのオプションはTLS仕様で許可されています。将来、基礎となる接続が再び使用される場合、同期をピア間で無傷のまま保つために完全な2方向のシャットダウン手順を実行する必要があります。 wolfssl_shutdown（）は、ブロックと非ブロッキングI / Oの両方で動作します。基礎となるI / Oがノンブロッキングされていない場合、wolfsl_shutdown（）がwolfssl_shutdown（）のニーズを満たすことができなかった場合、wolfssl_shutdown（）はエラーを返します。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。その結果、基礎となるI / Oが準備ができたら、呼び出し側プロセスはwolfssl_shutdown（）への呼び出しを繰り返す必要があります。
     \return SSL_SUCCESS  成功に戻ります。
     \return SSL_SHUTDOWN_NOT_DONE  シャットダウンが終了していない場合は返され、機能を再度呼び出す必要があります。
@@ -1363,7 +1363,7 @@ void wolfSSL_free(WOLFSSL*);
 int  wolfSSL_shutdown(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、基礎となる書き込み操作のために指定されたフラグを使用して、バッファ、データ、データからSZバイトをSSL接続SSLに書き込みます。必要に応じて、wolfssl_send（）がまだwolfssl_connect（）またはwolfssl_accept（）によってまだ実行されていない場合は、wolfssl_send（）がSSL / TLSセッションをネゴシエートします。wolfssl_send（）は、ブロックと非ブロッキングI / Oの両方で動作します。基礎となる入出力が非ブロックされていない場合、wolfssl_send（）がwolfssl_sendのニーズを満たすことができなかったときにwolfssl_send（）が戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。その結果、基礎となる入出力が準備ができたら、呼び出し側プロセスはwolfssl_send（）への呼び出しを繰り返す必要があります。基礎となる入出力がブロックされている場合、Wolfssl_send（）は、サイズSZのバッファデータが完全に書き込まれたかエラーが発生したら、戻るだけです。
     \return >0  成功時に書かれたバイト数。
     \return 0  失敗したときに返されます。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -1391,7 +1391,7 @@ int  wolfSSL_shutdown(WOLFSSL*);
 int  wolfSSL_send(WOLFSSL* ssl, const void* data, int sz, int flags);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、基礎となるRECV動作のために指定されたフラグを使用して、SSLセッション（SSL）内部読み取りバッファからSZバイトをバッファデータに読み出します。読み取られたバイトは内部受信バッファから削除されます。この関数はwolfssl_read（）と同じです。ただし、アプリケーションが基礎となる読み取り操作のRECVフラグを設定できることを許可します。必要に応じてwolfssl_recv（）がwolfssl_connect（）またはwolfssl_accept（）によってハンドシェイクがまだ実行されていない場合は、SSL / TLSセッションをネゴシエートします。 SSL / TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。そのため、WolfSSLは、レコードを処理および復号化することができる前に、SSLレコード全体を内部的に読み取る必要があります。このため、wolfssl_recv（）への呼び出しは、呼び出し時に復号化された最大バッファサイズを返すことができるだけです。 wolfssl_recv（）への次の呼び出しで検索および復号化される内部WolfSSL受信バッファで待機していない追加の復号化されたデータがあるかもしれません。 SZが内部読み取りバッファ内のバイト数よりも大きい場合、SSL_RECV（）は内部読み取りバッファで使用可能なバイトを返します。バイトが内部読み取りバッファにバッファされていない場合は、WOLFSSL_RECV（）への呼び出しは次のレコードの処理をトリガーします。
     \return >0  成功時に読み取られたバイト数。
     \return 0  失敗したときに返されます。これは、クリーン（通知アラートを閉じる）シャットダウンまたはピアが接続を閉じただけであることによって発生する可能性があります。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -1419,7 +1419,7 @@ int  wolfSSL_send(WOLFSSL* ssl, const void* data, int sz, int flags);
 int  wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、以前のAPI関数呼び出し（wolfssl_connect、wolfssl_accept、wolfssl_read、wolfssl_writeなど）がエラー戻りコード（ssl_failure）を呼び出した理由を表す一意のエラーコードを返します。前の関数の戻り値は、RETを介してwolfssl_get_errorに渡されます。wolfssl_get_errorが呼び出された後、一意のエラーコードを返します、wolfssl_err_error_string（）を呼び出して人間が読めるエラー文字列を取得することができます。詳細については、wolfssl_err_error_string（）を参照してください。
     \return On  完了成功、この関数は、前のAPI関数が失敗した理由を説明する固有のエラーコードを返します。
     \return SSL_ERROR_NONE  RET> 0の場合は返されます.Ret <= 0の場合、以前のAPIがエラーコードを返すが実際に発生しなかった場合にこの値を返す場合があります。例は、ゼロSZパラメータを使用してwolfssl_read（）を呼び出すことです。a 0 wolfssl_read（）からの戻り値は通常エラーを示しますが、この場合はエラーは発生しませんでした。wolfssl_get_error（）がその後呼び出された場合、ssl_error_noneが返されます。
@@ -1442,7 +1442,7 @@ int  wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags);
 int  wolfSSL_get_error(WOLFSSL* ssl, int ret);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はアラート履歴を取得します。
     \return SSL_SUCCESS  関数が正常に完了したときに返されます。警告履歴があったか、またはいずれにも、戻り値はSSL_SUCCESSです。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -1460,7 +1460,7 @@ int  wolfSSL_get_error(WOLFSSL* ssl, int ret);
 int  wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、SSLオブジェクトSSLがSSL / TLS接続を確立するために使用されるときに使用されるセッションを設定します。セッションの再開の場合、wolfssl_shutdown（）をセッションオブジェクトに呼び出す前に、アプリケーションはオブジェクトからwolfssl_get1_session（）を呼び出して保存する必要があります。これはセッションへのポインタを返します。後で、アプリケーションは新しいWolfSSLオブジェクトを作成し、保存したセッションをwolfssl_set_session（）に割り当てる必要があります。この時点で、アプリケーションはwolfssl_connect（）を呼び出し、WolfSSLはセッションを再開しようとします。WolfSSLサーバーコードでは、デフォルトでセッションの再開を許可します。wolfssl_get1_session（）によって返されたオブジェクトは、アプリケーションがそれを使用してそれを使用して解放される必要があります。
     \return SSL_SUCCESS  セッションを正常に設定すると返されます。
     \return SSL_FAILURE  失敗した場合に返されます。これはセッションキャッシュが無効になっている、またはセッションがタイムアウトした場合によって発生する可能性があります。
@@ -1489,7 +1489,7 @@ int  wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h);
 int        wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  NO_SESSION_CACHE_REFが定義されている場合、この関数はSSLで使用されている現在のセッション（WolfSSL_SESSION）へのポインタを返します。この関数は、wolfssl_sessionオブジェクトへの永続的なポインタを返します。返されるポインタは、wolfssl_freeが呼び出されたときに解放されます。この呼び出しは、現在のセッションを検査または変更するためにのみ使用されます。セッションの再開の場合は、wolfssl_get1_session（）を使用することをお勧めします。NO_SESSION_CACHE_REFが定義されていない場合の後方互換性のために、この関数はローカルキャッシュに格納されている永続セッションオブジェクトポインタを返します。キャッシュサイズは有限であり、アプリケーションがwolfssl_set_session（）を呼び出す時までにセッションオブジェクトが別のSSL接続によって上書きされる危険性があります。アプリケーションにNO_SESSION_CACHE_REFを定義し、セッション再開にwolfssl_get1_session（）を使用することをお勧めします。
     \return pointer  正常にコールが現在のSSLセッションオブジェクトへのポインタを返します。
     \return NULL  SSLがNULLの場合、SSLセッションキャッシュが無効になっている場合、WolfSSLはセッションIDを使用できない、またはミューテックス関数が失敗します。
@@ -1510,7 +1510,7 @@ int        wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この機能は、期限切れになったセッションキャッシュからセッションをフラッシュします。時間比較にはTMが使用されます。WolfSSLは現在セッションに静的テーブルを使用しているため、フラッシングは不要です。そのため、この機能は現在サブだけです。この関数は、wolfsslがOpenSSL互換層でコンパイルされているときのOpenSSL互換性（ssl_flush_sessions）を提供します。
     \return none  いいえ返します。
     \param ctx  wolfssl_ctx_new（）を使用して作成されたwolfssl_ctx構造へのポインタ。
@@ -1526,7 +1526,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 void       wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数はクライアントセッションをサーバーIDと関連付けます。Newsessionフラグがオンの場合、既存のセッションは再利用されません。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  wolfssl structまたはidパラメータがnullの場合、またはLenがゼロ以下の場合に返されます。
@@ -1553,7 +1553,7 @@ int        wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char* id,
                                          int len, int newSession);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、WolfSSL構造体のセッションインデックスを取得します。
     \return int  この関数は、wolfssl構造体内のSessionIndexを表すint型を返します。
     _Example_
@@ -1572,7 +1572,7 @@ int        wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char* id,
 int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はセッションキャッシュの指定されたインデックスでセッションを取得し、それをメモリにコピーします。wolfssl_session構造体はセッション情報を保持します。
     \return SSL_SUCCESS  関数が正常に実行され、エラーがスローされなかった場合に返されます。
     \return BAD_MUTEX_E  アンロックまたはロックミューテックスエラーが発生した場合は返されます。
@@ -1594,7 +1594,7 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
 int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  wolfssl_session構造体からピア証明書チェーンを返します。
     \return pointer  ピア認証チェーンを含むWOLFSSL_X509_CHAIN構造体へのポインタ。
     _Example_
@@ -1615,7 +1615,7 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はリモートピアの検証方法を設定し、またSSLコンテキストに登録されることを確認することもできます。検証コールバックは、検証障害が発生した場合にのみ呼び出されます。検証コールバックが必要な場合は、NULLポインタをverify_callbackに使用できます。ピア証明書の検証モードは、論理的またはフラグのリストです。可能なフラグ値は次のとおりです.SSL_VERIFY_NONEクライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常どおり続きます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。そのため、クライアント検証は有効になりません。 ssl_verify_peerクライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfsslではデフォルトでオンにされます。したがって、このオプションを使用すると効果がありません。サーバーモード：サーバーは証明書要求をクライアントに送信し、受信したクライアント証明書を確認します。 ssl_verify_fail_if_no_peer_certクライアントモード：クライアント側で使用されていない場合は効果がありません。サーバーモード：要求されたときにクライアントが証明書の送信に失敗した場合は、サーバー側で検証が失敗します（SSLサーバーのSSL_VERIFY_PEERを使用する場合）。 ssl_verify_fail_except_pskクライアントモード：クライアント側で使用されていない場合は効果がありません。サーバーモード：PSK接続の場合を除き、検証はssl_verify_fail_if_no_peer_certと同じです。 PSK接続が行われている場合、接続はピア証明書なしで通過します。
     \return none  返品不可。
     \param ctx  wolfssl_ctx_new（）で作成されたSSLコンテキストへのポインタ。
@@ -1633,7 +1633,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
                                       VerifyCallback verify_callback);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はリモートピアの検証方法を設定し、またSSLセッションに登録するのを登録することもできます。検証コールバックは、検証障害が発生した場合にのみ呼び出されます。検証コールバックが必要な場合は、NULLポインタをverify_callbackに使用できます。ピア証明書の検証モードは、論理的またはフラグのリストです。可能なフラグ値は次のとおりです.SSL_VERIFY_NONEクライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常どおり続きます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。そのため、クライアント検証は有効になりません。 ssl_verify_peerクライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfsslではデフォルトでオンにされます。したがって、このオプションを使用すると効果がありません。サーバーモード：サーバーは証明書要求をクライアントに送信し、受信したクライアント証明書を確認します。 ssl_verify_fail_if_no_peer_certクライアントモード：クライアント側で使用されていない場合は効果がありません。サーバーモード：要求されたときにクライアントが証明書の送信に失敗した場合は、サーバー側で検証が失敗します（SSLサーバーのSSL_VERIFY_PEERを使用する場合）。 ssl_verify_fail_except_pskクライアントモード：クライアント側で使用されていない場合は効果がありません。サーバーモード：PSK接続の場合を除き、検証はssl_verify_fail_if_no_peer_certと同じです。 PSK接続が行われている場合、接続はピア証明書なしで通過します。
     \return none  返品不可。
     \param ssl  wolfssl_new（）で作成されたSSLセッションへのポインタ。
@@ -1649,7 +1649,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
 void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、検証コールバックのためのユーザーCTXオブジェクト情報を格納します。
     \return none  返品不可。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -1672,7 +1672,7 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback);
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、検証コールバックのためのユーザーCTXオブジェクト情報を格納します。
     \return none  返品不可。
     \param ctx  wolfssl_ctx構造へのポインタ。
@@ -1694,7 +1694,7 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、wolfssl_read（）によって読み取られるSSLオブジェクトでバッファされているバイト数を返します。
     \return int  この関数は、保留中のバイト数を返します。
     _Example_
@@ -1713,7 +1713,7 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 int  wolfSSL_pending(WOLFSSL*);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この機能はOpenSSL互換性（SSL_LOAD_ERROR_STRING）のみであり、アクションを取ります。
     \return none  いいえ返します。
     _Example_
@@ -1729,7 +1729,7 @@ int  wolfSSL_pending(WOLFSSL*);
 void wolfSSL_load_error_strings(void);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数はwolfssl_ctx_new（）内で内部的に呼び出されます。この関数はwolfssl_init（）の周囲のラッパーで、wolfsslがOpenSSL互換層でコンパイルされたときにOpenSSL互換性（ssl_library_init）に存在します。wolfssl_init（）は、より一般的に使用されているWolfSSL初期化機能です。
     \return SSL_SUCCESS  成功した場合、通話が戻ります。
     \return SSL_FATAL_ERROR  失敗したときに返されます。
@@ -1748,7 +1748,7 @@ void wolfSSL_load_error_strings(void);
 int  wolfSSL_library_init(void);
 
 /*!
-    \brief  
+    \brief
     \return WOLFSSL_SUCCESS  成功すると。
     \return BAD_FUNC_ARG  SSLがNULLの場合
     \param ssl  wolfssl_new（）で作成されたSSLオブジェクトへのポインタ。
@@ -1766,7 +1766,7 @@ int  wolfSSL_library_init(void);
 int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
 
 /*!
-    \brief  
+    \brief
     \return WOLFSSL_SUCCESS  成功すると。
     \return BAD_FUNC_ARG  SSLがNULLの場合
     \param ctx  wolfssl_ctx_new（）で作成されたSSLコンテキストへのポインタ。
@@ -1784,7 +1784,7 @@ int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
 int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId);
 
 /*!
-    \brief  
+    \brief
     \return devId  成功すると。
     \return INVALID_DEVID  SSLとCTXの両方がNULLの場合。
     \param ctx  wolfssl_ctx_new（）で作成されたSSLコンテキストへのポインタ。
@@ -1801,7 +1801,7 @@ int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId);
 int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はSSLセッションキャッシュを有効または無効にします。動作はモードに使用される値によって異なります。モードの値は次のとおりです.SSL_SESS_CACHE_OFF  - セッションキャッシングを無効にします。デフォルトでセッションキャッシングがオンになっています。SSL_SESS_CACHE_NO_AUTO_CLEAR  - セッションキャッシュのオートフラッシュを無効にします。デフォルトで自動フラッシングはオンになっています。
     \return SSL_SUCCESS  成功に戻ります。
     \param ctx  wolfssl_ctx_new（）で作成されたSSLコンテキストへのポインタ。
@@ -1844,7 +1844,7 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode);
 int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はセッションキャッシュをファイルに持続します。追加のメモリ使用のため、MEMSAVEは使用されません。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。セッションキャッシュはファイルに書き込まれました。
     \return SSL_BAD_FILE  FNAMEを開くことができないか、それ以外の場合は破損した場合に返されます。
@@ -1865,7 +1865,7 @@ int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx);
 int  wolfSSL_save_session_cache(const char*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はファイルから永続セッションキャッシュを復元します。追加のメモリ使用のため、MEMSTOREは使用しません。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return SSL_BAD_FILE  関数に渡されたファイルが破損していてXFOPENによって開くことができなかった場合に返されます。
@@ -1886,7 +1886,7 @@ int  wolfSSL_save_session_cache(const char*);
 int  wolfSSL_restore_session_cache(const char*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はセッションキャッシュをメモリに保持します。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。セッションキャッシュはメモリに正常に永続化されました。
     \return BAD_MUTEX_E  ミューテックスロックエラーが発生した場合は返されます。
@@ -1907,7 +1907,7 @@ int  wolfSSL_restore_session_cache(const char*);
 int  wolfSSL_memsave_session_cache(void* mem, int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はメモリから永続セッションキャッシュを復元します。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BUFFER_E  メモリバッファが小さすぎると返されます。
@@ -1928,7 +1928,7 @@ int  wolfSSL_memsave_session_cache(void* mem, int sz);
 int  wolfSSL_memrestore_session_cache(const void* mem, int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、セッションキャッシュ保存バッファをどのように大きくするかを返します。
     \return int  この関数は、セッションキャッシュ保存バッファのサイズを表す整数を返します。
     _Example_
@@ -1944,7 +1944,7 @@ int  wolfSSL_memrestore_session_cache(const void* mem, int sz);
 int  wolfSSL_get_session_cache_memsize(void);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はCertキャッシュをメモリからファイルに書き込みます。
     \return SSL_SUCCESS  CM_SaveCertCacheが正常に終了した場合。
     \return BAD_FUNC_ARG  引数のいずれかの引数がNULLの場合に返されます。
@@ -1968,7 +1968,7 @@ int  wolfSSL_get_session_cache_memsize(void);
 int  wolfSSL_CTX_save_cert_cache(WOLFSSL_CTX* ctx, const char* fname);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はファイルから証明書キャッシュを担当します。
     \return SSL_SUCCESS  関数cm_restorecertcacheが正常に実行された場合に返されます。
     \return SSL_BAD_FILE  xfopenがxbadfileを返すと返されます。ファイルが破損しています。
@@ -1991,7 +1991,7 @@ int  wolfSSL_CTX_save_cert_cache(WOLFSSL_CTX* ctx, const char* fname);
 int  wolfSSL_CTX_restore_cert_cache(WOLFSSL_CTX* ctx, const char* fname);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は証明書キャッシュをメモリに持続します。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。エラーが投げられていません。
     \return BAD_MUTEX_E  wolfssl_cert_managerメンバーのカーボックが0（ゼロ）ではなかったミューテックスエラー。
@@ -2019,7 +2019,7 @@ int  wolfSSL_CTX_restore_cert_cache(WOLFSSL_CTX* ctx, const char* fname);
 int  wolfSSL_CTX_memsave_cert_cache(WOLFSSL_CTX* ctx, void* mem, int sz, int* used);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は証明書キャッシュをメモリから復元します。
     \return SSL_SUCCESS  関数とサブルーチンがエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  CTXまたはMEMパラメータがNULLまたはSZパラメータがゼロ以下の場合に返されます。
@@ -2044,7 +2044,7 @@ int  wolfSSL_CTX_memsave_cert_cache(WOLFSSL_CTX* ctx, void* mem, int sz, int* us
 int  wolfSSL_CTX_memrestore_cert_cache(WOLFSSL_CTX* ctx, const void* mem, int sz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  Certificate Cache Saveバッファが必要なサイズを返します。
     \return int  成功したときにメモリサイズを表す整数値。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がNULLの場合に返されます。
@@ -2064,7 +2064,7 @@ int  wolfSSL_CTX_memrestore_cert_cache(WOLFSSL_CTX* ctx, const void* mem, int sz
 int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、与えられたwolfssl_ctxの暗号スイートリストを設定します。このCipher Suiteリストは、このコンテキストを使用して作成された新しいSSLセッション（WolfSSL）のデフォルトリストになります。リスト内の暗号は、最高から最低への好みの順にソートされるべきです。wolfssl_ctx_set_cipher_list（）の各呼び出しは、関数が呼び出されるたびに、特定のSSLコンテキストの暗号スイートリストを提供されたリストにリセットします。暗号スイートリスト、リストは、ヌル終端テキスト文字列、およびコロン区切りリストです。たとえば、リストの値が「DHE-RSA-AES256-SHA256：DHE-RSA-AES128-SHA256：AES256-SHA256」有効な暗号値は、src / internal.cのcipher_names []配列のフルネーム値です。（有効な暗号化値の明確なリストの場合はsrc / internal.cをチェックしてください）
     \return SSL_SUCCESS  機能完了に成功したときに返されます。
     \return SSL_FAILURE  失敗した場合に返されます。
@@ -2085,7 +2085,7 @@ int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
 int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、特定のWolfSSLオブジェクト（SSLセッション）の暗号スイートリストを設定します。リスト内の暗号は、最高から最低への好みの順にソートされるべきです。wolfssl_set_cipher_list（）の各呼び出しは、関数が呼び出されるたびに、特定のSSLセッションの暗号スイートリストを提供されたリストにリセットします。暗号スイートリスト、リストは、ヌル終端テキスト文字列、およびコロン区切りリストです。例えば、リストのための1つの値は、「DHE-RSA-AES256-SHA256：DHE-RSA-AES128-SHA256：AES256-SHA256」であり得る。有効な暗号化値は、src / internal.c（有効な暗号化値の明確なリストのリストの場合はsrc / internal.cを指定してください）のcipher_names []配列のフルネーム値です。
     \return SSL_SUCCESS  機能完了に成功したときに返されます。
     \return SSL_FAILURE  失敗した場合に返されます。
@@ -2161,7 +2161,7 @@ int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);
 int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はDTLSタイムアウトを設定します。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。SSLのDTLS_TIMEOUT_INITとDTLS_TIMEOUTメンバーが設定されています。
     \return BAD_FUNC_ARG  wolfssl structがnullの場合、またはタイムアウトが0以下の場合に返されます。タイムアウト引数が許可されている最大値を超えると、戻ります。
@@ -2184,7 +2184,7 @@ int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  wolfssl構造体がNULLの場合、またはTIMEOUT引数がゼロ以下である場合、またはWolfSSL構造体のDTLS_TIMEOUT_INITメンバーよりも小さい場合に返されます。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -2294,7 +2294,7 @@ int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
 int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_get_error（）によって返されたエラーコードをより人間が読めるエラー文字列に変換します。errnumberは、wolfssl_get_error（）によって返され、データはエラー文字列が配置されるストレージバッファです。MAX_ERROR_SZで定義されているように、データの最大長はデフォルトで80文字です。これはwolfssl / wolfcrypt / error.hです。
     \return success  正常に完了すると、この関数はデータに返されるのと同じ文字列を返します。
     \return failure  失敗すると、この関数は適切な障害理由、MSGを持つ文字列を返します。
@@ -2317,7 +2317,7 @@ int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
 char* wolfSSL_ERR_error_string(unsigned long,char*);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_err_error_string（）のバージョンです。ここで、lenはbufに書き込まれ得る最大文字数を指定します。wolfssl_err_error_string（）と同様に、この関数はwolfssl_get_error（）から返されたエラーコードをより人間が読めるエラー文字列に変換します。人間が読める文字列はbufに置かれます。
     \return none  いいえ返します。
     \param e  wolfssl_get_error（）によって返されたエラーコード。
@@ -2341,7 +2341,7 @@ void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
                                            unsigned long sz);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、Options構造体のClosEnotifyまたはConnresetまたはSentNotifyメンバーのシャットダウン条件をチェックします。オプション構造はWolfSSL構造内にあります。
     \return 1  SSL_SENT_SHUTDOWNが返されます。
     \return 2  ss_received_shutdownが返されます。
@@ -2368,7 +2368,7 @@ void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
 int  wolfSSL_get_shutdown(const WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、オプション構造体の再開メンバを返します。フラグはセッションを再利用するかどうかを示します。そうでなければ、新しいセッションを確立する必要があります。
     \return This  関数セッションの再利用のフラグを表すオプション構造に保持されているint型を返します。
     _Example_
@@ -2386,7 +2386,7 @@ int  wolfSSL_get_shutdown(const WOLFSSL*);
 int  wolfSSL_session_reused(WOLFSSL*);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、接続が確立されているかどうかを確認します。
     \return 0  接続が確立されていない場合、すなわちWolfSSL構造体がNULLまたはハンドシェイクが行われていない場合に返されます。
     \return 1  接続が確立されていない場合は返されます.WolfSSL構造体はNULLまたはハンドシェイクが行われていません。
@@ -2407,7 +2407,7 @@ int  wolfSSL_session_reused(WOLFSSL*);
 int  wolfSSL_is_init_finished(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  文字列として使用されているSSLバージョンを返します。
     \return "SSLv3"  SSLv3を使う
     \return "TLSv1"  TLSV1を使用する
@@ -2432,7 +2432,7 @@ int  wolfSSL_is_init_finished(WOLFSSL*);
 const char*  wolfSSL_get_version(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  SSLセッションで現在の暗号スイートを返します。
     \return ssl->options.cipherSuite  現在の暗号スイートを表す整数。
     \return 0  提供されているSSLセッションはNULLです。
@@ -2457,7 +2457,7 @@ const char*  wolfSSL_get_version(WOLFSSL*);
 int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、SSLセッションの現在の暗号へのポインタを返します。
     \return The  関数WolfSSL構造体の暗号メンバーのアドレスを返します。これはwolfssl_icipher構造へのポインタです。
     \return NULL  WolfSSL構造がNULLの場合に返されます。
@@ -2481,7 +2481,7 @@ int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
 WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、SSLオブジェクト内のCipher Suiteと使用可能なスイートと一致し、文字列表現を返します。
     \return string  この関数は、一致した暗号スイートの文字列表現を返します。
     \return none  スイートが一致していない場合は「なし」を返します。
@@ -2507,7 +2507,7 @@ WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
 const char*  wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、SSLオブジェクト内の暗号スイートと使用可能なスイートと一致します。
     \return This  関数Suiteが一致させたString値を返します。スイートが一致していない場合は「なし」を返します。
     _Example_
@@ -2528,7 +2528,7 @@ const char*  wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher);
 const char*  wolfSSL_get_cipher(WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl構造からのwolfssl_sessionを参照型として返します。これには、wolfssl_session_freeを呼び出してセッション参照を解除する必要があります。 wolfssl_sessionは、セッションの再開を実行するために必要なすべての必要な情報を含むことを指摘し、新しいハンドシェイクなしで接続を再確立します。セッションの再開の場合、wolfssl_shutdown（）をセッションオブジェクトに呼び出す前に、アプリケーションはオブジェクトからwolfssl_get1_session（）を呼び出して保存する必要があります。これはセッションへのポインタを返します。後で、アプリケーションは新しいWolfSSLオブジェクトを作成し、保存したセッションをwolfssl_set_session（）に割り当てる必要があります。この時点で、アプリケーションはwolfssl_connect（）を呼び出し、WolfSSLはセッションを再開しようとします。 WolfSSLサーバーコードでは、デフォルトでセッションの再開を許可します。 wolfssl_get1_session（）によって返されたオブジェクトは、アプリケーションがそれを使用してそれを使用して解放される必要があります。
     \return WOLFSSL_SESSION  成功の場合はセッションポインタを返します。
     \return NULL  SSLがNULLの場合、SSLセッションキャッシュが無効になっている場合、WolfSSLはセッションIDを使用できない、またはミューテックス関数が失敗します。
@@ -2552,7 +2552,7 @@ const char*  wolfSSL_get_cipher(WOLFSSL*);
 WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfsslv23_client_method（）関数は、アプリケーションがクライアントであることを示すために使用され、SSL 3.0  -  TLS 1.3の間でサーバーでサポートされている最高のプロトコルバージョンをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。WolfSSLクライアントとサーバーの両方が堅牢なバージョンのダウングレード機能を持っています。特定のプロトコルバージョンメソッドがどちらの側で使用されている場合は、そのバージョンのみがネゴシエートされたり、エラーが返されます。たとえば、TLSV1を使用し、SSLv3のみに接続しようとするクライアントは、TLSV1.1に接続しても失敗します。この問題を解決するために、wolfsslv23_client_method（）関数を使用するクライアントは、サーバーでサポートされている最高のプロトコルバージョンを使用し、必要に応じてSSLv3にダウングレードします。この場合、クライアントはSSLv3  -  TLSv1.3を実行しているサーバーに接続できるようになります。
     \return pointer  成功すると、wolfssl_methodへのポインタがあります。
     \return Failure  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -2579,7 +2579,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 WOLFSSL_METHOD* wolfSSLv23_client_method(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、内部メモリバッファの先頭へのバイトポインタを設定するために使用されます。
     \return size  成功すると、バッファのサイズが返されます
     \return SSL_FATAL_ERROR  エラーケースに遭遇した場合
@@ -2601,7 +2601,7 @@ WOLFSSL_METHOD* wolfSSLv23_client_method(void);
 int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  使用するBIOのファイル記述子を設定します。
     \return SSL_SUCCESS(1)  成功すると。
     \param bio  FDを設定するためのWOLFSSL_BIO構造。
@@ -2619,7 +2619,7 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  BIOが解放されたときにI / Oストリームを閉じる必要があることを示すために使用されるクローズフラグを設定します。
     \return SSL_SUCCESS(1)  成功すると。
     \param bio  wolfssl_bio構造体。
@@ -2635,7 +2635,7 @@ long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これはBio_Socketタイプのwolfssl_bio_methodを取得するために使用されます。
     \return WOLFSSL_BIO_METHOD  ソケットタイプであるwolfssl_bio_method構造へのポインタ
     _Example_
@@ -2649,7 +2649,7 @@ int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、WolfSSL_BIOのライトバッファのサイズを設定するために使用されます。書き込みバッファが以前に設定されている場合、この関数はサイズをリセットするときに解放されます。読み書きインデックスを0にリセットするという点で、wolfssl_bio_resetに似ています。
     \return SSL_SUCCESS  書き込みバッファの設定に成功しました。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -2669,7 +2669,7 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 int  wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *b, long size);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは2つのBIOSを一緒にペアリングするために使用されます。一対のBIOSは、2つの方法パイプと同様に、他方で読み取られることができ、その逆も同様である。BIOSの両方が同じスレッド内にあることが予想されます。この機能はスレッドセーフではありません。2つのBIOSのうちの1つを解放すると、両方ともペアになっています。書き込みバッファサイズが以前に設定されていない場合、それはペアになる前に17000（wolfssl_bio_size）のデフォルトサイズに設定されます。
     \return SSL_SUCCESS  2つのBIOSをうまくペアリングします。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -2691,7 +2691,7 @@ int  wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *b, long size);
 int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、読み取り要求フラグを0に戻すために使用されます。
     \return SSL_SUCCESS  値を正常に設定します。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -2709,7 +2709,7 @@ int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
 int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、読み取り用のバッファポインタを取得するために使用されます。WOLFSSL_BIO_NREADとは異なり、内部読み取りインデックスは関数呼び出しから返された番号によって高度にはなりません。返される値を超えて読み取ると、アレイの境界から読み出される可能性があります。
     \return >=0  成功すると、読み取るバイト数を返します
     \param bio  wolfssl_bio構造体から読み取り。
@@ -2729,7 +2729,7 @@ int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、読み取り用のバッファポインタを取得するために使用されます。内部読み取りインデックスは、読み取り元のバッファの先頭に指されているBUFを使用して、関数呼び出しから返される数によって高度です。数numで要求された値よりもバイトが少ない場合、より少ない値が返されます。返される値を超えて読み取ると、アレイの境界から読み出される可能性があります。
     \return >=0  成功すると、読み取るバイト数を返します
     \return WOLFSSL_BIO_ERROR(-1)  Return -1を読むものではないエラーケースについて
@@ -2752,7 +2752,7 @@ int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  関数によって返される数のバイトを書き込むためにバッファーへのポインタを取得します。返されるポインタに追加のバイトを書き込んだ場合、返された値は範囲外の書き込みにつながる可能性があります。
     \return int  返されたバッファポインタに書き込むことができるバイト数を返します。
     \return WOLFSSL_BIO_UNSET(-2)  バイオペアの一部ではない場合
@@ -2776,7 +2776,7 @@ int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
 int  wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  バイオを初期状態にリセットします。タイプBIO_BIOの例として、これは読み書きインデックスをリセットします。
     \return 0  バイオのリセットに成功しました。
     \return WOLFSSL_BIO_ERROR(-1)  不良入力または失敗したリセットで返されます。
@@ -2793,7 +2793,7 @@ int  wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
 int  wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、指定されたオフセットへのファイルポインタを調整します。これはファイルの先頭からのオフセットです。
     \return 0  正常に探しています。
     \return -1  エラーケースに遭遇した場合
@@ -2817,7 +2817,7 @@ int  wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
 int  wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これはファイルに設定および書き込むために使用されます。現在ファイル内のデータを上書きし、BIOが解放されたときにファイルを閉じるように設定されます。
     \return SSL_SUCCESS  ファイルの開きと設定に成功しました。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -2838,7 +2838,7 @@ int  wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
 int  wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これはファイル値の終わりを設定するために使用されます。一般的な値は予想される正の値と混同されないように-1です。
     \return 0  完了に戻りました
     \param bio  ファイル値の終わりを設定するためのwolfssl_bio構造体。
@@ -2858,7 +2858,7 @@ int  wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これはWolfSSL_BIOメモリポインタのゲッター関数です。
     \return SSL_SUCCESS  ポインタSSL_SUCCESSを返す正常に（現在1の値）。
     \return SSL_FAILURE  null引数が渡された場合（現在0の値）に渡された場合は返されます。
@@ -2877,7 +2877,7 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
 long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はX509の名前をバッファにコピーします。
     \return A  WOLFSSL_X509_NAME構造名メンバーのデータが正常に実行された場合、バッファへのPOINTER found struffer nameメンバーのデータが返されます。
     \param name  wolfssl_x509構造へのポインタ。
@@ -2902,7 +2902,7 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
 char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は証明書発行者の名前を返します。
     \return point  WOLFSSL_X509構造体の発行者メンバーへのポインタが返されます。
     \return NULL  渡された証明書がNULLの場合
@@ -2927,7 +2927,7 @@ char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509構造の件名メンバーを返します。
     \return pointer  wolfssl_x509_name構造へのポインタ。WOLFSSL_X509構造体がNULLの場合、または構造体の件名メンバーがNULLの場合、ポインタはNULLになることがあります。
     _Example_
@@ -2947,7 +2947,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
 WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  wolfssl_x509構造のISCAメンバーをチェックして値を返します。
     \return isCA  wolfssl_x509構造のISCAメンバー内の値を返します。
     \return 0  有効なX509構造が渡されない場合は返されます。
@@ -2970,7 +2970,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
 int  wolfSSL_X509_get_isCA(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、渡されたNID値に関連するテキストを取得します。
     \return int  テキストバッファのサイズを返します。
     \param name  wolfssl_x509_nameテキストを検索する。
@@ -2994,7 +2994,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
                                       char* buf, int len);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509構造のSigoidメンバーに格納されている値を返します。
     \return 0  wolfssl_x509構造がNULLの場合に返されます。
     \return int  x509オブジェクトから取得された整数値が返されます。
@@ -3020,7 +3020,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
 int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
 
 /*!
-    \brief  
+    \brief
     _Example_
     \code
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALOC(sizeof(WOLFSSL_X509), NULL,
@@ -3039,7 +3039,7 @@ int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
 void wolfSSL_X509_free(WOLFSSL_X509* x509);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  x509署名を取得し、それをバッファに保存します。
     \return SSL_SUCCESS  関数が正常に実行された場合に返されます。署名がバッファにロードされます。
     \return SSL_FATAL_ERRROR  X509構造体またはBUFSZメンバーがNULLの場合に返します。SIG構造の長さメンバのチェックもある（SIGはX509のメンバーである）。
@@ -3065,7 +3065,7 @@ void wolfSSL_X509_free(WOLFSSL_X509* x509);
 int wolfSSL_X509_get_signature(WOLFSSL_X509* x509, unsigned char* buf, int* bufSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509_stre構造に証明書を追加します。
     \return SSL_SUCCESS  証明書が正常に追加された場合。
     \return SSL_FATAL_ERROR:  証明書が正常に追加されない場合
@@ -3083,7 +3083,7 @@ int wolfSSL_X509_get_signature(WOLFSSL_X509* x509, unsigned char* buf, int* bufS
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509_store_ctx構造体のチェーン変数のgetter関数です。現在チェーンは取り込まれていません。
     \return pointer  成功した場合wolfssl_stack（stack_of（wolfssl_x509））ポインタと同じ
     \return Null  失敗すると
@@ -3100,7 +3100,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
                                                    WOLFSSL_X509_STORE_CTX* ctx);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、渡されたwolfssl_x509_store構造体の動作を変更するためのフラグを取ります。使用されるフラグの例はwolfssl_crl_checkです。
     \return SSL_SUCCESS  フラグを設定するときにエラーが発生しなかった場合。
     \return <0  障害の際に負の値が返されます。
@@ -3122,7 +3122,7 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  これは、BYTEアレイとして符号化された有効性の証明書「NOT BEFISE」を機能します。
     \return NULL  wolfssl_x509構造がNULLの場合に返されます。
     \return byte  NetBeforEdataを含む返されます。
@@ -3145,7 +3145,7 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
 const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  これは、BYTE配列として符号化された有効性の証明書「未処理」を機能します。
     \return NULL  wolfssl_x509構造がNULLの場合に返されます。
     \return byte  NOTAFTERDATAを含む返されます。
@@ -3168,7 +3168,7 @@ const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509);
 const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl_asn1_integer値をwolfssl_bignum構造にコピーするために使用されます。
     \return pointer  wolfssl_asn1_integer値を正常にコピーすると、wolfssl_bignumポインタが返されます。
     \return Null  失敗すると。
@@ -3190,7 +3190,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
                                        WOLFSSL_BIGNUM *bn);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl_ctx構造で構築されている内部チェーンに証明書を追加します。
     \return SSL_SUCCESS  証明書の追加に成功したら。
     \return SSL_FAILURE  チェーンに証明書を追加することが失敗した場合。
@@ -3210,7 +3210,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
 long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl_ctx構造からGet Read Hapeフラグを返します。
     \return flag  成功すると、読み取り先のフラグを返します。
     \return SSL_FAILURE  ctxがnullの場合、ssl_failureが返されます。
@@ -3229,7 +3229,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
 int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl_ctx構造内の読み出し先のフラグを設定します。
     \return SSL_SUCCESS  CTXが先読みフラグを設定した場合。
     \return SSL_FAILURE  ctxがnullの場合、ssl_failureが返されます。
@@ -3249,7 +3249,7 @@ int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
 int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はOCSPで使用するオプション引数を設定します。
     \return SSL_FAILURE  CTXまたはITのCERT ManagerがNULLの場合。
     \return SSL_SUCCESS  正常に設定されている場合。
@@ -3270,7 +3270,7 @@ int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
 long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、PRFコールバックに渡すオプションの引数を設定します。
     \return SSL_FAILURE  CTXがNULLの場合
     \return SSL_SUCCESS  正常に設定されている場合。
@@ -3291,7 +3291,7 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
         WOLFSSL_CTX* ctx, void* arg);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、SSLのオプションマスクを設定します。いくつかの有効なオプションは、ssl_op_all、ssl_op_cookie_exchange、ssl_op_no_sslv2、ssl_op_no_sslv3、ssl_op_no_tlsv1_1、ssl_op_no_tlsv1_2、ssl_op_no_compressionです。
     \return val  SSLに格納されている更新されたオプションマスク値を返します。
     \param s  オプションマスクを設定するためのWolfSSL構造。
@@ -3310,7 +3310,7 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
 long wolfSSL_set_options(WOLFSSL *s, long op);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は現在のオプションマスクを返します。
     \return val  SSLに格納されているマスク値を返します。
     _Example_
@@ -3327,7 +3327,7 @@ long wolfSSL_set_options(WOLFSSL *s, long op);
 long wolfSSL_get_options(const WOLFSSL *s);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、渡されたデバッグ引数を設定するために使用されます。
     \return SSL_SUCCESS  設定の成功した引数について。
     \return SSL_FAILURE  NULL SSLが渡された場合。
@@ -3347,7 +3347,7 @@ long wolfSSL_get_options(const WOLFSSL *s);
 long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、サーバがOCSPステータス応答（OCSPステイプルとも呼ばれる）を送受信するクライアントアプリケーションが要求されたときに呼び出されます。
     \return 1  成功すると。
     \return 0  エラー時に。
@@ -3371,7 +3371,7 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
 long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、ピアの証明書を確認しようとした後に結果を取得するために使用されます。
     \return X509_V_OK  成功した検証について
     \return SSL_FAILURE  NULL SSLが渡された場合。
@@ -3389,7 +3389,7 @@ long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type);
 long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_get_error（）によって返されたエラーコードをより多くの人間が読めるエラー文字列に変換し、その文字列を出力ファイルに印刷します。ERRは、WOLFSSL_GET_ERROR（）によって返され、FPがエラー文字列が配置されるファイルであるエラーコードです。
     \return none  いいえ返します。
     \param fp  に書き込まれる人間が読めるエラー文字列の出力ファイル。
@@ -3410,7 +3410,7 @@ long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 void  wolfSSL_ERR_print_errors_fp(XFILE fp, int err);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は提供されたコールバックを使用してエラー報告を処理します。コールバック関数はエラー回線ごとに実行されます。文字列、長さ、およびUSERDATAはコールバックパラメータに渡されます。
     \return none  いいえ返します。
     \param cb  コールバック関数
@@ -3453,7 +3453,7 @@ void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX* ctx,
                                                     wc_psk_client_callback);
 
 /*!
-    \brief  
+    \brief
     \return none  いいえ返します。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
     _Example_
@@ -3477,7 +3477,7 @@ void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,
                                                     wc_psk_client_callback);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はPSKアイデンティティヒントを返します。
     \return pointer  WolfSSL構造の配列メンバーに格納されている値へのconst charポインタが返されます。
     \return NULL  WOLFSSLまたは配列構造がNULLの場合に返されます。
@@ -3499,7 +3499,7 @@ void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,
 const char* wolfSSL_get_psk_identity_hint(const WOLFSSL*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  関数は、配列構造のClient_Identityメンバーへの定数ポインタを返します。
     \return string  配列構造のclient_identityメンバの文字列値。
     \return NULL  WOLFSSL構造がNULLの場合、またはWOLFSSL構造の配列メンバーがNULLの場合。
@@ -3521,7 +3521,7 @@ const char* wolfSSL_get_psk_identity_hint(const WOLFSSL*);
 const char* wolfSSL_get_psk_identity(const WOLFSSL*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_ctx構造体のserver_hintメンバーにHINT引数を格納します。
     \return SSL_SUCCESS  機能の実行が成功したために返されます。
     \param ctx  wolfssl_ctx_new（）を使用して作成されたwolfssl_ctx構造へのポインタ。
@@ -3544,7 +3544,7 @@ const char* wolfSSL_get_psk_identity(const WOLFSSL*);
 int wolfSSL_CTX_use_psk_identity_hint(WOLFSSL_CTX* ctx, const char* hint);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl構造内の配列構造のserver_hintメンバーにHINT引数を格納します。
     \return SSL_SUCCESS  ヒントがWolfSSL構造に正常に保存された場合に返されます。
     \return SSL_FAILURE  WOLFSSLまたは配列構造がNULLの場合に返されます。
@@ -3622,7 +3622,7 @@ void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,
 
 
 /*!
-    \brief  
+    \brief
     \return WOLFSSL_SUCCESS  またはwolfssl_failure.
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
     \sa wolfSSL_get_psk_callback_ctx
@@ -3632,7 +3632,7 @@ void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,
 int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx);
 
 /*!
-    \brief  
+    \brief
     \return WOLFSSL_SUCCESS  またはwolfssl_failure.
     \param ctx  wolfssl_ctx_new（）を使用して作成されたwolfssl_ctx構造へのポインタ。
     \sa wolfSSL_set_psk_callback_ctx
@@ -3642,7 +3642,7 @@ int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx);
 int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx);
 
 /*!
-    \brief  
+    \brief
     \return void  ユーザーPSKコンテキストへのポインタ
     \sa wolfSSL_set_psk_callback_ctx
     \sa wolfSSL_CTX_set_psk_callback_ctx
@@ -3651,7 +3651,7 @@ int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx);
 void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
 
 /*!
-    \brief  
+    \brief
     \return void  ユーザーPSKコンテキストへのポインタ
     \sa wolfSSL_CTX_set_psk_callback_ctx
     \sa wolfSSL_set_psk_callback_ctx
@@ -3660,7 +3660,7 @@ void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
 void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この機能により、CTX構造のHAVAnonメンバーがコンパイル中に定義されている場合は、CTX構造のHABANONメンバーを有効にします。
     \return SSL_SUCCESS  機能が正常に実行され、CTXのHaveannonメンバーが1に設定されている場合に返されます。
     \return SSL_FAILURE  CTX構造がNULLの場合に返されます。
@@ -3683,7 +3683,7 @@ void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
 int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfsslv23_server_method（）関数は、アプリケーションがサーバーであることを示すために使用され、SSL 3.0  -  TLS 1.3からプロトコルバージョンと接続するクライアントをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return pointer  成功した場合、呼び出しは新しく作成されたwolfssl_method構造へのポインタを返します。
     \return Failure  xmallocを呼び出すときにメモリ割り当てが失敗した場合、基礎となるMalloc（）実装の失敗値が返されます（通常はerrnoがenomeemに設定されます）。
@@ -3711,7 +3711,7 @@ int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX*);
 WOLFSSL_METHOD *wolfSSLv23_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、WolfSSL構造体の内部エラー状態を取得するために使用されます。
     \return wolfssl_error  SSLエラー状態、通常はマイナスを返します
     \return BAD_FUNC_ARG  SSLがNULLの場合
@@ -3729,7 +3729,7 @@ WOLFSSL_METHOD *wolfSSLv23_server_method(void);
 int  wolfSSL_state(WOLFSSL* ssl);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はピアの証明書を取得します。
     \return pointer  WOLFSSL_X509構造のPECRERTメンバーへのポインタが存在する場合は。
     \return 0  ピア証明書発行者サイズが定義されていない場合に返されます。
@@ -3751,7 +3751,7 @@ int  wolfSSL_state(WOLFSSL* ssl);
 WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_get_error（）を呼び出してssl_error_want_readを取得するのと似ています。基礎となるエラー状態がSSL_ERROR_WANT_READの場合、この関数は1を返しますが、それ以外の場合は0です。
     \return 1  WOLFSSL_GET_ERROR（）はSSL_ERROR_WANT_READを返し、基礎となるI / Oには読み取り可能なデータがあります。
     \return 0  SSL_ERROR_WANT_READエラー状態はありません。
@@ -3772,7 +3772,7 @@ WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
 int wolfSSL_want_read(WOLFSSL*);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_get_error（）を呼び出し、RETURSのSSL_ERROR_WANT_WRITEを取得するのと同じです。基礎となるエラー状態がSSL_ERROR_WANT_WRITEの場合、この関数は1を返しますが、それ以外の場合は0です。
     \return 1  WOLFSSL_GET_ERROR（）はSSL_ERROR_WANT_WRITEを返します。基礎となるI / Oは、基礎となるSSL接続で進行状況を行うために書き込まれるデータを必要とします。
     \return 0  ssl_error_want_writeエラー状態はありません。
@@ -3792,7 +3792,7 @@ int wolfSSL_want_read(WOLFSSL*);
 int wolfSSL_want_write(WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfsslデフォルトでは、有効な日付範囲と検証済みの署名のためにピア証明書をチェックします。wolfssl_connect（）またはwolfssl_accept（）の前にこの関数を呼び出すと、実行するチェックのリストにドメイン名チェックが追加されます。DN受信時にピア証明書を確認するためのドメイン名を保持します。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  メモリエラーが発生した場合に返されます。
@@ -3814,7 +3814,7 @@ int wolfSSL_want_write(WOLFSSL*);
 int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  使用するためにWolfSSLライブラリを初期化します。アプリケーションごとに1回、その他のライブラリへの呼び出しの前に呼び出す必要があります。
     \return SSL_SUCCESS  成功した場合、通話が戻ります。
     \return BAD_MUTEX_E  返される可能性があるエラーです。
@@ -3832,7 +3832,7 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn);
 int wolfSSL_Init(void);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  さらなる使用からWOLFSSLライブラリを初期化します。ライブラリによって使用されるリソースを解放しますが、呼び出される必要はありません。
     \return SSL_SUCCESS  エラーを返しません。
     _Example_
@@ -3844,7 +3844,7 @@ int wolfSSL_Init(void);
 int wolfSSL_Cleanup(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は現在のライブラリーバージョンを返します。
     \return LIBWOLFSSL_VERSION_STRING  バージョンを定義するconst charポインタ。
     _Example_
@@ -3861,7 +3861,7 @@ int wolfSSL_Cleanup(void);
 const char* wolfSSL_lib_version(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、現在のライブラリーのバージョンを16進表記で返します。
     \return LILBWOLFSSL_VERSION_HEX  wolfssl / version.hで定義されている16進数バージョンを返します。
     _Example_
@@ -3880,7 +3880,7 @@ const char* wolfSSL_lib_version(void);
 word32 wolfSSL_lib_version_hex(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  SSLメソッドの側面に基づいて、実際の接続または承認を実行します。クライアント側から呼び出された場合、サーバ側から呼び出された場合にwolfssl_accept（）が実行されている間にwolfssl_connect（）が行われる。
     \return SSL_SUCCESS  成功した場合に返却されます。（注意、古いバージョンは0を返します）
     \return SSL_FATAL_ERROR  基礎となる呼び出しがエラーになった場合に返されます。特定のエラーコードを取得するには、wolfssl_get_error（）を使用してください。
@@ -3903,7 +3903,7 @@ word32 wolfSSL_lib_version_hex(void);
 int wolfSSL_negotiate(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  SSL接続に圧縮を使用する機能をオンにします。両側には圧縮がオンになっている必要があります。そうでなければ圧縮は使用されません。ZLIBライブラリは実際のデータ圧縮を実行します。ライブラリにコンパイルするには、システムの設定システムに--with-libzを使用し、そうでない場合はhand_libzを定義します。送受信されるメッセージの実際のサイズを減らす前にデータを圧縮している間に、圧縮によって保存されたデータの量は通常、ネットワークの遅いすべてのネットワークを除いたものよりも分析に時間がかかります。
     \return SSL_SUCCESS  成功すると。
     \return NOT_COMPILED_IN  圧縮サポートがライブラリに組み込まれていない場合に返されます。
@@ -3922,7 +3922,7 @@ int wolfSSL_negotiate(WOLFSSL* ssl);
 int wolfSSL_set_compression(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はSSLセッションタイムアウト値を秒単位で設定します。
     \return SSL_SUCCESS  セッションを正常に設定すると返されます。
     \return BAD_FUNC_ARG  SSLがNULLの場合に返されます。
@@ -3945,7 +3945,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl);
 int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、指定されたSSLコンテキストに対して、SSLセッションのタイムアウト値を秒単位で設定します。
     \return the  wolfssl_error_code_opensslの場合、以前のタイムアウト値
     \return defined  成功しています。定義されていない場合、SSL_SUCCESSは返されます。
@@ -3969,7 +3969,7 @@ int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to);
 int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  ピアの証明書チェーンを取得します。
     \return chain  正常にコールがピアの証明書チェーンを返します。
     \return 0  無効なWolfSSLポインタが関数に渡されると返されます。
@@ -3985,7 +3985,7 @@ int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to);
 WOLFSSL_X509_CHAIN* wolfSSL_get_peer_chain(WOLFSSL* ssl);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  ピアの証明書チェーン数を取得します。
     \return Success  正常にコールがピアの証明書チェーン数を返します。
     \return 0  無効なチェーンポインタが関数に渡されると返されます。
@@ -4001,7 +4001,7 @@ WOLFSSL_X509_CHAIN* wolfSSL_get_peer_chain(WOLFSSL* ssl);
 int  wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  Index（IDX）のピアのASN1.DER証明書長をバイト単位で取得します。
     \return Success  正常にコールがインデックス別にピアの証明書長をバイト単位で返します。
     \return 0  無効なチェーンポインタが関数に渡されると返されます。
@@ -4018,7 +4018,7 @@ int  wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain);
 int  wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  インデックス（IDX）でピアのASN1.DER証明書を取得します。
     \return Success  正常にコールがインデックスでピアの証明書を返します。
     \return 0  無効なチェーンポインタが関数に渡されると返されます。
@@ -4035,7 +4035,7 @@ int  wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx);
 unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、証明書のチェーンからのピアのWOLFSSL_X509構造体をインデックス（IDX）で取得します。
     \return pointer  WOLFSSL_X509構造体へのポインタを返します。
     \param chain  動的メモリsession_cacheの場合に使用されるWOLFSSL_X509_CHAINへのポインタ。
@@ -4064,7 +4064,7 @@ unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx);
 WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  インデックス（IDX）でピアのPEM証明書を取得します。
     \return Success  正常にコールがインデックスでピアの証明書を返します。
     \return 0  無効なチェーンポインタが関数に渡されると返されます。
@@ -4082,7 +4082,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  セッションのIDを取得します。セッションIDは常に32バイトの長さです。
     \return id  セッションID。
     _Example_
@@ -4094,7 +4094,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 const unsigned char* wolfSSL_get_sessionID(const WOLFSSL_SESSION* s);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  ピアの証明書のシリアル番号を取得します。シリアル番号バッファ（IN）は少なくとも32バイト以上であり、入力として* INOUTSZ引数として提供されます。関数を呼び出した後* INOUTSZはINバッファに書き込まれた実際の長さをバイト単位で保持します。
     \return SSL_SUCCESS  成功すると。
     \return BAD_FUNC_ARG  関数の不良引数が見つかった場合に返されます。
@@ -4109,7 +4109,7 @@ int  wolfSSL_X509_get_serial_number(WOLFSSL_X509* x509, unsigned char* in,
                                     int* inOutSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  証明書から件名の共通名を返します。
     \return NULL  X509構造がNULLの場合に返されます
     \return string  サブジェクトの共通名の文字列表現は成功に返されます
@@ -4133,7 +4133,7 @@ int  wolfSSL_X509_get_serial_number(WOLFSSL_X509* x509, unsigned char* in,
 char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509構造体のDERエンコードされた証明書を取得します。
     \return buffer  この関数はDerbuffer構造体のバッファメンバーを返します。これはバイト型です。
     \return NULL  x509またはoutszパラメーターがnullの場合に返されます。
@@ -4158,7 +4158,7 @@ char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
 const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、x509がnullのかどうかを確認し、そうでない場合は、x509構造体のノッカスメンバーを返します。
     \return pointer  ASN1_TIMEを使用してX509構造体のノカフターメンバーに構造体を表明します。
     \return NULL  X509オブジェクトがNULLの場合に返されます。
@@ -4177,7 +4177,7 @@ const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz);
 WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はX509証明書のバージョンを取得します。
     \return 0  X509構造がNULLの場合に返されます。
     \return version  X509構造に保存されているバージョンが返されます。
@@ -4199,7 +4199,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(WOLFSSL_X509*);
 int wolfSSL_X509_version(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  no_stdio_filesystemが定義されている場合、この関数はヒープメモリを割り当て、wolfssl_x509構造を初期化してそれにポインタを返します。
     \return *WOLFSSL_X509  関数が正常に実行された場合、WolfSSL_X509構造ポインタが返されます。
     \return NULL  Xftellマクロの呼び出しが負の値を返す場合。
@@ -4225,7 +4225,7 @@ WOLFSSL_X509*
         wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, FILE* file);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  関数はX509証明書をメモリにロードします。
     \return pointer  実行された実行は、wolfssl_x509構造へのポインタを返します。
     \return NULL  証明書が書き込まれなかった場合に返されます。
@@ -4248,7 +4248,7 @@ WOLFSSL_X509*
     wolfSSL_X509_load_certificate_file(const char* fname, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、デバイスの種類をX509構造からバッファにコピーします。
     \return pointer  X509構造からデバイスの種類を保持するバイトポインタを返します。
     \return NULL  バッファサイズがNULLの場合に返されます。
@@ -4276,7 +4276,7 @@ unsigned char*
                                         int* inOutSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_x509構造のHWTypeメンバーをバッファにコピーします。
     \return byte  この関数は、wolfssl_x509構造のHWTypeメンバーに以前に保持されているデータのバイトタイプを返します。
     \return NULL  inoutszがnullの場合に返されます。
@@ -4302,7 +4302,7 @@ unsigned char*
                                     int* inOutSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はX509オブジェクトのhwserialNumメンバを返します。
     \return pointer  この関数は、X509オブジェクトからロードされたシリアル番号を含むINバッファへのバイトポインタを返します。
     \param x509  証明書情報を含むWOLFSSL_X509構造へのポインタ。
@@ -4331,7 +4331,7 @@ unsigned char*
                                              unsigned char* in, int* inOutSz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はクライアント側で呼び出され、ピアの証明書チェーンを取得するのに十分な長さだけサーバーを持つSSL / TLSハンドシェイクを開始します。この関数が呼び出されると、基礎となる通信チャネルはすでに設定されています。 wolfssl_connect_cert（）は、ブロックと非ブロックI / Oの両方で動作します。基礎となるI / Oがノンブロッキングである場合、wolfsl_connect_cert（）は、wolfssl_connect_cert_cert（）のニーズを満たすことができなかったときに戻ります。ハンドシェイクを続けます。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。通話プロセスは、基礎となるI / Oが準備ができて、wolfsslがオフになっているところを拾うときに、wolfssl_connect_cert（）への呼び出しを繰り返す必要があります。ノンブロッキングソケットを使用する場合は、何も実行する必要がありますが、select（）を使用して必要な条件を確認できます。基礎となる入出力がブロックされている場合、wolfssl_connect_cert（）はピアの証明書チェーンが受信されたらのみ返されます。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FAILURE  SSLセッションパラメータがNULLの場合、返されます。
@@ -4356,7 +4356,7 @@ unsigned char*
 int  wolfSSL_connect_cert(WOLFSSL* ssl);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  WOLFSSL_D2I_PKCS12_BIO（D2I_PKCS12_BIO）は、WOLFSSL_BIOから構造WC_PKCS12へのPKCS12情報にコピーされます。この情報は、オプションのMAC情報を保持するための構造とともにコンテンツに関する情報のリストとして構造内に分割されています。構造体WC_PKCS12で情報がチャンク（ただし復号化されていない）に分割された後、それはその後、呼び出しによって解析および復号化され得る。
     \return WC_PKCS12  WC_PKCS12構造へのポインタ。
     \return Failure  関数に失敗した場合はNULLを返します。
@@ -4381,7 +4381,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
                                        WC_PKCS12** pkcs12);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  WOLFSSL_I2D_PKCS12_BIO（I2D_PKCS12_BIO）は、構造WC_PKCS12からWOLFSSL_BIOへの証明書情報にコピーされます。
     \return 1  成功のために。
     \return Failure  0。
@@ -4413,7 +4413,7 @@ WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
                                        WC_PKCS12* pkcs12);
 
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  pkcs12は、configureコマンドへの-enable-openSSLAXTRAを追加することで有効にできます。それは復号化のためにトリプルDESとRC4を使うことができるので、OpenSSlextra（--enable-des3 -enable-arc4）を有効にするときにもこれらの機能を有効にすることをお勧めします。 wolfsslは現在RC2をサポートしていませんので、RC2での復号化は現在利用できません。これは、.p12ファイルを作成するためにOpenSSLコマンドラインで使用されるデフォルトの暗号化方式では注目すかもしれません。 WOLFSSL_PKCS12_PARSE（PKCS12_PARSE）。この関数が最初に行っているのは、存在する場合はMacが正しいチェックです。 MACが失敗した場合、関数は返され、保存されているコンテンツ情報のいずれかを復号化しようとしません。この関数は、バッグタイプを探している各コンテンツ情報を介して解析します。バッグタイプがわかっている場合は、必要に応じて復号化され、構築されている証明書のリストに格納されているか、見つかったキーとして保存されます。すべてのバッグを介して解析した後、見つかったキーは、一致するペアが見つかるまで証明書リストと比較されます。この一致するペアはキーと証明書として返され、オプションで見つかった証明書リストはstack_of証明書として返されます。瞬間、CRL、秘密または安全なバッグがスキップされ、解析されません。デバッグプリントアウトを見ることで、これらまたは他の「不明」バッグがスキップされているかどうかがわかります。フレンドリー名などの追加の属性は、PKCS12ファイルを解析するときにスキップされます。
     \return SSL_SUCCESS  PKCS12の解析に成功しました。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -4441,7 +4441,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
      WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  サーバーDIFFIE-HELLMANエフェメラルパラメータ設定。この関数は、サーバーがDHEを使用する暗号スイートをネゴシエートしている場合に使用するグループパラメータを設定します。
     \return SSL_SUCCESS  成功すると。
     \return MEMORY_ERROR  メモリエラーが発生した場合に返されます。
@@ -4464,7 +4464,7 @@ int  wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
                                 const unsigned char* g, int gSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  関数はwolfssl_settmph_buffer_wrapperを呼び出します。これはDiffie-Hellmanパラメータのラッパーです。
     \return SSL_SUCCESS  実行に成功した場合。
     \return SSL_BAD_FILETYPE  ファイルの種類がpemではなく、asn.1ではない場合WC_DHParamSLOADが正常に戻っていない場合は、も返されます。
@@ -4499,7 +4499,7 @@ int  wolfSSL_SetTmpDH_buffer(WOLFSSL* ssl, const unsigned char* b, long sz,
                                        int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_settmph_file_wrapperを呼び出してサーバdiffie-hellmanパラメータを設定します。
     \return SSL_SUCCESS  この機能の正常な完了とそのサブルーチンの完了に戻りました。
     \return MEMORY_E  この関数またはサブルーチンにメモリ割り当てが失敗した場合に返されます。
@@ -4529,7 +4529,7 @@ int  wolfSSL_SetTmpDH_buffer(WOLFSSL* ssl, const unsigned char* b, long sz,
 int  wolfSSL_SetTmpDH_file(WOLFSSL* ssl, const char* f, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  サーバーCTX Diffie-Hellmanのパラメータを設定します。
     \return SSL_SUCCESS  関数とすべてのサブルーチンがエラーなしで戻った場合に返されます。
     \return BAD_FUNC_ARG  CTX、P、またはGパラメーターがNULLの場合に返されます。
@@ -4560,7 +4560,7 @@ int  wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p,
                                     int pSz, const unsigned char* g, int gSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  wolfssl_settmph_buffer_wrapperを呼び出すラッパー関数
     \return 0  実行が成功するために返されました。
     \return BAD_FUNC_ARG  CTXパラメータまたはBUFパラメータがNULLの場合に返されます。
@@ -4594,7 +4594,7 @@ int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX* ctx, const unsigned char* b,
                                            long sz, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_settmph_file_wrapperを呼び出してサーバーDiffie-Hellmanパラメータを設定します。
     \return SSL_SUCCESS  wolfssl_settmph_file_wrapperまたはそのサブルーチンのいずれかが正常に戻った場合に返されます。
     \return MEMORY_E  動的メモリの割り当てがサブルーチンで失敗した場合に返されます。
@@ -4632,7 +4632,7 @@ int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* f,
                                              int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_ctx構造体のminkkeyszメンバーにアクセスして、Diffie Hellmanキーサイズの最小サイズ（ビット単位）を設定します。
     \return SSL_SUCCESS  関数が正常に完了した場合に返されます。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がnullの場合、またはキーz_BITSが16,000を超えるか、または8によって割り切れない場合に返されます。
@@ -4652,7 +4652,7 @@ int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* f,
 int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  WolfSSL構造のDiffie-Hellmanキーの最小サイズ（ビット単位）を設定します。
     \return SSL_SUCCESS  最小サイズは正常に設定されました。
     \return BAD_FUNC_ARG  wolfssl構造はNULL、またはKeysz_BITSが16,000を超えるか、または8によって割り切れない場合
@@ -4672,7 +4672,7 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16);
 int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、wolfssl_ctx構造体のmaxdhkeyszメンバーにアクセスして、Diffie Hellmanキーサイズの最大サイズ（ビット単位）を設定します。
     \return SSL_SUCCESS  関数が正常に完了した場合に返されます。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がnullの場合、またはキーz_BITSが16,000を超えるか、または8によって割り切れない場合に返されます。
@@ -4692,7 +4692,7 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
 int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  WolfSSL構造のDiffie-Hellmanキーの最大サイズ（ビット単位）を設定します。
     \return SSL_SUCCESS  最大サイズは正常に設定されました。
     \return BAD_FUNC_ARG  WOLFSSL構造はNULLまたはKEYSZパラメータは許容サイズより大きかったか、または8によって割り切れませんでした。
@@ -4712,7 +4712,7 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits);
 int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  オプション構造のメンバーであるDHKEYSZ（ビット内）の値を返します。この値は、Diffie-Hellmanキーサイズをバイト単位で表します。
     \return dhKeySz  サイズを表す整数値であるssl-> options.dhkeyszで保持されている値を返します。
     \return BAD_FUNC_ARG  wolfssl構造体がNULLの場合に返します。
@@ -4739,7 +4739,7 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits);
 int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  wolfssl_ctx構造体とwolfssl_cert_manager構造の両方で最小RSAキーサイズを設定します。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。
     \return BAD_FUNC_ARG  CTX構造がNULLの場合、またはKEYSZがゼロより小さいか、または8によって割り切れない場合は返されます。
@@ -4760,7 +4760,7 @@ int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  WolfSSL構造にあるRSAのためのビットで最小許容キーサイズを設定します。
     \return SSL_SUCCESS  最小値が正常に設定されました。
     \return BAD_FUNC_ARG  SSL構造がNULLの場合、またはKSYSZがゼロより小さい場合、または8によって割り切れない場合は返されます。
@@ -4781,7 +4781,7 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz);
 int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  wolf_ctx構造体とwolfssl_cert_manager構造体のECCキーの最小サイズをビット単位で設定します。
     \return SSL_SUCCESS  実行が成功したために返され、MineCkeyszメンバーが設定されます。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がnullの場合、またはキーが負の場合、または8によって割り切れない場合は返されます。
@@ -4800,7 +4800,7 @@ int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz);
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ssl, short keySz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  オプション構造のMineCckeyszメンバーの値を設定します。オプション構造体は、WolfSSL構造のメンバーであり、SSLパラメータを介してアクセスされます。
     \return SSL_SUCCESS  関数がオプション構造のMineCckeyszメンバーを正常に設定した場合。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がnullの場合、またはキーサイズ（keysz）が0（ゼロ）未満の場合、または8で割り切れない場合。
@@ -4821,7 +4821,7 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ssl, short keySz);
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、eap_tlsとeap-ttlsによって、マスターシークレットからキーイングマテリアルを導出します。
     \return BUFFER_E  バッファの実際のサイズが許容最大サイズを超える場合は返されます。
     \return MEMORY_E  メモリ割り当てにエラーがある場合は返されます。
@@ -4845,7 +4845,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
                                                              const char* label);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  Writev Semanticsをシミュレートしますが、SSL_Write（）の動作のために実際にはブロックしないため、フロント追加が小さくなる可能性があるためWritevを使いやすいソフトウェアに移植する。
     \return >0  成功時に書かれたバイト数。
     \return 0  失敗したときに返されます。特定のエラーコードについてwolfssl_get_error（）を呼び出します。
@@ -4876,7 +4876,7 @@ int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov,
                                      int iovcnt);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はCA署名者リストをアンロードし、署名者全体のテーブルを解放します。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。
     \return BAD_FUNC_ARG  wolfssl_ctx構造体がnullの場合、または他の方法では未解決の引数値がサブルーチンに渡された場合に返されます。
@@ -4898,7 +4898,7 @@ int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov,
 int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、以前にロードされたすべての信頼できるピア証明書をアンロードするために使用されます。マクロwolfssl_trust_peer_certを定義することで機能が有効になっています。
     \return SSL_SUCCESS  成功すると。
     \return BAD_FUNC_ARG  CTXがNULLの場合は返されます。
@@ -4921,7 +4921,7 @@ int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX*);
 int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS / SSLハンドシェイクを実行するときにピアを検証するために使用する証明書をロードします。ハンドシェイク中に送信されたピア証明書は、使用可能なときにスキッドを使用することによって比較されます。これら2つのことが一致しない場合は、ロードされたCASが使用されます。ファイルの代わりにバッファーの場合は、wolfssl_ctx_trust_peer_certと同じ機能です。特徴はマクロwolfssl_trust_peer_certを定義することによって有効になっています適切な使用法の例を参照してください。
     \return SSL_SUCCESS  成功すると
     \return SSL_FAILURE  CTXがNULLの場合、または両方のファイルと種類が無効な場合は返されます。
@@ -4959,7 +4959,7 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
                                   long sz, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はCA証明書バッファをWolfSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。フォーマットがPEM内にある限り、バッファあたり複数のCA証明書をロードすることができます。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -4997,7 +4997,7 @@ int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
 
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はCA証明書バッファをWolfSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。フォーマットがPEM内にある限り、バッファあたり複数のCA証明書をロードすることができます。_EXバージョンはPR 2413に追加され、UserChainとFlagsの追加の引数をサポートします。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5040,7 +5040,7 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
                                       int format, int userChain, word32 flags);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、CA証明書チェーンバッファをWolfSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。フォーマットがPEM内にある限り、バッファあたり複数のCA証明書をロードすることができます。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5079,7 +5079,7 @@ int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
                                                long sz, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は証明書バッファをWolfSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5114,7 +5114,7 @@ int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
                                        int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、秘密鍵バッファをSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1OR SSL_FILETYPE_PEM。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5150,7 +5150,7 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx,
                                       int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、証明書チェーンバッファをWolfSSLコンテキストにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。バッファはPEM形式で、ルート証明書で終わる対象の証明書から始めてください。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5184,7 +5184,7 @@ int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
                                              const unsigned char* in, long sz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、証明書バッファをWolfSSLオブジェクトにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると。
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5218,7 +5218,7 @@ int wolfSSL_use_certificate_buffer(WOLFSSL* ssl, const unsigned char* in,
                                                long sz, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、秘密鍵バッファをWolfSSLオブジェクトにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。形式バッファのフォーマットタイプを指定します。SSL_FILETYPE_ASN1またはSSL_FILETYPE_PEM。適切な使用法の例をご覧ください。
     \return SSL_SUCCESS  成功すると。
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5253,7 +5253,7 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
                                                long sz, int format);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、証明書チェーンバッファをWolfSSLオブジェクトにロードします。バッファ以外のバージョンのように動作し、ファイルの代わりに入力としてバッファと呼ばれる機能が異なるだけです。バッファはサイズSZの引数によって提供されます。バッファはPEM形式で、ルート証明書で終わる対象の証明書から始めてください。適切な使用法の例をご覧ください。
     \return SSL_SUCCES  成功すると。
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -5286,7 +5286,7 @@ int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl,
                                          const unsigned char* in, long sz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、SSLが所有する証明書またはキーをアンロードします。
     \return SSL_SUCCESS   - 関数が正常に実行された場合に返されます。
     \return BAD_FUNC_ARG   -  wolfsslオブジェクトがnullの場合に返されます。
@@ -5304,7 +5304,7 @@ int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl,
 int wolfSSL_UnloadCertsKeys(WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この機能は、可能な限りハンドシェイクメッセージのグループ化をオンにします。
     \return SSL_SUCCESS  成功に戻ります。
     \return BAD_FUNC_ARG  入力コンテキストがNULLの場合、返されます。
@@ -5323,7 +5323,7 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL*);
 int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この機能は、可能な限りハンドシェイクメッセージのグループ化をオンにします。
     \return SSL_SUCCESS  成功に戻ります。
     \return BAD_FUNC_ARG  入力コンテキストがNULLの場合、返されます。
@@ -5342,7 +5342,7 @@ int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
 int wolfSSL_set_group_messages(WOLFSSL*);
 
 /*!
-    \brief  
+    \brief
     \return none  いいえ返します。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
     \param cbf  フォームの関数ポインタであるCallBackFozzerタイプ：int（* callbackfuzzer）（wolfssl * ssl、consigned char * buf、int sz、int型、void * fuzzctx）;
@@ -5364,7 +5364,7 @@ int wolfSSL_set_group_messages(WOLFSSL*);
 void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
 
 /*!
-    \brief  
+    \brief
     \return 0  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  許容できない値で関数に渡された引数があった場合に返されます。
     \return COOKIE_SECRET_SZ  秘密サイズが0の場合に返されます。
@@ -5392,7 +5392,7 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                                unsigned int secretSz);
 
 /*!
-    \brief  
+    \brief
     \return rng  成功すると。
     \return NULL  SSLがNULLの場合
     _Example_
@@ -5407,7 +5407,7 @@ int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、許可されている最小のダウングレードバージョンを設定します。接続が（wolfsslv23_client_methodまたはwolfsslv23_server_method）を使用して、接続がダウングレードできる場合にのみ適用されます。
     \return SSL_SUCCESS  エラーなしで返された関数と最小バージョンが設定されている場合に返されます。
     \return BAD_FUNC_ARG  wolfssl_ctx構造がNULLの場合、または最小バージョンがサポートされていない場合に返されます。
@@ -5427,7 +5427,7 @@ WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、許可されている最小のダウングレードバージョンを設定します。接続が（wolfsslv23_client_methodまたはwolfsslv23_server_method）を使用して、接続がダウングレードできる場合にのみ適用されます。
     \return SSL_SUCCESS  この関数とそのサブルーチンがエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  SSLオブジェクトがNULLの場合に返されます。サブルーチンでは、良いバージョンが一致しない場合、このエラーはスローされます。
@@ -5485,7 +5485,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
 int wolfSSL_GetMaxOutputSize(WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、バージョンで指定されたバージョンを使用して、指定されたSSLセッション（WolfSSLオブジェクト）のSSL / TLSプロトコルバージョンを設定します。これにより、SSLセッション（SSL）のプロトコル設定が最初に定義され、SSLコンテキスト（WolfSSL_CTX_NEW（））メソッドの種類によって上書きされます。
     \return SSL_SUCCESS  成功すると。
     \return BAD_FUNC_ARG  入力SSLオブジェクトがNULLまたは誤ったプロトコルバージョンがバージョンで指定されている場合に返されます。
@@ -5594,7 +5594,7 @@ void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl);
 const unsigned char* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify);
 
 /*!
-    \brief  
+    \brief
     \return pointer  正常にコールがキーへの有効なポインタを返します。キーのサイズは、wolfssl_getkeysize（）から取得できます。
     \return NULL  エラー状態に戻ります。
     _Example_
@@ -5620,7 +5620,7 @@ const unsigned char* wolfSSL_GetClientWriteKey(WOLFSSL*);
 const unsigned char* wolfSSL_GetClientWriteIV(WOLFSSL*);
 
 /*!
-    \brief  
+    \brief
     \return pointer  正常にコールがキーへの有効なポインタを返します。キーのサイズは、wolfssl_getkeysize（）から取得できます。
     \return NULL  エラー状態に戻ります。
     _Example_
@@ -5642,7 +5642,7 @@ const unsigned char* wolfSSL_GetServerWriteKey(WOLFSSL*);
 const unsigned char* wolfSSL_GetServerWriteIV(WOLFSSL*);
 
 /*!
-    \brief  
+    \brief
     \return size  正常にコールがキーサイズをバイト単位で返します。
     \return BAD_FUNC_ARG  エラー状態に戻ります。
     _Example_
@@ -5655,7 +5655,7 @@ const unsigned char* wolfSSL_GetServerWriteIV(WOLFSSL*);
 int                  wolfSSL_GetKeySize(WOLFSSL*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  WolfSSL構造体に保持されているSpecs構造体のIV_SIZEメンバーを返します。
     \return iv_size  ssl-> specs.iv_sizeで保持されている値を返します。
     \return BAD_FUNC_ARG  WolfSSL構造がNULLの場合に返されます。
@@ -5678,7 +5678,7 @@ int                  wolfSSL_GetKeySize(WOLFSSL*);
 int                  wolfSSL_GetIVSize(WOLFSSL*);
 
 /*!
-    \brief  
+    \brief
     \return success  成功した場合、呼び出しがWolfSSLオブジェクトの側面に応じてwolfssl_server_endまたはwolfssl_client_endを返します。
     \return BAD_FUNC_ARG  エラー状態に戻ります。
     _Example_
@@ -6065,7 +6065,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  新しい証明書マネージャコンテキストを割り当てて初期化します。このコンテキストは、SSLのニーズとは無関係に使用できます。証明書をロードしたり、証明書を確認したり、失効状況を確認したりするために使用することができます。
     \return WOLFSSL_CERT_MANAGER  正常にコールが有効なwolfssl_cert_managerポインタを返します。
     \return NULL  エラー状態に戻ります。
@@ -6074,7 +6074,7 @@ void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb);
 WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  新しい証明書マネージャコンテキストを割り当てて初期化します。このコンテキストは、SSLのニーズとは無関係に使用できます。証明書をロードしたり、証明書を確認したり、失効状況を確認したりするために使用することができます。
     \return WOLFSSL_CERT_MANAGER  正常にコールが有効なwolfssl_cert_managerポインタを返します。
     \return NULL  エラー状態に戻ります。
@@ -6093,9 +6093,9 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
 WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  証明書マネージャのコンテキストに関連付けられているすべてのリソースを解放します。証明書マネージャを使用する必要がなくなるときにこれを呼び出します。
-    \return none 
+    \return none
     _Example_
     \code
     #include <wolfssl/ssl.h>
@@ -6109,7 +6109,7 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
 void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER*);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  ManagerコンテキストへのCA証明書のロードの場所を指定します。PEM証明書カフェイルには、複数の信頼できるCA証明書が含まれている可能性があります。capathがnullでない場合、PEM形式のCA証明書を含むディレクトリを指定します。
     \return SSL_SUCCESS  成功した場合、通話が戻ります。
     \return SSL_BAD_FILETYPE  ファイルが間違った形式である場合は返されます。
@@ -6138,7 +6138,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* f,
                                                                  const char* d);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  wolfssl_ctx_load_verify_bufferを呼び出して、関数に渡されたCM内の情報を失うことなく一時的なCMを使用してその結果を返すことによってCAバッファをロードします。
     \return SSL_FATAL_ERROR  wolfssl_cert_manager構造体がNULLの場合、またはwolfssl_ctx_new（）がNULLを返す場合に返されます。
     \return SSL_SUCCESS  実行が成功するために返されます。
@@ -6166,7 +6166,7 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
                                   const unsigned char* in, long sz, int format);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数はCA署名者リストをアンロードします。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。
     \return BAD_FUNC_ARG  wolfssl_cert_managerがnullの場合に返されます。
@@ -6188,7 +6188,7 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
 int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  関数は信頼できるピアリンクリストを解放し、信頼できるピアリストのロックを解除します。
     \return SSL_SUCCESS  関数が正常に完了した場合
     \return BAD_FUNC_ARG  wolfssl_cert_managerがnullの場合
@@ -6209,7 +6209,7 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
 int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  証明書マネージャのコンテキストで確認する証明書を指定します。フォーマットはSSL_FILETYPE_PEMまたはSSL_FILETYPE_ASN1にすることができます。
     \return SSL_SUCCESS  成功した場合
     \return ASN_SIG_CONFIRM_E  署名が検証できなかった場合に返されます。
@@ -6244,7 +6244,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* f,
                                                                     int format);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  証明書マネージャのコンテキストを使用して確認する証明書バッファを指定します。フォーマットはSSL_FILETYPE_PEMまたはSSL_FILETYPE_ASN1にすることができます。
     \return SSL_SUCCESS  成功した場合
     \return ASN_SIG_CONFIRM_E  署名が検証できなかった場合に返されます。
@@ -6284,7 +6284,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
                                 const unsigned char* buff, long sz, int format);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数は、証明書マネージャーのverifyCallback関数を設定します。存在する場合、それはロードされた各CERTに対して呼び出されます。検証エラーがある場合は、検証コールバックを使用してエラーを過度に乗り越えます。
     \return none  返品不可。
     \param cm  wolfssl_certmanagernew（）を使用して作成されたwolfssl_cert_manager構造体へのポインタ。
@@ -6332,7 +6332,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
                                 unsigned char* der, int sz);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  証明書マネージャを使用して証明書を検証するときに証明書失効リストの確認をオンにします。デフォルトでは、CRLチェックはオフです。オプションには、wolfssl_crl_checkallが含まれます。これは、チェーン内の各証明書に対してCRL検査を実行します。これはデフォルトであるリーフ証明書のみです。
     \return SSL_SUCCESS  成功した場合、通話が戻ります。
     \return NOT_COMPILED_IN  WolfSSLがCRLを有効にして構築されていない場合は返されます。
@@ -6361,7 +6361,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm,
                                                                    int options);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  証明書マネージャを使用して証明書を検証するときに証明書失効リストの確認をオフにします。デフォルトでは、CRLチェックはオフです。この関数を使用して、このCertificate Managerコンテキストを使用してCRL検査を一時的または恒久的に無効にして、以前はCRL検査が有効になっていました。
     \return SSL_SUCCESS  成功した場合、通話が戻ります。
     \return BAD_FUNC_ARG  関数ポインタが提供されていない場合に返されるエラーです。
@@ -6383,15 +6383,16 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm,
 int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER*);
 
 /*!
-    \ingroup CertManager 
-    \brief  失効確認のためにCERTをCRLにロードするために、CERTをCRLにロードするために、ROADCRL（）へのエラーがチェックされ、渡されます。
-    \return SSL_SUCCESS  wolfssl_certmanagerLoadcrlにエラーがない場合、およびloadcrlが正常に戻る場合。
-    \return BAD_FUNC_ARG  wolfssl_cert_manager構造体がnullの場合
-    \return SSL_FATAL_ERROR  wolfssl_certmanagerEnableCRLがSSL_SUCCESS以外のものを返す場合。
-    \return BAD_PATH_ERROR  パスがNULLの場合
+    \ingroup CertManager
+    \brief  証明書の失効確認のために証明書をCRLにロードする際にエラーチェックを行い、その後証明書をLoadCRL()へ渡します。
+
+    \return SSL_SUCCESS  wolfSSL_CertManagerLoadCRLでエラーが発生せず、loadCRLが成功で戻る場合に返されます。
+    \return BAD_FUNC_ARG  WOLFSSL_CERT_MANAGER構造体がNULLの場合
+    \return SSL_FATAL_ERROR  wolfSSL_CertManagerEnableCRLがSSL_SUCCESS以外のを返す場合。
+    \return BAD_PATH_ERROR  pathがNULLの場合
     \return MEMORY_E  LOADCRLがヒープメモリの割り当てに失敗した場合。
-    \param cm  wolfssl_certmanagernew（）を使用して作成されたwolfssl_cert_manager構造体へのポインタ。
-    \param path  CRL経路を保持している一定のチャールポインタ。
+    \param cm  wolfSSL_CertManagerNew()を使用して作成されたWOLFSSL_CERT_MANAGER構造体へのポインタ。
+    \param path  CRLへのパスを保持しているバッファーへのポインタ。
     \param type  ロードする証明書の種類。
     _Example_
     \code
@@ -6409,7 +6410,7 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
                                const char* path, int type, int monitor);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数は、BufferLoadCRLを呼び出すことによってCRLファイルをロードします。
     \return SSL_SUCCESS  関数がエラーなしで完了した場合に返されます。
     \return BAD_FUNC_ARG  wolfssl_cert_managerがnullの場合に返されます。
@@ -6441,7 +6442,7 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
                                      int type);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数はCRL証明書マネージャコールバックを設定します。LABE_CRLが定義されていて一致するCRLレコードが見つからない場合、CBMissingCRLは呼び出されます（WolfSSL_CertManagerSetCRL_CBを介して設定）。これにより、CRLを外部に検索してロードすることができます。
     \return SSL_SUCCESS  関数とサブルーチンの実行が成功したら返されます。
     \return BAD_FUNC_ARG  wolfssl_cert_manager構造体がNULLの場合に返されます。
@@ -6468,9 +6469,35 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
 */
 int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
                                  CbMissingCRL cb);
+/*!
+    \ingroup CertManager
+    \brief この関数は証明書マネジャーに保持されているCRLを解放します。
+    アプリケーションはCRLをwolfSSL_CertManagerFreeCRLを呼び出して解放した後に、新しいCRLをロードすることができます。
+
+    \return SSL_SUCCESS 関数の実行に成功した場合に返されます。
+    \return BAD_FUNC_ARG WOLFSSL_CERT_MANAGER構造体へのポインターがNULLで渡された場合に返されます。
+
+    \param cm wolfSSL_CertManagerNew()で生成されたWOLFSSL_CERT_MANAGER構造体へのポインター。
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    const char* crl1     = "./certs/crl/crl.pem";
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    cm = wolfSSL_CertManagerNew();
+    wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0);
+    …
+    wolfSSL_CertManagerFreeCRL(cm);
+    \endcode
+
+    \sa wolfSSL_CertManagerLoadCRL
+*/
+int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この機能により、OCSPENABLED OCSPENABLEDがOCSPチェックオプションが有効になっていることを意味します。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。wolfssl_cert_managerのOCSPENABLEDメンバーが有効になっています。
     \return BAD_FUNC_ARG  wolfssl_cert_manager構造体がnullの場合、または許可されていない引数値がサブルーチンに渡された場合に返されます。
@@ -6496,7 +6523,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
                                  unsigned char* der, int sz);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  OCSPがオフになっている場合はOCSPをオンにし、[設定]オプションを使用可能になっている場合。
     \return SSL_SUCCESS  関数呼び出しが成功した場合に返されます。
     \return BAD_FUNC_ARG  cm構造体がnullの場合
@@ -6523,7 +6550,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm,
                                                                    int options);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  OCSP証明書の失効を無効にします。
     \return SSL_SUCCESS  WolfSSL_CertMangerDisableCRLは、WolfSSL_CERT_MANAGER構造体のCRLEnabledメンバを無効にしました。
     \return BAD_FUNC_ARG  WOLFSSL構造はヌルでした。
@@ -6543,7 +6570,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm,
 int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER*);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数は、URLをwolfssl_cert_manager構造体のOCSpoverrideURLメンバーにコピーします。
     \return SSL_SUCCESS  この機能は期待どおりに実行できました。
     \return BAD_FUNC_ARG  wolfssl_cert_manager構造体はnullです。
@@ -6567,7 +6594,7 @@ int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
                                           const char* url);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数は、wolfssl_cert_managerのOCSPコールバックを設定します。
     \return SSL_SUCCESS  実行に成功したことに戻ります。引数はwolfssl_cert_manager構造体に保存されます。
     \return BAD_FUNC_ARG  wolfssl_cert_managerがnullの場合に返されます。
@@ -6595,7 +6622,7 @@ int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER* cm,
                                   void* ioCbCtx);
 
 /*!
-    \ingroup CertManager 
+    \ingroup CertManager
     \brief  この関数は、オプションをオンにしないとOCSPステープルをオンにします。オプションを設定します。
     \return SSL_SUCCESS  エラーがなく、関数が正常に実行された場合に返されます。
     \return BAD_FUNC_ARG  wolfssl_cert_manager構造体がNULLまたはそうでない場合は、サブルーチンに渡された未解決の引数値があった場合に返されます。
@@ -6614,7 +6641,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(
                                                       WOLFSSL_CERT_MANAGER* cm);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数とサブルーチンはエラーなしで返されました。
     \return BAD_FUNC_ARG  WolfSSL構造がNULLの場合に返されます。
     \return MEMORY_E  メモリの割り当てが失敗した場合に返されます。
@@ -6636,7 +6663,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  WolfSSL_CertMangerDisableCRLは、WolfSSL_CERT_MANAGER構造体のCRLEnabledメンバを無効にしました。
     \return BAD_FUNC_ARG  WOLFSSL構造はヌルでした。
     _Example_
@@ -6677,7 +6704,7 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl);
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数またはサブルーチンがエラーなしで実行された場合に返されます。wolfssl_cert_managerのCBMissingCRLメンバーが設定されています。
     \return BAD_FUNC_ARG  WOLFSSLまたはWOLFSSL_CERT_MANAGER構造体がNULLの場合に返されます。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -6702,7 +6729,7 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor);
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数とサブルーチンがエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  この関数またはサブルーチンの引数が無効な引数値を受信した場合に返されます。
     \return MEMORY_E  構造体やその他の変数にメモリを割り当てるエラーが発生した場合は返されます。
@@ -6724,7 +6751,7 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb);
 int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数とそのサブルーチンがエラーなしで戻った場合に返されます。wolfssl_cert_manager構造体のOCSPENABLEDメンバーは正常に設定されました。
     \return BAD_FUNC_ARG  WolfSSL構造がNULLの場合に返されます。
     _Example_
@@ -6795,7 +6822,7 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl, CbOCSPIO ioCb, CbOCSPRespFree respFreeCb,
                        void* ioCbCtx);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  この関数とそれがサブルーチンの場合はエラーなしで実行されます。
     \return BAD_FUNC_ARG  CTX構造体がNULLの場合、またはその他の点ではサブルーチンに無効な引数があった場合に返されます。
     \return MEMORY_E  関数の実行中にメモリの割り当てエラーが発生した場合に返されます。
@@ -6817,7 +6844,7 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl, CbOCSPIO ioCb, CbOCSPRespFree respFreeCb,
 int wolfSSL_CTX_EnableCRL(WOLFSSL_CTX* ctx, int options);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。wolfssl_cert_manager構造体のCRLEnabledメンバーは0に設定されています。
     \return BAD_FUNC_ARG  CTX構造体またはCM構造体にNULL値がある場合に返されます。
     _Example_
@@ -6928,7 +6955,7 @@ int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX*);
 int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX* ctx, const char* url);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数が正常に実行された場合に返されます。CM内のOCSPIOCB、OCSPRESPFREECB、およびOCSPIOCTXメンバーは正常に設定されました。
     \return BAD_FUNC_ARG  wolfssl_ctxまたはwolfssl_cert_manager構造体がnullの場合に返されます。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -6980,7 +7007,7 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx,
 int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  通常、SSLハンドシェイクの最後に、WolfSSLは一時的なアレイを解放します。ハンドシェイクが始まる前にこの関数を呼び出すと、WolfSSLは一時的な配列を解放するのを防ぎます。Wolfssl_get_keys（）またはPSKのヒントなどのものには、一時的な配列が必要になる場合があります。ユーザが一時的な配列で行われると、wolfssl_freearray（）のいずれかが即座にリソースを解放することができ、あるいは、関連するSSLオブジェクトが解放されたときにリソースが解放されるようになる可能性がある。
     \return none  返品不可。
     _Example_
@@ -6994,7 +7021,7 @@ int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 void wolfSSL_KeepArrays(WOLFSSL*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  通常、SSLハンドシェイクの最後に、WolfSSLは一時的なアレイを解放します。wolfssl_keeparrays（）がハンドシェイクの前に呼び出された場合、WolfSSLは一時的な配列を解放しません。この関数は一時的な配列を明示的に解放し、ユーザーが一時的な配列で行われたときに呼び出されるべきであり、SSLオブジェクトがこれらのリソースを解放するのを待ったくない。
     \return none  返品不可。
     _Example_
@@ -7161,7 +7188,7 @@ int wolfSSL_SNI_GetFromBuffer(
                  unsigned char type, unsigned char* sni, unsigned int* inOutSz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はSNIオブジェクトのステータスを取得します。
     \return value  SNIがNULLでない場合、この関数はSNI構造体のステータスメンバーのバイト値を返します。
     \return 0  SNIオブジェクトがNULLの場合
@@ -7218,7 +7245,7 @@ unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
                                                unsigned char type, void** data);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  wolfsslセッションにALPNを設定します。
     \return WOLFSSL_SUCCESS:  成功すると。
     \return BAD_FUNC_ARG  SSLまたはPROTOCOL_NAME_LISTがNULLまたはPROTOCOL_NAME_LISTSZが大きすぎたり、オプションがサポートされていないものを含みます。
@@ -7251,7 +7278,7 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                                 unsigned char options);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、サーバーによって設定されたプロトコル名を取得します。
     \return SSL_SUCCESS  エラーが投げられていない正常な実行に戻りました。
     \return SSL_FATAL_ERROR  拡張子が見つからなかった場合、またはピアとプロトコルが一致しなかった場合に返されます。2つ以上のプロトコル名が受け入れられている場合は、スローされたエラーもあります。
@@ -7280,7 +7307,7 @@ int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name,
                                          unsigned short *size);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、alpn_client_listデータをSSLオブジェクトからバッファにコピーします。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。SSLオブジェクトのALPN_CLIENT_LISTメンバーがLISTパラメータにコピーされました。
     \return BAD_FUNC_ARG  listまたはlistszパラメーターがnullの場合に返されます。
@@ -7437,7 +7464,7 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl,
                               unsigned char status_type, unsigned char options);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS  関数とサブルーチンがエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  未解決の値がサブルーチンに渡された場合、wolfssl_ctx構造体がNULLまたはそうでない場合は返されます。
     \return MEMORY_E  関数またはサブルーチンがメモリを正しく割り振ることができなかった場合に返されます。
@@ -7465,7 +7492,7 @@ int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx,
                               unsigned char status_type, unsigned char options);
 
 /*!
-    \brief  
+    \brief
     \return SSL_SUCCESS   - 関数とサブルーチンがエラーなしで実行された場合に返されます。
     \return MEMORY_E   - メモリエラーの割り当てがあった場合に返されます。
     \return BAD_FUNC_ARG   -  NULLまたはそれ以外の場合は解読されていない引数が関数またはサブルーチンに渡された場合に返されます。
@@ -7565,7 +7592,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
                                                            word16 name);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、供給されたWOLFSSL構造の安全な再交渉を強制します。これはお勧めできません。
     \return SSL_SUCCESS  安全な再ネゴシエーションを正常に設定します。
     \return BAD_FUNC_ARG  SSLがNULLの場合、エラーを返します。
@@ -7590,7 +7617,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
 int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は安全な再交渉ハンドシェイクを実行します。これは、WolfSSLがこの機能を妨げるように強制されます。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  wolfssl構造がnullまたはそうでなければ、許容できない引数がサブルーチンに渡された場合に返されます。
@@ -7614,7 +7641,7 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl);
 int wolfSSL_Rehandshake(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  セッションチケットを使用するようにWolfSSL構造を強制します。定数hous_session_ticketを定義し、定数NO_WOLFSSL_CLIENTをこの関数を使用するように定義しないでください。
     \return SSL_SUCCESS  セッションチケットを使用したセットに成功しました。
     \return BAD_FUNC_ARG  SSLがNULLの場合に返されます。
@@ -7638,7 +7665,7 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl);
 int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、セッションチケットを使用するようにWolfSSLコンテキストを設定します。
     \return SSL_SUCCESS  関数は正常に実行されます。
     \return BAD_FUNC_ARG  CTXがNULLの場合に返されます。
@@ -7660,7 +7687,7 @@ int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この機能は、セッション構造のチケットメンバーをバッファにコピーします。
     \return SSL_SUCCESS  関数がエラーなしで実行された場合に返されます。
     \return BAD_FUNC_ARG  引数の1つがNULLの場合、またはbufsz引数が0の場合に返されます。
@@ -7685,7 +7712,7 @@ int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
 int wolfSSL_get_SessionTicket(WOLFSSL* ssl, unsigned char* buf, word32* bufSz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、WolfSSL構造体内のwolfssl_session構造体のチケットメンバーを設定します。関数に渡されたバッファはメモリにコピーされます。
     \return SSL_SUCCESS  機能の実行に成功したことに戻ります。関数はエラーなしで返されました。
     \return BAD_FUNC_ARG  WolfSSL構造がNULLの場合に返されます。BUF引数がNULLの場合は、これはスローされますが、bufsz引数はゼロではありません。
@@ -7814,7 +7841,7 @@ void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx);
 int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はセッションから統計を印刷します。
     \return SSL_SUCCESS  関数とサブルーチンがエラーなしで戻った場合に返されます。セッション統計は正常に取得され印刷されました。
     \return BAD_FUNC_ARG  サブルーチンwolfssl_get_session_stats（）が許容できない引数に渡された場合に返されます。
@@ -7832,7 +7859,7 @@ int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx);
 int wolfSSL_PrintSessionStats(void);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はセッションの統計を取得します。
     \return SSL_SUCCESS  関数とサブルーチンがエラーなしで戻った場合に返されます。セッション統計は正常に取得され印刷されました。
     \return BAD_FUNC_ARG  サブルーチンwolfssl_get_session_stats（）が許容できない引数に渡された場合に返されます。
@@ -7857,7 +7884,7 @@ int wolfSSL_get_session_stats(unsigned int* active,
                                           unsigned int* maxSessions);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数はCRとSRの値をコピーしてからWC_PRF（疑似ランダム関数）に渡し、その値を返します。
     \return 0  成功した
     \return BUFFER_E  バッファのサイズにエラーが発生した場合は返されます。
@@ -7897,7 +7924,7 @@ int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, word32 msLen,
                                int tls1_2, int hash_type);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  TLSキーを導き出すための外部のラッパー。
     \return 0  成功に戻りました。
     \return BUFFER_E  LABLENとSEADLENの合計（合計サイズを計算）が最大サイズを超えると返されます。
@@ -7963,7 +7990,7 @@ int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBacki hsCb,
                       TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これはBIOの内部ファイルポインタを設定するために使用されます。
     \return SSL_SUCCESS  ファイルポインタを正常に設定します。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -7986,7 +8013,7 @@ int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBacki hsCb,
 long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  これは、BIOの内部ファイルポインタを取得するために使用されます。
     \return SSL_SUCCESS  ファイルポインタを正常に取得します。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -8008,7 +8035,7 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
 long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、秘密鍵が使用されている証明書との一致であることを確認します。
     \return SSL_SUCCESS  うまく一致します。
     \return SSL_FAILURE  エラーケースに遭遇した場合
@@ -8027,7 +8054,7 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
 int wolfSSL_check_private_key(const WOLFSSL* ssl);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この機能は、渡されたNID値に一致する拡張索引を探して返します。
     \return >=  0拡張インデックスが成功した場合は返されます。
     \return -1  拡張が見つからないかエラーが発生した場合
@@ -8046,7 +8073,7 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509,
                                              int nid, int lastPos);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、渡されたNID値に合った拡張子を探して返します。
     \return pointer  STACK_OF（wolfssl_asn1_object）ポインタが成功した場合は返されます。
     \return NULL  拡張が見つからないかエラーが発生した場合
@@ -8069,7 +8096,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はDER証明書のハッシュを返します。
     \return SSL_SUCCESS  ハッシュの作成に成功しました。
     \return SSL_FAILURE  不良入力または失敗したハッシュに戻りました。
@@ -8092,7 +8119,7 @@ int wolfSSL_X509_digest(const WOLFSSL_X509* x509,
         const WOLFSSL_EVP_MD* digest, unsigned char* buf, unsigned int* len);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  ハンドシェイク中に使用するために、WolfSSL構造の証明書を設定するために使用されます。
     \return SSL_SUCCESS  設定の成功した引数について。
     \return SSL_FAILURE  NULL引数が渡された場合。
@@ -8111,7 +8138,7 @@ int wolfSSL_X509_digest(const WOLFSSL_X509* x509,
 int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、handshakeの間に使用するためにWolfSSL構造の証明書を設定するために使用されます。DERフォーマットバッファが予想されます。
     \return SSL_SUCCESS  設定の成功した引数について。
     \return SSL_FAILURE  NULL引数が渡された場合。
@@ -8134,7 +8161,7 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                      int derSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  これはWolfSSL構造の秘密鍵を設定するために使用されます。
     \return SSL_SUCCESS  設定の成功した引数について。
     \return SSL_FAILURE  NULL SSLが渡された場合。すべてのエラーケースは負の値になります。
@@ -8154,7 +8181,7 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der,
 int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  これはWolfSSL構造の秘密鍵を設定するために使用されます。DERフォーマットのキーバッファが予想されます。
     \return SSL_SUCCESS  秘密鍵の構文解析と設定に成功した場合。
     \return SSL_FAILURE  NULL SSLが渡された場合。すべてのエラーケースは負の値になります。
@@ -8179,7 +8206,7 @@ int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl,
                                             unsigned char* der, long derSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  これはWolfSSL構造の秘密鍵を設定するために使用されます。DERフォーマットのRSAキーバッファが予想されます。
     \return SSL_SUCCESS  秘密鍵の構文解析と設定に成功した場合。
     \return SSL_FAILURE  NULL SSLが渡された場合。すべてのエラーケースは負の値になります。
@@ -8203,7 +8230,7 @@ int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                 long derSz);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、DSAのパラメータを新しく作成されたWOLFSSL_DH構造体に重複しています。
     \return WOLFSSL_DH  重複した場合はWolfSSL_DH構造体を返す場合
     \return NULL  失敗すると
@@ -8221,7 +8248,7 @@ int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
 WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *r);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これはハンドシェイクを完了した後にマスターキーを取得するために使用されます。
     \return >0  データの取得に成功した場合、0より大きい値を返します。
     \return 0  ランダムなデータバッファまたはエラー状態が返されない場合は0
@@ -8247,7 +8274,7 @@ int wolfSSL_SESSION_get_master_key(const WOLFSSL_SESSION* ses,
         unsigned char* out, int outSz);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これはマスター秘密鍵の長さを取得するために使用されます。
     \return size  マスターシークレットキーサイズを返します。
     _Example_
@@ -8267,7 +8294,7 @@ int wolfSSL_SESSION_get_master_key(const WOLFSSL_SESSION* ses,
 int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、CTXのWOLFSSL_X509_STORE構造の設定機能です。
     \return none  返品不可。
     \param ctx  Cert Storeポインタを設定するためのWolfSSL_CTX構造体へのポインタ。
@@ -8286,7 +8313,7 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
                                                        WOLFSSL_X509_STORE* str);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はBIOからDERバッファを取得し、それをWolfSSL_X509構造に変換します。
     \return pointer  成功したwolfssl_x509構造ポインタを返します。
     \return Null  失敗時にNULLを返します
@@ -8306,7 +8333,7 @@ void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、CTXのWOLFSSL_X509_STORE構造のゲッター関数です。
     \return WOLFSSL_X509_STORE*  ポインタを正常に入手します。
     \return NULL  NULL引数が渡された場合に返されます。
@@ -8325,7 +8352,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509);
 WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  保留中のバイト数を読み取る数を取得します。BIOタイプがBIO_BIOの場合、ペアから読み取る番号です。BIOにSSLオブジェクトが含まれている場合は、SSLオブジェクトからのデータを保留中です（WolfSSL_Pending（SSL））。bio_memoryタイプがある場合は、メモリバッファのサイズを返します。
     \return >=0  保留中のバイト数。
     _Example_
@@ -8342,7 +8369,7 @@ WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、ハンドシェイク中にサーバーによって送信されたランダムなデータを取得するために使用されます。
     \return >0  データの取得に成功した場合、0より大きい値を返します。
     \return 0  ランダムなデータバッファまたはエラー状態が返されない場合は0
@@ -8367,7 +8394,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl,
                                              unsigned char *out, size_t outlen);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、ハンドシェイク中にクライアントによって送信されたランダムなデータを取得するために使用されます。
     \return >0  データの取得に成功した場合、0より大きい値を返します。
     \return 0  ランダムなデータバッファまたはエラー状態が返されない場合は0
@@ -8392,7 +8419,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
                                               unsigned char* out, size_t outSz);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これはCTXで設定されたパスワードコールバックのゲッター関数です。
     \return func  成功すると、コールバック関数を返します。
     \return NULL  CTXがNULLの場合、NULLが返されます。
@@ -8411,7 +8438,7 @@ wc_pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX*
                                                                   ctx);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  これは、CTXで設定されているパスワードコールバックユーザーデータの取得機能です。
     \return pointer  成功すると、ユーザーデータポインタを返します。
     \return NULL  CTXがNULLの場合、NULLが返されます。
@@ -8429,7 +8456,7 @@ wc_pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX*
 void *wolfSSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はwolfssl_pem_read_bio_x509と同じように動作します。AUXは、信頼できる/拒否されたユースケースや人間の読みやすさのためのフレンドリーな名前などの追加情報を含むことを意味します。
     \return WOLFSSL_X509  PEMバッファの解析に成功した場合、wolfssl_x509構造が返されます。
     \return Null  PEMバッファの解析に失敗した場合。
@@ -8450,7 +8477,7 @@ WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
         (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, wc_pem_password_cb *cb, void *u);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  wolfssl_ctx構造体のDHメンバーをdiffie-hellmanパラメータで初期化します。
     \return SSL_SUCCESS  関数が正常に実行された場合に返されます。
     \return BAD_FUNC_ARG  CTXまたはDH構造体がNULLの場合に返されます。
@@ -8469,7 +8496,7 @@ WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
 long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、BIOのPEMバッファからDSAパラメータを取得します。
     \return WOLFSSL_DSA  PEMバッファの解析に成功した場合、WolfSSL_DSA構造が作成され、返されます。
     \return Null  PEMバッファの解析に失敗した場合。
@@ -8491,7 +8518,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
     WOLFSSL_DSA **x, wc_pem_password_cb *cb, void *u);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数は、wolfssl_Errorに遭遇した最後のエラーの絶対値を返します。
     \return error  最後のエラーの絶対値を返します。
     _Example_
@@ -8506,7 +8533,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
 unsigned long wolfSSL_ERR_peek_last_error(void);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数はピアの証明書チェーンを取得します。
     \return pointer  ピアの証明書スタックへのポインタを返します。
     \return NULL  ピア証明書がない場合は返されます。
@@ -8528,7 +8555,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void);
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL*);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfssl_ctxオブジェクトのオプションビットをリセットします。
     \return option  新しいオプションビット
     _Example_
@@ -8544,7 +8571,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL*);
 long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、WolfSSL構造のjobjectrefメンバーを設定します。
     \return SSL_SUCCESS  jobjectrefがobjptrに正しく設定されている場合に返されます。
     \return SSL_FAILURE  関数が正しく実行されず、jobjectrefが設定されていない場合に返されます。
@@ -8564,7 +8591,7 @@ long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt);
 int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、wolfssl構造のjobjectrefメンバーを返します。
     \return value  wolfssl構造体がnullでない場合、関数はjobjectref値を返します。
     \return NULL  wolfssl構造体がNULLの場合に返されます。
@@ -8584,7 +8611,7 @@ int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
 void* wolfSSL_get_jobject(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はSSL内のコールバックを設定します。コールバックはハンドシェイクメッセージを観察することです。CBのNULL値はコールバックをリセットします。
     \return SSL_SUCCESS  成功しています。
     \return SSL_FAILURE  NULL SSLが渡された場合。
@@ -8602,7 +8629,7 @@ void* wolfSSL_get_jobject(WOLFSSL* ssl);
 int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、SSL内の関連コールバックコンテキスト値を設定します。値はコールバック引数に渡されます。
     \return none  返品不可。
     _Example_
@@ -8620,7 +8647,7 @@ int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb);
 int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  この関数は、存在する場合は、ピア証明書からaltnameを返します。
     \return NULL  次のAltNameがない場合。
     \return cert->altNamesNext->name  wolfssl_x509から、AltNameリストからの文字列値である構造が存在する場合に返されます。
@@ -8640,7 +8667,7 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 char* wolfSSL_X509_get_next_altname(WOLFSSL_X509*);
 
 /*!
-    \ingroup CertsKeys 
+    \ingroup CertsKeys
     \brief  関数は、x509がnullのかどうかを確認し、そうでない場合は、x509構造体のNotBeforeメンバーを返します。
     \return pointer  X509構造体のNotBeforeメンバーにASN1_TIMEを使用して構造体に。
     \return NULL  x509構造がnullの場合、関数はnullを返します。
@@ -8659,7 +8686,7 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509*);
 WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(WOLFSSL_X509*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はクライアント側で呼び出され、サーバーとのSSL / TLSハンドシェイクを開始します。この関数が呼び出されると、基礎となる通信チャネルはすでに設定されています。 wolfssl_connect（）は、ブロックと非ブロックI / Oの両方で動作します。基礎となるI / Oがノンブロッキングされていない場合、wolfssl_connect（）は、基になるI / Oがwolfssl_connectのニーズを満たすことができなかったときに戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。通話プロセスは、基礎となるI / OがREADYおよびWOLFSSLが停止したときにwolfssl_connect（）への呼び出しを繰り返す必要があります。ノンブロッキングソケットを使用する場合は、何も実行する必要がありますが、select（）を使用して必要な条件を確認できます。基礎となる入出力がブロックされている場合、wolfssl_connect（）はハンドシェイクが終了したら、またはエラーが発生したらのみ戻る。 WolfSSLはOpenSSLよりも証明書検証に異なるアプローチを取ります。クライアントのデフォルトポリシーはサーバーを確認することです。これは、CASを読み込まない場合、サーバーを確認することができ、確認できません（-155）。 SSL_CONNECTを持つことのOpenSSLの動作が成功した場合は、サーバーを検証してセキュリティを抑えることができます.SSL_CTX_SET_VERIFY（CTX、SSL_VERIFY_NONE、0）。 ssl_new（）を呼び出す前に。お勧めできませんが。
     \return SSL_SUCCESS  成功した場合
     \return SSL_FATAL_ERROR  エラーが発生した場合は返されます。より詳細なエラーコードを取得するには、wolfssl_get_error（）を呼び出します。
@@ -8682,7 +8709,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(WOLFSSL_X509*);
 int  wolfSSL_connect(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数はサーバー側で呼び出されて、HellORetryRequestメッセージにCookieを含める必要があることを示します。Cookieは現在のトランスクリプトのハッシュを保持しているので、別のサーバープロセスは応答でClientHelloを処理できます。秘密はCookieデータの整合性チェックをGenertingするときに使用されます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  秘密を保持しているバッファへのポインタを秘密にします。渡すNULLは、新しいランダムシークレットを生成することを示します。
@@ -8708,7 +8735,7 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  ハンドシェイクが完了すると、この関数はサーバー上で再開セッションチケットの送信を停止するように呼び出されます。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \return BAD_FUNC_ARG  CTXがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8728,7 +8755,7 @@ int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
 int  wolfSSL_CTX_no_ticket_TLSv13(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  ハンドシェイクが完了すると、この関数はサーバー上で再開セッションチケットの送信を停止するように呼び出されます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8748,7 +8775,7 @@ int  wolfSSL_CTX_no_ticket_TLSv13(WOLFSSL_CTX* ctx);
 int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、Authenticationにプリシェアキーを使用している場合、DIFFIE-HELLMAN（DH）スタイルのキー交換を許可するTLS V1.3 WolfSSLコンテキストで呼び出されます。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \return BAD_FUNC_ARG  CTXがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8767,7 +8794,7 @@ int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
 int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、Authenticationのためにプリシェアキーを使用しているときにDiffie-Hellman（DH）スタイルのキー交換を許可するTLS V1.3クライアントまたはサーバーのWolfSSLで呼び出されます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8786,7 +8813,7 @@ int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出されて、キーのロールオーバーを強制します。KeyUpdateメッセージがピアに送信され、新しいキーが暗号化のために計算されます。ピアはKeyUpdateメッセージを送り、新しい復号化キーWILを計算します。この機能は、ハンドシェイクが完了した後にのみ呼び出すことができます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8809,7 +8836,7 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 int  wolfSSL_update_keys(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出され、キーのロールオーバーが進行中かどうかを判断します。wolfssl_update_keys（）が呼び出されると、KeyUpdateメッセージが送信され、暗号化キーが更新されます。復号化キーは、応答が受信されたときに更新されます。
     \param [in]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [out]  キー更新応答が必要ない場合は必須0。1キー更新応答が必要ない場合。
@@ -8833,7 +8860,7 @@ int  wolfSSL_update_keys(WOLFSSL* ssl);
 int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS v1.3クライアントのWolfSSLコンテキストで呼び出され、クライアントはサーバーからの要求に応じてPost Handshakeを送信できるようにします。これは、クライアント認証などを必要としないページを持つWebサーバーに接続するときに役立ちます。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \return BAD_FUNC_ARG  CTXがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8854,7 +8881,7 @@ int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
 int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS V1.3クライアントWolfSSLで呼び出され、クライアントはサーバーからの要求に応じてハンドシェイクを送ります。handshakeクライアント認証拡張機能はClientHelloで送信されます。これは、クライアント認証などを必要としないページを持つWebサーバーに接続するときに役立ちます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8875,7 +8902,7 @@ int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、TLS v1.3クライアントからクライアント証明書を要求します。これは、Webサーバーがクライアント認証やその他のものを必要とするページにサービスを提供している場合に役立ちます。接続で最大256の要求を送信できます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8903,7 +8930,7 @@ int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 int  wolfSSL_request_certificate(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は楕円曲線グループのリストを設定して、WolfSSLコンテキストを希望の順に設定します。リストはヌル終了したテキスト文字列、およびコロン区切りリストです。この関数を呼び出して、TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定します。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \param [in]  楕円曲線グループのコロン区切りリストである文字列をリストします。
@@ -8928,7 +8955,7 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
 int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は楕円曲線グループのリストを設定して、WolfSSLを希望の順に設定します。リストはヌル終了したテキスト文字列、およびコロン区切りリストです。この関数を呼び出して、TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定します。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  鍵交換グループのコロン区切りリストである文字列をリストします。
@@ -8953,7 +8980,7 @@ int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list);
 int  wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list);
 
 /*!
-    \ingroup TLS 
+    \ingroup TLS
     \brief  この関数は、クライアントがTLS v1.3ハンドシェイクで使用することを好むキー交換グループを返します。この情報を完了した後にこの機能を呼び出して、サーバーがどのグループが予想されるようにこの情報が将来の接続で使用できるようになるかを決定するために、この情報が将来の接続で鍵交換のための鍵ペアを事前生成することができます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合、またはTLS v1.3を使用していない場合。
@@ -8980,7 +9007,7 @@ int  wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list);
 int  wolfSSL_preferred_group(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は楕円曲線グループのリストを設定して、WolfSSLコンテキストを希望の順に設定します。リストは、Countで指定された識別子の数を持つグループ識別子の配列です。この関数を呼び出して、TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定します。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \param [in]  識別子によって鍵交換グループのリストをグループ化します。
@@ -9010,7 +9037,7 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
     int count);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、wolfsslを許すために楕円曲線グループのリストを設定します。リストは、Countで指定された識別子の数を持つグループ識別子の配列です。この関数を呼び出して、TLS v1.3接続で使用する鍵交換楕円曲線パラメータを設定します。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  識別子によって鍵交換グループのリストをグループ化します。
@@ -9039,7 +9066,7 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
 int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はクライアント側で呼び出され、サーバーとのTLS v1.3ハンドシェイクを開始します。この関数が呼び出されると、基礎となる通信チャネルはすでに設定されています。 wolfssl_connect（）は、ブロックと非ブロックI / Oの両方で動作します。基礎となるI / Oがノンブロッキングされていない場合、wolfssl_connect（）は、基になるI / Oがwolfssl_connectのニーズを満たすことができなかったときに戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。通話プロセスは、基礎となるI / OがREADYおよびWOLFSSLが停止したときにwolfssl_connect（）への呼び出しを繰り返す必要があります。ノンブロッキングソケットを使用する場合は、何も実行する必要がありますが、select（）を使用して必要な条件を確認できます。基礎となる入出力がブロックされている場合、wolfssl_connect（）はハンドシェイクが終了したら、またはエラーが発生したらのみ戻る。 WolfSSLはOpenSSLよりも証明書検証に異なるアプローチを取ります。クライアントのデフォルトポリシーはサーバーを確認することです。これは、CASを読み込まない場合、サーバーを確認することができ、確認できません（-155）。 SSL_CONNECTを持つことのOpenSSLの動作が成功した場合は、サーバーを検証してセキュリティを抑えることができます.SSL_CTX_SET_VERIFY（CTX、SSL_VERIFY_NONE、0）。 ssl_new（）を呼び出す前に。お勧めできませんが。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FATAL_ERROR  エラーが発生した場合は返されます。より詳細なエラーコードを取得するには、wolfssl_get_error（）を呼び出します。
@@ -9065,7 +9092,7 @@ int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
 int  wolfSSL_connect_TLSv13(WOLFSSL*);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数はサーバー側で呼び出され、SSL / TLSクライアントがSSL / TLSハンドシェイクを開始するのを待ちます。この関数が呼び出されると、基礎となる通信チャネルはすでに設定されています。 wolfssl_accept（）は、ブロックと非ブロッキングI / Oの両方で動作します。基礎となる入出力がノンブロッキングである場合、wolfssl_accept（）は、基礎となるI / Oがwolfssl_acceptのニーズを満たすことができなかったときに戻ります。この場合、wolfssl_get_error（）への呼び出しはSSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEのいずれかを生成します。通話プロセスは、読み取り可能なデータが使用可能であり、wolfsslが停止した場所を拾うときに、wolfssl_acceptの呼び出しを繰り返す必要があります。ノンブロッキングソケットを使用する場合は、何も実行する必要がありますが、select（）を使用して必要な条件を確認できます。基礎となるI / Oがブロックされている場合、wolfssl_accept（）はハンドシェイクが終了したら、またはエラーが発生したら戻ります。古いバージョンのClientHelloメッセージがサポートされていますが、TLS v1.3接続を期待するときにこの関数を呼び出します。
     \return SSL_SUCCESS  成功すると。
     \return SSL_FATAL_ERROR  エラーが発生した場合は返されます。より詳細なエラーコードを取得するには、wolfssl_get_error（）を呼び出します。
@@ -9092,7 +9119,7 @@ int  wolfSSL_connect_TLSv13(WOLFSSL*);
 wolfSSL_accept_TLSv13(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、WolfSSLコンテキストを使用してTLS V1.3サーバーによって受け入れられる早期データの最大量を設定します。この関数を呼び出して、再生攻撃を軽減するためのプロセスへの早期データの量を制限します。初期のデータは、セッションチケットが送信されたこと、したがってセッションチケットが再開されるたびに同じ接続のキーから派生したキーによって保護されます。値は再開のためにセッションチケットに含まれています。ゼロの値は、セッションチケットを使用してクライアントによって早期データを送信することを示します。早期データバイト数をアプリケーションで実際には可能な限り低く保つことをお勧めします。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     \param [in]  SZバイト単位で受け入れる早期データの量。
@@ -9116,7 +9143,7 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
     unsigned int sz);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、WolfSSLコンテキストを使用してTLS V1.3サーバーによって受け入れられる早期データの最大量を設定します。この関数を呼び出して、再生攻撃を軽減するためのプロセスへの早期データの量を制限します。初期のデータは、セッションチケットが送信されたこと、したがってセッションチケットが再開されるたびに同じ接続のキーから派生したキーによって保護されます。値は再開のためにセッションチケットに含まれています。ゼロの値は、セッションチケットを使用してクライアントによって早期データを送信することを示します。早期データバイト数をアプリケーションで実際には可能な限り低く保つことをお勧めします。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  SZクライアントからバイト単位で受け入れる早期データの量。
@@ -9139,7 +9166,7 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
 int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、再開時にサーバーに早期データを書き込みます。wolfssl_connect（）またはwolfssl_connect_tlsv13（）の代わりにこの関数を呼び出して、サーバーに接続してハンドシェイクにデータを送ります。この機能はクライアントでのみ使用されます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  データ早期データを保持してサーバーに書き込むバッファ。
@@ -9181,7 +9208,7 @@ int  wolfSSL_write_early_data(OLFSSL* ssl, const void* data,
     int sz, int* outSz);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、再開時にクライアントからの早期データを読み取ります。wolfssl_accept（）またはwolfssl_accept_tlsv13（）の代わりにこの関数を呼び出して、クライアントを受け入れ、ハンドシェイク内の早期データを読み取ります。ハンドシェイクよりも早期データがない場合は、通常として処理されます。この機能はサーバーでのみ使用されます。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [out]  データはクライアントから読み込まれた早期データを保持するためのバッファ。
@@ -9222,7 +9249,7 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     int* outSz);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS v1.3接続のプレシェアキー（PSK）クライアント側コールバックを設定します。コールバックはPSKアイデンティティを見つけ、そのキーと、ハンドシェイクに使用する暗号の名前を返します。この関数は、wolfssl_ctx構造体のclient_psk_tls13_cbメンバーを設定します。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     _Example_
@@ -9239,7 +9266,7 @@ void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
     wc_psk_client_tls13_callback cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS v1.3接続のプレシェアキー（PSK）クライアント側コールバックを設定します。コールバックはPSKアイデンティティを見つけ、そのキーと、ハンドシェイクに使用する暗号の名前を返します。この関数は、wolfssl構造体のOptionsフィールドのclient_psk_tls13_cbメンバーを設定します。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     _Example_
@@ -9256,7 +9283,7 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
     wc_psk_client_tls13_callback cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS v1.3接続用の事前共有キー（PSK）サーバ側コールバックを設定します。コールバックはPSKアイデンティティを見つけ、そのキーと、ハンドシェイクに使用する暗号の名前を返します。この関数は、wolfssl_ctx構造体のserver_psk_tls13_cbメンバーを設定します。
     \param [in,out]  ctx wolfssl_ctx_new（）で作成されたwolfssl_ctx構造へのポインタ。
     _Example_
@@ -9273,7 +9300,7 @@ void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
     wc_psk_server_tls13_callback cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、TLS v1.3接続用の事前共有キー（PSK）サーバ側コールバックを設定します。コールバックはPSKアイデンティティを見つけ、そのキーと、ハンドシェイクに使用する暗号の名前を返します。この関数は、wolfssl構造体のオプションフィールドのserver_psk_tls13_cbメンバーを設定します。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     _Example_
@@ -9290,7 +9317,7 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
     wc_psk_server_tls13_callback cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、キーペアの生成を含むグループからキーシェアエントリを作成します。Keyshareエクステンションには、鍵交換のための生成されたすべての公開鍵が含まれています。この関数が呼び出されると、指定されたグループのみが含まれます。優先グループがサーバーに対して以前に確立されているときにこの関数を呼び出します。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \param [in]  キー交換グループ識別子をグループ化します。
@@ -9316,7 +9343,7 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
 int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、ClientHelloで鍵共有が送信されないように呼び出されます。これにより、ハンドシェイクに鍵交換が必要な場合は、サーバーがHelloretryRequestで応答するように強制します。予想される鍵交換グループが知られておらず、キーの生成を不必要に回避するときにこの機能を呼び出します。鍵交換が必要なときにハンドシェイクを完了するために追加の往復が必要になることに注意してください。
     \param [in,out]  SSL wolfssl_new（）を使用して作成されたwolfssl構造へのポインタ。
     \return BAD_FUNC_ARG  SSLがNULLの場合
@@ -9336,7 +9363,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group);
 int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、アプリケーションがサーバーであることを示すために使用され、TLS 1.3プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \param [in]  ヒープ静的メモリ割り当て中に静的メモリ割り当て器が使用するバッファへのポインタを使用します。
     \return If  成功すると、呼び出しは新しく作成されたwolfssl_method構造体へのポインタを返します。
@@ -9367,7 +9394,7 @@ int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 WOLFSSL_METHOD *wolfTLSv1_3_server_method_ex(void* heap);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、アプリケーションがクライアントであることを示すために使用され、TLS 1.3プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \param [in]  ヒープ静的メモリ割り当て中に静的メモリ割り当て器が使用するバッファへのポインタを使用します。
     \return If  成功すると、呼び出しは新しく作成されたwolfssl_method構造体へのポインタを返します。
@@ -9398,7 +9425,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_server_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_client_method_ex(void* heap);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、アプリケーションがサーバーであることを示すために使用され、TLS 1.3プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return If  成功すると、呼び出しは新しく作成されたwolfssl_method構造体へのポインタを返します。
     _Example_
@@ -9428,7 +9455,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_client_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_server_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、アプリケーションがクライアントであることを示すために使用され、TLS 1.3プロトコルのみをサポートします。この関数は、wolfssl_ctx_new（）を使用してSSL / TLSコンテキストを作成するときに使用される新しいWolfssl_method構造体のメモリを割り当てて初期化します。
     \return If  成功すると、呼び出しは新しく作成されたwolfssl_method構造体へのポインタを返します。
     _Example_
@@ -9458,7 +9485,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_server_method(void);
 WOLFSSL_METHOD *wolfTLSv1_3_client_method(void);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、まだどちらの側（サーバ/クライアント）を決定していないことを除いて、Wolftlsv1_3_client_methodと同様のwolfssl_methodを返します。
     \param [in]  ヒープ静的メモリ割り当て中に静的メモリ割り当て器が使用するバッファへのポインタを使用します。
     \return WOLFSSL_METHOD  成功した作成では、wolfssl_methodポインタを返します
@@ -9474,7 +9501,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_client_method(void);
 WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、まだどちらの側（サーバ/クライアント）を決定していないことを除いて、Wolftlsv1_3_client_methodと同様のwolfssl_methodを返します。
     \return WOLFSSL_METHOD  成功した作成では、wolfssl_methodポインタを返します
     _Example_
@@ -9489,7 +9516,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はテストのための固定/静的なエフェラルキーを設定します。
  \return 0  キーが正常にロードされました
  \param ctx  wolfssl_ctxコンテキストポインタ
@@ -9501,7 +9528,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key, unsigned int keySz, int format);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はテストのための固定/静的なエフェラルキーを設定します。
  \return 0  キーが正常にロードされました
  \param ssl  wolfsslオブジェクトポインタ
@@ -9513,7 +9540,7 @@ int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key
 int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はasn.1 / derとしてロードされたキーへのポインタを返します
  \return 0  キーが正常に戻りました
  \param ctx  wolfssl_ctxコンテキストポインタ
@@ -9521,11 +9548,11 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsign
  \param key  キーバッファポインタ
  \sa wolfSSL_CTX_set_ephemeral_key
  */
-int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はasn.1 / derとしてロードされたキーへのポインタを返します
  \return 0  キーが正常に戻りました
  \param ssl  wolfsslオブジェクトポインタ
@@ -9533,11 +9560,11 @@ int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
  \param key  キーバッファポインタ
  \sa wolfSSL_set_ephemeral_key
  */
-int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  選択したメッセージダイジェスト、パディング、およびRSAキーを使用してメッセージに署名する
  \return WOLFSSL_SUCCESS  Errorの成功とwolfssl_failureについて
  \param type  ハッシュNID
