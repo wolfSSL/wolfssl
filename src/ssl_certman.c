@@ -1974,7 +1974,8 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
             cm->ocspUseOverrideURL = 1;
         }
         /* Set nonce option for creating OCSP requests. */
-        cm->ocspSendNonce = (options & WOLFSSL_OCSP_NO_NONCE) != 0;
+        cm->ocspSendNonce = (options & WOLFSSL_OCSP_NO_NONCE) !=
+            WOLFSSL_OCSP_NO_NONCE;
         /* Set all OCSP checks on if requested. */
         if (options & WOLFSSL_OCSP_CHECKALL) {
             cm->ocspCheckAll = 1;
