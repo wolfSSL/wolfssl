@@ -16501,7 +16501,7 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case WANT_WRITE:
     case WANT_READ:
     case ZERO_RETURN:
-#ifdef HAVE_OCSP
+#ifdef WOLFSSL_NONBLOCK_OCSP
     case OCSP_WANT_READ:
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
