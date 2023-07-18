@@ -13796,7 +13796,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
     bits = sp_count_bits(e);
 
     /* Window bits based on number of pre-calculations versus number of loop
-     * calculcations.
+     * calculations.
      * Exponents for RSA and DH will result in 6-bit windows.
      * Note: for 4096-bit values, 7-bit window is slightly better.
      */
@@ -13833,7 +13833,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         tr = t[preCnt + 0];
         bm = t[preCnt + 1];
 
-        /* Iniitialize all allocated  */
+        /* Initialize all allocated  */
         for (i = 0; i < preCnt; i++) {
             _sp_init_size(t[i], m->used * 2 + 1);
         }
@@ -13981,7 +13981,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
                     break;
                 }
 
-                /* 4.4. Get top window bits from expononent and drop. */
+                /* 4.4. Get top window bits from exponent and drop. */
                 if (err == MP_OKAY) {
                     if (c == 0) {
                         /* Bits from next digit. */
