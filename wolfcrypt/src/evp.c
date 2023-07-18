@@ -535,7 +535,7 @@ int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
 #define PRINT_BUF(b, sz) { int _i; for(_i=0; _i<(sz); _i++) { \
   printf("%02x(%c),", (b)[_i], (b)[_i]); if ((_i+1)%8==0)printf("\n");}}
 #else
-#define PRINT_BUF(b, sz)
+#define PRINT_BUF(b, sz) WC_DO_NOTHING
 #endif
 
 static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz)

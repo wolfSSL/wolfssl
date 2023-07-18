@@ -25,7 +25,7 @@
 #endif
 
 #include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifndef NO_RSA
 
@@ -37,11 +37,11 @@
 #endif
 #include "user_rsa.h"
 
-#ifdef DEBUG_WOLFSSL /* debug done without variadric to allow older compilers */
+#ifdef DEBUG_WOLFSSL /* debug done without variadic to allow older compilers */
     #include <stdio.h>
     #define USER_DEBUG(x) printf x
 #else
-    #define USER_DEBUG(x)
+    #define USER_DEBUG(x) WC_DO_NOTHING
 #endif
 
 #define ASN_INTEGER    0x02

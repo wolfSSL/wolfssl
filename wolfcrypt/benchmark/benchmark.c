@@ -273,7 +273,7 @@
     /* fflush in Zephyr doesn't work on stdout and stderr. Use
     * CONFIG_LOG_MODE_IMMEDIATE compilation option instead. */
     #undef  XFFLUSH
-    #define XFFLUSH(...) do {} while (0)
+    #define XFFLUSH(...) WC_DO_NOTHING
 #endif
 
 /* only for stack size check */
@@ -457,7 +457,7 @@
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
     /* stub the sleep macro */
-    #define TEST_SLEEP()
+    #define TEST_SLEEP() WC_DO_NOTHING
 #endif
 
 #define TEST_STRING    "Everyone gets Friday off."
@@ -1446,7 +1446,7 @@ static const char* bench_result_words2[][5] = {
         }
         return 0;
     }
-    #define bench_async_poll(p)
+    #define bench_async_poll(p) WC_DO_NOTHING
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 

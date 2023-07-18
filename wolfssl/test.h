@@ -3626,7 +3626,7 @@ typedef struct PkCbInfo {
 #if defined(DEBUG_PK_CB) || defined(TEST_PK_PRIVKEY)
     #define WOLFSSL_PKMSG(...) printf(__VA_ARGS__)
 #else
-    #define WOLFSSL_PKMSG(...)
+    #define WOLFSSL_PKMSG(...) WC_DO_NOTHING
 #endif
 
 #ifdef HAVE_ECC

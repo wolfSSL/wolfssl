@@ -403,11 +403,11 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 }
 #else
 /* Disable logging of PKCS#11 calls and return value. */
-#define PKCS11_RV(op, ev)
+#define PKCS11_RV(op, ev) WC_DO_NOTHING
 /* Disable logging of PKCS#11 calls and value. */
-#define PKCS11_VAL(op, val)
+#define PKCS11_VAL(op, val) WC_DO_NOTHING
 /* Disable logging of PKCS#11 template. */
-#define PKCS11_DUMP_TEMPLATE(name, templ, cnt)
+#define PKCS11_DUMP_TEMPLATE(name, templ, cnt) WC_DO_NOTHING
 #endif
 
 /**

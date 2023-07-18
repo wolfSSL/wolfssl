@@ -54,8 +54,8 @@
     #define WOLFSSL_MSG(in) printf("%s\n", (in))
     void DEBUG_PRINT_ARRAY(void* a, int aSz, char* str);
 #else
-    #define WOLFSSL_MSG(in)
-    #define DEBUG_PRINT_ARRAY(a,aSz,str)
+    #define WOLFSSL_MSG(in) do {} while (0)
+    #define DEBUG_PRINT_ARRAY(a,aSz,str) do {} while (0)
 #endif
 
 #define CAAM_PAGE_MAX 6

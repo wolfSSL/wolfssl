@@ -1357,7 +1357,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
     LocalFree(lpMsgBuf);                                        \
 } while(0)
 #else
-#define SHOW_WINDOWS_ERROR()
+#define SHOW_WINDOWS_ERROR() WC_DO_NOTHING
 #endif
 
 #define DM_ERROR() do {                                         \

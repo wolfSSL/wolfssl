@@ -14963,10 +14963,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
            /* myBuffer may not be initialized fully, but the span up to the
             * sending length will be.
             */
-            PRAGMA_GCC_DIAG_PUSH;
-            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+            PRAGMA_GCC_DIAG_PUSH
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
             ret = wolfSSL_write(ssl, myBuffer, sending);
-            PRAGMA_GCC_DIAG_POP;
+            PRAGMA_GCC_DIAG_POP
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -26693,8 +26693,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **key,
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_PUBKEY");
 
-    if (pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der)
-            >= 0) {
+    if ((pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der)
+            >= 0) && (der != NULL)) {
         const unsigned char* ptr = der->buffer;
 
         /* handle case where reuse is attempted */

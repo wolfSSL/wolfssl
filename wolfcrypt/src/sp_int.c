@@ -197,7 +197,7 @@ This library provides single precision (SP) integer math functions.
     while (0)
 #else
     /* Nothing to do as declared on stack. */
-    #define FREE_SP_INT(n, h)
+    #define FREE_SP_INT(n, h) WC_DO_NOTHING
 #endif
 
 
@@ -318,7 +318,7 @@ while (0)
         FREE_DYN_SP_INT_ARRAY(n, h)
 #else
     /* Nothing to do as data declared on stack. */
-    #define FREE_SP_INT_ARRAY(n, h)
+    #define FREE_SP_INT_ARRAY(n, h) WC_DO_NOTHING
 #endif
 
 

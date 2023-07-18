@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
     defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
@@ -39,7 +39,7 @@
 #if defined(DEBUG_PK_CB)
     #define WOLFSSL_PKMSG(_f_, ...) printf(_f_, ##__VA_ARGS__)
 #else
-    #define WOLFSSL_PKMSG(_f_, ...)
+    #define WOLFSSL_PKMSG(_f_, ...) WC_DO_NOTHING
 #endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)

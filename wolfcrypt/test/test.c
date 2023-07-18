@@ -86,7 +86,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();              \
     }
 #else
-#define PRINT_HEAP_CHECKPOINT()
+#define PRINT_HEAP_CHECKPOINT() WC_DO_NOTHING
 #endif /* WOLFSSL_TRACK_MEMORY_VERBOSE && !WOLFSSL_STATIC_MEMORY */
 
 #ifdef USE_FLAT_TEST_H
@@ -820,7 +820,7 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
-#define TEST_SLEEP()
+#define TEST_SLEEP() WC_DO_NOTHING
 #else
     #define TEST_PASS test_pass
     #include <stdarg.h> /* for var args */
@@ -22129,7 +22129,7 @@ static void show(const char *title, const char *p, unsigned int s) {
     printf("\n");
 }
 #else
-#define show(a,b,c)
+#define show(a,b,c) WC_DO_NOTHING
 #endif
 
 #define FOURK_BUFF 4096

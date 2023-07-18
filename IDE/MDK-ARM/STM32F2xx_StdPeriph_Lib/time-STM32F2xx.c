@@ -32,7 +32,7 @@
  *----------------------------------------------------------------------------*/
 #include "stm32f2xx.h"
 
-#define assert_param(a)
+#define assert_param(a) /* null expansion */
 
 #define RTC_RSF_MASK         ((uint32_t)0xFFFFFF5F)
 #define SYNCHRO_TIMEOUT      ((uint32_t) 0x00008000)

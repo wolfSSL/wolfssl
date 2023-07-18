@@ -356,7 +356,7 @@ typedef struct wolfSSL_Ref {
         (ref)->count = 1;                    \
         *(err) = 0;                          \
     } while(0)
-#define wolfSSL_RefFree(ref)
+#define wolfSSL_RefFree(ref) WC_DO_NOTHING
     #define wolfSSL_RefInc(ref, err)         \
     do {                                     \
         (ref)->count++;                      \
@@ -376,7 +376,7 @@ typedef struct wolfSSL_Ref {
         wolfSSL_Atomic_Int_Init(&(ref)->count, 1); \
         *(err) = 0;                          \
     } while(0)
-#define wolfSSL_RefFree(ref)
+#define wolfSSL_RefFree(ref) WC_DO_NOTHING
 #define wolfSSL_RefInc(ref, err)             \
     do {                                     \
         (void)wolfSSL_Atomic_Int_FetchAdd(&(ref)->count, 1); \

@@ -262,15 +262,15 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 /* hash buffer may not be fully initialized, but the sending length won't
  * extend beyond the initialized span.
  */
-PRAGMA_GCC_DIAG_PUSH;
-PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     (void)ssl;
     (void)side;
     return wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
-PRAGMA_GCC_DIAG_POP;
+PRAGMA_GCC_DIAG_POP
 }
 #endif /* !HAVE_FIPS || !wc_Tls13_HKDF_Expand_Label */
 
@@ -476,8 +476,8 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     /* hash buffer may not be fully initialized, but the sending length won't
      * extend beyond the initialized span.
      */
-    PRAGMA_GCC_DIAG_PUSH;
-    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    PRAGMA_GCC_DIAG_PUSH
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     PRIVATE_KEY_UNLOCK();
     #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
     (void)side;
@@ -495,7 +495,7 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     wc_MemZero_Add("TLS 1.3 derived key", output, outputLen);
 #endif
     return ret;
-    PRAGMA_GCC_DIAG_POP;
+    PRAGMA_GCC_DIAG_POP
 }
 
 /* Convert TLS mac ID to a hash algorithm ID

@@ -131,7 +131,7 @@ decouple library dependencies with standard string, memory and so on.
     #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
         #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _wolf_ ## prefix ## _enum_dummy_last_element
     #else
-        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix)
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) /* null expansion */
     #endif
 
     /* helpers for stringifying the expanded value of a macro argument rather
@@ -316,6 +316,16 @@ typedef struct w64wrapper {
         #endif
     #endif /* WC_MAYBE_UNUSED */
 
+    #ifndef WC_DO_NOTHING
+        #define WC_DO_NOTHING do {} while (0)
+        #ifdef _MSC_VER
+            /* disable buggy MSC warning around while(0),
+             *"warning C4127: conditional expression is constant"
+             */
+            #pragma warning(disable: 4127)
+        #endif
+    #endif
+
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
     #ifndef NO_INLINE
@@ -494,11 +504,11 @@ typedef struct w64wrapper {
                     return NULL;
                 };
                 #define XMALLOC(s, h, t)     malloc_check((s))
-                #define XFREE(p, h, t)
+                #define XFREE(p, h, t)       WC_DO_NOTHING
                 #define XREALLOC(p, n, h, t) (NULL)
             #else
                 #define XMALLOC(s, h, t)     (NULL)
-                #define XFREE(p, h, t)
+                #define XFREE(p, h, t)       WC_DO_NOTHING
                 #define XREALLOC(p, n, h, t) (NULL)
             #endif
         #else
@@ -606,9 +616,9 @@ typedef struct w64wrapper {
             VAR_TYPE VAR_NAME[VAR_SIZE]
         #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
-        #define WC_INIT_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) do {} while(0)
-        #define WC_FREE_VAR(VAR_NAME, HEAP) do {} while(0) /* nothing to free, its stack */
-        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) do {} while(0) /* nothing to free, its stack */
+        #define WC_INIT_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) WC_DO_NOTHING
+        #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING /* nothing to free, its stack */
+        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) WC_DO_NOTHING /* nothing to free, its stack */
 
         #define WC_DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
@@ -1206,9 +1216,9 @@ typedef struct w64wrapper {
     #elif defined(XASM_LINK)
         /* keep user-supplied definition */
     #elif defined(WOLFSSL_NO_ASM)
-        #define XASM_LINK(f)
+        #define XASM_LINK(f) /* null expansion */
     #elif defined(_MSC_VER)
-        #define XASM_LINK(f)
+        #define XASM_LINK(f) /* null expansion */
     #elif defined(__APPLE__)
         #define XASM_LINK(f) asm("_" f)
     #elif defined(__GNUC__)
@@ -1460,9 +1470,9 @@ typedef struct w64wrapper {
         #define PRAGMA(str) PRAGMA_GCC(str)
         #define PRAGMA_DIAG_POP PRAGMA_GCC_DIAG_POP
     #else
-        #define PRAGMA_GCC_DIAG_PUSH
-        #define PRAGMA_GCC(str)
-        #define PRAGMA_GCC_DIAG_POP
+        #define PRAGMA_GCC_DIAG_PUSH /* null expansion */
+        #define PRAGMA_GCC(str) /* null expansion */
+        #define PRAGMA_GCC_DIAG_POP /* null expansion */
     #endif
 
     #ifdef __clang__
@@ -1473,19 +1483,19 @@ typedef struct w64wrapper {
         #define PRAGMA(str) PRAGMA_CLANG(str)
         #define PRAGMA_DIAG_POP PRAGMA_CLANG_DIAG_POP
     #else
-        #define PRAGMA_CLANG_DIAG_PUSH
-        #define PRAGMA_CLANG(str)
-        #define PRAGMA_CLANG_DIAG_POP
+        #define PRAGMA_CLANG_DIAG_PUSH /* null expansion */
+        #define PRAGMA_CLANG(str) /* null expansion */
+        #define PRAGMA_CLANG_DIAG_POP /* null expansion */
     #endif
 
     #ifndef PRAGMA_DIAG_PUSH
-        #define PRAGMA_DIAG_PUSH
+        #define PRAGMA_DIAG_PUSH /* null expansion */
     #endif
     #ifndef PRAGMA
-        #define PRAGMA(str)
+        #define PRAGMA(str) /* null expansion */
     #endif
     #ifndef PRAGMA_DIAG_POP
-        #define PRAGMA_DIAG_POP
+        #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
     #ifdef DEBUG_VECTOR_REGISTER_ACCESS
@@ -1558,23 +1568,17 @@ typedef struct w64wrapper {
             wc_svr_last_line = __LINE__;                                \
         }
     #else
-        #ifdef _MSC_VER
-            /* disable buggy MSC warning around while(0),
-             *"warning C4127: conditional expression is constant"
-             */
-            #pragma warning(disable: 4127)
-        #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
+            #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
         #endif
         #ifndef ASSERT_SAVED_VECTOR_REGISTERS
-            #define ASSERT_SAVED_VECTOR_REGISTERS(...) do{}while(0)
+            #define ASSERT_SAVED_VECTOR_REGISTERS(...) WC_DO_NOTHING
         #endif
         #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
-            #define ASSERT_RESTORED_VECTOR_REGISTERS(...) do{}while(0)
+            #define ASSERT_RESTORED_VECTOR_REGISTERS(...) WC_DO_NOTHING
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() do{}while(0)
+            #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
         #endif
     #endif
 
@@ -1584,8 +1588,8 @@ typedef struct w64wrapper {
         #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
         #define PRIVATE_KEY_UNLOCK() WC_SPKRE_F(1,WC_KEYTYPE_ALL)
     #else
-        #define PRIVATE_KEY_LOCK() do{}while(0)
-        #define PRIVATE_KEY_UNLOCK() do{}while(0)
+        #define PRIVATE_KEY_LOCK() WC_DO_NOTHING
+        #define PRIVATE_KEY_UNLOCK() WC_DO_NOTHING
     #endif
 
 
