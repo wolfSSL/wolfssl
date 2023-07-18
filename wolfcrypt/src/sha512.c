@@ -26,6 +26,11 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+/* TODO where best to put this? */
+#define USE_SHA_SOFTWARE_IMPL
+
+
+
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
 /* determine if we are using Espressif SHA hardware acceleration */
@@ -1104,6 +1109,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
     #endif
+
 
     return 0;
 }

@@ -21,6 +21,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
+#include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
+
 #if defined(WOLFSSL_ESP32_CRYPT) && \
   (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_SHA256) ||\
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
@@ -29,6 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#define MAX_WORDS_ESP_SHOW_MP 32
 
 /*
  * initialize our mutex used to lock hardware access
@@ -51,7 +54,7 @@ int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
  * call the ESP-IDF mutex lock; xSemaphoreTake
  *
  */
-int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t xBlockTime) {
+int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
@@ -60,7 +63,7 @@ int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t xBlockTime) {
 #ifdef SINGLE_THREADED
     return wc_LockMutex(mutex); /* xSemaphoreTake take with portMAX_DELAY */
 #else
-    return ((xSemaphoreTake( *mutex, xBlockTime ) == pdTRUE) ? 0 : BAD_MUTEX_E);
+    return ((xSemaphoreTake( *mutex, block_time ) == pdTRUE) ? 0 : BAD_MUTEX_E);
 #endif
 }
 
@@ -81,6 +84,11 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
     return 0;
 #endif
 }
+#endif
+
+/* esp_ShowExtendedSystemInfo
+** available regardless if HW acceleration is turned on or not.
+*/
 
 /*
 ** Version / Platform info.
@@ -91,7 +99,7 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
 #if defined(WOLFSSL_ESPIDF)
     #include <esp_log.h>
     #include "sdkconfig.h"
-    const char* TAG = "Version Info";
+    static const char* TAG = "esp32_util";
     #define WOLFSSL_VERSION_PRINTF(...) ESP_LOGI(TAG, __VA_ARGS__)
 #else
     #include <stdio.h>
@@ -230,8 +238,16 @@ static int ShowExtendedSystemInfo_git()
     ** but not desired for introspection which requires object code to be
     ** maximally bitwise-invariant.
     */
+
+
+#if defined(LIBWOLFSSL_VERSION_GIT_TAG)
+    /* git config describe --tags --abbrev=0 */
+    WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_GIT_TAG = %s",
+                           LIBWOLFSSL_VERSION_GIT_TAG);
+#endif
+
 #if defined(LIBWOLFSSL_VERSION_GIT_ORIGIN)
-        /* git config --get remote.origin.url */
+    /* git config --get remote.origin.url */
     WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_GIT_ORIGIN = %s",
                            LIBWOLFSSL_VERSION_GIT_ORIGIN);
 #endif
@@ -243,16 +259,19 @@ static int ShowExtendedSystemInfo_git()
 #endif
 
 #if defined(LIBWOLFSSL_VERSION_GIT_HASH)
+    /* git rev-parse HEAD */
     WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_GIT_HASH = %s",
                            LIBWOLFSSL_VERSION_GIT_HASH);
 #endif
 
 #if defined(LIBWOLFSSL_VERSION_GIT_SHORT_HASH )
+    /* git rev-parse --short HEAD */
     WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_GIT_SHORT_HASH = %s",
                            LIBWOLFSSL_VERSION_GIT_SHORT_HASH);
 #endif
 
 #if defined(LIBWOLFSSL_VERSION_GIT_HASH_DATE)
+    /* git show --no-patch --no-notes --pretty=\'\%cd\' */
     WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_GIT_HASH_DATE = %s",
                            LIBWOLFSSL_VERSION_GIT_HASH_DATE);
 #endif
@@ -324,12 +343,138 @@ int ShowExtendedSystemInfo(void)
         return 0;
     }
 
-
-
 int esp_ShowExtendedSystemInfo()
 {
     return ShowExtendedSystemInfo();
 }
 
+/* Print a MATH_INT_T attribute list.
+ *
+ * Note with the right string parameters, the result can be pasted as
+ * initialization code.
+ */
+int esp_show_mp_attributes(char* c, MATH_INT_T* X)
+{
+    static const char* MP_TAG = "MATH_INT_T";
+    int ret = 0;
+    if (X == NULL) {
+        ret = -1;
+        ESP_LOGV(MP_TAG, "esp_show_mp_attributes called with X == NULL");
+    }
+    else {
+        ESP_LOGI(MP_TAG, "");
+        ESP_LOGI(MP_TAG, "%s.used = %d;", c, X->used);
+#if defined(WOLFSSL_SP_INT_NEGATIVE) || defined(USE_FAST_MATH)
+        ESP_LOGI(MP_TAG, "%s.sign = %d;", c, X->sign);
 #endif
+    }
+    return ret;
+}
+
+/* Print a MATH_INT_T value.
+ *
+ * Note with the right string parameters, the result can be pasted as
+ * initialization code.
+ */
+int esp_show_mp(char* c, MATH_INT_T* X)
+{
+    static const char* MP_TAG = "MATH_INT_T";
+    int ret = MP_OKAY;
+    int words_to_show = 0;
+
+    if (X == NULL) {
+        ret = -1;
+        ESP_LOGV(MP_TAG, "esp_show_mp called with X == NULL");
+    }
+    else {
+        words_to_show = X->used;
+        /* if too small, we'll show just 1 word */
+        if (words_to_show < 1) {
+            ESP_LOGI(MP_TAG, "Bad word count. Adjusting from %d to %d",
+                             words_to_show,
+                             1);
+            words_to_show = 1;
+        }
+    #ifdef MAX_WORDS_ESP_SHOW_MP
+        /* if too big, we'll show MAX_WORDS_ESP_SHOW_MP words */
+        if (words_to_show > MAX_WORDS_ESP_SHOW_MP) {
+            ESP_LOGI(MP_TAG, "Limiting word count from %d to %d",
+                             words_to_show,
+                             MAX_WORDS_ESP_SHOW_MP);
+            words_to_show = MAX_WORDS_ESP_SHOW_MP;
+        }
+    #endif
+        ESP_LOGI(MP_TAG, "%s:",c);
+        esp_show_mp_attributes(c, X);
+        for (size_t i = 0; i < words_to_show; i++) {
+            ESP_LOGI(MP_TAG, "%s.dp[%2d] = 0x%08x;  /* %2d */ ",
+                                   c, /* the supplied variable name      */
+                                   i, /* the index, i for dp[%d]         */
+                                   (unsigned int)X->dp[i], /* the value  */
+                                   i  /* the index, again, for comment   */
+                     );
+        }
+        ESP_LOGI(MP_TAG, "");
+    }
+    return ret;
+}
+
+/* Perform a full mp_cmp and binary compare.
+ * (typically only used during debugging) */
+int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
+{
+    int ret = MP_OKAY;
+    int e = memcmp(A, B, sizeof(mp_int));
+    if (mp_cmp(A, B) == MP_EQ) {
+        if (e == 0) {
+            /* we always want to be here: both esp_show_mp and binary equal! */
+            ESP_LOGV(TAG, "fp_cmp and memcmp match for %s and %s!",
+                           name_A, name_B);
+        }
+        else {
+            ret = MP_VAL;
+            ESP_LOGE(TAG, "fp_cmp match, memcmp mismatch for %s and %s!",
+                           name_A, name_B);
+            if (A->dp[0] == 1) {
+                ESP_LOGE(TAG, "Both memcmp and fp_cmp fail for %s and %s!",
+                               name_A, name_B);
+            }
+        }
+    }
+    else {
+        ret = MP_VAL;
+        if (e == 0) {
+            /* if mp_cmp says different,
+             * but memcmp says equal, that's a problem */
+            ESP_LOGE(TAG, "memcmp error for %s and %s!",
+                          name_A, name_B);
+        }
+        else {
+            /* in the normal case where mp_cmp and memcmp say the
+             * values are different, we'll optionally show details. */
+            ESP_LOGI(TAG, "e = %d", e);
+            ESP_LOGE(TAG, "fp_cmp mismatch! memcmp "
+                          "offset 0x%02x for %s vs %s!",
+                           e, name_A, name_B);
+            if (A->dp[0] == 1) {
+                ESP_LOGE(TAG, "Both memcmp and fp_cmp fail for %s and %s!",
+                               name_A, name_B);
+            }
+        }
+        ESP_LOGV(TAG, "Mismatch for %s and %s!",
+                       name_A, name_B);
+    }
+
+    if (ret == MP_OKAY) {
+        ESP_LOGV(TAG, "esp_mp_cmp equal for %s and %s!",
+                       name_A, name_B);
+    }
+    else {
+      //  esp_show_mp(name_A, A);
+      //  esp_show_mp(name_B, B);
+    }
+    return ret;
+}
+
+
 

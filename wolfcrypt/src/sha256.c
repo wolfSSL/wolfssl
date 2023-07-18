@@ -108,7 +108,9 @@ on the specific device platform.
     **
     ** Beware of possible conflict in test.c (that one now named TEST_TAG)
     */
-    static const char* TAG = "wc_sha256";
+    #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
+        static const char* TAG = "wc_sha256";
+    #endif
 #endif
 
 /* fips wrapper calls, user can call direct */
