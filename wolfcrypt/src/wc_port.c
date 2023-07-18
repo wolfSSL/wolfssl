@@ -3253,8 +3253,10 @@ time_t stm32_hal_time(time_t *t1)
     HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
 
-    tm_time.tm_year  = date.Year;
-    tm_time.tm_mon   = date.Month - 1;          /* gm starts at 0 */
+    /* RTC year is 0-99 and "struct tm" is 1900+, so assume after year 2000 */
+    tm_time.tm_year  = date.Year + 100;
+    /* RTC month is 1-12 and "struct tm" is 0-12, so subtract 1 */
+    tm_time.tm_mon   = date.Month - 1;
     tm_time.tm_mday  = date.Date;
     tm_time.tm_hour  = time.Hours;
     tm_time.tm_min   = time.Minutes;
