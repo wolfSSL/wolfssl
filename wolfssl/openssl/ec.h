@@ -265,6 +265,9 @@ WOLFSSL_API
 int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth);
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
+WOLFSSL_LOCAL
+int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
+    WOLFSSL_EC_POINT *point);
 WOLFSSL_API
 int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 const WOLFSSL_EC_POINT *p,

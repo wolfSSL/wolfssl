@@ -9711,27 +9711,27 @@ void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *point)
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_dump");
 
-    /* Only print when debugging on and logging callback set. */
-    if (WOLFSSL_IS_DEBUG_ON() && (wolfSSL_GetLoggingCb() == NULL)) {
+    /* Only print when debugging on. */
+    if (WOLFSSL_IS_DEBUG_ON()) {
         if (point == NULL) {
             /* No point passed in so just put out "NULL". */
-            XFPRINTF(stderr, "%s = NULL\n", msg);
+            WOLFSSL_MSG_EX("%s = NULL\n", msg);
         }
         else {
             /* Put out message and status of internal/external data set. */
-            XFPRINTF(stderr, "%s:\n\tinSet=%d, exSet=%d\n", msg, point->inSet,
+            WOLFSSL_MSG_EX("%s:\n\tinSet=%d, exSet=%d\n", msg, point->inSet,
                 point->exSet);
             /* Get x-ordinate as a hex string and print. */
             num = wolfSSL_BN_bn2hex(point->X);
-            XFPRINTF(stderr, "\tX = %s\n", num);
+            WOLFSSL_MSG_EX("\tX = %s\n", num);
             XFREE(num, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Get x-ordinate as a hex string and print. */
             num = wolfSSL_BN_bn2hex(point->Y);
-            XFPRINTF(stderr, "\tY = %s\n", num);
+            WOLFSSL_MSG_EX("\tY = %s\n", num);
             XFREE(num, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Get z-ordinate as a hex string and print. */
             num = wolfSSL_BN_bn2hex(point->Z);
-            XFPRINTF(stderr, "\tZ = %s\n", num);
+            WOLFSSL_MSG_EX("\tZ = %s\n", num);
             XFREE(num, NULL, DYNAMIC_TYPE_OPENSSL);
         }
     }
@@ -9922,6 +9922,8 @@ int wolfSSL_ECPoint_d2i(const unsigned char *in, unsigned int len,
     const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *point)
 {
     int ret = 1;
+    WOLFSSL_BIGNUM* x = NULL;
+    WOLFSSL_BIGNUM* y = NULL;
 
     WOLFSSL_ENTER("wolfSSL_ECPoint_d2i");
 
@@ -9958,16 +9960,48 @@ int wolfSSL_ECPoint_d2i(const unsigned char *in, unsigned int len,
     #endif
     }
 
+    if (ret == 1)
+        point->inSet = 1;
+
     /* Set new external point. */
-    if ((ret == 1) && (ec_point_external_set(point) != 1)) {
+    if (ret == 1 && ec_point_external_set(point) != 1) {
         WOLFSSL_MSG("ec_point_external_set failed");
         ret = 0;
+    }
+
+    if (ret == 1 && !wolfSSL_BN_is_one(point->Z)) {
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        x = wolfSSL_BN_new();
+        y = wolfSSL_BN_new();
+        if (x == NULL || y == NULL)
+            ret = 0;
+
+        if (ret == 1 && wolfSSL_EC_POINT_get_affine_coordinates_GFp(group,
+                point, x, y, NULL) != 1) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_get_affine_coordinates_GFp failed");
+            ret = 0;
+        }
+
+        /* wolfSSL_EC_POINT_set_affine_coordinates_GFp check that the point is
+         * on the curve. */
+        if (ret == 1 && wolfSSL_EC_POINT_set_affine_coordinates_GFp(group,
+                point, x, y, NULL) != 1) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_set_affine_coordinates_GFp failed");
+            ret = 0;
+        }
+#else
+        WOLFSSL_MSG("Importing non-affine point. This may cause issues in math "
+                    "operations later on.");
+#endif
     }
 
     if (ret == 1) {
         /* Dump new point. */
         wolfSSL_EC_POINT_dump("d2i p", point);
     }
+
+    wolfSSL_BN_free(x);
+    wolfSSL_BN_free(y);
 
     return ret;
 }
@@ -10059,6 +10093,14 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
             }
         }
     }
+
+#if defined(DEBUG_WOLFSSL)
+    if (!err) {
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_point2oct point", point);
+        WOLFSSL_MSG("\twolfSSL_EC_POINT_point2oct output:");
+        WOLFSSL_BUFFER(buf, enc_len);
+    }
+#endif
 
     /* On error, return encoding length of 0. */
     if (err) {
@@ -10209,7 +10251,7 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
  * @return  1 on success.
  * @return  0 on error.
  */
-static int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
+int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WOLFSSL_EC_POINT *point)
 {
     int err = 0;
@@ -10606,6 +10648,20 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP* group, WOLFSSL_EC_POINT* r,
         ret = 0;
     }
 
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        int nid = wolfSSL_EC_GROUP_get_curve_name(group);
+        const char* curve = wolfSSL_OBJ_nid2ln(nid);
+        const char* nistName = wolfSSL_EC_curve_nid2nist(nid);
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_add p1", p1);
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_add p2", p2);
+        if (curve != NULL)
+            WOLFSSL_MSG_EX("curve name: %s", curve);
+        if (nistName != NULL)
+            WOLFSSL_MSG_EX("nist curve name: %s", nistName);
+    }
+#endif
+
     if (ret == 1) {
         /* Add points using wolfCrypt objects. */
         ret = wolfssl_ec_point_add(group->curve_idx, (ecc_point*)r->internal,
@@ -10617,6 +10673,12 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP* group, WOLFSSL_EC_POINT* r,
         WOLFSSL_MSG("ec_point_external_set error");
         ret = 0;
     }
+
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_add result", r);
+    }
+#endif
 
     return ret;
 }
@@ -10779,7 +10841,7 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
 
     if ((ret == 1) && (n != NULL) && (q != NULL) && (m != NULL)) {
         /* r = base point * n + q * m */
-        ec_mul2add(r, r, m, q, n, a, prime);
+        ret = ec_mul2add(r, r, n, q, m, a, prime);
     }
     /* Not all values present, see if we are only doing base point * n. */
     else if ((ret == 1) && (n != NULL)) {
@@ -10852,6 +10914,26 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         ret = 0;
     }
 
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        int nid = wolfSSL_EC_GROUP_get_curve_name(group);
+        const char* curve = wolfSSL_OBJ_nid2ln(nid);
+        const char* nistName = wolfSSL_EC_curve_nid2nist(nid);
+        char* num;
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_mul input q", q);
+        num = wolfSSL_BN_bn2hex(n);
+        WOLFSSL_MSG_EX("\tn = %s", num);
+        XFREE(num, NULL, DYNAMIC_TYPE_OPENSSL);
+        num = wolfSSL_BN_bn2hex(m);
+        WOLFSSL_MSG_EX("\tm = %s", num);
+        XFREE(num, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (curve != NULL)
+            WOLFSSL_MSG_EX("curve name: %s", curve);
+        if (nistName != NULL)
+            WOLFSSL_MSG_EX("nist curve name: %s", nistName);
+    }
+#endif
+
     if (ret == 1) {
         mp_int* ni = (n != NULL) ? (mp_int*)n->internal : NULL;
         ecc_point* qi = (q != NULL) ? (ecc_point*)q->internal : NULL;
@@ -10871,6 +10953,12 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         WOLFSSL_MSG("ec_point_external_set error");
         ret = 0;
     }
+
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_mul result", r);
+    }
+#endif
 
     return ret;
 }
@@ -10960,6 +11048,30 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group,
         ret = 0;
     }
 
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        int nid = wolfSSL_EC_GROUP_get_curve_name(group);
+        const char* curve = wolfSSL_OBJ_nid2ln(nid);
+        const char* nistName = wolfSSL_EC_curve_nid2nist(nid);
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_invert input", point);
+        if (curve != NULL)
+            WOLFSSL_MSG_EX("curve name: %s", curve);
+        if (nistName != NULL)
+            WOLFSSL_MSG_EX("nist curve name: %s", nistName);
+
+    }
+#endif
+
+    if (ret == 1 && !wolfSSL_BN_is_one(point->Z)) {
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        if (ec_point_convert_to_affine(group, point) != 0)
+            ret = 0;
+#else
+        WOLFSSL_MSG("wolfSSL_EC_POINT_invert called on non-affine point");
+        ret = 0;
+#endif
+    }
+
     if (ret == 1) {
         /* Perform inversion using wolfCrypt objects. */
         ret = wolfssl_ec_point_invert(group->curve_idx,
@@ -10971,6 +11083,12 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group,
         WOLFSSL_MSG("ec_point_external_set error");
         ret = 0;
     }
+
+#ifdef DEBUG_WOLFSSL
+    if (ret == 1) {
+        wolfSSL_EC_POINT_dump("wolfSSL_EC_POINT_invert result", point);
+    }
+#endif
 
     return ret;
 }

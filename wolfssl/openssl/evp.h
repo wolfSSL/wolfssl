@@ -49,6 +49,7 @@
 #include <wolfssl/openssl/dsa.h>
 #include <wolfssl/openssl/ec.h>
 #include <wolfssl/openssl/dh.h>
+#include <wolfssl/openssl/opensslv.h>
 #include <wolfssl/openssl/compat_types.h>
 
 #include <wolfssl/wolfcrypt/aes.h>

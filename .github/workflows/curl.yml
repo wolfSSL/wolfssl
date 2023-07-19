@@ -1,7 +1,6 @@
 name: curl Test
 
 on:
-  push:
   workflow_call:
 
 jobs:
