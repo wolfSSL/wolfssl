@@ -12353,16 +12353,16 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
  */
 static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 {
-    int i, j, ret = 0;
-    int nameSz;
-    int tmpSize = MAX_OID_SZ;
-    int endChar = 0;
-    int nid     = 0;
-    word32 oid  = 0;
-    word32 idx  = 0;
+    int i, j, ret   = 0;
+    int nameSz      = 0;
+    int numerical   = 0;
+    int nid         = 0;
+    int tmpSize     = MAX_OID_SZ;
+    word32 oid      = 0;
+    word32 idx      = 0;
     word16 tmpName[MAX_OID_SZ];
-    char finalName[MAX_OID_SZ];
-    char* rid;
+    char   oidName[MAX_OID_SZ];
+    char*  finalName;
 
     if (entry == NULL || entry->type != ASN_RID_TYPE) {
         return BAD_FUNC_ARG;
@@ -12372,30 +12372,30 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         return BAD_FUNC_ARG;
     }
 
-    XMEMSET(&finalName, 0, MAX_OID_SZ);
-    rid = entry->name;
+    XMEMSET(&oidName, 0, MAX_OID_SZ);
 
-    ret = GetOID((const byte*)rid, &idx, &oid, oidIgnoreType, entry->len);
+    ret = GetOID((const byte*)entry->name, &idx, &oid, oidIgnoreType,
+                 entry->len);
 
     if (ret == 0 && (nid = oid2nid(oid, oidCsrAttrType)) > 0) {
-        rid = (char*)wolfSSL_OBJ_nid2ln(nid);
-        XMEMCPY(finalName, rid, XSTRLEN((const char*)rid));
+        /* OID has known string value */
+        finalName = (char*)wolfSSL_OBJ_nid2ln(nid);
     }
     else {
         /* Decode OBJECT_ID into dotted form array. */
-        ret = DecodeObjectId((const byte*)(rid),(word32)entry->len, tmpName,
-                (word32*)&tmpSize);
+        ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
+                tmpName, (word32*)&tmpSize);
 
+        numerical = 1;
         if (ret == 0) {
-            endChar = 1;
             j = 0;
             /* Append each number of dotted form. */
             for (i = 0; i < tmpSize; i++) {
-                ret = XSNPRINTF(finalName + j, MAX_OID_SZ, "%d", tmpName[i]);
+                ret = XSNPRINTF(oidName + j, MAX_OID_SZ, "%d", tmpName[i]);
                 if (ret >= 0) {
                     j += ret;
                     if (i < tmpSize - 1) {
-                        finalName[j] = '.';
+                        oidName[j] = '.';
                         j++;
                     }
                 }
@@ -12404,19 +12404,26 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                 }
             }
             ret = 0;
+            finalName = oidName;
         }
     }
 
     if (ret == 0) {
         nameSz = (int)XSTRLEN((const char*)finalName);
-        entry->ridString = (char*)XMALLOC(nameSz + endChar, heap, DYNAMIC_TYPE_ALTNAME);
+
+        entry->ridString = (char*)XMALLOC(nameSz + numerical, heap,
+                                          DYNAMIC_TYPE_ALTNAME);
+
         if (entry->ridString == NULL) {
             ret = MEMORY_E;
         }
 
-        XMEMCPY(entry->ridString, finalName, nameSz);
-        if (endChar)
-            entry->ridString[nameSz] = '\0';
+        if (ret == 0) {
+            XMEMCPY(entry->ridString, finalName, nameSz);
+            if (numerical) {
+                entry->ridString[nameSz] = '\0';
+            }
+        }
     }
 
     return ret;

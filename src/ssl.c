@@ -29370,9 +29370,10 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_ALL)
-/* Returns the oid buffer from the short name or long name of an ASN1_object
- * and NULL on failure */
-const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz, word32 oidType)
+    /* Returns the oid buffer from the short name or long name of an ASN1_object
+    * and NULL on failure */
+    const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz,
+                                       word32 oidType)
     {
         word32 oid;
         int    nid;
