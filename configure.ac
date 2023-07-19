@@ -3460,6 +3460,10 @@ AC_ARG_ENABLE([sm2],
     [ ENABLED_SM2=no ]
     )
 
+if test "$ENABLED_SP_MATH" = "yes"
+then
+    ENABLED_SM2="no"
+fi
 if test "$ENABLED_SM2" = "yes"
 then
     if test "$ENABLED_ECC" = "no"
@@ -9341,6 +9345,7 @@ echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * FPECC:                      $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
 echo "   * Brainpool:                  $ENABLED_BRAINPOOL"
+echo "   * SM2:                        $ENABLED_SM2"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * ED25519 streaming:          $ENABLED_ED25519_STREAM"
