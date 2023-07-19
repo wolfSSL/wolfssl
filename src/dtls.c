@@ -285,10 +285,13 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
     if (idx > helloSz - OPAQUE8_LEN)
         return BUFFER_ERROR;
     idx += ReadVector8(input + idx, &ch->compression);
-    if (idx > helloSz - OPAQUE16_LEN)
-        return BUFFER_ERROR;
-    idx += ReadVector16(input + idx, &ch->extension);
-    if (idx > helloSz)
+    if (idx < helloSz - OPAQUE16_LEN) {
+        /* Extensions are optional */
+        idx += ReadVector16(input + idx, &ch->extension);
+        if (idx > helloSz)
+            return BUFFER_ERROR;
+    }
+    if (idx != helloSz)
         return BUFFER_ERROR;
     ch->length = idx;
     return 0;

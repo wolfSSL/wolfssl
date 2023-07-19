@@ -62854,6 +62854,94 @@ static int test_wolfSSL_configure_args(void)
 #endif
     return EXPECT_RESULT();
 }
+
+static int test_dtls_no_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && !defined(NO_FILESYSTEM)
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const byte chNoExtensions[] = {
+        /* Handshake type */
+        0x16,
+        /* Version */
+        0xfe, 0xff,
+        /* Epoch */
+        0x00, 0x00,
+        /* Seq number */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        /* Length */
+        0x00, 0x40,
+        /* CH type */
+        0x01,
+        /* Length */
+        0x00, 0x00, 0x34,
+        /* Msg Seq */
+        0x00, 0x00,
+        /* Frag offset */
+        0x00, 0x00, 0x00,
+        /* Frag length */
+        0x00, 0x00, 0x34,
+        /* Version */
+        0xfe, 0xff,
+        /* Random */
+        0x62, 0xfe, 0xbc, 0xfe, 0x2b, 0xfe, 0x3f, 0xeb, 0x03, 0xc4, 0xea, 0x37,
+        0xe7, 0x47, 0x7e, 0x8a, 0xd9, 0xbf, 0x77, 0x0f, 0x6c, 0xb6, 0x77, 0x0b,
+        0x03, 0x3f, 0x82, 0x2b, 0x21, 0x64, 0x57, 0x1d,
+        /* Session Length */
+        0x00,
+        /* Cookie Length */
+        0x00,
+        /* CS Length */
+        0x00, 0x0c,
+        /* CS */
+        0xc0, 0x0a, 0xc0, 0x09, 0xc0, 0x14, 0xc0, 0x13, 0x00, 0x39, 0x00, 0x33,
+        /* Comp Meths Length */
+        0x01,
+        /* Comp Meths */
+        0x00
+        /* And finally... no extensions */
+    };
+    int i;
+#ifdef OPENSSL_EXTRA
+    int repeats = 2;
+#else
+    int repeats = 1;
+#endif
+
+    for (i = 0; i < repeats; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ssl_s = NULL;
+        ctx_s = NULL;
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+            NULL, wolfDTLS_server_method), 0);
+
+        XMEMCPY(test_ctx.s_buff, chNoExtensions, sizeof(chNoExtensions));
+        test_ctx.s_len = sizeof(chNoExtensions);
+
+#ifdef OPENSSL_EXTRA
+        if (i > 0) {
+            ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_s, DTLS1_2_VERSION),
+                        WOLFSSL_SUCCESS);
+        }
+#endif
+
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Expecting a handshake msg. Either HVR or SH. */
+        ExpectIntGT(test_ctx.c_len, 0);
+        ExpectIntEQ(test_ctx.c_buff[0], 0x16);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -64103,6 +64191,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_msg_from_other_peer),
     TEST_DECL(test_dtls_ipv6_check),
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
+    TEST_DECL(test_dtls_no_extensions),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
