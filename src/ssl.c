@@ -26105,7 +26105,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 
     /* oidCertNameType */
     { NID_commonName, NID_commonName, oidCertNameType, "CN", "commonName"},
-    { NID_surname, NID_surname, oidCertNameType, "SN", "surname"},
     { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber",
                                                             "serialNumber"},
     { NID_userId, NID_userId, oidCertNameType, "UID", "userid"},
@@ -29368,29 +29367,6 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         return bufSz;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-
-#if defined(OPENSSL_ALL)
-    /* Returns the oid buffer from the short name or long name of an ASN1_object
-    * and NULL on failure */
-    const byte* wolfSSL_OBJ_txt2oidBuf(char* buf, word32* inOutSz,
-                                       word32 oidType)
-    {
-        word32 oid;
-        int    nid;
-
-        if (buf == NULL)
-            return NULL;
-
-        nid = wolfSSL_OBJ_txt2nid(buf);
-
-        if (nid != NID_undef) {
-            oid    = nid2oid(nid, oidType);
-            return OidFromId(oid, oidType,inOutSz);
-        }
-
-        return NULL;
-    }
-#endif /* OPENSSL_ALL */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
