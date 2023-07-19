@@ -1300,7 +1300,11 @@ static const char* bench_result_words2[][5] = {
 
     static THREAD_LS_T int devId = WOLFSSL_CAAM_DEVID;
 #else
+  #ifdef FORCE_DEVID
+    static THREAD_LS_T int devId = FORCE_DEVID;
+  #else
     static THREAD_LS_T int devId = INVALID_DEVID;
+  #endif
 #endif
 
 /* Asynchronous helper macros */
@@ -1312,7 +1316,7 @@ static const char* bench_result_words2[][5] = {
     static volatile int g_threadCount;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM)
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(FORCE_DEVID)
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
     #endif

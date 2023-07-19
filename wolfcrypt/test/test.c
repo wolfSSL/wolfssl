@@ -407,7 +407,11 @@ static void initDefaultName(void);
 #ifdef WOLFSSL_CAAM_DEVID
 static int devId = WOLFSSL_CAAM_DEVID;
 #else
+  #ifdef FORCE_DEVID
+static int devId = FORCE_DEVID;
+  #else
 static int devId = INVALID_DEVID;
+  #endif
 #endif
 
 #ifdef HAVE_WNR
@@ -878,7 +882,7 @@ wc_test_ret_t wolfcrypt_test(void* args)
 #endif
 
     printf("------------------------------------------------------------------------------\n");
-    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+    printf(" wolfSSL version %s with DevID:%X\n", LIBWOLFSSL_VERSION_STRING,devId);
     printf("------------------------------------------------------------------------------\n");
 
     if (args) {
