@@ -26105,6 +26105,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 
     /* oidCertNameType */
     { NID_commonName, NID_commonName, oidCertNameType, "CN", "commonName"},
+#if !defined(WOLFSSL_CERT_REQ)
+    { NID_surname, NID_surname, oidCertNameType, "SN", "surname"},
+#endif
     { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber",
                                                             "serialNumber"},
     { NID_userId, NID_userId, oidCertNameType, "UID", "userid"},
