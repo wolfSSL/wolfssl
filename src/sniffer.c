@@ -373,6 +373,9 @@ static const char* const msgTable[] =
     "Setting up keys",
     "Unsupported TLS Version",
     "Server Client Key Mismatch",
+
+    /* 99 */
+    "Invalid or missing keylog file",
 };
 
 
@@ -436,6 +439,11 @@ typedef struct SnifferServer {
     NamedKey*      namedKeys;                    /* mapping of names and keys */
     wolfSSL_Mutex  namedKeysMutex;               /* mutex for namedKey list */
 #endif
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    byte           useKeyLogFile; /* True if session secrets are coming from a
+                                     keylog file */
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
     struct SnifferServer* next;                  /* for list */
 } SnifferServer;
 
@@ -652,6 +660,16 @@ static void UpdateMissedDataSessions(void)
     static WOLFSSL_GLOBAL int CryptoDeviceId = INVALID_DEVID;
 #endif
 
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+static int addSecretNode(unsigned char* clientRandom, unsigned char* masterSecret, char* error);
+static void hexToBin(const char* hex, unsigned char* bin, int binLength);
+static int parseKeyLogFile(const char* fileName, char* error);
+static unsigned char* findMasterSecret(unsigned char* clientRandom);
+static void freeSecretList(void);
+static int snifferSecretCb(unsigned char* client_random, unsigned char* output_secret);
+static void setSnifferSecretCb(SnifferSession* session);
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
 
 /* Initialize overall Sniffer */
 void ssl_InitSniffer_ex(int devId)
@@ -867,8 +885,16 @@ void ssl_FreeSniffer(void)
     }
     ServerList = NULL;
 
+
+
     UNLOCK_SESSION();
     UNLOCK_SERVER_LIST();
+
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    freeSecretList();
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
+
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_FreeMutex(&RecoveryMutex);
 #endif
@@ -2463,6 +2489,17 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     }
 #endif
 
+    #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    if (session->context->useKeyLogFile) {
+        ret = 0;
+        XMEMSET(args, 0, sizeof(SetupKeysArgs));
+
+        /* We want to skip all the key setup and go right to master secret generation, which is
+         * where we inject the master secret obtained from the keylog file */
+        ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+    }
+    #endif
+
     switch (ssl->options.asyncState) {
     case TLS_ASYNC_BEGIN:
     {
@@ -3084,12 +3121,17 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
     case TLS_ASYNC_FINALIZE:
     {
-        /* store for client side as well */
-        XMEMCPY(session->sslClient->arrays->preMasterSecret,
-            session->sslServer->arrays->preMasterSecret,
-            session->sslServer->arrays->preMasterSz);
-        session->sslClient->arrays->preMasterSz =
-            session->sslServer->arrays->preMasterSz;
+    #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+        if (!session->context->useKeyLogFile)
+    #endif /* !WOLFSSL_SNIFFER_KEYLOGFILE */
+        {
+            /* store for client side as well */
+            XMEMCPY(session->sslClient->arrays->preMasterSecret,
+                    session->sslServer->arrays->preMasterSecret,
+                    session->sslServer->arrays->preMasterSz);
+            session->sslClient->arrays->preMasterSz =
+                session->sslServer->arrays->preMasterSz;
+        }
 
     #ifdef SHOW_SECRETS
         PrintSecret("pre master secret",
@@ -3703,6 +3745,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             switch (extType) {
         #ifdef WOLFSSL_TLS13
             case EXT_KEY_SHARE:
+                // BRN-sniffer-TODO: TLS 1-3: This is where both client and server keys are actually obtained (client key was cached until now, but we grab them both and store them here)
                 ret = ProcessServerKeyShare(session, input, extLen, error);
                 if (ret != 0) {
                     SetError(SERVER_HELLO_INPUT_STR, error, session,
@@ -3862,6 +3905,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* Setup handshake keys */
     if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
+        // BRN-sniffer-TODO (TLS13): This is where handshake keys are set up and likely where we need to inject them
         ret = SetupKeys(session->cliKs.key, &session->cliKs.key_len,
             session, error, &session->cliKs);
         if (ret != 0) {
@@ -4110,6 +4154,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                     SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                     break;
                 }
+                // BRN-sniffer-TODO (TLS13): This is where the client public key is stored by the sniffer
                 XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             }
             break;
@@ -4556,14 +4601,21 @@ static int DoHandShake(const byte* input, int* sslBytes,
             Trace(GOT_CERT_REQ_STR);
             break;
         case server_key_exchange:
-#ifdef WOLFSSL_SNIFFER_STATS
-            INC_STAT(SnifferStats.sslEphemeralMisses);
-#endif
             Trace(GOT_SERVER_KEY_EX_STR);
-            /* can't know temp key passively */
-            SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-            session->verboseErr = 1;
-            ret = -1;
+
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+            if (!session->context->useKeyLogFile)
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+            {
+                /* can't know temp key passively */
+                SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+                session->verboseErr = 1;
+                ret = -1;
+
+#if defined(WOLFSSL_SNIFFER_STATS)
+                INC_STAT(SnifferStats.sslEphemeralMisses);
+#endif /* WOLFSSL_SNIFFER_STATS */
+            }
             break;
         case encrypted_extensions:
             Trace(GOT_ENC_EXT_STR);
@@ -4720,6 +4772,8 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
         {
+            /* For ciphers that use AEAD use the encrypt routine to
+             * bypass the auth tag checking */
             wc_AesAuthEncryptFunc aes_auth_fn;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -4749,7 +4803,7 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                         input + AESGCM_EXP_IV_SZ,
                           sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                        ssl->decrypt.additional, ssl->specs.aead_mac_size,
+                        ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
                         NULL, 0)) < 0) {
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E) {
@@ -4782,7 +4836,7 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
         !defined(NO_CHAPOL_AEAD)
         case wolfssl_chacha:
-            ret = ChachaAEADEncrypt(ssl, plain, input, sz);
+            ret = ChachaAEADDecrypt(ssl, plain, input, sz);
             break;
     #endif
 
@@ -5121,6 +5175,13 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     }
     /* put server back into server mode */
     session->sslServer->options.side = WOLFSSL_SERVER_END;
+
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    if (session->context->useKeyLogFile) {
+        setSnifferSecretCb(session);
+    }
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
 
     row = SessionHash(ipInfo, tcpInfo);
 
@@ -7131,6 +7192,337 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
     return ret;
 }
 #endif
+
+
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+
+#define CLIENT_RANDOM_LABEL_LENGTH 13
+#define CLIENT_RANDOM_LENGTH 32
+#define MASTER_SECRET_LENGTH 48
+#define CLIENT_RANDOM_BITS ((CLIENT_RANDOM_LENGTH) * 8)
+
+
+typedef struct SecretNode {
+    unsigned char clientRandom[CLIENT_RANDOM_LENGTH];
+    unsigned char masterSecret[MASTER_SECRET_LENGTH];
+    struct SecretNode* next;
+} SecretNode;
+
+
+/* Default to the same size hash table as the session table,
+ * but allow user to override */
+#ifndef WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE
+#define WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE HASH_SIZE
+#endif
+
+static THREAD_LS_T WOLFSSL_GLOBAL
+SecretNode*
+secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
+#ifndef HAVE_C___ATOMIC
+static WOLFSSL_GLOBAL wolfSSL_Mutex secretListMutex;
+#endif
+
+
+static unsigned int secretHashFunction(unsigned char* clientRandom);
+
+#ifdef HAVE_C___ATOMIC
+    #define LOCK_SECRET_LIST() WC_DO_NOTHING
+    #define UNLOCK_SECRET_LIST() WC_DO_NOTHING
+#else
+    #define LOCK_SECRET_LIST() wc_LockMutex(&secretListMutex)
+    #define UNLOCK_SECRET_LIST() wc_UnLockMutex(&secretListMutex)
+#endif
+
+/*
+ * Basic polynomial hash function that maps a 32-byte client random value to an
+ * array index
+ */
+static unsigned int secretHashFunction(unsigned char* clientRandom)
+{
+    int i = 0;
+    unsigned int hash = 0;
+
+    for (i = 0; i < CLIENT_RANDOM_LENGTH; i++) {
+        hash = (hash * CLIENT_RANDOM_BITS + clientRandom[i])
+            % WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE;
+    }
+
+    return hash;
+}
+
+static int addSecretNode(unsigned char* clientRandom,
+                         unsigned char* masterSecret,
+                         char* error)
+{
+    unsigned int index        = 0;
+    SecretNode* newSecretNode = NULL;
+
+    newSecretNode = (SecretNode*)XMALLOC(sizeof(SecretNode),
+                                         NULL,
+                                         DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
+    if (newSecretNode == NULL) {
+        SetError(MEMORY_STR, error, NULL, 0);
+        return WOLFSSL_SNIFFER_ERROR;
+    }
+
+    XMEMCPY(newSecretNode->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH);
+    XMEMCPY(newSecretNode->masterSecret, masterSecret, MASTER_SECRET_LENGTH);
+
+    LOCK_SECRET_LIST();
+
+    index = secretHashFunction(clientRandom);
+    newSecretNode->next = NULL;
+
+    if (secretHashTable[index] == NULL) {
+        secretHashTable[index] = newSecretNode;
+    }
+    else {
+        SecretNode* current = secretHashTable[index];
+        while (current != NULL) {
+            if (memcmp(current->clientRandom,
+                       clientRandom,
+                       CLIENT_RANDOM_LENGTH) == 0) {
+                // BRN-sniffer-TODO: what if the same client random has a
+                // different master secret? Should we just update it? or
+                // return error?
+                fprintf(stderr, "Found duplicate client random value in "
+                                "keylog file. Rejecting\n");
+                XFREE(newSecretNode, NULL, DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
+                break;
+            }
+            if (current->next == NULL) {
+                current->next = newSecretNode;
+                break;
+            }
+            current = current->next;
+        }
+    }
+
+    UNLOCK_SECRET_LIST();
+
+    return 0;
+}
+
+
+/*
+ * Looks up a master secret for a given client random from the keylog file
+ */
+static unsigned char* findMasterSecret(unsigned char* clientRandom)
+{
+    unsigned char* secret = NULL;
+    SecretNode* node = NULL;
+    unsigned int index = 0;
+
+    LOCK_SECRET_LIST();
+
+    index = secretHashFunction(clientRandom);
+    node  = secretHashTable[index];
+
+    while (node != NULL) {
+        if (XMEMCMP(node->clientRandom,
+                    clientRandom, CLIENT_RANDOM_LENGTH) == 0) {
+            secret = node->masterSecret;
+            break;
+        }
+        node = node->next;
+    }
+
+    UNLOCK_SECRET_LIST();
+
+    return secret;
+}
+
+
+static void hexToBin(const char* hex, unsigned char* bin, int binLength)
+{
+    int i = 0;
+    for (i = 0; i < binLength; i++) {
+        sscanf(hex + 2 * i, "%02hhx", &bin[i]);
+    }
+}
+
+static int parseKeyLogFile(const char* fileName, char* error)
+{
+    const char CLIENT_RANDOM_LABEL_STR[] = "CLIENT_RANDOM";
+    unsigned char clientRandom[CLIENT_RANDOM_LENGTH];
+    unsigned char masterSecret[MASTER_SECRET_LENGTH];
+    FILE* file = NULL;
+    int ret = 0;
+    /* +1 for null terminator */
+    char clientRandomLabel[CLIENT_RANDOM_LABEL_LENGTH + 1] = {0};
+    /* 2 chars for Hexadecimal representation, plus null terminator */
+    char clientRandomHex[2 * CLIENT_RANDOM_LENGTH + 1] = {0};
+    char masterSecretHex[2 * MASTER_SECRET_LENGTH + 1] = {0};
+
+
+    file = fopen(fileName, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Could not open keylog file: %s\n", fileName);
+        SetError(KEYLOG_FILE_INVALID, error, NULL, 0);
+        return WOLFSSL_SNIFFER_ERROR;
+    }
+
+    while (fscanf(file, "%13s %64s %96s",
+                  clientRandomLabel, clientRandomHex, masterSecretHex) == 3) {
+        if (XSTRCMP(clientRandomLabel, CLIENT_RANDOM_LABEL_STR) == 0) {
+            hexToBin(clientRandomHex, clientRandom, CLIENT_RANDOM_LENGTH);
+            hexToBin(masterSecretHex, masterSecret, MASTER_SECRET_LENGTH);
+            ret = addSecretNode(clientRandom, masterSecret, error);
+            if (ret != 0) {
+                fclose(file);
+                return ret;
+            }
+        }
+    }
+    fclose(file);
+
+    return 0;
+}
+
+
+static void freeSecretList(void)
+{
+    int i = 0;
+
+    LOCK_SECRET_LIST();
+
+    for (i=0; i<WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE; i++)
+    {
+        SecretNode* current = secretHashTable[i];
+        SecretNode * next = NULL;
+
+        while (current != NULL) {
+            next = current->next;
+            XFREE(current, NULL, DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
+            current = next;
+        }
+    }
+
+    UNLOCK_SECRET_LIST();
+}
+
+
+/*
+ * Looks up secret based on client random and copies it to output_secret
+ */
+static int snifferSecretCb(unsigned char* client_random,
+                           unsigned char* output_secret)
+{
+    unsigned char* secret = NULL;
+
+    if (client_random == NULL || output_secret == NULL) {
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    }
+
+    /* get secret from secret table based on client random */
+    secret = findMasterSecret(client_random);
+    if (secret != NULL) {
+        XMEMCPY(output_secret, secret, MASTER_SECRET_LENGTH);
+        return 0;
+    }
+
+    /* didn't find the secret */
+    return WOLFSSL_SNIFFER_ERROR;
+}
+
+static void setSnifferSecretCb(SnifferSession* session)
+{
+    session->context->useKeyLogFile = 1;
+    session->sslServer->snifferSecretCb = snifferSecretCb;
+    session->sslClient->snifferSecretCb = snifferSecretCb;
+}
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address,
+                                                  int port,
+                                                  const char* keylogfile,
+                                                  char* error)
+{
+    int ret = WOLFSSL_SNIFFER_ERROR;
+    IpAddrInfo     serverIp = {0};
+
+    TraceHeader();
+    TraceSetServer(address, port, keylogfile);
+
+    SnifferServer *sniffer = NULL;
+
+    if (keylogfile == NULL) {
+        SetError(KEYLOG_FILE_INVALID, error, NULL, 0);
+        return WOLFSSL_SNIFFER_ERROR;
+    }
+
+    serverIp.version = IPV4;
+    serverIp.ip4 = XINET_ADDR(address);
+    if (serverIp.ip4 == XINADDR_NONE) {
+    #ifdef FUSION_RTOS
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6,
+                       sizeof(serverIp.ip4)) == 1) {
+    #else
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1) {
+    #endif
+            serverIp.version = IPV6;
+        }
+    }
+
+    sniffer = ServerList;
+    while (sniffer != NULL &&
+            (!MatchAddr(sniffer->server, serverIp) || sniffer->port != port)) {
+        sniffer = sniffer->next;
+    }
+
+    if (sniffer == NULL) {
+        sniffer = (SnifferServer*)XMALLOC(sizeof(SnifferServer),
+                NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
+        if (sniffer == NULL) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            return -1;
+        }
+        InitSnifferServer(sniffer);
+
+        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS-1);
+        sniffer->address[MAX_SERVER_ADDRESS-1] = '\0';
+        sniffer->server = serverIp;
+        sniffer->port = port;
+
+        sniffer->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        if (!sniffer->ctx) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            FreeSnifferServer(sniffer);
+            return -1;
+        }
+    #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
+        if (CryptoDeviceId != INVALID_DEVID)
+            wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+    #endif
+
+        /* We've initialized the sniffer server and added it to the ServerList
+         * without initializing its keys, so we must now tag it as a key log
+         * file sniffer, as it won't be useable otherwise */
+        sniffer->useKeyLogFile = 1;
+
+        sniffer->next = ServerList;
+        ServerList = sniffer;
+    }
+    else {
+        printf("SESSION ALREADY EXISTS\n");
+    }
+
+    ret = parseKeyLogFile(keylogfile, error);
+    if (ret != 0) {
+        FreeSnifferServer(sniffer);
+        return ret;
+    }
+    else {
+        Trace(NEW_SERVER_STR);
+    }
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
+
 
 #undef ERROR_OUT
 

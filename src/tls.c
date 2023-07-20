@@ -516,6 +516,19 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int ret;
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support, obtain
+     * the master secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        ret = ssl->snifferSecretCb(ssl->arrays->clientRandom, ssl->arrays->masterSecret);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = DeriveTlsKeys(ssl);
+        return ret;
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
 #ifdef HAVE_EXTENDED_MASTER
     if (ssl->options.haveEMS) {
         word32 hashSz = HSHASH_SZ;

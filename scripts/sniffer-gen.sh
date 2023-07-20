@@ -46,7 +46,7 @@ run_sequence() {
         run_test "TLS13-AES128-GCM-SHA256" "-v 4" "-v 4"
         run_test "TLS13-AES256-GCM-SHA384" "-v 4" "-v 4"
         run_test "TLS13-CHACHA20-POLY1305-SHA256" "-v 4" "-v 4"
-    elif [ "$1" == "tls12" ]; then # TLS v1.2
+    elif [ "$1" == "tls12" ] || [ "$1" == "tls12-keylog" ]; then # TLS v1.2
         run_test "ECDHE-ECDSA-AES128-GCM-SHA256" "-v 3 -A ./certs/ca-ecc-cert.pem -k ./certs/ecc-key.pem -c ./certs/intermediate/server-chain-ecc.pem -V" "-v 3 -A ./certs/ca-ecc-cert.pem -k ./certs/ecc-client-key.pem -c ./certs/intermediate/client-chain-ecc.pem -C"
         run_test "ECDHE-ECDSA-AES256-GCM-SHA384" "-v 3 -A ./certs/ca-ecc-cert.pem -k ./certs/ecc-key.pem -c ./certs/intermediate/server-chain-ecc.pem -V" "-v 3 -A ./certs/ca-ecc-cert.pem -k ./certs/ecc-client-key.pem -c ./certs/intermediate/client-chain-ecc.pem -C"
     elif [ "$1" == "tls13-dh-resume" ] || [ "$1" == "tls13-ecc-resume" ]; then # TLS v1.3 Resumption
@@ -69,19 +69,37 @@ run_sequence() {
     fi
 }
 
-run_capture(){
+
+run_capture() {
+    local config_flags=()
     echo -e "\nconfiguring and building wolfssl ($1)..."
-    ./configure --enable-sniffer $2 1>/dev/null || exit $?
+
+    # Add default flags
+    config_flags+=(--enable-sniffer)
+
+    # If additional arguments are provided, add them to the array
+    if [ -n "$2" ]; then
+        # Convert string into an array, respecting quoted strings as a single element
+        eval "config_flags+=($2)"
+    fi
+
+    ./configure "${config_flags[@]}" 1>/dev/null || exit $?
     make 1>/dev/null || exit $?
+
     echo "starting capture"
     tcpdump -i lo -n port 11111 -w ./scripts/sniffer-${1}.pcap -U &
     tcpdump_pid=$!
     run_sequence $1
     sleep 1
     kill -15 $tcpdump_pid; tcpdump_pid=0
+
+    if [ "$1" == "tls12-keylog" ]; then
+        cp ./sslkeylog.log ./scripts/sniffer-${1}.sslkeylog
+    fi
 }
 
 run_capture "tls12"               ""
+run_capture "tls12-keylog"        "--enable-enc-then-mac=no --enable-keylog-export CFLAGS='-Wno-cpp -DWOLFSSL_SNIFFER_KEYLOGFILE'"
 run_capture "tls13-ecc"           ""
 run_capture "tls13-ecc-resume"    "--enable-session-ticket"
 run_capture "tls13-dh"            "--disable-ecc"
