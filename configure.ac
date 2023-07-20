@@ -6988,7 +6988,7 @@ AC_ARG_WITH([cavium-v],
         ENABLED_CAVIUM_V=yes
     ],
     [
-        ENABLED_CAVIUM_=no
+        ENABLED_CAVIUM=no
         ENABLED_CAVIUM_V=no
     ]
 )
@@ -7762,6 +7762,30 @@ then
     AC_MSG_ERROR([please use --with-libz if enabling mcapi.])
 fi
 
+
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
+    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
+
+# Support for crypto callbacks
+AC_ARG_ENABLE([cryptocb],
+    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
+    [ ENABLED_CRYPTOCB=$enableval ],
+    [ ENABLED_CRYPTOCB=no ]
+    )
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
+then
+    ENABLED_CRYPTOCB=yes
+fi
+if test "$ENABLED_CRYPTOCB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
+fi
+
+
+
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
     [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
@@ -7784,6 +7808,7 @@ fi
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
+    AC_MSG_NOTICE([Enabling asynchronous support])
     if ! test -f ${srcdir}/wolfcrypt/src/async.c || ! test -f ${srcdir}/wolfssl/wolfcrypt/async.h
     then
         AC_MSG_ERROR([--enable-asynccrypt requested, but WOLFSSL_ASYNC_CRYPT source files are missing.])
@@ -7793,14 +7818,13 @@ then
 
     # If no async backend (hardware or software) has been explicitly enabled,
     # use the software backend for testing.
-    if test "x$ENABLED_CAVIUM" = "xno" && test "x$ENABLED_INTEL_QA" = "xno" &&
-       test "x$ENABLED_ASYNCCRYPT_SW" = "xno"
+    if test "x$ENABLED_CAVIUM" != "xyes" && test "x$ENABLED_INTEL_QA" != "xyes" && test "x$ENABLED_CRYPTOCB" != "xyes" && test "x$ENABLED_PKCALLBACKS" != "xyes" && test "x$ENABLED_ASYNCCRYPT_SW" != "xyes"
     then
-        # Async threading is Linux specific
+        AC_MSG_NOTICE([Enabling asynchronous software simulator])
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_SW"
+        ENABLED_ASYNCCRYPT_SW=yes
     fi
 fi
-
 
 # check for async if using Intel QuckAssist or Cavium
 if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
@@ -7809,8 +7833,7 @@ if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
     fi
 fi
 
-
-# Asynchronous threading
+# Asynchronous threading (Linux specific)
 AC_ARG_ENABLE([asyncthreads],
     [AS_HELP_STRING([--enable-asyncthreads],[Enable Asynchronous Threading (default: enabled)])],
     [ ENABLED_ASYNCTHREADS=$enableval ],
@@ -7830,28 +7853,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -D_GNU_SOURCE"
 else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_ASYNC_THREADING"
-fi
-
-
-# cryptodev is old name, replaced with cryptocb
-AC_ARG_ENABLE([cryptodev],
-    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
-    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
-
-# Support for crypto callbacks
-AC_ARG_ENABLE([cryptocb],
-    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
-    [ ENABLED_CRYPTOCB=$enableval ],
-    [ ENABLED_CRYPTOCB=no ]
-    )
-
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
-then
-    ENABLED_CRYPTOCB=yes
-fi
-if test "$ENABLED_CRYPTOCB" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
 
 
@@ -9473,7 +9474,8 @@ echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
-echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * Asynchronous Crypto:        $ENABLED_ASYNCCRYPT"
+echo "   * Asynchronous Crypto (sim):  $ENABLED_ASYNCCRYPT_SW"
 echo "   * PKCS#8:                     $ENABLED_PKCS8"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
@@ -9494,6 +9496,7 @@ echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
+echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
