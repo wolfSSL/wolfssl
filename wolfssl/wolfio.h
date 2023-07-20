@@ -26,6 +26,8 @@
 #ifndef WOLFSSL_IO_H
 #define WOLFSSL_IO_H
 
+#include <wolfssl/ssl.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
