@@ -72,6 +72,7 @@
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 
+#ifdef WOLF_CRYPTO_CB_CMD
 /* CryptoCb Commands */
 enum wc_CryptoCbCmdType {
     WC_CRYPTOCB_CMD_TYPE_NONE = 0,
@@ -80,6 +81,7 @@ enum wc_CryptoCbCmdType {
 
     WC_CRYPTOCB_CMD_TYPE_MAX = WC_CRYPTOCB_CMD_TYPE_UNREGISTER
 };
+#endif
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -365,10 +367,12 @@ typedef struct wc_CryptoInfo {
         int type;
     } cmac;
 #endif
+#ifdef WOLF_CRYPTO_CB_CMD
     struct {      /* uses wc_AlgoType=ALGO_NONE */
         int type; /* enum wc_CryptoCbCmdType */
         void *ctx;
     } cmd;
+#endif
 #if HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif

@@ -19,6 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * Some common, optional build settings:
+ * these can also be set in wolfssl/options.h or user_settings.h
+ * -------------------------------------------------------------
+ *
+ * set the default devId for cryptocb to the value instead of INVALID_DEVID
+ * WC_USE_DEVID=0x1234
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -407,8 +416,8 @@ static void initDefaultName(void);
 #ifdef WOLFSSL_CAAM_DEVID
 static int devId = WOLFSSL_CAAM_DEVID;
 #else
-  #ifdef FORCE_DEVID
-static int devId = FORCE_DEVID;
+  #ifdef WC_USE_DEVID
+static int devId = WC_USE_DEVID;
   #else
 static int devId = INVALID_DEVID;
   #endif
@@ -882,7 +891,11 @@ wc_test_ret_t wolfcrypt_test(void* args)
 #endif
 
     printf("------------------------------------------------------------------------------\n");
-    printf(" wolfSSL version %s with DevID:%X\n", LIBWOLFSSL_VERSION_STRING,devId);
+    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+#ifdef WOLF_CRYPTO_CB
+    if (devId != INVALID_DEVID)
+        printf("  CryptoCB with DevID:%X\n", devId);
+#endif
     printf("------------------------------------------------------------------------------\n");
 
     if (args) {

@@ -22,6 +22,20 @@
 /* This framework provides a central place for crypto hardware integration
    using the devId scheme. If not supported return `CRYPTOCB_UNAVAILABLE`. */
 
+/* Some common, optional build settings:
+ * these can also be set in wolfssl/options.h or user_settings.h
+ * -------------------------------------------------------------
+ * enable the find device callback functions
+ * WOLF_CRYPTO_CB_FIND
+ *
+ * enable the command callback functions to invoke the callback during
+ * register and unregister
+ * WOLF_CRYPTO_CB_CMD
+ *
+ * enable debug InfoString functions
+ * DEBUG_CRYPTO_CB
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -62,7 +76,9 @@ static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
 static const char* GetAlgoTypeStr(int algo)
 {
     switch (algo) { /* enum wc_AlgoType */
+#ifdef WOLF_CRYPTO_CB_CMD
         case WC_ALGO_TYPE_NONE:   return "None-Command";
+#endif
         case WC_ALGO_TYPE_HASH:   return "Hash";
         case WC_ALGO_TYPE_CIPHER: return "Cipher";
         case WC_ALGO_TYPE_PK:     return "PK";
@@ -236,11 +252,18 @@ static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
     return ret;
 }
 
+/* Helper function to reset a device entry to invalid */
+static inline void wc_CryptoCb_ClearDev(CryptoCb *dev)
+{
+    XMEMSET(dev, 0, sizeof(*dev));
+    dev->devId = INVALID_DEVID;
+}
+
 void wc_CryptoCb_Init(void)
 {
     int i;
     for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
-        gCryptoDev[i].devId = INVALID_DEVID;
+        wc_CryptoCb_ClearDev(&gCryptoDev[i]);
     }
 }
 
@@ -292,50 +315,59 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     dev->cb = cb;
     dev->ctx = ctx;
 
-    if(cb) {
+#ifdef WOLF_CRYPTO_CB_CMD
+    if (cb != NULL) {
         /* Invoke callback with register command */
-        wc_CryptoInfo info= {
-                .algo_type = WC_ALGO_TYPE_NONE,
-                .cmd.type  = WC_CRYPTOCB_CMD_TYPE_REGISTER,
-                .cmd.ctx   = ctx,
-        };
-        rc=cb(dev->devId, &info, dev->ctx);
-        if(rc == 0) {
+        wc_CryptoInfo info= {0};
+        info.algo_type = WC_ALGO_TYPE_NONE;
+        info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_REGISTER;
+        info.cmd.ctx   = ctx;  /* cb may update on success */
+
+        rc = cb(devId, &info, ctx);
+        if (rc == 0) {
             /* Success.  Update dev->ctx */
             dev->ctx = info.cmd.ctx;
         }
-        else if((rc == CRYPTOCB_UNAVAILABLE) ||
-                (rc == NOT_COMPILED_IN)) {
+        else if ((rc == CRYPTOCB_UNAVAILABLE) ||
+                 (rc == NOT_COMPILED_IN)) {
             /* Not implemented.  Return success*/
             rc = 0;
         }
         else {
-            /* Error handling register cmd  */
-            dev->cb = NULL;  /* Don't call unregister */
-            wc_CryptoCb_UnRegisterDevice(devId);
+            /* Error in callback register cmd. Don't register */
+            wc_CryptoCb_ClearDev(dev);
         }
     }
-
+#endif
     return rc;
 }
 
 void wc_CryptoCb_UnRegisterDevice(int devId)
 {
-    CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
-    if (dev) {
-        if(dev->cb) {
-            /* Invoke callback with unregister command.*/
-            wc_CryptoInfo info= {
-                    .algo_type = WC_ALGO_TYPE_NONE,
-                    .cmd.type  = WC_CRYPTOCB_CMD_TYPE_UNREGISTER,
-                    .cmd.ctx   = dev->ctx,
-            };
-            /* Ignore errors here */
-            dev->cb(dev->devId, &info, dev->ctx);
-        }
-        XMEMSET(dev, 0, sizeof(*dev));
-        dev->devId = INVALID_DEVID;
+    CryptoCb* dev = NULL;
+
+    /* Can't unregister the invalid device */
+    if (devId == INVALID_DEVID)
+        return;
+
+    /* Find the matching dev */
+    dev = wc_CryptoCb_GetDevice(devId);
+    if (dev == NULL)
+        return;
+
+#ifdef WOLF_CRYPTO_CB_CMD
+    if (dev->cb != NULL) {
+        /* Invoke callback with unregister command.*/
+        wc_CryptoInfo info= {0};
+        info.algo_type = WC_ALGO_TYPE_NONE;
+        info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_UNREGISTER;
+        info.cmd.ctx   = NULL;  /* Not used */
+
+        /* Ignore errors here */
+        dev->cb(devId, &info, dev->ctx);
     }
+#endif
+    wc_CryptoCb_ClearDev(dev);
 }
 
 #ifndef NO_RSA
@@ -1402,6 +1434,8 @@ int wc_CryptoCb_DefaultDevID(void)
     ret = WOLFSSL_CAAM_DEVID;
 #elif defined(HAVE_ARIA)
     ret = WOLFSSL_ARIA_DEVID;
+#elif defined(WC_USE_DEVID)
+    ret = WC_USE_DEVID;
 #else
     ret = INVALID_DEVID;
 #endif
