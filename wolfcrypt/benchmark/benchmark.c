@@ -469,15 +469,9 @@
     #define TEST_SLEEP() WC_DO_NOTHING
 #endif
 
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
 
-#if defined(WOLFSSL_MICROCHIP_TA100)
-    /* pad test message to 32 bytes */
-    #define TEST_STRING    "Everyone gets Friday off.padto32"
-    #define TEST_STRING_SZ 32
-#else
-    #define TEST_STRING    "Everyone gets Friday off."
-    #define TEST_STRING_SZ 25
-#endif
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
  * Each algorithm has a unique value for its type e.g. cipher.

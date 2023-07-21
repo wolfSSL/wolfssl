@@ -10459,6 +10459,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* Add two points on the same together.

@@ -96,10 +96,17 @@ ATECC508A HW accelerated implementation:
 `EC-DSA   sign   time     293.400 milliseconds, avg over 5 iterations, 17.065 ops/sec`
 `EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations, 24.038 ops/sec`
 
-### Microchip Trust Anchor TA100 ECC
+### Microchip Trust Anchor TA100 ECC/RSA
 
-`./configure CFLAGS="-DWOLFSSL_CMAC -DHAVE_PK_CALLBACKS -DWOLFSSL_ATECC508A_NOIDLE -DECC_USER_CURVES -DWOLFSSL_ATECC_NO_ECDH_ENC -DWOLFSSL_ATECC_DEBUG" --enable-cmac --enable-microchip=100 --with-cryptoauthlib`
+` ./configure CFLAGS="-DECC_USER_CURVES -DWOLFSSL_ATECC_NO_ECDH_ENC" --enable-microchip=100 --with-cryptoauthlib --enable-debug --disable-shared --enable-pkcallbacks --enable-keygen --enable-cmac && make
+`
 
+Supported Features:
+RSA 2048 keygen/sign/verify
+ECC-P256 keygen/sign/verify/shared secret
+
+WOLFSSL_MICROCHIP_AESGCM can be used to enable AES-GCM but
+It's unclear how to enable data zone locking in TA100.
 
 ```
  $ lscpu -e
@@ -118,6 +125,11 @@ Software:
 ------------------------------------------------------------------------------
 Math:     Multi-Precision: Wolf(SP) word-size=64 bits=4096 sp_int.c
 wolfCrypt Benchmark (block bytes 1048576, min 1.0 sec each)
+Benchmarks:
+
+RSA     2048  key gen         2 ops took 1.113 sec, avg 556.332 ms, 1.797 ops/sec
+RSA     2048     sign       200 ops took 1.891 sec, avg 9.455 ms, 105.766 ops/sec
+RSA     2048   verify      6900 ops took 1.011 sec, avg 0.147 ms, 6824.614 ops/sec
 
 ECC   [      SECP256R1]   256  key gen       700 ops took 1.065 sec, avg 1.522 ms, 657.067 ops/sec
 ECDHE [      SECP256R1]   256    agree       700 ops took 1.016 sec, avg 1.451 ms, 689.240 ops/sec
@@ -127,7 +139,13 @@ ECDSA [      SECP256R1]   256   verify      1000 ops took 1.001 sec, avg 1.001 m
 
 Hardware Microchip TA100 with SPI:
 
-ECC Benchmarks:
+Benchmarks:
+./wolfcrypt/benchmark/benchmark -rsa_sign
+
+RSA     2048  key gen   HW      1 ops took 12.190 sec, avg 12190.346 ms, 0.082 ops/sec
+RSA     2048     sign   HW    100 ops took 14.006 sec, avg 140.062 ms, 7.140 ops/sec
+RSA     2048   verify   HW    100 ops took 13.168 sec, avg 131.679 ms, 7.594 ops/sec
+
 ECC   [      SECP256R1]   256  key gen       100 ops took 6.790 sec, avg 67.898 ms, 14.728 ops/sec
 ECDHE [      SECP256R1]   256    agree       100 ops took 2.413 sec, avg 24.126 ms, 41.449 ops/sec
 ECDSA [      SECP256R1]   256     sign       100 ops took 1.832 sec, avg 18.317 ms, 54.594 ops/sec

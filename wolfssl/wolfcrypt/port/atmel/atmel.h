@@ -96,7 +96,8 @@ int  atmel_get_random_number(uint32_t count, uint8_t* rand_out);
 #endif
 long atmel_get_curr_time_and_date(long* tm);
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
 
 enum atmelSlotType {
     ATMEL_SLOT_ANY,
@@ -108,8 +109,8 @@ enum atmelSlotType {
     ATMEL_SLOT_ECDHE_BOB,
 };
 
-WOLFSSL_API int  atmel_ecc_alloc(int slotType);
-WOLFSSL_API void atmel_ecc_free(int slotId);
+int  atmel_ecc_alloc(int slotType);
+void atmel_ecc_free(int slotId);
 
 typedef int  (*atmel_slot_alloc_cb)(int);
 typedef void (*atmel_slot_dealloc_cb)(int);
@@ -122,7 +123,7 @@ void atmel_show_rev_info(void);
 
 WOLFSSL_API int wolfCrypt_ATECC_SetConfig(ATCAIfaceCfg* cfg);
 #if defined(WOLFSSL_MICROCHIP_TA100)
-WOLFSSL_API int atmel_SetSharedDataConfig(ta_element_attributes_t* cfg);
+WOLFSSL_API int wc_Microchip_SetSharedDataConfig(ta_element_attributes_t* cfg);
 #endif
 /* The macro ATECC_GET_ENC_KEY can be set to override the default
    encryption key with your own at build-time */
@@ -130,12 +131,13 @@ WOLFSSL_API int atmel_SetSharedDataConfig(ta_element_attributes_t* cfg);
     #define ATECC_GET_ENC_KEY(enckey, keysize) atmel_get_enc_key_default((enckey), (keysize))
 #endif
 int  atmel_get_enc_key_default(byte* enckey, word16 keysize);
+#ifdef HAVE_ECC
 int  atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms);
 int  atmel_ecc_create_key(int slotId, int curve_id, byte* peerKey);
 int  atmel_ecc_sign(int slotId, const byte* message, byte* signature);
 int  atmel_ecc_verify(const byte* message, const byte* signature,
     const byte* pubkey, int* pVerified);
-
+#endif /* HAVE_ECC */
 #endif /* WOLFSSL_ATECC508A */
 
 #if defined(WOLFSSL_MICROCHIP_TA100)
@@ -144,29 +146,43 @@ int  atmel_ecc_verify(const byte* message, const byte* signature,
     defined(WOLFSSL_MICROCHIP_AESGCM)
 #include <wolfssl/wolfcrypt/aes.h>
 
-int microchip_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+WOLFSSL_LOCAL int wc_Microchip_AesGcmEncrypt(Aes* aes, byte* out,
+                            const byte* in, word32 sz,
                             const byte* iv, word32 ivSz,
                             byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz);
-int microchip_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+WOLFSSL_LOCAL int wc_Microchip_AesGcmDecrypt(Aes* aes, byte* out,
+                            const byte* in, word32 sz,
                             const byte* iv, word32 ivSz,
                             const byte* authTag, word32 authTagSz,
                             const byte* authIn, word32 authInSz);
-int microchip_aes_set_key(Aes* aes, const byte* key, word32 len,
-                          const byte* iv, int dir);
-void microchip_aes_free(Aes* aes);
+WOLFSSL_LOCAL int wc_Microchip_aes_set_key(Aes* aes, const byte* key,
+                                           word32 len, const byte* iv, int dir);
+WOLFSSL_LOCAL void wc_Microchip_aes_free(Aes* aes);
 #endif /* !NO_AES && HAVE_AESGCM */
 #ifndef NO_RSA
-int microchip_rsa_create_key(RsaKey* key, int size, long e);
-void microchip_rsa_free(RsaKey* key);
-int microchip_rsa_sign(const byte* in, word32 inLen, byte* out, word32 outLen,
-                       RsaKey* key);
-int microchip_rsa_verify(const byte* in, word32 inLen, byte* sig, word32 sigLen,
-                         RsaKey* key, int* pVerified);
-int microchip_rsa_encrypt(const byte* in, word32 inLen, byte* out,
-                          word32 outLen, RsaKey* key);
-int microchip_rsa_decrypt(const byte* in, word32 inLen, byte* out,
-                          word32 outLen, RsaKey* key);
+WOLFSSL_LOCAL int wc_Microchip_rsa_create_key(RsaKey* key, int size, long e);
+WOLFSSL_LOCAL void wc_Microchip_rsa_free(RsaKey* key);
+WOLFSSL_LOCAL int wc_Microchip_rsa_sign(const byte* in, word32 inLen, byte* out,
+                                    word32 outLen, RsaKey* key);
+WOLFSSL_LOCAL int wc_Microchip_rsa_verify(const byte* in, word32 inLen,
+                                          byte* sig, word32 sigLen, RsaKey* key,
+                                          int* pVerified);
+WOLFSSL_LOCAL int wc_Microchip_rsa_encrypt(const byte* in, word32 inLen,
+                                         byte* out, word32 outLen, RsaKey* key);
+WOLFSSL_LOCAL int wc_Microchip_rsa_decrypt(const byte* in, word32 inLen,
+                                         byte* out, word32 outLen, RsaKey* key);
+
+#ifndef WOLFSSL_SP_NO_2048
+    #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA2048
+    #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA2048_SIZE
+#elif WOLFSSL_SP_NO_3072
+    #define WOLFSSL_TA_KEY_TYPE_RSA TA_KEY_TYPE_RSA3072
+    #define WOLFSSL_TA_KEY_TYPE_RSA_SIZE TA_KEY_TYPE_RSA3072_SIZE
+#else
+    #error Microchip requires enabling 2048 or 3072 RSA.*/
+#endif
+
 #endif /* NO_RSA */
 #endif /* WOLFSSL_MICROCHIP_TA100 */
 

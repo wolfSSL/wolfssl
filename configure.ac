@@ -2264,7 +2264,7 @@ then
             ;;
 
         100)
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A -DWOLFSSL_MICROCHIP_TA100 -DMICROCHIP_DEV_TYPE=TA100"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MICROCHIP_TA100 -DMICROCHIP_DEV_TYPE=TA100"
             ;;
       esac
     done
@@ -2276,7 +2276,6 @@ AC_ARG_WITH([cryptoauthlib],
     [AS_HELP_STRING([--with-cryptoauthlib=PATH],[PATH to CryptoAuthLib install (default /usr)])],
     [
         AC_MSG_CHECKING([for cryptoauthlib])
-        CPPFLAGS="$CPPFLAGS -DWOLFSSL_ATECC508A"
         LIBS="$LIBS -lcryptoauth -lwolfssl -lpthread -lrt"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
@@ -2306,7 +2305,6 @@ AC_ARG_WITH([cryptoauthlib],
         fi
 
         ENABLED_CRYPTOAUTHLIB="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
     ]
 )
 

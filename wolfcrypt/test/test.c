@@ -578,7 +578,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
         WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_encrypt_test(void);
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+        !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
@@ -1597,7 +1598,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             TEST_PASS("ECC Enc  test passed!\n");
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+        !defined(NO_ECC256) && \
         defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
         !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
         /* skip for ATECC508/608A, cannot import private key buffers */
@@ -26241,7 +26243,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     int curve_id, const ecc_set_type* dp)
 {
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
     word32  y;
@@ -26277,7 +26280,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     if (sharedA == NULL || sharedB == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
 #endif
@@ -26363,7 +26367,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     TEST_SLEEP();
 
 /* ATECC508/608 configuration may not support more than one ECDH key */
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 #if defined(WOLFSSL_MICROCHIP_TA100)
     key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_BOB);
 #endif
@@ -26481,7 +26486,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef HAVE_ECC_DHE
     y = ECC_SHARED_SIZE;
     do {
@@ -26746,6 +26752,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 static wc_test_ret_t ecc_point_test(void)
@@ -29094,6 +29101,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         goto done;
     }
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ret = ecc_point_test();
@@ -29211,8 +29219,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-  !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-  !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!\n");
@@ -30046,7 +30055,8 @@ done:
 #endif /* HAVE_ECC_ENCRYPT && HAVE_AES_CBC && WOLFSSL_AES_128 */
 
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ECC_SECP)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)

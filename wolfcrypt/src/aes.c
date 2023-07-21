@@ -3056,7 +3056,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         }
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-        ret = microchip_aes_set_key(aes, userKey, keylen, iv, dir);
+        ret = wc_Microchip_aes_set_key(aes, userKey, keylen, iv, dir);
         if (ret == 0) {
             ret = wc_AesSetIV(aes, iv);
         }
@@ -6935,7 +6935,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authIn, authInSz);
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-    return microchip_AesGcmEncrypt(
+    return wc_Microchip_AesGcmEncrypt(
         aes, out, in, sz,
         iv, ivSz,
         authTag, authTagSz,
@@ -7500,7 +7500,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-    return microchip_AesGcmDecrypt(
+    return wc_Microchip_AesGcmDecrypt(
         aes, out, in, sz, iv, ivSz,
         authTag, authTagSz, authIn, authInSz);
 #endif
@@ -9960,7 +9960,7 @@ void wc_AesFree(Aes* aes)
     }
 #endif
 #if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
-    microchip_aes_free(aes);
+    wc_Microchip_aes_free(aes);
 #endif
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     wc_psa_aes_free(aes);
