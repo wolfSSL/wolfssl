@@ -6634,6 +6634,9 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     if (ssl->client_ca_names == NULL)
         return MEMORY_ERROR;
 
+    if (length < OPAQUE16_LEN)
+        return BUFFER_ERROR;
+
     ato16(input, &extLen);
     input += OPAQUE16_LEN;
     length -= OPAQUE16_LEN;
@@ -6655,6 +6658,8 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         DecodedCert cert[1];
 #endif
 
+        if (length < OPAQUE16_LEN)
+            return BUFFER_ERROR;
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
