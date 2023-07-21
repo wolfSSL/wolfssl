@@ -13194,6 +13194,18 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         *nid = NID_favouriteDrink;
     #endif
     }
+#ifdef WOLFSSL_CERT_REQ
+    else if (oidSz == sizeof(attrPkcs9ContentTypeOid) &&
+             XMEMCMP(oid, attrPkcs9ContentTypeOid, oidSz) == 0) {
+        /* Set the pkcs9_contentType, type string, length and NID. */
+        id = ASN_CONTENT_TYPE;
+        typeStr = WOLFSSL_CONTENT_TYPE;
+        typeStrLen = sizeof(WOLFSSL_CONTENT_TYPE) - 1;
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        *nid = NID_pkcs9_contentType;
+    #endif
+    }
+#endif
     /* Other OIDs that start with the same values. */
     else if (oidSz == sizeof(dcOid) && XMEMCMP(oid, dcOid, oidSz-1) == 0) {
         WOLFSSL_MSG("Unknown pilot attribute type");
@@ -13845,7 +13857,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         nid = NID_userId;
                     #endif /* OPENSSL_EXTRA */
                         break;
-
                     case ASN_DOMAIN_COMPONENT:
                         copy = WOLFSSL_DOMAIN_COMPONENT;
                         copyLen = sizeof(WOLFSSL_DOMAIN_COMPONENT) - 1;
@@ -13864,7 +13875,15 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         nid = NID_favouriteDrink;
                     #endif /* OPENSSL_EXTRA */
                         break;
-
+                    case ASN_CONTENT_TYPE:
+                        copy = WOLFSSL_CONTENT_TYPE;
+                        copyLen = sizeof(WOLFSSL_CONTENT_TYPE) - 1;
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                        nid = NID_pkcs9_contentType;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
                     default:
                         WOLFSSL_MSG("Unknown pilot attribute type");
                     #if (defined(OPENSSL_EXTRA) || \
@@ -26458,6 +26477,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             firstSz = cname->custom.oidSz;
             break;
     #endif
+    #ifdef WOLFSSL_CERT_REQ
+        case ASN_CONTENT_TYPE:
+            thisLen += (int)sizeof(attrPkcs9ContentTypeOid);
+            firstSz  = (int)sizeof(attrPkcs9ContentTypeOid);
+            break;
+    #endif
         default:
             thisLen += DN_OID_SZ;
             firstSz  = DN_OID_SZ;
@@ -26518,6 +26543,15 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             XMEMCPY(name->encoded + idx, cname->custom.oid,
                     cname->custom.oidSz);
             idx += cname->custom.oidSz;
+            /* str type */
+            name->encoded[idx++] = nameTag;
+            break;
+    #endif
+    #ifdef WOLFSSL_CERT_REQ
+        case ASN_CONTENT_TYPE:
+            XMEMCPY(name->encoded + idx, attrPkcs9ContentTypeOid,
+                    sizeof(attrPkcs9ContentTypeOid));
+            idx += (int)sizeof(attrPkcs9ContentTypeOid);
             /* str type */
             name->encoded[idx++] = nameTag;
             break;
@@ -26592,6 +26626,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 nameSz = cname->custom.valSz;
                 oid = cname->custom.oid;
                 oidSz = cname->custom.oidSz;
+                break;
+        #endif
+        #ifdef WOLFSSL_CERT_REQ
+            case ASN_CONTENT_TYPE:
+                oid = attrPkcs9ContentTypeOid;
+                oidSz = sizeof(attrPkcs9ContentTypeOid);
                 break;
         #endif
             default:

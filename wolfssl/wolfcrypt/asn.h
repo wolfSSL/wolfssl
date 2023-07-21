@@ -710,8 +710,10 @@ enum DN_Tags {
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
 
-    ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
-    ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
+
+    ASN_CONTENT_TYPE  = 0x97, /* not actual OID (see attrPkcs9ContentTypeOid) */
+    ASN_EMAIL_NAME    = 0x98, /* not actual OID (see attrEmailOid) */
+    ASN_CUSTOM_NAME   = 0x99, /* not actual OID (see CertOidField) */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
@@ -768,6 +770,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_USER_ID          "/UID="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
+#define WOLFSSL_CONTENT_TYPE     "/contentType="
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
