@@ -36134,7 +36134,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             }
 
             /* remove trailing null */
-            if (canonLine[canonLineLen] == '\0') {
+            if (canonLineLen >= 1 && canonLine[canonLineLen-1] == '\0') {
                 canonLineLen--;
             }
 
