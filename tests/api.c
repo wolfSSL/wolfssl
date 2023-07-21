@@ -39717,6 +39717,7 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
 
         ExpectNotNull(subject = X509_NAME_oneline(nm, 0, 0));
         ExpectNotNull(XSTRSTR(subject, "favouriteDrink=tequila"));
+        ExpectNotNull(XSTRSTR(subject, "contentType=Server"));
     #ifdef DEBUG_WOLFSSL
         if (subject != NULL) {
             fprintf(stderr, "\n\t%s\n", subject);
@@ -57149,7 +57150,8 @@ static int test_ECDH_compute_key(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
     !defined(NO_ASN_TIME)
-static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
+static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey,
+        int expectedDerSz)
 {
     EXPECT_DECLS;
     X509* x509 = NULL;
@@ -57158,6 +57160,7 @@ static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
     time_t epoch_off = 0;
     ASN1_INTEGER* asn1_serial_number;
     long not_before, not_after;
+    int derSz;
 
     ExpectNotNull(x509 = X509_new());
 
@@ -57175,6 +57178,8 @@ static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
 
     ExpectIntNE(X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_UTF8,
         (unsigned char*)"www.wolfssl.com", -1, -1, 0), 0);
+    ExpectIntNE(X509_NAME_add_entry_by_NID(name, NID_pkcs9_contentType,
+                MBSTRING_UTF8,(unsigned char*)"Server", -1, -1, 0), 0);
 
     ExpectIntNE(X509_set_subject_name(x509, name), 0);
     ExpectIntNE(X509_set_issuer_name(x509, name), 0);
@@ -57187,6 +57192,9 @@ static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
         &epoch_off));
 
     ExpectIntNE(X509_sign(x509, pkey, EVP_sha256()), 0);
+
+    ExpectNotNull(wolfSSL_X509_get_der(x509, &derSz));
+    ExpectIntGE(derSz, expectedDerSz);
 
     BN_free(serial_number);
     X509_NAME_free(name);
@@ -57205,6 +57213,7 @@ static int test_openssl_generate_key_and_cert(void)
     EC_KEY* ec_key = NULL;
 #endif
 #if !defined(NO_RSA)
+    int expectedDerSz;
     int key_length = 2048;
     BIGNUM* exponent = NULL;
     RSA* rsa = NULL;
@@ -57243,11 +57252,13 @@ static int test_openssl_generate_key_and_cert(void)
 
     #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
             defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
-        ExpectIntEQ(test_openssl_make_self_signed_certificate(pkey),
-            TEST_SUCCESS);
+        expectedDerSz = 743;
+        ExpectIntEQ(test_openssl_make_self_signed_certificate(pkey,
+                    expectedDerSz), TEST_SUCCESS);
     #endif
     }
 
+    (void)expectedDerSz;
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BN_free(exponent);
@@ -57269,7 +57280,9 @@ static int test_openssl_generate_key_and_cert(void)
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
         defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
-    ExpectIntEQ(test_openssl_make_self_signed_certificate(pkey), TEST_SUCCESS);
+    expectedDerSz = 345;
+    ExpectIntEQ(test_openssl_make_self_signed_certificate(pkey, expectedDerSz),
+                TEST_SUCCESS);
 #endif
 
     EVP_PKEY_free(pkey);

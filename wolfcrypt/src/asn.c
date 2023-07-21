@@ -13194,6 +13194,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         *nid = NID_favouriteDrink;
     #endif
     }
+#ifdef WOLFSSL_CERT_REQ
     else if (oidSz == sizeof(attrPkcs9ContentTypeOid) &&
              XMEMCMP(oid, attrPkcs9ContentTypeOid, oidSz) == 0) {
         /* Set the pkcs9_contentType, type string, length and NID. */
@@ -13204,6 +13205,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         *nid = NID_pkcs9_contentType;
     #endif
     }
+#endif
     /* Other OIDs that start with the same values. */
     else if (oidSz == sizeof(dcOid) && XMEMCMP(oid, dcOid, oidSz-1) == 0) {
         WOLFSSL_MSG("Unknown pilot attribute type");
@@ -26475,9 +26477,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             firstSz = cname->custom.oidSz;
             break;
     #endif
+    #ifdef WOLFSSL_CERT_REQ
         case ASN_CONTENT_TYPE:
             thisLen += (int)sizeof(attrPkcs9ContentTypeOid);
             firstSz  = (int)sizeof(attrPkcs9ContentTypeOid);
+            break;
+    #endif
         default:
             thisLen += DN_OID_SZ;
             firstSz  = DN_OID_SZ;
@@ -26542,6 +26547,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             name->encoded[idx++] = nameTag;
             break;
     #endif
+    #ifdef WOLFSSL_CERT_REQ
         case ASN_CONTENT_TYPE:
             XMEMCPY(name->encoded + idx, attrPkcs9ContentTypeOid,
                     sizeof(attrPkcs9ContentTypeOid));
@@ -26549,6 +26555,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             /* str type */
             name->encoded[idx++] = nameTag;
             break;
+    #endif
         default:
             name->encoded[idx++] = 0x55;
             name->encoded[idx++] = 0x04;
@@ -26621,10 +26628,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 oidSz = cname->custom.oidSz;
                 break;
         #endif
+        #ifdef WOLFSSL_CERT_REQ
             case ASN_CONTENT_TYPE:
                 oid = attrPkcs9ContentTypeOid;
                 oidSz = sizeof(attrPkcs9ContentTypeOid);
                 break;
+        #endif
             default:
                 /* Construct OID using type. */
                 dnOid[2] = type;
