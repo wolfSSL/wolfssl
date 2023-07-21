@@ -8,6 +8,8 @@ jobs:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -34,6 +36,8 @@ jobs:
               test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
     needs: build_wolfssl
     steps:
       - name: Download lib

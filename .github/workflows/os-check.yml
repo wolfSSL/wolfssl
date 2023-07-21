@@ -22,6 +22,8 @@ jobs:
         ]
     name: make check
     runs-on: ${{ matrix.os }}
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 8
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -40,6 +42,8 @@ jobs:
         ]
     name: make user_setting.h
     runs-on: ${{ matrix.os }}
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -61,6 +65,8 @@ jobs:
         ]
     name: make user_setting.h (testwolfcrypt only)
     runs-on: ${{ matrix.os }}
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -80,6 +86,8 @@ jobs:
         os: [ ubuntu-latest, macos-latest ]
     name: make user_setting.h (with sed)
     runs-on: ${{ matrix.os }}
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 8
     steps:
     - uses: actions/checkout@v3
     - if: ${{ matrix.os == 'macos-latest' }}
@@ -96,6 +104,8 @@ jobs:
   windows_build:
     name: Windows Build Test
     runs-on: windows-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
     env:
       # Path to the solution file relative to the root of the project.
       SOLUTION_FILE_PATH: wolfssl64.sln

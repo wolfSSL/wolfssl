@@ -9,6 +9,8 @@ jobs:
     build_library:
         name: Compile libwolfssl.so
         runs-on: ubuntu-latest
+        # This should be a safe limit for the tests to run.
+        timeout-minutes: 4
         container:
             image: alpine:latest
         steps:
@@ -26,6 +28,8 @@ jobs:
     compile_container:
         name: Compile container
         runs-on: ubuntu-latest
+        # This should be a safe limit for the tests to run.
+        timeout-minutes: 2
         needs: build_library
         strategy:
             fail-fast: false
