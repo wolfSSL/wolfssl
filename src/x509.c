@@ -12632,6 +12632,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "DC";
             len = 2;
             break;
+        case NID_pkcs9_contentType:
+            str = "contentType";
+            len = 11;
+            break;
         default:
             WOLFSSL_MSG("Attribute type not found");
             str = NULL;
