@@ -8173,6 +8173,9 @@ then
 
     # Uses alt name
     ENABLED_ALTNAMES="yes"
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
+
 fi
 
 if test "$ENABLED_STRONGSWAN" = "yes"; then

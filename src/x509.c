@@ -5866,11 +5866,21 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 else if (entry->type == ASN_URI_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
                         entry->name);
+                     if (len >= MAX_WIDTH) {
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                }
+            #if defined(OPENSSL_ALL)
+                else if (entry->type == ASN_RID_TYPE) {
+                    len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
+                        entry->ridString);
                     if (len >= MAX_WIDTH) {
                         ret = WOLFSSL_FAILURE;
                         break;
                     }
                 }
+            #endif
                 else if (entry->type == ASN_OTHER_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH,
                         "othername <unsupported>");

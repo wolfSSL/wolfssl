@@ -5465,13 +5465,18 @@ static int CheckCurve(word32 oid)
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
  * @return  BUFFER_E when buffer too small.
  */
+int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
+{
+    return EncodeObjectId(in, inSz, out, outSz);
+}
+
 int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;
 
     /* check args */
-    if (in == NULL || outSz == NULL) {
+    if (in == NULL || outSz == NULL || inSz <= 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -5540,7 +5545,8 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 }
 #endif /* HAVE_OID_ENCODING */
 
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
+    defined(OPENSSL_ALL)
 /* Encode dotted form of OID into byte array version.
  *
  * @param [in]      in     Byte array containing OID.
@@ -5587,7 +5593,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 
     return 0;
 }
-#endif /* HAVE_OID_DECODING */
+#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT || OPENSSL_ALL */
 
 /* Decode the header of a BER/DER encoded OBJECT ID.
  *
@@ -11197,6 +11203,9 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         XFREE(altNames->ipString, heap, DYNAMIC_TYPE_ALTNAME);
     #endif
+    #if defined(OPENSSL_ALL)
+        XFREE(altNames->ridString, heap, DYNAMIC_TYPE_ALTNAME);
+    #endif
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
         altNames = tmp;
     }
@@ -12970,6 +12979,90 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
+#if defined(OPENSSL_ALL)
+/* used to set the human readable string for the registeredID with an
+ * ASN_RID_TYPE DNS entry
+ * return 0 on success
+ */
+static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
+{
+    int i, j, ret   = 0;
+    int nameSz      = 0;
+    int numerical   = 0;
+    int nid         = 0;
+    int tmpSize     = MAX_OID_SZ;
+    word32 oid      = 0;
+    word32 idx      = 0;
+    word16 tmpName[MAX_OID_SZ];
+    char   oidName[MAX_OID_SZ];
+    char*  finalName;
+
+    if (entry == NULL || entry->type != ASN_RID_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (entry->len <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(&oidName, 0, MAX_OID_SZ);
+
+    ret = GetOID((const byte*)entry->name, &idx, &oid, oidIgnoreType,
+                 entry->len);
+
+    if (ret == 0 && (nid = oid2nid(oid, oidCsrAttrType)) > 0) {
+        /* OID has known string value */
+        finalName = (char*)wolfSSL_OBJ_nid2ln(nid);
+    }
+    else {
+        /* Decode OBJECT_ID into dotted form array. */
+        ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
+                tmpName, (word32*)&tmpSize);
+
+        numerical = 1;
+        if (ret == 0) {
+            j = 0;
+            /* Append each number of dotted form. */
+            for (i = 0; i < tmpSize; i++) {
+                ret = XSNPRINTF(oidName + j, MAX_OID_SZ, "%d", tmpName[i]);
+                if (ret >= 0) {
+                    j += ret;
+                    if (i < tmpSize - 1) {
+                        oidName[j] = '.';
+                        j++;
+                    }
+                }
+                else {
+                    return BUFFER_E;
+                }
+            }
+            ret = 0;
+            finalName = oidName;
+        }
+    }
+
+    if (ret == 0) {
+        nameSz = (int)XSTRLEN((const char*)finalName);
+
+        entry->ridString = (char*)XMALLOC(nameSz + numerical, heap,
+                                          DYNAMIC_TYPE_ALTNAME);
+
+        if (entry->ridString == NULL) {
+            ret = MEMORY_E;
+        }
+
+        if (ret == 0) {
+            XMEMCPY(entry->ridString, finalName, nameSz);
+            if (numerical) {
+                entry->ridString[nameSz] = '\0';
+            }
+        }
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_ALL && WOLFSSL_ASN_TEMPLATE */
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 
 #if defined(WOLFSSL_CERT_GEN) || !defined(NO_CERTS)
@@ -13048,6 +13141,15 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, (size_t)strLen);
         dnsEntry->name[strLen] = '\0';
 
+#if defined(OPENSSL_ALL)
+        /* store registeredID as a string */
+        if (type == ASN_RID_TYPE) {
+            if ((ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap)) != 0) {
+                XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+            }
+        }
+#endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         /* store IP addresses as a string */
         if (type == ASN_IP_TYPE) {
@@ -17599,6 +17701,15 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
     }
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
+
+    /* GeneralName choice: registeredID */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
+        ret = SetDNSEntry(cert, (const char*)(input + idx), len,
+                ASN_RID_TYPE, &cert->altNames);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
     /* GeneralName choice: otherName */
@@ -17607,8 +17718,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         ret = DecodeOtherName(cert, input, &idx, idx + (word32)len);
     }
 #endif
-    /* GeneralName choice: dNSName, x400Address, ediPartyName,
-     *                     registeredID */
+    /* GeneralName choice: dNSName, x400Address, ediPartyName */
     else {
         WOLFSSL_MSG("\tUnsupported name type, skipping");
         idx += (word32)len;
@@ -18118,7 +18228,55 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_QT || OPENSSL_ALL */
+#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+#if defined(OPENSSL_ALL)
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
+            DNS_entry* rid;
+            int strLen;
+            word32 lenStartIdx = idx;
+            WOLFSSL_MSG("Decoding Subject Alt. Name: Registered Id");
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+            /* check that strLen at index is not past input buffer */
+            if (strLen + idx > sz) {
+                return BUFFER_E;
+            }
+
+            rid = AltNameNew(cert->heap);
+            if (rid == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            rid->type = ASN_RID_TYPE;
+            rid->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (rid->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+            rid->len = strLen;
+            XMEMCPY(rid->name, &input[idx], strLen);
+            rid->name[strLen] = '\0';
+
+            if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
+                WOLFSSL_MSG("\tOut of Memory for registerd Id string");
+                XFREE(rid->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+
+            AddAltName(cert, rid);
+
+            length -= strLen;
+            idx    += (word32)strLen;
+        }
+#endif /* OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
         else if (current_byte ==
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
@@ -21188,6 +21346,22 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
                     XMEMCPY(cert->serial, cert->sNum, (size_t)cert->sNumLen);
                     cert->serialSz = cert->sNumLen;
                 }
+            }
+            break;
+
+        case UNSTRUCTURED_NAME_OID:
+            /* Clear dynamic data and specify choices acceptable. */
+            XMEMSET(strDataASN, 0, sizeof(strDataASN));
+            GetASN_Choice(&strDataASN[STRATTRASN_IDX_STR], strAttrChoice);
+            /* Parse a string. */
+            ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
+                               1, input, &idx, maxIdx);
+            if (ret == 0) {
+                /* Store references to unstructured name. */
+                cert->unstructuredName =
+                        (char*)strDataASN[STRATTRASN_IDX_STR].data.ref.data;
+                cert->unstructuredNameLen = (int)strDataASN[STRATTRASN_IDX_STR].
+                    data.ref.length;
             }
             break;
 
@@ -29706,6 +29880,11 @@ static const ASNItem certReqBodyASN[] = {
 /* ATTRS_CPW_SET   */             { 3, ASN_SET, 1, 1, 0 },
 /* ATTRS_CPW_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
 /* ATTRS_CPW_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
+/* ATTRS_USN_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* ATTRS_USN_OID   */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* ATTRS_USN_SET   */             { 3, ASN_SET, 1, 1, 0 },
+/* ATTRS_USN_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
+/* ATTRS_USN_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
                                                  /* Extensions Attribute */
 /* EXT_SEQ         */         { 2, ASN_SEQUENCE, 1, 1, 1 },
 /* EXT_OID         */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
@@ -29723,6 +29902,11 @@ enum {
     CERTREQBODYASN_IDX_ATTRS_CPW_SET,
     CERTREQBODYASN_IDX_ATTRS_CPW_PS,
     CERTREQBODYASN_IDX_ATTRS_CPW_UTF,
+    CERTREQBODYASN_IDX_ATTRS_USN_SEQ,
+    CERTREQBODYASN_IDX_ATTRS_USN_OID,
+    CERTREQBODYASN_IDX_ATTRS_USN_SET,
+    CERTREQBODYASN_IDX_ATTRS_USN_PS,
+    CERTREQBODYASN_IDX_ATTRS_USN_UTF,
     CERTREQBODYASN_IDX_EXT_SEQ,
     CERTREQBODYASN_IDX_EXT_OID,
     CERTREQBODYASN_IDX_EXT_SET,
@@ -29975,6 +30159,23 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             /* Leave out challenge password attribute items. */
             SetASNItem_NoOutNode(dataASN, certReqBodyASN,
                     CERTREQBODYASN_IDX_ATTRS_CPW_SEQ, certReqBodyASN_Length);
+        }
+        if (cert->unstructuredName[0] != '\0') {
+            /* Add unstructured name attribute. */
+            /* Set unstructured name OID. */
+            SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_USN_OID],
+                attrUnstructuredNameOid, sizeof(attrUnstructuredNameOid));
+                /* PRINTABLE_STRING - set buffer */
+                SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_USN_PS],
+                        (byte*)cert->unstructuredName,
+                        (word32)XSTRLEN(cert->unstructuredName));
+                /* UTF8STRING - don't encode */
+                dataASN[CERTREQBODYASN_IDX_ATTRS_USN_UTF].noOut = 1;
+        }
+        else {
+            /* Leave out unstructured name attribute item. */
+            SetASNItem_NoOutNode(dataASN, certReqBodyASN,
+                    CERTREQBODYASN_IDX_ATTRS_USN_SEQ, certReqBodyASN_Length);
         }
         if (extSz > 0) {
             /* Set extension attribute OID. */
@@ -37514,9 +37715,6 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file)
 
     return ret;
 }
-
-/* Maximum OID dotted form size. */
-#define ASN1_OID_DOTTED_MAX_SZ         16
 
 /* Print OID in dotted form or as hex bytes.
  *
