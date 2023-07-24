@@ -7955,10 +7955,10 @@ void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
  * free'd with a call to wolfSSL_DH_free -- not individually.
  *
  * @param [in, out] dh   DH key to set.
- * @parma [in]      p    Prime value to set. May be NULL when value already
+ * @param [in]      p    Prime value to set. May be NULL when value already
  *                       present.
- * @parma [in]      q    Order value to set. May be NULL.
- * @parma [in]      g    Generator value to set. May be NULL when value already
+ * @param [in]      q    Order value to set. May be NULL.
+ * @param [in]      g    Generator value to set. May be NULL when value already
  *                       present.
  * @return  1 on success.
  * @return  0 on failure.
@@ -8258,7 +8258,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 /* Generate DH parameters.
  *
  * @param [in] prime_len  Length of prime in bits.
- * @param [in] generator  Gnerator value to use.
+ * @param [in] generator  Generator value to use.
  * @param [in] callback   Called with progress information. Unused.
  * @param [in] cb_arg     User callback argument. Unused.
  * @return  NULL on failure.
@@ -8293,7 +8293,7 @@ WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
  *
  * @param [in] dh         DH key to generate parameters into.
  * @param [in] prime_len  Length of prime in bits.
- * @param [in] generator  Gnerator value to use.
+ * @param [in] generator  Generator value to use.
  * @param [in] callback   Called with progress information. Unused.
  * @param [in] cb_arg     User callback argument. Unused.
  * @return  0 on failure.
@@ -10464,7 +10464,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
 /* Add two points on the same together.
  *
  * @param [in]  curveIdx  Index of curve in ecc_set.
- * @oaram [out] r         Result point.
+ * @param [out] r         Result point.
  * @param [in]  p1        First point to add.
  * @param [in]  p2        Second point to add.
  * @return  1 on success.
@@ -13446,7 +13446,7 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
     return (int)len;
 }
 
-/* Get the pointer to the feilds of the ECDSA signature.
+/* Get the pointer to the fields of the ECDSA signature.
  *
  * r and s untouched when sig is NULL.
  *

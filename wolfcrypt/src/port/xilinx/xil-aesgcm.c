@@ -277,7 +277,7 @@ int wc_AesGcmEncrypt(       Aes* aes, byte* out,
 
     if (NEEDS_ALIGNMENT(out, XIL_AESGCM_ALIGN)) {
         if (in != in_aligned) {
-            /* In case `in` has been copied already, re-use that buffer
+            /* In case `in` has been copied already, reuse that buffer
              * and also write to it instead of allocating another one.
              */
             out_aligned = in_aligned;
@@ -392,7 +392,7 @@ int  wc_AesGcmDecrypt(       Aes* aes, byte* out,
 
     if (NEEDS_ALIGNMENT(out, XIL_AESGCM_ALIGN)) {
         if (in != in_aligned) {
-            /* In case `in` has been copied already, re-use that buffer
+            /* In case `in` has been copied already, reuse that buffer
              * and also write to it instead of allocating another one.
              */
             out_aligned = in_aligned;

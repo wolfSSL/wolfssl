@@ -7746,7 +7746,7 @@ static int test_wolfSSL_reuse_WOLFSSLobj(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
     !defined(WOLFSSL_NO_TLS12)
     /* The unit test for session resumption by re-using WOLFSSL object.
-     * WOLFSSL object is not cleared after first session. It re-use the object
+     * WOLFSSL object is not cleared after first session. It reuse the object
      * for second connection.
     */
     tcp_ready ready;
@@ -51728,7 +51728,7 @@ static int test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
 
     ExpectIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
 
-    /* Test AAD re-use */
+    /* Test AAD reuse */
     EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
@@ -62888,7 +62888,7 @@ static int test_dtls_ipv6_check(void)
 
     ExpectIntEQ(wolfSSL_dtls_set_peer(ssl_s, &fake_addr6, sizeof(fake_addr6)),
         WOLFSSL_SUCCESS);
-    /* re-use the socket */
+    /* reuse the socket */
     ExpectIntEQ(wolfSSL_set_fd(ssl_c, sockfd), WOLFSSL_SUCCESS);
     wolfSSL_dtls_set_using_nonblock(ssl_s, 1);
     ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);

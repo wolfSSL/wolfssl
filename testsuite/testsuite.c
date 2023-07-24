@@ -724,7 +724,7 @@ void join_thread(THREAD_TYPE thread)
 /* Create SHA-256 hash of the file based on filename.
  *
  * @param [in]  file   Name of file.
- * @parma [out] check  Buffer to hold SHA-256 hash.
+ * @param [out] check  Buffer to hold SHA-256 hash.
  */
 void file_test(const char* file, byte* check)
 {

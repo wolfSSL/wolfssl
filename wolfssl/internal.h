@@ -5307,7 +5307,7 @@ typedef struct Dtls13Rtx {
 typedef struct CIDInfo CIDInfo;
 #endif /* WOLFSSL_DTLS_CID */
 
-/* The idea is to re-use the context suites object whenever possible to save
+/* The idea is to reuse the context suites object whenever possible to save
  * space. */
 #define WOLFSSL_SUITES(ssl) \
     ((const Suites*) ((ssl)->suites != NULL ? \

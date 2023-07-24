@@ -6309,7 +6309,7 @@ static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
         word16 haveFalconSig, word16 haveDilithiumSig, word16 haveAnon,
         int side)
 {
-    /* make sure server has DH parms, and add PSK if there */
+    /* make sure server has DH params, and add PSK if there */
     if (side == WOLFSSL_SERVER_END) {
         InitSuites(suites, pv, keySz, haveRSA, havePSK, haveDH, haveECDSAsig,
                    haveECC, TRUE, haveStaticECC, haveFalconSig,
@@ -6939,7 +6939,7 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     return ret;
 }
 
-/* called if user attempts to re-use WOLFSSL object for a new session.
+/* called if user attempts to reuse WOLFSSL object for a new session.
  * For example wolfSSL_clear() is called then wolfSSL_connect or accept */
 int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
@@ -26430,7 +26430,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                 if (hashAlgo < ssl->options.hashAlgo)
                     break;
             #else
-                /* Is hash algorithm stonger than last chosen? */
+                /* Is hash algorithm stronger than last chosen? */
                 if (ret == 0 && hashAlgo > ssl->options.hashAlgo)
                     break;
             #endif
@@ -27252,7 +27252,7 @@ exit_dpk:
  *
  * @param [in] sigAlgo  Signature algorithm.
  * @return  1 when caching required.
- * @return  0 when cacheing not required.
+ * @return  0 when caching not required.
  */
 static int SigAlgoCachesMsgs(int sigAlgo)
 {

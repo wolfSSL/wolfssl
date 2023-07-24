@@ -382,7 +382,7 @@ set to the number of bytes written into “out”.
 wolfSSL will not auto-delete generated keys associated with wolfCrypt
 structures (ex: `RsaKey`, `ecc_key`, etc) when the respective key free function
 is called (ex: `wc_ecc_free()`, `wc_FreeRsaKey()`). This is done by design in
-case the application wants to re-use that key that has been generated and
+case the application wants to reuse that key that has been generated and
 stored in the SE050.
 
 Credentials can be deleted from the SE050 storage by calling the wolfSSL helper
