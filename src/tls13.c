@@ -77,7 +77,7 @@
  *    Requires client to set a client certificate
  * WOLFSSL_PSK_MULTI_ID_PER_CS
  *    When multiple PSK identities are available for the same cipher suite.
- *    Sets the first byte of the client identity to the count of identites
+ *    Sets the first byte of the client identity to the count of identities
  *    that have been seen so far for the cipher suite.
  * WOLFSSL_CHECK_SIG_FAULTS
  *    Verifies the ECC signature after signing in case of faults in the

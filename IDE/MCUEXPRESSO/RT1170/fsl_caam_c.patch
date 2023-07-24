@@ -117,7 +117,7 @@
 +    /* initialize descriptor from template */
 +    (void)caam_memcpy(descriptor, templateKeyPairECC, sizeof(templateKeyPairECC));
 +
-+    /* add descriptor lenght in bytes to HEADER descriptor command */
++    /* add descriptor length in bytes to HEADER descriptor command */
 +    DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 +
 +    DESC_SET_ADDR(descriptor[1], (CAAM_ECDSA_KEYGEN_PD | keyType));
@@ -200,7 +200,7 @@
 +    /* initialize descriptor from template */
 +    (void)caam_memcpy(descriptor, templateSignECC, sizeof(templateSignECC));
 +
-+    /* add descriptor lenght in bytes to HEADER descriptor command */
++    /* add descriptor length in bytes to HEADER descriptor command */
 +    DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 +
 +    DESC_SET_ADDR(descriptor[1], (CAAM_ECDSA_PD | keyType));
@@ -275,7 +275,7 @@
 +    /* initialize descriptor from template */
 +    (void)caam_memcpy(descriptor, templateVerifyECC, sizeof(templateVerifyECC));
 +
-+    /* add descriptor lenght in bytes to HEADER descriptor command */
++    /* add descriptor length in bytes to HEADER descriptor command */
 +    DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 +
 +    DESC_SET_ADDR(descriptor[1], (CAAM_ECDSA_PD | keyType));
@@ -344,7 +344,7 @@
 +    /* initialize descriptor from template */
 +    (void)caam_memcpy(descriptor, templateAgreeECC, sizeof(templateAgreeECC));
 +
-+    /* add descriptor lenght in bytes to HEADER descriptor command */
++    /* add descriptor length in bytes to HEADER descriptor command */
 +    DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 +
 +    DESC_SET_ADDR(descriptor[1], (CAAM_ECDSA_KEYGEN_PD | keyType));
@@ -445,7 +445,7 @@
 +    /* initialize descriptor from template */
 +    (void)caam_memcpy(descriptor, templateBlob, sizeof(templateBlob));
 +
-+    /* add descriptor lenght in bytes to HEADER descriptor command */
++    /* add descriptor length in bytes to HEADER descriptor command */
 +    DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 +    descriptor[1] |= keyModSz;
 +    DESC_SET_ADDR(descriptor[2], keyMod);

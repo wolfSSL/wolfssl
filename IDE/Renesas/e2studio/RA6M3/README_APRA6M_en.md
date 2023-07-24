@@ -106,7 +106,7 @@ The following steps explain how to generate the missing files and where to place
 6.) Copy files from `dummy_app` into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`
     **NOTE:** This may need to be done outside of the e2studio environment (e.g. File Explorer).
 
-+ Select and Copy the followng folder inside dummy_app
++ Select and Copy the following folder inside dummy_app
 
     `src/`  
     `script/`

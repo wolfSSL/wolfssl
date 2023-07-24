@@ -1,7 +1,7 @@
 autogen.sh - creates ./configure from source checkout, sets up git hooks
 
 pre-commit.sh - our pre commit hook, saves current state before running commit
-                tests to allow a resotre back to current state
+                tests to allow a restore back to current state
 
 commit-tests.sh - our commit tests, must pass before a commit is accepted, use
                   -n (--no-verify) to disable

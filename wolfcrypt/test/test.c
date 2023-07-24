@@ -836,7 +836,7 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
     }
 #endif
 
-/* set test pass output to printf if not overriden */
+/* set test pass output to printf if not overridden */
 #ifndef TEST_PASS
     /* redirect to printf */
     #define TEST_PASS(...) {                                    \
@@ -6346,7 +6346,7 @@ static wc_test_ret_t rc2_cbc_test(void)
             return WC_TEST_RET_ENC_NC;
         }
 
-        /* reset IV for decrypt, since overriden by encrypt operation */
+        /* reset IV for decrypt, since overridden by encrypt operation */
         ret = wc_Rc2SetIV(&rc2, (byte*)test_rc2[j].iv);
         if (ret != 0) {
             return WC_TEST_RET_ENC_EC(ret);

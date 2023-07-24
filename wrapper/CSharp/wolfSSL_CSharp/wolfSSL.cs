@@ -725,7 +725,7 @@ namespace wolfSSL.CSharp {
                 int ret;
                 byte[] msg;
 
-                buf.Clear(); /* Clear incomming buffer */
+                buf.Clear(); /* Clear incoming buffer */
 
                 if (sslCtx == IntPtr.Zero)
                 {
@@ -1760,7 +1760,7 @@ namespace wolfSSL.CSharp {
         /// Used to load in the private key from a file
         /// </summary>
         /// <param name="ctx">CTX structure for TLS/SSL connections </param>
-        /// <param name="fileKey">Name of the file, includeing absolute directory</param>
+        /// <param name="fileKey">Name of the file, including absolute directory</param>
         /// <param name="type">Type of file ie PEM or DER</param>
         /// <returns>1 on success</returns>
         public static int CTX_use_PrivateKey_file(IntPtr ctx, string fileKey, int type)

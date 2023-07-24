@@ -2,7 +2,7 @@
 
 # openssl.test
 
-# Enviornment variables used:
+# Environment variables used:
 # OPENSSL            (openssl app to use)
 # OPENSSL_ENGINE_ID  (engine id if any i.e. "wolfengine")
 
@@ -490,7 +490,7 @@ IFS="$OIFS" #restore separator
 # Start OpenSSL servers
 #
 
-# Check for cerificate support in wolfSSL
+# Check for certificate support in wolfSSL
 wolf_certs=`$WOLFSSL_CLIENT -? 2>&1`
 case $wolf_certs in
 *"cert"*)

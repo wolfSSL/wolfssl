@@ -3,7 +3,7 @@
 
 #include "r_sce.h"
 
-/** Firmware update data and user key datas */
+/** Firmware update data and user key data */
 typedef struct user_key_block_data
 {
     /* Provisioning key wapped by Renesas DLM */

@@ -1108,7 +1108,7 @@ int TLSX_ConnectionID_Use(WOLFSSL* ssl)
     /* CIDInfo needs to be accessed every time we send or receive a record. To
      * avoid the cost of the extension lookup save a pointer to the structure
      * inside the SSL object itself, and save a pointer to the SSL object in the
-     * extension. The extension freeing routine uses te pointer to the SSL
+     * extension. The extension freeing routine uses the pointer to the SSL
      * object to find the structure and to set ssl->dtlsCidInfo pointer to NULL
      * after freeing the structure. */
     ssl->dtlsCidInfo = info;

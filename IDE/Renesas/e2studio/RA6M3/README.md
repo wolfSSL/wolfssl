@@ -122,7 +122,7 @@ The following steps explain how to generate the missing files and where to place
 + Build wolfSSL_RA6M3.
 
 5.) Copy files from `dummy_app` into each executable projects\
-+ Select and Copy the followng folder inside dummy_app\
++ Select and Copy the following folder inside dummy_app\
 
   `script/`
 

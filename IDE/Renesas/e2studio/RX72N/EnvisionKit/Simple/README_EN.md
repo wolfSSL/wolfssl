@@ -114,14 +114,14 @@ Now that the test application is ready to build.
 ## 7. Running test application as Client
 -----
 ### 7.1 Run Client as TCP
-When it enables SIMPLE_TCP_CLIENT, we can run TCP clint on the board. We are able to use [this TCP server allication](https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/server-tcp.c) as the opposite TCP server. To complie and run the server,
+When it enables SIMPLE_TCP_CLIENT, we can run TCP clint on the board. We are able to use [this TCP server allication](https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/server-tcp.c) as the opposite TCP server. To compile and run the server,
 ```
 $ gcc server-tcp.c -o server-tcp
 $ ./server-tcp
 ```
 
 If needed, it updates server IP address and port. Those are defined by `SIMPLE_TCPSERVER_IP` and `SIMPLE_TCPSERVER_PORT` in `test/src/simple_tcp.c`
-You will see messages on Reneas Virtual Console when its communication succedes.
+You will see messages on Reneas Virtual Console when its communication succeeds.
 
 ```
 Received : I hear ya fa shizzle!
@@ -140,7 +140,7 @@ Waiting for a connection...
 When it enables SIMPLE_TLS_CLIENT, we can run TLS client on the board.If needed, it updates server IP address and port. Those are defined by `SIMPLE_TLSSERVER_IP` and `SIMPLE_TLSSERVER_PORT` in `test/src/simple_tls_tsip.c`. After changing it, you need to re-compile test project.
 
 
-As the opposite TLS server, we can use an example server in wolfSSL soure tree. To configure and build it,
+As the opposite TLS server, we can use an example server in wolfSSL source tree. To configure and build it,
 
 ```
 $ cd <wolfssl-folder>
@@ -159,7 +159,7 @@ Therefore, for an example server, it needs to specify ECC certificate correspond
 ./examples/server/server -v 4 -b -i -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem -A ./certs/client-ecc-cert.pem
 ```
 
-You will see messages on Renesas Debug Virtual Consol
+You will see messages on Renesas Debug Virtual Console
 ```
 cipher : TLS13-AES128-GCM-SHA256
 Received: I hear you fa shizzle!
@@ -243,7 +243,7 @@ When you want to run test project by TLS 1.3, it enables `#define WOLFSSL_TLS13`
 ## 8. Running test application as Server
 
 ### 8.1 Run Server as TCP Server
-When it enables `SIMPLE_TCP_SERVER`, we can run TCP server on the board. We are able to use [this TCP client](https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/client-tcp.c) as the opposite TCP client. To complie and run the server,
+When it enables `SIMPLE_TCP_SERVER`, we can run TCP server on the board. We are able to use [this TCP client](https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/client-tcp.c) as the opposite TCP client. To compile and run the server,
 
 ```
 $ gcc client-tcp.c -o client-tcp

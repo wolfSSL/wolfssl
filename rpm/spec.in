@@ -372,7 +372,7 @@ mkdir -p $RPM_BUILD_ROOT/
 * Thu May 31 2018 John Safranek <john@wolfssl.com>
 - Update the version number on the library SO file.
 * Fri Mar 02 2018 Jacob Barthelmeh <jacob@wolfssl.com>
-- Added headder files fips.h, buffer.h, objects.h, rc4.h and example tls_bench.c
+- Added header files fips.h, buffer.h, objects.h, rc4.h and example tls_bench.c
 * Fri Sep 08 2017 Jacob Barthelmeh <jacob@wolfssl.com>
 - Change name for header wolfssl/io.h to wolfssl/wolfio.h
 * Fri Aug 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>

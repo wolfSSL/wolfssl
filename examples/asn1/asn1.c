@@ -228,7 +228,7 @@ static int FindPem(unsigned char* data, word32 offset, word32 len,
     }
 
     if (ret == 0) {
-        /* Return start and end indeces. */
+        /* Return start and end indices. */
         *start = i;
         *end = j;
     }

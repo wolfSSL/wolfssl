@@ -24,7 +24,7 @@ config WOLFSSL_PROMPTLESS
           Symbol to disable the prompt for WOLFSSL selection.
           This symbol may be used internally in a Kconfig tree to hide the
           wolfSSL menu prompt and instead handle the selection of WOLFSSL from
-          dependent sub-configurations and thus preven stuck symbol behavior.
+          dependent sub-configurations and thus prevent stuck symbol behavior.
 
 
 menuconfig WOLFSSL

@@ -136,13 +136,13 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
 
     if ((client_ctx = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heapHint),
                                                       heapHint)) == NULL) {
-        printf("ERROR: faild to create WOLFSSL_CTX\n");
+        printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;                                                
     }
 
     if ((wolfSSL_CTX_load_static_memory(&client_ctx, NULL, heapBufIO,
                 sizeof(heapBufIO), WOLFMEM_IO_POOL, 10)) != WOLFSSL_SUCCESS) {
-        printf("ERROR: faild to set static memory for IO\n");
+        printf("ERROR: failed to set static memory for IO\n");
         return;
     }
 

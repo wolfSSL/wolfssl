@@ -102,7 +102,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Enter `dummy_application` as the project name. Click Next.
 + Under `RA library project`, select `wolfSSL_RA6M4`.
 + Click Finish.
-+ Copy the followng folder and file at `dummy_application` to `test_RA6M4`\
++ Copy the following folder and file at `dummy_application` to `test_RA6M4`\
   script/\
   src/sce_tst_thread_entry.c
   
@@ -136,7 +136,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     you can specify "RTT control block" to 0x20020000 0x10000 by Search Range
   
 ## Run Client
-1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 projet
+1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 project
 
 2.) Client IP address and Server IP address
 
@@ -233,7 +233,7 @@ You will see the following message on J-LinK RTT Viewer when using ECDSA sign an
 
 
 ### Run Multi Client Session example
-1.) Enable TLS_CLIENT and TLS_MULTITHREAD_TEST definition in wolfssl_demo.h of test_RA6M4 projet
+1.) Enable TLS_CLIENT and TLS_MULTITHREAD_TEST definition in wolfssl_demo.h of test_RA6M4 project
 
 2.) Follow [Run Client](#run-client) instruction 
 

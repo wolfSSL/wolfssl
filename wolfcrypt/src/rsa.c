@@ -3280,7 +3280,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    /* Always check for ciphertext of 0 or 1. (Should't for OAEP decrypt.) */
+    /* Always check for ciphertext of 0 or 1. (Shouldn't for OAEP decrypt.) */
     return wc_RsaFunction_ex(in, inLen, out, outLen, type, key, rng, 1);
 }
 
@@ -3392,7 +3392,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   labelSz, sz);
         }
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-           /* SCE needs warpped key which is passed via
+           /* SCE needs wrapped key which is passed via
             * user ctx object of crypt-call back.
             */
        #ifdef WOLF_CRYPTO_CB

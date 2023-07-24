@@ -623,7 +623,7 @@ void wait_tcp_ready(func_args* args)
 
 /* Start a thread.
  *
- * @param [in]  fun     Function to executre in thread.
+ * @param [in]  fun     Function to execute in thread.
  * @param [in]  args    Object to send to function in thread.
  * @param [out] thread  Handle to thread.
  */

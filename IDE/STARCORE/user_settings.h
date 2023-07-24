@@ -39,7 +39,7 @@ extern "C" {
 #undef WOLFSSL_STARCORE
 #define WOLFSSL_STARCORE
 
-/* Endianess */
+/* Endianness */
 #undef BIG_ENDIAN_ORDER
 #define BIG_ENDIAN_ORDER
 
@@ -204,7 +204,7 @@ extern "C" {
         #else
             #undef ALT_ECC_SIZE
             #define ALT_ECC_SIZE
-            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overridden */
             /* #undef FP_MAX_BITS_ECC */
             /* #define FP_MAX_BITS_ECC (256 * 2) */
         #endif

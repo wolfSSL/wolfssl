@@ -1646,7 +1646,7 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char *file);
     \param file a pointer to the name of the file containing the RSA private
     key to be loaded into the wolfSSL SSL session, with format as specified
     by format.
-    \parm format the encoding type of the RSA private key specified by file.
+    \param format the encoding type of the RSA private key specified by file.
     Possible values include SSL_FILETYPE_PEM and SSL_FILETYPE_ASN1.
 
     _Example_
@@ -7085,7 +7085,7 @@ int  wolfSSL_SetTmpDH_file(WOLFSSL* ssl, const char* f, int format);
     to MAX_DH_SIZE.
     \param g a constant unsigned char pointer loaded into the buffer
     member of the serverDH_G struct.
-    \param gSz an int type representing the size of g, initialized ot
+    \param gSz an int type representing the size of g, initialized to
     MAX_DH_SIZE.
 
     _Exmaple_
@@ -13158,7 +13158,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     exchange. Please note that when using protocol DTLS v1.3, the cookie
     exchange is enabled by default. The Cookie holds a hash of the current
     transcript so that another server process can handle the ClientHello in
-    reply.  The secret is used when generting the integrity check on the Cookie
+    reply.  The secret is used when generating the integrity check on the Cookie
     data.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -13169,7 +13169,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return SIDE_ERROR if called with a client.
-    \return WOLFSSL_SUCCESS if succesful.
+    \return WOLFSSL_SUCCESS if successful.
     \return MEMORY_ERROR if allocating dynamic memory for storing secret failed.
     \return Another -ve value on internal error.
 
@@ -13327,7 +13327,7 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     \brief This function is called on a TLS v1.3 client or server wolfSSL to
     force the rollover of keys. A KeyUpdate message is sent to the peer and
     new keys are calculated for encryption. The peer will send back a KeyUpdate
-    message and the new decryption keys wil then be calculated.
+    message and the new decryption keys will then be calculated.
     This function can only be called after a handshake has been completed.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -13392,7 +13392,7 @@ int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
     \ingroup Setup
 
     \brief This function is called on a TLS v1.3 client wolfSSL context to allow
-    a client certifcate to be sent post handshake upon request from server.
+    a client certificate to be sent post handshake upon request from server.
     This is useful when connecting to a web server that has some pages that
     require client authentication and others that don't.
 
@@ -13423,7 +13423,7 @@ int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
     \ingroup Setup
 
     \brief This function is called on a TLS v1.3 client wolfSSL to allow
-    a client certifcate to be sent post handshake upon request from server.
+    a client certificate to be sent post handshake upon request from server.
     A Post-Handshake Client Authentication extension is sent in the ClientHello.
     This is useful when connecting to a web server that has some pages that
     require client authentication and others that don't.
@@ -13613,7 +13613,7 @@ int  wolfSSL_preferred_group(WOLFSSL* ssl);
 
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
     with wolfSSL_CTX_new().
-    \param [in] groups a list of key exhange groups by identifier.
+    \param [in] groups a list of key exchange groups by identifier.
     \param [in] count the number of key exchange groups in groups.
 
     \return BAD_FUNC_ARG if a pointer parameter is null, the number of groups
@@ -13655,7 +13655,7 @@ int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
     use with the TLS v1.3 connections.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param [in] groups a list of key exhange groups by identifier.
+    \param [in] groups a list of key exchange groups by identifier.
     \param [in] count the number of key exchange groups in groups.
 
     \return BAD_FUNC_ARG if a pointer parameter is null, the number of groups

@@ -652,7 +652,7 @@ const char* usage[] = {
     "  -out             name of file to write to (uses stdout otherwise)",
     "  -o --offset      offset into file where data to convert starts",
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
-    "  -p --pass        password to use wih enncrypted keys",
+    "  -p --pass        password to use with encrypted keys",
 #endif
 #ifdef WOLFSSL_DER_TO_PEM
     "  -d --der         input is DER and output is PEM",
