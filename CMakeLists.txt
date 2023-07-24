@@ -2075,6 +2075,7 @@ endif()
 # Tests and Examples
 ####################################################
 
+include(CTest)
 if(WOLFSSL_EXAMPLES)
     # Build wolfSSL client example
     add_executable(client
@@ -2144,6 +2145,7 @@ if(WOLFSSL_EXAMPLES)
     set_property(TARGET unit_test
                  PROPERTY RUNTIME_OUTPUT_NAME
                  unit.test)
+    add_test(NAME unit_test COMMAND ${WOLFSSL_OUTPUT_BASE}/tests/unit.test)
 endif()
 
 if(WOLFSSL_CRYPT_TESTS)
@@ -2183,6 +2185,7 @@ if(WOLFSSL_CRYPT_TESTS)
     if(WOLFSSL_CRYPT_TESTS_HELP)
         target_compile_options(wolfcrypttest PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
     endif()
+    add_test(NAME wolfcrypttest COMMAND ${WOLFSSL_OUTPUT_BASE}/wolfcrypt/test/testwolfcrypt)
 
     # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
@@ -2196,6 +2199,7 @@ if(WOLFSSL_CRYPT_TESTS)
     set_property(TARGET wolfcryptbench
                  PROPERTY RUNTIME_OUTPUT_NAME
                  benchmark)
+    add_test(NAME wolfcryptbench COMMAND ${WOLFSSL_OUTPUT_BASE}/wolfcrypt/benchmark/benchmark)
 endif()
 
 ####################################################
@@ -2342,9 +2346,9 @@ set(INSTALLED_EXAMPLES
 # Install the library
 install(TARGETS wolfssl
         EXPORT wolfssl-targets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
 # Install the headers
 install(DIRECTORY ${WOLFSSL_OUTPUT_BASE}/wolfssl/
@@ -2384,8 +2388,8 @@ install(EXPORT wolfssl-targets
 
 set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix "\${prefix}")
-set(libdir "\${exec_prefix}/lib")
-set(includedir "\${prefix}/include")
+set(libdir "${CMAKE_INSTALL_FULL_LIBDIR}")
+set(includedir "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
 set(VERSION ${PROJECT_VERSION})
 
 configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
