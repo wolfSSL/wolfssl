@@ -10717,7 +10717,8 @@ static int test_wolfSSL_SCR_Reconnect(void)
     EXPECT_DECLS;
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
     defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) && \
-    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -61017,8 +61018,7 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 #if !defined(NO_FILESYSTEM) && \
      defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_RSA)
+     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 
 static int test_wolfSSL_dtls_stateless2(void)
 {
@@ -61241,9 +61241,8 @@ static int test_wolfSSL_dtls_stateless_downgrade(void)
 #endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)*/
 
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
-    !defined(NO_OLD_TLS) && !defined(NO_RSA)
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_OLD_TLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 static int test_WOLFSSL_dtls_version_alert(void)
 {
     EXPECT_DECLS;
@@ -61297,7 +61296,8 @@ static int test_WOLFSSL_dtls_version_alert(void)
 
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
+    && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
 {
     struct test_memio_ctx *test_ctx;
@@ -61466,7 +61466,7 @@ static int test_ticket_nonce_malloc(void)
     !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                 \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_RSA) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 
 static int test_ticket_ret_create(void)
 {
@@ -61924,7 +61924,7 @@ static int test_TLS_13_ticket_different_ciphers(void)
 }
 #endif
 #if defined(WOLFSSL_EXTRA_ALERTS) && !defined(WOLFSSL_NO_TLS12) &&             \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 
 #define TEST_WRONG_CS_CLIENT "DHE-RSA-AES128-SHA"
 /* AKA TLS_DHE_RSA_WITH_AES_128_CBC_SHA */
@@ -61990,7 +61990,7 @@ static int test_extra_alerts_wrong_cs(void)
 #endif
 
 #if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_EXTRA_ALERTS) &&             \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_SP_MATH)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_SP_MATH)
 
 static void test_remove_msg(byte *msg, int tail_len, int *len, int msg_length)
 {
@@ -62149,8 +62149,8 @@ static int test_extra_alerts_skip_hs(void)
 }
 #endif
 
-#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_IO_TESTS_DEPENDENCIES) &&       \
-    defined(WOLFSSL_EXTRA_ALERTS) && !defined(NO_PSK) && !defined(NO_DH)
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
+    && defined(WOLFSSL_EXTRA_ALERTS) && !defined(NO_PSK) && !defined(NO_DH)
 
 static unsigned int test_server_psk_cb(WOLFSSL* ssl, const char* id,
     unsigned char* key, unsigned int key_max_len)
@@ -62401,7 +62401,7 @@ static int test_override_alt_cert_chain(void)
 }
 #endif
 
-#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
 
 
 static int test_dtls13_bad_epoch_ch(void)
@@ -62544,8 +62544,8 @@ static int test_short_session_id(void)
 }
 #endif
 
-#if defined(HAVE_NULL_CIPHER) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS13)
+#if defined(HAVE_NULL_CIPHER) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) \
+    && defined(WOLFSSL_DTLS13)
 static byte* test_find_string(const char *string,
     byte *buf, int buf_size)
 {
@@ -62854,6 +62854,94 @@ static int test_wolfSSL_configure_args(void)
 #endif
     return EXPECT_RESULT();
 }
+
+static int test_dtls_no_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const byte chNoExtensions[] = {
+        /* Handshake type */
+        0x16,
+        /* Version */
+        0xfe, 0xff,
+        /* Epoch */
+        0x00, 0x00,
+        /* Seq number */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        /* Length */
+        0x00, 0x40,
+        /* CH type */
+        0x01,
+        /* Length */
+        0x00, 0x00, 0x34,
+        /* Msg Seq */
+        0x00, 0x00,
+        /* Frag offset */
+        0x00, 0x00, 0x00,
+        /* Frag length */
+        0x00, 0x00, 0x34,
+        /* Version */
+        0xfe, 0xff,
+        /* Random */
+        0x62, 0xfe, 0xbc, 0xfe, 0x2b, 0xfe, 0x3f, 0xeb, 0x03, 0xc4, 0xea, 0x37,
+        0xe7, 0x47, 0x7e, 0x8a, 0xd9, 0xbf, 0x77, 0x0f, 0x6c, 0xb6, 0x77, 0x0b,
+        0x03, 0x3f, 0x82, 0x2b, 0x21, 0x64, 0x57, 0x1d,
+        /* Session Length */
+        0x00,
+        /* Cookie Length */
+        0x00,
+        /* CS Length */
+        0x00, 0x0c,
+        /* CS */
+        0xc0, 0x0a, 0xc0, 0x09, 0xc0, 0x14, 0xc0, 0x13, 0x00, 0x39, 0x00, 0x33,
+        /* Comp Meths Length */
+        0x01,
+        /* Comp Meths */
+        0x00
+        /* And finally... no extensions */
+    };
+    int i;
+#ifdef OPENSSL_EXTRA
+    int repeats = 2;
+#else
+    int repeats = 1;
+#endif
+
+    for (i = 0; i < repeats; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ssl_s = NULL;
+        ctx_s = NULL;
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, NULL, &ctx_s, NULL, &ssl_s,
+            NULL, wolfDTLS_server_method), 0);
+
+        XMEMCPY(test_ctx.s_buff, chNoExtensions, sizeof(chNoExtensions));
+        test_ctx.s_len = sizeof(chNoExtensions);
+
+#ifdef OPENSSL_EXTRA
+        if (i > 0) {
+            ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_s, DTLS1_2_VERSION),
+                        WOLFSSL_SUCCESS);
+        }
+#endif
+
+        ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* Expecting a handshake msg. Either HVR or SH. */
+        ExpectIntGT(test_ctx.c_len, 0);
+        ExpectIntEQ(test_ctx.c_buff[0], 0x16);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -64103,6 +64191,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_msg_from_other_peer),
     TEST_DECL(test_dtls_ipv6_check),
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
+    TEST_DECL(test_dtls_no_extensions),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
