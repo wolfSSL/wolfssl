@@ -531,7 +531,7 @@ static   wolfSSL_Mutex command_mutex ;
 #endif
 
 void exit_command(void) {
-	  printf("Command Aborted\n") ;
+    printf("Command Aborted\n") ;
     #ifdef WOLFSSL_CMSIS_RTOS
         osThreadTerminate(osThreadGetId()) ;
     #else
@@ -617,7 +617,7 @@ void shell_main(void *arg) {
     func_args args ;
     int bf_flg ;
 #if defined(WOLFSSL_CMSIS_RTOS)
-    osThreadId 	 cmd ;
+    osThreadId cmd ;
 #endif
     i = BackGround ;
         /* Dummy for avoiding warning: BackGround is defined but not used. */
@@ -641,14 +641,14 @@ void shell_main(void *arg) {
                         os_tsk_pass ();
                     #else
                         #if defined(WOLFSSL_CMSIS_RTOS)
-                             wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
-                             cmd = osThreadCreate (osThread (command_invoke) , &args);
-                             if(cmd == NULL) {
-															     printf("Cannon create command thread\n") ;
-														 }
-												     osThreadYield ();
+                            wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                            cmd = osThreadCreate (osThread (command_invoke) , &args);
+                            if(cmd == NULL) {
+                                printf("Cannon create command thread\n") ;
+                            }
+                            osThreadYield ();
                         #else
-                              command_invoke(&args) ;
+                            command_invoke(&args) ;
                         #endif
                     #endif
                     #ifdef  HAVE_KEIL_RTX

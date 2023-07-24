@@ -133,7 +133,7 @@ static int hash_firmware_verify_dsp(int numThreads, int domain)
         ret = wolfSSL_open(sp_URI_value, &(handle[i]));
         if (ret != 0) {
             printf("unable to open CDSP? retVal = %d\n", ret);
-	    return -1;
+            return -1;
         }
         wc_ecc_set_handle(&(eccKey[i]), handle[i]);
     }
