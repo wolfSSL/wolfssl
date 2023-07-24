@@ -18974,9 +18974,9 @@ enum {
 #define authKeyIdASN_Length (sizeof(authKeyIdASN) / sizeof(ASNItem))
 #endif
 
-/* Decode authority information access extension in a certificate.
+/* Decode authority key identifier extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.1 - Authority Key Identifier.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -19098,7 +19098,7 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
 
 /* Decode subject key id extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.2 - Subject Key Identifier.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -19148,7 +19148,7 @@ enum {
 
 /* Decode key usage extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.3 - Key Usage.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -19880,7 +19880,7 @@ exit:
                     return ASN_PARSE_E;
                 }
             #ifndef WOLFSSL_DUP_CERTPOL
-                /* From RFC 5280 section 4.2.1.3 "A certificate policy OID MUST
+                /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
                  * NOT appear more than once in a certificate policies
                  * extension". This is a sanity check for duplicates.
                  * extCertPolicies should only have OID values, additional
@@ -19989,7 +19989,7 @@ exit:
                 }
             }
             #ifndef WOLFSSL_DUP_CERTPOL
-            /* From RFC 5280 section 4.2.1.3 "A certificate policy OID MUST
+            /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
              * NOT appear more than once in a certificate policies
              * extension". This is a sanity check for duplicates.
              * extCertPolicies should only have OID values, additional
@@ -20327,7 +20327,19 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case AUTH_INFO_OID:
             VERIFY_AND_SET_OID(cert->extAuthInfoSet);
             cert->extAuthInfoCrit = critical ? 1 : 0;
-            if (DecodeAuthInfo(input, length, cert) < 0) {
+        #ifndef WOLFSSL_ALLOW_CRIT_AIA
+            /* This check is added due to RFC 5280 section 4.2.2.1
+            * stating that conforming CA's must mark this extension
+            * as non-critical. When parsing extensions check that
+            * certificate was made in compliance with this. */
+            if (critical) {
+                WOLFSSL_MSG("Critical Authority Information Access is not"
+                            "allowed");
+                WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_AIA if wanted");
+                ret = ASN_CRIT_EXT_E;
+            }
+        #endif
+            if ((ret == 0) && (DecodeAuthInfo(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -20343,17 +20355,17 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case AUTH_KEY_OID:
             VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
             cert->extAuthKeyIdCrit = critical ? 1 : 0;
-            #ifndef WOLFSSL_ALLOW_CRIT_SKID
-                /* This check is added due to RFC 5280 section 4.2.1.1
-                 * stating that conforming CA's must mark this extension
-                 * as non-critical. When parsing extensions check that
-                 * certificate was made in compliance with this. */
-                if (critical) {
-                    WOLFSSL_MSG("Critical Auth Key ID is not allowed");
-                    WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
-                    ret = ASN_CRIT_EXT_E;
-                }
-            #endif
+        #ifndef WOLFSSL_ALLOW_CRIT_AKID
+            /* This check is added due to RFC 5280 section 4.2.1.1
+             * stating that conforming CA's must mark this extension
+             * as non-critical. When parsing extensions check that
+             * certificate was made in compliance with this. */
+            if (critical) {
+                WOLFSSL_MSG("Critical Auth Key ID is not allowed");
+                WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_AKID if wanted");
+                ret = ASN_CRIT_EXT_E;
+            }
+        #endif
             if ((ret == 0) && (DecodeAuthKeyId(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
@@ -20363,17 +20375,17 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case SUBJ_KEY_OID:
             VERIFY_AND_SET_OID(cert->extSubjKeyIdSet);
             cert->extSubjKeyIdCrit = critical ? 1 : 0;
-            #ifndef WOLFSSL_ALLOW_CRIT_SKID
-                /* This check is added due to RFC 5280 section 4.2.1.2
-                 * stating that conforming CA's must mark this extension
-                 * as non-critical. When parsing extensions check that
-                 * certificate was made in compliance with this. */
-                if (critical) {
-                    WOLFSSL_MSG("Critical Subject Key ID is not allowed");
-                    WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
-                    ret = ASN_CRIT_EXT_E;
-                }
-            #endif
+        #ifndef WOLFSSL_ALLOW_CRIT_SKID
+            /* This check is added due to RFC 5280 section 4.2.1.2
+             * stating that conforming CA's must mark this extension
+             * as non-critical. When parsing extensions check that
+             * certificate was made in compliance with this. */
+            if (critical) {
+                WOLFSSL_MSG("Critical Subject Key ID is not allowed");
+                WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
+                ret = ASN_CRIT_EXT_E;
+            }
+        #endif
 
             if ((ret == 0) && (DecodeSubjKeyId(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
@@ -20382,21 +20394,21 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
 
         /* Certificate policies. */
         case CERT_POLICY_OID:
-            #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                VERIFY_AND_SET_OID(cert->extCertPolicySet);
-                #if defined(OPENSSL_EXTRA) || \
-                    defined(OPENSSL_EXTRA_X509_SMALL)
-                    cert->extCertPolicyCrit = critical ? 1 : 0;
-                #endif
+        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
+            VERIFY_AND_SET_OID(cert->extCertPolicySet);
+            #if defined(OPENSSL_EXTRA) || \
+                defined(OPENSSL_EXTRA_X509_SMALL)
+                cert->extCertPolicyCrit = critical ? 1 : 0;
             #endif
-            #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || \
-                defined(WOLFSSL_QT)
-                if (DecodeCertPolicy(input, length, cert) < 0) {
-                    ret = ASN_PARSE_E;
-                }
-            #else
-                WOLFSSL_MSG("Certificate Policy extension not supported yet.");
-            #endif
+        #endif
+        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || \
+            defined(WOLFSSL_QT)
+            if (DecodeCertPolicy(input, length, cert) < 0) {
+                ret = ASN_PARSE_E;
+            }
+        #else
+            WOLFSSL_MSG("Certificate Policy extension not supported yet.");
+        #endif
             break;
 
         /* Key usage. */
