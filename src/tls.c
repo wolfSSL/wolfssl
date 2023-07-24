@@ -1095,6 +1095,15 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
             break;
     #endif /* WOLFSSL_SHA512 */
 
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            blockSz = WC_SM3_BLOCK_SIZE;
+            blockBits = 6;
+            macSz = WC_SM3_DIGEST_SIZE;
+            padSz = WC_SM3_BLOCK_SIZE - WC_SM3_PAD_SIZE + 1;
+            break;
+    #endif /* WOLFSSL_SM3 */
+
     #ifdef HAVE_BLAKE2
         case WC_HASH_TYPE_BLAKE2B:
             blockSz = BLAKE2B_BLOCKBYTES;
