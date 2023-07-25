@@ -822,7 +822,18 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
 
     return now.tv_nsec;
 }
-#elif defined(HAVE_PTHREAD)
+#elif defined(_WIN32) /* USE_WINDOWS_API */
+/* Get the high resolution time counter.
+ *
+ * @return  64-bit timer
+ */
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    return (word64)(count.QuadPart);
+}
+#elif defined(WOLFSSL_THREAD_NO_JOIN)
 
 /* Start and stop thread that counts as a proxy for time counter. */
 #define ENTROPY_MEMUSE_THREADED
@@ -837,8 +848,6 @@ typedef struct ENTROPY_THREAD_DATA {
 
 /* Track whether entropy thread has been started already. */
 static int entropy_thread_started = 0;
-/* Cache thread id for joining on exit. */
-static THREAD_TYPE entropy_thread_id = 0;
 /* Data for thread to update/observer. */
 static volatile ENTROPY_THREAD_DATA entropy_thread_data = { 0, 0 };
 
@@ -857,12 +866,9 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
  * @param [in,out] args  Entropy data including: counter and stop flag.
  * @return  NULL always.
  */
-static THREAD_RETURN WOLFSSL_THREAD Entropy_IncCounter(void* args)
+static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN Entropy_IncCounter(void* args)
 {
     (void)args;
-
-    /* Thread resources to be disposed of. */
-    pthread_detach(pthread_self());
 
     /* Keep going until caller tells us to stop and exit. */
     while (!entropy_thread_data.stop) {
@@ -874,7 +880,7 @@ static THREAD_RETURN WOLFSSL_THREAD Entropy_IncCounter(void* args)
     fprintf(stderr, "EXITING ENTROPY COUNTER THREAD\n");
 #endif
     /* Exit from thread. */
-    pthread_exit(NULL);
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 /* Start a thread that increments counter if not one already.
@@ -901,8 +907,8 @@ static int Entropy_StartThread(void)
         fprintf(stderr, "STARTING ENTROPY COUNTER THREAD\n");
     #endif
         /* Create a thread that increments the counter in the data. */
-        ret = pthread_create(&entropy_thread_id, NULL, Entropy_IncCounter,
-            NULL);
+        /* Thread resources to be disposed of. */
+        ret = wolfSSL_NewThreadNoJoin(Entropy_IncCounter, NULL);
         if (ret == 0) {
             /* Wait for the counter to increase indicating thread started. */
             while (entropy_thread_data.counter == start_counter) {
@@ -931,19 +937,6 @@ static void Entropy_StopThread(void)
     }
 }
     /* end if defined(HAVE_PTHREAD) */
-
-#elif defined(_WIN32) /* USE_WINDOWS_API */
-
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    LARGE_INTEGER count;
-    QueryPerformanceCounter(&count);
-    return (word64)(count.QuadPart);
-}
 
 #else
 

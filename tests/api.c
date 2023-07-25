@@ -6179,10 +6179,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
     if (ctx == NULL) {
         /* Release the wait for TCP ready. */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-        opts->signal->ready = 1;
-        PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+        signal_ready(opts->signal);
         goto done;
     }
 
@@ -6446,9 +6443,7 @@ done:
 
     wolfSSL_SetLoggingPrefix(NULL);
 
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
@@ -6519,10 +6514,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
                                                            != WOLFSSL_SUCCESS) {
         /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         /* Release the wait for TCP ready. */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-        opts->signal->ready = 1;
-        PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+        signal_ready(opts->signal);
         goto done;
     }
     if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
@@ -6530,10 +6522,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         /* Release the wait for TCP ready. */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-        opts->signal->ready = 1;
-        PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+        signal_ready(opts->signal);
         goto done;
     }
     if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
@@ -6541,10 +6530,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
         /*err_sys("can't load server key file, "
                 "Please run from wolfSSL home dir");*/
         /* Release the wait for TCP ready. */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-        opts->signal->ready = 1;
-        PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+        signal_ready(opts->signal);
         goto done;
     }
     /* call ctx setup callback */
@@ -6555,11 +6541,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
     while (count != loop_count) {
         ssl = wolfSSL_new(ctx);
         if (ssl == NULL) {
-            /* Release the wait for TCP ready. */
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-            opts->signal->ready = 1;
-            PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+            signal_ready(opts->signal);
             goto done;
         }
         if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
@@ -6567,10 +6549,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
             /*err_sys("can't load server cert chain file, "
                     "Please run from wolfSSL home dir");*/
             /* Release the wait for TCP ready. */
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-            opts->signal->ready = 1;
-            PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+            signal_ready(opts->signal);
             goto done;
         }
         if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
@@ -6578,10 +6557,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
             /*err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");*/
             /* Release the wait for TCP ready. */
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&opts->signal->mutex));
-            opts->signal->ready = 1;
-            PTHREAD_CHECK_RET(pthread_cond_signal(&opts->signal->cond));
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&opts->signal->mutex));
+            signal_ready(opts->signal);
             goto done;
         }
 
@@ -6666,9 +6642,7 @@ done:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
 
@@ -7498,9 +7472,7 @@ cleanup:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 /* TLS Client for API unit testing - generic */
@@ -9455,11 +9427,7 @@ static THREAD_RETURN WOLFSSL_THREAD tls_export_server(void* args)
 
     if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg)) {
         /*err_sys("SSL_write failed");*/
-#ifdef WOLFSSL_TIRTOS
-        return;
-#else
-        return 0;
-#endif
+        WOLFSSL_RETURN_FROM_THREAD(0);
     }
 
 #ifdef WOLFSSL_TIRTOS
@@ -9493,9 +9461,7 @@ done:
 #endif
 #endif
 
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 
@@ -34548,7 +34514,7 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
     wc_ecc_fp_free();
 #endif
 
-    return 0;
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
@@ -38812,7 +38778,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
     /* test that the 3 errors over the max were dropped */
     AssertIntEQ(errorCount, ERROR_QUEUE_MAX);
 
-    return 0;
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif
 
@@ -40770,7 +40736,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-    return 0;
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif
 
@@ -58999,7 +58965,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     int  err = 0;
 
     if (!args)
-        return 0;
+        WOLFSSL_RETURN_FROM_THREAD(0);
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
@@ -59115,9 +59081,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
 {
@@ -59133,7 +59097,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
     int  ret, err;
 
     if (!args)
-        return 0;
+        WOLFSSL_RETURN_FROM_THREAD(0);
 
     ((func_args*)args)->return_code = TEST_FAIL;
     callbacks   = ((func_args*)args)->callbacks;
@@ -59192,9 +59156,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL &&
           HAVE_IO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 */
