@@ -32124,15 +32124,19 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     }
 #ifndef WOLFSSL_NO_ASN_STRICT
     /* Only version 2 and above can have a seed. */
-    if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_PARAM_SEED].tag != 0) &&
+    if (ret == 0) {
+        if ((dataASN[ECCSPECIFIEDASN_IDX_PARAM_SEED].tag != 0) &&
             (version < 2)) {
-        ret = ASN_PARSE_E;
+            ret = ASN_PARSE_E;
+        }
     }
 #endif
     /* Only version 2 and above can have a hash algorithm. */
-    if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_HASH_SEQ].tag != 0) &&
+    if (ret == 0) {
+        if ((dataASN[ECCSPECIFIEDASN_IDX_HASH_SEQ].tag != 0) &&
             (version < 2)) {
-        ret = ASN_PARSE_E;
+            ret = ASN_PARSE_E;
+        }
     }
     if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_COFACTOR].tag != 0)) {
         /* Store optional co-factor. */
@@ -32447,8 +32451,10 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                            inOutIdx, inSz);
     }
     /* Only version 1 supported. */
-    if ((ret == 0) && (version != 1)) {
-        ret = ASN_PARSE_E;
+    if (ret == 0) {
+        if (version != 1) {
+            ret = ASN_PARSE_E;
+        }
     }
     /* Curve Parameters are optional. */
     if ((ret == 0) && (dataASN[ECCKEYASN_IDX_PARAMS].tag != 0)) {
@@ -34416,8 +34422,10 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         ret = ASN_PARSE_E;
     }
     /* Validate the issuer key hash length is the size required. */
-    if ((ret == 0) && (issuerKeyHashLen != ocspDigestSize)) {
-        ret = ASN_PARSE_E;
+    if (ret == 0) {
+        if (issuerKeyHashLen != ocspDigestSize) {
+            ret = ASN_PARSE_E;
+        }
     }
     if (ret == 0) {
         /* Store serial size. */
@@ -34804,12 +34812,16 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
                 1, source, ioIndex, size);
     }
     /* Only support v1 == 0 */
-    if ((ret == 0) && (version != 0)) {
-        ret = ASN_PARSE_E;
+    if (ret == 0) {
+        if (version != 0) {
+            ret = ASN_PARSE_E;
+        }
     }
     /* Ensure date is a minimal size. */
-    if ((ret == 0) && (dateSz < MIN_DATE_SIZE)) {
-        ret = ASN_PARSE_E;
+    if (ret == 0) {
+        if  (dateSz < MIN_DATE_SIZE) {
+            ret = ASN_PARSE_E;
+        }
     }
     if (ret == 0) {
         /* TODO: use byName/byKey fields. */

@@ -13684,7 +13684,8 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif
         if (output->ticketLenAlloc)
             XFREE(output->ticket, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-        output->ticket = tmpTicket;
+        output->ticket = tmpTicket; /* cppcheck-suppress autoVariables
+                                     */
         output->ticketLenAlloc = PREALLOC_SESSION_TICKET_LEN;
         output->ticketLen = 0;
         tmpBufSet = 1;
@@ -13771,6 +13772,10 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         }
 #endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
     }
+
+    /* mollify confused cppcheck nullPointer warning. */
+    if (sess == NULL)
+        error = WOLFSSL_FAILURE;
 
     if (error == WOLFSSL_SUCCESS) {
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)

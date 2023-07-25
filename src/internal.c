@@ -16823,7 +16823,7 @@ int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         diff %= DTLS_WORD_BITS;
 
         if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
-            window[idx] |= (1 << diff);
+            window[idx] |= (1U << diff);
     }
     else {
         _DtlsUpdateWindowGTSeq(diff + 1, window);
