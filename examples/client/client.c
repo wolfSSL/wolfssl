@@ -223,6 +223,9 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         #ifdef WOLFSSL_ASYNC_CRYPT
             || error == WC_PENDING_E
         #endif
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            || error == OCSP_WANT_READ
+        #endif
         ) {
         #ifndef WOLFSSL_CALLBACKS
             ret = wolfSSL_connect(ssl);

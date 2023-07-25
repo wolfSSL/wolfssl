@@ -11479,12 +11479,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * == 0) */
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
-#endif
 
-    /* reset error */
-    if (ret == 0 && ssl->error == WC_PENDING_E)
+    /* make sure async error is cleared */
+    if (ret == 0 && (ssl->error == WC_PENDING_E || ssl->error == OCSP_WANT_READ)) {
         ssl->error = 0;
-
+    }
+#endif
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update) {
         ret = HashInput(ssl, input + inIdx, size);
