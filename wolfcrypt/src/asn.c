@@ -12988,7 +12988,6 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 {
     int i, j, ret   = 0;
     int nameSz      = 0;
-    int numerical   = 0;
     int nid         = 0;
     int tmpSize     = MAX_OID_SZ;
     word32 oid      = 0;
@@ -13019,18 +13018,23 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
                 tmpName, (word32*)&tmpSize);
 
-        numerical = 1;
         if (ret == 0) {
             j = 0;
             /* Append each number of dotted form. */
             for (i = 0; i < tmpSize; i++) {
-                ret = XSNPRINTF(oidName + j, MAX_OID_SZ, "%d", tmpName[i]);
+                if (j > MAX_OID_SZ) {
+                    return BUFFER_E;
+                }
+
+                if (i < tmpSize - 1) {
+                    ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d.", tmpName[i]);
+                }
+                else {
+                    ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d", tmpName[i]);
+                }
+
                 if (ret >= 0) {
                     j += ret;
-                    if (i < tmpSize - 1) {
-                        oidName[j] = '.';
-                        j++;
-                    }
                 }
                 else {
                     return BUFFER_E;
@@ -13044,18 +13048,15 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     if (ret == 0) {
         nameSz = (int)XSTRLEN((const char*)finalName);
 
-        entry->ridString = (char*)XMALLOC(nameSz + numerical, heap,
-                                          DYNAMIC_TYPE_ALTNAME);
+        entry->ridString = (char*)XMALLOC(nameSz + 1, heap,
+                DYNAMIC_TYPE_ALTNAME);
 
         if (entry->ridString == NULL) {
             ret = MEMORY_E;
         }
 
         if (ret == 0) {
-            XMEMCPY(entry->ridString, finalName, nameSz);
-            if (numerical) {
-                entry->ridString[nameSz] = '\0';
-            }
+            XMEMCPY(entry->ridString, finalName, nameSz + 1);
         }
     }
 
