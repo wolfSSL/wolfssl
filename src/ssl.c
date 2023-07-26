@@ -13763,7 +13763,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             TlsSessionCacheUnlockRow(row);
             /* Attempt to get a write lock */
             error = TlsSessionCacheGetAndWrLock(id, &wrSess, &row,
-                    ssl->options.side);
+                    (byte)ssl->options.side);
             if (error == 0 && wrSess != NULL) {
                 EvictSessionFromCache(wrSess);
                 TlsSessionCacheUnlockRow(row);
