@@ -41442,7 +41442,7 @@ static void test_wolfSSL_SESSION_expire_downgrade_ctx_ready(WOLFSSL_CTX* ctx)
 /* set the session to timeout in a second */
 static void test_wolfSSL_SESSION_expire_downgrade_ssl_ready(WOLFSSL* ssl)
 {
-    AssertIntEQ(wolfSSL_set_timeout(ssl, 1), 1);
+    AssertIntEQ(wolfSSL_set_timeout(ssl, 2), 1);
 }
 
 
@@ -41460,7 +41460,7 @@ static void test_wolfSSL_SESSION_expire_downgrade_ssl_ready_wait(WOLFSSL* ssl)
     AssertIntEQ(wolfSSL_set_timeout(ssl, 1), 1);
     AssertIntEQ(wolfSSL_set_session(ssl, test_wolfSSL_SESSION_expire_sess),
         WOLFSSL_SUCCESS);
-    XSLEEP_MS(1200); /* wait a second for session to expire */
+    XSLEEP_MS(2000); /* wait 2 seconds for session to expire */
 }
 
 
