@@ -1689,22 +1689,30 @@ int wolfSSL_BN_div(WOLFSSL_BIGNUM* dv, WOLFSSL_BIGNUM* rem,
     const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* d, WOLFSSL_BN_CTX* ctx)
 {
     int ret = 1;
+    WOLFSSL_BIGNUM* res = dv;
 
     /* BN context not needed. */
     (void)ctx;
 
     WOLFSSL_ENTER("wolfSSL_BN_div");
 
+    if (BN_IS_NULL(res)) {
+        res = wolfSSL_BN_new();
+    }
+
     /* Validate parameters. */
-    if (BN_IS_NULL(dv) || BN_IS_NULL(rem) || BN_IS_NULL(a) || BN_IS_NULL(d)) {
+    if (BN_IS_NULL(res) || BN_IS_NULL(rem) || BN_IS_NULL(a) || BN_IS_NULL(d)) {
         ret = 0;
     }
 
     /* Have wolfCrypt perform operation with internal representations. */
     if ((ret == 1) && (mp_div((mp_int*)a->internal, (mp_int*)d->internal,
-            (mp_int*)dv->internal, (mp_int*)rem->internal) != MP_OKAY)) {
+            (mp_int*)res->internal, (mp_int*)rem->internal) != MP_OKAY)) {
         ret = 0;
     }
+
+    if (res != dv)
+        wolfSSL_BN_free(res);
 
     WOLFSSL_LEAVE("wolfSSL_BN_div", ret);
     return ret;

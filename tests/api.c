@@ -56237,6 +56237,23 @@ static int test_wolfSSL_EC_POINT(void)
     ExpectIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
 
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    {
+        EC_POINT* orig_point = NULL;
+        ExpectNotNull(orig_point = EC_POINT_new(group));
+        ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, set_point, NULL),
+                    1);
+        /* new_point should be set_point inverted so adding it will revert
+         * the point back to set_point */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
+        EC_POINT_free(orig_point);
+    }
+#endif
+
     /* Test getting affine converts from projective. */
     ExpectIntEQ(EC_POINT_copy(set_point, new_point), 1);
     /* Force non-affine coordinates */
@@ -56475,6 +56492,133 @@ static int test_wolfSSL_EC_POINT(void)
     BN_CTX_free(ctx);
 #endif
 #endif /* !WOLFSSL_SP_MATH && ( !HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SPAKE(void)
+{
+    EXPECT_DECLS;
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A) \
+    && !defined(WOLFSSL_ATECC608A) && !defined(HAVE_SELFTEST) && \
+       !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    BIGNUM* x = NULL; /* kdc priv */
+    BIGNUM* y = NULL; /* client priv */
+    BIGNUM* w = NULL; /* shared value */
+    byte M_bytes[] = {
+        /* uncompressed */
+        0x04,
+        /* x */
+        0x88, 0x6e, 0x2f, 0x97, 0xac, 0xe4, 0x6e, 0x55, 0xba, 0x9d, 0xd7, 0x24,
+        0x25, 0x79, 0xf2, 0x99, 0x3b, 0x64, 0xe1, 0x6e, 0xf3, 0xdc, 0xab, 0x95,
+        0xaf, 0xd4, 0x97, 0x33, 0x3d, 0x8f, 0xa1, 0x2f,
+        /* y */
+        0x5f, 0xf3, 0x55, 0x16, 0x3e, 0x43, 0xce, 0x22, 0x4e, 0x0b, 0x0e, 0x65,
+        0xff, 0x02, 0xac, 0x8e, 0x5c, 0x7b, 0xe0, 0x94, 0x19, 0xc7, 0x85, 0xe0,
+        0xca, 0x54, 0x7d, 0x55, 0xa1, 0x2e, 0x2d, 0x20
+    };
+    EC_POINT* M = NULL; /* shared value */
+    byte N_bytes[] = {
+        /* uncompressed */
+        0x04,
+        /* x */
+        0xd8, 0xbb, 0xd6, 0xc6, 0x39, 0xc6, 0x29, 0x37, 0xb0, 0x4d, 0x99, 0x7f,
+        0x38, 0xc3, 0x77, 0x07, 0x19, 0xc6, 0x29, 0xd7, 0x01, 0x4d, 0x49, 0xa2,
+        0x4b, 0x4f, 0x98, 0xba, 0xa1, 0x29, 0x2b, 0x49,
+        /* y */
+        0x07, 0xd6, 0x0a, 0xa6, 0xbf, 0xad, 0xe4, 0x50, 0x08, 0xa6, 0x36, 0x33,
+        0x7f, 0x51, 0x68, 0xc6, 0x4d, 0x9b, 0xd3, 0x60, 0x34, 0x80, 0x8c, 0xd5,
+        0x64, 0x49, 0x0b, 0x1e, 0x65, 0x6e, 0xdb, 0xe7
+    };
+    EC_POINT* N = NULL; /* shared value */
+    EC_POINT* T = NULL; /* kdc pub */
+    EC_POINT* tmp1 = NULL; /* kdc pub */
+    EC_POINT* tmp2 = NULL; /* kdc pub */
+    EC_POINT* S = NULL; /* client pub */
+    EC_POINT* client_secret = NULL;
+    EC_POINT* kdc_secret = NULL;
+    EC_GROUP* group = NULL;
+    BN_CTX* bn_ctx = NULL;
+
+    /* Values taken from a test run of Kerberos 5 */
+
+    ExpectNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(bn_ctx = BN_CTX_new());
+
+    ExpectNotNull(M = EC_POINT_new(group));
+    ExpectNotNull(N = EC_POINT_new(group));
+    ExpectNotNull(T = EC_POINT_new(group));
+    ExpectNotNull(tmp1 = EC_POINT_new(group));
+    ExpectNotNull(tmp2 = EC_POINT_new(group));
+    ExpectNotNull(S = EC_POINT_new(group));
+    ExpectNotNull(client_secret = EC_POINT_new(group));
+    ExpectNotNull(kdc_secret = EC_POINT_new(group));
+    ExpectIntEQ(BN_hex2bn(&x, "DAC3027CD692B4BDF0EDFE9B7D0E4E7"
+                              "E5D8768A725EAEEA6FC68EC239A17C0"), 1);
+    ExpectIntEQ(BN_hex2bn(&y, "6F6A1D394E26B1655A54B26DCE30D49"
+                              "90CC47EBE08F809EF3FF7F6AEAABBB5"), 1);
+    ExpectIntEQ(BN_hex2bn(&w, "1D992AB8BA851B9BA05353453D81EE9"
+                              "506AB395478F0AAB647752CF117B36250"), 1);
+    ExpectIntEQ(EC_POINT_oct2point(group, M, M_bytes, sizeof(M_bytes), bn_ctx),
+                1);
+    ExpectIntEQ(EC_POINT_oct2point(group, N, N_bytes, sizeof(N_bytes), bn_ctx),
+                1);
+
+    /* Function pattern similar to ossl_keygen and ossl_result in krb5 */
+
+    /* kdc */
+    /* T=x*P+w*M */
+    /* All in one function call */
+    ExpectIntEQ(EC_POINT_mul(group, T, x, M, w, bn_ctx), 1);
+    /* Spread into separate calls */
+    ExpectIntEQ(EC_POINT_mul(group, tmp1, x, NULL, NULL, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_mul(group, tmp2, NULL, M, w, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_add(group, tmp1, tmp1, tmp2, bn_ctx),
+                1);
+    ExpectIntEQ(EC_POINT_cmp(group, T, tmp1, bn_ctx), 0);
+    /* client */
+    /* S=y*P+w*N */
+    /* All in one function call */
+    ExpectIntEQ(EC_POINT_mul(group, S, y, N, w, bn_ctx), 1);
+    /* Spread into separate calls */
+    ExpectIntEQ(EC_POINT_mul(group, tmp1, y, NULL, NULL, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_mul(group, tmp2, NULL, N, w, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_add(group, tmp1, tmp1, tmp2, bn_ctx),
+                1);
+    ExpectIntEQ(EC_POINT_cmp(group, S, tmp1, bn_ctx), 0);
+    /* K=y*(T-w*M) */
+    ExpectIntEQ(EC_POINT_mul(group, client_secret, NULL, M, w, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_invert(group, client_secret, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_add(group, client_secret, T, client_secret, bn_ctx),
+                1);
+    ExpectIntEQ(EC_POINT_mul(group, client_secret, NULL, client_secret, y,
+                             bn_ctx), 1);
+    /* kdc */
+    /* K=x*(S-w*N) */
+    ExpectIntEQ(EC_POINT_mul(group, kdc_secret, NULL, N, w, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_invert(group, kdc_secret, bn_ctx), 1);
+    ExpectIntEQ(EC_POINT_add(group, kdc_secret, S, kdc_secret, bn_ctx),
+                1);
+    ExpectIntEQ(EC_POINT_mul(group, kdc_secret, NULL, kdc_secret, x, bn_ctx),
+                1);
+
+    /* kdc_secret == client_secret */
+    ExpectIntEQ(EC_POINT_cmp(group, client_secret, kdc_secret, bn_ctx), 0);
+
+    BN_free(x);
+    BN_free(y);
+    BN_free(w);
+    EC_POINT_free(M);
+    EC_POINT_free(N);
+    EC_POINT_free(T);
+    EC_POINT_free(tmp1);
+    EC_POINT_free(tmp2);
+    EC_POINT_free(S);
+    EC_POINT_free(client_secret);
+    EC_POINT_free(kdc_secret);
+    EC_GROUP_free(group);
+    BN_CTX_free(bn_ctx);
+#endif
     return EXPECT_RESULT();
 }
 
@@ -63868,6 +64012,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EC_GROUP),
     TEST_DECL(test_wolfSSL_PEM_read_bio_ECPKParameters),
     TEST_DECL(test_wolfSSL_EC_POINT),
+    TEST_DECL(test_wolfSSL_SPAKE),
     TEST_DECL(test_wolfSSL_EC_KEY_generate),
     TEST_DECL(test_EC_i2d),
     TEST_DECL(test_wolfSSL_EC_curve),

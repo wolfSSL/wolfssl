@@ -3526,7 +3526,7 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes"
+if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
 then
     ENABLED_COMPKEY=yes
 fi
