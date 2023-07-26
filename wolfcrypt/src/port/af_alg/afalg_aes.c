@@ -71,7 +71,11 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
         aes->rdFd = WC_SOCK_NOTSET;
         return WC_AFALG_SOCK_E;
     }
+#ifdef WOLFSSL_AFALG_XILINX_AES
+    ForceZero(key, sizeof(aes->msgBuf));
+#else
     ForceZero(key, sizeof(aes->key));
+#endif
 
     /* set up CMSG headers */
     XMEMSET((byte*)&(aes->msg), 0, sizeof(struct msghdr));
