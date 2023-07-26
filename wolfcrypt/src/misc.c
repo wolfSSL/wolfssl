@@ -472,6 +472,15 @@ WC_MISC_STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
                (word32)c[3];
 }
 
+/* convert opaque to 32 bit integer. Interpret as little endian. */
+WC_MISC_STATIC WC_INLINE void ato32le(const byte* c, word32* wc_u32)
+{
+    *wc_u32 =  (word32)c[0] |
+              ((word32)c[1] << 8) |
+              ((word32)c[2] << 16) |
+              ((word32)c[3] << 24);
+}
+
 
 WC_MISC_STATIC WC_INLINE word32 btoi(byte b)
 {

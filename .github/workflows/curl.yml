@@ -5,36 +5,26 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 14
     steps:
-    - uses: actions/checkout@master
-    - name: autogen
-      run: ./autogen.sh
-    - name: configure
-      run: ./configure --enable-all
-    - name: make
-      run: make
-    - name: install
-      run: sudo make install
-    - uses: actions/checkout@master
+    - name: Install test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install nghttp2
+
+    - name: Build wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
+      with:
+        path: wolfssl
+        configure: --enable-curl
+        install: true
+
+    - name: Build and test stunnel
+      uses: wolfSSL/actions-build-autotools-project@v1
       with:
         repository: curl/curl
         path: curl
-    - name: Install test dependency
-      working-directory: ./curl
-      run: sudo apt-get install nghttp2
-    - name: curl buildconf
-      working-directory: ./curl
-      run: ./buildconf
-    - name: curl configure
-      working-directory: ./curl
-      run: ./configure --with-wolfssl
-    - name: curl make
-      working-directory: ./curl
-      run: make
-    - name: curl unit tests
-      working-directory: ./curl
-      run: make test
-
+        configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+        check: true

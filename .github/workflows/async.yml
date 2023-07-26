@@ -15,6 +15,8 @@ jobs:
         ]
     name: make check
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v3
         name: Checkout wolfSSL
