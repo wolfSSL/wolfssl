@@ -62947,7 +62947,8 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
-    defined(OPENSSL_EXTRA)
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA384) && \
+    defined(HAVE_NULL_CIPHER)
     /* This test should only fail (with BUFFER_ERROR) when we actually try to
      * parse the CA Names extension. Otherwise it will return other non-related
      * errors. If CA Names will be parsed in more configurations, that should
@@ -62955,6 +62956,7 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL_CTX *ctx_c = NULL;
     struct test_memio_ctx test_ctx;
+    /* HRR + SH using TLS_DHE_PSK_WITH_NULL_SHA384 */
     const byte shBadCaNamesExt[] = {
         0x16, 0x03, 0x04, 0x00, 0x3f, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0xcf,
         0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
