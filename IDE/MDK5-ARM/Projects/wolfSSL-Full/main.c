@@ -90,10 +90,10 @@ int main()
 {
     void *arg = NULL;
 
-	  SystemClock_Config();
-	  #if !defined(NO_FILESYSTEM)
+    SystemClock_Config();
+    #if !defined(NO_FILESYSTEM)
         init_filesystem ();
-	  #endif
+    #endif
 
     netInitialize();
     osDelay(300);

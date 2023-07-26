@@ -113,7 +113,7 @@ static int KcapiHashUpdate(wolfssl_KCAPI_Hash* hash, const byte* in, word32 sz)
                                            hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 if (pt == NULL) {
                     ret = MEMORY_E;
-	        }
+                }
                 else {
                     hash->msg = pt;
                 }

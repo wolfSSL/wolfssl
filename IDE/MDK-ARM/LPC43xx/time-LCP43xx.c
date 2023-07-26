@@ -34,9 +34,9 @@
 
 static void init_RTC()
 {
-		/* Enable GPIO register interface clock                                     */
-		LPC_CCU1->CLK_M4_GPIO_CFG     |= 1;
-		while (!(LPC_CCU1->CLK_M4_GPIO_STAT   & 1)) ;
+    /* Enable GPIO register interface clock                                     */
+    LPC_CCU1->CLK_M4_GPIO_CFG     |= 1;
+    while (!(LPC_CCU1->CLK_M4_GPIO_STAT   & 1)) ;
 
     /* RTC Block section ------------------------------------------------------ */
     /* Init RTC module */
@@ -82,7 +82,7 @@ double current_time()
 
 
 void init_time(void) {
-	  init_RTC() ;
+    init_RTC() ;
     init_TIM() ;
 }
 
@@ -93,7 +93,7 @@ struct tm *Cyassl_MDK_gmtime(const time_t *c)
     static struct tm date ;
 
   	RTC_TIME_Type RTCFullTime;
-	  RTC_GetFullTime (LPC_RTC, &RTCFullTime);
+    RTC_GetFullTime (LPC_RTC, &RTCFullTime);
 
     date.tm_year = RTCFullTime.YEAR + 100 ;
     date.tm_mon = RTCFullTime.MONTH - 1 ;
@@ -104,7 +104,7 @@ struct tm *Cyassl_MDK_gmtime(const time_t *c)
 
     #if defined(DEBUG_CYASSL)
     {
-			  extern void CYASSL_MSG(char *msg) ;
+        extern void CYASSL_MSG(char *msg) ;
         char msg[100] ;
         sprintf(msg, "Debug::Cyassl_KEIL_gmtime(DATE=/%4d/%02d/%02d TIME=%02d:%02d:%02d)\n",
         RTCFullTime.YEAR+2000,  RTCFullTime.MONTH, RTCFullTime.DOM,
@@ -127,14 +127,14 @@ typedef struct func_args {
 void time_main(void *args)
 {
     char * datetime ;
-	  int year ;
+    int year ;
   	RTC_TIME_Type RTCFullTime;
 
     if( args == NULL || ((func_args *)args)->argc == 1) {
-		    RTC_GetFullTime (LPC_RTC, &RTCFullTime);
+        RTC_GetFullTime (LPC_RTC, &RTCFullTime);
         printf("Date: %d/%d/%d, Time: %02d:%02d:%02d\n",
-             RTCFullTime.MONTH, RTCFullTime.DOM, RTCFullTime.YEAR+2000,
-             RTCFullTime.HOUR,  RTCFullTime.MIN,  RTCFullTime.SEC) ;
+        RTCFullTime.MONTH, RTCFullTime.DOM, RTCFullTime.YEAR+2000,
+        RTCFullTime.HOUR,  RTCFullTime.MIN,  RTCFullTime.SEC) ;
     } else if(((func_args *)args)->argc == 3 &&
               ((func_args *)args)->argv[1][0] == '-' &&
               ((func_args *)args)->argv[1][1] == 'd' ) {
@@ -143,13 +143,13 @@ void time_main(void *args)
         sscanf(datetime, "%d/%d/%d",
              (int *)&RTCFullTime.MONTH, (int *)&RTCFullTime.DOM, &year) ;
         RTCFullTime.YEAR = year - 2000 ;
-				RTC_SetTime (LPC_RTC, RTC_TIMETYPE_MONTH, RTCFullTime.MONTH);
+        RTC_SetTime (LPC_RTC, RTC_TIMETYPE_MONTH, RTCFullTime.MONTH);
         RTC_SetTime (LPC_RTC, RTC_TIMETYPE_YEAR, RTCFullTime.YEAR);
         RTC_SetTime (LPC_RTC, RTC_TIMETYPE_DAYOFMONTH, RTCFullTime.DOM);
     } else if(((func_args *)args)->argc == 3 &&
               ((func_args *)args)->argv[1][0] == '-' &&
               ((func_args *)args)->argv[1][1] == 't' ) {
-		    RTC_GetFullTime (LPC_RTC, &RTCFullTime);
+        RTC_GetFullTime (LPC_RTC, &RTCFullTime);
 								datetime = ((func_args *)args)->argv[2];
         sscanf(datetime, "%d:%d:%d",
             (int *)&RTCFullTime.HOUR,
@@ -161,7 +161,3 @@ void time_main(void *args)
         RTC_SetTime (LPC_RTC, RTC_TIMETYPE_HOUR, RTCFullTime.HOUR);
     } else printf("Invalid argument\n") ;
 }
-
-
-
-
