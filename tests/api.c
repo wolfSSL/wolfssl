@@ -41424,8 +41424,11 @@ static int test_wolfSSL_SESSION(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    !defined(NO_SESSION_CACHE)
-static void set_ctx_timeout(WOLFSSL_CTX* ctx)
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_NO_TLS12)
+static WOLFSSL_SESSION* test_wolfSSL_SESSION_expire_sess = NULL;
+
+static void test_wolfSSL_SESSION_expire_downgrade_ctx_ready(WOLFSSL_CTX* ctx)
 {
     #ifdef WOLFSSL_ERROR_CODE_OPENSSL
     /* returns previous timeout value */
@@ -41434,203 +41437,119 @@ static void set_ctx_timeout(WOLFSSL_CTX* ctx)
     AssertIntEQ(wolfSSL_CTX_set_timeout(ctx, 1), WOLFSSL_SUCCESS);
     #endif
 }
-#endif
 
-static int test_wolfSSL_SESSION_expire_downgrade(void)
+
+/* set the session to timeout in a second */
+static void test_wolfSSL_SESSION_expire_downgrade_ssl_ready(WOLFSSL* ssl)
 {
-    int res = TEST_SKIPPED;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    !defined(NO_SESSION_CACHE)
-
-    WOLFSSL*     ssl;
-    WOLFSSL_CTX* ctx;
-    WOLFSSL_SESSION* sess;
-    int ret, err;
-    SOCKET_T sockfd;
-    tcp_ready ready;
-    func_args server_args;
-    THREAD_TYPE serverThread;
-    char msg[80];
-    const char* sendGET = "GET";
-    callback_functions server_cbf;
-
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
-        WOLFSSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
-        WOLFSSL_FILETYPE_PEM));
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0),
-        WOLFSSL_SUCCESS);
-
-    XMEMSET(&server_args, 0, sizeof(func_args));
-    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
-#ifdef WOLFSSL_TIRTOS
-    fdOpenSession(Task_self());
-#endif
-
-    StartTCP();
-    InitTcpReady(&ready);
-
-#if defined(USE_WINDOWS_API)
-    /* use RNG to get random port if using windows */
-    ready.port = GetRandomPort();
-#endif
-
-    /* force server side to use TLS 1.2 */
-    server_cbf.method = wolfTLSv1_2_server_method;
-    server_cbf.ctx_ready = set_ctx_timeout;
-    server_args.callbacks = &server_cbf;
-    server_args.argc = 2;
-
-    server_args.signal = &ready;
-    start_thread(test_server_loop, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-
-    /* client connection */
-    ssl = wolfSSL_new(ctx);
-    tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
-    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_set_timeout(ssl, 1), 1);
+}
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, WOLFSSL_SUCCESS);
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_write(ssl, sendGET, (int)XSTRLEN(sendGET));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, (int)XSTRLEN(sendGET));
+/* store the client side session from the first successful connection */
+static void test_wolfSSL_SESSION_expire_downgrade_ssl_result(WOLFSSL* ssl)
+{
+    AssertPtrNE((test_wolfSSL_SESSION_expire_sess = wolfSSL_get1_session(ssl)),
+        NULL); /* ref count 1 */
+}
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_read(ssl, msg, sizeof(msg));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, 23);
 
-    AssertPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */
+/* wait till session is expired then set it in the WOLFSSL struct for use */
+static void test_wolfSSL_SESSION_expire_downgrade_ssl_ready_wait(WOLFSSL* ssl)
+{
+    AssertIntEQ(wolfSSL_set_timeout(ssl, 1), 1);
+    AssertIntEQ(wolfSSL_set_session(ssl, test_wolfSSL_SESSION_expire_sess),
+        WOLFSSL_SUCCESS);
+    XSLEEP_MS(1200); /* wait a second for session to expire */
+}
 
-    wolfSSL_shutdown(ssl);
-    wolfSSL_free(ssl);
-    CloseSocket(sockfd);
 
-#ifdef WOLFSSL_TIRTOS
-    fdOpenSession(Task_self());
-#endif
-
-    /* successful set session test */
-    AssertNotNull(ssl = wolfSSL_new(ctx));
+/* set expired session in the WOLFSSL struct for use */
+static void test_wolfSSL_SESSION_expire_downgrade_ssl_ready_set(WOLFSSL* ssl)
+{
     XSLEEP_MS(1200); /* wait a second for session to expire */
 
     /* set the expired session, call to set session fails but continuing on
        after failure should be handled here */
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
-    AssertIntEQ(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_session(ssl, test_wolfSSL_SESSION_expire_sess),
+        WOLFSSL_SUCCESS);
 #else
-    AssertIntNE(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_set_session(ssl, test_wolfSSL_SESSION_expire_sess),
+        WOLFSSL_SUCCESS);
 #endif
-
-    /* test resuming connection with expired session and downgrade */
-    StartTCP();
-
-    /* client connection */
-    wait_tcp_ready(&server_args);
-    tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
-    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, WOLFSSL_SUCCESS);
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_write(ssl, sendGET, (int)XSTRLEN(sendGET));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, (int)XSTRLEN(sendGET));
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_read(ssl, msg, sizeof(msg));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
-    AssertIntEQ(ret, 23);
-
-    /* since the session has expired it should not have been reused */
-    AssertIntEQ(wolfSSL_session_reused(ssl), 0);
-
-    wolfSSL_shutdown(ssl);
-    wolfSSL_free(ssl);
-
-    FreeTcpReady(&ready);
-
-    wolfSSL_SESSION_free(sess);
-    wolfSSL_CTX_free(ctx);
-    join_thread(serverThread);
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
 }
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+
+/* check that the expired session was not reused */
+static void test_wolfSSL_SESSION_expire_downgrade_ssl_result_reuse(WOLFSSL* ssl)
+{
+    /* since the session has expired it should not have been reused */
+    AssertIntEQ(wolfSSL_session_reused(ssl), 0);
+}
+#endif
+
+static int test_wolfSSL_SESSION_expire_downgrade(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_NO_TLS12)
+
+    WOLFSSL_CTX* ctx = NULL;
+    callback_functions server_cbf, client_cbf;
+
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+
+    /* force server side to use TLS 1.2 */
+    server_cbf.ctx = ctx;
+    server_cbf.method = wolfTLSv1_2_server_method;
+
+    client_cbf.method = wolfSSLv23_client_method;
+    server_cbf.ctx_ready = test_wolfSSL_SESSION_expire_downgrade_ctx_ready;
+    client_cbf.ssl_ready = test_wolfSSL_SESSION_expire_downgrade_ssl_ready;
+    client_cbf.on_result = test_wolfSSL_SESSION_expire_downgrade_ssl_result;
+
+    test_wolfSSL_client_server_nofail(&client_cbf, &server_cbf);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+
+    /* set the previously created session and wait till expired */
+    server_cbf.ctx = ctx;
+
+    client_cbf.method = wolfSSLv23_client_method;
+    server_cbf.ctx_ready = test_wolfSSL_SESSION_expire_downgrade_ctx_ready;
+    client_cbf.ssl_ready = test_wolfSSL_SESSION_expire_downgrade_ssl_ready_wait;
+    client_cbf.on_result =
+        test_wolfSSL_SESSION_expire_downgrade_ssl_result_reuse;
+
+    test_wolfSSL_client_server_nofail(&client_cbf, &server_cbf);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+
+    /* set the previously created expired session */
+    server_cbf.ctx = ctx;
+
+    client_cbf.method = wolfSSLv23_client_method;
+    server_cbf.ctx_ready = test_wolfSSL_SESSION_expire_downgrade_ctx_ready;
+    client_cbf.ssl_ready = test_wolfSSL_SESSION_expire_downgrade_ssl_ready_set;
+    client_cbf.on_result =
+        test_wolfSSL_SESSION_expire_downgrade_ssl_result_reuse;
+
+    test_wolfSSL_client_server_nofail(&client_cbf, &server_cbf);
+    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+
+    wolfSSL_SESSION_free(test_wolfSSL_SESSION_expire_sess);
+    wolfSSL_CTX_free(ctx);
+
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
 static int clientSessRemCountMalloc = 0;
 static int serverSessRemCountMalloc = 0;

@@ -13755,7 +13755,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             TlsSessionCacheUnlockRow(row);
             error = WOLFSSL_FAILURE;
         }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         else if (LowResTimer() >= (sess->bornOn + sess->timeout)) {
             WOLFSSL_SESSION* wrSess = NULL;
             WOLFSSL_MSG("Invalid session: timed out");
@@ -13770,7 +13769,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             }
             error = WOLFSSL_FAILURE;
         }
-#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
     }
 
     /* mollify confused cppcheck nullPointer warning. */
