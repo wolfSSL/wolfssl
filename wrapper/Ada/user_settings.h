@@ -1,4 +1,4 @@
-/* user_settings_all.h
+/* user_settings.h
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -34,34 +34,40 @@
 extern "C" {
 #endif
 
+/* Usually comes from configure -> config.h */
+#define HAVE_SYS_TIME_H
+
 /* Features */
+#define SINGLE_THREADED
+#define WOLFSSL_IGNORE_FILE_WARN /* Ignore *.c include warnings */
 #define WOLFSSL_PUBLIC_MP /* Make math API's public */
-#define KEEP_PEER_CERT /* Retain peer's certificate */
-#define KEEP_OUR_CERT /* Keep our certificate */
-#define WOLFSSL_ALWAYS_VERIFY_CB /* Always call verify callback (configured via wolfSSL_CTX_set_verify API) */
-#define WOLFSSL_VERIFY_CB_ALL_CERTS /* Call verify callback for all intermediate certs */
-#define WOLFSSL_ALWAYS_KEEP_SNI
-#define WOLFSSL_EXTRA_ALERTS /* Allow sending other TLS alerts */
-#define HAVE_EX_DATA /* Enable "extra" EX data API's for user information in CTX/WOLFSSL */
-#define HAVE_EXT_CACHE
-#define ATOMIC_USER /* Enable Atomic Record Layer callbacks */
-#define HAVE_PK_CALLBACKS /* Enable public key callbacks */
-#define WOLFSSL_ALT_NAMES /* Allow alternate cert chain validation to any trusted cert (not entire chain presented by peer) */
-#define HAVE_NULL_CIPHER /* Enable use of TLS cipher suites without cipher (clear text / no encryption) */
-#define WOLFSSL_HAVE_CERT_SERVICE
-#define WOLFSSL_JNI
-#define WOLFSSL_SEP /* certificate policy set extension */
-#define WOLFCRYPT_HAVE_SRP
-#define WOLFSSL_HAVE_WOLFSCEP
 #define WOLFSSL_ENCRYPTED_KEYS /* Support for encrypted keys PKCS8 */
-#define HAVE_PKCS7
-#define WOLFSSL_SIGNER_DER_CERT
-#define WOLFSSL_TRUST_PEER_CERT
 #define WOLFSSL_SYS_CA_CERTS /* Enable ability to load CA certs from OS */
-#define WOLFSSL_WOLFSSH
-#define WC_NO_ASYNC_THREADING
-//#define HAVE_THREAD_LS /* DG Commented: Thread local storage - may not be portable */
-//#define WOLFSSL_AEAD_ONLY /* automatically set if TLS v1.3 only, but can be enabled for TLS v1.2 manually */
+
+#if 0 /* Not needed */
+    #define KEEP_PEER_CERT /* Retain peer's certificate */
+    #define KEEP_OUR_CERT /* Keep our certificate */
+    #define WOLFSSL_ALWAYS_VERIFY_CB /* Always call verify callback (configured via wolfSSL_CTX_set_verify API) */
+    #define WOLFSSL_VERIFY_CB_ALL_CERTS /* Call verify callback for all intermediate certs */
+    #define WOLFSSL_ALWAYS_KEEP_SNI
+    #define WOLFSSL_EXTRA_ALERTS /* Allow sending other TLS alerts */
+    #define HAVE_EX_DATA /* Enable "extra" EX data API's for user information in CTX/WOLFSSL */
+    #define HAVE_EXT_CACHE
+    #define ATOMIC_USER /* Enable Atomic Record Layer callbacks */
+    #define HAVE_PK_CALLBACKS /* Enable public key callbacks */
+    #define WOLFSSL_ALT_NAMES /* Allow alternate cert chain validation to any trusted cert (not entire chain presented by peer) */
+    #define HAVE_NULL_CIPHER /* Enable use of TLS cipher suites without cipher (clear text / no encryption) */
+    #define WOLFSSL_HAVE_CERT_SERVICE
+    #define WOLFSSL_JNI
+    #define WOLFSSL_SEP /* certificate policy set extension */
+    #define WOLFCRYPT_HAVE_SRP
+    #define WOLFSSL_HAVE_WOLFSCEP
+    #define HAVE_PKCS7
+    #define WOLFSSL_SIGNER_DER_CERT
+    #define WOLFSSL_TRUST_PEER_CERT
+    #define WOLFSSL_WOLFSSH
+    #define WC_NO_ASYNC_THREADING
+#endif
 
 /* TLS Features */
 #define WOLFSSL_TLS13
@@ -69,11 +75,13 @@ extern "C" {
 #define WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
 
 /* DTLS */
-#define WOLFSSL_DTLS
-#define WOLFSSL_MULTICAST
+#if 0
+    #define WOLFSSL_DTLS
+    #define WOLFSSL_MULTICAST
 
-/* DTLS v1.3 is not yet included with enable-all */
-//#define WOLFSSL_DTLS13
+    /* DTLS v1.3 is not yet included with enable-all */
+    //#define WOLFSSL_DTLS13
+#endif
 
 /* DG Disabled SSLv3 and TLSv1.0 - should avoid using */
 //#define WOLFSSL_ALLOW_SSLV3
@@ -303,6 +311,11 @@ extern "C" {
     #define WOLFSSL_SNIFFER
 #endif
 
+/* Deprecated */
+#define NO_DSA
+#define NO_MD4
+#define NO_MD5
+#define NO_OLD_TLS
 
 /* Used to manually test disable edge cases */
 #ifdef TEST_DISABLES
@@ -316,7 +329,6 @@ extern "C" {
 
     //#define NO_RSA
     #define NO_DH
-    #define NO_DSA
 
     #define NO_SHA
     #define NO_SHA256
@@ -329,8 +341,7 @@ extern "C" {
         #undef WOLFSSL_SHA512
         #undef HAVE_ED25519
     #endif
-    #define NO_MD4
-    #define NO_MD5
+
     //#define NO_KDF
     //#define NO_HMAC
 
@@ -342,7 +353,7 @@ extern "C" {
 
     #define NO_PSK
     #define NO_PWDBASED
-    #define NO_OLD_TLS
+
     //#define WOLFSSL_NO_TLS12
 
     //#define NO_64BIT
