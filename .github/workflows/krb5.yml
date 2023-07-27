@@ -2,8 +2,6 @@ name: Kerberos 5 Tests
 
 on:
   workflow_call:
-  # TODO remove push when opening the PR
-  push:
 
 jobs:
   build_wolfssl:
@@ -48,10 +46,7 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v3
         with:
-          # TODO revert repo to wolfssl on merge
-          repository: julek-wolfssl/osp
-          # TODO remove ref on merge
-          ref: krb5-1.21.1
+          repository: wolfssl/osp
           path: osp
 
       - name: Checkout krb5
