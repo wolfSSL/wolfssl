@@ -1862,7 +1862,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         { "wolfsentry-config", 1, 256 },
 #endif
         { "help", 0, 257 },
+#ifndef NO_MULTIBYTE_PRINT
         { "ヘルプ", 0, 258 },
+#endif
 #if defined(HAVE_PQC)
         { "pqc", 1, 259 },
 #endif
