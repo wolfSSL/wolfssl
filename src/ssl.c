@@ -4481,7 +4481,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
     }
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-    /* reset WOLFSSL structure state for possible re-use */
+    /* reset WOLFSSL structure state for possible reuse */
     if (ret == WOLFSSL_SUCCESS) {
         if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("could not clear WOLFSSL");
@@ -12079,7 +12079,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_ENTER("wolfSSL_connect");
 
         /* make sure this wolfSSL object has arrays and rng setup. Protects
-         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+         * case where the WOLFSSL object is reused via wolfSSL_clear() */
         if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
             return ret;
         }
@@ -12567,7 +12567,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_ENTER("wolfSSL_accept");
 
         /* make sure this wolfSSL object has arrays and rng setup. Protects
-         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+         * case where the WOLFSSL object is reused via wolfSSL_clear() */
         if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
             return ret;
         }
@@ -14358,7 +14358,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     cacheSession->peer = NULL;
 #endif
 #ifdef HAVE_SESSION_TICKET
-    /* If we can re-use the existing buffer in cacheSession then we won't touch
+    /* If we can reuse the existing buffer in cacheSession then we won't touch
      * ticBuff at all making it a very cheap malloc/free. The page on a modern
      * OS will most likely not even be allocated to the process. */
     if (ticBuff != NULL && cacheSession->ticketLenAlloc < ticLen) {
@@ -20142,8 +20142,8 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     }
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-        /* free the data, it would be better to re-use the buffer but this
-         * maintain the code simpler. A smart allocator should re-use the free'd
+        /* free the data, it would be better to reuse the buffer but this
+         * maintain the code simpler. A smart allocator should reuse the free'd
          * buffer in the next malloc without much performance penalties. */
     if (output->ticketNonce.data != output->ticketNonce.dataStatic) {
 

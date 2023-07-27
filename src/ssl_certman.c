@@ -188,7 +188,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #ifdef HAVE_CRL
             /* Dispose of CRL handler. */
             if (cm->crl != NULL) {
-                /* Dispose of CRL object - indicating dynamicly allocated. */
+                /* Dispose of CRL object - indicating dynamically allocated. */
                 FreeCRL(cm->crl, 1);
             }
         #endif
@@ -618,7 +618,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     if (ret == 0)
 #endif
     {
-        /* Reset fields of decoded certifcate. */
+        /* Reset fields of decoded certificate. */
         XMEMSET(cert, 0, sizeof(DecodedCert));
 
         if (format == WOLFSSL_FILETYPE_PEM) {
@@ -1590,7 +1590,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                 /* Initialize CRL object. */
                 if (InitCRL(cm->crl, cm) != 0) {
                     WOLFSSL_MSG("Init CRL failed");
-                    /* Dispose of CRL object - indicating dynamicly allocated.
+                    /* Dispose of CRL object - indicating dynamically allocated.
                      */
                     FreeCRL(cm->crl, 1);
                     cm->crl = NULL;
@@ -1707,7 +1707,7 @@ int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm)
     }
     /* Check whether CRL object exists. */
     if ((ret == WOLFSSL_SUCCESS) && (cm->crl != NULL)) {
-        /* Dispose of CRL object - indicating dynamicly allocated. */
+        /* Dispose of CRL object - indicating dynamically allocated. */
         FreeCRL(cm->crl, 1);
         cm->crl = NULL;
     }
@@ -1943,7 +1943,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
     }
 #else
     if (ret == WOLFSSL_SUCCESS) {
-        /* Check wheter OCSP object is available. */
+        /* Check whether OCSP object is available. */
         if (cm->ocsp == NULL) {
             /* Allocate memory for OCSP object. */
             cm->ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP), cm->heap,
@@ -1957,7 +1957,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
                 /* Initialize the OCSP object. */
                 if (InitOCSP(cm->ocsp, cm) != 0) {
                     WOLFSSL_MSG("Init OCSP failed");
-                    /* Dispose of OCSP object - indicating dynamicly allocated.
+                    /* Dispose of OCSP object - indicating dynamically allocated.
                      */
                     FreeOCSP(cm->ocsp, 1);
                     cm->ocsp = NULL;
@@ -2048,7 +2048,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 #else
 #ifndef NO_WOLFSSL_SERVER
     if (ret == WOLFSSL_SUCCESS) {
-        /* Check wheter OCSP object is available. */
+        /* Check whether OCSP object is available. */
         if (cm->ocsp_stapling == NULL) {
             /* Allocate memory for OCSP stapling object. */
             cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
@@ -2062,7 +2062,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
                 /* Initialize the OCSP stapling object. */
                 if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
                     WOLFSSL_MSG("Init OCSP failed");
-                    /* Dispose of OCSP stapling object - indicating dynamicly
+                    /* Dispose of OCSP stapling object - indicating dynamically
                      * allocated. */
                     FreeOCSP(cm->ocsp_stapling, 1);
                     cm->ocsp_stapling = NULL;

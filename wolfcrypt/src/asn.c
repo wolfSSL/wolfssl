@@ -18265,7 +18265,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             rid->name[strLen] = '\0';
 
             if (GenerateDNSEntryRIDString(rid, cert->heap) != 0) {
-                WOLFSSL_MSG("\tOut of Memory for registerd Id string");
+                WOLFSSL_MSG("\tOut of Memory for registered Id string");
                 XFREE(rid->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 XFREE(rid, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
