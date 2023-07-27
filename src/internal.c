@@ -8007,6 +8007,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ssl->dtls_rx_msg_list = NULL;
         ssl->dtls_rx_msg_list_sz = 0;
     }
+    XFREE(ssl->dtls_pending_finished, ssl->heap, DYNAMIC_TYPE_DTLS_BUFFER);
+    ssl->dtls_pending_finished = NULL;
+    ssl->dtls_pending_finished_sz = 0;
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
 #ifndef NO_WOLFSSL_SERVER
@@ -8316,6 +8319,21 @@ void FreeHandshakeResources(WOLFSSL* ssl)
             ssl->options.weOwnRng = 0;
         }
     }
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS_POOL */
+    if (ssl->options.dtls) {
+        DtlsMsgPoolReset(ssl);
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
+        if (ssl->dtls_pending_finished != NULL) {
+            XFREE(ssl->dtls_pending_finished, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+            ssl->dtls_pending_finished = NULL;
+            ssl->dtls_pending_finished_sz = 0;
+        }
+    }
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
                                                     defined(HAVE_SESSION_TICKET)
@@ -15382,6 +15400,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         default:
             ret = BUFFER_ERROR;
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        DtlsMsgPoolReset(ssl);
+    }
+#endif
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -16328,6 +16351,14 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     case finished:
         WOLFSSL_MSG("processing finished");
         ret = DoFinished(ssl, input, inOutIdx, size, totalSz, NO_SNIFF);
+
+        #ifdef WOLFSSL_DTLS
+        if (ssl->dtls_pending_finished != NULL) {
+            XFREE(ssl->dtls_pending_finished, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+            ssl->dtls_pending_finished = NULL;
+            ssl->dtls_pending_finished_sz = 0;
+        }
+        #endif
         break;
 
 #ifndef NO_WOLFSSL_SERVER
@@ -16671,6 +16702,7 @@ static int _DtlsCheckWindow(WOLFSSL* ssl)
         window = peerSeq->prevWindow;
     }
     else {
+        WOLFSSL_MSG("Different epoch");
         return 0;
     }
 
@@ -20243,21 +20275,48 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
-                    ssl->options.processReply = doProcessInit;
-                    ssl->buffers.inputBuffer.length = 0;
-                    ssl->buffers.inputBuffer.idx = 0;
+                if (ssl->keys.curEpoch != 0) {
+                    word32 sz = ssl->buffers.inputBuffer.length -
+                                ssl->buffers.inputBuffer.idx +
+                                DTLS_RECORD_HEADER_SZ;
+
+                    if (ssl->dtls_pending_finished != NULL) {
+                        XFREE(ssl->dtls_pending_finished, ssl->heap,
+                                DYNAMIC_TYPE_DTLS_MSG);
+                    }
+
+                    ssl->dtls_pending_finished = (byte*)XMALLOC(sz, ssl->heap,
+                            DYNAMIC_TYPE_DTLS_MSG);
+                    if (ssl->dtls_pending_finished == NULL)
+                        return MEMORY_E;
+
+                    ssl->dtls_pending_finished_sz = sz;
+                    XMEMCPY(ssl->dtls_pending_finished,
+                            ssl->buffers.inputBuffer.buffer +
+                                ssl->buffers.inputBuffer.idx -
+                                DTLS_RECORD_HEADER_SZ,
+                            sz);
+                    ssl->buffers.inputBuffer.idx += ssl->curSize;
+                }
+                else {
+                    WOLFSSL_MSG("Silently dropping out of order DTLS message");
+                }
+
+                ssl->options.processReply = doProcessInit;
+                ssl->buffers.inputBuffer.length = 0;
+                ssl->buffers.inputBuffer.idx = 0;
 #ifdef WOLFSSL_DTLS_DROP_STATS
-                    ssl->replayDropCount++;
+                ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 
 #ifdef WOLFSSL_DTLS13
-                    /* return to send ACKS and shortcut rtx timer */
-                    if (IsAtLeastTLSv1_3(ssl->version)
-                        && ssl->dtls13Rtx.sendAcks)
-                        return 0;
+                /* return to send ACKS and shortcut rtx timer */
+                if (IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->dtls13Rtx.sendAcks)
+                    return 0;
 #endif /* WOLFSSL_DTLS13 */
 
-                    continue;
+                continue;
             }
 #endif
             if (ret != 0) {
@@ -20999,6 +21058,33 @@ default:
                                        kTlsServerStr : kTlsClientStr);
                     if (ret != 0)
                         return ret;
+#ifdef WOLFSSL_DTLS
+                    if (ssl->dtls_pending_finished != NULL &&
+                            ssl->dtls_pending_finished_sz > 0) {
+
+                        if (GrowInputBuffer(ssl, ssl->dtls_pending_finished_sz,
+                                ssl->buffers.inputBuffer.length -
+                                    ssl->buffers.inputBuffer.idx) < 0) {
+
+                            return MEMORY_E;
+                        }
+
+                        XMEMCPY(ssl->buffers.inputBuffer.buffer +
+                                    ssl->buffers.inputBuffer.idx,
+                                ssl->dtls_pending_finished,
+                                ssl->dtls_pending_finished_sz);
+                        ssl->buffers.inputBuffer.length +=
+                                ssl->dtls_pending_finished_sz;
+
+                        XFREE(ssl->dtls_pending_finished, ssl->heap,
+                                DYNAMIC_TYPE_DTLS_MSG);
+                        ssl->dtls_pending_finished = NULL;
+                        ssl->dtls_pending_finished_sz = 0;
+
+                        ssl->options.processReply = getRecordLayerHeader;
+                        continue;
+                    }
+#endif
 #endif /* !WOLFSSL_NO_TLS12 */
                     break;
 
