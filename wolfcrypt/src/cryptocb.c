@@ -157,8 +157,8 @@ static const char* GetRsaType(int type)
 static const char* GetCryptoCbCmdTypeStr(int type)
 {
     switch (type) {
-        case WC_CRYPTOCB_CMD_TYPE_REGISTER:  return "Register";
-        case WC_CRYPTOCB_CMD_TYPE_UNREGISTER:  return "UnRegister";
+        case WC_CRYPTOCB_CMD_TYPE_REGISTER:   return "Register";
+        case WC_CRYPTOCB_CMD_TYPE_UNREGISTER: return "UnRegister";
     }
     return NULL;
 }
@@ -196,7 +196,7 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
     }
     else if (info->algo_type == WC_ALGO_TYPE_NONE) {
         printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
-                GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
+            GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
     else {
         printf("CryptoCb: %s \n", GetAlgoTypeStr(info->algo_type));
@@ -253,7 +253,7 @@ static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
 }
 
 /* Helper function to reset a device entry to invalid */
-static inline void wc_CryptoCb_ClearDev(CryptoCb *dev)
+static WC_INLINE void wc_CryptoCb_ClearDev(CryptoCb *dev)
 {
     XMEMSET(dev, 0, sizeof(*dev));
     dev->devId = INVALID_DEVID;
@@ -262,7 +262,7 @@ static inline void wc_CryptoCb_ClearDev(CryptoCb *dev)
 void wc_CryptoCb_Init(void)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+    for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
         wc_CryptoCb_ClearDev(&gCryptoDev[i]);
     }
 }
@@ -270,7 +270,7 @@ void wc_CryptoCb_Init(void)
 void wc_CryptoCb_Cleanup(void)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+    for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
         if(gCryptoDev[i].devId != INVALID_DEVID) {
             wc_CryptoCb_UnRegisterDevice(gCryptoDev[i].devId);
         }
@@ -301,7 +301,7 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
-    int rc=0;
+    int rc = 0;
 
     /* find existing or new */
     CryptoCb* dev = wc_CryptoCb_GetDevice(devId);
@@ -312,13 +312,14 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
         return BUFFER_E; /* out of devices */
 
     dev->devId = devId;
-    dev->cb = cb;
-    dev->ctx = ctx;
+    dev->cb    = cb;
+    dev->ctx   = ctx;
 
 #ifdef WOLF_CRYPTO_CB_CMD
     if (cb != NULL) {
         /* Invoke callback with register command */
-        wc_CryptoInfo info= {0};
+        wc_CryptoInfo info;
+        XMEMSET(&info, 0, sizeof(info));
         info.algo_type = WC_ALGO_TYPE_NONE;
         info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_REGISTER;
         info.cmd.ctx   = ctx;  /* cb may update on success */
@@ -358,7 +359,8 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
 #ifdef WOLF_CRYPTO_CB_CMD
     if (dev->cb != NULL) {
         /* Invoke callback with unregister command.*/
-        wc_CryptoInfo info= {0};
+        wc_CryptoInfo info;
+        XMEMSET(&info, 0, sizeof(info));
         info.algo_type = WC_ALGO_TYPE_NONE;
         info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_UNREGISTER;
         info.cmd.ctx   = NULL;  /* Not used */
