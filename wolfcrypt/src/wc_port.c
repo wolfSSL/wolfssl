@@ -486,6 +486,10 @@ int wolfCrypt_Cleanup(void)
         Entropy_Final();
     #endif
 
+    #ifdef WOLF_CRYPTO_CB
+        wc_CryptoCb_Cleanup();
+    #endif
+
     #if defined(WOLFSSL_MEM_FAIL_COUNT) && defined(WOLFCRYPT_ONLY)
         wc_MemFailCount_Free();
     #endif
