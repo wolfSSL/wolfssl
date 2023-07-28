@@ -7,7 +7,7 @@ using the WolfSSL Ada binding. The implementation is cross-platform
 and compiles on Linux, Mac OS X and Windows.
 
 Security: The WolfSSL Ada binding avoids usage of the
-Seconday Stack. The GNAT compiler has a number of hardening
+Secondary Stack. The GNAT compiler has a number of hardening
 features for example Stack Scrubbing; the compiler can generate
 code to zero-out stack frames used by subprograms.
 Unfortunately this works well for the primary stack but not

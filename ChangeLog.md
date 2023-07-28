@@ -3255,7 +3255,7 @@ More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
   a) If using wolfSSL for DTLS on the server side of a publicly accessible
      machine you MUST update.
   b) If using wolfSSL for TLS on the server side with private RSA keys allowing
-     ephemeral key exchange without low memory optimziations you MUST update and
+     ephemeral key exchange without low memory optimizations you MUST update and
      regenerate the private RSA keys.
 
      Please see https://www.wolfssl.com/wolfSSL/Blog/Blog.html for more details
