@@ -311,7 +311,7 @@ static int check_sha256(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
-        printf("sha256 final memcmp fialed\n");
+        printf("sha256 final memcmp failed\n");
         return -1;
     }
     printf("sha256      mcapi test passed\n");
@@ -351,7 +351,7 @@ static int check_sha384(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
-        printf("sha384 final memcmp fialed\n");
+        printf("sha384 final memcmp failed\n");
         return -1;
     }
     printf("sha384      mcapi test passed\n");
@@ -391,7 +391,7 @@ static int check_sha512(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
-        printf("sha512 final memcmp fialed\n");
+        printf("sha512 final memcmp failed\n");
         return -1;
     }
     printf("sha512      mcapi test passed\n");
@@ -434,7 +434,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
-        printf("hmac sha final memcmp fialed\n");
+        printf("hmac sha final memcmp failed\n");
         return -1;
     }
     printf("hmac sha    mcapi test passed\n");
@@ -462,7 +462,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
-        printf("hmac sha256 final memcmp fialed\n");
+        printf("hmac sha256 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha256 mcapi test passed\n");
@@ -490,7 +490,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
-        printf("hmac sha384 final memcmp fialed\n");
+        printf("hmac sha384 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha384 mcapi test passed\n");
@@ -518,7 +518,7 @@ static int check_hmac(void)
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
-        printf("hmac sha512 final memcmp fialed\n");
+        printf("hmac sha512 final memcmp failed\n");
         return -1;
     }
     printf("hmac sha512 mcapi test passed\n");
