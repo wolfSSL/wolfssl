@@ -63135,6 +63135,43 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+static void test_dtls_1_0_hvr_downgrade_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_DTLSV1_2),
+                WOLFSSL_SUCCESS);
+}
+
+static int test_dtls_1_0_hvr_downgrade(void)
+{
+    EXPECT_DECLS;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    func_cb_client.doUdp = func_cb_server.doUdp = 1;
+    func_cb_server.method = wolfDTLSv1_2_server_method;
+    func_cb_client.method = wolfDTLS_client_method;
+    func_cb_client.ctx_ready = test_dtls_1_0_hvr_downgrade_ctx_ready;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_dtls_1_0_hvr_downgrade(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -64387,6 +64424,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
     TEST_DECL(test_dtls_no_extensions),
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
+    TEST_DECL(test_dtls_1_0_hvr_downgrade),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

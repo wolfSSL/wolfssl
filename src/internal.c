@@ -27700,9 +27700,11 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.dtls) {
             /* we sent a TLSv1.3 ClientHello but received a
-             * HELLO_VERIFY_REQUEST */
+             * HELLO_VERIFY_REQUEST. We only check if DTLSv1_3_MINOR is the
+             * min downgrade option as per the server_version field comments in
+             * https://www.rfc-editor.org/rfc/rfc6347#section-4.2.1 */
             if (!ssl->options.downgrade ||
-                    ssl->options.minDowngrade < pv.minor)
+                    ssl->options.minDowngrade <= DTLSv1_3_MINOR)
                 return VERSION_ERROR;
         }
 #endif /* defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) */
