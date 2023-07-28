@@ -277,13 +277,15 @@ static int test_crl_monitor(void)
     char buf[128];
     char tmpDir[16];
     char rounds[4];
+    char portNum[8];
     const char* serverArgv[] = {
         "testsuite",
         "-A", "certs/ca-cert.pem",
         "--crl-dir", tmpDir,
         "-C", rounds,
         "--quieter",
-        "-x"
+        "-x",
+        "-p", "0"
     };
     const char* clientArgv[] = {
         "testsuite",
@@ -291,7 +293,8 @@ static int test_crl_monitor(void)
         "-c", "certs/server-cert.pem",
         "-k", "certs/server-key.pem",
         "--quieter",
-        "-H", "exitWithRet"
+        "-H", "exitWithRet",
+        "-p", portNum
     };
     int ret = -1;
     int i = -1, j;
@@ -318,6 +321,7 @@ static int test_crl_monitor(void)
     InitTcpReady(&ready);
     start_thread(server_test, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
+    sprintf(portNum, "%d", server_args.signal->port);
 
     for (i = 0; i < CRL_MONITOR_TEST_ROUNDS; i++) {
         int expectFail;
