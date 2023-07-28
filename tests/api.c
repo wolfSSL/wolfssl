@@ -63172,6 +63172,76 @@ static int test_dtls_1_0_hvr_downgrade(void)
 }
 #endif
 
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(HAVE_SESSION_TICKET)
+
+static WOLFSSL_SESSION* test_session_ticket_no_id_session = NULL;
+
+static void test_session_ticket_no_id_on_result(WOLFSSL* ssl)
+{
+    test_session_ticket_no_id_session = wolfSSL_get1_session(ssl);
+    AssertNotNull(test_session_ticket_no_id_session);
+}
+
+static void test_session_ticket_no_id_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_UseSessionTicket(ctx), WOLFSSL_SUCCESS);
+}
+
+static void test_session_ticket_no_id_ssl_ready(WOLFSSL* ssl)
+{
+    test_session_ticket_no_id_session->sessionIDSz = 0;
+    AssertIntEQ(WOLFSSL_SUCCESS,
+           wolfSSL_set_session(ssl, test_session_ticket_no_id_session));
+}
+
+static int test_session_ticket_no_id(void)
+{
+    /* We are testing an expired (invalid crypto context in out case since the
+     * ctx changes) session ticket being sent with the session ID being 0
+     * length. */
+    EXPECT_DECLS;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+    func_cb_client.method = wolfTLSv1_2_client_method;
+    func_cb_client.ctx_ready = test_session_ticket_no_id_ctx_ready;
+    func_cb_client.on_result = test_session_ticket_no_id_on_result;
+    func_cb_server.method = wolfTLSv1_2_server_method;
+    func_cb_server.ctx_ready = test_session_ticket_no_id_ctx_ready;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+    func_cb_client.method = wolfTLSv1_2_client_method;
+    func_cb_client.ctx_ready = test_session_ticket_no_id_ctx_ready;
+    func_cb_client.ssl_ready = test_session_ticket_no_id_ssl_ready;
+    func_cb_server.method = wolfTLSv1_2_server_method;
+    func_cb_server.ctx_ready = test_session_ticket_no_id_ctx_ready;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    wolfSSL_SESSION_free(test_session_ticket_no_id_session);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_session_ticket_no_id(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -64425,6 +64495,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_no_extensions),
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
     TEST_DECL(test_dtls_1_0_hvr_downgrade),
+    TEST_DECL(test_session_ticket_no_id),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
