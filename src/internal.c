@@ -19949,7 +19949,7 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END
-            && ssl->curRL.type != handshake) {
+            && ssl->curRL.type != handshake && !IsSCR(ssl)) {
         int beforeCookieVerified = 0;
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             beforeCookieVerified =
