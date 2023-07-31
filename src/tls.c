@@ -6681,7 +6681,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
             CopyDecodedName(name, cert, SUBJECT);
             if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
                     == WOLFSSL_FAILURE)
-            ret = MEMORY_ERROR;
+                ret = MEMORY_ERROR;
         }
 
         if (didInit)
