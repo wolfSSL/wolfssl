@@ -6152,6 +6152,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     size_t msg_len = 0;
 #endif
 
+    wolfSSL_SetLoggingPrefix("server");
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -6442,6 +6444,8 @@ done:
 #endif
     }
 
+    wolfSSL_SetLoggingPrefix(NULL);
+
 #ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
@@ -6688,6 +6692,8 @@ static int test_client_nofail(void* args, cbType cb)
     int  doUdp = 0;
     const char* cipherName1, *cipherName2;
 
+    wolfSSL_SetLoggingPrefix("client");
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -6907,6 +6913,9 @@ done:
     (void)args;
     (void)cb;
 #endif /* !NO_WOLFSSL_CLIENT */
+
+    wolfSSL_SetLoggingPrefix(NULL);
+
     return 0;
 }
 
