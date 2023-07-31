@@ -6634,6 +6634,9 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     if (ssl->client_ca_names == NULL)
         return MEMORY_ERROR;
 
+    if (length < OPAQUE16_LEN)
+        return BUFFER_ERROR;
+
     ato16(input, &extLen);
     input += OPAQUE16_LEN;
     length -= OPAQUE16_LEN;
@@ -6644,6 +6647,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         word32 idx = 0;
         WOLFSSL_X509_NAME* name = NULL;
         int ret = 0;
+        int didInit = FALSE;
         /* Use a DecodedCert struct to get access to GetName to
          * parse DN name */
 #ifdef WOLFSSL_SMALL_STACK
@@ -6655,28 +6659,33 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         DecodedCert cert[1];
 #endif
 
+        if (length < OPAQUE16_LEN)
+            return BUFFER_ERROR;
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
         if (extLen > length)
-            return BUFFER_ERROR;
+            ret = BUFFER_ERROR;
 
-        InitDecodedCert(cert, input + idx, extLen, ssl->heap);
-        idx += extLen;
-
-        ret = GetName(cert, SUBJECT, extLen);
+        if (ret == 0) {
+            InitDecodedCert(cert, input + idx, extLen, ssl->heap);
+            didInit = TRUE;
+            idx += extLen;
+            ret = GetName(cert, SUBJECT, extLen);
+        }
 
         if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
             ret = MEMORY_ERROR;
 
-        if (ret == 0)
+        if (ret == 0) {
             CopyDecodedName(name, cert, SUBJECT);
+            if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
+                    == WOLFSSL_FAILURE)
+                ret = MEMORY_ERROR;
+        }
 
-        if (ret == 0 && wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
-                == WOLFSSL_FAILURE)
-            ret = MEMORY_ERROR;
-
-        FreeDecodedCert(cert);
+        if (didInit)
+            FreeDecodedCert(cert);
 
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
