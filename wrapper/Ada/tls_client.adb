@@ -101,9 +101,9 @@ package body Tls_Client with SPARK_Mode is
 
    Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
-   CERT_FILE : constant String := "../certs/client-cert.pem";
-   KEY_FILE  : constant String := "../certs/client-key.pem";
-   CA_FILE   : constant String := "../certs/ca-cert.pem";
+   CERT_FILE : constant String := "../../../certs/client-cert.pem";
+   KEY_FILE  : constant String := "../../../certs/client-key.pem";
+   CA_FILE   : constant String := "../../../certs/ca-cert.pem";
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
