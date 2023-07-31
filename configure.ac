@@ -9015,7 +9015,6 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile
         wolfssl/version.h
         wolfssl/options.h
-        cyassl/options.h
         support/wolfssl.pc
         rpm/spec
         wolfcrypt/test/test_paths.h
@@ -9158,28 +9157,6 @@ echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
-
-#backwards compatibility for those who have included options or version
-touch cyassl/options.h
-echo "/* cyassl options.h" > cyassl/options.h
-echo " * generated from wolfssl/options.h" >> cyassl/options.h
-echo " */" >> cyassl/options.h
-
-while read -r line
-do
-    echo "$line" >> cyassl/options.h
-done < $OPTION_FILE
-
-# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
-sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
-
-# workaround for mingw sed that may get "Permission denied" trying to preserve permissions
-case $host_os in
-    mingw*)
-        chmod u+w cyassl/options.h ;;
-esac
-
-rm cyassl/options.h.bak
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then

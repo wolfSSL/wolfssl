@@ -70,18 +70,6 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-/* included for fips @wc_fips */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-#include <cyassl/ctaocrypt/aes.h>
-#if defined(CYASSL_AES_COUNTER) && !defined(WOLFSSL_AES_COUNTER)
-    #define WOLFSSL_AES_COUNTER
-#endif
-#if !defined(WOLFSSL_AES_DIRECT) && defined(CYASSL_AES_DIRECT)
-    #define WOLFSSL_AES_DIRECT
-#endif
-#endif
-
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif

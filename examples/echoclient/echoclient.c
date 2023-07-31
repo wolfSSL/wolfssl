@@ -30,7 +30,7 @@
 #include <cyassl/ssl.h>
 
 /* Force enable the compatibility macros for this example */
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     #include <cyassl/error-ssl.h>
 #endif
 
@@ -97,7 +97,7 @@ void echoclient_test(void* args)
     char** argv = 0;
 #endif
     word16 port;
-    char buffer[CYASSL_MAX_ERROR_SZ];
+    char buffer[WOLFSSL_MAX_ERROR_SZ];
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -118,11 +118,11 @@ void echoclient_test(void* args)
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     doDTLS  = 1;
 #endif
 
-#ifdef CYASSL_LEANPSK
+#ifdef WOLFSSL_LEANPSK
     doPSK = 1;
 #endif
 #if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
@@ -137,7 +137,7 @@ void echoclient_test(void* args)
     port = yasslPort;
 #endif
 
-#if defined(CYASSL_DTLS)
+#if defined(WOLFSSL_DTLS)
     #ifdef WOLFSSL_DTLS13
     method = wolfDTLSv1_3_client_method();
     #elif !defined(WOLFSSL_NO_TLS12)
@@ -178,7 +178,7 @@ void echoclient_test(void* args)
             err_sys("can't load ca buffer");
 #endif
 
-#if defined(CYASSL_SNIFFER)
+#if defined(WOLFSSL_SNIFFER)
     /* Only set if not running testsuite */
     if (XSTRSTR(argv[0], "testsuite") == NULL) {
         /* don't use EDH, can't sniff tmp keys */
@@ -237,7 +237,7 @@ void echoclient_test(void* args)
     tcp_connect(&sockfd, yasslIP, port, doDTLS, 0, ssl);
 
     SSL_set_fd(ssl, sockfd);
-#if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)
+#if defined(USE_WINDOWS_API) && defined(WOLFSSL_DTLS) && defined(NO_MAIN_DRIVER)
     /* let echoserver bind first, TODO: add Windows signal like pthreads does */
     Sleep(100);
 #endif
@@ -319,7 +319,7 @@ void echoclient_test(void* args)
                 LIBCALL_CHECK_RET(fflush(fout));
                 sendSz -= ret;
             }
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
             else if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
                 /* This condition is OK. The packet should be dropped
                  * silently when there is a decrypt or MAC error on
@@ -336,7 +336,7 @@ void echoclient_test(void* args)
     }
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     strncpy(msg, "break", 6);
     sendSz = (int)strlen(msg);
     /* try to tell server done */
@@ -395,10 +395,10 @@ void echoclient_test(void* args)
         args.return_code = 0;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
         ChangeToWolfRoot();
 #endif
 #ifndef NO_WOLFSSL_CLIENT

@@ -44,8 +44,6 @@
 #define WC_SHA_DIGEST_SIZE SHA_DIGEST_SIZE
 #define WC_SHA_PAD_SIZE    SHA_PAD_SIZE
 
-/* for fips @wc_fips */
-#include <cyassl/ctaocrypt/sha.h>
 #endif
 
 #ifdef FREESCALE_LTC_SHA

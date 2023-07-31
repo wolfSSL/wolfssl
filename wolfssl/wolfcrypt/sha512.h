@@ -56,12 +56,6 @@
         #define WC_SHA384_PAD_SIZE    SHA384_PAD_SIZE
     #endif /* WOLFSSL_SHA384 */
 
-    #define CYASSL_SHA512
-    #if defined(WOLFSSL_SHA384)
-        #define CYASSL_SHA384
-    #endif
-    /* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
 #ifdef __cplusplus

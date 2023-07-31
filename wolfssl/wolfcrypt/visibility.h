@@ -31,9 +31,6 @@
  * the same as a non-FIPS build. */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #include <cyassl/ctaocrypt/visibility.h>
-    #define WOLFSSL_API   CYASSL_API
-    #define WOLFSSL_LOCAL CYASSL_LOCAL
 #else
 
 /* WOLFSSL_API is used for the public API symbols.
