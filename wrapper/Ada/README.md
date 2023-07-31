@@ -73,6 +73,13 @@ cd obj/
 ./tls_client_main 127.0.0.1
 ```
 
+On Windows, build the executables with:
+```sh
+gprbuild -XOS=Windows default.gpr
+gprbuild -XOS=Windows client.gpr
+```
+
+
 ### GNAT FSF Compiler and GPRBuild manual installation
 In May 2022 AdaCore announced the end of the GNAT Community releases.
 Pre-built binaries for the GNAT FSF compiler and GPRBuild can be

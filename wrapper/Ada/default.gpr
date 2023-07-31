@@ -72,12 +72,12 @@ project Default is
 
    package Linker is
       case OS is
-         when Windows =>
+         when "Windows" =>
             for Switches ("Ada") use
                ("-lm",         --  To include the math library (used by WolfSSL).
                 "-lcrypt32");  --  Needed on Windows.
 
-         when Linux_Or_Mac =>
+         when "Linux_Or_Mac" =>
             for Switches ("Ada") use
                ("-lm");  --  To include the math library (used by WolfSSL).
       end case;
