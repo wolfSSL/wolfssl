@@ -57425,7 +57425,7 @@ static int test_openssl_generate_key_and_cert(void)
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
         defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
-    expectedDerSz = 345;
+    expectedDerSz = 344;
     ExpectIntEQ(test_openssl_make_self_signed_certificate(pkey, expectedDerSz),
                 TEST_SUCCESS);
 #endif
