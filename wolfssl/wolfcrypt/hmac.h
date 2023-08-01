@@ -32,8 +32,6 @@
 
 #if defined(HAVE_FIPS) && \
         (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-/* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/hmac.h>
     #define WC_HMAC_BLOCK_SIZE HMAC_BLOCK_SIZE
 #endif
 

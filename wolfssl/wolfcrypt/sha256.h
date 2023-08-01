@@ -52,9 +52,6 @@
         #define WC_SHA224_DIGEST_SIZE SHA224_DIGEST_SIZE
         #define WC_SHA224_PAD_SIZE    SHA224_PAD_SIZE
     #endif
-
-    /* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
 #ifdef FREESCALE_LTC_SHA
