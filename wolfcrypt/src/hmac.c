@@ -99,7 +99,7 @@
     }
     int wolfSSL_GetHmacMaxSize(void)
     {
-        return CyaSSL_GetHmacMaxSize();
+        return WC_MAX_DIGEST_SIZE;
     }
 
     int wc_HmacInit(Hmac* hmac, void* heap, int devId)
