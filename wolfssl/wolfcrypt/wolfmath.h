@@ -48,6 +48,10 @@ This library provides big integer math functions.
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
 
+#ifdef NO_BIG_INT
+    #define MP_OKAY 0
+#endif
+
 #if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
     #include <wolfssl/wolfcrypt/random.h>
 #endif

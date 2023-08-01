@@ -257,10 +257,6 @@ ECC Curve Sizes:
         ((unsigned)((key)->dp->size * 8 + 1)))
 #endif
 
-#ifdef NO_BIG_INT
-#define MP_OKAY 0
-#endif
-
 #if !defined(NO_BIG_INT)
 /* forward declarations */
 static int  wc_ecc_new_point_ex(ecc_point** point, void* heap);

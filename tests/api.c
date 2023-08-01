@@ -49941,7 +49941,7 @@ static int test_EccSigFailure_cm(void)
 #endif /* !NO_FILESYSTEM */
 #endif /* NO_CERTS */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_BIG_INT)
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WC_SHA384_DIGEST_SIZE
     static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
@@ -63949,7 +63949,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_set_options),
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_BIG_INT)
     /* TLS v1.3 API tests */
     TEST_DECL(test_tls13_apis),
     TEST_DECL(test_tls13_cipher_suites),

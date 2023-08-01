@@ -32,7 +32,7 @@
 #include <wolfcrypt/test/test.h>
 
 
-#ifndef SINGLE_THREADED
+#if !defined(SINGLE_THREADED) && !defined(NO_BIG_INT)
 
 #ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/ssl.h>

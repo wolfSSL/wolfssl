@@ -93,7 +93,7 @@ static const char *wolfsentry_config_path = NULL;
 #endif
 
 static const char kHelloMsg[] = "hello wolfssl!" TEST_STR_TERM;
-#ifndef NO_SESSION_CACHE
+#if !defined(NO_SESSION_CACHE) && !defined(NO_BIG_INT)
 static const char kResumeMsg[] = "resuming wolfssl!" TEST_STR_TERM;
 #endif
 
@@ -1148,7 +1148,7 @@ static const char* client_usage_msg[][70] = {
         "-m          Match domain name in cert\n",                      /* 23 */
 #endif
         "-N          Use Non-blocking sockets\n",                       /* 24 */
-#ifndef NO_SESSION_CACHE
+#if !defined(NO_SESSION_CACHE) && !defined(NO_BIG_INT)
         "-r          Resume session\n",                                 /* 25 */
 #endif
         "-w          Wait for bidirectional shutdown\n",                /* 26 */
@@ -1624,7 +1624,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* -m */
 #endif
     printf("%s", msg[++msgid]); /* -N */
-#ifndef NO_SESSION_CACHE
+#if !defined(NO_SESSION_CACHE) && !defined(NO_BIG_INT)
     printf("%s", msg[++msgid]); /* -r */
 #endif
     printf("%s", msg[++msgid]); /* -w */
@@ -4237,7 +4237,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#ifndef NO_SESSION_CACHE
+#if !defined(NO_SESSION_CACHE) && !defined(NO_BIG_INT)
     if (resumeSession) {
         session = wolfSSL_get1_session(ssl);
     }
@@ -4297,7 +4297,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_free(ssl); ssl = NULL;
     CloseSocket(sockfd);
 
-#ifndef NO_SESSION_CACHE
+#if !defined(NO_SESSION_CACHE) && !defined(NO_BIG_INT)
     if (resumeSession) {
         sslResume = wolfSSL_new(ctx);
         if (sslResume == NULL) {
