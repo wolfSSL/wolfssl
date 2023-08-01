@@ -6367,7 +6367,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
             if (ret < 0) { break; } else if (ret == 0) { continue; }
         }
     #endif
-        ret = wolfSSL_accept(ssl);
+        ret = wolfSSL_negotiate(ssl);
         err = wolfSSL_get_error(ssl, 0);
     } while (err == WC_PENDING_E);
     if (ret != WOLFSSL_SUCCESS) {
@@ -63162,8 +63162,8 @@ static int test_dtls_1_0_hvr_downgrade(void)
     XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
     func_cb_client.doUdp = func_cb_server.doUdp = 1;
-    func_cb_server.method = wolfDTLSv1_2_server_method;
     func_cb_client.method = wolfDTLS_client_method;
+    func_cb_server.method = wolfDTLSv1_2_server_method;
     func_cb_client.ctx_ready = test_dtls_1_0_hvr_downgrade_ctx_ready;
 
     test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
@@ -63253,6 +63253,71 @@ static int test_session_ticket_no_id(void)
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
+static void test_dtls_downgrade_scr_server_ctx_ready_server(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_DTLSV1_2),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx), WOLFSSL_SUCCESS);
+}
+
+static void test_dtls_downgrade_scr_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    AssertIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx), WOLFSSL_SUCCESS);
+}
+
+static void test_dtls_downgrade_scr_server_on_result(WOLFSSL* ssl)
+{
+    char testMsg[] = "Message after SCR";
+    char msgBuf[sizeof(testMsg)];
+    if (wolfSSL_is_server(ssl)) {
+        AssertIntEQ(wolfSSL_Rehandshake(ssl), WOLFSSL_FATAL_ERROR);
+        AssertIntEQ(wolfSSL_get_error(ssl, -1), APP_DATA_READY);
+        AssertIntEQ(wolfSSL_read(ssl, msgBuf, sizeof(msgBuf)), sizeof(msgBuf));
+        AssertIntEQ(wolfSSL_Rehandshake(ssl), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_write(ssl, testMsg, sizeof(testMsg)),
+                    sizeof(testMsg));
+    }
+    else {
+        AssertIntEQ(wolfSSL_write(ssl, testMsg, sizeof(testMsg)),
+                    sizeof(testMsg));
+        AssertIntEQ(wolfSSL_read(ssl, msgBuf, sizeof(msgBuf)), sizeof(msgBuf));
+    }
+}
+
+static int test_dtls_downgrade_scr_server(void)
+{
+    EXPECT_DECLS;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    func_cb_client.doUdp = func_cb_server.doUdp = 1;
+    func_cb_client.method = wolfDTLSv1_2_client_method;
+    func_cb_server.method = wolfDTLS_server_method;
+    func_cb_client.ctx_ready = test_dtls_downgrade_scr_server_ctx_ready;
+    func_cb_server.ctx_ready = test_dtls_downgrade_scr_server_ctx_ready_server;
+    func_cb_client.on_result = test_dtls_downgrade_scr_server_on_result;
+    func_cb_server.on_result = test_dtls_downgrade_scr_server_on_result;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_dtls_downgrade_scr_server(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
 static void test_dtls_downgrade_scr_ctx_ready(WOLFSSL_CTX* ctx)
 {
     AssertIntEQ(wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_DTLSV1_2),
@@ -63289,8 +63354,8 @@ static int test_dtls_downgrade_scr(void)
     XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
     func_cb_client.doUdp = func_cb_server.doUdp = 1;
-    func_cb_server.method = wolfDTLSv1_2_server_method;
     func_cb_client.method = wolfDTLS_client_method;
+    func_cb_server.method = wolfDTLSv1_2_server_method;
     func_cb_client.ctx_ready = test_dtls_downgrade_scr_ctx_ready;
     func_cb_client.on_result = test_dtls_downgrade_scr_on_result;
     func_cb_server.on_result = test_dtls_downgrade_scr_on_result;
@@ -64564,6 +64629,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
     TEST_DECL(test_dtls_1_0_hvr_downgrade),
     TEST_DECL(test_session_ticket_no_id),
+    TEST_DECL(test_dtls_downgrade_scr_server),
     TEST_DECL(test_dtls_downgrade_scr),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
