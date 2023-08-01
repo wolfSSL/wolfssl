@@ -29,6 +29,7 @@ formal verification). To formally verify the Ada code in this repository
 open the client.gpr with GNAT Studio and then select
 SPARK -> Prove All Sources and use Proof Level 2.
 
+```
 Summary of SPARK analysis
 =========================
 
@@ -47,6 +48,7 @@ Termination                       .           .          .                      
 Concurrency                       .           .          .                             .           .          .
 ---------------------------------------------------------------------------------------------------------------
 Total                           172    17 (10%)          .                     155 (90%)           .          .
+```
 
 ## Compiler and Build System installation
 
