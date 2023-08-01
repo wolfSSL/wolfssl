@@ -345,7 +345,6 @@ AS_CASE([$ENABLED_WOLFENGINE],
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
-        ENABLED_FIPS="no"
     ],
     [disabled],[
         FIPS_VERSION="disabled"
@@ -665,7 +664,7 @@ fi
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
 then
-    # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
+    # turn off fastmath if leanpsk on or asn off (w/o DH and ECC)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
     then
         if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
@@ -767,7 +766,6 @@ then
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
-    test "$enable_nullcipher" = "" && enable_nullcipher=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
@@ -781,7 +779,6 @@ then
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
-    test "$enable_mcast" = "" && enable_mcast=yes
     test "$enable_webserver" = "" && enable_webserver=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
@@ -842,6 +839,8 @@ then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        test "$enable_nullcipher" = "" && enable_nullcipher=yes
+        test "$enable_mcast" = "" && enable_mcast=yes
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -953,7 +952,6 @@ then
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
-    test "$enable_nullcipher" = "" && enable_nullcipher=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
@@ -986,6 +984,7 @@ then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        test "$enable_nullcipher" = "" && enable_nullcipher=yes
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -4823,7 +4822,8 @@ AS_CASE([$FIPS_VERSION],
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno" && test "$ENABLE_LINUXKM" = "no"],
     [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
 
-
+AS_IF([(test "$ENABLED_NULL_CIPHER" = "yes" || test "$ENABLED_LEANPSK" = "yes") && test "$ENABLED_FIPS" != "no" && test "$FIPS_VERSION" != "dev"],
+    [AC_MSG_ERROR([FIPS is incompatible with nullcipher])])
 
 # SELFTEST
 AC_ARG_ENABLE([selftest],
