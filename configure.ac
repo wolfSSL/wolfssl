@@ -418,16 +418,11 @@ fi
 AS_CASE([$FIPS_VERSION],
     [none],
     [
-      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
+      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c ],
             [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
     ],
     [disabled],
     [],
-    [v1],
-    [
-      AS_IF([ ! test -s $srcdir/ctaocrypt/src/fips.c],
-            [AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])])
-    ],
     [
       AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
             [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])

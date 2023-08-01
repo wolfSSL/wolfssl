@@ -145,7 +145,7 @@ void echoclient_test(void* args)
     #endif
 #elif !defined(NO_TLS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
-    method = WolfTLSv1_2_client_method();
+    method = wolfTLSv1_2_client_method();
     #else
     method = wolfSSLv23_client_method();
     #endif

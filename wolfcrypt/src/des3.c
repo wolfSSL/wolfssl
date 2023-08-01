@@ -517,7 +517,7 @@
 
 #elif defined(HAVE_COLDFIRE_SEC)
 
-    #include <wolfssl/ctaocrypt/types.h>
+    #include <wolfssl/wolfcrypt/types.h>
 
     #include "sec.h"
     #include "mcf5475_sec.h"
