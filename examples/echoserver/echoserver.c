@@ -155,7 +155,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     #endif
 #elif !defined(NO_TLS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
-    method = WolfTLSv1_2_server_method();
+    method = wolfTLSv1_2_server_method();
     #else
     method = wolfSSLv23_server_method();
     #endif
