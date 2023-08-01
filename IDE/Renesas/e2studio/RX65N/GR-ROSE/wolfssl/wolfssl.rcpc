@@ -22,6 +22,7 @@
         <Category Name="port">
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_common.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_aes.c</Path>
+          <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_rsa.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_sha.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_util.c</Path>
         </Category>
@@ -143,6 +144,7 @@
           <Path>Debug\wolfio.obj</Path>
           <Path>Debug\renesas_common.obj</Path>
           <Path>Debug\renesas_tsip_aes.obj</Path>
+          <Path>Debug\renesas_tsip_rsa.obj</Path>
           <Path>Debug\renesas_tsip_sha.obj</Path>
           <Path>Debug\renesas_tsip_util.obj</Path>
           <Path>Debug\aes.obj</Path>

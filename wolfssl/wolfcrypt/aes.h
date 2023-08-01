@@ -144,8 +144,9 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h>
 #endif
 
@@ -304,8 +305,9 @@ struct Aes {
 #if defined(WOLFSSL_CRYPTOCELL)
     aes_context_t ctx;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     TSIP_AES_CTX ctx;
 #endif
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) ||\

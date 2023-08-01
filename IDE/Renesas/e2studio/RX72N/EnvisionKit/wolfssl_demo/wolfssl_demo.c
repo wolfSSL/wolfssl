@@ -382,15 +382,15 @@ static void Tls_client(void *pvParam)
     #if defined(USE_ECC_CERT)
     /* Client authentication using ECDSA certificate can be handled by TSIP.
      * Therefore, the client private key should be TSIP-specific format
-     * and be set by tsip_use_PrivateKey_buffer.
+     * and be set by tsip_use_PrivateKey_buffer_TLS.
      */
     if (ret == 0){
-        ret = tsip_use_PrivateKey_buffer(ssl,
+        ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_private_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_private_key),
                 TSIP_ECCP256);
         if (ret != 0) {
-            printf("ERROR tsip_use_PrivateKey_buffer\n");
+            printf("ERROR tsip_use_PrivateKey_buffer_TLS\n");
         }
     }
 # if defined(WOLFSSL_CHECK_SIG_FAULTS)
@@ -409,16 +409,16 @@ static void Tls_client(void *pvParam)
     /* Client authentication using RSA certificate can be handled by TSIP.
      * Note that the internal verification of the signature process requires
      * not only the client's private key but also its public key, so pass them 
-     * using tsip_use_PrivateKey_buffer and tsip_use_PublicKey_buffer
+     * using tsip_use_PrivateKey_buffer_TLS and tsip_use_PublicKey_buffer_TLS
      * respectively.
          */
         if (ret == 0) {
-            ret = tsip_use_PrivateKey_buffer(ssl,
+            ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                (const char*)g_key_block_data.encrypted_user_rsa2048_private_key,
                sizeof(g_key_block_data.encrypted_user_rsa2048_private_key),
                                                             TSIP_RSA2048);
             if (ret != 0) {
-                printf("ERROR tsip_use_PrivateKey_buffer :%d\n", ret);
+                printf("ERROR tsip_use_PrivateKey_buffer_TLS :%d\n", ret);
             }
         }
         if (ret == 0) {
@@ -536,7 +536,7 @@ static void Tls_client_demo(void)
         "TLS13-AES128-GCM-SHA256",
         "TLS13-AES128-CCM-SHA256",
     #endif
-    	"ECDHE-ECDSA-AES128-SHA256",
+        "ECDHE-ECDSA-AES128-SHA256",
         "ECDHE-ECDSA-AES128-GCM-SHA256",
     };
     #if defined(WOLFSSL_TLS13)

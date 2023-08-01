@@ -3391,8 +3391,10 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
         }
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-           /* SCE needs wrapped key which is passed via
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
+          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
+           /* SCE needs warpped key which is passed via
             * user ctx object of crypt-call back.
             */
        #ifdef WOLF_CRYPTO_CB
@@ -3550,7 +3552,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
+          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
            #ifdef WOLF_CRYPTO_CB
                 if (key->devId != INVALID_DEVID) {
                     ret = wc_CryptoCb_Rsa(in, inLen, out,
