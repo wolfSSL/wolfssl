@@ -16114,7 +16114,23 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case certificate_request:
         case server_hello_done:
             if (ssl->options.resuming) {
-#ifdef WOLFSSL_WPAS
+                /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
+                 *   Alternatively, the client MAY include an empty Session ID
+                 *   in the ClientHello.  In this case, the client ignores the
+                 *   Session ID sent in the ServerHello and determines if the
+                 *   server is resuming a session by the subsequent handshake
+                 *   messages.
+                 */
+#ifndef WOLFSSL_WPAS
+                if (ssl->session->sessionIDSz != 0) {
+                    /* Fatal error. Only try to send an alert. RFC 5246 does not
+                     * allow for reverting back to a full handshake after the
+                     * server has indicated the intention to do a resumption. */
+                    (void)SendAlert(ssl, alert_fatal, unexpected_message);
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+#endif
                 /* This can occur when ssl->sessionSecretCb is set. EAP-FAST
                  * (RFC 4851) allows for detecting server session resumption
                  * based on the msg received after the ServerHello. */
@@ -16122,14 +16138,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.resuming = 0;
                 /* No longer resuming, reset peer authentication state. */
                 ssl->options.peerAuthGood = 0;
-#else
-                /* Fatal error. Only try to send an alert. RFC 5246 does not
-                 * allow for reverting back to a full handshake after the
-                 * server has indicated the intention to do a resumption. */
-                (void)SendAlert(ssl, alert_fatal, unexpected_message);
-                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-                return OUT_OF_ORDER_E;
-#endif
             }
         }
     }
