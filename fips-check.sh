@@ -87,14 +87,12 @@ netbsd-selftest)
   FIPS_VERSION=$NETBSD_FIPS_VERSION
   FIPS_REPO=$NETBSD_FIPS_REPO
   CRYPT_VERSION=$NETBSD_CRYPT_VERSION
-…  CRYPT_VERSION=$MARVELL_LINUX_CRYPT_VERSION
-  CRYPT_REPO=$MARVELL_LINUX_CRYPT_REPO
+  CRYPT_REPO=$NETBSD_CRYPT_REPO
   FIPS_SRCS=( selftest.c )
   WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   CAVP_SELFTEST_ONLY="yes"
-  CAVP_SELFTEST_OPTION=v2
   FIPS_OPTION="ready"
   ;;
 marvell-linux-selftest)
