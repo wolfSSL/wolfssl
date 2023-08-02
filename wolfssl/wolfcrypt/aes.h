@@ -417,13 +417,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
- WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
-                                const byte* iv, int dir);
-#elif defined(BUILDING_WOLFSSL)
+#if defined(BUILDING_WOLFSSL)
  WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
                                                         const byte* in);
  WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,

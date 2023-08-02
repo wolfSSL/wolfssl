@@ -1687,21 +1687,16 @@ enum Misc {
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
     TLS_MAX_PAD_SZ      = 255, /* Max padding in TLS */
 
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
-#else
-    #if defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_TLS13)
-        #if defined(WOLFSSL_SHA384) && WC_MAX_SYM_KEY_SIZE < 48
-            MAX_SYM_KEY_SIZE    = WC_SHA384_DIGEST_SIZE,
-        #elif !defined(NO_SHA256) && WC_MAX_SYM_KEY_SIZE < 32
-            MAX_SYM_KEY_SIZE    = WC_SHA256_DIGEST_SIZE,
-        #else
-            MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
-        #endif
+#if defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_TLS13)
+    #if defined(WOLFSSL_SHA384) && WC_MAX_SYM_KEY_SIZE < 48
+        MAX_SYM_KEY_SIZE    = WC_SHA384_DIGEST_SIZE,
+    #elif !defined(NO_SHA256) && WC_MAX_SYM_KEY_SIZE < 32
+        MAX_SYM_KEY_SIZE    = WC_SHA256_DIGEST_SIZE,
     #else
         MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
     #endif
+#else
+    MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
 #endif
 
 #if defined(HAVE_SELFTEST) && \

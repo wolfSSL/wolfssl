@@ -65,77 +65,6 @@
 #endif
 
 
-/* fips wrapper calls, user can call direct */
-/* If building for old FIPS. */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-    /* does init */
-    int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
-    {
-        if (hmac == NULL || (key == NULL && keySz != 0) ||
-           !(type == WC_MD5 || type == WC_SHA || type == WC_SHA256 ||
-                type == WC_SHA384 || type == WC_SHA512)) {
-            return BAD_FUNC_ARG;
-        }
-
-        return HmacSetKey_fips(hmac, type, key, keySz);
-    }
-    int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
-    {
-        if (hmac == NULL || (in == NULL && sz > 0)) {
-            return BAD_FUNC_ARG;
-        }
-
-        return HmacUpdate_fips(hmac, in, sz);
-    }
-    int wc_HmacFinal(Hmac* hmac, byte* out)
-    {
-        if (hmac == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        return HmacFinal_fips(hmac, out);
-    }
-    int wolfSSL_GetHmacMaxSize(void)
-    {
-        return WC_MAX_DIGEST_SIZE;
-    }
-
-    int wc_HmacInit(Hmac* hmac, void* heap, int devId)
-    {
-    #ifndef WOLFSSL_KCAPI_HMAC
-        (void)hmac;
-        (void)heap;
-        (void)devId;
-        return 0;
-    #else
-        return HmacInit(hmac, heap, devId);
-    #endif
-    }
-    void wc_HmacFree(Hmac* hmac)
-    {
-    #ifndef WOLFSSL_KCAPI_HMAC
-        (void)hmac;
-    #else
-        HmacFree(hmac);
-    #endif
-    }
-
-    #ifdef HAVE_HKDF
-        int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                    const byte* salt, word32 saltSz,
-                    const byte* info, word32 infoSz,
-                    byte* out, word32 outSz)
-        {
-            return HKDF(type, inKey, inKeySz, salt, saltSz,
-                info, infoSz, out, outSz);
-        }
-    #endif /* HAVE_HKDF */
-
-#else /* else build without fips, or for new fips */
-
-
 int wc_HmacSizeByType(int type)
 {
     int ret;
@@ -1440,5 +1369,4 @@ int wolfSSL_GetHmacMaxSize(void)
 
 #endif /* HAVE_HKDF */
 
-#endif /* HAVE_FIPS */
 #endif /* NO_HMAC */

@@ -111,55 +111,6 @@ on the specific device platform.
     static const char* TAG = "wc_sha256";
 #endif
 
-/* fips wrapper calls, user can call direct */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-    int wc_InitSha256(wc_Sha256* sha)
-    {
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha256_fips(sha);
-    }
-    int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha256_fips(sha);
-    }
-    int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-
-        if (data == NULL && len == 0) {
-            /* valid, but do nothing */
-            return 0;
-        }
-
-        return Sha256Update_fips(sha, data, len);
-    }
-    int wc_Sha256Final(wc_Sha256* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha256Final_fips(sha, out);
-    }
-    void wc_Sha256Free(wc_Sha256* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-#else /* else build without fips, or for FIPS v2 */
-
-
 #if defined(WOLFSSL_TI_HASH)
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #elif defined(WOLFSSL_CRYPTOCELL)
@@ -1883,7 +1834,6 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 #endif /* WOLFSSL_HASH_KEEP */
 
 #endif /* !WOLFSSL_TI_HASH */
-#endif /* HAVE_FIPS */
 
 
 #ifndef WOLFSSL_TI_HASH

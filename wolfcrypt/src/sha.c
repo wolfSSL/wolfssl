@@ -81,51 +81,6 @@
     #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #endif
 
-/* fips wrapper calls, user can call direct */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-    int wc_InitSha(wc_Sha* sha)
-    {
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha_fips(sha);
-    }
-    int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha_fips(sha);
-    }
-
-    int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL || (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return ShaUpdate_fips(sha, data, len);
-    }
-
-    int wc_ShaFinal(wc_Sha* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return ShaFinal_fips(sha,out);
-    }
-    void wc_ShaFree(wc_Sha* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-#else /* else build without fips, or for FIPS v2 */
-
-
 #if defined(WOLFSSL_TI_HASH)
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 
@@ -942,7 +897,6 @@ void wc_ShaFree(wc_Sha* sha)
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !WOLFSSL_TI_HASH */
-#endif /* !HAVE_FIPS ... */
 
 #if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP)
 

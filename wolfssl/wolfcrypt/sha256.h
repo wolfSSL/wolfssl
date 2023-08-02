@@ -37,23 +37,6 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-#if defined(HAVE_FIPS) && \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #define wc_Sha256             Sha256
-    #define WC_SHA256             SHA256
-    #define WC_SHA256_BLOCK_SIZE  SHA256_BLOCK_SIZE
-    #define WC_SHA256_DIGEST_SIZE SHA256_DIGEST_SIZE
-    #define WC_SHA256_PAD_SIZE    SHA256_PAD_SIZE
-
-    #ifdef WOLFSSL_SHA224
-        #define wc_Sha224             Sha224
-        #define WC_SHA224             SHA224
-        #define WC_SHA224_BLOCK_SIZE  SHA224_BLOCK_SIZE
-        #define WC_SHA224_DIGEST_SIZE SHA224_DIGEST_SIZE
-        #define WC_SHA224_PAD_SIZE    SHA224_PAD_SIZE
-    #endif
-#endif
-
 #ifdef FREESCALE_LTC_SHA
     #include "fsl_ltc.h"
 #endif
