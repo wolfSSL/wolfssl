@@ -5,8 +5,8 @@ on:
       - 'release/**'               # Feature Branches
   pull_request:
     branches:
-      - 'release/**'       
-  
+      - 'release/**'
+
 jobs:
   CodeSonar_Analyze:
     permissions: write-all
@@ -17,20 +17,20 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     env:
-      GITHUB_CAFILE: ".github/github.cert.pem" 
+      GITHUB_CAFILE: ".github/github.cert.pem"
       GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       GITHUB_API_URL: https://api.github.com
       PULL_REQUEST_ID: ${{ github.event.pull_request.number }}
-      ROOT_TREE: "Mark/WOLFSSL" 
+      ROOT_TREE: "Mark/WOLFSSL"
       ROOT_PROJECT_NAME: "wolfssl"
-      BRANCH: ${{ github.head_ref || github.ref_name }} 
-      CSONAR_HUB_URL: "https://partnerdemo.codesonar.com" 
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      CSONAR_HUB_URL: "https://partnerdemo.codesonar.com"
       CSONAR_HUB_USER: "${{ secrets.CSONAR_HUB_USER }}"
       CSONAR_HUB_PASS: "${{ secrets.CSONAR_HUB_PASS }}"
       CSONAR_HUB_PWFILE: "codesonar.hub.pwfile"
       CODESONAR: /opt/codesonar/codesonar/bin/codesonar
       CSPYTHON: /opt/codesonar/codesonar/bin/cspython
-      CSO_GITHUB: /opt/codesonar-github 
+      CSO_GITHUB: /opt/codesonar-github
       GITHUB_REPO_URL: "http://github.com/markhermeling/nginx"    # the github.repositoryUrl is not an http-link.
       TARGET: none
       DIFFLINK: none
@@ -43,7 +43,7 @@ jobs:
       - name: Pull Request or Not?
         if: ${{ github.event.pull_request }}
         run:  echo "TARGET=${{ github.base_ref }}" >> $GITHUB_ENV
-      - name: Checkout 
+      - name: Checkout
         uses: actions/checkout@v3
       - name: Safe directory
         run: git config --global --add safe.directory `pwd`
@@ -61,7 +61,7 @@ jobs:
           -auth password \
           -hubuser "$CSONAR_HUB_USER" \
           -hubpwfile "$CSONAR_HUB_PWFILE" \
-          $CSONAR_HUB_URL/analysis_search.csv?sanlgrid_json=$GETURL\&query=$GETURL2 -o - | tail -1 > result  
+          $CSONAR_HUB_URL/analysis_search.csv?sanlgrid_json=$GETURL\&query=$GETURL2 -o - | tail -1 > result
           echo "TARGET_PROJECT_AID=`cat result`" >> $GITHUB_ENV
       - name: Build
         run: >
@@ -87,7 +87,7 @@ jobs:
                     -auth password \
                     -hubuser "$CSONAR_HUB_USER" \
                     -hubpwfile "$CSONAR_HUB_PWFILE" \
-                    $CSONAR_HUB_URL/analysis_search.csv?sanlgrid_json=$GETURL\&query=$GETURL2 -o - | tail -1 > result  
+                    $CSONAR_HUB_URL/analysis_search.csv?sanlgrid_json=$GETURL\&query=$GETURL2 -o - | tail -1 > result
                     echo "TARGET_PROJECT_AID=`cat result`" >> $GITHUB_ENV
                     # second get the ID of the current analysis
                     echo "CURRENT_PROJECT_AID=`cat $ROOT_PROJECT_NAME.prj_files/aid.txt`" >> $GITHUB_ENV
@@ -144,4 +144,5 @@ jobs:
             ${{ github.repository }}
             $PULL_REQUEST_ID
             GITHUB_TOKEN
-            
+
+
