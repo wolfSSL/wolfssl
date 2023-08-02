@@ -20,6 +20,8 @@ Usage() {
     cat <<usageText
 Usage: $0 flavor [keep]
 Flavor is one of:
+    netbsd-selftest
+    marvell-linux-selftest
     linuxv2 (FIPSv2, use for Win10)
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
@@ -80,6 +82,33 @@ linuxv2 | fipsv2-OE-ready)
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION=v2
+  ;;
+netbsd-selftest)
+  FIPS_VERSION=$NETBSD_FIPS_VERSION
+  FIPS_REPO=$NETBSD_FIPS_REPO
+  CRYPT_VERSION=$NETBSD_CRYPT_VERSION
+…  CRYPT_VERSION=$MARVELL_LINUX_CRYPT_VERSION
+  CRYPT_REPO=$MARVELL_LINUX_CRYPT_REPO
+  FIPS_SRCS=( selftest.c )
+  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  CAVP_SELFTEST_ONLY="yes"
+  CAVP_SELFTEST_OPTION=v2
+  FIPS_OPTION="ready"
+  ;;
+marvell-linux-selftest)
+  FIPS_VERSION=$MARVELL_LINUX_FIPS_VERSION
+  FIPS_REPO=$MARVELL_LINUX_FIPS_REPO
+  CRYPT_VERSION=$MARVELL_LINUX_CRYPT_VERSION
+  CRYPT_REPO=$MARVELL_LINUX_CRYPT_REPO
+  FIPS_SRCS=( selftest.c )
+  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  CAVP_SELFTEST_ONLY="yes"
+  CAVP_SELFTEST_OPTION=v2
+  FIPS_OPTION="ready"
   ;;
 linuxv5)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
