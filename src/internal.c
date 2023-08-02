@@ -16121,16 +16121,16 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  *   server is resuming a session by the subsequent handshake
                  *   messages.
                  */
-                if (ssl->session->sessionIDSz != 0) {
 #ifndef WOLFSSL_WPAS
+                if (ssl->session->sessionIDSz != 0) {
                     /* Fatal error. Only try to send an alert. RFC 5246 does not
                      * allow for reverting back to a full handshake after the
                      * server has indicated the intention to do a resumption. */
                     (void)SendAlert(ssl, alert_fatal, unexpected_message);
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
-#endif
                 }
+#endif
                 /* This can occur when ssl->sessionSecretCb is set. EAP-FAST
                  * (RFC 4851) allows for detecting server session resumption
                  * based on the msg received after the ServerHello. */
