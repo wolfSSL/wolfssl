@@ -74,7 +74,7 @@ jobs:
               -hubpwfile "$CSONAR_HUB_PWFILE"
               -project "$PROJECT_NAME"
               -name $NAME
-              -conf-file conf/codesonar-release.conf
+              -conf-file codesonar.conf
               "$CSONAR_HUB_URL"
               make -j $PARALLEL
       - name: Get id  of the analysis
@@ -113,7 +113,7 @@ jobs:
             -property target.branch $TARGET
             -property target.diff_link $DIFFLINK
             -name $NAME
-            -conf-file conf/codesonar-release.conf
+            -conf-file codesonar.conf
             "$CSONAR_HUB_URL"
       - name: Diff results with the target branch
         if: ${{ github.event.pull_request }}
