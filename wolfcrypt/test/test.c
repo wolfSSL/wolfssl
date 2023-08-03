@@ -15465,9 +15465,6 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(HAVE_FIPS) && \
-      (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    if (ret != 0)
 #else
     if (ret != RSA_BUFFER_E)
 #endif

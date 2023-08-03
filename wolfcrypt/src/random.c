@@ -63,58 +63,6 @@ This library contains implementation for the random number generator.
 #endif
 
 
-/* If building for old FIPS. */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
-{
-    return GenerateSeed(os, seed, sz);
-}
-
-int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
-{
-    (void)heap;
-    (void)devId;
-    return InitRng_fips(rng);
-}
-
-WOLFSSL_ABI
-int wc_InitRng(WC_RNG* rng)
-{
-    return InitRng_fips(rng);
-}
-
-
-int wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz)
-{
-    return RNG_GenerateBlock_fips(rng, b, sz);
-}
-
-
-int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
-{
-    return RNG_GenerateByte(rng, b);
-}
-
-#ifdef HAVE_HASHDRBG
-
-    int wc_FreeRng(WC_RNG* rng)
-    {
-        return FreeRng_fips(rng);
-    }
-
-    int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
-                                      const byte* seedB, word32 seedBSz,
-                                      byte* output, word32 outputSz)
-    {
-        return RNG_HealthTest_fips(reseed, seedA, seedASz,
-                              seedB, seedBSz, output, outputSz);
-   }
-#endif /* HAVE_HASHDRBG */
-
-#else /* else build without fips, or for new fips */
-
 #ifndef WC_NO_RNG /* if not FIPS and RNG is disabled then do not compile */
 
 #include <wolfssl/wolfcrypt/sha256.h>
@@ -3878,4 +3826,3 @@ int wc_hwrng_generate_block(byte *output, word32 sz)
 #endif
 
 #endif /* WC_NO_RNG */
-#endif /* HAVE_FIPS */
