@@ -6836,7 +6836,7 @@ static int test_client_nofail(void* args, cbType cb)
             if (ret < 0) { break; } else if (ret == 0) { continue; }
         }
     #endif
-        ret = wolfSSL_connect(ssl);
+        ret = wolfSSL_negotiate(ssl);
         err = wolfSSL_get_error(ssl, 0);
     } while (err == WC_PENDING_E);
     if (ret != WOLFSSL_SUCCESS) {
