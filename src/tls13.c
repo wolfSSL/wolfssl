@@ -2572,6 +2572,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 #endif
                     {
 
+                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+                        ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
+                            dataSz, ssl->encrypt.nonce, nonceSz,
+                            output + dataSz, macSz, aad, aadSz);
+                #else
                         ret = wc_AesGcmSetExtIV(ssl->encrypt.aes,
                                 ssl->encrypt.nonce, nonceSz);
                         if (ret == 0) {
@@ -2579,6 +2585,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                     input, dataSz, ssl->encrypt.nonce, nonceSz,
                                     output + dataSz, macSz, aad, aadSz);
                         }
+                #endif
                     }
                     break;
             #endif
@@ -2606,6 +2613,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     if (ret == NOT_COMPILED_IN)
                 #endif
                     {
+                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+                        ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
+                            dataSz, ssl->encrypt.nonce, nonceSz,
+                            output + dataSz, macSz, aad, aadSz);
+                #else
                         ret = wc_AesCcmSetNonce(ssl->encrypt.aes,
                                 ssl->encrypt.nonce, nonceSz);
                         if (ret == 0) {
@@ -2613,6 +2626,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                     input, dataSz, ssl->encrypt.nonce, nonceSz,
                                     output + dataSz, macSz, aad, aadSz);
                         }
+                #endif
                     }
                     break;
             #endif

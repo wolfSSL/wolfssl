@@ -17907,6 +17907,14 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
              * IV length minus the authentication tag size. */
             c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                 ssl->encrypt.additional + AEAD_LEN_OFFSET);
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+            XMEMCPY(ssl->encrypt.nonce,
+                                ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
+                                ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+#endif
         #ifdef HAVE_PK_CALLBACKS
             ret = NOT_COMPILED_IN;
             if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
@@ -18251,6 +18259,11 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aria_gcm)
             {
                 /* finalize authentication cipher */
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+                AeadIncrementExpIV(ssl);
+#endif
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
             }
@@ -21713,6 +21726,15 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 if (ret != 0)
                     goto exit_buildmsg;
             }
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)) && \
+    defined(HAVE_AEAD))
+            if (ssl->specs.cipher_type == aead) {
+                if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
+                    XMEMCPY(args->iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+            }
+#endif
 
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
             AddRecordHeader(output, args->size, (byte)type, ssl, epochOrder);

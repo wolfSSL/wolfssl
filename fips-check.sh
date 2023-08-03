@@ -93,7 +93,7 @@ netbsd-selftest)
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   CAVP_SELFTEST_ONLY="yes"
-  FIPS_OPTION="ready"
+  FIPS_OPTION="v1"
   ;;
 marvell-linux-selftest)
   FIPS_VERSION=$MARVELL_LINUX_FIPS_VERSION
@@ -106,7 +106,7 @@ marvell-linux-selftest)
   CRYPT_SRC_PATH=wolfcrypt/src
   CAVP_SELFTEST_ONLY="yes"
   CAVP_SELFTEST_OPTION=v2
-  FIPS_OPTION="ready"
+  FIPS_OPTION="v1"
   ;;
 linuxv5)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
@@ -202,6 +202,33 @@ case "$FIPS_OPTION" in
 
 *ready)
     echo "Don't need to copy in tagged wolfCrypt files for FIPS Ready."
+    ;;
+v1)
+    # make a clone of the last FIPS release tag
+    if ! $GIT clone --depth 1 -b "$CRYPT_VERSION" "$CRYPT_REPO" old-tree; then
+        echo "fips-check: Couldn't checkout the FIPS release."
+        exit 1
+    fi
+
+    for MOD in "${WC_MODS[@]}"
+    do
+        cp "old-tree/$CRYPT_SRC_PATH/${MOD}.c" "$CRYPT_SRC_PATH"
+        cp "old-tree/$CRYPT_INC_PATH/${MOD}.h" "$CRYPT_INC_PATH"
+    done
+
+    # We are using random.c from a separate release.
+    # This is forcefully overwriting any other checkout of the cyassl sources.
+    # Removing this as default behavior for SGX and netos projects.
+    if [ "$CAVP_SELFTEST_ONLY" == "no" ] && [ "$FLAVOR" != "sgx" ] && \
+       [ "$FLAVOR" != "netos-7.6" ];
+    then
+        pushd old-tree || exit 2
+        $GIT fetch origin "$RNG_VERSION" || exit $?
+        $GIT checkout FETCH_HEAD || exit $?
+        popd || exit 2
+        cp "old-tree/$CRYPT_SRC_PATH/random.c" "$CRYPT_SRC_PATH"
+        cp "old-tree/$CRYPT_INC_PATH/random.h" "$CRYPT_INC_PATH"
+    fi
     ;;
 
 v2|rand|v5*)
