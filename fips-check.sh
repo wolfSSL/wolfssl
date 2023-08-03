@@ -18,7 +18,7 @@
 
 Usage() {
     cat <<usageText
-Usage: $0 flavor [keep]
+Usage: $0 [flavor] [keep]
 Flavor is one of:
     netbsd-selftest
     marvell-linux-selftest
@@ -36,152 +36,127 @@ Example:
 usageText
 }
 
-MAKE='make'
+# These variables may be overridden on the command line.
+MAKE="${MAKE:-make}"
+GIT="${GIT:-git -c advice.detachedHead=false}"
+TEST_DIR="${TEST_DIR:-XXX-fips-test}"
+FLAVOR="${FLAVOR:-linux}"
+KEEP="${KEEP:-no}"
 
-# non-FIPS, CAVP only but pull in selftest
-# will reset above variables below in flavor switch
-NETBSD_FIPS_VERSION=v3.14.2b
-NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
-NETBSD_CRYPT_VERSION=v3.14.2
-NETBSD_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
-
-# non-FIPS, CAVP only but pull in selftest
-# will reset above variables below in flavor switch
-MARVELL_LINUX_FIPS_VERSION=v3.14.2b
-MARVELL_LINUX_FIPS_REPO=git@github.com:wolfssl/fips.git
-MARVELL_LINUX_CRYPT_VERSION=v4.1.0-stable
-MARVELL_LINUX_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
-
-STM32L4_V2_FIPS_VERSION=WCv4.0.1-stable
-STM32L4_V2_FIPS_REPO=git@github.com:wolfSSL/fips.git
-STM32L4_V2_CRYPT_VERSION=WCv4.0.1-stable
-
-FIPS_SRCS=( fips.c fips_test.c )
-WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random aes_asm )
-TEST_DIR=XXX-fips-test
-CRYPT_INC_PATH=undef
-CRYPT_SRC_PATH=undef
-RNG_VERSION=v3.6.0
-FIPS_OPTION=undef
-CAVP_SELFTEST_ONLY="no"
-GIT="git -c advice.detachedHead=false"
-
-if [ "$1" == "" ]; then FLAVOR="undef"; else FLAVOR="$1"; fi
-
-if [ "$2" == "keep" ]; then KEEP="yes"; else KEEP="no"; fi
+while [ "x$1" != 'x' ]; do
+  if [ "x$1" = 'xkeep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
+  shift
+done
 
 case "$FLAVOR" in
 linuxv2 | fipsv2-OE-ready)
-  FIPS_VERSION=WCv4-stable
-  FIPS_REPO=git@github.com:wolfssl/fips.git
-  CRYPT_VERSION=WCv4-stable
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  WC_MODS+=( cmac dh ecc sha3 )
-  RNG_VERSION=WCv4-rng-stable
-  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=v2
+  FIPS_VERSION='WCv4-stable'
+  FIPS_REPO='git@github.com:wolfssl/fips.git'
+  CRYPT_VERSION='WCv4-stable'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('aes' 'aes_asm' 'cmac' 'des3' 'dh' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha3' 'sha512')
+  RNG_VERSION='WCv4-rng-stable'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='v2'
   ;;
 netbsd-selftest)
-  FIPS_VERSION=$NETBSD_FIPS_VERSION
-  FIPS_REPO=$NETBSD_FIPS_REPO
-  CRYPT_VERSION=$NETBSD_CRYPT_VERSION
-  CRYPT_REPO=$NETBSD_CRYPT_REPO
-  FIPS_SRCS=( selftest.c )
-  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  CAVP_SELFTEST_ONLY="yes"
-  FIPS_OPTION="v1"
+  # non-FIPS, CAVP only but pull in selftest
+  FIPS_VERSION='v3.14.2b'
+  FIPS_REPO='git@github.com:wolfssl/fips.git'
+  CRYPT_VERSION='v3.14.2'
+  CRYPT_REPO='git@github.com:wolfssl/wolfssl.git'
+  FIPS_SRCS=('selftest.c')
+  WC_MODS=('aes' 'dh' 'dsa' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha512')
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  CAVP_SELFTEST_ONLY='yes'
+  FIPS_OPTION='v1'
   ;;
 marvell-linux-selftest)
-  FIPS_VERSION=$MARVELL_LINUX_FIPS_VERSION
-  FIPS_REPO=$MARVELL_LINUX_FIPS_REPO
-  CRYPT_VERSION=$MARVELL_LINUX_CRYPT_VERSION
-  CRYPT_REPO=$MARVELL_LINUX_CRYPT_REPO
-  FIPS_SRCS=( selftest.c )
-  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  CAVP_SELFTEST_ONLY="yes"
-  CAVP_SELFTEST_OPTION=v2
-  FIPS_OPTION="v1"
+  # non-FIPS, CAVP only but pull in selftest
+  FIPS_VERSION='v3.14.2b'
+  FIPS_REPO='git@github.com:wolfssl/fips.git'
+  CRYPT_VERSION='v4.1.0-stable'
+  CRYPT_REPO='git@github.com:wolfssl/wolfssl.git'
+  FIPS_SRCS=('selftest.c')
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('aes' 'dh' 'dsa' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha512')
+  CAVP_SELFTEST_ONLY='yes'
+  CAVP_SELFTEST_OPTION='v2'
+  FIPS_OPTION='v1'
   ;;
 linuxv5)
-  FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="WCv5.0-RC12"
-  CRYPT_REPO="git@github.com:wolfSSL/wolfssl.git"
-  CRYPT_VERSION="WCv5.0-RC12"
-  CRYPT_INC_PATH="wolfssl/wolfcrypt"
-  CRYPT_SRC_PATH="wolfcrypt/src"
-  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf
-            aes_asm sha256_asm sha512_asm )
-  RNG_VERSION="WCv5.0-RC12"
-  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION="v5"
-  COPY_DIRECT=( wolfcrypt/src/aes_gcm_asm.S )
+  FIPS_REPO='git@github.com:wolfSSL/fips.git'
+  FIPS_VERSION='WCv5.0-RC12'
+  CRYPT_REPO='git@github.com:wolfSSL/wolfssl.git'
+  CRYPT_VERSION='WCv5.0-RC12'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('aes' 'aes_asm' 'cmac' 'dh' 'ecc' 'hmac' 'kdf' 'random' 'rsa' 'sha' 'sha256' 'sha256_asm' 'sha3' 'sha512' 'sha512_asm')
+  RNG_VERSION='WCv5.0-RC12'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='v5'
+  COPY_DIRECT=('wolfcrypt/src/aes_gcm_asm.S')
   ;;
 fips-ready)
-  FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="master"
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=ready
+  FIPS_REPO='git@github.com:wolfSSL/fips.git'
+  FIPS_VERSION='master'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='ready'
   ;;
 fips-dev)
-  FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="master"
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=dev
+  FIPS_REPO='git@github.com:wolfSSL/fips.git'
+  FIPS_VERSION='master'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='dev'
   ;;
-
 stm32l4-v2)
-  FIPS_VERSION=$STM32L4_V2_FIPS_VERSION
-  FIPS_REPO=$STM32L4_V2_FIPS_REPO
-  CRYPT_VERSION=$STM32L4_V2_CRYPT_VERSION
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-# Replace the WC_MODS list for now. Do not want to copy over random.c yet.
-  WC_MODS=( aes des3 sha sha256 sha512 rsa hmac )
-  WC_MODS+=( cmac dh ecc )
-  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=v2
+  FIPS_VERSION='WCv4.0.1-stable'
+  FIPS_REPO='git@github.com:wolfSSL/fips.git'
+  CRYPT_VERSION='WCv4.0.1-stable'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('aes' 'cmac' 'des3' 'dh' 'ecc' 'hmac' 'rsa' 'sha' 'sha256' 'sha512')
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='v2'
   ;;
 wolfrand)
-  FIPS_REPO=git@github.com:wolfssl/fips.git
-  FIPS_VERSION=WRv4-stable
-  CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
-  CRYPT_VERSION=WCv4-stable
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  RNG_VERSION=WCv4-rng-stable
-  WC_MODS=( hmac sha256 random )
-  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=rand
+  FIPS_REPO='git@github.com:wolfssl/fips.git'
+  FIPS_VERSION='WRv4-stable'
+  CRYPT_REPO='git@github.com:wolfssl/wolfssl.git'
+  CRYPT_VERSION='WCv4-stable'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('hmac' 'random' 'sha256')
+  RNG_VERSION='WCv4-rng-stable'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='rand'
   ;;
 solaris)
-  FIPS_VERSION=WCv4-stable
-  FIPS_REPO=git@github.com:wolfssl/fips.git
-  CRYPT_VERSION=WCv4-stable
-  CRYPT_INC_PATH=wolfssl/wolfcrypt
-  CRYPT_SRC_PATH=wolfcrypt/src
-  WC_MODS+=( cmac dh ecc sha3 )
-  RNG_VERSION=WCv4-rng-stable
-  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
-  FIPS_INCS=( fips.h )
-  FIPS_OPTION=v2
-  MAKE=gmake
+  FIPS_VERSION='WCv4-stable'
+  FIPS_REPO='git@github.com:wolfssl/fips.git'
+  CRYPT_VERSION='WCv4-stable'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  WC_MODS=('aes' 'aes_asm' 'cmac' 'des3' 'dh' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha3' 'sha512')
+  RNG_VERSION='WCv4-rng-stable'
+  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
+  FIPS_INCS=('fips.h')
+  FIPS_OPTION='v2'
+  MAKE='gmake'
   ;;
-
 *)
   Usage
   exit 1
@@ -219,7 +194,7 @@ v1)
     # We are using random.c from a separate release.
     # This is forcefully overwriting any other checkout of the cyassl sources.
     # Removing this as default behavior for SGX and netos projects.
-    if [ "$CAVP_SELFTEST_ONLY" == "no" ] && [ "$FLAVOR" != "sgx" ] && \
+    if [ "x$CAVP_SELFTEST_ONLY" != "xyes" ] && [ "$FLAVOR" != 'sgx' ] && \
        [ "$FLAVOR" != "netos-7.6" ];
     then
         pushd old-tree || exit 2
@@ -302,7 +277,7 @@ done
 # Since OE additions can still be processed for cert3389 we will call 140-2
 # ready "fipsv2-OE-ready" indicating it is ready to use for an OE addition but
 # would not be good for a new certification effort with the latest files.
-if [ "$FLAVOR" = "fipsv2-OE-ready" ]; then
+if [ "$FLAVOR" = 'fipsv2-OE-ready' ]; then
     OLD_VERSION="    return \"v4.0.0-alpha\";"
     OE_READY_VERSION="    return \"fipsv2-OE-ready\";"
     cp "${CRYPT_SRC_PATH}/fips.c" "${CRYPT_SRC_PATH}/fips.c.bak"
@@ -311,23 +286,24 @@ fi
 
 # run the make test
 ./autogen.sh
-if [ "$CAVP_SELFTEST_ONLY" == "yes" ];
+if [ "x$CAVP_SELFTEST_ONLY" = 'xyes' ];
 then
-    if [ "$CAVP_SELFTEST_OPTION" == "v2" ]
-    then
-        ./configure --enable-selftest=v2
-    else
-        ./configure --enable-selftest
-    fi
+  if [ "x$CAVP_SELFTEST_OPTION" = "xv2" ]
+  then
+    ./configure --enable-selftest=v2
+  else
+    ./configure --enable-selftest
+  fi
 else
     ./configure --enable-fips=$FIPS_OPTION
 fi
+
 if ! $MAKE; then
     echo "fips-check: Make failed. Debris left for analysis."
     exit 3
 fi
 
-if [ "$CAVP_SELFTEST_ONLY" == "no" ];
+if [ "x$CAVP_SELFTEST_ONLY" != 'xyes' ];
 then
     NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
     if [ -n "$NEWHASH" ]; then
@@ -357,7 +333,7 @@ fi
 
 # Clean up
 popd || exit 2
-if [ "$KEEP" == "no" ];
+if [ "$KEEP" = "no" ];
 then
     rm -rf "$TEST_DIR"
 fi
