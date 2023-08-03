@@ -1,4 +1,8 @@
 project Client is
+   type OS_Kind is ("Windows", "Linux_Or_Mac");
+
+   OS : OS_Kind := external ("OS", "Linux_Or_Mac");
+
    for Languages use ("C", "Ada");
 
    for Source_Dirs use (".",
@@ -55,11 +59,16 @@ project Client is
    end Compiler;
 
    package Linker is
-      for Switches ("C") use
-         ("-lm");  --  To include the math library (used by WolfSSL).
+      case OS is
+         when "Windows" =>
+            for Switches ("Ada") use
+               ("-lm",         --  To include the math library (used by WolfSSL).
+                "-lcrypt32");  --  Needed on Windows.
 
-      for Switches ("Ada") use
-         ("-lm");  --  To include the math library (used by WolfSSL).
+         when "Linux_Or_Mac" =>
+            for Switches ("Ada") use
+               ("-lm");  --  To include the math library (used by WolfSSL).
+      end case;
    end Linker;
 
    package Binder is
