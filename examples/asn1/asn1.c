@@ -60,7 +60,7 @@ static Asn1 asn1;
  * @return  0 on success.
  * @return  1 on failure.
  */
-static int ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
+static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
 {
     int ret = 0;
     word32 len = 0;
@@ -121,7 +121,7 @@ static int PrintDer(FILE* fp)
     unsigned char* data = NULL;
 
     /* Load DER/BER file. */
-    if (ReadFile(fp, &data, &len) != 0) {
+    if (asn1App_ReadFile(fp, &data, &len) != 0) {
         ret = 1;
     }
 
@@ -148,7 +148,7 @@ static int PrintBase64(FILE* fp)
     unsigned char* data = NULL;
 
     /* Load Base64 encoded file. */
-    if (ReadFile(fp, &data, &len) != 0) {
+    if (asn1App_ReadFile(fp, &data, &len) != 0) {
         ret = 1;
     }
 
@@ -251,7 +251,7 @@ static int PrintPem(FILE* fp, int pem_skip)
     word32 len = 0;
 
     /* Load PEM file. */
-    if (ReadFile(fp, &data, &len) != 0) {
+    if (asn1App_ReadFile(fp, &data, &len) != 0) {
         ret = 1;
     }
 
