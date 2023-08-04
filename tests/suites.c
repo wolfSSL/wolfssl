@@ -330,7 +330,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     int         reqClientCert;
 #endif
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
     srtp_test_helper srtp_helper;
 #endif
     /* Is Valid Cipher and Version Checks */
@@ -461,7 +461,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
     InitTcpReady(&ready);
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
     srtp_helper_init(&srtp_helper);
     cliArgs.srtp_helper = &srtp_helper;
     svrArgs.srtp_helper = &srtp_helper;
@@ -581,7 +581,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #endif
     FreeTcpReady(&ready);
 
-#if defined (WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined (WOLFSSL_SRTP) && defined(WOLFSSL_COND)
     srtp_helper_free(&srtp_helper);
 #endif
 

@@ -76,7 +76,7 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     crl->mfd = WOLFSSL_CRL_MFD_INIT_VAL;
     crl->setup = 0; /* thread setup done predicate */
     if (wolfSSL_CondInit(&crl->cond) != 0) {
-        WOLFSSL_MSG("Pthread condition init failed");
+        WOLFSSL_MSG("thread condition init failed");
         return BAD_COND_E;
     }
 #endif
@@ -229,14 +229,14 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         WOLFSSL_MSG("stopping monitor thread");
         if (StopMonitor(crl->mfd) == 0) {
             if (wolfSSL_JoinThread(crl->tid) != 0)
-                WOLFSSL_MSG("stop monitor failed in pthread_join");
+                WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
         }
         else {
             WOLFSSL_MSG("stop monitor failed");
         }
     }
     if (wolfSSL_CondFree(&crl->cond) != 0)
-        WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL");
+        WOLFSSL_MSG("wolfSSL_CondFree failed in FreeCRL");
 #endif
     wc_FreeMutex(&crl->crlLock);
     if (dynamic)   /* free self */

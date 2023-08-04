@@ -1765,7 +1765,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
     size_t srtp_secret_length;
     byte *srtp_secret, *p;
     int ret;
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     srtp_test_helper *srtp_helper = args->srtp_helper;
     byte *other_secret = NULL;
     size_t other_size = 0;
@@ -1799,7 +1799,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         printf("%02X", *p);
     printf("\n");
 
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     if (srtp_helper != NULL) {
         srtp_helper_get_ekm(srtp_helper, &other_secret, &other_size);
 
@@ -1815,7 +1815,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         /* we are delegated from server to free this buffer  */
         XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_PTHREAD */
+#endif /* WOLFSSL_COND */
 
     XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3983,7 +3983,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_free(ctx); ctx = NULL;
 
         ((func_args*)args)->return_code = 0;
-        return 0;
+        WOLFSSL_RETURN_FROM_THREAD(0);
     }
 
 #ifdef HAVE_ALPN
@@ -4559,9 +4559,7 @@ exit:
     (void) useVerifyCb;
     (void) customVerifyCert;
 
-#if !defined(WOLFSSL_TIRTOS)
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 #endif /* !NO_WOLFSSL_CLIENT */
@@ -4577,7 +4575,7 @@ exit:
 
         StartTCP();
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
         args.srtp_helper = NULL;
 #endif
         args.argc = argc;

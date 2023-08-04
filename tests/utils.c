@@ -317,4 +317,63 @@ int test_memio_setup(struct test_memio_ctx *ctx,
 }
 #endif
 
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_COND)
+void signal_ready(tcp_ready* ready)
+{
+    THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
+    ready->ready = 1;
+#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
+    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+#endif
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
+    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+#endif
+}
+#endif
+
+void wait_tcp_ready(func_args* args)
+{
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_COND)
+    if (!args->signal->ready) {
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
+        THREAD_CHECK_RET(wc_LockMutex(&args->signal->mutex));
+#endif
+        THREAD_CHECK_RET(wolfSSL_CondWait(&args->signal->cond,
+                                            &args->signal->mutex));
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
+        THREAD_CHECK_RET(wc_UnLockMutex(&args->signal->mutex));
+#endif
+    }
+    args->signal->ready = 0; /* reset */
+
+#else
+    /* no threading wait or single threaded */
+    (void)args;
+#endif
+}
+
+#ifndef SINGLE_THREADED
+/* Start a thread.
+ *
+ * @param [in]  fun     Function to executre in thread.
+ * @param [in]  args    Object to send to function in thread.
+ * @param [out] thread  Handle to thread.
+ */
+void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
+{
+    THREAD_CHECK_RET(wolfSSL_NewThread(thread, fun, args));
+}
+
+
+/* Join thread to wait for completion.
+ *
+ * @param [in] thread  Handle to thread.
+ */
+void join_thread(THREAD_TYPE thread)
+{
+    THREAD_CHECK_RET(wolfSSL_JoinThread(thread));
+}
+#endif /* SINGLE_THREADED */
+
 #endif /* WOLFSSL_TEST_UTILS_INCLUDED */

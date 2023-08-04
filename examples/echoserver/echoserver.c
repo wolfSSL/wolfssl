@@ -67,16 +67,21 @@
 
 static void SignalReady(void* args, word16 port)
 {
-#if defined(NO_MAIN_DRIVER) && defined(HAVE_PTHREAD)
+#if defined(NO_MAIN_DRIVER) && defined(WOLFSSL_COND)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
+    THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
     ready->ready = 1;
     ready->port = port;
-    PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
-#endif /* NO_MAIN_DRIVER && HAVE_PTHREAD */
+#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
+    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+#endif
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
+    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+#endif
+#endif /* NO_MAIN_DRIVER && WOLFSSL_COND */
     (void)args;
     (void)port;
 }
@@ -525,9 +530,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     wolfAsync_DevClose(&devId);
 #endif
 
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 #endif /* !NO_WOLFSSL_SERVER */
