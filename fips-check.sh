@@ -38,8 +38,8 @@ TEST_DIR="${TEST_DIR:-XXX-fips-test}"
 FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
 
-while [ "x$1" != 'x' ]; do
-  if [ "x$1" = 'xkeep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
+while [ "$1" ]; do
+  if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
   shift
 done
 
