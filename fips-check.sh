@@ -7,14 +7,10 @@
 # copy of our FIPS approved code.
 #
 # This should check out all the approved flavors. The command line
-# option selects the flavor.
+# option selects the flavor. The keep option keeps the output
+# directory.
 #
-#     $ ./fips-check [flavor] [keep]
-#
-#     - flavor: linux (default), ios, android, windows, freertos, linux-ecc, netbsd-selftest, linuxv2, fipsv2-OE-ready, stm32l4-v2, linuxv5, fips-ready, fips-dev
-#
-#     - keep: (default off) XXX-fips-test temp dir around for inspection
-#
+# Some variables may be overridden on the command line.
 
 Usage() {
     cat <<usageText
