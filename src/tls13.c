@@ -11824,7 +11824,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         && ssl->error != WC_PENDING_E
     #endif
     ) {
-        if ((ssl->error = SendBuffered(ssl)) == 0) {
+        ret = SendBuffered(ssl);
+        if (ret == 0) {
             if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 if (advanceState) {
 #ifdef WOLFSSL_DTLS13
