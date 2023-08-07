@@ -37,33 +37,6 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-#if defined(HAVE_FIPS) && \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #ifdef WOLFSSL_SHA512
-        #define wc_Sha512             Sha512
-        #define WC_SHA512             SHA512
-        #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
-        #define WC_SHA512_DIGEST_SIZE SHA512_DIGEST_SIZE
-        #define WC_SHA512_PAD_SIZE    SHA512_PAD_SIZE
-        #define wc_Sha512_224         Sha512_224
-        #define wc_Sha512_256         Sha512_256
-    #endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA384
-        #define wc_Sha384             Sha384
-        #define WC_SHA384             SHA384
-        #define WC_SHA384_BLOCK_SIZE  SHA384_BLOCK_SIZE
-        #define WC_SHA384_DIGEST_SIZE SHA384_DIGEST_SIZE
-        #define WC_SHA384_PAD_SIZE    SHA384_PAD_SIZE
-    #endif /* WOLFSSL_SHA384 */
-
-    #define CYASSL_SHA512
-    #if defined(WOLFSSL_SHA384)
-        #define CYASSL_SHA384
-    #endif
-    /* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/sha512.h>
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif

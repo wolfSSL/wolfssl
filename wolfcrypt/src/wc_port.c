@@ -1742,7 +1742,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
     #ifdef WOLFSSL_USE_RWLOCK
         int wc_InitRwLock(wolfSSL_RwLock* m)
         {
-            if (pthread_rwlock_init(m, 0) == 0)
+            if (pthread_rwlock_init(m, NULL) == 0)
                 return 0;
             else
                 return BAD_MUTEX_E;
@@ -1783,7 +1783,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
-        if (pthread_mutex_init(m, 0) == 0)
+        if (pthread_mutex_init(m, NULL) == 0)
             return 0;
         else
             return BAD_MUTEX_E;
@@ -2811,6 +2811,35 @@ int wolfSSL_CryptHwMutexUnLock(void)
         return 0;
     }
 
+#elif defined(NETOS)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        if (tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT)
+                == TX_SUCCESS)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        if (tx_mutex_delete(&ready->mutex) == TX_SUCCESS)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+
+    }
+
 #elif defined(WOLFSSL_USER_MUTEX)
 
     /* Use user own mutex */
@@ -3395,6 +3424,21 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
+    int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb, void* arg)
+    {
+        THREAD_TYPE thread;
+
+        if (cb == NULL)
+            return BAD_FUNC_ARG;
+
+        thread = _beginthread(cb, 0, arg);
+        if (thread == -1L) {
+            return MEMORY_E;
+        }
+
+        return 0;
+    }
+
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
         int ret = 0;
@@ -3462,6 +3506,158 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 #endif /* WOLFSSL_COND */
 
+#elif defined(WOLFSSL_TIRTOS)
+
+    int wolfSSL_NewThread(THREAD_TYPE* thread,
+        THREAD_CB cb, void* arg)
+    {
+        /* Initialize the defaults and set the parameters. */
+        Task_Params taskParams;
+        Task_Params_init(&taskParams);
+        taskParams.arg0 = (UArg)arg;
+        taskParams.stackSize = 65535;
+        *thread = Task_create((Task_FuncPtr)cb, &taskParams, NULL);
+        if (*thread == NULL) {
+            return MEMORY_E;
+        }
+        Task_yield();
+        return 0;
+    }
+
+    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    {
+        while(1) {
+            if (Task_getMode(thread) == Task_Mode_TERMINATED) {
+                Task_sleep(5);
+                break;
+            }
+            Task_yield();
+        }
+        return 0;
+    }
+
+#elif defined(NETOS)
+
+    int wolfSSL_NewThread(THREAD_TYPE* thread,
+        THREAD_CB cb, void* arg)
+    {
+        /* For backwards compatibility allow using this declaration as well. */
+        #ifdef TESTSUITE_THREAD_STACK_SZ
+            #define WOLFSSL_NETOS_STACK_SZ TESTSUITE_THREAD_STACK_SZ
+        #endif
+        /* This can be adjusted by defining in user_settings.h, will default to
+         * 65k in the event it is undefined */
+        #ifndef WOLFSSL_NETOS_STACK_SZ
+            #define WOLFSSL_NETOS_STACK_SZ 65535
+        #endif
+        int result;
+
+        if (thread == NULL || cb == NULL)
+            return BAD_FUNC_ARG;
+
+        XMEMSET(thread, 0, sizeof(*thread));
+
+        thread->threadStack = (void *)XMALLOC(WOLFSSL_NETOS_STACK_SZ, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (thread->threadStack == NULL)
+            return MEMORY_E;
+
+
+        /* first create the idle thread:
+         * ARGS:
+         * Param1: pointer to thread
+         * Param2: name
+         * Param3 and 4: entry function and input
+         * Param5: pointer to thread stack
+         * Param6: stack size
+         * Param7 and 8: priority level and preempt threshold
+         * Param9 and 10: time slice and auto-start indicator */
+        result = tx_thread_create(&thread->tid,
+                           "wolfSSL thread",
+                           (entry_functionType)cb, (ULONG)arg,
+                           thread->threadStack,
+                           TESTSUITE_THREAD_STACK_SZ,
+                           2, 2,
+                           1, TX_AUTO_START);
+        if (result != TX_SUCCESS) {
+            free(thread->threadStack);
+            thread->threadStack = NULL;
+            return MEMORY_E;
+        }
+
+        return 0;
+    }
+
+    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    {
+        /* TODO: maybe have to use tx_thread_delete? */
+        free(thread.threadStack);
+        thread.threadStack = NULL;
+    }
+
+#elif defined(WOLFSSL_ZEPHYR)
+
+    int wolfSSL_NewThread(THREAD_TYPE* thread,
+        THREAD_CB cb, void* arg)
+    {
+        #ifndef WOLFSSL_ZEPHYR_STACK_SZ
+            #define WOLFSSL_ZEPHYR_STACK_SZ (24*1024)
+        #endif
+
+        if (thread == NULL || cb == NULL)
+            return BAD_FUNC_ARG;
+
+        XMEMSET(thread, 0, sizeof(*thread));
+
+        /* TODO: Use the following once k_thread_stack_alloc makes it into a
+         * release.
+         * thread->threadStack = k_thread_stack_alloc(WOLFSSL_ZEPHYR_STACK_SZ,
+         *                                            0);
+         */
+        thread->threadStack = (void*)XMALLOC(
+                Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ), 0,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+        if (thread->threadStack == NULL)
+            return MEMORY_E;
+
+        /* k_thread_create does not return any error codes */
+        /* Casting to k_thread_entry_t should be fine since we just ignore the
+         * extra arguments being passed in */
+        k_thread_create(&thread->tid, thread->threadStack,
+                WOLFSSL_ZEPHYR_STACK_SZ, (k_thread_entry_t)cb, arg, NULL, NULL,
+                5, 0, K_NO_WAIT);
+
+        return 0;
+    }
+
+    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    {
+        int ret = 0;
+        int err;
+
+        err = k_thread_join(&thread.tid, K_FOREVER);
+        if (err != 0)
+            ret = MEMORY_E;
+
+        /* TODO: Use the following once k_thread_stack_free makes it into a
+         * release.
+         * err = k_thread_stack_free(thread.threadStack);
+         * if (err != 0)
+         *     ret = MEMORY_E;
+         */
+        XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        thread.threadStack = NULL;
+
+        /* No thread resources to free. Everything is stored in thread.tid */
+
+        return ret;
+    }
+
+#ifdef WOLFSSL_COND
+    /* Use the pthreads translation layer for signaling */
+
+#endif /* WOLFSSL_COND */
+
 #elif defined(WOLFSSL_PTHREADS)
 
     int wolfSSL_NewThread(THREAD_TYPE* thread,
@@ -3475,6 +3671,19 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         return 0;
     }
+
+#ifdef WOLFSSL_THREAD_NO_JOIN
+    int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb, void* arg)
+    {
+        THREAD_TYPE thread;
+        int ret;
+        XMEMSET(&thread, 0, sizeof(thread));
+        ret = wolfSSL_NewThread(&thread, cb, arg);
+        if (ret == 0)
+            pthread_detach(thread);
+        return ret;
+    }
+#endif
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {

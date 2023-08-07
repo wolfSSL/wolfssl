@@ -127,6 +127,7 @@ THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = NULL;
 static int loggingEnabled = 0;
+THREAD_LS_T const char* log_prefix = NULL;
 
 #if defined(WOLFSSL_APACHE_MYNEWT)
 #include "log/log.h"
@@ -183,6 +184,15 @@ void wolfSSL_Debugging_OFF(void)
 {
 #ifdef DEBUG_WOLFSSL
     loggingEnabled = 0;
+#endif
+}
+
+WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix)
+{
+#ifdef DEBUG_WOLFSSL
+    log_prefix = prefix;
+#else
+    (void)prefix;
 #endif
 }
 
@@ -316,7 +326,10 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
       defined(HAVE_STACK_SIZE_VERBOSE) && defined(HAVE_STACK_SIZE_VERBOSE_LOG)
         STACK_SIZE_CHECKPOINT_MSG(logMessage);
 #else
-        fprintf(stderr, "%s\n", logMessage);
+        if (log_prefix != NULL)
+            fprintf(stderr, "[%s]: %s\n", log_prefix, logMessage);
+        else
+            fprintf(stderr, "%s\n", logMessage);
 #endif
     }
 }

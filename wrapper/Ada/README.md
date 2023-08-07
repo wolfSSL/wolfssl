@@ -29,6 +29,7 @@ formal verification). To formally verify the Ada code in this repository
 open the client.gpr with GNAT Studio and then select
 SPARK -> Prove All Sources and use Proof Level 2.
 
+```
 Summary of SPARK analysis
 =========================
 
@@ -47,6 +48,7 @@ Termination                       .           .          .                      
 Concurrency                       .           .          .                             .           .          .
 ---------------------------------------------------------------------------------------------------------------
 Total                           172    17 (10%)          .                     155 (90%)           .          .
+```
 
 ## Compiler and Build System installation
 
@@ -73,6 +75,13 @@ cd obj/
 ./tls_client_main 127.0.0.1
 ```
 
+On Windows, build the executables with:
+```sh
+gprbuild -XOS=Windows default.gpr
+gprbuild -XOS=Windows client.gpr
+```
+
+
 ### GNAT FSF Compiler and GPRBuild manual installation
 In May 2022 AdaCore announced the end of the GNAT Community releases.
 Pre-built binaries for the GNAT FSF compiler and GPRBuild can be
@@ -82,18 +91,14 @@ Make sure the executables for the compiler and GPRBuild are on the PATH
 and use gprbuild to build the source code.
 
 ## Files
-The file c_tls_client_main.c and c_tls_server_main.c are the TLS v1.3
-server and client examples using the WolfSSL library implemented using
-the C programming language.
-
-The translation of the C client example into the Ada/SPARK programming
-language can be found in the files:
+The TLS v1.3 client example in the Ada/SPARK programming language
+using the WolfSSL library can be found in the files:
 tls_client_main.adb
 tls_client.ads
 tls_client.adb
 
-The translation of the C server example into the Ada/SPARK programming
-language can be found in the files:
+The TLS v1.3 server example in the Ada/SPARK programming language
+using the WolfSSL library can be found in the files:
 tls_server_main.adb
 tls_server.ads
 tls_server.adb

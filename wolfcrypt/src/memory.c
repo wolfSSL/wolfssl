@@ -33,15 +33,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* check old macros @wc_fips */
-#if defined(USE_CYASSL_MEMORY) && !defined(USE_WOLFSSL_MEMORY)
-    #define USE_WOLFSSL_MEMORY
-#endif
-#if defined(CYASSL_MALLOC_CHECK) && !defined(WOLFSSL_MALLOC_CHECK)
-    #define WOLFSSL_MALLOC_CHECK
-#endif
-
-
 /*
 Possible memory options:
  * NO_WOLFSSL_MEMORY:               Disables wolf memory callback support. When not defined settings.h defines USE_WOLFSSL_MEMORY.

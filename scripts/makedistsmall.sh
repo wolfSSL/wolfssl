@@ -42,8 +42,6 @@ echo "Removing files not needed..."
 rm -rf -- ./.git*
 rm -rf ./build-aux
 rm -rf ./certs
-rm -rf ./ctaocrypt
-rm -rf ./cyassl
 rm -rf ./doc
 rm -rf ./Docker
 # these use test.h, which are not portable

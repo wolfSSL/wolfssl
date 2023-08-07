@@ -36,18 +36,6 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-#if defined(HAVE_FIPS) && \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-#define wc_Sha             Sha
-#define WC_SHA             SHA
-#define WC_SHA_BLOCK_SIZE  SHA_BLOCK_SIZE
-#define WC_SHA_DIGEST_SIZE SHA_DIGEST_SIZE
-#define WC_SHA_PAD_SIZE    SHA_PAD_SIZE
-
-/* for fips @wc_fips */
-#include <cyassl/ctaocrypt/sha.h>
-#endif
-
 #ifdef FREESCALE_LTC_SHA
     #include "fsl_ltc.h"
 #endif
