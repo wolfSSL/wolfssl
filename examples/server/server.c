@@ -1327,7 +1327,7 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
     size_t srtp_secret_length;
     byte *srtp_secret, *p;
     int ret;
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     srtp_test_helper *srtp_helper = args->srtp_helper;
 #else
     (void)args;
@@ -1359,7 +1359,7 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
         printf("%02X", *p);
     printf("\n");
 
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     if (srtp_helper != NULL) {
         srtp_helper_set_ekm(srtp_helper, srtp_secret, srtp_secret_length);
 
@@ -1367,7 +1367,7 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
            correctness */
         return 0;
     }
-#endif /* HAVE_PTHREAD */
+#endif /* WOLFSSL_COND */
 
     XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
@@ -3822,9 +3822,7 @@ exit:
 #if defined(WOLFSSL_CALLBACKS) && defined(WOLFSSL_EARLY_DATA)
     (void) earlyData;
 #endif
-#ifndef WOLFSSL_TIRTOS
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 #endif /* !NO_WOLFSSL_SERVER */
@@ -3844,7 +3842,7 @@ exit:
         args.argv = argv;
         args.signal = &ready;
         args.return_code = 0;
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
         args.srtp_helper = NULL;
 #endif
         InitTcpReady(&ready);

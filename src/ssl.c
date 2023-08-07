@@ -213,6 +213,8 @@
 #include "src/ssl_certman.c"
 #endif
 
+#define _HMAC_Init _InitHmac
+
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
 /* Convert shortname to NID.
@@ -4004,7 +4006,7 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
     return WOLFSSL_SUCCESS;
 }
 
-
+#ifdef HAVE_SECURE_RENEGOTIATION
 /* do a secure renegotiation handshake, user forced, we discourage */
 static int _Rehandshake(WOLFSSL* ssl)
 {
@@ -4069,7 +4071,7 @@ static int _Rehandshake(WOLFSSL* ssl)
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SECURE_RENEGOTIATION)
+#if !defined(NO_WOLFSSL_SERVER)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
@@ -4077,7 +4079,7 @@ static int _Rehandshake(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif /* !NO_WOLFSSL_SERVER && HAVE_SECURE_RENEGOTIATION */
+#endif /* !NO_WOLFSSL_SERVER */
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0) {
@@ -4150,6 +4152,8 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
+
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 {
@@ -13755,7 +13759,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             TlsSessionCacheUnlockRow(row);
             error = WOLFSSL_FAILURE;
         }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         else if (LowResTimer() >= (sess->bornOn + sess->timeout)) {
             WOLFSSL_SESSION* wrSess = NULL;
             WOLFSSL_MSG("Invalid session: timed out");
@@ -13770,7 +13773,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             }
             error = WOLFSSL_FAILURE;
         }
-#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
     }
 
     /* mollify confused cppcheck nullPointer warning. */
@@ -25460,80 +25462,6 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
 
     return wolfSSL_HmacCopy(&des->hmac, &src->hmac);
 }
-
-
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-static int _HMAC_Init(Hmac* hmac, int type, void* heap)
-{
-    int ret = 0;
-
-    switch (type) {
-    #ifndef NO_MD5
-        case WC_MD5:
-            ret = wc_InitMd5(&hmac->hash.md5);
-            break;
-    #endif /* !NO_MD5 */
-
-    #ifndef NO_SHA
-        case WC_SHA:
-            ret = wc_InitSha(&hmac->hash.sha);
-            break;
-    #endif /* !NO_SHA */
-
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            ret = wc_InitSha224(&hmac->hash.sha224);
-            break;
-    #endif /* WOLFSSL_SHA224 */
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            ret = wc_InitSha256(&hmac->hash.sha256);
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            ret = wc_InitSha384(&hmac->hash.sha384);
-            break;
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            ret = wc_InitSha512(&hmac->hash.sha512);
-            break;
-    #endif /* WOLFSSL_SHA512 */
-
-    #ifdef WOLFSSL_SHA3
-        case WC_SHA3_224:
-            ret = wc_InitSha3_224(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_256:
-            ret = wc_InitSha3_256(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_384:
-            ret = wc_InitSha3_384(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_512:
-            ret = wc_InitSha3_512(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-    #endif
-
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
-
-    (void)heap;
-
-    return ret;
-}
-
-#else
-    #define _HMAC_Init _InitHmac
-#endif
-
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                   const EVP_MD* type)

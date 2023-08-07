@@ -33,11 +33,7 @@
 
 #define BUFFER_SIZE           2048
 #define STATIC_MEM_SIZE       (192*1024)
-#define THREAD_STACK_SIZE     (24*1024)
 #define MAX_SEND_SIZE         256
-
-/* The stack to use in the server's thread. */
-K_THREAD_STACK_DEFINE(server_stack, THREAD_STACK_SIZE);
 
 #ifdef WOLFSSL_STATIC_MEMORY
     static WOLFSSL_HEAP_HINT* HEAP_HINT_SERVER;
@@ -292,22 +288,6 @@ static void wolfssl_memstats(WOLFSSL* ssl)
 #endif
 }
 
-
-/* Start the server thread. */
-void start_thread(THREAD_CB func, func_args* args, THREAD_TYPE* thread)
-{
-    /* Casting to k_thread_entry_t should be fine since we just ignore the
-     * extra arguments being passed in */
-    k_thread_create(thread, server_stack, K_THREAD_STACK_SIZEOF(server_stack),
-                    (k_thread_entry_t)func, args, NULL, NULL, 5, 0, K_NO_WAIT);
-}
-
-void join_thread(THREAD_TYPE thread)
-{
-    /* Threads are handled in the kernel. */
-}
-
-
 int wolfssl_server_accept_tcp(WOLFSSL* ssl, SOCKET_T* fd, SOCKET_T* acceptfd)
 {
     int ret = 0;
@@ -511,12 +491,18 @@ int main()
 #endif
 
     /* Start server */
-    start_thread(server_thread, NULL, &serverThread);
+    if (wolfSSL_NewThread(&serverThread, server_thread, NULL) != 0) {
+        printf("Failed to start server thread\n");
+        return -1;
+    }
 
     k_sleep(Z_TIMEOUT_TICKS(100));
     client_thread();
 
-    join_thread(serverThread);
+    if (wolfSSL_JoinThread(serverThread) != 0) {
+        printf("Failed to join server thread\n");
+        return -1;
+    }
 
     wolfSSL_Cleanup();
 

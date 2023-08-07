@@ -11917,7 +11917,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case CLIENT_HELLO_SENT:
             /* Get the response/s from the server. */
             while (ssl->options.serverState <
-                                          SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+                    SERVER_HELLOVERIFYREQUEST_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;

@@ -161,7 +161,6 @@ EXTRA_DIST+= m4/ax_atomic.m4
 
 include cmake/include.am
 include wrapper/include.am
-include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
 include doc/include.am
@@ -245,7 +244,6 @@ test: check
 tests/unit.log: testsuite/testsuite.log
 scripts/unit.log: testsuite/testsuite.log
 
-DISTCLEANFILES+= cyassl-config
 DISTCLEANFILES+= wolfssl-config
 
 MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/async.h
@@ -267,7 +265,6 @@ maintainer-clean-local:
 	-rm build-aux/install-sh
 	-rm build-aux/ltmain.sh
 	-rm build-aux/missing
-	-rm cyassl-config
 	-rmdir build-aux
 	-rm configure
 	-rm config.log

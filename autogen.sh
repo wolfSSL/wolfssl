@@ -30,8 +30,6 @@ done
 
 for file in \
         ./wolfssl/options.h \
-        ./ctaocrypt/src/fips.c \
-        ./ctaocrypt/src/fips_test.c \
         ./wolfcrypt/src/fips.c \
         ./wolfcrypt/src/fips_test.c \
         ./wolfcrypt/src/wolfcrypt_first.c \

@@ -100,6 +100,8 @@ WOLFSSL_API int  wolfSSL_Debugging_ON(void);
 /* turn logging off */
 WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 
+WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
+
 #ifdef HAVE_WC_INTROSPECTION
     WOLFSSL_API const char *wolfSSL_configure_args(void);
     WOLFSSL_API const char *wolfSSL_global_cflags(void);

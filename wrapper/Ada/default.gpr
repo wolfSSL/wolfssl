@@ -1,4 +1,9 @@
 project Default is
+
+   type OS_Kind is ("Windows", "Linux_Or_Mac");
+
+   OS : OS_Kind := external ("OS", "Linux_Or_Mac");
+
    for Languages use ("C", "Ada");
 
    for Source_Dirs use (".",
@@ -15,9 +20,7 @@ project Default is
 
    for Object_Dir use "obj";
 
-   for Main use ("c_tls_client_main.c",
-                 "c_tls_server_main.c",
-                 "tls_server_main.adb");
+   for Main use ("tls_server_main.adb");
 
    package Naming is
       for Spec_Suffix ("C") use ".h";
@@ -68,11 +71,16 @@ project Default is
    end Compiler;
 
    package Linker is
-      for Switches ("C") use
-         ("-lm");  --  To include the math library (used by WolfSSL).
+      case OS is
+         when "Windows" =>
+            for Switches ("Ada") use
+               ("-lm",         --  To include the math library (used by WolfSSL).
+                "-lcrypt32");  --  Needed on Windows.
 
-      for Switches ("Ada") use
-         ("-lm");  --  To include the math library (used by WolfSSL).
+         when "Linux_Or_Mac" =>
+            for Switches ("Ada") use
+               ("-lm");  --  To include the math library (used by WolfSSL).
+      end case;
    end Linker;
 
    package Binder is

@@ -444,14 +444,14 @@
     } while(0)
 #endif
 
-#undef PTHREAD_CHECK_RET
-#define PTHREAD_CHECK_RET(...) do {                                  \
-        int _pthread_ret = (__VA_ARGS__);                            \
-        if (_pthread_ret != 0) {                                     \
-            errno = _pthread_ret;                                    \
+#undef THREAD_CHECK_RET
+#define THREAD_CHECK_RET(...) do {                                   \
+        int _thread_ret = (__VA_ARGS__);                             \
+        if (_thread_ret != 0) {                                      \
+            errno = _thread_ret;                                     \
             printf("%s%s L%d error %d for \"%s\"\n",                 \
                    err_prefix, __FILE__, __LINE__,                   \
-                   _pthread_ret, #__VA_ARGS__);                      \
+                   _thread_ret, #__VA_ARGS__);                       \
             XFFLUSH(stdout);                                         \
             _exit(1);                                                \
         }                                                            \
@@ -1673,7 +1673,7 @@ typedef enum bench_stat_type {
 
     #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
     #endif
 
         if (algo != NULL) {
@@ -1722,7 +1722,7 @@ typedef enum bench_stat_type {
                 bstat->lastRet = ret; /* track last error */
         }
     #ifdef WC_ENABLE_BENCH_THREADING
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
     #endif
         return bstat;
     }
@@ -1733,7 +1733,7 @@ typedef enum bench_stat_type {
 
     #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
     #endif
 
         for (bstat = bench_stats_head; bstat != NULL; ) {
@@ -1754,7 +1754,7 @@ typedef enum bench_stat_type {
         }
 
     #ifdef WC_ENABLE_BENCH_THREADING
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
     #endif
     }
 #endif /* WC_BENCH_TRACK_STATS */
@@ -3186,12 +3186,12 @@ static int benchmark_test_threaded(void* args)
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        PTHREAD_CHECK_RET(pthread_create(&g_threadData[i].thread_id,
+        THREAD_CHECK_RET(pthread_create(&g_threadData[i].thread_id,
                                          NULL, run_bench, args));
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        PTHREAD_CHECK_RET(pthread_join(g_threadData[i].thread_id, 0));
+        THREAD_CHECK_RET(pthread_join(g_threadData[i].thread_id, 0));
     }
 
     printf("\n");

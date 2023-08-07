@@ -94,7 +94,7 @@ static int StringToVal(const String2Val* map, int len, const char* str,
  * @return  0 on success.
  * @return  1 on failure.
  */
-static int ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
+static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
 {
     int ret = 0;
     word32 len = 0;
@@ -944,7 +944,7 @@ int main(int argc, char* argv[])
     }
 #endif
     /* Read all of PEM file. */
-    if ((ret == 0) && (ReadFile(in_file, &in, &in_len) != 0)) {
+    if ((ret == 0) && (pemApp_ReadFile(in_file, &in, &in_len) != 0)) {
         fprintf(stderr, "Reading file failed\n");
         ret = 1;
     }

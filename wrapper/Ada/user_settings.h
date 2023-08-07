@@ -42,7 +42,7 @@ extern "C" {
 #define WOLFSSL_IGNORE_FILE_WARN /* Ignore *.c include warnings */
 #define WOLFSSL_PUBLIC_MP /* Make math API's public */
 #define WOLFSSL_ENCRYPTED_KEYS /* Support for encrypted keys PKCS8 */
-#define WOLFSSL_SYS_CA_CERTS /* Enable ability to load CA certs from OS */
+//#define WOLFSSL_SYS_CA_CERTS /* Enable ability to load CA certs from OS */
 
 #if 0 /* Not needed */
     #define KEEP_PEER_CERT /* Retain peer's certificate */

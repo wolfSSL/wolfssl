@@ -3,8 +3,6 @@
 # All paths should be given relative to the root
 
 FIPS_FILES =					\
-	ctaocrypt/src/fips.c			\
-	ctaocrypt/src/fips_test.c		\
 	wolfcrypt/src/async.c			\
 	wolfcrypt/src/fips.c			\
 	wolfcrypt/src/fips_test.c		\
@@ -53,42 +51,6 @@ include_HEADERS+=$(IPPHEADERS)
 endif # BUILD_FAST_RSA
 
 if BUILD_FIPS
-
-if BUILD_FIPS_V1
-# fips first  file
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
-
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
-               ctaocrypt/src/hmac.c \
-               ctaocrypt/src/random.c \
-               ctaocrypt/src/sha256.c
-
-if BUILD_RSA
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/rsa.c
-endif
-
-if BUILD_AES
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/aes.c
-endif
-
-if BUILD_DES3
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/des3.c
-endif
-
-if BUILD_SHA
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/sha.c
-endif
-
-if BUILD_SHA512
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/sha512.c
-endif
-
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/fips.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/fips_test.c
-
-# fips last file
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
-endif BUILD_FIPS_V1
 
 if BUILD_FIPS_V2
 # FIPSv2 first file

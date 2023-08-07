@@ -87,9 +87,9 @@ package body Tls_Server with SPARK_Mode is
 
    Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
-   CERT_FILE : constant String := "../certs/server-cert.pem";
-   KEY_FILE  : constant String := "../certs/server-key.pem";
-   CA_FILE   : constant String := "../certs/client-cert.pem";
+   CERT_FILE : constant String := "../../../certs/server-cert.pem";
+   KEY_FILE  : constant String := "../../../certs/server-key.pem";
+   CA_FILE   : constant String := "../../../certs/client-cert.pem";
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
@@ -305,7 +305,11 @@ package body Tls_Server with SPARK_Mode is
             Put_Line ("ERROR: failed to write full response.");
          end if;
 
-         Result := WolfSSL.Shutdown (Ssl);
+         for I in 1 .. 3 loop
+            Result := WolfSSL.Shutdown (Ssl);
+            exit when Result = Success;
+            delay 0.001;  --  Delay is expressed in seconds.
+         end loop;
          if Result /= Success then
             Put_Line ("ERROR: Failed to shutdown WolfSSL context.");
          end if;

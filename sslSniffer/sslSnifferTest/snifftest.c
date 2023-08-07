@@ -76,7 +76,7 @@ int main(void)
 #include <signal.h>        /* signal */
 #include <ctype.h>         /* isprint */
 
-#include <cyassl/sniffer.h>
+#include <wolfssl/sniffer.h>
 
 
 #ifndef _WIN32
