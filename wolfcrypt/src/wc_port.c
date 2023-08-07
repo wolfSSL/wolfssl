@@ -3680,7 +3680,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         XMEMSET(&thread, 0, sizeof(thread));
         ret = wolfSSL_NewThread(&thread, cb, arg);
         if (ret == 0)
-            pthread_detach(thread);
+            ret = pthread_detach(thread);
         return ret;
     }
 #endif
