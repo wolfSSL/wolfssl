@@ -5672,6 +5672,9 @@ then
         ENABLED_AESCFB="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
     fi
+
+    # Requires public mp_
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
 fi
 
 if test "x$ENABLED_SMIME" = "xyes"
