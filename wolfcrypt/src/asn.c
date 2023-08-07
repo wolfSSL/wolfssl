@@ -3283,6 +3283,10 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
+    if (idx < 1 || idx >= maxIdx) {
+        return BUFFER_E;
+    }
+
     if (((input[idx] & 0x80) == 0x80) && (input[idx - 1] != 0x00))
         return MP_INIT_E;
 
