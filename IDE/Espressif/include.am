@@ -22,7 +22,6 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/README.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/VisualGDB
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/CMakeLists.txt
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/config.h
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/user_settings.h
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include
