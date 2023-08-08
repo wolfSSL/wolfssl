@@ -2414,7 +2414,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-gcm],
-    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: disabled)])],
     [ ENABLED_SM4_GCM=$enableval ],
     [ ENABLED_SM4_GCM=no ]
     )
@@ -2430,7 +2430,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-ccm],
-    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: disabled)])],
     [ ENABLED_SM4_CCM=$enableval ],
     [ ENABLED_SM4_CCM=no ]
     )
