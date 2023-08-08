@@ -24409,9 +24409,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
-    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
      *       -WOLFSSL_ERROR_WANT_CONNECT. */
     case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
         return "certificate not yet valid";
