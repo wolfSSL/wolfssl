@@ -551,12 +551,10 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
     ready->srfName = NULL;
 
 #ifndef SINGLE_THREADED
-#ifdef WOLFSSL_COND
     THREAD_CHECK_RET(wc_InitMutex(&ready->mutex));
+    #ifdef WOLFSSL_COND
     THREAD_CHECK_RET(wolfSSL_CondInit(&ready->cond));
-#else /* No signaling available, rely only on the mutex */
-    THREAD_CHECK_RET(wc_InitMutex(&ready->mutex));
-#endif
+    #endif
 #endif
 }
 
@@ -567,11 +565,9 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
 static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 {
 #ifndef SINGLE_THREADED
+    THREAD_CHECK_RET(wc_FreeMutex(&ready->mutex));
 #ifdef WOLFSSL_COND
-    THREAD_CHECK_RET(wc_FreeMutex(&ready->mutex));
     THREAD_CHECK_RET(wolfSSL_CondFree(&ready->cond));
-#else /* No signaling available, rely only on the mutex */
-    THREAD_CHECK_RET(wc_FreeMutex(&ready->mutex));
 #endif
 #else
     (void)ready;
@@ -695,24 +691,16 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
-    THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
-#endif
-
     if (srtp->server_srtp_ekm == NULL)
         THREAD_CHECK_RET(wolfSSL_CondWait(&srtp->cond, &srtp->mutex));
 
-#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
     THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
-#endif
-
     *ekm = srtp->server_srtp_ekm;
     *size = srtp->server_srtp_ekm_size;
 
     /* reset */
     srtp->server_srtp_ekm = NULL;
     srtp->server_srtp_ekm_size = 0;
-
     THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
 }
 
@@ -731,17 +719,10 @@ static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
     THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
-
     srtp->server_srtp_ekm_size = size;
     srtp->server_srtp_ekm = ekm;
-#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
     THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
-#endif
     THREAD_CHECK_RET(wolfSSL_CondSignal(&srtp->cond));
-
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
-    THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
-#endif
 }
 
 static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
@@ -750,7 +731,8 @@ static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
     THREAD_CHECK_RET(wolfSSL_CondFree(&srtp->cond));
 }
 
-#endif /* WOLFSSL_SRTP && !SINGLE_THREADED && POSIX_THREADS */
+#endif /* WOLFSSL_SRTP && WOLFSSL_COND */
+
 
 /**
  *
@@ -2237,19 +2219,12 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
         ready->ready = 1;
         ready->port = port;
-#ifdef WOLFSSL_COND
+        THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+    #ifdef WOLFSSL_COND
         /* signal ready to accept data */
-#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
-        THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
         THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
-        THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
-#else
-        THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
-#endif
+    #endif
+#endif /* !SINGLE_THREADED */
     }
     else {
         fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
@@ -2283,17 +2258,12 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
             ready->ready = 1;
             ready->port = port;
-#ifdef WOLFSSL_COND
-#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
             THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
+        #ifdef WOLFSSL_COND
             THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
-            THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
-#endif
+        #endif
         }
-#endif
+#endif /* !SINGLE_THREADED */
 
         if (ready_file) {
         #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \

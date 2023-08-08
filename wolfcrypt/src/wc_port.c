@@ -3491,11 +3491,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
-    int wolfSSL_CondWait(COND_TYPE* cond,
-        wolfSSL_Mutex* mutex)
+    int wolfSSL_CondWait(COND_TYPE* cond)
     {
-        (void)mutex;
-
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
@@ -3698,14 +3695,20 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 
 #ifdef WOLFSSL_COND
+    #ifndef __MACH__
+    /* Generic POSIX conditional */
     int wolfSSL_CondInit(COND_TYPE* cond)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_cond_init(cond, NULL) != 0)
+        cond->lockCount = 1; /* behave as signal, by defaulting to locked */
+        if (pthread_mutex_init(&cond->mutex, NULL) != 0)
             return MEMORY_E;
-
+        if (pthread_cond_init(&cond->cond, NULL) != 0) {
+            pthread_mutex_destroy(&cond->mutex);
+            return MEMORY_E;
+        }
         return 0;
     }
 
@@ -3714,9 +3717,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_cond_destroy(cond) != 0)
-            return MEMORY_E;
-
+        pthread_mutex_destroy(&cond->mutex);
+        pthread_cond_destroy(&cond->cond);
         return 0;
     }
 
@@ -3725,26 +3727,72 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_cond_signal(cond) != 0)
-            return MEMORY_E;
-
+        pthread_mutex_lock(&cond->mutex);
+        if (cond->lockCount > 0)
+            cond->lockCount--;
+        pthread_cond_signal(&cond->cond);
+        pthread_mutex_unlock(&cond->mutex);
         return 0;
     }
 
-    int wolfSSL_CondWait(COND_TYPE* cond,
-            wolfSSL_Mutex* mutex)
+    int wolfSSL_CondWait(COND_TYPE* cond)
     {
-        if (cond == NULL || mutex == NULL)
+        if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        /* mutex has to be locked on entry so we can't touch */
+        pthread_mutex_lock(&cond->mutex);
+        while (cond->lockCount > 0)
+            pthread_cond_wait(&cond->cond, &cond->mutex);
+        cond->lockCount++;
+        pthread_mutex_unlock(&cond->mutex);
+        return 0;
+    }
+    #else
+    /* Apple style dispatch semaphore */
+    int wolfSSL_CondInit(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
 
-        if (pthread_cond_wait(cond, mutex) != 0)
+        /* dispatch_release() fails hard, with Trace/BPT trap signal, if the
+         * sem's internal count is less than the value passed in with
+         * dispatch_semaphore_create().  work around this by initing
+         * with 0, then incrementing it afterwards.
+         */
+        cond->sem = dispatch_semaphore_create(0);
+        if (cond->sem == NULL)
             return MEMORY_E;
-
         return 0;
     }
 
+    int wolfSSL_CondFree(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        dispatch_release(cond->sem);
+        cond->sem = NULL;
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        dispatch_semaphore_signal(cond->sem);
+        return 0;
+    }
+
+    int wolfSSL_CondWait(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        dispatch_semaphore_wait(cond->sem, DISPATCH_TIME_FOREVER);
+        return 0;
+    }
+    #endif /* __MACH__ */
 #endif /* WOLFSSL_COND */
 
 #endif

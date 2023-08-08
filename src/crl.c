@@ -931,20 +931,14 @@ static int SignalSetup(WOLFSSL_CRL* crl, int status)
     int ret;
 
     /* signal to calling thread we're setup */
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex crlLock failed");
         return BAD_MUTEX_E;
     }
-#endif
-
     crl->setup = status;
-    ret = wolfSSL_CondSignal(&crl->cond);
-
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     wc_UnLockMutex(&crl->crlLock);
-#endif
 
+    ret = wolfSSL_CondSignal(&crl->cond);
     if (ret != 0)
         return BAD_COND_E;
 
@@ -1491,26 +1485,24 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
         return THREAD_CREATE_E;
     }
 
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     /* wait for setup to complete */
     if (wc_LockMutex(&crl->crlLock) != 0) {
-        WOLFSSL_MSG("wc_LockMutex crlLock error");
+        WOLFSSL_MSG("wc_LockMutex crlLock failed");
         return BAD_MUTEX_E;
     }
-#endif
-
     while (crl->setup == 0) {
-        if (wolfSSL_CondWait(&crl->cond, &crl->crlLock) != 0) {
+        int condRet;
+        wc_UnLockMutex(&crl->crlLock);
+        condRet = wolfSSL_CondWait(&crl->cond);
+        wc_LockMutex(&crl->crlLock);
+        if (condRet != 0) {
             ret = BAD_COND_E;
             break;
         }
     }
-    if (crl->setup < 0)
+    if (ret >= 0 && crl->setup < 0)
         ret = crl->setup;  /* store setup error */
-
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
     wc_UnLockMutex(&crl->crlLock);
-#endif
 
     if (ret < 0) {
         WOLFSSL_MSG("DoMonitor setup failure");

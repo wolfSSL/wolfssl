@@ -436,8 +436,7 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz &&
             !info->to_client.done) {
-        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_server.cond,
-                                            &info->to_server.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_server.cond));
     }
 #else
     if (info->to_server.write_idx - info->to_server.read_idx < sz) {
@@ -511,8 +510,7 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz &&
             !info->to_server.done) {
-        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_client.cond,
-                                            &info->to_client.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_client.cond));
     }
 #else
     if (info->to_client.write_idx - info->to_client.read_idx < sz) {
@@ -1054,8 +1052,7 @@ static int bench_tls_client(info_t* info)
         if (info->doDTLS && !info->clientOrserverOnly) {
             THREAD_CHECK_RET(wc_LockMutex(&info->dtls_mutex));
             if (info->serverReady != 1) {
-                THREAD_CHECK_RET(wolfSSL_CondWait(&info->dtls_cond,
-                                                    &info->dtls_mutex));
+                THREAD_CHECK_RET(wolfSSL_CondWait(&info->dtls_cond));
             }
             /* for next loop */
             info->serverReady = 0;
