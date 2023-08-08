@@ -3702,7 +3702,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        cond->lockCount = 1; /* behave as signal, by defaulting to locked */
         if (pthread_mutex_init(&cond->mutex, NULL) != 0)
             return MEMORY_E;
         if (pthread_cond_init(&cond->cond, NULL) != 0) {
@@ -3728,8 +3727,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         pthread_mutex_lock(&cond->mutex);
-        if (cond->lockCount > 0)
-            cond->lockCount--;
         pthread_cond_signal(&cond->cond);
         pthread_mutex_unlock(&cond->mutex);
         return 0;
@@ -3741,9 +3738,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             return BAD_FUNC_ARG;
 
         pthread_mutex_lock(&cond->mutex);
-        while (cond->lockCount > 0)
-            pthread_cond_wait(&cond->cond, &cond->mutex);
-        cond->lockCount++;
+        pthread_cond_wait(&cond->cond, &cond->mutex);
         pthread_mutex_unlock(&cond->mutex);
         return 0;
     }

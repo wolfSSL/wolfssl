@@ -1388,7 +1388,6 @@ typedef struct w64wrapper {
         #else
             #include <pthread.h>
             typedef struct COND_TYPE {
-                volatile int lockCount;
                 pthread_mutex_t mutex;
                 pthread_cond_t cond;
             } COND_TYPE;
