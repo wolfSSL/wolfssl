@@ -691,10 +691,12 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-    if (srtp->server_srtp_ekm == NULL)
-        THREAD_CHECK_RET(wolfSSL_CondWait(&srtp->cond, &srtp->mutex));
-
     THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
+    if (srtp->server_srtp_ekm == NULL) {
+        THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&srtp->cond));
+        THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
+    }
     *ekm = srtp->server_srtp_ekm;
     *size = srtp->server_srtp_ekm_size;
 
