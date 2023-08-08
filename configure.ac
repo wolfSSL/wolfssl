@@ -71,6 +71,9 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
        ])
 
+WOLFSSL_BUILD_DATE=$(date -R)
+AC_SUBST([WOLFSSL_BUILD_DATE])
+
 
 # Moved these size of and type checks before the library checks.
 # The library checks add the library to subsequent test compiles
@@ -9020,6 +9023,8 @@ AC_CONFIG_FILES([Makefile
         wolfssl/version.h
         wolfssl/options.h
         support/wolfssl.pc
+        debian/control
+        debian/changelog
         rpm/spec
         wolfcrypt/test/test_paths.h
         ])

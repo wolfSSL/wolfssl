@@ -176,6 +176,7 @@ include examples/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
+include debian/include.am
 include rpm/include.am
 include linuxkm/include.am
 include zephyr/include.am
