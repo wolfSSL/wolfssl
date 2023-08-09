@@ -20,9 +20,17 @@
  */
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 
+#if defined(WOLFSSL_RENESAS_RSIP) || \
+    defined(WOLFSSL_RENESAS_SCEPROTECT)
+
+#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h>
+
+/* expect to have these variables defined at user application */
+extern FSPSM_INSTANCE   gFSPSM_ctrl;
+extern FSPSM_CONFIG     gFSPSM_cfg;
+
+#if defined(WOLFSSL_RENESAS_FSPSM)
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -47,9 +55,6 @@
 WOLFSSL_GLOBAL FSPSM_ST_PKC gPKCbInfo;
 #endif
 
-/* expect to have these variables defined at user application */
-extern FSPSM_INSTANCE   gFSPSM_ctrl;
-extern FSPSM_CONFIG     gFSPSM_cfg;
 
 #ifdef WOLFSSL_RENESAS_FSPSM_TLS
 static const byte*  ca_cert_sig;
@@ -57,11 +62,14 @@ static fspsm_key_data g_user_key_info;
 
 static uint32_t     g_encrypted_publicCA_key[HW_SCE_SINST_WORD_SIZE];
 extern uint32_t     g_CAscm_Idx;          /* index of CM table    */
+static uint32_t     fspsm_sess_idx = 0;
 #endif
+
+#endif /* WOLFSSL_RENESAS_FSPSM*/
 
 wolfSSL_Mutex       fspsm_mutex;
 static int          fspsm_CryptHwMutexInit_ = 0;
-static uint32_t     fspsm_sess_idx = 0;
+
 
 /* Mutex Init */
 static int fspsm_CryptHwMutexInit(wolfSSL_Mutex* mutex)
@@ -175,7 +183,8 @@ WOLFSSL_LOCAL void wc_fspsm_Close()
     }
 }
 
-#ifdef WOLFSSL_RENESAS_FSPSM_TLS
+#if defined(WOLFSSL_RENESAS_FSPSM) && \
+    defined(WOLFSSL_RENESAS_FSPSM_TLS)
 
 #if defined(WOLFSSL_RENESAS_FSPSM_ECC)
 /* Verify Server Key Exchange while doing ECDH key exchange */
@@ -346,6 +355,9 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
     return ret;
 }
 
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+    
 /* Callback for ECC shared secret */
 WOLFSSL_LOCAL int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         uint8_t* pubKeyDer, unsigned int* pubKeySz,
@@ -1185,3 +1197,4 @@ WOLFSSL_API int wc_fspsm_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 #endif /*  !WOLFSSL_RENESAS_FSPSM_CRYPTONLY */
 
 #endif /* WOLFSSL_RENESAS_FSPSM_TLS || WOLFSSL_RENESAS_FSPSM_CRYPTONLY */
+#endif /* WOLFSSL_RENESAS_FSPSM) &&  WOLFSSL_RENESAS_FSPSM_TLS */

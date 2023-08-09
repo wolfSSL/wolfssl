@@ -31,7 +31,7 @@ extern "C" {
 #define WOLFSSL_FSPSM_ILLEGAL_CIPHERSUITE     -1
 #define MAX_FSPSM_CBINDEX 5
 
-typedef void* FSP_W_KEYVAR;
+typedef void* FSPSM_W_KEYVAR;
 
 /* flsgas related to TLS */
 struct FSPSM_tls_flg_ST {
@@ -71,17 +71,20 @@ typedef struct FSPSM_tag_ST {
 
     /* installed key handling */
     /* aes */
-    FSP_W_KEYVAR   wrapped_key_aes256;
-    FSP_W_KEYVAR   wrapped_key_aes128;
+    FSPSM_W_KEYVAR   wrapped_key_aes256;
+    FSPSM_W_KEYVAR   wrapped_key_aes128;
 
    #if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     /* rsa */
-    FSP_W_KEYVAR   wrapped_key_rsapri2048;
-    FSP_W_KEYVAR   wrapped_key_rsapub2048;
-    FSP_W_KEYVAR   wrapped_key_rsapri1024;
-    FSP_W_KEYVAR   wrapped_key_rsapub1024;
+    FSPSM_W_KEYVAR   wrapped_key_rsapri2048;
+    FSPSM_W_KEYVAR   wrapped_key_rsapub2048;
+    FSPSM_W_KEYVAR   wrapped_key_rsapri1024;
+    FSPSM_W_KEYVAR   wrapped_key_rsapub1024;
    #endif
 
+   #if defined(WOLFSSL_RENESAS_RSIP)
+    uint8_t hash_type;
+   #endif
     /* key status flags */
     /* flag whether encrypted ec key is set */
     union {
@@ -94,7 +97,6 @@ typedef struct FSPSM_tag_ST {
         uint8_t chr;
         struct FSPSM_key_flg_ST bits;
     } keyflgs_crypt;
-
 } FSPSM_ST;
 
 typedef struct tagPKCbInfo {
@@ -102,6 +104,7 @@ typedef struct tagPKCbInfo {
     uint32_t    num_session;
 } FSPSM_ST_PKC;
 
+#ifdef WOLFSSL_RENSAS_FSPSM_TLS
 typedef struct
 {
     uint8_t                          *encrypted_provisioning_key;
@@ -110,6 +113,7 @@ typedef struct
     uint32_t                         encrypted_user_tls_key_type;
     FSPSM_CACERT_PUB_WKEY            user_rsa2048_tls_wrappedkey;
 } fspsm_key_data;
+#endif
 
 struct WOLFSSL;
 struct WOLFSSL_CTX;
@@ -125,10 +129,10 @@ WOLFSSL_LOCAL int     wc_fspsm_usable(const struct WOLFSSL *ssl,
 typedef struct {
     FSPSM_AES_WKEY   wrapped_key;
     word32           keySize;
-    byte             setup;
 } FSPSM_AES_CTX;
 
 struct Aes;
+WOLFSSL_LOCAL void wc_fspsm_Aesfree(struct Aes* aes);
 WOLFSSL_LOCAL int wc_fspsm_AesCbcEncrypt(struct Aes* aes, byte* out,
                         const byte* in, word32 sz);
 WOLFSSL_LOCAL int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
@@ -148,10 +152,22 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                           const byte* authIn, word32 authInSz,
                           void* ctx);
 
-#if !defined(NO_SHA256) && !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+#if (!defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SH224) || \
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)) && \
+    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
 
 typedef enum {
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     FSPSM_SHA256 = 1,
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    FSPSM_SHA1 = RSIP_HASH_TYPE_SHA1,
+    FSPSM_SHA224 = RSIP_HASH_TYPE_SHA224,
+    FSPSM_SHA256 = RSIP_HASH_TYPE_SHA256,
+    FSPSM_SHA384 = RSIP_HASH_TYPE_SHA384,
+    FSPSM_SHA512 = RSIP_HASH_TYPE_SHA512,
+    FSPSM_SHA512_224 = RSIP_HASH_TYPE_SHA512_224,
+    FSPSM_SHA512_256 = RSIP_HASH_TYPE_SHA512_256,
+#endif
 } FSPSM_SHA_TYPE;
 
 typedef struct {
@@ -170,7 +186,31 @@ typedef struct {
 #undef  WOLFSSL_NO_HASH_RAW
 #define WOLFSSL_NO_HASH_RAW
 
-typedef wolfssl_FSPSM_Hash wc_Sha256;
+#if !defined(NO_SHA) && defined(WOLFSSL_RENESAS_RSIP)
+    typedef wolfssl_FSPSM_Hash wc_Sha;
+#endif
+
+#if defined(WOLFSSL_SHA224) && defined(WOLFSSL_RENESAS_RSIP)
+    typedef wolfssl_FSPSM_Hash wc_Sha224;
+    #define WC_SHA224_TYPE_DEFINED
+#endif
+
+#if !defined(NO_SHA256) && \
+    (defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_RSIP))
+    typedef wolfssl_FSPSM_Hash wc_Sha256;
+#endif
+
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_RENESAS_RSIP)
+    typedef wolfssl_FSPSM_Hash wc_Sha384;
+    #define WC_SHA384_TYPE_DEFINED
+#endif
+
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_RENESAS_RSIP)
+    typedef wolfssl_FSPSM_Hash wc_Sha512;
+    typedef wolfssl_FSPSM_Hash wc_Sha512_224;
+    typedef wolfssl_FSPSM_Hash wc_Sha512_256;
+    #define WC_SHA512_TYPE_DEFINED
+#endif
 
 #endif /* NO_SHA */
 
@@ -270,18 +310,28 @@ WOLFSSL_API void FSPSM_CALLBACK_FUNC(struct WOLFSSL_CTX* ctx);
 WOLFSSL_API int  FSPSM_CALLBACK_CTX_FUNC(struct WOLFSSL* ssl, void* user_ctx);
 WOLFSSL_API void FSPSM_INFORM_CERT_SIGN(const uint8_t *sign);
 
-/* rsa */
-struct RsaKey;
-struct WC_RNG;
-WOLFSSL_API int  wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
-    word32 outLen, int type, struct RsaKey* key, struct WC_RNG* rng, void* ctx);
-WOLFSSL_API int  wc_fspsm_MakeRsaKey(int size, void* ctx);
-WOLFSSL_API int  wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
-                    word32* outLen, struct RsaKey* key, void* ctx);
-WOLFSSL_API int  wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
-                    word32* outLen,struct RsaKey* key, void* ctx);
 
 #endif  /* WOLFSSL_RENESAS_FSPSM_TLS && 
          * !WOLFSSL_RENESAS_FSPSM_CRYPT_ONLY */
+
+typedef struct FSPSM_RSA_CTX {
+    FSPSM_RSA1024_WPI_KEY *wrapped_pri1024_key;
+    FSPSM_RSA1024_WPB_KEY *wrapped_pub1024_key;
+    FSPSM_RSA2048_WPI_KEY *wrapped_pri2048_key;
+    FSPSM_RSA2048_WPB_KEY *wrapped_pub2048_key;
+    word32 keySz;
+} FSPSM_RSA_CTX;
+
+/* rsa */
+struct RsaKey;
+struct WC_RNG;
+WOLFSSL_LOCAL void wc_fspsm_RsaKeyFree(struct RsaKey *key);
+WOLFSSL_LOCAL int  wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
+  word32 *outLen, int type, struct RsaKey* key, struct WC_RNG* rng);
+WOLFSSL_LOCAL int  wc_fspsm_MakeRsaKey(struct RsaKey* key, int size, void* ctx);
+WOLFSSL_LOCAL int  wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
+                    word32* outLen, struct RsaKey* key, void* ctx);
+WOLFSSL_LOCAL int  wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
+                    word32* outLen,struct RsaKey* key, void* ctx);
 
 #endif  /* __RENESAS_FSPSM_CRYPT_H__ */

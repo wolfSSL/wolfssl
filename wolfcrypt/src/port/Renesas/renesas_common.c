@@ -51,6 +51,8 @@ uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
 static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
+/* store callback ctx by devId */
+FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
@@ -271,25 +273,6 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                  (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
                   info->cipher.aesgcm_enc.aes->keylen == 16))) {
 
-                if (cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
-                  info->cipher.aesgcm_enc.aes->keylen == 32) {
-
-                    XMEMCPY(&info->cipher.aesgcm_enc.aes->ctx.wrapped_key,
-                        &cbInfo->wrapped_key_aes256,
-                        sizeof(FSPSM_AES_WKEY));
-                    info->cipher.aesgcm_enc.aes->ctx.keySize = 32;
-
-                }
-                else if (
-                    cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
-                    info->cipher.aesgcm_enc.aes->keylen == 16) {
-
-                    XMEMCPY(&info->cipher.aesgcm_enc.aes->ctx.wrapped_key,
-                            &cbInfo->wrapped_key_aes128,
-                            sizeof(FSPSM_AES_WKEY));
-                    info->cipher.aesgcm_enc.aes->ctx.keySize = 16;
-                }
-
                 ret = wc_fspsm_AesGcmEncrypt(
                         info->cipher.aesgcm_enc.aes,
                         (byte*)info->cipher.aesgcm_enc.out,
@@ -309,25 +292,6 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                        info->cipher.aesgcm_dec.aes->keylen == 32) ||
                     (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
                        info->cipher.aesgcm_dec.aes->keylen == 16)) {
-
-                if (cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
-                  info->cipher.aesgcm_dec.aes->keylen == 32) {
-
-                    XMEMCPY(&info->cipher.aesgcm_dec.aes->ctx.wrapped_key,
-                            &cbInfo->wrapped_key_aes256,
-                            sizeof(FSPSM_AES_WKEY));
-                    info->cipher.aesgcm_dec.aes->ctx.keySize = 32;
-
-                }
-                else if (
-                    cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
-                    info->cipher.aesgcm_dec.aes->keylen == 16) {
-
-                    XMEMCPY(&info->cipher.aesgcm_dec.aes->ctx.wrapped_key,
-                            &cbInfo->wrapped_key_aes128,
-                            sizeof(FSPSM_AES_WKEY));
-                    info->cipher.aesgcm_dec.aes->ctx.keySize = 16;
-                }
 
                 ret = wc_fspsm_AesGcmDecrypt(
                         info->cipher.aesgcm_dec.aes,
@@ -351,26 +315,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 info->cipher.aescbc.aes->keylen == 32) ||
             (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
                 info->cipher.aescbc.aes->keylen == 16))) {
-
                 if (info->cipher.enc) {
-                    if (
-                    cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
-                    info->cipher.aescbc.aes->keylen == 32) {
-                        XMEMCPY(&info->cipher.aescbc.aes->ctx.wrapped_key,
-                                &cbInfo->wrapped_key_aes256,
-                                sizeof(FSPSM_AES_WKEY));
-                        info->cipher.aescbc.aes->ctx.keySize = 32;
-
-                    }
-                    else if (
-                        cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1
-                        && info->cipher.aescbc.aes->keylen == 16) {
-                        XMEMCPY(&info->cipher.aescbc.aes->ctx.wrapped_key,
-                                &cbInfo->wrapped_key_aes128,
-                                sizeof(FSPSM_AES_WKEY));
-                        info->cipher.aescbc.aes->ctx.keySize = 16;
-                    }
-
                     ret = wc_fspsm_AesCbcEncrypt(
                         info->cipher.aescbc.aes,
                         (byte*)info->cipher.aescbc.out,
@@ -378,22 +323,6 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.sz);
                 }
                 else {
-                    if (
-                    cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
-                    info->cipher.aescbc.aes->keylen == 32) {
-                        XMEMCPY(&info->cipher.aescbc.aes->ctx.wrapped_key,
-                                &cbInfo->wrapped_key_aes256,
-                                sizeof(FSPSM_AES_WKEY));
-                        info->cipher.aescbc.aes->ctx.keySize = 32;
-                    }  else if (
-                        cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1
-                        && info->cipher.aescbc.aes->keylen == 16) {
-                        XMEMCPY(&info->cipher.aescbc.aes->ctx.wrapped_key,
-                                &cbInfo->wrapped_key_aes128,
-                                sizeof(FSPSM_AES_WKEY));
-                        info->cipher.aescbc.aes->ctx.keySize = 16;
-                    }
-
                     ret = wc_fspsm_AesCbcDecrypt(
                         info->cipher.aescbc.aes,
                         (byte*)info->cipher.aescbc.out,
@@ -412,7 +341,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN &&
             (info->pk.rsakg.size == 1024 ||
              info->pk.rsakg.size == 2048)) {
-            ret = wc_fspsm_MakeRsaKey(info->pk.rsakg.size, (void*)ctx);
+            ret = wc_fspsm_MakeRsaKey(info->pk.rsakg.key,
+                    info->pk.rsakg.size, (void*)ctx);
         }
        #endif
         if (info->pk.type == WC_PK_TYPE_RSA) {
@@ -420,14 +350,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
              * in advance. SCE supports 1024 or 2048 bits key size.
              * otherwise, falls-through happens.
              */
-            if (cbInfo->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1
-                 ||
-                 cbInfo->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1
-                ||
-                cbInfo->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1
-                 ||
-                 cbInfo->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1
-                ) {
+            if (info->pk.rsa.key->ctx.keySz == 1024 ||
+                info->pk.rsa.key->ctx.keySz == 2048) {
 
                 if (info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
                     info->pk.rsa.type == RSA_PUBLIC_ENCRYPT  )
@@ -435,11 +359,10 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         ret = wc_fspsm_RsaFunction(info->pk.rsa.in,
                                         info->pk.rsa.inLen,
                                         info->pk.rsa.out,
-                                        info->pk.rsa.outLen,
+                                        &info->pk.rsa.outLen,
                                         info->pk.rsa.type,
                                         info->pk.rsa.key,
-                                        info->pk.rsa.rng,
-                                        (void*)ctx);
+                                        info->pk.rsa.rng);
                 }
                 else if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT /* sign */){
                    ret = wc_fspsm_RsaSign(info->pk.rsa.in,
@@ -496,6 +419,21 @@ int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
     #endif
 
     return ret;
+}
+
+/* Renesas Security Library Common Method
+ * Get Callback ctx by devId
+ *
+ * devId   : devId to get its CTX
+ * return  asocciated CTX when the method is succesfully called.
+ *         otherwise, NULL
+ */
+WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)
+{
+    if (devId >= 7890 && devId <= (MAX_FSPSM_CBINDEX + 7890))
+        return gCbCtx[devId - 7890];
+    else
+        return NULL;
 }
 
 /* Renesas Security Library Common Method
@@ -559,6 +497,8 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
         gdevId = 7890;
     }
 
+    gCbCtx[cbInfo->devId - 7890] = (void*)cbInfo;
+    
     return cbInfo->devId;
 }
 

@@ -1,4 +1,4 @@
-/* renesas_sync.h
+/* wolfssl_dummy.c
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -19,17 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef _RENESAS_SYNC_H_
-#define _RENESAS_SYNC_H_
+#include <wolfssl/wolfcrypt/wc_port.h>
 
-#ifdef HAVE_RENESAS_SYNC
+#define YEAR 2023
+#define MON  5
 
-struct WOLFSSL;
-struct FSPSM_ST;
-extern FSPSM_ST guser_PKCbInfo;
+static int tick = 0;
 
-WOLFSSL_API int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
-WOLFSSL_API void wc_CryptoCb_CleanupRenesasCmn(int* id);
-
-#endif /* HAVE_RENESAS_SYNC */
-#endif /* _RENESAS_SYNC_H_ */
+time_t time(time_t *t)
+{
+    (void)t;
+    return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
+}

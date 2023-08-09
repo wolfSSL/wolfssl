@@ -235,6 +235,14 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->handle = NULL;
 #endif
 
+
+#if defined(WOLFSSL_RENESAS_FSPSM)
+    key->ctx.wrapped_pri1024_key = NULL;
+    key->ctx.wrapped_pub1024_key = NULL;
+    key->ctx.wrapped_pri2048_key = NULL;
+    key->ctx.wrapped_pub2048_key = NULL;
+    key->ctx.keySz = 0;
+#endif
     return ret;
 }
 
@@ -587,6 +595,11 @@ int wc_FreeRsaKey(RsaKey* key)
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(key, sizeof(RsaKey));
+#endif
+
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+    wc_fspsm_RsaKeyFree(key);
 #endif
 
     return ret;
