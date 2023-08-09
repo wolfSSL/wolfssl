@@ -13163,7 +13163,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 && !ssl->dtls13SendingAckOrRtx;
 #endif /* WOLFSSL_DTLS13 */
 
-        if ((ssl->error = SendBuffered(ssl)) == 0) {
+        ret = SendBuffered(ssl);
+        if (ret == 0) {
             if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 if (advanceState) {
                     ssl->options.acceptState++;
