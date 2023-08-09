@@ -3705,7 +3705,9 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (pthread_mutex_init(&cond->mutex, NULL) != 0)
             return MEMORY_E;
         if (pthread_cond_init(&cond->cond, NULL) != 0) {
-            (void)pthread_mutex_destroy(&cond->mutex);
+            /* Keep compilers happy that we are using the return code */
+            if (pthread_mutex_destroy(&cond->mutex) != 0)
+                return MEMORY_E;
             return MEMORY_E;
         }
         return 0;
@@ -3713,38 +3715,55 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
     int wolfSSL_CondFree(COND_TYPE* cond)
     {
+        int ret = 0;
+
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        (void)pthread_mutex_destroy(&cond->mutex);
-        (void)pthread_cond_destroy(&cond->cond);
-        return 0;
+        if (pthread_mutex_destroy(&cond->mutex) != 0)
+            ret = MEMORY_E;
+        if (pthread_cond_destroy(&cond->cond) != 0)
+            ret = MEMORY_E;
+
+        return ret;
     }
 
     int wolfSSL_CondSignal(COND_TYPE* cond)
     {
+        int ret = 0;
+
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_mutex_lock(&cond->mutex) == 0) {
-            (void)pthread_cond_signal(&cond->cond);
-            (void)pthread_mutex_unlock(&cond->mutex);
-            return 0;
-        }
-        return BAD_MUTEX_E;
+        if (pthread_mutex_lock(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        if (pthread_cond_signal(&cond->cond) != 0)
+            ret = MEMORY_E;
+
+        if (pthread_mutex_unlock(&cond->mutex) != 0)
+            ret = MEMORY_E;
+
+        return ret;
     }
 
     int wolfSSL_CondWait(COND_TYPE* cond)
     {
+        int ret = 0;
+
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_mutex_lock(&cond->mutex) == 0) {
-            (void)pthread_cond_wait(&cond->cond, &cond->mutex);
-            (void)pthread_mutex_unlock(&cond->mutex);
-            return 0;
-        }
-        return BAD_MUTEX_E;
+        if (pthread_mutex_lock(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        if (pthread_cond_wait(&cond->cond, &cond->mutex) != 0)
+            ret = MEMORY_E;
+
+        if (pthread_mutex_unlock(&cond->mutex) != 0)
+            ret = MEMORY_E;
+
+        return ret;
     }
     #else /* __MACH__ */
     /* Apple style dispatch semaphore */
