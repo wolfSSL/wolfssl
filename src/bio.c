@@ -1963,10 +1963,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void)
     {
-        static WOLFSSL_BIO_METHOD meth;
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_MD);
 
         WOLFSSL_ENTER("wolfSSL_BIO_f_md");
-        meth.type = WOLFSSL_BIO_MD;
 
         return &meth;
     }
@@ -1986,10 +1986,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void)
     {
-        static WOLFSSL_BIO_METHOD meth;
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_BUFFER);
 
         WOLFSSL_ENTER("wolfSSL_BIO_f_buffer");
-        meth.type = WOLFSSL_BIO_BUFFER;
 
         return &meth;
     }
@@ -2017,10 +2017,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_bio(void)
     {
-        static WOLFSSL_BIO_METHOD bio_meth;
+        static WOLFSSL_BIO_METHOD bio_meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_BIO);
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_bio");
-        bio_meth.type = WOLFSSL_BIO_BIO;
 
         return &bio_meth;
     }
@@ -2029,10 +2029,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 #ifndef NO_FILESYSTEM
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void)
     {
-        static WOLFSSL_BIO_METHOD file_meth;
+        static WOLFSSL_BIO_METHOD file_meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_FILE);
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_file");
-        file_meth.type = WOLFSSL_BIO_FILE;
 
         return &file_meth;
     }
@@ -2041,10 +2041,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_ssl(void)
     {
-        static WOLFSSL_BIO_METHOD meth;
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_SSL);
 
         WOLFSSL_ENTER("wolfSSL_BIO_f_ssl");
-        meth.type = WOLFSSL_BIO_SSL;
 
         return &meth;
     }
@@ -2052,10 +2052,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void)
     {
-        static WOLFSSL_BIO_METHOD meth;
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_SOCKET);
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_socket");
-        meth.type = WOLFSSL_BIO_SOCKET;
 
         return &meth;
     }
@@ -2803,10 +2803,10 @@ WOLFSSL_BIO* wolfSSL_BIO_pop(WOLFSSL_BIO* bio)
 
 WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void)
 {
-    static WOLFSSL_BIO_METHOD meth;
+    static WOLFSSL_BIO_METHOD meth =
+            WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_MEMORY);
 
     WOLFSSL_ENTER("wolfSSL_BIO_s_mem");
-    meth.type = WOLFSSL_BIO_MEMORY;
 
     return &meth;
 }
@@ -2814,10 +2814,10 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void)
 
 WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 {
-    static WOLFSSL_BIO_METHOD meth;
+    static WOLFSSL_BIO_METHOD meth =
+            WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_BASE64);
 
     WOLFSSL_ENTER("wolfSSL_BIO_f_base64");
-    meth.type = WOLFSSL_BIO_BASE64;
 
     return &meth;
 }
