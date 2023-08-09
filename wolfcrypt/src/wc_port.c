@@ -3704,12 +3704,14 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         if (pthread_mutex_init(&cond->mutex, NULL) != 0)
             return MEMORY_E;
+
         if (pthread_cond_init(&cond->cond, NULL) != 0) {
             /* Keep compilers happy that we are using the return code */
             if (pthread_mutex_destroy(&cond->mutex) != 0)
                 return MEMORY_E;
             return MEMORY_E;
         }
+
         return 0;
     }
 
@@ -3722,6 +3724,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         if (pthread_mutex_destroy(&cond->mutex) != 0)
             ret = MEMORY_E;
+
         if (pthread_cond_destroy(&cond->cond) != 0)
             ret = MEMORY_E;
 

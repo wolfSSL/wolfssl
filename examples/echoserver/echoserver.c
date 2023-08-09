@@ -74,8 +74,8 @@ static void SignalReady(void* args, word16 port)
     THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
     ready->ready = 1;
     ready->port = port;
-    THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
     THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
 #endif /* NO_MAIN_DRIVER && WOLFSSL_COND */
     (void)args;
     (void)port;
