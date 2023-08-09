@@ -525,6 +525,9 @@ struct WOLFSSL_BIO_METHOD {
     wolfssl_BIO_meth_ctrl_info_cb ctrlInfoCb;
 };
 
+#define WOLFSSL_BIO_METHOD_INIT(bio_type) \
+    { bio_type, { 0 }, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
+
 /* wolfSSL BIO type */
 typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
                                  int iarg, long larg, long return_value);
