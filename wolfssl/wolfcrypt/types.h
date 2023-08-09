@@ -1380,17 +1380,15 @@ typedef struct w64wrapper {
         #define WOLFSSL_THREAD
     #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
         !defined(__MINGW32__)
-        #ifdef __MACH__
-            #include <dispatch/dispatch.h>
-            typedef struct COND_TYPE {
-                dispatch_semaphore_t sem;
-            } COND_TYPE;
-        #else
+        #ifndef __MACH__
             #include <pthread.h>
             typedef struct COND_TYPE {
                 pthread_mutex_t mutex;
                 pthread_cond_t cond;
             } COND_TYPE;
+        #else
+            #include <dispatch/dispatch.h>
+            typedef dispatch_semaphore_t COND_TYPE;
         #endif
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;

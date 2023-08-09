@@ -3746,7 +3746,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         }
         return BAD_MUTEX_E;
     }
-    #else
+    #else /* __MACH__ */
     /* Apple style dispatch semaphore */
     int wolfSSL_CondInit(COND_TYPE* cond)
     {
@@ -3758,8 +3758,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          * dispatch_semaphore_create().  work around this by initing
          * with 0, then incrementing it afterwards.
          */
-        cond->sem = dispatch_semaphore_create(0);
-        if (cond->sem == NULL)
+        *cond = dispatch_semaphore_create(0);
+        if (*cond == NULL)
             return MEMORY_E;
         return 0;
     }
@@ -3769,8 +3769,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_release(cond->sem);
-        cond->sem = NULL;
+        dispatch_release(*cond);
+        *cond = NULL;
         return 0;
     }
 
@@ -3779,7 +3779,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_semaphore_signal(cond->sem);
+        dispatch_semaphore_signal(*cond);
         return 0;
     }
 
@@ -3788,7 +3788,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_semaphore_wait(cond->sem, DISPATCH_TIME_FOREVER);
+        dispatch_semaphore_wait(*cond, DISPATCH_TIME_FOREVER);
         return 0;
     }
     #endif /* __MACH__ */
