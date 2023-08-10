@@ -49717,11 +49717,11 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
 static int test_X509_STORE_No_SSL_CTX(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_DIR) && defined(HAVE_CRL) && \
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)  && \
     (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_RSA)
+    defined(HAVE_CRL) && !defined(NO_RSA)
 
     X509_STORE *     store = NULL;
     X509_STORE_CTX * storeCtx = NULL;
@@ -49786,11 +49786,11 @@ static int test_X509_STORE_No_SSL_CTX(void)
 static int test_X509_LOOKUP_add_dir(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_DIR) && defined(HAVE_CRL) && \
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)  && \
     (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_RSA)
+    defined(HAVE_CRL) && !defined(NO_RSA)
 
     X509_STORE *     store = NULL;
     X509_STORE_CTX * storeCtx = NULL;
