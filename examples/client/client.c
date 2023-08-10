@@ -1104,7 +1104,8 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
             else
                 break;
         }
-    } while (0);
+        break;
+    } while (1);
 
     if (ret != 0) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -4542,7 +4543,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             XMEMCPY(msg, kResumeMsg, msgSz);
         }
 
-        (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply),
+        (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply)-1,
                 sendGET, " resume", 0);
 
         ret = wolfSSL_shutdown(sslResume);
