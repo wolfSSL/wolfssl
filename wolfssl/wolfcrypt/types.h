@@ -1388,7 +1388,10 @@ typedef struct w64wrapper {
             } COND_TYPE;
         #else
             #include <dispatch/dispatch.h>
-            typedef dispatch_semaphore_t COND_TYPE;
+            typedef struct COND_TYPE {
+                wolfSSL_Mutex mutex;
+                dispatch_semaphore_t cond;
+            } COND_TYPE;
         #endif
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
@@ -1404,7 +1407,10 @@ typedef struct w64wrapper {
     #elif defined(_MSC_VER)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
-        typedef HANDLE        COND_TYPE;
+        typedef struct COND_TYPE {
+            wolfSSL_Mutex mutex;
+            HANDLE cond;
+        } COND_TYPE;
         #define WOLFSSL_COND
         #define INVALID_THREAD_VAL ((THREAD_TYPE)(INVALID_HANDLE_VALUE))
         #define WOLFSSL_THREAD __stdcall
@@ -1482,6 +1488,8 @@ typedef struct w64wrapper {
             WOLFSSL_API int wolfSSL_CondFree(COND_TYPE* cond);
             WOLFSSL_API int wolfSSL_CondSignal(COND_TYPE* cond);
             WOLFSSL_API int wolfSSL_CondWait(COND_TYPE* cond);
+            WOLFSSL_API int wolfSSL_CondStart(COND_TYPE* cond);
+            WOLFSSL_API int wolfSSL_CondEnd(COND_TYPE* cond);
         #endif
     #else
         #define WOLFSSL_RETURN_FROM_THREAD(x) return (THREAD_RETURN)(x)

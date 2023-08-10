@@ -691,11 +691,9 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&srtp->cond));
     if (srtp->server_srtp_ekm == NULL) {
-        THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
         THREAD_CHECK_RET(wolfSSL_CondWait(&srtp->cond));
-        THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
     }
     *ekm = srtp->server_srtp_ekm;
     *size = srtp->server_srtp_ekm_size;
@@ -703,7 +701,7 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
     /* reset */
     srtp->server_srtp_ekm = NULL;
     srtp->server_srtp_ekm_size = 0;
-    THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&srtp->cond));
 }
 
 /**
@@ -720,11 +718,11 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
 static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&srtp->cond));
     srtp->server_srtp_ekm_size = size;
     srtp->server_srtp_ekm = ekm;
-    THREAD_CHECK_RET(wc_UnLockMutex(&srtp->mutex));
     THREAD_CHECK_RET(wolfSSL_CondSignal(&srtp->cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&srtp->cond));
 }
 
 static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
@@ -2218,13 +2216,15 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (args != NULL && args->signal != NULL) {
 #ifndef SINGLE_THREADED
         tcp_ready* ready = args->signal;
-        THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
+    #ifdef WOLFSSL_COND
+        THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
+    #endif
         ready->ready = 1;
         ready->port = port;
-        THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
     #ifdef WOLFSSL_COND
         /* signal ready to accept data */
         THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
     #endif
 #endif /* !SINGLE_THREADED */
     }
@@ -2257,12 +2257,14 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         if (args)
             ready = args->signal;
         if (ready) {
-            THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
+        #ifdef WOLFSSL_COND
+            THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
+        #endif
             ready->ready = 1;
             ready->port = port;
-            THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
         #ifdef WOLFSSL_COND
             THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
         #endif
         }
 #endif /* !SINGLE_THREADED */

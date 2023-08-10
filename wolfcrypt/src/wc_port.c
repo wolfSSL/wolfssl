@@ -3462,9 +3462,15 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        *cond = CreateEventA(NULL, FALSE, FALSE, NULL);
-        if (*cond == NULL)
+        cond->cond = CreateEventA(NULL, FALSE, FALSE, NULL);
+        if (cond->cond == NULL)
             return MEMORY_E;
+
+        if (wc_InitMutex(&cond->mutex) != 0) {
+            if (CloseHandle(cond->cond) == 0)
+                return MEMORY_E;
+            return MEMORY_E;
+        }
 
         return 0;
     }
@@ -3474,8 +3480,19 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (CloseHandle(*cond) == 0)
+        if (CloseHandle(cond->cond) == 0)
             return MEMORY_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondStart(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
 
         return 0;
     }
@@ -3485,8 +3502,14 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (SetEvent(*cond) == 0)
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        if (SetEvent(cond->cond) == 0)
             return MEMORY_E;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
 
         return 0;
     }
@@ -3496,8 +3519,25 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (WaitForSingleObject(*cond, INFINITE) == WAIT_FAILED)
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        if (WaitForSingleObject(cond->cond, INFINITE) == WAIT_FAILED)
             return MEMORY_E;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
 
         return 0;
     }
@@ -3731,42 +3771,48 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return ret;
     }
 
-    int wolfSSL_CondSignal(COND_TYPE* cond)
+    int wolfSSL_CondStart(COND_TYPE* cond)
     {
-        int ret = 0;
-
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
         if (pthread_mutex_lock(&cond->mutex) != 0)
             return BAD_MUTEX_E;
 
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
         if (pthread_cond_signal(&cond->cond) != 0)
-            ret = MEMORY_E;
+            return MEMORY_E;
 
-        if (pthread_mutex_unlock(&cond->mutex) != 0)
-            ret = MEMORY_E;
-
-        return ret;
+        return 0;
     }
 
     int wolfSSL_CondWait(COND_TYPE* cond)
     {
-        int ret = 0;
-
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_mutex_lock(&cond->mutex) != 0)
-            return BAD_MUTEX_E;
-
         if (pthread_cond_wait(&cond->cond, &cond->mutex) != 0)
-            ret = MEMORY_E;
+            return MEMORY_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
 
         if (pthread_mutex_unlock(&cond->mutex) != 0)
-            ret = MEMORY_E;
+            return BAD_MUTEX_E;
 
-        return ret;
+        return 0;
     }
     #else /* __MACH__ */
     /* Apple style dispatch semaphore */
@@ -3780,9 +3826,15 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          * dispatch_semaphore_create().  work around this by initing
          * with 0, then incrementing it afterwards.
          */
-        *cond = dispatch_semaphore_create(0);
-        if (*cond == NULL)
+        cond->cond = dispatch_semaphore_create(0);
+        if (cond->cond == NULL)
             return MEMORY_E;
+
+        if (wc_InitMutex(&cond->mutex) != 0) {
+            dispatch_release(cond->cond);
+            return MEMORY_E;
+        }
+
         return 0;
     }
 
@@ -3791,8 +3843,24 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_release(*cond);
-        *cond = NULL;
+        dispatch_release(cond->cond);
+        cond->cond = NULL;
+
+        if (wc_FreeMutex(&cond->mutex) != 0) {
+            return MEMORY_E;
+        }
+
+        return 0;
+    }
+
+    int wolfSSL_CondStart(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
         return 0;
     }
 
@@ -3801,7 +3869,14 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_semaphore_signal(*cond);
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        dispatch_semaphore_signal(cond->cond);
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
         return 0;
     }
 
@@ -3810,7 +3885,25 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        dispatch_semaphore_wait(*cond, DISPATCH_TIME_FOREVER);
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        dispatch_semaphore_wait(cond->cond, DISPATCH_TIME_FOREVER);
+
+        if (wc_LockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (wc_UnLockMutex(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
         return 0;
     }
     #endif /* __MACH__ */
