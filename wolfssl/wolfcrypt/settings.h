@@ -2160,9 +2160,7 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_KEY_IMPORT
         #define HAVE_ECC_KEY_IMPORT
     #endif
-    /* The ECC key export requires mp_int or SP */
-    #if (!defined(NO_ECC_KEY_EXPORT) && defined(WOLFSSL_SP_MATH)) || \
-        (!defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT))
+    #if !defined(NO_ECC_KEY_EXPORT)
         #undef HAVE_ECC_KEY_EXPORT
         #define HAVE_ECC_KEY_EXPORT
     #endif
@@ -2464,6 +2462,11 @@ extern void uITRON4_free(void *p) ;
         #error leantls build needs ECC
     #endif
 #endif /* WOLFSSL_LEANTLS*/
+
+#ifdef NO_BIG_INT
+    #undef NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
+#endif
 
 /* restriction with static memory */
 #ifdef WOLFSSL_STATIC_MEMORY

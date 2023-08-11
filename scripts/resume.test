@@ -139,9 +139,13 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
-./examples/client/client '-?' 2>&1 | grep -- 'Resume session'
-if [ $? -ne 0 ]; then
-    RUN_TEST="Y"
+if [ "$RUN_TEST" = "Y" ]; then
+    ./examples/client/client '-?' 2>&1 | grep -- 'Resume session'
+    if [ $? -ne 0 ]; then
+        RUN_TEST="N"
+    else
+        RUN_TEST="Y"
+    fi
 fi
 
 if [ "$RUN_TEST" = "Y" ]; then
@@ -161,4 +165,8 @@ fi
 
 echo -e "\nSuccess!\n"
 
-exit 0
+if [ "$RUN_TEST" = "Y" ]; then
+    exit 0
+else
+    exit 77
+fi

@@ -11402,7 +11402,7 @@ static int test_wolfSSL_PKCS8(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    !defined(WOLFCRYPT_ONLY)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
     byte buff[FOURK_BUF];
     byte der[FOURK_BUF];
@@ -21664,9 +21664,9 @@ static int test_wc_curve448_size(void)
 static int test_wc_ecc_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
-    ecc_key key;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     WC_RNG  rng;
+    ecc_key key;
     int     ret;
 
     XMEMSET(&key, 0, sizeof(ecc_key));
@@ -21721,10 +21721,10 @@ static int test_wc_ecc_init(void)
 static int test_wc_ecc_check_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
-    ecc_key key;
-    WC_RNG  rng;
-    int     ret;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
+    WC_RNG      rng;
+    ecc_key     key;
+    int         ret;
 
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
@@ -21787,7 +21787,7 @@ static int test_wc_ecc_get_generator(void)
 static int test_wc_ecc_size(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     WC_RNG      rng;
     ecc_key     key;
     int         ret;
@@ -21843,7 +21843,8 @@ static int test_wc_ecc_params(void)
 static int test_wc_ecc_signVerify_hash(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN) && \
+    !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -21932,7 +21933,8 @@ static int test_wc_ecc_signVerify_hash(void)
 static int test_wc_ecc_shared_secret(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    !defined(NO_BIG_INT)
     ecc_key     key;
     ecc_key     pubKey;
     WC_RNG      rng;
@@ -22033,7 +22035,8 @@ static int test_wc_ecc_shared_secret(void)
 static int test_wc_ecc_export_x963(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -22083,7 +22086,8 @@ static int test_wc_ecc_export_x963(void)
 static int test_wc_ecc_export_x963_ex(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -22155,7 +22159,8 @@ static int test_wc_ecc_import_x963(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
+    !defined(NO_BIG_INT)
     ecc_key pubKey;
     ecc_key key;
     WC_RNG  rng;
@@ -22207,7 +22212,8 @@ static int test_wc_ecc_import_private_key(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
+    !defined(NO_BIG_INT)
     ecc_key key;
     ecc_key keyImp;
     WC_RNG  rng;
@@ -22264,7 +22270,8 @@ static int test_wc_ecc_import_private_key(void)
 static int test_wc_ecc_export_private_only(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_PRIV_KEY_BUF];
@@ -22307,7 +22314,7 @@ static int test_wc_ecc_export_private_only(void)
 static int test_wc_ecc_rs_to_sig(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(NO_ASN)
+#if defined(HAVE_ECC) && !defined(NO_ASN) && !defined(NO_BIG_INT)
     /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
     const char* R = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
     const char* S = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
@@ -22352,7 +22359,7 @@ static int test_wc_ecc_rs_to_sig(void)
 static int test_wc_ecc_import_raw(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(NO_ECC256)
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_BIG_INT)
     ecc_key     key;
     const char* qx =
         "bb33ac4c27504ac64aa504c33cde9f36db722dce94ea2bfacb2009392c16e861";
@@ -22420,8 +22427,9 @@ static int test_wc_ecc_import_unsigned(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-     HAVE_FIPS_VERSION >= 2))
+    (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2)) && \
+    !defined(NO_BIG_INT)
     ecc_key    key;
     const byte qx[] = {
         0xbb, 0x33, 0xac, 0x4c, 0x27, 0x50, 0x4a, 0xc6,
@@ -22480,7 +22488,7 @@ static int test_wc_ecc_import_unsigned(void)
 static int test_wc_ecc_sig_size(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     int     keySz = KEY16;
@@ -22641,7 +22649,7 @@ static int test_wc_ecc_encryptDecrypt(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
-    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && !defined(NO_BIG_INT)
     ecc_key     srvKey;
     ecc_key     cliKey;
     ecc_key     tmpKey;
@@ -22747,7 +22755,7 @@ static int test_wc_ecc_encryptDecrypt(void)
 static int test_wc_ecc_del_point(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(NO_BIG_INT)
     ecc_point* pt = NULL;
 
     ExpectNotNull(pt = wc_ecc_new_point());
@@ -22766,7 +22774,7 @@ static int test_wc_ecc_pointFns(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(NO_BIG_INT)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -22866,7 +22874,7 @@ static int test_wc_ecc_shared_secret_ssh(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(NO_BIG_INT)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;
@@ -23033,7 +23041,7 @@ static int test_wc_ecc_verify_hash_ex(void)
 static int test_wc_ecc_mulmod(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
       defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     ecc_key     key1;
@@ -23097,7 +23105,7 @@ static int test_wc_ecc_mulmod(void)
 static int test_wc_ecc_is_valid_idx(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     int     ret;
@@ -23156,7 +23164,8 @@ static int test_wc_ecc_get_curve_id_from_oid(void)
 static int test_wc_ecc_sig_size_calc(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+    !defined(NO_BIG_INT)
     ecc_key key;
     WC_RNG  rng;
     int     sz = 0;
@@ -23827,7 +23836,8 @@ static int test_ToTraditional(void)
 static int test_wc_EccPrivateKeyToDer(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(NO_BIG_INT)
     byte    output[ONEK_BUF];
     ecc_key eccKey;
     WC_RNG  rng;
@@ -47703,7 +47713,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 static int test_wc_GetPkcs8TraditionalOffset(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(HAVE_PKCS8)
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(HAVE_PKCS8) && \
+    !defined(NO_CERTS)
     int length;
     int derSz = 0;
     word32 inOutIdx;
@@ -48161,7 +48172,7 @@ static int test_wc_ecc_get_curve_id_from_dp_params(void)
 static int test_wc_ecc_get_curve_id_from_params(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_BIG_INT)
     const byte prime[] =
     {
         0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
@@ -50032,7 +50043,7 @@ static int test_EccSigFailure_cm(void)
 #endif /* !NO_FILESYSTEM */
 #endif /* NO_CERTS */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_BIG_INT)
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WC_SHA384_DIGEST_SIZE
     static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
@@ -64462,7 +64473,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_set_options),
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_BIG_INT)
     /* TLS v1.3 API tests */
     TEST_DECL(test_tls13_apis),
     TEST_DECL(test_tls13_cipher_suites),
