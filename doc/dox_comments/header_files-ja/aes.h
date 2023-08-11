@@ -1,12 +1,12 @@
 /*!
-    \ingroup AES 
-    \brief  この関数は、キーを設定して初期化ベクトルを設定することでAES構造を初期化します。
-    \return 0  キーと初期化ベクトルを正常に設定します。
-    \return BAD_FUNC_ARG  キーの長さが無効な場合は返されます。
-    \param aes  変更するAES構造へのポインタ
-    \param key  暗号化と復号化のための16,24、または32バイトの秘密鍵
-    \param len  渡されたキーの長さ
-    \param iv  キーを初期化するために使用される初期化ベクトルへのポインタ
+    \ingroup AES
+    \brief  この関数は、鍵を設定して初期化ベクトルを設定することでAes構造体を初期化します。
+    \return 0  鍵と初期化ベクトルを正常に設定しました
+    \return BAD_FUNC_ARG  鍵の長さが無効な場合に返されます。
+    \param aes  変更するAes構造体へのポインタ
+    \param key  暗号化と復号のための16,24、または32バイトの秘密鍵
+    \param len  渡された鍵の長さ
+    \param iv  鍵を初期化するために使用される初期化ベクトルへのポインタ
     _Example_
     \code
     Aes enc;
@@ -25,11 +25,11 @@ int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、特定のAESオブジェクトの初期化ベクトルを設定します。AESオブジェクトは、この関数を呼び出す前に初期化されるべきです。
+    \ingroup AES
+    \brief  この関数は、指定されたAes構造体の初期化ベクトルを設定します。Aes構造体は、この関数を呼び出す前に初期化されていることが必要です。
     \return 0  初期化ベクトルを正常に設定します。
-    \return BAD_FUNC_ARG  AESポインタがNULLの場合に返されます。
-    \param aes  初期化ベクトルを設定するAES構造へのポインタ
+    \return BAD_FUNC_ARG  Aes構造体へのポインタがNULLの場合に返されます。
+    \param aes  初期化ベクトルを設定するAes構造体へのポインタ
     _Example_
     \code
     Aes enc;
@@ -45,11 +45,19 @@ int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
 int  wc_AesSetIV(Aes* aes, const byte* iv);
 
 /*!
-    \ingroup AES 
-    \brief  入力バッファーから平文メッセージを暗号化し、AESでCipher Block Chainingを使用して出力バッファに出力バッファーに入れます。この機能は、メッセージが暗号化される前にAESSetKeyを呼び出すことによってAESオブジェクトが初期化されていることを必要とします。この関数は、入力メッセージがAESブロック長であると仮定し、入力された長さがブロック長の倍数になることを想定しているため、ビルド構成でWolfSSL_AES_CBC_LENGTH_CHECKSが定義されている場合は任意選択でチェックおよび適用されます。ブロック多入力を保証するために、PKCS＃7スタイルのパディングを事前に追加する必要があります。これはあなたのためにパディングを追加するOpenSSL AES-CBCメソッドとは異なります。WOLFSSLと対応するOpenSSL関数を相互運用するには、OpenSSLコマンドライン関数で-nopadオプションを指定して、WolfSSL AESCCENCRYPTメソッドのように動作し、暗号化中に追加のパディングを追加しません。
+    \ingroup AES
+    \brief  入力バッファの平文メッセージを暗号化し、AESでCipher Block Chainingを使用して出力バッファに出力します。
+    この関数呼び出しには、メッセージの暗号化前にwc_AesSetKeyを呼び出してAESオブジェクトが初期化されている必要があります。
+    この関数は、入力メッセージがAESブロック長であると仮定し、入力された長さがブロック長の倍数になることを想定しているため、
+    ビルド構成でWOLFSSL_AES_CBC_LENGTH_CHECKSが定義されている場合は任意選択でチェックおよび適用されます。
+    ブロック多入力を保証するために、PKCS#7スタイルのパディングを事前に追加する必要があります。
+    これは自動的にパディングを追加するOpenSSL AES-CBCメソッドとは異なります。
+    WOLFSSLと対応するOpenSSL関数を相互運用するには、OpenSSLコマンドライン関数で-nopadオプションを指定して、
+    wolfSSL_AesCbcEncryptメソッドのように動作し、暗号化中に追加のパディングを追加しません。
+
     \return 0  メッセージの暗号化に成功しました。
-    \return BAD_ALIGN_E:  ブロック整列誤差で返される可能性があります
-    \return BAD_LENGTH_E  入力長がAESブロック長の倍数でない場合は、ライブラリーがwolfssl_aes_cbc_length_checksで構築されている場合に返されます。
+    \return BAD_ALIGN_E:  ブロックアライメントエラー検出時に返される可能性があります
+    \return BAD_LENGTH_E  ライブラリーがWOLFSSL_AES_CBC_LENGTH_CHECKSで構築されている場合で、入力長がAESブロック長の倍数でない場合に返されます。
     \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
     \param out  暗号化されたメッセージの暗号文を格納する出力バッファへのポインタ
     \param in  暗号化されるメッセージを含む入力バッファへのポインタ
@@ -73,14 +81,22 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
 /*!
-    \ingroup AES 
-    \brief  入力バッファーから暗号を復号化し、AESでCipher Block Chainingを使用して出力バッファに出力バッファーに入れます。この機能は、メッセージが復号化される前にAESSetKeyを呼び出すことによってAES構造が初期化されていることを必要とします。この関数は、元のメッセージがAESブロック長で整列していたと仮定し、入力された長さがブロック長の倍数になると予想しています。これはOpenSSL AES-CBCメソッドとは異なります。これは、PKCS＃7パディングを自動的に追加するため、ブロックマルチ入力を必要としません。WolfSSL機能と同等のOpenSSL関数を相互運用するには、OpenSSLコマンドライン関数で-nopadオプションを指定し、wolfssl aescbceNcryptメソッドのように動作し、復号化中にエラーを発生させません。
-    \return 0  メッセージを正常に復号化します。
-    \return BAD_ALIGN_E  ブロック整列エラーで返される可能性があります。
-    \return BAD_LENGTH_E  入力長がAESブロック長の倍数でない場合は、ライブラリーがwolfssl_aes_cbc_length_checksで構築されている場合に返されます。
-    \param aes  データを復号化するために使用されるAESオブジェクトへのポインタ。
-    \param out  復号化されたメッセージのプレーンテキストを保存する出力バッファへのポインタ。
-    \param in  復号化する暗号テキストを含む入力バッファへのポインタ。
+    \ingroup AES
+    \brief  入力バッファからの暗号メッセージを復号し、AESでCipher Block Chainingを使用して出力バッファに出力します。
+    この関数呼び出しには、メッセージの暗号化前にwc_AesSetKeyを呼び出してAESオブジェクトが初期化されている必要があります。
+    この関数は、元のメッセージがAESブロック長で整列していたと仮定し、入力された長さがブロック長の倍数になると予想しています。
+    これはOpenSSL AES-CBCメソッドとは異なります。これは、PKCS#7パディングを自動的に追加するため、ブロックマルチ入力を必要としません。
+    wolfSSL機能と同等のOpenSSL関数を相互運用するには、OpenSSLコマンドライン関数で-nopadオプションを指定し、
+    wolfSSL_ AesCbcEncryptメソッドのように動作し、復号中にエラーを発生させません。
+    \return 0  メッセージを正常に復号しました
+    \return BAD_ALIGN_E  ブロックアライメントエラー検出時に返される可能性があります
+    \return BAD_LENGTH_E  ライブラリーがWOLFSSL_AES_CBC_LENGTH_CHECKSで構築されている場合で、入力長がAESブロック長の倍数でない場合に返されます。
+    \param aes  データを復号するために使用されるAESオブジェクトへのポインタ。
+    \param out  復号されたメッセージのプレーンテキストを保存する出力バッファへのポインタ。
+    サイズはAES_BLOCK_SIZEの倍数でなければなりません。必要な場合はパディングは追加されます。
+    \param in  復号する暗号テキストを含む入力バッファへのポインタ。
+    サイズはAES_BLOCK_SIZEの倍数でなければなりません。パディングされている必要があります。
+    \param sz  入力バッファのサイズ
     _Example_
     \code
     Aes dec;
@@ -100,12 +116,18 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
 /*!
-    \ingroup AES 
-    \brief  入力バッファーからメッセージを暗号化/復号化し、AESを使用してCTRモードを使用して出力バッファーに出力バッファーに入れます。この関数は、wolfssl_aes_counterがコンパイル時に有効になっている場合にのみ有効になります。この機能を呼び出す前に、AES構造体をAessetKeyで初期化する必要があります。この関数は復号化と暗号化の両方に使用されます。_注：暗号化と復号化のための同じAPIを使用することについて。ユーザーは暗号化/復号化のためのAES構造体を区別する必要があります。
+    \ingroup AES
+    \brief  入力バッファからメッセージを暗号化/復号し、AES CTRモードを使用して出力バッファーに出力します。
+    この関数は、wolfSSL_Aes_Counterがコンパイル時に有効になっている場合にのみ有効になります。
+    この機能を呼び出す前に、Aes構造体をwc_AesSetKeyで初期化する必要があります。
+    この関数は復号と暗号化の両方に使用されます。_注:暗号化と復号のための同じAPIを使用することについて。ユーザーは暗号化/復号のためのAes構造体を区別する必要があります。
     \return int  WolfSSLエラーまたは成功状況に対応する整数値
-    \param aes  データを復号化するために使用されるAESオブジェクトへのポインタ
+    \param aes  データを復号するために使用されるAes構造体へのポインタ
     \param out  暗号化されたメッセージの暗号化テキストを保存する出力バッファへのポインタ
-    \param in  暗号化されるプレーンテキストを含む入力バッファへのポインタ
+    サイズはAES_BLOCK_SIZEの倍数でなければなりません。必要な場合はパディングは追加されます。
+    \param in  暗号化されるプレーンテキストを含む入力バッファへのポインタ。
+    サイズはAES_BLOCK_SIZEの倍数でなければなりません。パディングされている必要があります。
+    \param sz  入力バッファのサイズ
     _Example_
     \code
     Aes enc;
@@ -131,10 +153,15 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、入力ブロックの入力ブロック、IN、OUTPUTブロック、OUTです。提供されたAES構造体のキーを使用します。これはこの機能を呼び出す前にWC_AESSETKEYで初期化される必要があります。WC_AESSETKEYは、IVセットがNULLに呼び出されたはずです。これは、Configure Option WolfSSL_AES_DIRECTが有効になっている場合にのみ有効になります。__ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。可能な限りECB APIを直接使用しないでください。
+    \ingroup AES
+    \brief  この関数は、入力ブロックinで与えられた単一の平文データブロックを暗号化して単一の出力ブロックoutに出力します。
+    その際に、Aes構造体で提供されたの鍵を使用します。鍵はこの機能を呼び出す前にwc_AesSetKeyで初期化されている必要があります。
+    wc_AesSetKeyへの入力ivにはNULLを指定して呼び出してください。
+    これは、Configure Option WolfSSL_AES_DIRECTが有効になっている場合にのみ有効になります。
+    __ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。
+    可能な限りECB APIを直接使用しないでください。
     \return int  WolfSSLエラーまたは成功状況に対応する整数値
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
+    \param aes  データの暗号化に使用されるAes構造体へのポインタ
     \param out  暗号化されたメッセージの暗号化テキストを保存する出力バッファへのポインタ
     _Example_
     \code
@@ -151,11 +178,14 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、入力ブロックの1ブロック復号化、IN、IN、OUTPUT OUTです。提供されたAES構造体のキーを使用します。これはこの機能を呼び出す前にWC_AESSETKEYで初期化される必要があります。WC_AESSETKEYは、IVセットがNULLに呼び出されたはずです。これは、Configure Option WolfSSL_AES_DIRECTが有効になっている場合にのみ有効になります。__ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。可能な限りECB APIを直接使用しないでください。
+    \ingroup AES
+    \brief  この関数は、入力ブロックinで与えられた単一の暗号データブロックを復号して単一の出力ブロックoutに出力します。
+    提供されたAes構造体の鍵を使用します。Aes構造体は、この機能を呼び出す前にwc_AesSetKeyで初期化される必要があります。wc_AesSetKeyは、ivがNULLで呼び出される必要があります。
+    これは、Configure Option WOLFSSL_AES_DIRECTが有効になっている場合にのみ有効になります。
+    __ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。可能な限りECB APIを直接使用しないでください。
     \return int  WolfSSLエラーまたは成功状況に対応する整数値
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param out  復号化された暗号テキストのプレーンテキストを格納する出力バッファへのポインタ
+    \param aes  データの復号に使用されるAESオブジェクトへのポインタ
+    \param out  復号された平文テキストを格納する出力バッファへのポインタ
     _Example_
     \code
     Aes dec;
@@ -171,14 +201,23 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、CTRモードのAESキーをAESで設定するために使用されます。指定されたキー、IV（初期化ベクトル）、および暗号化DIR（方向）でAESオブジェクトを初期化します。構成オプションwolfssl_aes_directが有効になっている場合にのみ有効になります。現在WC_AessetKeyDirectは内部的にWC_AESSETKEYを使用します。__ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。可能な限りECB APIを直接使用しないでください
-    \return 0  キーの設定に成功しました。
+    \ingroup AES
+    \brief  この関数は、CTRモードのAES鍵をAESで設定するために使用されます。
+    指定された鍵、iv（初期化ベクトル）、および暗号化dir（方向）でAESオブジェクトを初期化します。
+    構成オプションWOLFSSL_AES_DIRECTが有効になっている場合にのみ有効になります。
+    wc_AesEncryptDirectとwc_AesDecryptDirectを呼び出す際のAes構造体の初期化にはこの関数を使う必要があります。
+    現在wc_AesSetKeyDirectは内部的にwc_AesSetKeyを使用します。
+    __ warning：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。
+    可能な限りECB APIを直接使用しないでください
+    \return 0  鍵の設定に成功しました。
     \return BAD_FUNC_ARG  与えられたキーが無効な長さの場合に返されます。
     \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param key  暗号化と復号化のための16,24、または32バイトの秘密鍵
-    \param len  渡されたキーの長さ
-    \param iv  キーを初期化するために使用される初期化ベクトル
+    \param key  暗号化と復号のための16,24、または32バイトの秘密鍵
+    \param len  渡された鍵の長さ
+    \param iv  鍵を初期化するために使用される初期化ベクトル
+    \param dir 暗号化の方向を指定します。wc_AesEncryptDirectに使用する際にはAES_ENCRYPTION、wc_AesDecryptDirectにはAES_DECRYPTIONを指定します。
+    (注意: wc_AesSetKeyDirect をAesカウンターモードに使用する際には暗号化/復号によらず、AES_ENCRYPTIONを指定してください。）
+
     _Example_
     \code
     Aes enc;
@@ -198,12 +237,13 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 
 /*!
-    \ingroup AES 
-    \brief  この機能は、AES GCM（Galois / Counter Mode）のキーを設定するために使用されます。与えられたキーでAESオブジェクトを初期化します。コンパイル時にConfigureオプションhous_aesgcmが有効になっている場合にのみ有効になります。
-    \return 0  キーの設定に成功しました。
-    \return BAD_FUNC_ARG  与えられたキーが無効な長さの場合に返されます。
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param key  暗号化と復号化のための16,24、または32バイトの秘密鍵
+    \ingroup AES
+    \brief  この機能は、AES GCM（Galois/Counter Mode）の鍵を設定するために使用されます。
+    与えられたkeyでAes構造体を初期化します。コンパイル時にConfigureオプションHAVE_AESGCMが有効になっている場合にのみ有効になります。
+    \return 0  鍵の設定に成功しました。
+    \return BAD_FUNC_ARG  与えられたkeyが無効な長さの場合に返されます。
+    \param aes  データの暗号化に使用されるAes構造体へのポインタ
+    \param key  暗号化と復号のための16,24、または32バイトの秘密鍵
     _Example_
     \code
     Aes enc;
@@ -219,12 +259,13 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
 int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、入力メッセージをバッファINに保持し、結果の暗号テキストを出力バッファOUTに格納します。暗号化する呼び出しごとに新しいIV（初期化ベクトル）が必要です。また、入力認証ベクトル、Authin、AuthTagへの入力認証ベクトルをエンコードします。
+    \ingroup AES
+    \brief  この関数は、バッファinに格納されている平文メッセージを暗号化し結果を出力バッファoutに出力します。
+    暗号化する呼び出しごとに新しいiv(初期化ベクトル)が必要です。また、入力認証ベクトル、authIn、authTagへの入力認証ベクトルをエンコードします。
     \return 0  入力メッセージの暗号化に成功しました
-    \param aes   - データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param out  暗号テキストを保存する出力バッファへのポインタ
-    \param in  暗号化するメッセージを保持している入力バッファへのポインタ
+    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
+    \param out  暗号テキストを出力する先のバッファへのポインタ。バッファサイズは入力バッファinのサイズ(sz)と同じでなければなりません。
+    \param in  暗号化する平文メッセージを保持している入力バッファへのポインタ。サイズはAES_BLOCK_SIZEの倍数でなければなりません。パディングされている必要があります。
     \param sz  暗号化する入力メッセージの長さ
     \param iv  初期化ベクトルを含むバッファへのポインタ
     \param ivSz  初期化ベクトルの長さ
@@ -257,14 +298,15 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、入力暗号テキストをバッファINに保持し、結果のメッセージテキストを出力バッファOUTに格納します。また、指定された認証タグ、authtagに対して、入力認証ベクトル、Authinをチェックします。
-    \return 0  入力メッセージの復号化に成功しました
+    \ingroup AES
+    \brief  この関数は、バッファinで与えられた入力暗号テキストを復号し、結果を出力バッファoutに格納します。
+    また、指定された認証タグ、authTagに対して、入力認証ベクトル、authInをチェックします。
+    \return 0  入力メッセージの復号に成功しました
     \return AES_GCM_AUTH_E  認証タグが提供された認証コードベクトルと一致しない場合、authtag。
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param out  メッセージテキストを保存する出力バッファへのポインタ
-    \param in  暗号テキストを復号化する入力バッファへのポインタ
-    \param sz  復号化する暗号テキストの長さ
+    \param aes  データの復号に使用されるAes構造体へのポインタ
+    \param out  メッセージテキストを保存する出力バッファへのポインタ。サイズは入力バッファinのサイズ(sz)と同じでなければならない。
+    \param in  暗号テキストを保持する入力バッファへのポインタ。サイズはAES_BLOCK_SIZEの倍数でなければならない。
+    \param sz  復号する暗号テキストの長さ
     \param iv  初期化ベクトルを含むバッファへのポインタ
     \param ivSz  初期化ベクトルの長さ
     \param authTag  認証タグを含むバッファへのポインタ
@@ -296,11 +338,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、GAROISメッセージ認証に使用されるGMACオブジェクトのキーを初期化して設定します。
-    \return 0  キーの設定に成功しました
-    \return BAD_FUNC_ARG  キーの長さが無効な場合は返されます。
-    \param gmac  認証に使用されるGMACオブジェクトへのポインタ
+    \ingroup AES
+    \brief  この関数は、GAROISメッセージ認証に使用されるGmac構造体の鍵を初期化して設定します。
+    \return 0  鍵の設定に成功しました
+    \return BAD_FUNC_ARG  引数keyの長さが無効な場合は返されます。
+    \param gmac  認証に使用されるGmac構造体へのポインタ
     \param key  認証のための16,24、または32バイトの秘密鍵
     _Example_
     \code
@@ -313,10 +355,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
 int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
 
 /*!
-    \ingroup AES 
-    \brief  この関数はAuthin InputのGMACハッシュを生成し、結果をAuthtagバッファに格納します。wc_gmacupdateを実行した後、生成されたauthtagを既知の認証タグに比較してメッセージの信頼性を検証する必要があります。
+    \ingroup AES
+    \brief  この関数はauthIn InputのGMACハッシュを生成し、結果をauthTagバッファに格納します。
+    wc_GmacUpdateを実行した後、生成されたauthTagを既知の認証タグに比較してメッセージの信頼性を検証する必要があります。
     \return 0  GMACハッシュの計算に成功しました。
-    \param gmac  認証に使用されるGMACオブジェクトへのポインタ
+    \param gmac  認証に使用されるGmac構造体へのポインタ
     \param iv  ハッシュに使用される初期化ベクトル
     \param ivSz  使用される初期化ベクトルのサイズ
     \param authIn  確認する認証ベクトルを含むバッファへのポインタ
@@ -342,11 +385,11 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                byte* authTag, word32 authTagSz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、CCMを使用してAESオブジェクトのキーを設定します（CBC-MACのカウンタ）。AES構造体へのポインタを取り、付属のキーで初期化します。
-    \return none 
-    \param aes  付属のキーを保管するためのAES構造
-    \param key  暗号化と復号化のための16,24、または32バイトの秘密鍵
+    \ingroup AES
+    \brief  この関数は、CCMを使用してAESオブジェクトの鍵を設定します（CBC-MACのカウンタ）。Aes構造体へのポインタを取り、引数で与えられたkeyで初期化します。
+    \return none
+    \param aes  引数keyを保管するためのAes構造体
+    \param key  暗号化と復号のための16,24、または32バイトの秘密鍵
     _Example_
     \code
     Aes enc;
@@ -360,10 +403,11 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、CCMを使用して、入力メッセージ、IN、OUT、OUT、OUTをCCM（CBC-MACのカウンタ）を暗号化します。その後、Authin Inputから認証タグ、AuthtAgを計算して格納します。
-    \return none 
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
+    \ingroup AES
+    \brief  この関数は、CCMを使用して、入力メッセージ、IN、OUT、OUT、OUTをCCM（CBC-MACのカウンタ）を暗号化します。
+    その後、Authin Inputから認証タグ、AuthtAgを計算して格納します。
+    \return none
+    \param aes  データの暗号化に使用されるAes構造体へのポインタ
     \param out  暗号テキストを保存する出力バッファへのポインタ
     \param in  暗号化するメッセージを保持している入力バッファへのポインタ
     \param sz  暗号化する入力メッセージの長さ
@@ -397,14 +441,14 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 
 /*!
-    \ingroup AES 
-    \brief  この関数は、CCMを使用して、入力暗号テキストを、CCM（CBC-MACのカウンタ）を使用して出力バッファーに復号化します。その後、Authin InputからAuthatAg、AuthatAgを計算します。許可タグが無効な場合は、出力バッファをゼロに設定し、AES_CCM_AUTH_Eを返します。
-    \return 0  入力メッセージの復号化に成功しました
-    \return AES_CCM_AUTH_E  認証タグが提供された認証コードベクトルと一致しない場合、authtag。
-    \param aes  データの暗号化に使用されるAESオブジェクトへのポインタ
-    \param out  暗号テキストを保存する出力バッファへのポインタ
-    \param in  暗号化するメッセージを保持している入力バッファへのポインタ
-    \param sz  入力暗号テキストの復号化
+    \ingroup AES
+    \brief  この関数は、CCMを使用して、入力暗号テキストを、CCM（CBC-MACのカウンタ）を使用して出力バッファーに復号します。その後、authIn入力からauthTagを計算します。認証タグが無効な場合は、出力バッファをゼロに設定し、AES_CCM_AUTH_Eを返します。
+    \return 0  入力メッセージの復号に成功しました
+    \return AES_CCM_AUTH_E  認証タグが提供された認証コードベクトルと一致しない場合
+    \param aes  データの復号に使用されるAes構造体へのポインタ
+    \param out  復号したテキストを出力する出力バッファへのポインタ
+    \param in  復号するメッセージを保持している入力バッファへのポインタ
+    \param sz  入力暗号テキストのサイズ
     \param nonce  nonceを含むバッファへのポインタ（1回だけ使用されている数）
     \param nonceSz  ノンスの長さ
     \param authTag  認証タグを保存するバッファへのポインタ
@@ -438,14 +482,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 
 /*!
-    \ingroup AES 
-    \brief  これは、暗号化または復号化タイプを修正するためのキーの設定を支援することです。完了したら、AESキーでWC_AESXTSFREEを呼び出すことがユーザーになりました。
+    \ingroup AES
+    \brief  この関数は、AES XTSモードを使用する暗号化または復号で使用する鍵の設定に使用します。完了したら、AESキーでwc_AesXtsFreeを呼び出すことがユーザーになりました。
     \return 0  成功
-    \param aes  ENCRYPT /復号化プロセスのためのAESキー
-    \param key  AESキーを保持しているバッファー| ..Tweak Key
-    \param len  キーバッファのバイト数の長さ。キーサイズの2倍にする必要があります。すなわち、16バイトのキーについて。
-    \param dir  方向、AES_EncryptionまたはAES_Decryptionのいずれか
-    \param heap  メモリに使用するヒントヒント。nullになることができます
+    \param aes  暗号化または復号処理に使用するXtsAes構造体
+    \param key  補正値（Tewak）を加味したAES鍵を保持しているバッファ
+    \param len  鍵バッファのサイズ。鍵サイズの2倍にする必要があります。（すなわち、16バイトの鍵の場合は32）
+    \param dir  処理方向、AES_EncryptionまたはAES_Decryptionのいずれかを指定します。
+    \param heap  メモリに使用するヒープヒント。NULLを設定することもできます。
     _Example_
     \code
     XtsAes aes;
@@ -464,13 +508,13 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
          word32 len, int dir, void* heap, int devId);
 
 /*!
-    \ingroup AES 
-    \brief  WC_AESXTSENCRYPTと同じプロセスですが、バイト配列の代わりにTweak値としてWord64型を使用します。これは、Word64をバイト配列に変換し、WC_AESXTSENCRYPTを呼び出します。
+    \ingroup AES
+    \brief  wc_AesXtsEncryptと同じ処理を行いますが、バイト配列の代わりにTweak値としてword64型を使用します。本関数でword64をバイト配列に変換し、wc_AesXtsEncryptを呼び出します。
     \return 0  成功
-    \param aes  ブロック暗号化/復号化に使用するAESキー
+    \param aes  ブロック暗号化/復号に使用するXtsAes構造体
     \param out  暗号テキストを保持するための出力バッファ
     \param in  暗号化する入力プレーンテキストバッファ
-    \param sz  両方ともバッファのサイズ
+    \param sz  バッファ（in, out両方）のサイズ
     _Example_
     \code
     XtsAes aes;
@@ -495,13 +539,13 @@ int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
 
 /*!
-    \ingroup AES 
-    \brief  WC_AESXTSDECRYPTと同じプロセスではなく、BYTE配列の代わりにWord64タイプを使用します。これはWord64をバイト配列に変換するだけです。
+    \ingroup AES
+    \brief  wc_AesXtsDecryptと同じ処理を行いますが、バイト配列の代わりにTweak値としてword64タイプを使用します。本関数でword64をバイト配列に変換するだけです。
     \return 0  成功
-    \param aes  ブロック暗号化/復号化に使用するAESキー
+    \param aes  ブロック暗号化/復号に使用するXtsAes構造体
     \param out  プレーンテキストを保持するための出力バッファ
-    \param in  復号化する暗号テキストバッファーを入力します
-    \param sz  両方ともバッファのサイズ
+    \param in  復号する暗号テキストバッファ
+    \param sz  バッファ（in, out両方）のサイズ
     _Example_
     \code
     XtsAes aes;
@@ -526,13 +570,13 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
 
 /*!
-    \ingroup AES 
-    \brief  XTSモードのあるAES。（XTS）XEX暗号化と暗号テキストを盗んだ暗号化。
+    \ingroup AES
+    \brief  AES XTSモードで暗号化します。（XTS）XEX暗号化と平文がブロック長の倍数でない場合の処理(Ciphertext Stealing)を行います。
     \return 0  成功
-    \param aes  ブロック暗号化/復号化に使用するAESキー
+    \param aes  ブロック暗号化/復号に使用するXtsAes構造体
     \param out  暗号テキストを保持するための出力バッファ
-    \param in  暗号化する入力プレーンテキストバッファ
-    \param sz  両方ともバッファのサイズ
+    \param in  暗号化する入力プレーンテキストを含むバッファ
+    \param sz  バッファ（in, out両方）のサイズ
     \param i  Tweakに使用する値
     _Example_
     \code
@@ -557,13 +601,13 @@ int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
          const byte* in, word32 sz, const byte* i, word32 iSz);
 
 /*!
-    \ingroup AES 
-    \brief  暗号化と同じプロセスですが、AESキーはAES_Decryptionタイプです。
+    \ingroup AES
+    \brief  暗号化と同じプロセスですが、XtsAes構造体はAES_Decryptionタイプです。
     \return 0  成功
-    \param aes  ブロック暗号化/復号化に使用するAESキー
+    \param aes  ブロック暗号化/復号に使用するXtsAes構造体
     \param out  プレーンテキストを保持するための出力バッファ
-    \param in  復号化する暗号テキストバッファーを入力します
-    \param sz  両方ともバッファのサイズ
+    \param in  復号する暗号テキストを含むバッファ
+    \param sz  バッファ（in, out両方）のサイズ
     \param i  Tweakに使用する値
     _Example_
     \code
@@ -588,8 +632,8 @@ int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
         const byte* in, word32 sz, const byte* i, word32 iSz);
 
 /*!
-    \ingroup AES 
-    \brief  これはXTSAES構造によって使用されるすべてのリソースを解放することです
+    \ingroup AES
+    \brief  この関数はXtsAes構造体で使用されるすべてのリソースを解放します。
     \return 0  成功
     _Example_
     \code
@@ -609,11 +653,11 @@ int wc_AesXtsFree(XtsAes* aes);
 
 
 /*!
-    \ingroup AES 
+    \ingroup AES
     \brief  Aes構造体を初期化します。ヒープヒントを設定し、ASYNCハードウェアを使用する場合のIDも設定します。Aes構造体の使用が終了した際にwc_AesFreeを呼び出すのはユーザーに任されています。
     \return 0  成功
-    \param aes  初期化にはAES構造
-    \param heap  必要に応じてmalloc / freeに使用するヒントヒント
+    \param aes  初期化対象のAes構造体
+    \param heap  必要に応じてmalloc / freeに使用するヒープヒント
     _Example_
     \code
     Aes enc;
@@ -631,10 +675,10 @@ int  wc_AesInit(Aes* aes, void* heap, int devId);
 
 /*!
     \ingroup AES
-    \brief Aes構造体に関連つけられたリソースを可能なら解放する。
+    \brief Aes構造体に関連つけられたリソースを可能なら解放します。
     内部的にはノーオペレーションとなることもありますが、ベストプラクティスとしてどのケースでもこの関数を呼び出すことを推奨します。
     \return 戻り値なし
-    \param aes FreeすべきAes構造体へのポインター
+    \param aes FreeすべきAes構造体へのポインタ
     _Example_
     \code
     Aes enc;
@@ -650,11 +694,11 @@ int  wc_AesInit(Aes* aes, void* heap, int devId);
 int  wc_AesFree(Aes* aes);
 
 /*!
-    \ingroup AES 
-    \brief  CFBモードを持つAES。
-    \return 0  失敗時の成功と否定的なエラー値
-    \param aes  ブロック暗号化/復号化に使用するAESキー
-    \param out  暗号テキストを保持するための出力バッファは、少なくともInpectBufferと同じくらい大きい必要があります）
+    \ingroup AES
+    \brief  AES CFBモードで暗号化を行います。
+    \return 0  成功時に返ります。失敗時には負値が返されます。
+    \param aes  ブロック暗号化/復号に使用するAes構造体
+    \param out  暗号テキストを保持するための出力バッファは、少なくとも入力プレーンテキストバッファと同じサイズが必要です。
     \param in  暗号化する入力プレーンテキストバッファ
     _Example_
     \code
@@ -675,12 +719,12 @@ int  wc_AesFree(Aes* aes);
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 
 /*!
-    \ingroup AES 
-    \brief  CFBモードを持つAES。
-    \return 0  失敗時の成功と否定的なエラー値
-    \param aes  ブロック暗号化/復号化に使用するAESキー
-    \param out  復号化されたテキストを保持するための出力バッファは、少なくともinputBufferと同じ大きさでなければなりません）
-    \param in  復号化する入力バッファ
+    \ingroup AES
+    \brief  AES CFBモードで復号を行います。
+    \return 0  成功時に返ります。失敗時には負値が返されます。
+    \param aes  ブロック暗号化/復号に使用するAes構造体
+    \param out  復号されたテキストを保持するための出力バッファは、少なくとも入力バッファと同じサイズが必要です。
+    \param in  復号する暗号データを保持した入力バッファ
     _Example_
     \code
     Aes aes;
@@ -700,17 +744,17 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 
 /*!
-    \ingroup AES 
+    \ingroup AES
     \brief  この関数は、RFC 5297に記載されているようにSIV（合成初期化ベクトル）暗号化を実行します。
     \return 0  暗号化に成功した場合
-    \return BAD_FUNC_ARG  キー、SIV、または出力バッファがNULLの場合。キーサイズが32,48、または64バイトの場合にも返されます。
-    \return Other  AESまたはCMAC操作が失敗した場合に返されるその他の負のエラー値。
+    \return BAD_FUNC_ARG  鍵、SIV、または出力バッファがNULLの場合。鍵サイズが32,48、または64バイトの場合にも返されます。
+    \return Other  その他の負のエラー値。AESまたはCMAC操作が失敗した場合に返されます。
     \param key  使用する鍵を含むバイトバッファ。
-    \param keySz  キーバッファの長さ（バイト単位）。
+    \param keySz  鍵バッファの長さ（バイト単位）。
     \param assoc  追加の認証された関連データ（AD）。
     \param assocSz  ADバッファのバイト数
-    \param nonce  一度使用される数。ADと同じ方法でアルゴリズムによって使用されます。
-    \param nonceSz  バイト単位のNOCEバッファの長さ。
+    \param nonce  ナンス（一度だけ使用される値）。ADと同じ方法でアルゴリズムによって使用されます。
+    \param nonceSz  バイト単位のナンスバッファの長さ。
     \param in  暗号化する平文のバッファ。
     \param inSz  平文バッファの長さ
     \param siv  S2VによるSIV出力（RFC 5297 2.4参照）。
@@ -736,19 +780,19 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      const byte* in, word32 inSz, byte* siv, byte* out);
 
 /*!
-    \ingroup AES 
-    \brief  この機能は、RFC 5297に記載されているようにSIV（合成初期化ベクトル）復号化を実行する。
-    \return 0  復号化に成功した場合
-    \return BAD_FUNC_ARG  キー、SIV、または出力バッファがNULLの場合。キーサイズが32,48、または64バイトの場合にも返されます。
+    \ingroup AES
+    \brief  この機能は、RFC 5297に記載されているようにSIV（合成初期化ベクトル）復号を実行します
+    \return 0  復号に成功した場合
+    \return BAD_FUNC_ARG  鍵、SIV、または出力バッファがNULLの場合。キーサイズが32,48、または64バイトの場合にも返されます。
     \return AES_SIV_AUTH_E  S2Vによって派生したSIVが入力SIVと一致しない場合（RFC 5297 2.7を参照）。
-    \return Other  AESまたはCMAC操作が失敗した場合に返されるその他の負のエラー値。
+    \return Other  その他の負のエラー値。AESまたはCMAC操作が失敗した場合に返されます。
     \param key  使用する鍵を含むバイトバッファ。
-    \param keySz  キーバッファの長さ（バイト単位）。
+    \param keySz  鍵バッファの長さ（バイト単位）。
     \param assoc  追加の認証された関連データ（AD）。
     \param assocSz  ADバッファのバイト数
-    \param nonce  一度使用される数。ADと同じ方法で、基礎となるアルゴリズムによって使用されます。
-    \param nonceSz  バイト単位のNOCEバッファの長さ。
-    \param in  復号化する暗号文バッファー。
+    \param nonce  ナンス（一度だけ使用される値）。ADと同じ方法で、基礎となるアルゴリズムによって使用されます。
+    \param nonceSz  バイト単位のナンスバッファの長さ。
+    \param in  復号する暗号文バッファ。
     \param inSz  暗号文バッファの長さ
     \param siv  暗号文に付随するSIV（RFC 5297 2.4を参照）。
     _Example_
