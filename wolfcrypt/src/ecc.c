@@ -14707,6 +14707,12 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
       /* Z = Z + 1 */
       if (res == MP_OKAY)
         res = mp_add_d(Z, 1, Z);
+
+      if ((res == MP_OKAY) && (mp_cmp(Z,prime) == MP_EQ)) {
+        /* This is to clamp the loop in case 'prime' is not really prime */
+        res = MP_VAL;
+        break;
+      }
     }
 
     /* C = Z ^ Q mod prime */
