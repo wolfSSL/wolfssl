@@ -3759,8 +3759,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         resumeCount = 0;
 
         cnt++;
-        if (loops > 0 && --loops == 0) {
-            break;  /* out of while loop, done with normal and resume option */
+        if (loops > 0) {
+            if (--loops == 0) {
+                break;  /* out of while loop, done with normal and resume
+                         * option
+                         */
+            }
         }
     } /* while(1) */
 

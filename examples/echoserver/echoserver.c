@@ -71,16 +71,11 @@ static void SignalReady(void* args, word16 port)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;
-    THREAD_CHECK_RET(wc_LockMutex(&ready->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
     ready->ready = 1;
     ready->port = port;
-#ifdef COND_NO_REQUIRE_LOCKED_MUTEX
-    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
     THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
-#ifndef COND_NO_REQUIRE_LOCKED_MUTEX
-    THREAD_CHECK_RET(wc_UnLockMutex(&ready->mutex));
-#endif
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
 #endif /* NO_MAIN_DRIVER && WOLFSSL_COND */
     (void)args;
     (void)port;

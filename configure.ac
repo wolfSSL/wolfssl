@@ -2414,7 +2414,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-gcm],
-    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: disabled)])],
     [ ENABLED_SM4_GCM=$enableval ],
     [ ENABLED_SM4_GCM=no ]
     )
@@ -2430,7 +2430,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-ccm],
-    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: disabled)])],
     [ ENABLED_SM4_CCM=$enableval ],
     [ ENABLED_SM4_CCM=no ]
     )
@@ -5672,6 +5672,9 @@ then
         ENABLED_AESCFB="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
     fi
+
+    # Requires public mp_
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
 fi
 
 if test "x$ENABLED_SMIME" = "xyes"
@@ -8408,18 +8411,13 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
-  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS"
-  AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AKID_NAME -DHAVE_CTS"
+  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
 then
   AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
   AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OPENSSL_RAND_CB"
 fi
 
 if test "$ENABLED_WOLFSCEP" = "yes"
