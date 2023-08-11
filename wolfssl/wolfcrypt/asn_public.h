@@ -392,7 +392,9 @@ typedef struct CertExtension {
 } CertExtension;
 #endif
 
-#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_EXT) || \
+    defined(WOLFSSL_CERT_REQ)
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
     char countryEnc;
