@@ -1380,25 +1380,22 @@ typedef struct ecc_curve_spec {
     byte load_mask;
 } ecc_curve_spec;
 
-enum ecc_curve_load_mask {
-    ECC_CURVE_FIELD_NONE    = 0x00,
-    ECC_CURVE_FIELD_PRIME   = 0x01,
-    ECC_CURVE_FIELD_AF      = 0x02,
+    #define ECC_CURVE_FIELD_NONE    0x00
+    #define ECC_CURVE_FIELD_PRIME   0x01
+    #define ECC_CURVE_FIELD_AF      0x02
 #ifdef USE_ECC_B_PARAM
-    ECC_CURVE_FIELD_BF      = 0x04,
+    #define ECC_CURVE_FIELD_BF      0x04
 #endif
-    ECC_CURVE_FIELD_ORDER   = 0x08,
-    ECC_CURVE_FIELD_GX      = 0x10,
-    ECC_CURVE_FIELD_GY      = 0x20,
+    #define ECC_CURVE_FIELD_ORDER   0x08
+    #define ECC_CURVE_FIELD_GX      0x10
+    #define ECC_CURVE_FIELD_GY      0x20
 #ifdef USE_ECC_B_PARAM
-    ECC_CURVE_FIELD_ALL     = 0x3F,
-    ECC_CURVE_FIELD_COUNT   = 6,
+    #define ECC_CURVE_FIELD_ALL     0x3F
+    #define ECC_CURVE_FIELD_COUNT   6
 #else
-    ECC_CURVE_FIELD_ALL     = 0x3B,
-    ECC_CURVE_FIELD_COUNT   = 5,
+    #define ECC_CURVE_FIELD_ALL     0x3B
+    #define ECC_CURVE_FIELD_COUNT   5
 #endif
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(ecc_curve_load_mask)
-};
 
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 static const u32 xil_curve_type[ECC_CURVE_MAX] = {
