@@ -9185,6 +9185,10 @@ void DtlsMsgPoolReset(WOLFSSL* ssl)
         ssl->dtls_tx_msg = NULL;
         ssl->dtls_tx_msg_list_sz = 0;
     }
+#ifdef WOLFSSL_DTLS13
+    /* Clear DTLS 1.3 buffer too */
+    Dtls13RtxFlushBuffered(ssl, 1);
+#endif
 }
 
 
@@ -16050,7 +16054,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 }
 
 
-static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
 {
     int ret = 0;

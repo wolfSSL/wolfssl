@@ -119,6 +119,17 @@ cleanup:
 /* This set of memio functions allows for more fine tuned control of the TLS
  * connection operations. For new tests, try to use ssl_memio first. */
 
+/* To dump the memory in gdb use
+ *   dump memory client.bin test_ctx.c_buff test_ctx.c_buff+test_ctx.c_len
+ *   dump memory server.bin test_ctx.s_buff test_ctx.s_buff+test_ctx.s_len
+ * This can be imported into Wireshark by transforming the file with
+ *   od -Ax -tx1 -v client.bin > client.bin.hex
+ *   od -Ax -tx1 -v server.bin > server.bin.hex
+ * And then loading test_output.dump.hex into Wireshark using the
+ * "Import from Hex Dump..." option ion and selecting the TCP
+ * encapsulation option.
+ */
+
 #define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
 
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
@@ -157,7 +168,7 @@ static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
     }
 
     if ((unsigned)(*len + sz) > TEST_MEMIO_BUF_SZ)
-            return WOLFSSL_CBIO_ERR_WANT_READ;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
     XMEMCPY(buf + *len, data, sz);
     *len += sz;

@@ -12447,7 +12447,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     return WOLFSSL_FATAL_ERROR;
                 }
                 /* if resumption failed, reset needed state */
-                else if (neededState == SERVER_FINISHED_COMPLETE)
+                else if (neededState == SERVER_FINISHED_COMPLETE) {
                     if (!ssl->options.resuming) {
                     #ifdef WOLFSSL_DTLS
                         if (IsDtlsNotSctpMode(ssl))
@@ -12456,8 +12456,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     #endif
                             neededState = SERVER_HELLODONE_COMPLETE;
                     }
-#ifdef WOLFSSL_DTLS13
+                }
 
+#ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)
                     && ssl->dtls13Rtx.sendAcks == 1) {
                     ssl->dtls13Rtx.sendAcks = 0;
@@ -12474,8 +12475,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         return WOLFSSL_FATAL_ERROR;
                     }
                 }
-
-
 #endif /* WOLFSSL_DTLS13 */
             }
 
