@@ -307,7 +307,6 @@ typedef struct {
     int read_bytes;
     int read_idx;
 
-    wolfSSL_Mutex mutex;
     COND_TYPE cond;
 
     int done;
@@ -398,12 +397,12 @@ static double gettime_secs(int reset)
 /* server send callback */
 static int ServerMemSend(info_t* info, char* buf, int sz)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
-        THREAD_CHECK_RET(wc_UnLockMutex(&info->to_client.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
         fprintf(stderr, "ServerMemSend overflow\n");
         return -1;
     }
@@ -418,7 +417,7 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
     info->to_client.write_bytes += sz;
 
     THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
-    THREAD_CHECK_RET(wc_UnLockMutex(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -431,13 +430,12 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
 /* server recv callback */
 static int ServerMemRecv(info_t* info, char* buf, int sz)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz &&
             !info->to_client.done) {
-        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_server.cond,
-                                            &info->to_server.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_server.cond));
     }
 #else
     if (info->to_server.write_idx - info->to_server.read_idx < sz) {
@@ -455,7 +453,7 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
         info->to_server.write_bytes = info->to_server.write_idx = 0;
     }
 
-    THREAD_CHECK_RET(wc_UnLockMutex(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
     if (info->to_client.done != 0) {
         return -1;
@@ -472,14 +470,14 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
 /* client send callback */
 static int ClientMemSend(info_t* info, char* buf, int sz)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_server.write_idx + sz > MEM_BUFFER_SZ) {
         fprintf(stderr, "ClientMemSend overflow %d %d %d\n",
             info->to_server.write_idx, sz, MEM_BUFFER_SZ);
-        THREAD_CHECK_RET(wc_UnLockMutex(&info->to_server.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
         return -1;
     }
 #else
@@ -493,7 +491,7 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
     info->to_server.write_bytes += sz;
 
     THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
-    THREAD_CHECK_RET(wc_UnLockMutex(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -506,13 +504,12 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
 /* client recv callback */
 static int ClientMemRecv(info_t* info, char* buf, int sz)
 {
-    THREAD_CHECK_RET(wc_LockMutex(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz &&
             !info->to_server.done) {
-        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_client.cond,
-                                            &info->to_client.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_client.cond));
     }
 #else
     if (info->to_client.write_idx - info->to_client.read_idx < sz) {
@@ -530,7 +527,7 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
         info->to_client.write_bytes = info->to_client.write_idx = 0;
     }
 
-    THREAD_CHECK_RET(wc_UnLockMutex(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
     if (info->to_server.done != 0) {
         return -1;
@@ -1052,14 +1049,13 @@ static int bench_tls_client(info_t* info)
 #if !defined(SINGLE_THREADED) && defined(WOLFSSL_DTLS)
         /* synchronize with server */
         if (info->doDTLS && !info->clientOrserverOnly) {
-            THREAD_CHECK_RET(wc_LockMutex(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondStart(&info->dtls_cond));
             if (info->serverReady != 1) {
-                THREAD_CHECK_RET(wolfSSL_CondWait(&info->dtls_cond,
-                                                    &info->dtls_mutex));
+                THREAD_CHECK_RET(wolfSSL_CondWait(&info->dtls_cond));
             }
             /* for next loop */
             info->serverReady = 0;
-            THREAD_CHECK_RET(wc_UnLockMutex(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&info->dtls_cond));
         }
 #endif
         /* perform connect */
@@ -1201,9 +1197,11 @@ static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN client_thread(void* args)
 
     ret = bench_tls_client(info);
 
-    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
     info->to_client.done = 1;
     info->client.ret = ret;
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
     WOLFSSL_RETURN_FROM_THREAD(NULL);
 }
@@ -1289,10 +1287,10 @@ static int SocketWaitClient(info_t* info)
         char msg[64];
 #ifndef SINGLE_THREADED
         if (!info->clientOrserverOnly) {
-            THREAD_CHECK_RET(wc_LockMutex(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondStart(&info->dtls_cond));
             info->serverReady = 1;
             THREAD_CHECK_RET(wolfSSL_CondSignal(&info->dtls_cond));
-            THREAD_CHECK_RET(wc_UnLockMutex(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&info->dtls_cond));
         }
 #endif
         connd = (int)recvfrom(info->listenFd, (char *)msg, sizeof(msg),
@@ -1659,9 +1657,11 @@ static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN server_thread(void* args)
         }
     }
 
-    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
     info->to_server.done = 1;
     info->server.ret = ret;
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
     WOLFSSL_RETURN_FROM_THREAD(NULL);
 }
@@ -2124,8 +2124,6 @@ int bench_tls(void* args)
                 else {
             #if !defined(SINGLE_THREADED) && defined(WOLFSSL_THREAD_NO_JOIN)
                     info->useLocalMem = argLocalMem;
-                    THREAD_CHECK_RET(wc_InitMutex(&info->to_server.mutex));
-                    THREAD_CHECK_RET(wc_InitMutex(&info->to_client.mutex));
             #ifdef WOLFSSL_DTLS
                     THREAD_CHECK_RET(wc_InitMutex(&info->dtls_mutex));
                     THREAD_CHECK_RET(wolfSSL_CondInit(&info->dtls_cond));

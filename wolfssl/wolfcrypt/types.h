@@ -1380,9 +1380,21 @@ typedef struct w64wrapper {
         #define WOLFSSL_THREAD
     #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
         !defined(__MINGW32__)
+        #ifndef __MACH__
+            #include <pthread.h>
+            typedef struct COND_TYPE {
+                pthread_mutex_t mutex;
+                pthread_cond_t cond;
+            } COND_TYPE;
+        #else
+            #include <dispatch/dispatch.h>
+            typedef struct COND_TYPE {
+                wolfSSL_Mutex mutex;
+                dispatch_semaphore_t cond;
+            } COND_TYPE;
+        #endif
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
-        typedef pthread_cond_t COND_TYPE;
         #define WOLFSSL_COND
         #define WOLFSSL_THREAD
         #ifndef HAVE_SELFTEST
@@ -1395,10 +1407,12 @@ typedef struct w64wrapper {
     #elif defined(_MSC_VER)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
-        typedef HANDLE        COND_TYPE;
+        typedef struct COND_TYPE {
+            wolfSSL_Mutex mutex;
+            HANDLE cond;
+        } COND_TYPE;
         #define WOLFSSL_COND
         #define INVALID_THREAD_VAL ((THREAD_TYPE)(INVALID_HANDLE_VALUE))
-        #define COND_NO_REQUIRE_LOCKED_MUTEX
         #define WOLFSSL_THREAD __stdcall
         #define WOLFSSL_THREAD_NO_JOIN __cdecl
     #else
@@ -1433,8 +1447,6 @@ typedef struct w64wrapper {
          *                          thread callbacks that don't require cleanup
          * WOLFSSL_COND - defined if this system suports signaling
          * COND_TYPE - type that should be passed into the signaling API
-         * COND_NO_REQUIRE_LOCKED_MUTEX - defined if the signaling doesn't
-         *                                require locking a mutex
          * WOLFSSL_THREAD_VOID_RETURN - defined if the thread callback has a
          *                              void return
          * WOLFSSL_RETURN_FROM_THREAD - define used to correctly return from a
@@ -1475,8 +1487,9 @@ typedef struct w64wrapper {
             WOLFSSL_API int wolfSSL_CondInit(COND_TYPE* cond);
             WOLFSSL_API int wolfSSL_CondFree(COND_TYPE* cond);
             WOLFSSL_API int wolfSSL_CondSignal(COND_TYPE* cond);
-            WOLFSSL_API int wolfSSL_CondWait(COND_TYPE* cond,
-                wolfSSL_Mutex* mutex);
+            WOLFSSL_API int wolfSSL_CondWait(COND_TYPE* cond);
+            WOLFSSL_API int wolfSSL_CondStart(COND_TYPE* cond);
+            WOLFSSL_API int wolfSSL_CondEnd(COND_TYPE* cond);
         #endif
     #else
         #define WOLFSSL_RETURN_FROM_THREAD(x) return (THREAD_RETURN)(x)

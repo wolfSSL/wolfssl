@@ -1066,6 +1066,55 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     return err;
 }
 
+static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
+        char* reply, int replyLen, int mustRead,
+        const char* str, int exitWithRet)
+{
+    int ret = 0;
+
+    do {
+        ret = ClientWrite(ssl, msg, msgSz, str, exitWithRet);
+        if (ret != 0) {
+            if (!exitWithRet)
+                err_sys("ClientWrite failed");
+            else
+                break;
+        }
+        if (wolfSSL_dtls(ssl)) {
+            ret = tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC);
+            if (ret == TEST_TIMEOUT) {
+                continue;
+            }
+            else if (ret == TEST_RECV_READY) {
+                /* Ready to read */
+            }
+            else {
+                LOG_ERROR("%s tcp_select error\n", str);
+                if (!exitWithRet)
+                    err_sys("tcp_select failed");
+                else
+                    ret = WOLFSSL_FATAL_ERROR;
+                break;
+            }
+        }
+        ret = ClientRead(ssl, reply, replyLen, mustRead, str, exitWithRet);
+        if (mustRead && ret != 0) {
+            if (!exitWithRet)
+                err_sys("ClientRead failed");
+            else
+                break;
+        }
+        break;
+    } while (1);
+
+    if (ret != 0) {
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        LOG_ERROR("SSL_write%s msg error %d, %s\n", str, ret,
+                                        wolfSSL_ERR_error_string(ret, buffer));
+    }
+
+    return ret;
+}
 
 /* when adding new option, please follow the steps below: */
 /*  1. add new option message in English section          */
@@ -4195,15 +4244,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_update_keys(ssl);
 #endif
 
-    err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
-    if (exitWithRet && (err != 0)) {
-        ((func_args*)args)->return_code = err;
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        goto exit;
-    }
-
-    err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
+    err = ClientWriteRead(ssl, msg, msgSz, reply, sizeof(reply)-1, 1, "",
+            exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
         wolfSSL_free(ssl); ssl = NULL;
@@ -4500,10 +4542,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             msgSz = (int)XSTRLEN(kResumeMsg);
             XMEMCPY(msg, kResumeMsg, msgSz);
         }
-        (void)ClientWrite(sslResume, msg, msgSz, " resume", 0);
 
-        (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
-                         "Server resume: ", 0);
+        (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply)-1,
+                sendGET, " resume", 0);
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
