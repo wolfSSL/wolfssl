@@ -2759,10 +2759,9 @@ typedef struct Keys {
     tsip_hmac_sha_key_index_t tsip_server_write_MAC_secret;
 
 #endif
-#ifdef WOLFSSL_RENESAS_SCEPROTECT
-
-    sce_hmac_sha_wrapped_key_t sce_client_write_MAC_secret;
-    sce_hmac_sha_wrapped_key_t sce_server_write_MAC_secret;
+#ifdef WOLFSSL_RENESAS_FSPSM_TLS
+    FSPSM_HMAC_WKEY fspsm_client_write_MAC_secret;
+    FSPSM_HMAC_WKEY fspsm_server_write_MAC_secret;
 #endif
 } Keys;
 
@@ -4767,8 +4766,8 @@ typedef struct Arrays {
    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     byte            tsip_masterSecret[TSIP_TLS_MASTERSECRET_SIZE];
 #endif
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    byte            sce_masterSecret[SCE_TLS_MASTERSECRET_SIZE];
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS)
+    byte            fspsm_masterSecret[FSPSM_TLS_MASTERSECRET_SIZE];
 #endif
 #ifdef WOLFSSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
@@ -5431,7 +5430,7 @@ struct WOLFSSL {
 #endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     void*           RenesasUserCtx;
     byte*           peerSceTsipEncRsaKeyIndex;
 #endif

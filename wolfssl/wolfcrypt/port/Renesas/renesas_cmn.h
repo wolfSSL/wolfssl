@@ -75,4 +75,8 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len,
         word32 key_e_len, word32 cm_row);
 WOLFSSL_LOCAL int Renesas_cmn_Cleanup(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte Renesas_cmn_checkCA(word32 cmIdx);
+WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
+                            const byte *handshake_hash, word32 hashSz,
+                            byte *hashes, void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx);
 #endif /* __RENESAS_CMN_H__ */

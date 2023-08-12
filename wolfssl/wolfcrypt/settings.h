@@ -417,15 +417,15 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */
+    #define FSPSM_TLS_MASTERSECRET_SIZE         80  /* 20 words */
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE  64
-    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in bytes */
-    #define SCE_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
-    #define SCE_TLS_SERVERRANDOM_SZ           36  /* in bytes */
-    #define SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
+    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560   /* in bytes */
+    #define FSPSM_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
+    #define FSPSM_TLS_SERVERRANDOM_SZ           36  /* in bytes */
+    #define FSPSM_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
 
-    #define WOLFSSL_RENESAS_SCEPROTECT_ECC
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
+    #define WOLFSSL_RENESAS_FSPSM_ECC
+    #if defined(WOLFSSL_RENESAS_FSPSM_ECC)
         #define HAVE_PK_CALLBACKS
         /* #define DEBUG_PK_CB */
     #endif

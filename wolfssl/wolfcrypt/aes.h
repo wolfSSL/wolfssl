@@ -298,9 +298,8 @@ struct Aes {
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     TSIP_AES_CTX ctx;
 #endif
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
-    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    SCE_AES_CTX ctx;
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    FSPSM_AES_CTX ctx;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;

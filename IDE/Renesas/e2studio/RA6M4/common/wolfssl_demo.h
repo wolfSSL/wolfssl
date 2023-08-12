@@ -82,7 +82,7 @@ typedef struct tagTestInfo
 void sce_test();
 void TCPInit();
 void wolfSSL_TLS_client_init();
-void wolfSSL_TLS_client_do(void *pvParam);
+int wolfSSL_TLS_client_do(void *pvParam);
 void wolfSSL_TLS_cleanup();
 extern WOLFSSL_CTX *client_ctx;
 

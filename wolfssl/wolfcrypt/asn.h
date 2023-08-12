@@ -1417,7 +1417,7 @@ enum SignatureState {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
     defined(HAVE_PK_CALLBACKS)
 typedef struct tagCertAttribute {
         byte   verifyByTSIP_SCE;
@@ -1490,7 +1490,7 @@ struct SignatureCtx {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 #ifndef NO_RSA
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
     defined(HAVE_PK_CALLBACKS)
     CertAttribute  CertAtt;
 #endif
@@ -1864,7 +1864,7 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     byte*  sce_tsip_encRsaKeyIdx;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_TLS
@@ -1975,7 +1975,7 @@ struct Signer {
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     word32 cm_idx;
 #endif
     Signer* next;

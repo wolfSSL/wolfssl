@@ -1,4 +1,4 @@
-/* renesas_sce_rsa.c
+/* renesas_fspsm_rsa.c
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -18,9 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
+#include <wolfssl/wolfcrypt/settings.h>
+
 #if !defined(NO_RSA) && \
-    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 
 #include <string.h>
 #include <stdio.h>
@@ -29,11 +31,10 @@
     #include <config.h>
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/rsa.h>
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
 
 /* Make Rsa key for SCE and set it to callback ctx
  * Assumes to be called by Crypt Callback
@@ -42,123 +43,123 @@
  * ctx    Callback context including pointer to hold generated key
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_sce_MakeRsaKey(int size, void* ctx)
+WOLFSSL_LOCAL int wc_fspsm_MakeRsaKey(int size, void* ctx)
 {
-    fsp_err_t        ret;
-    User_SCEPKCbInfo *info = (User_SCEPKCbInfo*)ctx;
+    fsp_err_t   ret;
+    FSPSM_ST    *info = (FSPSM_ST*)ctx;
 
-    sce_rsa1024_wrapped_pair_key_t *wrapped_pair1024_key = NULL;
-    sce_rsa2048_wrapped_pair_key_t *wrapped_pair2048_key = NULL;
+    FSPSM_RSA1024_WPA_KEY *wrapped_pair1024_key = NULL;
+    FSPSM_RSA2048_WPA_KEY *wrapped_pair2048_key = NULL;
 
     /* sanity check */
     if (ctx == NULL)
         return BAD_FUNC_ARG;
     
 
-    if ((ret = wc_sce_hw_lock()) == 0) {
+    if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (size == 1024) {
             wrapped_pair1024_key = 
-            (sce_rsa1024_wrapped_pair_key_t*)XMALLOC(
-                sizeof(sce_rsa1024_wrapped_pair_key_t), NULL, 
+            (FSPSM_RSA1024_WPA_KEY*)XMALLOC(
+                sizeof(FSPSM_RSA1024_WPA_KEY), NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
             if (wrapped_pair1024_key == NULL)
                 return MEMORY_E;
                 
-            ret = R_SCE_RSA1024_WrappedKeyPairGenerate(wrapped_pair1024_key);
+            ret = FSPSM_RSA1024_KEYPA_GEN(wrapped_pair1024_key);
         }
         else if (size == 2048) {
             wrapped_pair2048_key = 
-            (sce_rsa1024_wrapped_pair_key_t*)XMALLOC(
-                sizeof(sce_rsa2048_wrapped_pair_key_t), NULL, 
+            (FSPSM_RSA2048_WPA_KEY*)XMALLOC(
+                sizeof(FSPSM_RSA2048_WPA_KEY), NULL, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
             if (wrapped_pair2048_key == NULL)
                 return MEMORY_E;
                 
-            ret = R_SCE_RSA2048_WrappedKeyPairGenerate(wrapped_pair2048_key);
+            ret = FSPSM_RSA1024_KEYPA_GEN(wrapped_pair2048_key);
         }
         else
             return CRYPTOCB_UNAVAILABLE;
             
         if (ret == FSP_SUCCESS) {
             if (size == 1024) {
-                if (info->sce_wrapped_key_rsapri1024 != NULL) {
-                    XFREE(info->sce_wrapped_key_rsapri1024, NULL, 
+                if (info->wrapped_key_rsapri1024 != NULL) {
+                    XFREE(info->wrapped_key_rsapri1024, NULL, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                if (info->sce_wrapped_key_rsapub1024 != NULL) {
-                    XFREE(info->sce_wrapped_key_rsapub1024, NULL, 
+                if (info->wrapped_key_rsapub1024 != NULL) {
+                    XFREE(info->wrapped_key_rsapub1024, NULL, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                info->sce_wrapped_key_rsapri1024 = 
-                (sce_rsa1024_private_wrapped_key_t*)XMALLOC(
-                    sizeof(sce_rsa1024_private_wrapped_key_t), NULL, 
+                info->wrapped_key_rsapri1024 = 
+                (FSPSM_RSA1024_WPI_KEY*)XMALLOC(
+                    sizeof(FSPSM_RSA1024_WPI_KEY), NULL, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                     
-                if (info->sce_wrapped_key_rsapri1024 == NULL) {
+                if (info->wrapped_key_rsapri1024 == NULL) {
                     XFREE(wrapped_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
                 
-                info->sce_wrapped_key_rsapub1024 =
-                (sce_rsa1024_public_wrapped_key_t*)XMALLOC(
-                    sizeof(sce_rsa1024_public_wrapped_key_t), NULL, 
+                info->wrapped_key_rsapub1024 =
+                (FSPSM_RSA1024_WPB_KEY*)XMALLOC(
+                    sizeof(FSPSM_RSA1024_WPB_KEY), NULL, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                     
-                if (info->sce_wrapped_key_rsapub1024 == NULL) {
+                if (info->wrapped_key_rsapub1024 == NULL) {
                     XFREE(wrapped_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                    XFREE(info->sce_wrapped_key_rsapub1024, 0, 
+                    XFREE(info->wrapped_key_rsapub1024, 0, 
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
                 /* copy generated key pair and free malloced key */
-                XMEMCPY(info->sce_wrapped_key_rsapri1024, 
+                XMEMCPY(info->wrapped_key_rsapri1024, 
                                     &wrapped_pair1024_key->priv_key,
-                                    sizeof(sce_rsa1024_private_wrapped_key_t));
-                XMEMCPY(info->sce_wrapped_key_rsapub1024, 
+                                    sizeof(FSPSM_RSA1024_WPI_KEY));
+                XMEMCPY(info->wrapped_key_rsapub1024, 
                                     &wrapped_pair1024_key->pub_key,
-                                    sizeof(sce_rsa1024_public_wrapped_key_t));
+                                    sizeof(FSPSM_RSA1024_WPB_KEY));
                 XFREE(wrapped_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                 
                 info->keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
                 info->keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
             }
             else if (size == 2048) {
-                if (info->sce_wrapped_key_rsapri2048 != NULL) {
-                    XFREE(info->sce_wrapped_key_rsapri2048, NULL, 
+                if (info->wrapped_key_rsapri2048 != NULL) {
+                    XFREE(info->wrapped_key_rsapri2048, NULL, 
                                     DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                if (info->sce_wrapped_key_rsapub2048 != NULL) {
-                    XFREE(info->sce_wrapped_key_rsapub2048, NULL, 
+                if (info->wrapped_key_rsapub2048 != NULL) {
+                    XFREE(info->wrapped_key_rsapub2048, NULL, 
                                     DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                info->sce_wrapped_key_rsapri2048 = 
-                (sce_rsa2048_private_wrapped_key_t*)XMALLOC(
-                    sizeof(sce_rsa2048_private_wrapped_key_t), NULL, 
+                info->wrapped_key_rsapri2048 = 
+                (FSPSM_RSA2048_WPI_KEY*)XMALLOC(
+                    sizeof(FSPSM_RSA2048_WPI_KEY), NULL, 
                                     DYNAMIC_TYPE_RSA_BUFFER);
                     
-                if (info->sce_wrapped_key_rsapri2048 == NULL) {
+                if (info->wrapped_key_rsapri2048 == NULL) {
                     XFREE(wrapped_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
                 
-                info->sce_wrapped_key_rsapub2048 =
-                (sce_rsa2048_public_wrapped_key_t*)XMALLOC(
-                    sizeof(sce_rsa2048_public_wrapped_key_t), NULL, 
+                info->wrapped_key_rsapub2048 =
+                (FSPSM_RSA2048_WPB_KEY*)XMALLOC(
+                    sizeof(FSPSM_RSA2048_WPB_KEY), NULL, 
                                     DYNAMIC_TYPE_RSA_BUFFER);
                     
-                if (info->sce_wrapped_key_rsapub2048 == NULL) {
+                if (info->wrapped_key_rsapub2048 == NULL) {
                     XFREE(wrapped_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                    XFREE(info->sce_wrapped_key_rsapub1024, 0, 
+                    XFREE(info->wrapped_key_rsapub1024, 0, 
                                     DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
                 /* copy generated key pair and free malloced key */
-                XMEMCPY(info->sce_wrapped_key_rsapri2048, 
+                XMEMCPY(info->wrapped_key_rsapri2048, 
                             &wrapped_pair2048_key->priv_key,
-                            sizeof(sce_rsa2048_private_wrapped_key_t));
-                XMEMCPY(info->sce_wrapped_key_rsapub2048, 
+                            sizeof(FSPSM_RSA2048_WPI_KEY));
+                XMEMCPY(info->wrapped_key_rsapub2048, 
                             &wrapped_pair2048_key->pub_key,
-                            sizeof(sce_rsa2048_public_wrapped_key_t));
+                            sizeof(FSPSM_RSA2048_WPB_KEY));
                 XFREE(wrapped_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                 
                 info->keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
@@ -171,7 +172,7 @@ WOLFSSL_LOCAL int wc_sce_MakeRsaKey(int size, void* ctx)
             return CRYPTOCB_UNAVAILABLE;
         }
         
-        wc_sce_hw_unlock();
+        wc_fspsm_hw_unlock();
     }
 }
 
@@ -187,15 +188,15 @@ WOLFSSL_LOCAL int wc_sce_MakeRsaKey(int size, void* ctx)
  * ctx    Callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
                     word32 outLen, int type, struct RsaKey* key, 
                     struct WC_RNG* rng, void* ctx)
 {
     int ret;
     
-    sce_rsa_byte_data_t plain;
-    sce_rsa_byte_data_t cipher;
-    User_SCEPKCbInfo    *info = (User_SCEPKCbInfo*)ctx;
+    FSPSM_RSA_DATA plain;
+    FSPSM_RSA_DATA cipher;
+    FSPSM_ST    *info = (FSPSM_ST*)ctx;
     
     int keySize;
     
@@ -222,7 +223,7 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
     
-    if ((ret = wc_sce_hw_lock()) == 0) {
+    if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (type == RSA_PUBLIC_ENCRYPT) {
             
             plain.pdata = (byte*)in;
@@ -232,9 +233,9 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
 
             if (keySize == 1024) {
                 if(info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1)
-                    ret = R_SCE_RSAES_PKCS1024_Encrypt(&plain, &cipher,
-                        (sce_rsa1024_public_wrapped_key_t*)
-                            info->sce_wrapped_key_rsapub1024);
+                    ret = FSPSM_RSA1024_PKCSENC_FUNC(&plain, &cipher,
+                        (FSPSM_RSA1024_WPB_KEY*)
+                            info->wrapped_key_rsapub1024);
                 else {
                     WOLFSSL_MSG("wrapped public 1024 bits key is not set.");
                     return BAD_FUNC_ARG;
@@ -242,9 +243,9 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             }
             else {
                 if(info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1)
-                    ret = R_SCE_RSAES_PKCS2048_Encrypt(&plain, &cipher,
-                            (sce_rsa2048_public_wrapped_key_t*)
-                                info->sce_wrapped_key_rsapub2048);
+                    ret = FSPSM_RSA2048_PKCSENC_FUNC(&plain, &cipher,
+                            (FSPSM_RSA2048_WPB_KEY*)
+                                info->wrapped_key_rsapub2048);
                 else {
                     WOLFSSL_MSG("wrapped public 2048 bits key is not set.");
                     return BAD_FUNC_ARG;
@@ -259,9 +260,9 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             
             if (keySize == 1024) {
                 if(info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1)
-                    ret = R_SCE_RSAES_PKCS1024_Decrypt(&cipher, &plain,
-                            (sce_rsa1024_private_wrapped_key_t*)
-                                info->sce_wrapped_key_rsapri1024);
+                    ret = FSPSM_RSA1024_PKCSDEC_FUNC(&cipher, &plain,
+                            (FSPSM_RSA1024_WPI_KEY*)
+                                info->wrapped_key_rsapri1024);
                 else {
                     WOLFSSL_MSG("wrapped private 2048 bits key is not set.");
                     return BAD_FUNC_ARG;
@@ -269,9 +270,9 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             }
             else {
                 if(info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1)
-                    ret = R_SCE_RSAES_PKCS2048_Decrypt(&cipher, &plain,
-                            (sce_rsa2048_private_wrapped_key_t*)
-                                info->sce_wrapped_key_rsapri2048);
+                    ret = FSPSM_RSA2048_PKCSDEC_FUNC(&cipher, &plain,
+                            (FSPSM_RSA2048_WPI_KEY*)
+                                info->wrapped_key_rsapri2048);
                 else {
                     WOLFSSL_MSG("wrapped private 2048 bits key is not set.");
                     return BAD_FUNC_ARG;
@@ -279,7 +280,7 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
             }
         }
         
-        wc_sce_hw_unlock();
+        wc_fspsm_hw_unlock();
     }
     return ret;
 }
@@ -296,14 +297,14 @@ WOLFSSL_LOCAL int wc_sce_RsaFunction(const byte* in, word32 inLen, byte* out,
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
  
-WOLFSSL_LOCAL int wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
                     word32* outLen, struct RsaKey* key, void* ctx)
 {
     int ret;
     
-    sce_rsa_byte_data_t message_hash;
-    sce_rsa_byte_data_t signature;
-    User_SCEPKCbInfo    *info = (User_SCEPKCbInfo*)ctx;
+    FSPSM_RSA_DATA message_hash;
+    FSPSM_RSA_DATA signature;
+    FSPSM_ST    *info = (FSPSM_ST*)ctx;
     int keySize;
     
     (void) key;
@@ -334,25 +335,25 @@ WOLFSSL_LOCAL int wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
     signature.pdata = out;
     signature.data_length = outLen;
     
-    if ((ret = wc_sce_hw_lock()) == 0) {
+    if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (keySize == 1024) {
             
-            ret = R_SCE_RSASSA_PKCS1024_SignatureGenerate(&message_hash, 
+            ret = FSPSM_RSA1024_SIGN_FUNC(&message_hash, 
                         &signature,
-                        (sce_rsa1024_private_wrapped_key_t *)
-                                    info->sce_wrapped_key_rsapri1024,
+                        (FSPSM_RSA1024_WPI_KEY *)
+                                    info->wrapped_key_rsapri1024,
                         HW_SCE_RSA_HASH_SHA256);
         }
         else {
             
-            ret = R_SCE_RSASSA_PKCS2048_SignatureGenerate(&message_hash, 
+            ret = FSPSM_RSA2048_SIGN_FUNC(&message_hash, 
                         &signature,
-                        (sce_rsa2048_private_wrapped_key_t *)
-                                    info->sce_wrapped_key_rsapri2048,
+                        (FSPSM_RSA2048_WPI_KEY *)
+                                    info->wrapped_key_rsapri2048,
                         HW_SCE_RSA_HASH_SHA256);
         }
         
-        wc_sce_hw_unlock();
+        wc_fspsm_hw_unlock();
     }
     
     return ret;
@@ -370,14 +371,14 @@ WOLFSSL_LOCAL int wc_sce_RsaSign(const byte* in, word32 inLen, byte* out,
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
  
-WOLFSSL_LOCAL int wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
+WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
                     word32* outLen,struct RsaKey* key, void* ctx)
 {
     int ret;
     
-    sce_rsa_byte_data_t message_hash;
-    sce_rsa_byte_data_t signature;
-    User_SCEPKCbInfo    *info = (User_SCEPKCbInfo*)ctx;
+    FSPSM_RSA_DATA message_hash;
+    FSPSM_RSA_DATA signature;
+    FSPSM_ST    *info = (FSPSM_ST*)ctx;
     int keySize;
     
     (void) key;
@@ -410,28 +411,28 @@ WOLFSSL_LOCAL int wc_sce_RsaVerify(const byte* in, word32 inLen, byte* out,
     signature.pdata = out;
     signature.data_length = outLen;
     
-    if ((ret = wc_sce_hw_lock()) == 0) {
+    if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (keySize == 1024) {
             
-            ret = R_SCE_RSASSA_PKCS1024_SignatureVerify(&signature,
+            ret = FSPSM_RSA1024_VRY_FUNC(&signature,
                   &message_hash,
-                  (sce_rsa1024_public_wrapped_key_t *)
-                        info->sce_wrapped_key_rsapub1024,
+                  (FSPSM_RSA1024_WPB_KEY *)
+                        info->wrapped_key_rsapub1024,
                   HW_SCE_RSA_HASH_SHA256);
         }
         else {
             
-                ret = R_SCE_RSASSA_PKCS2048_SignatureVerify(&signature, 
+                ret = FSPSM_RSA2048_VRY_FUNC(&signature, 
                     &message_hash,
-                    (sce_rsa2048_public_wrapped_key_t *)
-                         info->sce_wrapped_key_rsapub2048,
+                    (FSPSM_RSA2048_WPB_KEY *)
+                         info->wrapped_key_rsapub2048,
                     HW_SCE_RSA_HASH_SHA256 );
         }
         
-        wc_sce_hw_unlock();
+        wc_fspsm_hw_unlock();
     }
     
     return ret;
 }
 
-#endif /* !NO_RSA && WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
+#endif /* !NO_RSA && WOLFSSL_RENESAS_FSPSM_CRYPTONLY */
