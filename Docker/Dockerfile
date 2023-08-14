@@ -35,5 +35,7 @@ RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main http://
 
 # Allow non-root to use tcpdump (will need NET_RAW and NET_ADMIN capability when running the container)
 RUN setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/tcpdump
+# Allow non-root to use gdb on processes (will need SYS_PTRACE capability when running the container)
+RUN setcap 'CAP_SYS_PTRACE+eip' /usr/bin/gdb
 
 USER ${UID}:${GID}
