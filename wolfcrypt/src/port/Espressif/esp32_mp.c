@@ -352,7 +352,6 @@ static int esp_mp_hw_unlock( void )
 static int esp_calc_Mdash(MATH_INT_T *M, word32 k, mp_digit* md)
 {
     int ret = MP_OKAY;
-    ESP_LOGV(TAG, "\nBegin esp_calc_Mdash \n");
 
 #ifdef USE_ALT_MPRIME
     /* M' = M^(-1) mod b; b = 2^32 */
@@ -369,6 +368,9 @@ static int esp_calc_Mdash(MATH_INT_T *M, word32 k, mp_digit* md)
     MATH_INT_T P[1] = { };
     MATH_INT_T Y[1] = { };
     word32 Xs;
+
+    ESP_LOGV(TAG, "\nBegin esp_calc_Mdash USE_ALT_MPRIME\n");
+
     mp_init(X);
     mp_init(P);
     mp_init(Y);
@@ -399,6 +401,7 @@ static int esp_calc_Mdash(MATH_INT_T *M, word32 k, mp_digit* md)
     int bi;
     word32  N = 0;
     word32  x;
+    ESP_LOGV(TAG, "\nBegin esp_calc_Mdash\n");
 
     N = M->dp[0];
     bi = b0;
@@ -760,6 +763,13 @@ int esp_hw_validation_active(void)
 int esp_show_mph(struct esp_mp_helper* mph)
 {
     int ret = MP_OKAY;
+
+    if (mph == NULL) {
+        /* if a bad mp helper passed, we cannot use HW */
+        ESP_LOGE(TAG, "ERROR: Bad esp_mp_helper for esp_show_mph");
+        return MP_VAL;
+    }
+
     if (mph->Xs != 0)
         ESP_LOGI(TAG, "Xs %d", mph->Xs);
     if (mph->Ys != 0)
@@ -794,6 +804,17 @@ int esp_mp_montgomery_init(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M,
 {
     int ret = MP_OKAY;
     int exp;
+
+    if (mph == NULL) {
+        /* if a bad mp helper passed, we cannot use HW */
+        ESP_LOGE(TAG, "ERROR: Bad esp_mp_helper, falling back to SW");
+        return MP_HW_FALLBACK;
+    }
+    if ((X == NULL) || (Y == NULL) || (M == NULL) ) {
+        /* if a bad oprand passed, we cannot use HW */
+        ESP_LOGE(TAG, "ERROR: Bad montgomery operand, falling back to SW");
+        return MP_HW_FALLBACK;
+    }
     XMEMSET(mph, 0, sizeof(struct esp_mp_helper));
     mph->Xs = mp_count_bits(X); /* X's = the number of bits needed */
 

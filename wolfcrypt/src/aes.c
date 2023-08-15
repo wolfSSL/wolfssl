@@ -680,7 +680,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
 
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
-    #if  defined(CONFIG_IDF_TARGET_ESP32S3)
+    #if defined(CONFIG_IDF_TARGET_ESP32S3)
         #ifndef NO_AES_192
             #define NEED_AES_TABLES
             #define NEED_AES_HW_FALLBACK
