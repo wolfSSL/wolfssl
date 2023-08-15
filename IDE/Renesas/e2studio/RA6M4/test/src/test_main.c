@@ -406,8 +406,8 @@ void sce_test(void)
         info[i].ctx = client_ctx;
         info[i].id = i;
 
-        memset(info[i].name, 0, sizeof(info[i].name));
-        sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
+        XMEMSET(info[i].name, 0, sizeof(info[i].name));
+        XSPRINTF(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
 
         if(wolfSSL_TLS_client_do(&info[i]) == -116) {
             TCP_connect_retry++;

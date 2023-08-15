@@ -196,17 +196,17 @@ int wolfSSL_TLS_client_do(void *pvParam)
        /* Set callback CTX */
         #if !defined(TLS_MULTITHREAD_TEST)
         
-        memset(&guser_PKCbInfo, 0, sizeof(FSPSM_ST));
+        XMEMSET(&guser_PKCbInfo, 0, sizeof(FSPSM_ST));
         guser_PKCbInfo.devId = 0;
         wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
         
         #else
         if (p->port - DEFAULT_PORT == 0) {
-           memset(&guser_PKCbInfo_taskA, 0, sizeof(FSPSM_ST));
+           XMEMSET(&guser_PKCbInfo_taskA, 0, sizeof(FSPSM_ST));
            wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskA);
         }
         else {
-           memset(&guser_PKCbInfo_taskB, 0, sizeof(FSPSM_ST));
+           XMEMSET(&guser_PKCbInfo_taskB, 0, sizeof(FSPSM_ST));
            wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskB);
         }
         #endif

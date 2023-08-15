@@ -26,8 +26,8 @@
     *    e.g. Certificate verification, Master Secret Generation
     *  WOLFSSL_RENESAS_SCEPROTECT enables specific code for SCE if needed
     */
-#   define WOLFSSL_RENESAS_FSPSM
-#   define WOLFSSL_RENESAS_FSPSM_TLS
+    #define WOLFSSL_RENESAS_FSPSM
+    #define WOLFSSL_RENESAS_FSPSM_TLS
 #endif
 
     /* XXX_CRYPTONLY definition enables FSP SM module for Crypto only use.
@@ -36,12 +36,12 @@
 /* #   define WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-#   undef  WOLFSSL_RENESAS_FSPSM_TLS
-#   define WOLFSSL_RENESAS_FSPSM_CRYPTONLY
+    #undef  WOLFSSL_RENESAS_FSPSM_TLS
+    #define WOLFSSL_RENESAS_FSPSM_CRYPTONLY
 
-#   if !defined(WOLFSSL_RENESAS_SCEPROTECT)
-#        define WOLFSSL_RENESAS_SCEPROTECT
-#   endif
+    #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+        #define WOLFSSL_RENESAS_SCEPROTECT
+    #endif
 #endif
 
 /* Operating Environment and Threading */
