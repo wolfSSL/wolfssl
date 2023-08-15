@@ -237,7 +237,7 @@ $ ./configure CFLAGS="-DWOLFSSL_STATIC_RSA"
 $ ./examples/server/server -b -i
 ```
 
-実行すると、下記のようなメッセージがRenesas Debug Virtual Consol に表示されます。
+実行すると、下記のようなメッセージがRenesas Debug Virtual Console に表示されます。
 
 ```
 cipher : ECDHE-RSA-AES128-GCM-SHA256
@@ -298,7 +298,7 @@ SSL curve name is SECP256R1
 hello wolfssl!
 ```
 
-Renesas Debug Virtual Consol に下記のように表示されていれば、ボード上の TLS サーバーとクライアント間でTLS通信が行われています。
+Renesas Debug Virtual Console に下記のように表示されていれば、ボード上の TLS サーバーとクライアント間でTLS通信が行われています。
 ```
 Received: hello wolfssl!
 ```

@@ -321,43 +321,6 @@ function(generate_lib_src_list LIB_SOURCES)
 
     # Corresponds to src/include.am
     if(BUILD_FIPS)
-         if(BUILD_FIPS_V1)
-              # fips first  file
-              list(APPEND LIB_SOURCES ctaocrypt/src/wolfcrypt_first.c)
-
-              list(APPEND LIB_SOURCES
-                   ctaocrypt/src/hmac.c
-                   ctaocrypt/src/random.c
-                   ctaocrypt/src/sha256.c)
-
-              if(BUILD_RSA)
-                   list(APPEND LIB_SOURCES ctaocrypt/src/rsa.c)
-              endif()
-
-              if(BUILD_AES)
-                   list(APPEND LIB_SOURCES ctaocrypt/src/aes.c)
-              endif()
-
-              if(BUILD_DES3)
-                   list(APPEND LIB_SOURCES ctaocrypt/src/des3.c)
-              endif()
-
-              if(BUILD_SHA)
-                   list(APPEND LIB_SOURCES ctaocrypt/src/sha.c)
-              endif()
-
-              if(BUILD_SHA512)
-                   list(APPEND LIB_SOURCES ctaocrypt/src/sha512.c)
-              endif()
-
-              list(APPEND LIB_SOURCES
-                ctaocrypt/src/fips.c
-                ctaocrypt/src/fips_test.c)
-
-              # fips last file
-              list(APPEND LIB_SOURCES ctaocrypt/src/wolfcrypt_last.c)
-         endif()
-
          if(BUILD_FIPS_V2)
               # FIPSv2 first file
               list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_first.c)

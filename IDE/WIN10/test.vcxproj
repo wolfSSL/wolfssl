@@ -208,7 +208,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_FIPS;HAVE_FIPS_VERSION=5;HAVE_FIPS_VERSION_MINOR=1;USE_CERT_BUFFERS_2048;USE_CERT_BUFFERS_256;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_FIPS;HAVE_FIPS_VERSION=5;HAVE_FIPS_VERSION_MINOR=1;USE_CERT_BUFFERS_2048;USE_CERT_BUFFERS_256;WOLFSSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />

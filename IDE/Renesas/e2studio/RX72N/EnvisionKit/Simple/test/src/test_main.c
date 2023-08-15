@@ -27,7 +27,7 @@
 #include "wolfssl/wolfcrypt/types.h"
 
 #if defined(SIMPLE_TCP_CLIENT) || defined(SIMPLE_TLS_CLIENT) || \
-	defined(SIMPLE_TLS_TSIP_CLIENT)
+    defined(SIMPLE_TLS_TSIP_CLIENT)
  #define SIMPLE_CLIENT
 #endif
 
@@ -251,7 +251,7 @@ void main(void)
     printf("End wolfCrypt Benchmark\n");
 #endif
 #elif defined(SIMPLE_TCP_CLIENT) || defined(SIMPLE_TLS_CLIENT) || \
-	  defined(SIMPLE_TLS_TSIP_CLIENT)
+      defined(SIMPLE_TLS_TSIP_CLIENT)
     #include "r_cmt_rx_if.h"
 
     Open_tcp();
@@ -265,7 +265,7 @@ void main(void)
         #if defined(SIMPLE_TCP_CLIENT)
             simple_tcp_client();
         #elif defined(SIMPLE_TLS_CLIENT) || defined(SIMPLE_TLS_TSIP_CLIENT)
-		   if(cipherlist_sz > 0 ) printf("cipher : %s\n", cipherlist[i]);
+            if(cipherlist_sz > 0 ) printf("cipher : %s\n", cipherlist[i]);
 
            wolfSSL_TLS_client_init(cipherlist[i]);
            wolfSSL_TLS_client();
@@ -287,6 +287,23 @@ void main(void)
     wolfSSL_TLS_server();
 #endif
     Close_tcp();
+#elif defined(TSIP_CRYPT_UNIT_TEST)
+    if ((ret = wolfCrypt_Init()) != 0) {
+        printf("wolfCrypt_Init failed %d\n", ret);
+    }
+
+    printf("Start wolf tsip crypt Test\n");
+
+    printf(" \n");
+    printf(" simple crypt test by using TSIP\n");
+    tsip_crypt_test();
+
+    printf(" \n");
+    printf("End wolf tsip crypt Test\n");
+
+    if ((ret = wolfCrypt_Cleanup()) != 0) {
+        printf("wolfCrypt_Cleanup failed %d\n", ret);
+    }
 #endif
 }
 

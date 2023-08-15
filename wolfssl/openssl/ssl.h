@@ -29,6 +29,8 @@
 #ifndef WOLFSSL_OPENSSL_H_
 #define WOLFSSL_OPENSSL_H_
 
+#include <wolfssl/wolfcrypt/types.h>
+
 /* wolfssl_openssl compatibility layer */
 #ifndef OPENSSL_EXTRA_SSL_GUARD
 #define OPENSSL_EXTRA_SSL_GUARD
@@ -1103,16 +1105,16 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define PEM_do_header                   wolfSSL_PEM_do_header
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
-#define CONF_modules_free()
-#define ENGINE_cleanup()
+#define CONF_modules_free()             WC_DO_NOTHING
+#define ENGINE_cleanup()                WC_DO_NOTHING
 #define SSL_CTX_need_tmp_RSA(ctx)       0
 #define SSL_CTX_set_tmp_rsa(ctx,rsa)    1
 #define SSL_need_tmp_RSA(ssl)           0
 #define SSL_set_tmp_rsa(ssl,rsa)        1
 /*#endif*/
 
-#define CONF_modules_unload(a)
-#define CONF_get1_default_config_file wolfSSL_CONF_get1_default_config_file
+#define CONF_modules_unload(a)          WC_DO_NOTHING
+#define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 
 #define SSL_get_hit                     wolfSSL_session_reused
 
@@ -1656,8 +1658,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-#define OBJ_create_objects(...)
-#define sk_SSL_COMP_free(...)
+#define OBJ_create_objects(...)         WC_DO_NOTHING
+#define sk_SSL_COMP_free(...)           WC_DO_NOTHING
 #endif
 
 #define OBJ_dup                         wolfSSL_ASN1_OBJECT_dup

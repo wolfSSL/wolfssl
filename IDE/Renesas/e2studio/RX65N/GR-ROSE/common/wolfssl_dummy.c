@@ -21,7 +21,7 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 
-#define YEAR 2022
+#define YEAR 2023
 #define MON  6
 
 static int tick = 0;
@@ -40,3 +40,12 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
         return 1;
     return 0;
 }
+
+#if !defined(WOLFSSL_RENESAS_TSIP)
+/* dummy return true when char is alphanumeric character */
+int isascii(const char *s)
+{
+    return isalnum(s);
+}
+#endif
+

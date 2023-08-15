@@ -78,7 +78,7 @@ static void doBenchmark(void* params)
         wolfCrypt_Cleanup();
     }
     else {
-    	PRINTF("Failied to initialize wolfCrypt\r\n");
+    	PRINTF("Failed to initialize wolfCrypt\r\n");
     }
 }
 

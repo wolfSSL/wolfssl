@@ -45,12 +45,6 @@ that can be serialized and deserialized in a cross-platform way.
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
-/* fips declare of RsaPrivateKeyDecode @wc_fips */
-#if defined(HAVE_FIPS) && !defined(NO_RSA) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #include <cyassl/ctaocrypt/rsa.h>
-#endif
-
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
@@ -142,6 +136,7 @@ enum ASN_Tags {
     ASN_DIR_TYPE          = 0x04,
     ASN_URI_TYPE          = 0x06, /* the value 6 is from GeneralName OID */
     ASN_IP_TYPE           = 0x07, /* the value 7 is from GeneralName OID */
+    ASN_RID_TYPE          = 0x08,
 
     /* PKCS #7 types */
     ASN_ENC_CONTENT       = 0x00,
@@ -710,8 +705,10 @@ enum DN_Tags {
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
 
-    ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
-    ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
+
+    ASN_CONTENT_TYPE  = 0x97, /* not actual OID (see attrPkcs9ContentTypeOid) */
+    ASN_EMAIL_NAME    = 0x98, /* not actual OID (see attrEmailOid) */
+    ASN_CUSTOM_NAME   = 0x99, /* not actual OID (see CertOidField) */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
@@ -768,6 +765,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_USER_ID          "/UID="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
+#define WOLFSSL_CONTENT_TYPE     "/contentType="
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
@@ -899,6 +897,9 @@ enum ECC_TYPES
         #endif
     #endif
 #endif
+
+/* Maximum OID dotted form size. */
+#define ASN1_OID_DOTTED_MAX_SZ         16
 
 enum Misc_ASN {
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
@@ -1366,6 +1367,10 @@ struct DNS_entry {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     char*      ipString; /* human readable form of IP address */
 #endif
+#if defined(OPENSSL_ALL)
+    char*      ridString; /* human readable form of registeredID */
+#endif
+
 #ifdef WOLFSSL_FPKI
     int        oidSum; /* provide oid sum for verification */
 #endif
@@ -2186,10 +2191,13 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                          word32 maxIdx);
 
 #ifdef HAVE_OID_ENCODING
+    WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
+        byte* out, word32* outSz);
     WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
+    defined(OPENSSL_ALL)
     WOLFSSL_LOCAL int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
 #endif

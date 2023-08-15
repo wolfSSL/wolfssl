@@ -19,6 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * Some common, optional build settings:
+ * these can also be set in wolfssl/options.h or user_settings.h
+ * -------------------------------------------------------------
+ *
+ * set the default devId for cryptocb to the value instead of INVALID_DEVID
+ * WC_USE_DEVID=0x1234
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -86,7 +95,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();              \
     }
 #else
-#define PRINT_HEAP_CHECKPOINT()
+#define PRINT_HEAP_CHECKPOINT() WC_DO_NOTHING
 #endif /* WOLFSSL_TRACK_MEMORY_VERBOSE && !WOLFSSL_STATIC_MEMORY */
 
 #ifdef USE_FLAT_TEST_H
@@ -407,7 +416,11 @@ static void initDefaultName(void);
 #ifdef WOLFSSL_CAAM_DEVID
 static int devId = WOLFSSL_CAAM_DEVID;
 #else
+  #ifdef WC_USE_DEVID
+static int devId = WC_USE_DEVID;
+  #else
 static int devId = INVALID_DEVID;
+  #endif
 #endif
 
 #ifdef HAVE_WNR
@@ -820,7 +833,7 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
-#define TEST_SLEEP()
+#define TEST_SLEEP() WC_DO_NOTHING
 #else
     #define TEST_PASS test_pass
     #include <stdarg.h> /* for var args */
@@ -836,7 +849,7 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
     }
 #endif
 
-/* set test pass output to printf if not overriden */
+/* set test pass output to printf if not overridden */
 #ifndef TEST_PASS
     /* redirect to printf */
     #define TEST_PASS(...) {                                    \
@@ -879,6 +892,10 @@ wc_test_ret_t wolfcrypt_test(void* args)
 
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+#ifdef WOLF_CRYPTO_CB
+    if (devId != INVALID_DEVID)
+        printf("  CryptoCB with DevID:%X\n", devId);
+#endif
     printf("------------------------------------------------------------------------------\n");
 
     if (args) {
@@ -6346,7 +6363,7 @@ static wc_test_ret_t rc2_cbc_test(void)
             return WC_TEST_RET_ENC_NC;
         }
 
-        /* reset IV for decrypt, since overriden by encrypt operation */
+        /* reset IV for decrypt, since overridden by encrypt operation */
         ret = wc_Rc2SetIV(&rc2, (byte*)test_rc2[j].iv);
         if (ret != 0) {
             return WC_TEST_RET_ENC_EC(ret);
@@ -15448,9 +15465,6 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(HAVE_FIPS) && \
-      (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    if (ret != 0)
 #else
     if (ret != RSA_BUFFER_E)
 #endif
@@ -22129,7 +22143,7 @@ static void show(const char *title, const char *p, unsigned int s) {
     printf("\n");
 }
 #else
-#define show(a,b,c)
+#define show(a,b,c) WC_DO_NOTHING
 #endif
 
 #define FOURK_BUFF 4096

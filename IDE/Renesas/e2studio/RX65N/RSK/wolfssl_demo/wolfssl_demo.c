@@ -294,22 +294,22 @@ static void Tls_client()
 
     /* TSIP specific ECC private key */
     if (ret == 0){
-        ret = tsip_use_PrivateKey_buffer(ssl,
+        ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_private_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_private_key),
                 TSIP_ECCP256);
         if (ret != 0) {
-            printf("ERROR tsip_use_PrivateKey_buffer\n");
+            printf("ERROR tsip_use_PrivateKey_buffer_TLS\n");
         }
     }
     # if defined(WOLFSSL_CHECK_SIG_FAULTS)
     if (ret == 0){
-        ret = tsip_use_PublicKey_buffer(ssl,
+        ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_public_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_public_key),
                 TSIP_ECCP256);
         if (ret != 0) {
-            printf("ERROR tsip_use_PublicKey_buffer\n");
+            printf("ERROR tsip_use_PublicKey_buffer_TLS\n");
         }
     }
     #endif /* WOLFSSL_CHECK_SIG_FAULTS */
@@ -339,21 +339,21 @@ static void Tls_client()
 
     /* TSIP specific RSA private key */
     if (ret == 0) {
-        ret = tsip_use_PrivateKey_buffer(ssl,
+        ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                (const char*)g_key_block_data.encrypted_user_rsa2048_private_key,
                sizeof(g_key_block_data.encrypted_user_rsa2048_private_key),
                                                         TSIP_RSA2048);
         if (ret != 0) {
-            printf("ERROR tsip_use_PrivateKey_buffer :%d\n", ret);
+            printf("ERROR tsip_use_PrivateKey_buffer_TLS :%d\n", ret);
         }
     }
     if (ret == 0) {
-        ret = tsip_use_PublicKey_buffer(ssl,
+        ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_rsa2048_public_key,
                 sizeof(g_key_block_data.encrypted_user_rsa2048_public_key),
                                                         TSIP_RSA2048);
         if (ret != 0) {
-            printf("ERROR tsip_use_PublicKey_buffer: %d\n", ret);
+            printf("ERROR tsip_use_PublicKey_buffer_TLS: %d\n", ret);
         }
     }
 

@@ -301,7 +301,7 @@ static struct {
     "",  NULL
 } ;
 
-enum jobtype { FORGROUND, BACKGROUND }  ;
+enum jobtype { FOREGROUND, BACKGROUND }  ;
 
 #define IF_DELIMITER(ch) ((ch) == ' ' || (ch) == '\n')
 
@@ -326,7 +326,7 @@ static int getline(char * line, int sz, func_args *args, int*bf_flg)
         (*bf_flg) = BACKGROUND ;
         line[strlen(line)-2] = '\n' ;
     } else {
-        (*bf_flg) = FORGROUND ;
+        (*bf_flg) = FOREGROUND ;
     }
     args->argc = 0 ;
     for(i=0; i<sz; i++) {
@@ -542,7 +542,7 @@ void shell_main(void) {
         for(i=0; commandTable[i].func != NULL; i++) {
             if(strcmp(commandTable[i].command, args.argv[0]) == 0) {
             args.argv[0] = (char *) commandTable[i].func ;
-                if(bf_flg == FORGROUND) {
+                if(bf_flg == FOREGROUND) {
                     #ifdef  HAVE_KEIL_RTX
                     wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,

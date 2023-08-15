@@ -345,7 +345,6 @@ AS_CASE([$ENABLED_WOLFENGINE],
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
-        ENABLED_FIPS="no"
     ],
     [disabled],[
         FIPS_VERSION="disabled"
@@ -418,16 +417,11 @@ fi
 AS_CASE([$FIPS_VERSION],
     [none],
     [
-      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
+      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c ],
             [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
     ],
     [disabled],
     [],
-    [v1],
-    [
-      AS_IF([ ! test -s $srcdir/ctaocrypt/src/fips.c],
-            [AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])])
-    ],
     [
       AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
             [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])
@@ -665,7 +659,7 @@ fi
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
 then
-    # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
+    # turn off fastmath if leanpsk on or asn off (w/o DH and ECC)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
     then
         if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
@@ -767,7 +761,6 @@ then
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
-    test "$enable_nullcipher" = "" && enable_nullcipher=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
@@ -781,7 +774,6 @@ then
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
-    test "$enable_mcast" = "" && enable_mcast=yes
     test "$enable_webserver" = "" && enable_webserver=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
@@ -842,6 +834,8 @@ then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        test "$enable_nullcipher" = "" && enable_nullcipher=yes
+        test "$enable_mcast" = "" && enable_mcast=yes
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -953,7 +947,6 @@ then
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
-    test "$enable_nullcipher" = "" && enable_nullcipher=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
@@ -986,6 +979,7 @@ then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        test "$enable_nullcipher" = "" && enable_nullcipher=yes
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -2420,7 +2414,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-gcm],
-    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: disabled)])],
     [ ENABLED_SM4_GCM=$enableval ],
     [ ENABLED_SM4_GCM=no ]
     )
@@ -2436,7 +2430,7 @@ then
 fi
 
 AC_ARG_ENABLE([sm4-ccm],
-    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: enabled)])],
+    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: disabled)])],
     [ ENABLED_SM4_CCM=$enableval ],
     [ ENABLED_SM4_CCM=no ]
     )
@@ -2733,6 +2727,7 @@ then
             esac
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
+        AS_IF([test "x$ENABLED_SM3" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SM3"])
     fi
 
     if test "$ENABLED_INTELASM" = "yes"
@@ -3460,6 +3455,10 @@ AC_ARG_ENABLE([sm2],
     [ ENABLED_SM2=no ]
     )
 
+if test "$ENABLED_SP_MATH" = "yes"
+then
+    ENABLED_SM2="no"
+fi
 if test "$ENABLED_SM2" = "yes"
 then
     if test "$ENABLED_ECC" = "no"
@@ -3521,7 +3520,7 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes"
+if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
 then
     ENABLED_COMPKEY=yes
 fi
@@ -4818,7 +4817,8 @@ AS_CASE([$FIPS_VERSION],
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno" && test "$ENABLE_LINUXKM" = "no"],
     [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
 
-
+AS_IF([(test "$ENABLED_NULL_CIPHER" = "yes" || test "$ENABLED_LEANPSK" = "yes") && test "$ENABLED_FIPS" != "no" && test "$FIPS_VERSION" != "dev"],
+    [AC_MSG_ERROR([FIPS is incompatible with nullcipher])])
 
 # SELFTEST
 AC_ARG_ENABLE([selftest],
@@ -5672,6 +5672,9 @@ then
         ENABLED_AESCFB="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
     fi
+
+    # Requires public mp_
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
 fi
 
 if test "x$ENABLED_SMIME" = "xyes"
@@ -8168,6 +8171,9 @@ then
 
     # Uses alt name
     ENABLED_ALTNAMES="yes"
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
+
 fi
 
 if test "$ENABLED_STRONGSWAN" = "yes"; then
@@ -8405,18 +8411,13 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
-  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS"
-  AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AKID_NAME -DHAVE_CTS"
+  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
 then
   AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
   AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB"
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OPENSSL_RAND_CB"
 fi
 
 if test "$ENABLED_WOLFSCEP" = "yes"
@@ -9007,7 +9008,6 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile
         wolfssl/version.h
         wolfssl/options.h
-        cyassl/options.h
         support/wolfssl.pc
         rpm/spec
         wolfcrypt/test/test_paths.h
@@ -9150,28 +9150,6 @@ echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
-
-#backwards compatibility for those who have included options or version
-touch cyassl/options.h
-echo "/* cyassl options.h" > cyassl/options.h
-echo " * generated from wolfssl/options.h" >> cyassl/options.h
-echo " */" >> cyassl/options.h
-
-while read -r line
-do
-    echo "$line" >> cyassl/options.h
-done < $OPTION_FILE
-
-# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
-sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
-
-# workaround for mingw sed that may get "Permission denied" trying to preserve permissions
-case $host_os in
-    mingw*)
-        chmod u+w cyassl/options.h ;;
-esac
-
-rm cyassl/options.h.bak
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
@@ -9341,6 +9319,7 @@ echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * FPECC:                      $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
 echo "   * Brainpool:                  $ENABLED_BRAINPOOL"
+echo "   * SM2:                        $ENABLED_SM2"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * ED25519 streaming:          $ENABLED_ED25519_STREAM"

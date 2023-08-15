@@ -40,6 +40,8 @@ Or
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 #include <wolfssl/test.h>
@@ -60,14 +62,15 @@ Or
 #include <sys/time.h>
 #include <errno.h>
 
-/* For testing no pthread support */
+/* For testing no threading support */
 #if 0
     #undef HAVE_PTHREAD
+    #define SINGLE_THREADED
 #endif
 
 /* PTHREAD requires server and client enabled */
 #if defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER)
-    #if defined(HAVE_PTHREAD)
+    #if !defined(SINGLE_THREADED)
         #ifdef __GNUC__  /* GCC compiler */
             #pragma message "PTHREAD requires server and client enabled."
         #elif defined(_MSC_VER) /* Microsoft Visual C++ compiler */
@@ -75,19 +78,15 @@ Or
         #else
             #warning "PTHREAD requires server and client enabled."
         #endif
-        #undef HAVE_PTHREAD
+        #define SINGLE_THREADED
     #endif
 #endif
 /* Conversely, if both server and client are enabled, we must require pthreads */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(HAVE_PTHREAD)
-    #error "pthreads must be enabled if building benchmark suite \
+    && defined(SINGLE_THREADED)
+    #error "threads must be enabled if building benchmark suite \
 to run both client and server. Please define HAVE_PTHREAD if your \
 platform supports it"
-#endif
-
-#ifdef HAVE_PTHREAD
-    #include <pthread.h>
 #endif
 
 #if 0
@@ -300,7 +299,7 @@ static struct group_info groups[] = {
 };
 #endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
 typedef struct {
     unsigned char buf[MEM_BUFFER_SZ];
     int write_bytes;
@@ -308,9 +307,7 @@ typedef struct {
     int read_bytes;
     int read_idx;
 
-    pthread_t tid;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    COND_TYPE cond;
 
     int done;
 } memBuf_t;
@@ -348,17 +345,17 @@ typedef struct {
     int doDTLS;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     int serverReady;
     int clientOrserverOnly;
-    pthread_mutex_t dtls_mutex;
-    pthread_cond_t dtls_cond;
+    wolfSSL_Mutex dtls_mutex;
+    COND_TYPE dtls_cond;
 #endif
 #endif
     side_t client;
     side_t server;
 
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     int useLocalMem;
 
     /* client messages to server in memory */
@@ -396,16 +393,16 @@ static double gettime_secs(int reset)
 }
 
 
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
 /* server send callback */
 static int ServerMemSend(info_t* info, char* buf, int sz)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
         fprintf(stderr, "ServerMemSend overflow\n");
         return -1;
     }
@@ -419,8 +416,8 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
 
-    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_client.cond));
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -433,13 +430,12 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
 /* server recv callback */
 static int ServerMemRecv(info_t* info, char* buf, int sz)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz &&
             !info->to_client.done) {
-        PTHREAD_CHECK_RET(pthread_cond_wait(&info->to_server.cond,
-                                            &info->to_server.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_server.cond));
     }
 #else
     if (info->to_server.write_idx - info->to_server.read_idx < sz) {
@@ -457,7 +453,7 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
         info->to_server.write_bytes = info->to_server.write_idx = 0;
     }
 
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
     if (info->to_client.done != 0) {
         return -1;
@@ -474,14 +470,14 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
 /* client send callback */
 static int ClientMemSend(info_t* info, char* buf, int sz)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_server.write_idx + sz > MEM_BUFFER_SZ) {
         fprintf(stderr, "ClientMemSend overflow %d %d %d\n",
             info->to_server.write_idx, sz, MEM_BUFFER_SZ);
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
         return -1;
     }
 #else
@@ -494,8 +490,8 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
 
-    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_server.cond));
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -508,13 +504,12 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
 /* client recv callback */
 static int ClientMemRecv(info_t* info, char* buf, int sz)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz &&
             !info->to_server.done) {
-        PTHREAD_CHECK_RET(pthread_cond_wait(&info->to_client.cond,
-                                            &info->to_client.mutex));
+        THREAD_CHECK_RET(wolfSSL_CondWait(&info->to_client.cond));
     }
 #else
     if (info->to_client.write_idx - info->to_client.read_idx < sz) {
@@ -532,7 +527,7 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
         info->to_client.write_bytes = info->to_client.write_idx = 0;
     }
 
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
     if (info->to_server.done != 0) {
         return -1;
@@ -545,7 +540,7 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
 #endif
     return sz;
 }
-#endif /* HAVE_PTHREAD */
+#endif /* !SINGLE_THREADED */
 
 static int SocketRecv(int sockFd, char* buf, int sz)
 {
@@ -701,7 +696,7 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     info_t* info = (info_t*)ctx;
     (void)ssl;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     if (info->useLocalMem) {
         return ServerMemSend(info, buf, sz);
     }
@@ -721,7 +716,7 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     info_t* info = (info_t*)ctx;
     (void)ssl;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     if (info->useLocalMem) {
         return ServerMemRecv(info, buf, sz);
     }
@@ -743,7 +738,7 @@ static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     info_t* info = (info_t*)ctx;
     (void)ssl;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     if (info->useLocalMem) {
         return ClientMemSend(info, buf, sz);
     }
@@ -763,7 +758,7 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     info_t* info = (info_t*)ctx;
     (void)ssl;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     if (info->useLocalMem) {
         return ClientMemRecv(info, buf, sz);
     }
@@ -852,7 +847,7 @@ static int SetupSocketAndConnect(info_t* info, const char* host,
         }
 
         /* Connect to the server */
-    #ifdef HAVE_PTHREAD
+    #ifndef SINGLE_THREADED
         while ((info->serverListening == 0) && (info->server.shutdown == 0)) {
             if (info->showVerbose) {
                 fprintf(stderr, "Waiting for server to listen...\n");
@@ -1008,7 +1003,7 @@ static int bench_tls_client(info_t* info)
         int err;
     #endif
 
-    #ifdef HAVE_PTHREAD
+    #ifndef SINGLE_THREADED
         if (!info->useLocalMem)
     #endif
         {
@@ -1051,17 +1046,16 @@ static int bench_tls_client(info_t* info)
         wolfSSL_SetIOReadCtx(cli_ssl, info);
         wolfSSL_SetIOWriteCtx(cli_ssl, info);
 
-#if defined(HAVE_PTHREAD) && defined(WOLFSSL_DTLS)
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_DTLS)
         /* synchronize with server */
         if (info->doDTLS && !info->clientOrserverOnly) {
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondStart(&info->dtls_cond));
             if (info->serverReady != 1) {
-                PTHREAD_CHECK_RET(pthread_cond_wait(&info->dtls_cond,
-                                                    &info->dtls_mutex));
+                THREAD_CHECK_RET(wolfSSL_CondWait(&info->dtls_cond));
             }
             /* for next loop */
             info->serverReady = 0;
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&info->dtls_cond));
         }
 #endif
         /* perform connect */
@@ -1195,21 +1189,23 @@ exit:
     return ret;
 }
 
-#ifdef HAVE_PTHREAD
-static void* client_thread(void* args)
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_THREAD_NO_JOIN)
+static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN client_thread(void* args)
 {
     int ret;
     info_t* info = (info_t*)args;
 
     ret = bench_tls_client(info);
 
-    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_server.cond));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_server.cond));
     info->to_client.done = 1;
     info->client.ret = ret;
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
-    return NULL;
+    WOLFSSL_RETURN_FROM_THREAD(NULL);
 }
-#endif /* HAVE_PTHREAD */
+#endif /* !SINGLE_THREADED */
 #endif /* !NO_WOLFSSL_CLIENT */
 
 
@@ -1289,12 +1285,12 @@ static int SocketWaitClient(info_t* info)
 #ifdef WOLFSSL_DTLS
     if (info->doDTLS) {
         char msg[64];
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
         if (!info->clientOrserverOnly) {
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondStart(&info->dtls_cond));
             info->serverReady = 1;
-            PTHREAD_CHECK_RET(pthread_cond_signal(&info->dtls_cond));
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->dtls_mutex));
+            THREAD_CHECK_RET(wolfSSL_CondSignal(&info->dtls_cond));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&info->dtls_cond));
         }
 #endif
         connd = (int)recvfrom(info->listenFd, (char *)msg, sizeof(msg),
@@ -1309,7 +1305,7 @@ static int SocketWaitClient(info_t* info)
     else
 #endif
     {
-    #ifdef HAVE_PTHREAD
+    #ifndef SINGLE_THREADED
         info->serverListening = 1;
     #endif
         if ((connd = accept(info->listenFd, (struct sockaddr*)&clientAddr,
@@ -1456,7 +1452,7 @@ static int bench_tls_server(info_t* info)
         int err;
     #endif
 
-    #ifdef HAVE_PTHREAD
+    #ifndef SINGLE_THREADED
         if (!info->useLocalMem)
     #endif
         {
@@ -1519,7 +1515,7 @@ static int bench_tls_server(info_t* info)
     #endif
         start = gettime_secs(0) - start;
         if (ret != WOLFSSL_SUCCESS) {
-        #ifdef HAVE_PTHREAD
+        #ifndef SINGLE_THREADED
             if (info->to_client.done) {
                 ret = 0; /* done - success */
             }
@@ -1567,7 +1563,7 @@ static int bench_tls_server(info_t* info)
 
             info->server_stats.rxTime += rxTime;
             if (ret < 0) {
-            #ifdef HAVE_PTHREAD
+            #ifndef SINGLE_THREADED
                 if (info->to_client.done) {
                     ret = 0; /* done - success */
                 }
@@ -1638,8 +1634,8 @@ exit:
     return ret;
 }
 
-#ifdef HAVE_PTHREAD
-static void* server_thread(void* args)
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_THREAD_NO_JOIN)
+static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN server_thread(void* args)
 {
     int ret = 0;
     info_t* info = (info_t*)args;
@@ -1661,13 +1657,15 @@ static void* server_thread(void* args)
         }
     }
 
-    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_client.cond));
+    THREAD_CHECK_RET(wolfSSL_CondStart(&info->to_client.cond));
     info->to_server.done = 1;
     info->server.ret = ret;
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
-    return NULL;
+    WOLFSSL_RETURN_FROM_THREAD(NULL);
 }
-#endif /* HAVE_PTHREAD */
+#endif /* !SINGLE_THREADED */
 #endif /* !NO_WOLFSSL_SERVER */
 
 
@@ -1739,7 +1737,7 @@ static void Usage(void)
 #ifdef DEBUG_WOLFSSL
     fprintf(stderr, "-d          Enable debug messages\n");
 #endif
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     fprintf(stderr, "-T <num>    Number of threaded server/client pairs (default %d)\n", NUM_THREAD_PAIRS);
     fprintf(stderr, "-m          Use local memory, not socket\n");
 #endif
@@ -1838,10 +1836,10 @@ int bench_tls(void* args)
     const char* argHost = BENCH_DEFAULT_HOST;
     int argPort = BENCH_DEFAULT_PORT;
     int argShowPeerInfo = 0;
-#ifdef HAVE_PTHREAD
+#ifndef SINGLE_THREADED
     int doShutdown;
 #endif
-#if !defined(NO_WOLFSSL_SERVER) || defined(HAVE_PTHREAD)
+#if !defined(NO_WOLFSSL_SERVER) || !defined(SINGLE_THREADED)
     int argLocalMem = 0;
     int listenFd = -1;
 #endif
@@ -1940,13 +1938,13 @@ int bench_tls(void* args)
                 break;
 
             case 'T' :
-            #ifdef HAVE_PTHREAD
+            #ifndef SINGLE_THREADED
                 argThreadPairs = atoi(myoptarg);
             #endif
                 break;
 
             case 'm':
-            #ifdef HAVE_PTHREAD
+            #ifndef SINGLE_THREADED
                 argLocalMem = 1;
             #endif
                 break;
@@ -1996,7 +1994,7 @@ int bench_tls(void* args)
     if (argServerOnly || argClientOnly) {
         argThreadPairs = 1;
     }
-#ifndef HAVE_PTHREAD
+#ifdef SINGLE_THREADED
     else {
         fprintf(stderr, "Threading is not enabled, so please use -s or -c to indicate side\n");
         Usage();
@@ -2102,7 +2100,7 @@ int bench_tls(void* args)
 
         #ifdef WOLFSSL_DTLS
                 info->doDTLS = doDTLS;
-        #ifdef HAVE_PTHREAD
+        #ifndef SINGLE_THREADED
                 info->serverReady = 0;
                 if (argServerOnly || argClientOnly) {
                     info->clientOrserverOnly = 1;
@@ -2110,7 +2108,7 @@ int bench_tls(void* args)
         #endif
         #endif
                 if (argClientOnly) {
-            #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_PTHREAD)
+            #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && !defined(SINGLE_THREADED)
                     /* to avoid to wait server forever */
                     info->serverListening = 1;
             #endif
@@ -2124,38 +2122,24 @@ int bench_tls(void* args)
             #endif
                 }
                 else {
-            #ifdef HAVE_PTHREAD
+            #if !defined(SINGLE_THREADED) && defined(WOLFSSL_THREAD_NO_JOIN)
                     info->useLocalMem = argLocalMem;
-                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->to_server.mutex,
-                                                         NULL));
-                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->to_client.mutex,
-                                                         NULL));
             #ifdef WOLFSSL_DTLS
-                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->dtls_mutex,
-                                                         NULL));
-                    PTHREAD_CHECK_RET(pthread_cond_init(&info->dtls_cond,
-                                                        NULL));
+                    THREAD_CHECK_RET(wc_InitMutex(&info->dtls_mutex));
+                    THREAD_CHECK_RET(wolfSSL_CondInit(&info->dtls_cond));
             #endif
-                    PTHREAD_CHECK_RET(pthread_cond_init(&info->to_server.cond,
-                                                        NULL));
-                    PTHREAD_CHECK_RET(pthread_cond_init(&info->to_client.cond,
-                                                        NULL));
+                    THREAD_CHECK_RET(wolfSSL_CondInit(&info->to_server.cond));
+                    THREAD_CHECK_RET(wolfSSL_CondInit(&info->to_client.cond));
 
-                    PTHREAD_CHECK_RET(
-                        pthread_create(&info->to_server.tid, NULL,
-                                       server_thread, info));
-                    PTHREAD_CHECK_RET(
-                        pthread_create(&info->to_client.tid, NULL,
-                                       client_thread, info));
-
-                    /* State that we won't be joining this thread */
-                    PTHREAD_CHECK_RET(pthread_detach(info->to_server.tid));
-                    PTHREAD_CHECK_RET(pthread_detach(info->to_client.tid));
+                    THREAD_CHECK_RET(
+                        wolfSSL_NewThreadNoJoin(server_thread, info));
+                    THREAD_CHECK_RET(
+                        wolfSSL_NewThreadNoJoin(client_thread, info));
             #endif
                 }
             }
 
-    #ifdef HAVE_PTHREAD
+    #ifndef SINGLE_THREADED
             /* For threading, wait for completion */
             if (!argClientOnly && !argServerOnly) {
                 /* Wait until threads are marked done */
@@ -2175,7 +2159,7 @@ int bench_tls(void* args)
                     fprintf(stderr, "Shutdown complete\n");
                 }
             }
-    #endif /* HAVE_PTHREAD */
+    #endif /* !SINGLE_THREADED */
 
             if (argShowVerbose) {
                 /* print results */

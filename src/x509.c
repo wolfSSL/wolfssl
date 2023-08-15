@@ -1192,7 +1192,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
                 /* Get extension data and copy as ASN1_STRING */
                 tmpIdx = idx + length;
-                if ((tmpIdx >= (word32)sz) || (input[tmpIdx++] != ASN_OCTET_STRING)) {
+                if ((tmpIdx >= (word32)sz) ||
+                    (input[tmpIdx] != ASN_OCTET_STRING))
+                {
                     WOLFSSL_MSG("Error decoding unknown extension data");
                     wolfSSL_ASN1_OBJECT_free(ext->obj);
                     wolfSSL_X509_EXTENSION_free(ext);
@@ -1202,6 +1204,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 #endif
                     return NULL;
                 }
+
+                tmpIdx++;
 
                 if (GetLength(input, &tmpIdx, &length, sz) <= 0) {
                     WOLFSSL_MSG("Error: Invalid Input Length.");
@@ -5866,11 +5870,21 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                 else if (entry->type == ASN_URI_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
                         entry->name);
+                     if (len >= MAX_WIDTH) {
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                }
+            #if defined(OPENSSL_ALL)
+                else if (entry->type == ASN_RID_TYPE) {
+                    len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
+                        entry->ridString);
                     if (len >= MAX_WIDTH) {
                         ret = WOLFSSL_FAILURE;
                         break;
                     }
                 }
+            #endif
                 else if (entry->type == ASN_OTHER_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH,
                         "othername <unsupported>");
@@ -10500,6 +10514,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_organizationName: return ASN_ORG_NAME;
         case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
         case NID_emailAddress: return ASN_EMAIL_NAME;
+        case NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
         case NID_serialNumber: return ASN_SERIAL_NUMBER;
         case NID_userId: return ASN_USER_ID;
         case NID_businessCategory: return ASN_BUS_CAT;
@@ -12630,6 +12645,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_domainComponent:
             str = "DC";
             len = 2;
+            break;
+        case NID_pkcs9_contentType:
+            str = "contentType";
+            len = 11;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");

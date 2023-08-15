@@ -134,8 +134,8 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 }
 
 int sdcard_close(MQX_FILE_PTR *sdcard_handle, MQX_FILE_PTR *partman_handle,
-		         MQX_FILE_PTR *filesystem_handle,
-		         char *partman_name, char *filesystem_name)
+                 MQX_FILE_PTR *filesystem_handle,
+                 char *partman_name, char *filesystem_name)
 {
 	_mqx_int	error_code;
 

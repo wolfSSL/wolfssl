@@ -802,13 +802,13 @@ static WC_INLINE void StackTrap(void)
 #define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
 #endif
 #ifndef STACK_SIZE_CHECKPOINT_MSG
-#define STACK_SIZE_CHECKPOINT_MSG(msg)
+#define STACK_SIZE_CHECKPOINT_MSG(msg) WC_DO_NOTHING
 #endif
 #ifndef STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK
 #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) (__VA_ARGS__, 0)
 #endif
 #ifndef STACK_SIZE_INIT
-#define STACK_SIZE_INIT()
+#define STACK_SIZE_INIT() WC_DO_NOTHING
 #endif
 
 #endif /* WOLFSSL_MEM_TRACK_H */

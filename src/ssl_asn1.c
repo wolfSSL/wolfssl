@@ -1139,7 +1139,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
  * @param [in]       len     Length of number in bytes.
  * @param [in, out]  neg     Indicates number is negative.
  * @param [out]      pad     Number of padding bytes required.
- * @param [out]      padVal  Padding byte to preprend.
+ * @param [out]      padVal  Padding byte to prepend.
  */
 static void wolfssl_asn1_integer_pad(unsigned char* data, int len,
     unsigned char* neg, char* pad, unsigned char* padVal)
@@ -2319,7 +2319,7 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *asn1)
  * Assumes length is greater than 0.
  *
  * @param [in] s  ASN.1 STRING object.
- * @return  Buffer cotaining string representation on success.
+ * @return  Buffer containing string representation on success.
  * @return  NULL when dynamic memory allocation fails.
  * @return  NULL when encoding a character as hex fails.
  */

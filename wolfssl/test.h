@@ -363,13 +363,13 @@ err_sys_with_errno(const char* msg)
         }                                                            \
     } while(0)
 
-#define PTHREAD_CHECK_RET(...) do {                                  \
-        int _pthread_ret = (__VA_ARGS__);                            \
-        if (_pthread_ret != 0) {                                     \
-            errno = _pthread_ret;                                    \
+#define THREAD_CHECK_RET(...) do {                                   \
+        int _thread_ret = (__VA_ARGS__);                             \
+        if (_thread_ret != 0) {                                      \
+            errno = _thread_ret;                                     \
             fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
-                    __FILE__, __LINE__, _pthread_ret, #__VA_ARGS__); \
-            err_sys("pthread call failed");                          \
+                    __FILE__, __LINE__, _thread_ret, #__VA_ARGS__);  \
+            err_sys("thread call failed");                           \
         }                                                            \
     } while(0)
 
@@ -534,12 +534,13 @@ typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
     char*  srfName;     /* server ready file name */
-#ifdef HAVE_PTHREAD
-    pthread_mutex_t mutex;
-    pthread_cond_t  cond;
+#ifndef SINGLE_THREADED
+#ifdef WOLFSSL_COND
+    wolfSSL_Mutex mutex;
+    COND_TYPE     cond;
+#else /* No signaling available, rely only on the mutex */
+    wolfSSL_Mutex mutex;
 #endif
-#ifdef NETOS
-    TX_MUTEX mutex;
 #endif
 } tcp_ready;
 
@@ -548,13 +549,12 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
     ready->ready = 0;
     ready->port = 0;
     ready->srfName = NULL;
-#if defined(HAVE_PTHREAD)
-    PTHREAD_CHECK_RET(pthread_mutex_init(&ready->mutex, 0));
-    PTHREAD_CHECK_RET(pthread_cond_init(&ready->cond, 0));
-#elif defined(NETOS)
-    tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
-#else
-    /* no threading init or single threaded */
+
+#ifndef SINGLE_THREADED
+    THREAD_CHECK_RET(wc_InitMutex(&ready->mutex));
+    #ifdef WOLFSSL_COND
+    THREAD_CHECK_RET(wolfSSL_CondInit(&ready->cond));
+    #endif
 #endif
 }
 
@@ -564,11 +564,11 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
 
 static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 {
-#if defined(HAVE_PTHREAD)
-    PTHREAD_CHECK_RET(pthread_mutex_destroy(&ready->mutex));
-    PTHREAD_CHECK_RET(pthread_cond_destroy(&ready->cond));
-#elif defined(NETOS)
-    tx_mutex_delete(&ready->mutex);
+#ifndef SINGLE_THREADED
+    THREAD_CHECK_RET(wc_FreeMutex(&ready->mutex));
+#ifdef WOLFSSL_COND
+    THREAD_CHECK_RET(wolfSSL_CondFree(&ready->cond));
+#endif
 #else
     (void)ready;
 #endif
@@ -603,14 +603,14 @@ typedef struct callback_functions {
     unsigned char doUdp:1;
 } callback_functions;
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
 typedef struct srtp_test_helper {
-    pthread_mutex_t mutex;
-    pthread_cond_t  cond;
+    wolfSSL_Mutex mutex;
+    COND_TYPE     cond;
     uint8_t* server_srtp_ekm;
     size_t   server_srtp_ekm_size;
 } srtp_test_helper;
-#endif /* WOLFSSL_SRTP HAVE_PTHREAD */
+#endif /* WOLFSSL_SRTP WOLFSSL_COND */
 
 typedef struct func_args {
     int    argc;
@@ -618,7 +618,7 @@ typedef struct func_args {
     int    return_code;
     tcp_ready* signal;
     callback_functions *callbacks;
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
     srtp_test_helper* srtp_helper;
 #endif
 } func_args;
@@ -654,6 +654,8 @@ int rem_dir(const char* dirName);
 int rem_file(const char* fileName);
 int copy_file(const char* in, const char* out);
 
+void signal_ready(tcp_ready* ready);
+
 /* wolfSSL */
 #ifndef TEST_IPV6
     static const char* const wolfSSLIP   = "127.0.0.1";
@@ -666,15 +668,15 @@ static const word16      wolfSSLPort = 11111;
 extern int   myoptind;
 extern char* myoptarg;
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
 
 static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 {
     srtp->server_srtp_ekm_size = 0;
     srtp->server_srtp_ekm = NULL;
 
-    PTHREAD_CHECK_RET(pthread_mutex_init(&srtp->mutex, 0));
-    PTHREAD_CHECK_RET(pthread_cond_init(&srtp->cond, 0));
+    THREAD_CHECK_RET(wc_InitMutex(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondInit(&srtp->cond));
 }
 
 /**
@@ -689,19 +691,17 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&srtp->mutex));
-
-    if (srtp->server_srtp_ekm == NULL)
-        PTHREAD_CHECK_RET(pthread_cond_wait(&srtp->cond, &srtp->mutex));
-
+    THREAD_CHECK_RET(wolfSSL_CondStart(&srtp->cond));
+    if (srtp->server_srtp_ekm == NULL) {
+        THREAD_CHECK_RET(wolfSSL_CondWait(&srtp->cond));
+    }
     *ekm = srtp->server_srtp_ekm;
     *size = srtp->server_srtp_ekm_size;
 
     /* reset */
     srtp->server_srtp_ekm = NULL;
     srtp->server_srtp_ekm_size = 0;
-
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&srtp->cond));
 }
 
 /**
@@ -718,22 +718,21 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
 static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&srtp->mutex));
-
+    THREAD_CHECK_RET(wolfSSL_CondStart(&srtp->cond));
     srtp->server_srtp_ekm_size = size;
     srtp->server_srtp_ekm = ekm;
-    PTHREAD_CHECK_RET(pthread_cond_signal(&srtp->cond));
-
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondSignal(&srtp->cond));
+    THREAD_CHECK_RET(wolfSSL_CondEnd(&srtp->cond));
 }
 
 static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
 {
-    PTHREAD_CHECK_RET(pthread_mutex_destroy(&srtp->mutex));
-    PTHREAD_CHECK_RET(pthread_cond_destroy(&srtp->cond));
+    THREAD_CHECK_RET(wc_FreeMutex(&srtp->mutex));
+    THREAD_CHECK_RET(wolfSSL_CondFree(&srtp->cond));
 }
 
-#endif /* WOLFSSL_SRTP && !SINGLE_THREADED && POSIX_THREADS */
+#endif /* WOLFSSL_SRTP && WOLFSSL_COND */
+
 
 /**
  *
@@ -2198,7 +2197,8 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys_with_errno("tcp bind failed");
 
-    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS) && \
+           !defined(SINGLE_THREADED)
         if (port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -2209,31 +2209,24 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                 #endif
             }
         }
+    #else
+        (void)port;
     #endif
 
     if (args != NULL && args->signal != NULL) {
-#if defined(HAVE_PTHREAD)
+#ifndef SINGLE_THREADED
+        tcp_ready* ready = args->signal;
+    #ifdef WOLFSSL_COND
+        THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
+    #endif
+        ready->ready = 1;
+        ready->port = port;
+    #ifdef WOLFSSL_COND
         /* signal ready to accept data */
-        tcp_ready* ready = args->signal;
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
-        ready->ready = 1;
-        ready->port = port;
-        PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
-#elif defined (WOLFSSL_TIRTOS)
-        /* Need mutex? */
-        tcp_ready* ready = args->signal;
-        ready->ready = 1;
-        ready->port = port;
-#elif defined(NETOS)
-        tcp_ready* ready = args->signal;
-        (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
-        ready->ready = 1;
-        ready->port = port;
-        (void)tx_mutex_put(&ready->mutex);
-#else
-        (void)port;
-#endif
+        THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+        THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
+    #endif
+#endif /* !SINGLE_THREADED */
     }
     else {
         fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
@@ -2259,36 +2252,22 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-    #if defined(NO_MAIN_DRIVER) && defined(HAVE_PTHREAD)
+#ifndef SINGLE_THREADED
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
         if (ready) {
-            PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
+        #ifdef WOLFSSL_COND
+            THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
+        #endif
             ready->ready = 1;
             ready->port = port;
-            PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
-            PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
+        #ifdef WOLFSSL_COND
+            THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
+            THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
+        #endif
         }
-    #elif defined (WOLFSSL_TIRTOS)
-        /* Need mutex? */
-        if (args)
-            ready = args->signal;
-        if (ready) {
-            ready->ready = 1;
-            ready->port = port;
-        }
-    #elif defined(NETOS)
-        /* signal ready to tcp_accept */
-        if (args)
-            ready = args->signal;
-        if (ready) {
-            (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
-            ready->ready = 1;
-            ready->port = port;
-            (void)tx_mutex_put(&ready->mutex);
-        }
-    #endif
+#endif /* !SINGLE_THREADED */
 
         if (ready_file) {
         #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
@@ -2585,7 +2564,7 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
 
 #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
     /* Multiple calls for each cipher suite. First identity byte indicates the
-     * number of identites seen so far for cipher suite. */
+     * number of identities seen so far for cipher suite. */
     if (identity[0] != 0) {
         return 0;
     }
@@ -3626,7 +3605,7 @@ typedef struct PkCbInfo {
 #if defined(DEBUG_PK_CB) || defined(TEST_PK_PRIVKEY)
     #define WOLFSSL_PKMSG(...) printf(__VA_ARGS__)
 #else
-    #define WOLFSSL_PKMSG(...)
+    #define WOLFSSL_PKMSG(...) WC_DO_NOTHING
 #endif
 
 #ifdef HAVE_ECC
@@ -5295,211 +5274,5 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
 #endif
 
 #define DTLS_CID_BUFFER_SIZE 256
-
-#if !defined(NO_FILESYSTEM) && (                                               \
-    defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
-    && defined(WOLFSSL_TLS13) &&                                               \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
-    ||                                                                         \
-    (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
-     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER))               \
-    ||                                                                         \
-        (defined(HAVE_SECURE_RENEGOTIATION) &&                                 \
-            !defined(NO_RSA) &&                                                \
-            defined(HAVE_CHACHA) && defined(HAVE_POLY1305) &&                  \
-            defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) &&             \
-            defined(HAVE_AESGCM))                                              \
-     ) ||                                                                      \
-    (defined(HAVE_SESSION_TICKET)  && !defined(WOLFSSL_NO_TLS12) &&            \
-    !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                              \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB))  || \
-    (defined(WOLFSSL_EXTRA_ALERTS) && !defined(WOLFSSL_NO_TLS12) &&            \
-    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) &&                           \
-    !defined(NO_RSA)        && !defined(SINGLE_THREADED) &&                    \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT))
-#define TEST_MEMIO_BUF_SZ (64 * 1024)
-struct test_memio_ctx
-{
-    byte c_buff[TEST_MEMIO_BUF_SZ];
-    int c_len;
-    const char* c_ciphers;
-    byte s_buff[TEST_MEMIO_BUF_SZ];
-    int s_len;
-    const char* s_ciphers;
-};
-
-static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
-    void *ctx)
-{
-    struct test_memio_ctx *test_ctx;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_memio_ctx*)ctx;
-
-    if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-    else {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-
-    if ((unsigned)(*len + sz) > TEST_MEMIO_BUF_SZ)
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-
-    XMEMCPY(buf + *len, data, sz);
-    *len += sz;
-
-    return sz;
-}
-
-static WC_INLINE int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
-    void *ctx)
-{
-    struct test_memio_ctx *test_ctx;
-    int read_sz;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_memio_ctx*)ctx;
-
-    if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-    else {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-
-    if (*len == 0)
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-
-    read_sz = sz < *len ? sz : *len;
-
-    XMEMCPY(data, buf, read_sz);
-    XMEMMOVE(buf, buf + read_sz, *len - read_sz);
-
-    *len -= read_sz;
-
-    return read_sz;
-}
-
-static WC_INLINE int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
-    int max_rounds, int *rounds)
-{
-    byte handshake_complete = 0, hs_c = 0, hs_s = 0;
-    int ret, err;
-
-    if (rounds != NULL)
-        *rounds = 0;
-    while (!handshake_complete && max_rounds > 0) {
-        if (!hs_c) {
-            ret = wolfSSL_connect(ssl_c);
-            if (ret == WOLFSSL_SUCCESS) {
-                hs_c = 1;
-            }
-            else {
-                err = wolfSSL_get_error(ssl_c, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
-                    return -1;
-            }
-        }
-        if (!hs_s) {
-            ret = wolfSSL_accept(ssl_s);
-            if (ret == WOLFSSL_SUCCESS) {
-                hs_s = 1;
-            }
-            else {
-                err = wolfSSL_get_error(ssl_s, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
-                    return -1;
-            }
-        }
-        handshake_complete = hs_c && hs_s;
-        max_rounds--;
-        if (rounds != NULL)
-            *rounds = *rounds + 1;
-    }
-
-    if (!handshake_complete)
-        return -1;
-
-    return 0;
-}
-
-static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
-    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
-    method_provider method_c, method_provider method_s)
-{
-    int ret;
-
-    if (ctx_c != NULL && *ctx_c == NULL) {
-        *ctx_c = wolfSSL_CTX_new(method_c());
-        if (*ctx_c == NULL)
-            return -1;
-#ifndef NO_CERTS
-        ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
-        if (ret != WOLFSSL_SUCCESS)
-            return -1;
-#endif /* NO_CERTS */
-        wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
-        wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
-        if (ctx->c_ciphers != NULL) {
-            ret = wolfSSL_CTX_set_cipher_list(*ctx_c, ctx->c_ciphers);
-            if (ret != WOLFSSL_SUCCESS)
-                return -1;
-        }
-    }
-
-    if (ctx_s != NULL && *ctx_s == NULL) {
-        *ctx_s = wolfSSL_CTX_new(method_s());
-        if (*ctx_s == NULL)
-            return -1;
-#ifndef NO_CERTS
-        ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
-            WOLFSSL_FILETYPE_PEM);
-        if (ret != WOLFSSL_SUCCESS)
-            return- -1;
-        ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
-                                               WOLFSSL_FILETYPE_PEM);
-        if (ret != WOLFSSL_SUCCESS)
-            return -1;
-#endif
-        wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
-        wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
-        if (ctx->s_ciphers != NULL) {
-            ret = wolfSSL_CTX_set_cipher_list(*ctx_s, ctx->s_ciphers);
-            if (ret != WOLFSSL_SUCCESS)
-                return -1;
-        }
-    }
-
-    if (ctx_c != NULL && ssl_c != NULL) {
-        *ssl_c = wolfSSL_new(*ctx_c);
-        if (*ssl_c == NULL)
-            return -1;
-        wolfSSL_SetIOWriteCtx(*ssl_c, ctx);
-        wolfSSL_SetIOReadCtx(*ssl_c, ctx);
-    }
-    if (ctx_s != NULL && ssl_s != NULL) {
-        *ssl_s = wolfSSL_new(*ctx_s);
-        if (*ssl_s == NULL)
-            return -1;
-        wolfSSL_SetIOWriteCtx(*ssl_s, ctx);
-        wolfSSL_SetIOReadCtx(*ssl_s, ctx);
-#if !defined(NO_DH)
-        SetDH(*ssl_s);
-#endif
-    }
-
-    return 0;
-}
-#endif
 
 #endif /* wolfSSL_TEST_H */

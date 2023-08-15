@@ -1,7 +1,7 @@
 
 #ifdef WOLFSSL_SM3
 
-#error "Contact wolfSSL to get the implementation of this file"
+#error "See https://github.com/wolfSSL/wolfsm for implementation of this file"
 
 #endif
 

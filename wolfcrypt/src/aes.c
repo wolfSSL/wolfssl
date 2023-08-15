@@ -84,215 +84,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-/* fips wrapper calls, user can call direct */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-    int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
-                              int dir)
-    {
-        if (aes == NULL ||  !( (len == 16) || (len == 24) || (len == 32)) ) {
-            return BAD_FUNC_ARG;
-        }
-
-        return AesSetKey_fips(aes, key, len, iv, dir);
-    }
-    int wc_AesSetIV(Aes* aes, const byte* iv)
-    {
-        if (aes == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        return AesSetIV_fips(aes, iv);
-    }
-    #ifdef HAVE_AES_CBC
-        int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-        {
-            if (aes == NULL || out == NULL || in == NULL) {
-                return BAD_FUNC_ARG;
-            }
-
-            return AesCbcEncrypt_fips(aes, out, in, sz);
-        }
-        #ifdef HAVE_AES_DECRYPT
-            int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-            {
-                if (aes == NULL || out == NULL || in == NULL
-                                            || sz % AES_BLOCK_SIZE != 0) {
-                    return BAD_FUNC_ARG;
-                }
-
-                return AesCbcDecrypt_fips(aes, out, in, sz);
-            }
-        #endif /* HAVE_AES_DECRYPT */
-    #endif /* HAVE_AES_CBC */
-
-    /* AES-CTR */
-    #ifdef WOLFSSL_AES_COUNTER
-        int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-        {
-            if (aes == NULL || out == NULL || in == NULL) {
-                return BAD_FUNC_ARG;
-            }
-
-            return AesCtrEncrypt(aes, out, in, sz);
-        }
-    #endif
-
-    /* AES-DIRECT */
-    #if defined(WOLFSSL_AES_DIRECT)
-        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
-        {
-            AesEncryptDirect(aes, out, in);
-        }
-
-        #ifdef HAVE_AES_DECRYPT
-            void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
-            {
-                AesDecryptDirect(aes, out, in);
-            }
-        #endif /* HAVE_AES_DECRYPT */
-
-        int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
-                                        const byte* iv, int dir)
-        {
-            return AesSetKeyDirect(aes, key, len, iv, dir);
-        }
-    #endif /* WOLFSSL_AES_DIRECT */
-
-    /* AES-GCM */
-    #ifdef HAVE_AESGCM
-        int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
-        {
-            if (aes == NULL || !( (len == 16) || (len == 24) || (len == 32)) ) {
-                return BAD_FUNC_ARG;
-            }
-
-            return AesGcmSetKey_fips(aes, key, len);
-        }
-        int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
-                                      const byte* iv, word32 ivSz,
-                                      byte* authTag, word32 authTagSz,
-                                      const byte* authIn, word32 authInSz)
-        {
-            if (aes == NULL || authTagSz > AES_BLOCK_SIZE ||
-                        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ ||
-                        ivSz == 0 || ivSz > AES_BLOCK_SIZE) {
-                return BAD_FUNC_ARG;
-            }
-
-            return AesGcmEncrypt_fips(aes, out, in, sz, iv, ivSz, authTag,
-                authTagSz, authIn, authInSz);
-        }
-
-        #ifdef HAVE_AES_DECRYPT
-            int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
-                                          const byte* iv, word32 ivSz,
-                                          const byte* authTag, word32 authTagSz,
-                                          const byte* authIn, word32 authInSz)
-            {
-                if (aes == NULL || out == NULL || in == NULL || iv == NULL
-                        || authTag == NULL || authTagSz > AES_BLOCK_SIZE ||
-                        ivSz == 0 || ivSz > AES_BLOCK_SIZE) {
-                    return BAD_FUNC_ARG;
-                }
-
-                return AesGcmDecrypt_fips(aes, out, in, sz, iv, ivSz, authTag,
-                    authTagSz, authIn, authInSz);
-            }
-        #endif /* HAVE_AES_DECRYPT */
-
-        int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
-        {
-            if (gmac == NULL || key == NULL || !((len == 16) ||
-                                (len == 24) || (len == 32)) ) {
-                return BAD_FUNC_ARG;
-            }
-
-            return GmacSetKey(gmac, key, len);
-        }
-        int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
-                                      const byte* authIn, word32 authInSz,
-                                      byte* authTag, word32 authTagSz)
-        {
-            if (gmac == NULL || authTagSz > AES_BLOCK_SIZE ||
-                               authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-                return BAD_FUNC_ARG;
-            }
-
-            return GmacUpdate(gmac, iv, ivSz, authIn, authInSz,
-                              authTag, authTagSz);
-        }
-    #endif /* HAVE_AESGCM */
-
-    /* AES-CCM */
-    #if defined(HAVE_AESCCM) && \
-        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-        int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
-        {
-            return AesCcmSetKey(aes, key, keySz);
-        }
-        int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
-                                      const byte* nonce, word32 nonceSz,
-                                      byte* authTag, word32 authTagSz,
-                                      const byte* authIn, word32 authInSz)
-        {
-            /* sanity check on arguments */
-            if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-                    || authTag == NULL || nonceSz < 7 || nonceSz > 13)
-                return BAD_FUNC_ARG;
-
-            AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz, authTag,
-                authTagSz, authIn, authInSz);
-            return 0;
-        }
-
-        #ifdef HAVE_AES_DECRYPT
-            int  wc_AesCcmDecrypt(Aes* aes, byte* out,
-                const byte* in, word32 inSz,
-                const byte* nonce, word32 nonceSz,
-                const byte* authTag, word32 authTagSz,
-                const byte* authIn, word32 authInSz)
-            {
-
-                if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-                    || authTag == NULL || nonceSz < 7 || nonceSz > 13) {
-                        return BAD_FUNC_ARG;
-                }
-
-                return AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
-                    authTag, authTagSz, authIn, authInSz);
-            }
-        #endif /* HAVE_AES_DECRYPT */
-    #endif /* HAVE_AESCCM && HAVE_FIPS_VERSION 2 */
-
-    int wc_AesInit(Aes* aes, void* h, int i)
-    {
-        if (aes == NULL)
-            return BAD_FUNC_ARG;
-
-        (void)h;
-        (void)i;
-
-        /* FIPS doesn't support */
-    #ifdef WOLFSSL_KCAPI_AES
-        return AesInit(aes, h, i);
-    #else
-        return 0;
-    #endif
-    }
-    void wc_AesFree(Aes* aes)
-    {
-        (void)aes;
-        /* FIPS doesn't support */
-    #ifdef WOLFSSL_KCAPI_AES
-        AesFree(aes);
-    #endif
-    }
-
-#else /* else build without fips, or for FIPS v2+ */
-
-
 #if defined(WOLFSSL_TI_CRYPT)
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 #else
@@ -5347,7 +5138,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -5548,7 +5339,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -5607,7 +5398,7 @@ static const word16 R[32] = {
  * H: hash key = encrypt(key, 0)
  * x = x * H in field
  *
- * x: cumlative result
+ * x: cumulative result
  * m: 4-bit table
  *    [0..15] * H
  */
@@ -5848,7 +5639,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -6098,7 +5889,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -6382,7 +6173,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -6458,7 +6249,7 @@ static void GHASH_INIT(Aes* aes) {
     /* Reset counts of AAD and cipher text. */
     aes->aOver = 0;
     aes->cOver = 0;
-    /* Extra initialization baed on implementation. */
+    /* Extra initialization based on implementation. */
     GHASH_INIT_EXTRA(aes);
 }
 
@@ -6537,7 +6328,7 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
                 sz = (byte)cSz;
             }
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
-            /* Update count of unsed encrypted counter. */
+            /* Update count of unused encrypted counter. */
             aes->cOver += sz;
             if (aes->cOver == AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
@@ -6714,7 +6505,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
     #ifndef CRYP_HEADERWIDTHUNIT_BYTE
-        /* or harware that does not support partial block */
+        /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
     #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
@@ -7217,7 +7008,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
     #ifndef CRYP_HEADERWIDTHUNIT_BYTE
-        /* or harware that does not support partial block */
+        /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
     #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
@@ -8106,7 +7897,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             /* Encrypt some of the plaintext. */
             xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, p, sz);
             XMEMCPY(c, AES_LASTGBLOCK(aes) + aes->cOver, sz);
-            /* Update count of unsed encrypted counter. */
+            /* Update count of unused encrypted counter. */
             aes->cOver += sz;
             if (aes->cOver == AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
@@ -8305,7 +8096,7 @@ extern void AES_GCM_decrypt_final_aesni(unsigned char* tag,
  *
  * @param [in, out] aes  AES object.
  * @param [out]     p    Buffer to hold plaintext.
- * @param [in]      c    Buffer holding ciper text.
+ * @param [in]      c    Buffer holding cipher text.
  * @param [in]      cSz  Length of cipher text/plaintext in bytes.
  * @param [in]      a    Buffer holding authentication data.
  * @param [in]      aSz  Length of authentication data in bytes.
@@ -8338,7 +8129,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             /* Decrypt some of the cipher text. */
             xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
             XMEMCPY(p, AES_LASTGBLOCK(aes) + aes->cOver, sz);
-            /* Update count of unsed encrypted counter. */
+            /* Update count of unused encrypted counter. */
             aes->cOver += sz;
             if (aes->cOver == AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
@@ -8714,7 +8505,7 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
             ret = AesGcmCryptUpdate_C(aes, out, in, sz);
             if (ret != 0)
                 return ret;
-            /* Update the authenication tag with any authentication data and the
+            /* Update the authentication tag with any authentication data and the
              * new cipher text. */
             GHASH_UPDATE(aes, authIn, authInSz, out, sz);
         }
@@ -8856,7 +8647,7 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
-            /* Update the authenication tag with any authentication data and
+            /* Update the authentication tag with any authentication data and
              * cipher text. */
             GHASH_UPDATE(aes, authIn, authInSz, in, sz);
             /* Decrypt the cipher text. */
@@ -9933,7 +9724,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
                                                         aes->heap, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#ifdef WOLFSSL_AFALG
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
     aes->alFd = WC_SOCK_NOTSET;
     aes->rdFd = WC_SOCK_NOTSET;
 #endif
@@ -11721,5 +11512,4 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
 
 #endif /* WOLFSSL_AES_SIV */
 
-#endif /* HAVE_FIPS */
 #endif /* !NO_AES */

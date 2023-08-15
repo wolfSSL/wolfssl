@@ -267,6 +267,4 @@ const unsigned char client_cert_der_sign[] =
 };
 const int sizeof_client_cert_der_sign = sizeof(client_cert_der_sign);
 
-uint32_t s_inst1[R_TSIP_SINST_WORD_SIZE] = { 0 };
-uint32_t s_inst2[R_TSIP_SINST2_WORD_SIZE]= { 0 };
 #endif

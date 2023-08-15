@@ -1,7 +1,6 @@
 name: nginx Tests
 
 on:
-  push:
   workflow_call:
 
 jobs:
@@ -9,6 +8,8 @@ jobs:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
     steps:
       - if: ${{ runner.debug }}
         name: Enable wolfSSL debug logging
@@ -66,6 +67,8 @@ jobs:
               stream_proxy_ssl_verify.t stream_ssl_alpn.t
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
     needs: build_wolfssl
     steps:
       - name: Download lib

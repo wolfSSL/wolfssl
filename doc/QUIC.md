@@ -57,7 +57,7 @@ The separation of HTTP/3 and QUIC is natural when you think about the relationsh
 
 The separation of QUIC's "crypto" parts from its other protocol enabling functions is a matter of security. In its experimental beginnings, QUIC had its own security design. With the emerging TLSv1.3 and all it improvements, plus decades of experience, it seemed rather unwise to have something separate in QUIC.
 
-Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementors happily make use of existing TLS libraries. 
+Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementers happily make use of existing TLS libraries. 
 
 ## wolfSSL API
 

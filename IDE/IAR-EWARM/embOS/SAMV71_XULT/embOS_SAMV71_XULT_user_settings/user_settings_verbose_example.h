@@ -87,7 +87,7 @@
         #undef  ALT_ECC_SIZE
         #define ALT_ECC_SIZE
 
-        /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+        /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overridden */
         /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
         //#undef  FP_MAX_BITS_ECC
         //#define FP_MAX_BITS_ECC (528 * 2)

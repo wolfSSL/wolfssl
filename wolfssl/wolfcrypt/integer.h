@@ -69,7 +69,7 @@ extern "C" {
 #else
 
 /* C on the other hand doesn't care */
-#define  OPT_CAST(x)
+#define  OPT_CAST(x) /* null expansion */
 
 #endif /* __cplusplus */
 
@@ -206,7 +206,7 @@ typedef int           mp_err;
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
     XMEMSET(name, 0, sizeof(mp_int))
 /* Dispose of static mp_int. */
-#define FREE_MP_INT_SIZE(name, heap, type)
+#define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
 /* Initialize an mp_int. */
 #define INIT_MP_INT_SIZE(name, bits) \
     mp_init(name)
@@ -408,7 +408,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 #ifdef WOLFSSL_DEBUG_MATH
     MP_API void mp_dump(const char* desc, mp_int* a, byte verbose);
 #else
-    #define mp_dump(desc, a, verbose)
+    #define mp_dump(desc, a, verbose) WC_DO_NOTHING
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || \

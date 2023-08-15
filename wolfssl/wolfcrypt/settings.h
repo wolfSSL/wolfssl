@@ -312,6 +312,42 @@
     #endif
 #endif
 
+/* OpenSSL compat layer */
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
+#undef  WOLFSSL_ALWAYS_VERIFY_CB
+#define WOLFSSL_ALWAYS_VERIFY_CB
+
+#undef WOLFSSL_VERIFY_CB_ALL_CERTS
+#define WOLFSSL_VERIFY_CB_ALL_CERTS
+
+#undef WOLFSSL_EXTRA_ALERTS
+#define WOLFSSL_EXTRA_ALERTS
+
+#undef HAVE_EXT_CACHE
+#define HAVE_EXT_CACHE
+
+#undef WOLFSSL_FORCE_CACHE_ON_TICKET
+#define WOLFSSL_FORCE_CACHE_ON_TICKET
+
+#undef WOLFSSL_AKID_NAME
+#define WOLFSSL_AKID_NAME
+
+#undef HAVE_CTS
+#define HAVE_CTS
+#endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
+
+/* Special small OpenSSL compat layer for certs */
+#ifdef OPENSSL_EXTRA_X509_SMALL
+#undef WOLFSSL_EKU_OID
+#define WOLFSSL_EKU_OID
+
+#undef WOLFSSL_MULTI_ATTRIB
+#define WOLFSSL_MULTI_ATTRIB
+
+#undef WOLFSSL_NO_OPENSSL_RAND_CB
+#define WOLFSSL_NO_OPENSSL_RAND_CB
+#endif /* OPENSSL_EXTRA_X509_SMALL */
+
 #if defined(_WIN32) && !defined(_M_X64) && \
     defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
 
@@ -369,18 +405,10 @@
 #endif
 #endif /* WOLFSSL_ESPIDF */
 
-#if defined(WOLFCRYPT_ONLY)
-    #undef WOLFSSL_RENESAS_TSIP
-#endif /* WOLFCRYPT_ONLY */
 #if defined(WOLFSSL_RENESAS_TSIP)
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
     #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
     #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in byte  */
-    #if !defined(NO_RENESAS_TSIP_CRYPT) && defined(WOLFSSL_RENESAS_RX65N)
-        #define WOLFSSL_RENESAS_TSIP_CRYPT
-        #define WOLFSSL_RENESAS_TSIP_TLS
-        #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
-    #endif
 #endif /* WOLFSSL_RENESAS_TSIP */
 
 #if !defined(WOLFSSL_NO_HASH_RAW) && defined(WOLFSSL_RENESAS_RX64_HASH)
@@ -2027,8 +2055,6 @@ extern void uITRON4_free(void *p) ;
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
 #endif
-
-
 
 /* ---------------------------------------------------------------------------
  * Math Library Selection (in order of preference)

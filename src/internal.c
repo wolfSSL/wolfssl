@@ -6309,7 +6309,7 @@ static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
         word16 haveFalconSig, word16 haveDilithiumSig, word16 haveAnon,
         int side)
 {
-    /* make sure server has DH parms, and add PSK if there */
+    /* make sure server has DH params, and add PSK if there */
     if (side == WOLFSSL_SERVER_END) {
         InitSuites(suites, pv, keySz, haveRSA, havePSK, haveDH, haveECDSAsig,
                    haveECC, TRUE, haveStaticECC, haveFalconSig,
@@ -6939,7 +6939,7 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     return ret;
 }
 
-/* called if user attempts to re-use WOLFSSL object for a new session.
+/* called if user attempts to reuse WOLFSSL object for a new session.
  * For example wolfSSL_clear() is called then wolfSSL_connect or accept */
 int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
@@ -11853,8 +11853,11 @@ int MatchDomainName(const char* pattern, int len, const char* str)
         if (p == '*') {
             char s;
 
-            while (--len > 0 &&
-                (p = (char)XTOLOWER((unsigned char)*pattern++)) == '*') {
+            while (--len > 0) {
+                p = (char)XTOLOWER((unsigned char)*pattern);
+                pattern++;
+                if (p != '*')
+                    break;
             }
 
             if (len == 0)
@@ -16114,7 +16117,23 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case certificate_request:
         case server_hello_done:
             if (ssl->options.resuming) {
-#ifdef WOLFSSL_WPAS
+                /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
+                 *   Alternatively, the client MAY include an empty Session ID
+                 *   in the ClientHello.  In this case, the client ignores the
+                 *   Session ID sent in the ServerHello and determines if the
+                 *   server is resuming a session by the subsequent handshake
+                 *   messages.
+                 */
+#ifndef WOLFSSL_WPAS
+                if (ssl->session->sessionIDSz != 0) {
+                    /* Fatal error. Only try to send an alert. RFC 5246 does not
+                     * allow for reverting back to a full handshake after the
+                     * server has indicated the intention to do a resumption. */
+                    (void)SendAlert(ssl, alert_fatal, unexpected_message);
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+#endif
                 /* This can occur when ssl->sessionSecretCb is set. EAP-FAST
                  * (RFC 4851) allows for detecting server session resumption
                  * based on the msg received after the ServerHello. */
@@ -16122,14 +16141,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.resuming = 0;
                 /* No longer resuming, reset peer authentication state. */
                 ssl->options.peerAuthGood = 0;
-#else
-                /* Fatal error. Only try to send an alert. RFC 5246 does not
-                 * allow for reverting back to a full handshake after the
-                 * server has indicated the intention to do a resumption. */
-                (void)SendAlert(ssl, alert_fatal, unexpected_message);
-                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-                return OUT_OF_ORDER_E;
-#endif
             }
         }
     }
@@ -16501,6 +16512,9 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case WANT_WRITE:
     case WANT_READ:
     case ZERO_RETURN:
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    case OCSP_WANT_READ:
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     case WC_PENDING_E:
 #endif
@@ -16820,7 +16834,7 @@ int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         diff %= DTLS_WORD_BITS;
 
         if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
-            window[idx] |= (1 << diff);
+            window[idx] |= (1U << diff);
     }
     else {
         _DtlsUpdateWindowGTSeq(diff + 1, window);
@@ -19938,7 +19952,7 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END
-            && ssl->curRL.type != handshake) {
+            && ssl->curRL.type != handshake && !IsSCR(ssl)) {
         int beforeCookieVerified = 0;
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             beforeCookieVerified =
@@ -23952,8 +23966,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #ifdef OPENSSL_EXTRA
     case 0 :
         return "ok";
-    case -WOLFSSL_X509_V_ERR_CERT_REVOKED :
-        return "certificate revoked";
 #endif
 
     case UNSUPPORTED_SUITE :
@@ -24400,10 +24412,36 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
+     *       -WOLFSSL_ERROR_WANT_CONNECT. */
+    case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
+        return "certificate not yet valid";
+    case -WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
+        return "certificate has expired";
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+        return "certificate signature failure";
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+        return "format error in certificate's notAfter field";
+    case -WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+        return "self-signed certificate in certificate chain";
     case -WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
         return "unable to get local issuer certificate";
-#endif
+    case -WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+        return "unable to verify the first certificate";
+    case -WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
+        return "certificate chain too long";
+    case -WOLFSSL_X509_V_ERR_CERT_REVOKED:
+        return "certificate revoked";
+    case -WOLFSSL_X509_V_ERR_INVALID_CA:
+        return "invalid CA certificate";
+    case -WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
+        return "path length constraint exceeded";
+    case -WOLFSSL_X509_V_ERR_CERT_REJECTED:
+        return "certificate rejected";
+    case -WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
+        return "subject issuer mismatch";
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
     case UNSUPPORTED_PROTO_VERSION:
         #ifdef OPENSSL_EXTRA
         return "WRONG_SSL_VERSION";
@@ -24483,18 +24521,18 @@ void SetErrorString(int error, char* str)
     #ifndef NO_ERROR_STRINGS
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #endif
     #else
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #else
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
-            #define SUITE_ALIAS(x,z,w,v,u)
+            #define SUITE_ALIAS(x,z,w,v,u) /* null expansion */
         #endif
     #endif
 #else /* !NO_CIPHER_SUITE_ALIASES */
@@ -26427,7 +26465,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                 if (hashAlgo < ssl->options.hashAlgo)
                     break;
             #else
-                /* Is hash algorithm stonger than last chosen? */
+                /* Is hash algorithm stronger than last chosen? */
                 if (ret == 0 && hashAlgo > ssl->options.hashAlgo)
                     break;
             #endif
@@ -27249,7 +27287,7 @@ exit_dpk:
  *
  * @param [in] sigAlgo  Signature algorithm.
  * @return  1 when caching required.
- * @return  0 when cacheing not required.
+ * @return  0 when caching not required.
  */
 static int SigAlgoCachesMsgs(int sigAlgo)
 {
@@ -27697,9 +27735,11 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.dtls) {
             /* we sent a TLSv1.3 ClientHello but received a
-             * HELLO_VERIFY_REQUEST */
+             * HELLO_VERIFY_REQUEST. We only check if DTLSv1_3_MINOR is the
+             * min downgrade option as per the server_version field comments in
+             * https://www.rfc-editor.org/rfc/rfc6347#section-4.2.1 */
             if (!ssl->options.downgrade ||
-                    ssl->options.minDowngrade < pv.minor)
+                    ssl->options.minDowngrade <= DTLSv1_3_MINOR)
                 return VERSION_ERROR;
         }
 #endif /* defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) */
@@ -34399,14 +34439,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->options.resuming = 0;
             return ret;
         }
-#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
-                                    !defined(NO_ASN_TIME)
+#if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
-            WOLFSSL_MSG("Expired session ticket, fall back to full handshake.");
+            WOLFSSL_MSG("Expired session, fall back to full handshake.");
             ssl->options.resuming = 0;
         }
-#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
+#endif /* !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
         else if (session->haveEMS != ssl->options.haveEMS) {
             /* RFC 7627, 5.3, server-side */

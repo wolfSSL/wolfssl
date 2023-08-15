@@ -6,7 +6,7 @@
     \param key key pointer
     \param keySz size of the key pointer (16, 24 or 32)
     \param type Always WC_CMAC_AES = 1
-    \param unused not used, exists for potential future use around compatiblity
+    \param unused not used, exists for potential future use around compatibility
 
     _Example_
     \code
@@ -36,7 +36,7 @@ int wc_InitCmac(Cmac* cmac,
     \param key key pointer
     \param keySz size of the key pointer (16, 24 or 32)
     \param type Always WC_CMAC_AES = 1
-    \param unused not used, exists for potential future use around compatiblity
+    \param unused not used, exists for potential future use around compatibility
     \param heap pointer to the heap hint used for dynamic allocation. Typically used with our static memory option. Can be NULL.
     \param devId ID to use with async hardware. Set to INVALID_DEVID if not using async hardware.
 
@@ -100,7 +100,7 @@ int wc_CmacFinal(Cmac* cmac,
 
 /*!
     \ingroup CMAC
-    \brief Single shot fuction for generating a CMAC
+    \brief Single shot function for generating a CMAC
     \return 0 on success
     \param out pointer to return the result
     \param outSz pointer size of output (in/out)
@@ -122,7 +122,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 /*!
     \ingroup CMAC
-    \brief Single shot fuction for validating a CMAC
+    \brief Single shot function for validating a CMAC
     \return 0 on success
     \param check pointer to return the result
     \param checkSz size of checkout buffer

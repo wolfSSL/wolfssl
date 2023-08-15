@@ -6,6 +6,8 @@ jobs:
   espressif_latest:
     name: latest Docker container
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 12
     container:
       image: espressif/idf:latest
     steps:

@@ -1052,7 +1052,7 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
                             word32 sz, byte* header)
 {
     byte       dummy[WC_MAX_BLOCK_SIZE] = {0};
-    int        ret;
+    int        ret = 0;
     word32     msgSz, blockSz, macSz, padSz, maxSz, realSz;
     word32     offset = 0;
     int        msgBlocks, blocks, blockBits;
@@ -1104,7 +1104,17 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
             break;
     #endif /* HAVE_BLAKE2 */
 
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            blockSz = WC_SM3_BLOCK_SIZE;
+            blockBits = 6;
+            macSz = WC_SM3_DIGEST_SIZE;
+            padSz = WC_SM3_BLOCK_SIZE - WC_SM3_PAD_SIZE + 1;
+            break;
+    #endif
+
         default:
+            WOLFSSL_MSG("ERROR: Hmac_UpdateFinal failed, no hmac->macType");
             return BAD_FUNC_ARG;
     }
 
@@ -1887,7 +1897,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
 #else /* HAVE_ALPN */
 
-#define ALPN_FREE_ALL(list, heap)
+#define ALPN_FREE_ALL(list, heap) WC_DO_NOTHING
 #define ALPN_GET_SIZE(list)     0
 #define ALPN_WRITE(a, b)        0
 #define ALPN_PARSE(a, b, c, d)  0
@@ -2504,7 +2514,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #else
 
-#define SNI_FREE_ALL(list, heap)
+#define SNI_FREE_ALL(list, heap) WC_DO_NOTHING
 #define SNI_GET_SIZE(list)     0
 #define SNI_WRITE(a, b)        0
 #define SNI_PARSE(a, b, c, d)  0
@@ -2844,7 +2854,7 @@ int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 
 #else /* HAVE_TRUSTED_CA */
 
-#define TCA_FREE_ALL(list, heap)
+#define TCA_FREE_ALL(list, heap) WC_DO_NOTHING
 #define TCA_GET_SIZE(list)     0
 #define TCA_WRITE(a, b)        0
 #define TCA_PARSE(a, b, c, d)  0
@@ -2938,7 +2948,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 
 #else
 
-#define MFL_FREE_ALL(a, b)
+#define MFL_FREE_ALL(a, b) WC_DO_NOTHING
 #define MFL_GET_SIZE(a)       0
 #define MFL_WRITE(a, b)       0
 #define MFL_PARSE(a, b, c, d) 0
@@ -3445,7 +3455,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR_FREE_ALL(data, heap)
+#define CSR_FREE_ALL(data, heap) WC_DO_NOTHING
 #define CSR_GET_SIZE(a, b)    0
 #define CSR_WRITE(a, b, c)    0
 #define CSR_PARSE(a, b, c, d) 0
@@ -3891,7 +3901,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR2_FREE_ALL(data, heap)
+#define CSR2_FREE_ALL(data, heap) WC_DO_NOTHING
 #define CSR2_GET_SIZE(a, b)    0
 #define CSR2_WRITE(a, b, c)    0
 #define CSR2_PARSE(a, b, c, d) 0
@@ -5113,18 +5123,18 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 
 #else
 
-#define EC_FREE_ALL(list, heap)
+#define EC_FREE_ALL(list, heap) WC_DO_NOTHING
 #define EC_GET_SIZE(list)         0
 #define EC_WRITE(a, b)            0
 #define EC_PARSE(a, b, c, d, e)   0
-#define EC_VALIDATE_REQUEST(a, b)
+#define EC_VALIDATE_REQUEST(a, b) WC_DO_NOTHING
 
-#define PF_FREE_ALL(list, heap)
+#define PF_FREE_ALL(list, heap)   WC_DO_NOTHING
 #define PF_GET_SIZE(list)         0
 #define PF_WRITE(a, b)            0
 #define PF_PARSE(a, b, c, d)      0
-#define PF_VALIDATE_REQUEST(a, b)
-#define PF_VALIDATE_RESPONSE(a, b)
+#define PF_VALIDATE_REQUEST(a, b) WC_DO_NOTHING
+#define PF_VALIDATE_RESPONSE(a, b) WC_DO_NOTHING
 
 #endif /* HAVE_SUPPORTED_CURVES */
 
@@ -5319,7 +5329,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #else
 
-#define SCR_FREE_ALL(a, heap)
+#define SCR_FREE_ALL(a, heap) WC_DO_NOTHING
 #define SCR_GET_SIZE(a, b)    0
 #define SCR_WRITE(a, b, c)    0
 #define SCR_PARSE(a, b, c, d) 0
@@ -5525,8 +5535,8 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 
 #else
 
-#define WOLF_STK_FREE(a, b)
-#define WOLF_STK_VALIDATE_REQUEST(a)
+#define WOLF_STK_FREE(a, b) WC_DO_NOTHING
+#define WOLF_STK_VALIDATE_REQUEST(a) WC_DO_NOTHING
 #define WOLF_STK_GET_SIZE(a, b)      0
 #define WOLF_STK_WRITE(a, b, c)      0
 #define WOLF_STK_PARSE(a, b, c, d)   0
@@ -5882,7 +5892,7 @@ static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
     #define SRTP_WRITE    TLSX_UseSRTP_Write
     #define SRTP_GET_SIZE TLSX_UseSRTP_GetSize
 #else
-    #define SRTP_FREE(a, b)
+    #define SRTP_FREE(a, b) WC_DO_NOTHING
     #define SRTP_PARSE(a, b, c, d)      0
     #define SRTP_WRITE(a, b)            0
     #define SRTP_GET_SIZE(a)            0
@@ -6624,6 +6634,9 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     if (ssl->client_ca_names == NULL)
         return MEMORY_ERROR;
 
+    if (length < OPAQUE16_LEN)
+        return BUFFER_ERROR;
+
     ato16(input, &extLen);
     input += OPAQUE16_LEN;
     length -= OPAQUE16_LEN;
@@ -6634,6 +6647,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         word32 idx = 0;
         WOLFSSL_X509_NAME* name = NULL;
         int ret = 0;
+        int didInit = FALSE;
         /* Use a DecodedCert struct to get access to GetName to
          * parse DN name */
 #ifdef WOLFSSL_SMALL_STACK
@@ -6645,28 +6659,33 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         DecodedCert cert[1];
 #endif
 
+        if (length < OPAQUE16_LEN)
+            return BUFFER_ERROR;
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
         if (extLen > length)
-            return BUFFER_ERROR;
+            ret = BUFFER_ERROR;
 
-        InitDecodedCert(cert, input + idx, extLen, ssl->heap);
-        idx += extLen;
-
-        ret = GetName(cert, SUBJECT, extLen);
+        if (ret == 0) {
+            InitDecodedCert(cert, input + idx, extLen, ssl->heap);
+            didInit = TRUE;
+            idx += extLen;
+            ret = GetName(cert, SUBJECT, extLen);
+        }
 
         if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
             ret = MEMORY_ERROR;
 
-        if (ret == 0)
+        if (ret == 0) {
             CopyDecodedName(name, cert, SUBJECT);
+            if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
+                    == WOLFSSL_FAILURE)
+                ret = MEMORY_ERROR;
+        }
 
-        if (ret == 0 && wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
-                == WOLFSSL_FAILURE)
-            ret = MEMORY_ERROR;
-
-        FreeDecodedCert(cert);
+        if (didInit)
+            FreeDecodedCert(cert);
 
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
@@ -9657,7 +9676,7 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
 
 #else
 
-#define KS_FREE_ALL(a, b)
+#define KS_FREE_ALL(a, b) WC_DO_NOTHING
 #define KS_GET_SIZE(a, b)    0
 #define KS_WRITE(a, b, c)    0
 #define KS_PARSE(a, b, c, d) 0
@@ -9807,7 +9826,7 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         word16 len;
         int ret;
 
-        /* Write identites only. Binders after HMACing over this. */
+        /* Write identities only. Binders after HMACing over this. */
         lenIdx = idx;
         idx += OPAQUE16_LEN;
         while (current != NULL) {
@@ -9824,7 +9843,7 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
 
             current = current->next;
         }
-        /* Length of the identites. */
+        /* Length of the identities. */
         len = idx - lenIdx - OPAQUE16_LEN;
         c16toa(len, output + lenIdx);
 
@@ -10167,7 +10186,7 @@ int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity, word16 len,
 
 #else
 
-#define PSK_FREE_ALL(a, b)
+#define PSK_FREE_ALL(a, b) WC_DO_NOTHING
 #define PSK_GET_SIZE(a, b, c) 0
 #define PSK_WRITE(a, b, c, d) 0
 #define PSK_PARSE(a, b, c, d) 0

@@ -136,7 +136,7 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     if (lastLen)
         times += 1;
 
-    /* times == 0 iif resLen == 0, but times == 0 abides clang static analyzer
+    /* times == 0 if resLen == 0, but times == 0 abides clang static analyzer
        while resLen == 0 doesn't */
     if (times == 0)
         return BAD_FUNC_ARG;

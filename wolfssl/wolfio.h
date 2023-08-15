@@ -26,6 +26,8 @@
 #ifndef WOLFSSL_IO_H
 #define WOLFSSL_IO_H
 
+#include <wolfssl/ssl.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -436,7 +438,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
         extern int closesocket(int);
         #define CloseSocket(s) closesocket(s)
     #endif
-    #define StartTCP()
+    #define StartTCP() WC_DO_NOTHING
 #elif defined(FUSION_RTOS)
     #ifndef CloseSocket
         #define CloseSocket(s) do {                     \
@@ -448,7 +450,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
     #ifndef CloseSocket
         #define CloseSocket(s) close(s)
     #endif
-    #define StartTCP()
+    #define StartTCP() WC_DO_NOTHING
     #ifdef FREERTOS_TCP_WINSIM
         extern int close(int);
     #endif

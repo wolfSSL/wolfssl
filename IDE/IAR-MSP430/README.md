@@ -78,10 +78,10 @@ Bob init
 Successfully generated a common secret
 Alices' Secret: 85f3c7f599620c768e6dbb77dc2f8f764254cc1821aeb0a30503632dbc9bdb54
 Bobs' Secret: 85f3c7f599620c768e6dbb77dc2f8f764254cc1821aeb0a30503632dbc9bdb54
-ChaCha20/Poly1305 Encryption Start, 1000 itterations, 1024 bytes
+ChaCha20/Poly1305 Encryption Start, 1000 iterations, 1024 bytes
 ............................................
 End 44 seconds
-ChaCha20/Poly1305 Decryption Start, 1000 itterations
+ChaCha20/Poly1305 Decryption Start, 1000 iterations
 ............................................
 End 44 seconds
 end

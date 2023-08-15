@@ -70,18 +70,6 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-/* included for fips @wc_fips */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-#include <cyassl/ctaocrypt/aes.h>
-#if defined(CYASSL_AES_COUNTER) && !defined(WOLFSSL_AES_COUNTER)
-    #define WOLFSSL_AES_COUNTER
-#endif
-#if !defined(WOLFSSL_AES_DIRECT) && defined(CYASSL_AES_DIRECT)
-    #define WOLFSSL_AES_DIRECT
-#endif
-#endif
-
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -144,8 +132,9 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h>
 #endif
 
@@ -304,8 +293,9 @@ struct Aes {
 #if defined(WOLFSSL_CRYPTOCELL)
     aes_context_t ctx;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     TSIP_AES_CTX ctx;
 #endif
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
@@ -429,13 +419,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
- WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
-                                const byte* iv, int dir);
-#elif defined(BUILDING_WOLFSSL)
+#if defined(BUILDING_WOLFSSL)
  WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
                                                         const byte* in);
  WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,

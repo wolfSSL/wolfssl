@@ -51,7 +51,7 @@ void memcpy32(uint32_t* src, uint32_t* dst_beg, uint32_t* dst_end)
 void meminit32(uint32_t* start, uint32_t* end)
 {
     while (start < end) {
-	    *start++ = 0;
+        *start++ = 0;
     }
 }
 

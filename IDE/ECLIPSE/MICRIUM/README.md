@@ -118,41 +118,41 @@ memcb    test passed!
  wolfSSL version 3.15.5
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG               225 KB tooks 1.026 seconds,  219.313 KB/s
-AES-128-CBC-enc    250 KB toks 1.105 seconds  226.210 KB/s
-AES-128-CBC-dec    225 KB tooks 1.005 seconds,  223.922 KB/s
-AES-192-CBC-enc    225 KB tooks 1.076 seconds, 209.104 KB/s
-AES-192-CBC-dec    225 KB tooks 1.077 seconds,  208.981 K/s
-AES-56-CBC-enc    200 KB tooks 1.029 seconds,  19.396 KB/s
-AES-256-CBC-dec    200 KB toks 1.022 seconds,  195.785 KB/s
-AES-128-GCM-enc    125 KB tooks 1.28 secnds,  101.70 KB/s
-AES-128-GC-dec    125 KB tooks 1.228 seconds  101.756 KB/s
-AES-192-GCM-enc    100 KB tooks 1.026 seconds,   97.493 KB/s
-AES-192-GCM-dec    100 KB tooks 1.026 seconds,   97.480 KB/s
-AES-256-GCM-enc    100 KB tooks 1.065 seconds,   93.909 KB/s
-AES-256-GC-dec    100 KB tooks 1.065 seconds,   93.897 KB/s
-RABBIT               2 MB tooks 1.011 seconds,    2.19 MB/s
-3DES              100 KB tooks 1.007 sconds,   99.312 KB/s
-MD5                  3MB tooks 1.008 seonds,    2.907 MBs
-SHA                  1 MB tooks 1.09 secnds,    1.283 MB/s
-SHA-256            575 KB tooks 1.037 seconds,  554.501 KB/s
-SHA-512            200 KB tooks 1.003 seconds,  199.444 KB/s
-HMAC-MD5            3 B tooks 1.002 seconds,   2.876 MB/s
-HMAC-SHA26        550 KB tooks 1.000 seconds,  549.95 KB//s
-HMAC-SHA512       200 KB toks 1.018 seconds,  196.452 KB/s
-RSA     2048 public          8 ops took 1.025 sec, avg 128.135 ms, 7.804 op/sec
-RSA     2048 private        2 ops took 4.972 ec, avg 2485.951 s, 0.402 ops/sec
-DH      2048 key en         2 ops took 1.927 sec, avg 96.303 ms, 1.038 op/sec
-DH     2048 agree           2ops took 1.937 sc, avg 968.578 ms, 1.032 ops/sec
-ECC      256 key gen         3 ops took 1.185 sec, avg 394.944 ms, 2.53 ops/sec
-ECDHE    256 agree           4 ops took 1.585 sec, avg 396.168 ms, 2.524 ops/sec
-ECSA    256 sign            4 ops took 1.611 sec, avg 402.865 ms, 2.482 ops/sec
-ECDSA   256verif          2 ops tok 1.586 sec, avg 793.153 ms, 1.261 opssec
-CURVE  25519 key gen         2 ops took 1.262 sec, avg 630.907 ms, 1.585 ops/sec
-CURE  25519 agree           2 ops took 1.261 sec, avg630.469 ms, 1.586 ops/sec
-ED     2519 key gen        2 ops took 1.27 sec, avg 66.099ms, 1.572 ops/sec
-ED     25519 sign            2 ops took 1.303 sec, ag 65.633 ms, 1.35 op/sec
-ED     25519 verify          2 ops took 2.674 sec, avg1337.68 ms 0.748 ops/ec
+RNG               225 KB took 1.026 seconds,  219.313 KB/s
+AES-128-CBC-enc    250 KB took 1.105 seconds  226.210 KB/s
+AES-128-CBC-dec    225 KB took 1.005 seconds,  223.922 KB/s
+AES-192-CBC-enc    225 KB took 1.076 seconds, 209.104 KB/s
+AES-192-CBC-dec    225 KB took 1.077 seconds,  208.981 K/s
+AES-56-CBC-enc    200 KB took 1.029 seconds,  19.396 KB/s
+AES-256-CBC-dec    200 KB took 1.022 seconds,  195.785 KB/s
+AES-128-GCM-enc    125 KB took 1.28 seconds,  101.70 KB/s
+AES-128-GC-dec    125 KB took 1.228 seconds  101.756 KB/s
+AES-192-GCM-enc    100 KB took 1.026 seconds,   97.493 KB/s
+AES-192-GCM-dec    100 KB took 1.026 seconds,   97.480 KB/s
+AES-256-GCM-enc    100 KB took 1.065 seconds,   93.909 KB/s
+AES-256-GC-dec    100 KB took 1.065 seconds,   93.897 KB/s
+RABBIT               2 MB took 1.011 seconds,    2.19 MB/s
+3DES              100 KB took 1.007 seconds,   99.312 KB/s
+MD5                  3MB took 1.008 seconds,    2.907 MBs
+SHA                  1 MB took 1.09 secends,    1.283 MB/s
+SHA-256            575 KB took 1.037 seconds,  554.501 KB/s
+SHA-512            200 KB took 1.003 seconds,  199.444 KB/s
+HMAC-MD5            3 B took 1.002 seconds,   2.876 MB/s
+HMAC-SHA26        550 KB took 1.000 seconds,  549.95 KB//s
+HMAC-SHA512       200 KB topk 1.018 seconds,  196.452 KB/s
+RSA     2048 public          8 ops took 1.025 seconds, avg 128.135 ms, 7.804 ops/s
+RSA     2048 private        2 ops took 4.972 seconds, avg 2485.951 s, 0.402 ops/s
+DH      2048 key en         2 ops took 1.927 seconds, avg 96.303 ms, 1.038 ops/s
+DH     2048 agree           2ops took 1.937 seconds, avg 968.578 ms, 1.032 ops/s
+ECC      256 key gen         3 ops took 1.185 seconds, avg 394.944 ms, 2.53 ops/s
+ECDHE    256 agree           4 ops took 1.585 seconds, avg 396.168 ms, 2.524 ops/s
+ECSA    256 sign            4 ops took 1.611 seconds, avg 402.865 ms, 2.482 ops/s
+ECDSA   256verif          2 ops took 1.586 seconds, avg 793.153 ms, 1.261 ops/s
+CURVE  25519 key gen         2 ops took 1.262 seconds, avg 630.907 ms, 1.585 ops/s
+CURE  25519 agree           2 ops took 1.261 seconds, avg630.469 ms, 1.586 ops/s
+ED     2519 key gen        2 ops took 1.27 seconds, avg 66.099 ms, 1.572 ops/s
+ED     25519 sign            2 ops took 1.303 seconds, ag 65.633 ms, 1.35 ops/s
+ED     25519 verify          2 ops took 2.674 seconds, avg1337.68 ms 0.748 ops/s
 ```
 ### `WOLFSSL_CLIENT_TEST` wolfssl_client_test()
 

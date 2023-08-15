@@ -80,6 +80,11 @@
 			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_aes.c</locationURI>
 		</link>
 		<link>
+			<name>wolfcrypt/port/renesas_tsip_rsa.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_rsa.c</locationURI>
+		</link>
+		<link>
 			<name>wolfcrypt/port/renesas_tsip_sha.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_sha.c</locationURI>

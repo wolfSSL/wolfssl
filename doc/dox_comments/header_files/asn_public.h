@@ -2110,7 +2110,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     _Example_
     \code
     int ret = 0;
-    // Unkown extension callback prototype
+    // Unknown extension callback prototype
     int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
                              const unsigned char* der, word32 derSz);
 

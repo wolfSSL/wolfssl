@@ -213,6 +213,8 @@
 #include "src/ssl_certman.c"
 #endif
 
+#define _HMAC_Init _InitHmac
+
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
 /* Convert shortname to NID.
@@ -4004,7 +4006,7 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
     return WOLFSSL_SUCCESS;
 }
 
-
+#ifdef HAVE_SECURE_RENEGOTIATION
 /* do a secure renegotiation handshake, user forced, we discourage */
 static int _Rehandshake(WOLFSSL* ssl)
 {
@@ -4069,7 +4071,7 @@ static int _Rehandshake(WOLFSSL* ssl)
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SECURE_RENEGOTIATION)
+#if !defined(NO_WOLFSSL_SERVER)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
@@ -4077,7 +4079,7 @@ static int _Rehandshake(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif /* !NO_WOLFSSL_SERVER && HAVE_SECURE_RENEGOTIATION */
+#endif /* !NO_WOLFSSL_SERVER */
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0) {
@@ -4150,6 +4152,8 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
+
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 {
@@ -4481,7 +4485,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
     }
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-    /* reset WOLFSSL structure state for possible re-use */
+    /* reset WOLFSSL structure state for possible reuse */
     if (ret == WOLFSSL_SUCCESS) {
         if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("could not clear WOLFSSL");
@@ -12079,7 +12083,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_ENTER("wolfSSL_connect");
 
         /* make sure this wolfSSL object has arrays and rng setup. Protects
-         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+         * case where the WOLFSSL object is reused via wolfSSL_clear() */
         if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
             return ret;
         }
@@ -12567,7 +12571,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_ENTER("wolfSSL_accept");
 
         /* make sure this wolfSSL object has arrays and rng setup. Protects
-         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+         * case where the WOLFSSL object is reused via wolfSSL_clear() */
         if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
             return ret;
         }
@@ -13684,7 +13688,8 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif
         if (output->ticketLenAlloc)
             XFREE(output->ticket, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-        output->ticket = tmpTicket;
+        output->ticket = tmpTicket; /* cppcheck-suppress autoVariables
+                                     */
         output->ticketLenAlloc = PREALLOC_SESSION_TICKET_LEN;
         output->ticketLen = 0;
         tmpBufSet = 1;
@@ -13754,7 +13759,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             TlsSessionCacheUnlockRow(row);
             error = WOLFSSL_FAILURE;
         }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         else if (LowResTimer() >= (sess->bornOn + sess->timeout)) {
             WOLFSSL_SESSION* wrSess = NULL;
             WOLFSSL_MSG("Invalid session: timed out");
@@ -13762,15 +13766,18 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             TlsSessionCacheUnlockRow(row);
             /* Attempt to get a write lock */
             error = TlsSessionCacheGetAndWrLock(id, &wrSess, &row,
-                    ssl->options.side);
+                    (byte)ssl->options.side);
             if (error == 0 && wrSess != NULL) {
                 EvictSessionFromCache(wrSess);
                 TlsSessionCacheUnlockRow(row);
             }
             error = WOLFSSL_FAILURE;
         }
-#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
     }
+
+    /* mollify confused cppcheck nullPointer warning. */
+    if (sess == NULL)
+        error = WOLFSSL_FAILURE;
 
     if (error == WOLFSSL_SUCCESS) {
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
@@ -14353,7 +14360,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     cacheSession->peer = NULL;
 #endif
 #ifdef HAVE_SESSION_TICKET
-    /* If we can re-use the existing buffer in cacheSession then we won't touch
+    /* If we can reuse the existing buffer in cacheSession then we won't touch
      * ticBuff at all making it a very cheap malloc/free. The page on a modern
      * OS will most likely not even be allocated to the process. */
     if (ticBuff != NULL && cacheSession->ticketLenAlloc < ticLen) {
@@ -14963,10 +14970,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
            /* myBuffer may not be initialized fully, but the span up to the
             * sending length will be.
             */
-            PRAGMA_GCC_DIAG_PUSH;
-            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+            PRAGMA_GCC_DIAG_PUSH
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
             ret = wolfSSL_write(ssl, myBuffer, sending);
-            PRAGMA_GCC_DIAG_POP;
+            PRAGMA_GCC_DIAG_POP
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -20137,8 +20144,8 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     }
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-        /* free the data, it would be better to re-use the buffer but this
-         * maintain the code simpler. A smart allocator should re-use the free'd
+        /* free the data, it would be better to reuse the buffer but this
+         * maintain the code simpler. A smart allocator should reuse the free'd
          * buffer in the next malloc without much performance penalties. */
     if (output->ticketNonce.data != output->ticketNonce.dataStatic) {
 
@@ -23747,12 +23754,14 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
     if (lastBlkLen == 0)
         lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
 
-    /* Encrypt data up to last block */
-    (*cbc)(in, out, len - lastBlkLen, key, iv, AES_ENCRYPT);
+    if (len - lastBlkLen != 0) {
+        /* Encrypt data up to last block */
+        (*cbc)(in, out, len - lastBlkLen, key, iv, AES_ENCRYPT);
 
-    /* Move to last block */
-    in += len - lastBlkLen;
-    out += len - lastBlkLen;
+        /* Move to last block */
+        in += len - lastBlkLen;
+        out += len - lastBlkLen;
+    }
 
     /* RFC2040: Pad Pn with zeros at the end to create P of length BB. */
     XMEMCPY(lastBlk, in, lastBlkLen);
@@ -23783,13 +23792,15 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
     if (lastBlkLen == 0)
         lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
 
-    /* Decrypt up to last two blocks */
-    (*cbc)(in, out, len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ, key, iv,
-            AES_DECRYPTION);
+    if (len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ != 0) {
+        /* Decrypt up to last two blocks */
+        (*cbc)(in, out, len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ, key, iv,
+                AES_DECRYPTION);
 
-    /* Move to last two blocks */
-    in += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
-    out += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
+        /* Move to last two blocks */
+        in += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
+        out += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
+    }
 
     /* RFC2040: Decrypt Cn-1 to create Dn.
      * Use 0 buffer as IV to do straight decryption.
@@ -24918,7 +24929,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 
     /* oidCertNameType */
     { NID_commonName, NID_commonName, oidCertNameType, "CN", "commonName"},
+#if !defined(WOLFSSL_CERT_REQ)
     { NID_surname, NID_surname, oidCertNameType, "SN", "surname"},
+#endif
     { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber",
                                                             "serialNumber"},
     { NID_userId, NID_userId, oidCertNameType, "UID", "userid"},
@@ -25449,80 +25462,6 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
 
     return wolfSSL_HmacCopy(&des->hmac, &src->hmac);
 }
-
-
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-static int _HMAC_Init(Hmac* hmac, int type, void* heap)
-{
-    int ret = 0;
-
-    switch (type) {
-    #ifndef NO_MD5
-        case WC_MD5:
-            ret = wc_InitMd5(&hmac->hash.md5);
-            break;
-    #endif /* !NO_MD5 */
-
-    #ifndef NO_SHA
-        case WC_SHA:
-            ret = wc_InitSha(&hmac->hash.sha);
-            break;
-    #endif /* !NO_SHA */
-
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            ret = wc_InitSha224(&hmac->hash.sha224);
-            break;
-    #endif /* WOLFSSL_SHA224 */
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            ret = wc_InitSha256(&hmac->hash.sha256);
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            ret = wc_InitSha384(&hmac->hash.sha384);
-            break;
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            ret = wc_InitSha512(&hmac->hash.sha512);
-            break;
-    #endif /* WOLFSSL_SHA512 */
-
-    #ifdef WOLFSSL_SHA3
-        case WC_SHA3_224:
-            ret = wc_InitSha3_224(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_256:
-            ret = wc_InitSha3_256(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_384:
-            ret = wc_InitSha3_384(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_512:
-            ret = wc_InitSha3_512(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-    #endif
-
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
-
-    (void)heap;
-
-    return ret;
-}
-
-#else
-    #define _HMAC_Init _InitHmac
-#endif
-
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                   const EVP_MD* type)
@@ -26693,8 +26632,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **key,
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_PUBKEY");
 
-    if (pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der)
-            >= 0) {
+    if ((pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der)
+            >= 0) && (der != NULL)) {
         const unsigned char* ptr = der->buffer;
 
         /* handle case where reuse is attempted */
@@ -33109,6 +33048,24 @@ word32 nid2oid(int nid, int grp)
             }
             break;
 
+        /* oidCmsKeyAgreeType */
+    #ifdef WOLFSSL_CERT_REQ
+        case oidCsrAttrType:
+            switch (nid) {
+                case NID_pkcs9_contentType:
+                    return PKCS9_CONTENT_TYPE_OID;
+                case NID_pkcs9_challengePassword:
+                    return CHALLENGE_PASSWORD_OID;
+                case NID_serialNumber:
+                    return SERIAL_NUMBER_OID;
+                case NID_userId:
+                    return USER_ID_OID;
+                case NID_surname:
+                    return SURNAME_OID;
+            }
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("NID not in table");
             /* MSVC warns without the cast */
@@ -33487,7 +33444,7 @@ int oid2nid(word32 oid, int grp)
 #endif
 
         default:
-            WOLFSSL_MSG("NID not in table");
+            WOLFSSL_MSG("OID not in table");
     }
     /* If not found in above switch then try the table */
     for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
@@ -36134,7 +36091,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             }
 
             /* remove trailing null */
-            if (canonLine[canonLineLen] == '\0') {
+            if (canonLineLen >= 1 && canonLine[canonLineLen-1] == '\0') {
                 canonLineLen--;
             }
 

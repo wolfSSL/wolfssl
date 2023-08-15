@@ -66,7 +66,7 @@ aad_sizes["default"]="16 Bytes"
 
 # not pretty but works for me :)
 # CBC&GCM encryption is in software a lot faster than decryption,
-# therefor use the same Range on the Y-Axis to also have a visual indication.
+# therefore use the same Range on the Y-Axis to also have a visual indication.
 # This will break if something changes, so let the user override the value
 cbc_yrange="${cbc_yrange:=1400}"
 gcm_yrange="${gcm_yrange:=500}"

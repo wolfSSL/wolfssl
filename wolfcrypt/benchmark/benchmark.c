@@ -40,6 +40,9 @@
  * Enable tracking of the stats into an allocated linked list:
  * (use -print to display results):
  * WC_BENCH_TRACK_STATS
+ *
+ * set the default devId for cryptocb to the value instead of INVALID_DEVID
+ * WC_USE_DEVID=0x1234
  */
 
 
@@ -273,7 +276,7 @@
     /* fflush in Zephyr doesn't work on stdout and stderr. Use
     * CONFIG_LOG_MODE_IMMEDIATE compilation option instead. */
     #undef  XFFLUSH
-    #define XFFLUSH(...) do {} while (0)
+    #define XFFLUSH(...) WC_DO_NOTHING
 #endif
 
 /* only for stack size check */
@@ -441,14 +444,14 @@
     } while(0)
 #endif
 
-#undef PTHREAD_CHECK_RET
-#define PTHREAD_CHECK_RET(...) do {                                  \
-        int _pthread_ret = (__VA_ARGS__);                            \
-        if (_pthread_ret != 0) {                                     \
-            errno = _pthread_ret;                                    \
+#undef THREAD_CHECK_RET
+#define THREAD_CHECK_RET(...) do {                                   \
+        int _thread_ret = (__VA_ARGS__);                             \
+        if (_thread_ret != 0) {                                      \
+            errno = _thread_ret;                                     \
             printf("%s%s L%d error %d for \"%s\"\n",                 \
                    err_prefix, __FILE__, __LINE__,                   \
-                   _pthread_ret, #__VA_ARGS__);                      \
+                   _thread_ret, #__VA_ARGS__);                       \
             XFFLUSH(stdout);                                         \
             _exit(1);                                                \
         }                                                            \
@@ -457,7 +460,7 @@
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
     /* stub the sleep macro */
-    #define TEST_SLEEP()
+    #define TEST_SLEEP() WC_DO_NOTHING
 #endif
 
 #define TEST_STRING    "Everyone gets Friday off."
@@ -1300,7 +1303,11 @@ static const char* bench_result_words2[][5] = {
 
     static THREAD_LS_T int devId = WOLFSSL_CAAM_DEVID;
 #else
+  #ifdef WC_USE_DEVID
+    static THREAD_LS_T int devId = WC_USE_DEVID;
+  #else
     static THREAD_LS_T int devId = INVALID_DEVID;
+  #endif
 #endif
 
 /* Asynchronous helper macros */
@@ -1312,7 +1319,7 @@ static const char* bench_result_words2[][5] = {
     static volatile int g_threadCount;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM)
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(WC_USE_DEVID)
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
     #endif
@@ -1446,7 +1453,7 @@ static const char* bench_result_words2[][5] = {
         }
         return 0;
     }
-    #define bench_async_poll(p)
+    #define bench_async_poll(p) WC_DO_NOTHING
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 
@@ -1666,7 +1673,7 @@ typedef enum bench_stat_type {
 
     #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
     #endif
 
         if (algo != NULL) {
@@ -1715,7 +1722,7 @@ typedef enum bench_stat_type {
                 bstat->lastRet = ret; /* track last error */
         }
     #ifdef WC_ENABLE_BENCH_THREADING
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
     #endif
         return bstat;
     }
@@ -1726,7 +1733,7 @@ typedef enum bench_stat_type {
 
     #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
-        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
     #endif
 
         for (bstat = bench_stats_head; bstat != NULL; ) {
@@ -1747,7 +1754,7 @@ typedef enum bench_stat_type {
         }
 
     #ifdef WC_ENABLE_BENCH_THREADING
-        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
+        THREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
     #endif
     }
 #endif /* WC_BENCH_TRACK_STATS */
@@ -2853,7 +2860,7 @@ static void* benchmarks_do(void* args)
 
             do {
             #ifdef WOLFCRYPT_HAVE_SAKKE
-                /* SAKKE is not useable with ECDH/ECDSA. Run separate test. */
+                /* SAKKE is not usable with ECDH/ECDSA. Run separate test. */
                 if (curveId == ECC_SAKKE_1) {
                     curveId++;
                     continue;
@@ -3179,12 +3186,12 @@ static int benchmark_test_threaded(void* args)
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        PTHREAD_CHECK_RET(pthread_create(&g_threadData[i].thread_id,
+        THREAD_CHECK_RET(pthread_create(&g_threadData[i].thread_id,
                                          NULL, run_bench, args));
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        PTHREAD_CHECK_RET(pthread_join(g_threadData[i].thread_id, 0));
+        THREAD_CHECK_RET(pthread_join(g_threadData[i].thread_id, 0));
     }
 
     printf("\n");
@@ -10290,6 +10297,7 @@ static void Usage(void)
 
     printf("benchmark\n");
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -? */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* English / Japanese */
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -csv */
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -base10 */
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)

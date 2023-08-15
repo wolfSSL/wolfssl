@@ -17,13 +17,13 @@ To enable support define the following:
 
 ## Simplicity Studio Example
 
-For the Silicon Labs Simplicity Studio exmaple see [/IDE/SimplicityStudio/README.md](/IDE/SimplicityStudio/README.md).
+For the Silicon Labs Simplicity Studio example see [/IDE/SimplicityStudio/README.md](/IDE/SimplicityStudio/README.md).
 
 ## Caveats
 
 :warning: **Be sure to update the SE firmware** Testing and results were done using SE firmware `1.2.6`
 
-Update was preformed under Simplicity Studio directory:
+Update was performed under Simplicity Studio directory:
     `./developer/adapter_packs/commander/commander  flash ./offline/efr32/firmware/series2config1/se_firmware_package/s2c1_se_fw_upgrade_app_1v2p6.hex`
 
  * AES GCM tags length >= 16 bytes

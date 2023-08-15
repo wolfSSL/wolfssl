@@ -63,7 +63,8 @@ typedef wolfssl_TSIP_Hash wc_Sha256;
 #endif /* NO_SHA */
 
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT) ||\
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 #include "r_tsip_rx_if.h"
 
 typedef struct {

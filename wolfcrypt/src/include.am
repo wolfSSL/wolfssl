@@ -122,6 +122,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/arm/cryptoCellHash.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_aes.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_sha.c \
+              wolfcrypt/src/port/Renesas/renesas_tsip_rsa.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_util.c \
               wolfcrypt/src/port/Renesas/renesas_sce_util.c \
               wolfcrypt/src/port/Renesas/renesas_sce_aes.c \

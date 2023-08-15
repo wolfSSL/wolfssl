@@ -619,8 +619,8 @@ static void UpdateMissedDataSessions(void)
 
 #ifdef WOLFSSL_SNIFFER_STATS
     #ifdef HAVE_C___ATOMIC
-        #define LOCK_STAT()
-        #define UNLOCK_STAT()
+        #define LOCK_STAT() WC_DO_NOTHING
+        #define UNLOCK_STAT() WC_DO_NOTHING
         #define NOLOCK_ADD_TO_STAT(x,y) ({ TraceStat(#x, y); \
             __atomic_fetch_add(&x, y, __ATOMIC_RELAXED); })
     #else
@@ -636,10 +636,10 @@ static void UpdateMissedDataSessions(void)
 #endif /* WOLFSSL_SNIFFER_STATS */
 
 #ifdef HAVE_C___ATOMIC
-    #define LOCK_SESSION()
-    #define UNLOCK_SESSION()
-    #define LOCK_SERVER_LIST()
-    #define UNLOCK_SERVER_LIST()
+    #define LOCK_SESSION() WC_DO_NOTHING
+    #define UNLOCK_SESSION() WC_DO_NOTHING
+    #define LOCK_SERVER_LIST() WC_DO_NOTHING
+    #define UNLOCK_SERVER_LIST() WC_DO_NOTHING
 #else
     #define LOCK_SESSION() wc_LockMutex(&SessionMutex)
     #define UNLOCK_SESSION() wc_UnLockMutex(&SessionMutex)

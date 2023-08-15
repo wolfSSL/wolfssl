@@ -25,6 +25,8 @@ jobs:
           - CC: clang-14
             CXX: clang++-14
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
     steps:
       - uses: actions/checkout@v3
       - name: Build

@@ -77,7 +77,7 @@
  *    Requires client to set a client certificate
  * WOLFSSL_PSK_MULTI_ID_PER_CS
  *    When multiple PSK identities are available for the same cipher suite.
- *    Sets the first byte of the client identity to the count of identites
+ *    Sets the first byte of the client identity to the count of identities
  *    that have been seen so far for the cipher suite.
  * WOLFSSL_CHECK_SIG_FAULTS
  *    Verifies the ECC signature after signing in case of faults in the
@@ -262,15 +262,15 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 /* hash buffer may not be fully initialized, but the sending length won't
  * extend beyond the initialized span.
  */
-PRAGMA_GCC_DIAG_PUSH;
-PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     (void)ssl;
     (void)side;
     return wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
-PRAGMA_GCC_DIAG_POP;
+PRAGMA_GCC_DIAG_POP
 }
 #endif /* !HAVE_FIPS || !wc_Tls13_HKDF_Expand_Label */
 
@@ -476,8 +476,8 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     /* hash buffer may not be fully initialized, but the sending length won't
      * extend beyond the initialized span.
      */
-    PRAGMA_GCC_DIAG_PUSH;
-    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    PRAGMA_GCC_DIAG_PUSH
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     PRIVATE_KEY_UNLOCK();
     #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
     (void)side;
@@ -495,7 +495,7 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     wc_MemZero_Add("TLS 1.3 derived key", output, outputLen);
 #endif
     return ret;
-    PRAGMA_GCC_DIAG_POP;
+    PRAGMA_GCC_DIAG_POP
 }
 
 /* Convert TLS mac ID to a hash algorithm ID
@@ -11479,12 +11479,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * == 0) */
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
-#endif
 
-    /* reset error */
-    if (ret == 0 && ssl->error == WC_PENDING_E)
+    /* make sure async error is cleared */
+    if (ret == 0 && (ssl->error == WC_PENDING_E || ssl->error == OCSP_WANT_READ)) {
         ssl->error = 0;
-
+    }
+#endif
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update) {
         ret = HashInput(ssl, input + inIdx, size);
@@ -11917,7 +11917,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case CLIENT_HELLO_SENT:
             /* Get the response/s from the server. */
             while (ssl->options.serverState <
-                                          SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+                    SERVER_HELLOVERIFYREQUEST_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;

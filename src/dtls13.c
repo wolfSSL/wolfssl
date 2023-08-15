@@ -277,10 +277,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
         /* assuming CIPHER[0..3] should be interpreted as little endian 32-bits
            integer. The draft rfc isn't really clear on that. See sec 4.2.3 of
            the draft. See also Section 2.3 of the Chacha RFC. */
-        XMEMCPY(&counter, ciphertext, sizeof(counter));
-#ifdef BIG_ENDIAN
-        counter = ByteReverseWord32(counter);
-#endif /* BIG_ENDIAN */
+        ato32le(ciphertext, &counter);
 
         ret = wc_Chacha_SetIV(c->chacha, &ciphertext[4], counter);
         if (ret != 0)

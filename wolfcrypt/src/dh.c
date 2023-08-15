@@ -1021,7 +1021,7 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
 /* if not using fixed points use DiscreteLogWorkFactor function for unusual size
    otherwise round up on size needed */
 #ifndef WOLFSSL_DH_CONST
-    #define WOLFSSL_DH_ROUND(x)
+    #define WOLFSSL_DH_ROUND(x) WC_DO_NOTHING
 #else
     #define WOLFSSL_DH_ROUND(x) \
         do {                    \

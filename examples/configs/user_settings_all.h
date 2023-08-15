@@ -125,7 +125,7 @@ extern "C" {
 #define WOLFSSL_DER_TO_PEM
 #define WOLFSSL_CUSTOM_OID
 #define HAVE_OID_ENCODING
-//#define WOLFSSL_ASN_TEMPLATE /* Not enabled yet by default */
+#define WOLFSSL_ASN_TEMPLATE
 
 /* Certificate Revocation */
 #define HAVE_OCSP

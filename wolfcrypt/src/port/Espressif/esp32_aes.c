@@ -216,7 +216,7 @@ static void esp_aes_bk(const byte* in, byte* out)
 
     /* wait until finishing the process */
     while (DPORT_REG_READ(AES_STATE_REG) != 0) {
-        /* wating for the hardware accelerator to complete operation. */
+        /* waiting for the hardware accelerator to complete operation. */
     }
 
     /* read-out blocks */

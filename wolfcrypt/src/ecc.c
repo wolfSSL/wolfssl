@@ -666,7 +666,7 @@ enum {
         #endif
         #define ecc_oid_brainpoolp256r1_sz CODED_BRAINPOOLP256R1_SZ
     #endif /* HAVE_ECC_BRAINPOOL */
-    #ifdef WOLFSSL_SM2
+    #if defined(WOLFSSL_SM2) && !defined(WOLFSSL_SP_MATH)
         #ifdef HAVE_OID_ENCODING
             #define CODED_SM2P256V1    {1,2,156,10197,1,301}
             #define CODED_SM2P256V1_SZ 6
@@ -680,7 +680,7 @@ enum {
             #define ecc_oid_sm2p256v1 CODED_SM2P256V1
         #endif
         #define ecc_oid_sm2p256v1_sz CODED_SM2P256V1_SZ
-    #endif /* WOLFSSL_SM2 */
+    #endif /* WOLFSSL_SM2 && !WOLFSSL_SP_MATH */
 #endif /* ECC256 */
 #ifdef ECC320
     #ifdef HAVE_ECC_BRAINPOOL
@@ -1161,7 +1161,7 @@ const ecc_set_type ecc_sets[] = {
         1,                                                                  /* cofactor   */
     },
     #endif /* HAVE_ECC_BRAINPOOL */
-    #ifdef WOLFSSL_SM2
+    #if defined(WOLFSSL_SM2) && !defined(WOLFSSL_SP_MATH)
     {
         32,                                                     /* size/bytes */
         ECC_SM2P256V1,                                          /* ID         */
@@ -1179,7 +1179,7 @@ const ecc_set_type ecc_sets[] = {
         ECC_SM2P256V1_OID,                                      /* oid sum    */
         1,                                                      /* cofactor   */
     },
-    #endif /* WOLFSSL_SM2 */
+    #endif /* WOLFSSL_SM2 && !WOLFSSL_SP_MATH */
 #endif /* ECC256 */
 #ifdef ECC320
     #ifdef HAVE_ECC_BRAINPOOL
@@ -1380,25 +1380,22 @@ typedef struct ecc_curve_spec {
     byte load_mask;
 } ecc_curve_spec;
 
-enum ecc_curve_load_mask {
-    ECC_CURVE_FIELD_NONE    = 0x00,
-    ECC_CURVE_FIELD_PRIME   = 0x01,
-    ECC_CURVE_FIELD_AF      = 0x02,
+    #define ECC_CURVE_FIELD_NONE    0x00
+    #define ECC_CURVE_FIELD_PRIME   0x01
+    #define ECC_CURVE_FIELD_AF      0x02
 #ifdef USE_ECC_B_PARAM
-    ECC_CURVE_FIELD_BF      = 0x04,
+    #define ECC_CURVE_FIELD_BF      0x04
 #endif
-    ECC_CURVE_FIELD_ORDER   = 0x08,
-    ECC_CURVE_FIELD_GX      = 0x10,
-    ECC_CURVE_FIELD_GY      = 0x20,
+    #define ECC_CURVE_FIELD_ORDER   0x08
+    #define ECC_CURVE_FIELD_GX      0x10
+    #define ECC_CURVE_FIELD_GY      0x20
 #ifdef USE_ECC_B_PARAM
-    ECC_CURVE_FIELD_ALL     = 0x3F,
-    ECC_CURVE_FIELD_COUNT   = 6,
+    #define ECC_CURVE_FIELD_ALL     0x3F
+    #define ECC_CURVE_FIELD_COUNT   6
 #else
-    ECC_CURVE_FIELD_ALL     = 0x3B,
-    ECC_CURVE_FIELD_COUNT   = 5,
+    #define ECC_CURVE_FIELD_ALL     0x3B
+    #define ECC_CURVE_FIELD_COUNT   5
 #endif
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(ecc_curve_load_mask)
-};
 
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 static const u32 xil_curve_type[ECC_CURVE_MAX] = {
@@ -1454,8 +1451,8 @@ static int xil_mpi_import(mp_int *mpi,
     #endif
 
     #define DECLARE_CURVE_SPECS(intcount) ecc_curve_spec* curve = NULL
-    #define ALLOC_CURVE_SPECS(intcount, err)
-    #define FREE_CURVE_SPECS()
+    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #elif defined(WOLFSSL_SMALL_STACK)
 #ifdef WOLFSSL_SP_MATH_ALL
     #define DECLARE_CURVE_SPECS(intcount)                               \
@@ -1510,8 +1507,8 @@ static int xil_mpi_import(mp_int *mpi,
         curve->spec_ints = spec_ints;                                   \
         curve->spec_count = (intcount)
 #endif
-    #define ALLOC_CURVE_SPECS(intcount, err)
-    #define FREE_CURVE_SPECS()
+    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #endif /* ECC_CACHE_CURVE */
 
 static void wc_ecc_curve_cache_free_spec_item(ecc_curve_spec* curve, mp_int* item,
@@ -9258,7 +9255,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     return err;
 }
 
-/* function for backwards compatiblity with previous implementations */
+/* function for backwards compatibility with previous implementations */
 int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
 {
@@ -14710,6 +14707,12 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
       /* Z = Z + 1 */
       if (res == MP_OKAY)
         res = mp_add_d(Z, 1, Z);
+
+      if ((res == MP_OKAY) && (mp_cmp(Z,prime) == MP_EQ)) {
+        /* This is to clamp the loop in case 'prime' is not really prime */
+        res = MP_VAL;
+        break;
+      }
     }
 
     /* C = Z ^ Q mod prime */

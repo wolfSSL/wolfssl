@@ -18,7 +18,7 @@
 - Generate the changes by clicking on "Generate Project Content"
 - Exclude src/wolfcrypt/port and all src/wolfcrypt/*.S and src/wolfcrypt/*.asm files from the build
 - Exclude src/wolfcrypt/evp.c, src/wolfcrypt/misc.c and src/wolfssl/bio.c
-- Set the Preprocessor define in wolfssl proejct to have WOLFSSL_USER_SETTINGS. Right click on wolfssl project "Properties -> C/C++ Build -> GNU ARM Cross C Compiler -> Preprocessor" add WOLFSSL_USER_SETTINGS under "Defined symbols"
+- Set the Preprocessor define in wolfssl project to have WOLFSSL_USER_SETTINGS. Right click on wolfssl project "Properties -> C/C++ Build -> GNU ARM Cross C Compiler -> Preprocessor" add WOLFSSL_USER_SETTINGS under "Defined symbols"
 - Set include to wolfssl directory. Right click on project "Properties -> C/C++Build -> GNU ARM Cross Compiler -> Includes". Add "${ProjDirPath}/../../../../.." and "${ProjDirPath}/../"
 - Build wolfssl by right clicking on wolfssl project and selecting "Build Project"
 
@@ -29,7 +29,7 @@
 - Copy in the .cproject, .project and source file from the template desired i.e. wolfssl-X.X.X/IDE/Renesas/e2studio/DK-S7G2/wolfcrypttest-template/
 - Right click on the created project and select "Build Project"
 
-The example_server loops looking to accept connections and closes immediatly after a successful connection was made.
+The example_server loops looking to accept connections and closes immediately after a successful connection was made.
 
 The benchmark example tries to do a TCP connection to SERVER_IP on port 11112 and a TLS connection to SERVER_IP on port 11111 then does wolfCrypt benchmark collection.
 

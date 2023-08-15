@@ -71,92 +71,6 @@
     #define USE_SLOW_SHA512
 #endif
 
-/* fips wrapper calls, user can call direct */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-    #ifdef WOLFSSL_SHA512
-
-        int wc_InitSha512(wc_Sha512* sha)
-        {
-            if (sha == NULL) {
-                return BAD_FUNC_ARG;
-            }
-
-            return InitSha512_fips(sha);
-        }
-        int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
-        {
-            (void)heap;
-            (void)devId;
-            if (sha == NULL) {
-                return BAD_FUNC_ARG;
-            }
-            return InitSha512_fips(sha);
-        }
-        int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
-        {
-            if (sha == NULL || (data == NULL && len > 0)) {
-                return BAD_FUNC_ARG;
-            }
-
-            return Sha512Update_fips(sha, data, len);
-        }
-        int wc_Sha512Final(wc_Sha512* sha, byte* out)
-        {
-            if (sha == NULL || out == NULL) {
-                return BAD_FUNC_ARG;
-            }
-
-            return Sha512Final_fips(sha, out);
-        }
-        void wc_Sha512Free(wc_Sha512* sha)
-        {
-            (void)sha;
-            /* Not supported in FIPS */
-        }
-    #endif
-
-    #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
-        int wc_InitSha384(wc_Sha384* sha)
-        {
-            if (sha == NULL) {
-                return BAD_FUNC_ARG;
-            }
-            return InitSha384_fips(sha);
-        }
-        int wc_InitSha384_ex(wc_Sha384* sha, void* heap, int devId)
-        {
-            (void)heap;
-            (void)devId;
-            if (sha == NULL) {
-                return BAD_FUNC_ARG;
-            }
-            return InitSha384_fips(sha);
-        }
-        int wc_Sha384Update(wc_Sha384* sha, const byte* data, word32 len)
-        {
-            if (sha == NULL || (data == NULL && len > 0)) {
-                return BAD_FUNC_ARG;
-            }
-            return Sha384Update_fips(sha, data, len);
-        }
-        int wc_Sha384Final(wc_Sha384* sha, byte* out)
-        {
-            if (sha == NULL || out == NULL) {
-                return BAD_FUNC_ARG;
-            }
-            return Sha384Final_fips(sha, out);
-        }
-        void wc_Sha384Free(wc_Sha384* sha)
-        {
-            (void)sha;
-            /* Not supported in FIPS */
-        }
-    #endif /* WOLFSSL_SHA384 || HAVE_AESGCM */
-
-#else /* else build without fips, or for FIPS v2 */
-
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
@@ -1564,8 +1478,6 @@ void wc_Sha384Free(wc_Sha384* sha384)
 }
 
 #endif /* WOLFSSL_SHA384 */
-
-#endif /* HAVE_FIPS */
 
 #ifdef WOLFSSL_SHA512
 

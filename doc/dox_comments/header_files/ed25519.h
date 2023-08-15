@@ -950,7 +950,7 @@ int wc_ed25519_export_key(ed25519_key* key,
 
     \return 0 Returned if the private and public key matched.
     \return BAD_FUNC_ARG Returned if the given key is NULL.
-    \return PUBLIC_KEY_E Returned if the no public key availble or is invalid.
+    \return PUBLIC_KEY_E Returned if the no public key available or is invalid.
 
     \param [in] key Pointer to an ed25519_key structure holding a private and
     public key.

@@ -10,10 +10,13 @@ jobs:
         config: [
           # Add new configs here
           '--enable-asynccrypt --enable-all --enable-dtls13',
-          '--enable-asynccrypt-sw',
+          '--enable-asynccrypt-sw --enable-ocspstapling --enable-ocspstapling2',
+          '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS"',
         ]
     name: make check
     runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v3
         name: Checkout wolfSSL

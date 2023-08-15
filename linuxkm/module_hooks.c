@@ -508,11 +508,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #include <wolfssl/wolfcrypt/coding.h>
 
-PRAGMA_GCC_DIAG_PUSH;
-PRAGMA_GCC("GCC diagnostic ignored \"-Wnested-externs\"");
-PRAGMA_GCC("GCC diagnostic ignored \"-Wpointer-arith\"");
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wnested-externs\"")
+PRAGMA_GCC("GCC diagnostic ignored \"-Wpointer-arith\"")
 #include <crypto/hash.h>
-PRAGMA_GCC_DIAG_POP;
+PRAGMA_GCC_DIAG_POP
 
 extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 extern const char coreKey[WC_SHA256_DIGEST_SIZE*2 + 1];

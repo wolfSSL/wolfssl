@@ -88,134 +88,6 @@ RSA Key Size Configuration:
 */
 
 
-/* If building for old FIPS. */
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-int  wc_InitRsaKey(RsaKey* key, void* ptr)
-{
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    return InitRsaKey_fips(key, ptr);
-}
-
-
-int  wc_InitRsaKey_ex(RsaKey* key, void* ptr, int devId)
-{
-    (void)devId;
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return InitRsaKey_fips(key, ptr);
-}
-
-
-int  wc_FreeRsaKey(RsaKey* key)
-{
-    return FreeRsaKey_fips(key);
-}
-
-
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
-                                 word32 outLen, RsaKey* key, WC_RNG* rng)
-{
-    if (in == NULL || out == NULL || key == NULL || rng == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaPublicEncrypt_fips(in, inLen, out, outLen, key, rng);
-}
-#endif
-
-
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
-                                        RsaKey* key)
-{
-    if (in == NULL || out == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaPrivateDecryptInline_fips(in, inLen, out, key);
-}
-
-
-int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
-                                  word32 outLen, RsaKey* key)
-{
-    if (in == NULL || out == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaPrivateDecrypt_fips(in, inLen, out, outLen, key);
-}
-
-
-int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, WC_RNG* rng)
-{
-    if (in == NULL || out == NULL || key == NULL || inLen == 0) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaSSL_Sign_fips(in, inLen, out, outLen, key, rng);
-}
-#endif
-
-
-int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
-{
-    if (in == NULL || out == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaSSL_VerifyInline_fips(in, inLen, out, key);
-}
-
-
-int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
-                              word32 outLen, RsaKey* key)
-{
-    if (in == NULL || out == NULL || key == NULL || inLen == 0) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaSSL_Verify_fips(in, inLen, out, outLen, key);
-}
-
-
-int  wc_RsaEncryptSize(const RsaKey* key)
-{
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return RsaEncryptSize_fips((RsaKey*)key);
-}
-
-
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-                           word32* bSz)
-{
-
-    /* not specified as fips so not needing _fips */
-    return RsaFlattenPublicKey(key, a, aSz, b, bSz);
-}
-#endif
-
-
-#ifdef WOLFSSL_KEY_GEN
-    int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
-    {
-        return MakeRsaKey(key, size, e, rng);
-    }
-#endif
-
-
-/* these are functions in asn and are routed to wolfssl/wolfcrypt/asn.c
-* wc_RsaPrivateKeyDecode
-* wc_RsaPublicKeyDecode
-*/
-
-#else /* else build without fips, or for new fips */
-
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef WOLF_CRYPTO_CB
@@ -3280,7 +3152,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    /* Always check for ciphertext of 0 or 1. (Should't for OAEP decrypt.) */
+    /* Always check for ciphertext of 0 or 1. (Shouldn't for OAEP decrypt.) */
     return wc_RsaFunction_ex(in, inLen, out, outLen, type, key, rng, 1);
 }
 
@@ -3391,7 +3263,9 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
         }
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
+          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
            /* SCE needs warpped key which is passed via
             * user ctx object of crypt-call back.
             */
@@ -3550,7 +3424,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    #elif defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
+          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
            #ifdef WOLF_CRYPTO_CB
                 if (key->devId != INVALID_DEVID) {
                     ret = wc_CryptoCb_Rsa(in, inLen, out,
@@ -4354,9 +4230,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
     return 0;
 }
 #endif
-
-#endif /* HAVE_FIPS */
-
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 static int RsaGetValue(mp_int* in, byte* out, word32* outSz)

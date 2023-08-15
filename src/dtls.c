@@ -285,10 +285,13 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
     if (idx > helloSz - OPAQUE8_LEN)
         return BUFFER_ERROR;
     idx += ReadVector8(input + idx, &ch->compression);
-    if (idx > helloSz - OPAQUE16_LEN)
-        return BUFFER_ERROR;
-    idx += ReadVector16(input + idx, &ch->extension);
-    if (idx > helloSz)
+    if (idx < helloSz - OPAQUE16_LEN) {
+        /* Extensions are optional */
+        idx += ReadVector16(input + idx, &ch->extension);
+        if (idx > helloSz)
+            return BUFFER_ERROR;
+    }
+    if (idx != helloSz)
         return BUFFER_ERROR;
     ch->length = idx;
     return 0;
@@ -1105,7 +1108,7 @@ int TLSX_ConnectionID_Use(WOLFSSL* ssl)
     /* CIDInfo needs to be accessed every time we send or receive a record. To
      * avoid the cost of the extension lookup save a pointer to the structure
      * inside the SSL object itself, and save a pointer to the SSL object in the
-     * extension. The extension freeing routine uses te pointer to the SSL
+     * extension. The extension freeing routine uses the pointer to the SSL
      * object to find the structure and to set ssl->dtlsCidInfo pointer to NULL
      * after freeing the structure. */
     ssl->dtlsCidInfo = info;

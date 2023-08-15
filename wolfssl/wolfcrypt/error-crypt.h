@@ -33,11 +33,6 @@ the error status.
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #include <cyassl/ctaocrypt/error-crypt.h>
-#endif /* HAVE_FIPS V1 */
-
 #ifdef __cplusplus
     extern "C" {
 #endif

@@ -223,6 +223,9 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         #ifdef WOLFSSL_ASYNC_CRYPT
             || error == WC_PENDING_E
         #endif
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            || error == OCSP_WANT_READ
+        #endif
         ) {
         #ifndef WOLFSSL_CALLBACKS
             ret = wolfSSL_connect(ssl);
@@ -294,7 +297,7 @@ static void ShowVersions(void)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     XSTRNCAT(verStr, "e(either):", 11);
 #endif
-    /* print all stings at same time on stdout to avoid any flush issues */
+    /* print all strings at same time on stdout to avoid any flush issues */
     printf("%s\n", verStr);
 }
 
@@ -1063,6 +1066,55 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     return err;
 }
 
+static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
+        char* reply, int replyLen, int mustRead,
+        const char* str, int exitWithRet)
+{
+    int ret = 0;
+
+    do {
+        ret = ClientWrite(ssl, msg, msgSz, str, exitWithRet);
+        if (ret != 0) {
+            if (!exitWithRet)
+                err_sys("ClientWrite failed");
+            else
+                break;
+        }
+        if (wolfSSL_dtls(ssl)) {
+            ret = tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC);
+            if (ret == TEST_TIMEOUT) {
+                continue;
+            }
+            else if (ret == TEST_RECV_READY) {
+                /* Ready to read */
+            }
+            else {
+                LOG_ERROR("%s tcp_select error\n", str);
+                if (!exitWithRet)
+                    err_sys("tcp_select failed");
+                else
+                    ret = WOLFSSL_FATAL_ERROR;
+                break;
+            }
+        }
+        ret = ClientRead(ssl, reply, replyLen, mustRead, str, exitWithRet);
+        if (mustRead && ret != 0) {
+            if (!exitWithRet)
+                err_sys("ClientRead failed");
+            else
+                break;
+        }
+        break;
+    } while (1);
+
+    if (ret != 0) {
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        LOG_ERROR("SSL_write%s msg error %d, %s\n", str, ret,
+                                        wolfSSL_ERR_error_string(ret, buffer));
+    }
+
+    return ret;
+}
 
 /* when adding new option, please follow the steps below: */
 /*  1. add new option message in English section          */
@@ -1762,7 +1814,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
     size_t srtp_secret_length;
     byte *srtp_secret, *p;
     int ret;
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     srtp_test_helper *srtp_helper = args->srtp_helper;
     byte *other_secret = NULL;
     size_t other_size = 0;
@@ -1796,7 +1848,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         printf("%02X", *p);
     printf("\n");
 
-#ifdef HAVE_PTHREAD
+#ifdef WOLFSSL_COND
     if (srtp_helper != NULL) {
         srtp_helper_get_ekm(srtp_helper, &other_secret, &other_size);
 
@@ -1812,7 +1864,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
         /* we are delegated from server to free this buffer  */
         XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_PTHREAD */
+#endif /* WOLFSSL_COND */
 
     XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -1859,7 +1911,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         { "wolfsentry-config", 1, 256 },
 #endif
         { "help", 0, 257 },
+#ifndef NO_MULTIBYTE_PRINT
         { "ヘルプ", 0, 258 },
+#endif
 #if defined(HAVE_PQC)
         { "pqc", 1, 259 },
 #endif
@@ -3978,7 +4032,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_free(ctx); ctx = NULL;
 
         ((func_args*)args)->return_code = 0;
-        return 0;
+        WOLFSSL_RETURN_FROM_THREAD(0);
     }
 
 #ifdef HAVE_ALPN
@@ -4190,15 +4244,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_update_keys(ssl);
 #endif
 
-    err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
-    if (exitWithRet && (err != 0)) {
-        ((func_args*)args)->return_code = err;
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        goto exit;
-    }
-
-    err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
+    err = ClientWriteRead(ssl, msg, msgSz, reply, sizeof(reply)-1, 1, "",
+            exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
         wolfSSL_free(ssl); ssl = NULL;
@@ -4495,10 +4542,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             msgSz = (int)XSTRLEN(kResumeMsg);
             XMEMCPY(msg, kResumeMsg, msgSz);
         }
-        (void)ClientWrite(sslResume, msg, msgSz, " resume", 0);
 
-        (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
-                         "Server resume: ", 0);
+        (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply)-1,
+                sendGET, " resume", 0);
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
@@ -4554,9 +4600,7 @@ exit:
     (void) useVerifyCb;
     (void) customVerifyCert;
 
-#if !defined(WOLFSSL_TIRTOS)
-    return 0;
-#endif
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
 #endif /* !NO_WOLFSSL_CLIENT */
@@ -4572,7 +4616,7 @@ exit:
 
         StartTCP();
 
-#if defined(WOLFSSL_SRTP) && defined(HAVE_PTHREAD)
+#if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
         args.srtp_helper = NULL;
 #endif
         args.argc = argc;

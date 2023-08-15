@@ -548,9 +548,9 @@ typedef struct sp_ecc_ctx {
     /* No filesystem, no output
      * TODO: Use logging API?
      */
-    #define sp_print(a, s)
-    #define sp_print_digit(a, s)
-    #define sp_print_int(a, s)
+    #define sp_print(a, s) WC_DO_NOTHING
+    #define sp_print_digit(a, s) WC_DO_NOTHING
+    #define sp_print_int(a, s) WC_DO_NOTHING
 
 #endif /* !NO_FILESYSTEM */
 
@@ -656,7 +656,7 @@ typedef struct sp_ecc_ctx {
 /* Sets the multi-precision number negative.
  *
  * Negative support not compiled in, so does nothing. */
-#define sp_setneg(a) do{}while(0)
+#define sp_setneg(a) WC_DO_NOTHING
 #else
 /* Returns whether multi-precision number is negative.
  *
@@ -830,7 +830,7 @@ while (0)
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
     XMEMSET(name, 0, MP_INT_SIZEOF(MP_BITS_CNT(bits)))
 /* Dispose of static mp_int. */
-#define FREE_MP_INT_SIZE(name, heap, type)
+#define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
 /* Type to force compiler to not complain about size. */
 #define MP_INT_SIZE     sp_int_minimal
 #endif

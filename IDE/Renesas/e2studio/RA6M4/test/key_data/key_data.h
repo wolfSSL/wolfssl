@@ -3,10 +3,10 @@
 
 #include "r_sce.h"
 
-/** Firmware update data and user key datas */
+/** Firmware update data and user key data */
 typedef struct user_key_block_data
 {
-    /* Provisioning key wapped by Renesas DLM */
+    /* Provisioning key wrapped by Renesas DLM */
     uint8_t encrypted_provisioning_key[HW_SCE_AES_CBC_IV_BYTE_SIZE * 2];
     /* Initial vector to be used when creating encrypted key */
     uint8_t iv[HW_SCE_AES_CBC_IV_BYTE_SIZE];

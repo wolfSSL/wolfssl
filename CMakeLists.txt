@@ -411,12 +411,7 @@ endif()
 
 if (WOLFSSL_OPENSSLEXTRA AND NOT WOLFSSL_OPENSSLCOEXIST)
     list(APPEND WOLFSSL_DEFINITIONS
-      "-DOPENSSL_EXTRA"
-      "-DWOLFSSL_ALWAYS_VERIFY_CB"
-      "-DWOLFSSL_VERIFY_CB_ALL_CERTS"
-      "-DWOLFSSL_EXTRA_ALERTS"
-      "-DHAVE_EXT_CACHE"
-      "-DWOLFSSL_FORCE_CACHE_ON_TICKET")
+      "-DOPENSSL_EXTRA")
 endif()
 
 if (WOLFSSL_OPENSSLALL)
@@ -1963,7 +1958,6 @@ else()
    set(WOLFSSL_OUTPUT_BASE ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 set(OPTION_FILE "${WOLFSSL_OUTPUT_BASE}/wolfssl/options.h")
-set(CYASSL_OPTION_FILE "${WOLFSSL_OUTPUT_BASE}/cyassl/options.h")
 
 file(REMOVE ${OPTION_FILE})
 
@@ -1992,14 +1986,6 @@ file(APPEND ${OPTION_FILE} "\n#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "}\n")
 file(APPEND ${OPTION_FILE} "#endif\n\n\n")
 file(APPEND ${OPTION_FILE} "#endif /* WOLFSSL_OPTIONS_H */\n\n")
-
-# backwards compatibility for those who have included options or version
-file(REMOVE ${CYASSL_OPTION_FILE})
-file(APPEND ${CYASSL_OPTION_FILE} "/* cyassl options.h\n")
-file(APPEND ${CYASSL_OPTION_FILE} " * generated from wolfssl/options.h\n")
-file(APPEND ${CYASSL_OPTION_FILE} " */\n")
-file(READ ${OPTION_FILE} OPTION_FILE_CONTENTS)
-file(APPEND ${CYASSL_OPTION_FILE} ${OPTION_FILE_CONTENTS})
 
 ####################################################
 # Library Target
@@ -2206,7 +2192,6 @@ include(GNUInstallDirs)
 
 set(HEADER_EXCLUDE
   "internal.h"
-  "cyassl/ctaocrypt/port"
   "wolfssl/wolfcrypt/port/nrf51.h"
   "wolfssl/wolfcrypt/port/arm"
   "wolfssl/wolfcrypt/port/cypress"
@@ -2351,19 +2336,10 @@ install(DIRECTORY ${WOLFSSL_OUTPUT_BASE}/wolfssl/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wolfssl
         FILES_MATCHING PATTERN "*.h"
         REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
-install(DIRECTORY ${WOLFSSL_OUTPUT_BASE}/cyassl/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cyassl
-        FILES_MATCHING PATTERN "*.h"
-        REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wolfssl
         FILES_MATCHING PATTERN "*.h"
         REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cyassl/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cyassl
-        FILES_MATCHING PATTERN "*.h"
-        REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
-
 
 # Install the examples
 install(FILES ${INSTALLED_EXAMPLES}
@@ -2376,7 +2352,8 @@ install(FILES
 # Install the export set
 install(EXPORT wolfssl-targets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
-        FILE wolfssl-config.cmake)
+        FILE wolfssl-targets.cmake
+        NAMESPACE wolfssl::)
 
 # TODO: Distro build + rules for what to include in the distro.
 #       See various include.am files.
