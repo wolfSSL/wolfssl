@@ -2121,7 +2121,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                                               XIL_CAST_U64(out)) != XST_SUCCESS) {
                     ret = BAD_STATE_E;
                 }
-                WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, inLen);
+                WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)out, inLen);
 #else
                 if (XSecure_RsaPrivateDecrypt(&rsa, (u8*)in, inLen, out) !=
                         XST_SUCCESS) {
@@ -2149,7 +2149,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             WOLFSSL_MSG("RSA public operation failed");
             ret = BAD_STATE_E;
         }
-        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, inLen);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)out, inLen);
 #elif defined(WOLFSSL_XILINX_CRYPTO_OLD)
         if (XSecure_RsaDecrypt(&(key->xRsa), in, out) != XST_SUCCESS) {
             ret = BAD_STATE_E;
