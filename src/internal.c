@@ -31810,6 +31810,15 @@ exit_scv:
 #ifdef HAVE_SESSION_TICKET
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
+    /* If the session is shared, we need to copy-on-write */
+    if (ssl->session->ref.count > 1) {
+        WOLFSSL_SESSION* nsession = wolfSSL_SESSION_dup(ssl->session);
+        if (nsession == NULL)
+            return MEMORY_E;
+        wolfSSL_FreeSession(ssl->ctx, ssl->session);
+        ssl->session = nsession;
+    }
+
     /* Free old dynamic ticket if we already had one */
     if (ssl->session->ticketLenAlloc > 0) {
         XFREE(ssl->session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
