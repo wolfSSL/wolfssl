@@ -31699,10 +31699,14 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     if (ret == 0) {
         /* Encode DSA signature into buffer. */
         ret = SetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, out);
-        if ((ret >= 0) && (ret == sz)) {
-            /* Set the actual encoding size. */
-            *outLen = (word32)sz;
-            ret = 0;
+        if (ret >= 0) {
+            if (ret == sz) {
+                /* Set the actual encoding size. */
+                *outLen = (word32)sz;
+                ret = 0;
+            } else {
+                ret = BAD_STATE_E;
+            }
         }
     }
 
