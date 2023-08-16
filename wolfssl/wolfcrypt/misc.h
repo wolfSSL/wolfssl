@@ -157,6 +157,26 @@ WOLFSSL_LOCAL void w64Zero(w64wrapper *a);
 
 #define WC_MISC_STATIC static
 
+/* Declarations for user defined functions */
+#ifdef WOLFSSL_NO_FORCE_ZERO
+void ForceZero(void* mem, word32 len);
+#endif
+#ifdef WOLFSSL_NO_CONST_CMP
+int ConstantCompare(const byte* a, const byte* b, int length);
+#endif
+#ifdef WOLFSSL_NO_INT_ENCODE
+void c32to24(word32 in, word24 out);
+void c16toa(word16 wc_u16, byte* c);
+void c32toa(word32 wc_u32, byte* c);
+#endif
+#ifdef WOLFSSL_NO_INT_DECODE
+void c24to32(const word24 wc_u24, word32* wc_u32);
+void ato24(const byte* c, word32* wc_u24);
+void ato16(const byte* c, word16* wc_u16);
+void ato32(const byte* c, word32* wc_u32);
+void ato32le(const byte* c, word32* wc_u32);
+word32 btoi(byte b);
+#endif
 #endif /* NO_INLINE */
 
 
