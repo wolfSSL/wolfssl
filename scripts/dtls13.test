@@ -26,10 +26,6 @@ SERVER_PORT=11111
 NEW_SESSION_TICKET_SIZE=200
 KEY_UPDATE_SIZE=35
 
-(killall udp_proxy || true)
-(killall lt-server || true)
-(killall lt-client || true)
-
 # $WOLFSSL_ROOT/tests/unit.test tests/test-dtls13.conf
 
 test_dropping_packets () {
@@ -40,10 +36,7 @@ test_dropping_packets () {
         $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta 2>>/tmp/serr &
         SERVER_PID=$!
         sleep 0.2
-        now=$(date +%s.%N)
         $WOLFSSL_ROOT/examples/client/client -v4 -u -p$PROXY_PORT 2>>/tmp/cerr
-        elapsed=$(echo $(date +%s.%N) - $now | bc)
-        echo "it took ${elapsed} sec(s)" >> /tmp/udp
         wait $SERVER_PID
         SERVER_PID=
         kill $UDP_PROXY_PID
@@ -61,10 +54,7 @@ test_dropping_packets () {
         $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta -6 2>>/tmp/serr &
         SERVER_PID=$!
         sleep 0.2
-        now=$(date +%s.%N)
         $WOLFSSL_ROOT/examples/client/client -v4 -u -p$PROXY_PORT -6 2>>/tmp/cerr
-        elapsed=$(echo $(date +%s.%N) - $now | bc)
-        echo "it took ${elapsed} sec(s)" >> /tmp/udp
         wait $SERVER_PID
         SERVER_PID=
         kill $UDP_PROXY_PID
