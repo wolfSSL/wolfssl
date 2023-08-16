@@ -17,6 +17,18 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/setup_win.bat
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/UPDATE.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/user_settings.h
 
+# Template
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/README.md
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/VisualGDB
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/user_settings.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/main.c
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include/main.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/VisualGDB/wolfssl_template_IDF_v5.1_ESP32.vgdbproj
+
 # Benchmark
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main

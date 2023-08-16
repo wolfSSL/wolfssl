@@ -9308,7 +9308,9 @@ static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
         return ASN_PARSE_E;
     }
 
-    ret = mp_read_unsigned_bin(recipSerial, kari->decoded->serial,
+    ret = mp_init(recipSerial);
+    if (ret == MP_OKAY)
+        ret = mp_read_unsigned_bin(recipSerial, kari->decoded->serial,
                              kari->decoded->serialSz);
     if (ret != MP_OKAY) {
         mp_clear(serial);
