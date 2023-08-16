@@ -1,0 +1,23 @@
+version: "5.6.0-stable"
+description: wolfSSL Embedded SSL/TLS Library
+url: https://www.wolfssl.com
+repository: https://github.com/wolfSSL/wolfssl.git
+documentation: https://www.wolfssl.com/docs
+issues: https://github.com/wolfSSL/wolfssl/issues
+discussion: https://www.wolfssl.com/forums
+files:
+  exclude:
+  - '*.py'
+  - '**/*.list'
+  - '**/.vs/**/*'
+  - '**/build/**/*'
+  - '**/dist/**/*'
+  - '**/out/**/*'
+  - '*.sh'
+  - 'README_REGISTRY_PREPEND.md'
+  - 'README_DIST.md'
+  include:
+  - ./include/
+  - ./src/
+  - ./wolfcrypt/
+  - ./wolfss/

@@ -412,15 +412,55 @@ async
 # Generated user_settings_asm.h.
 user_settings_asm.h
 
-# VisualGD
+# auto-created CMake backups
+**/CMakeLists.txt.old
+
+# VisualGDB
 **/.visualgdb
 
 # Espressif sdk config default should be saved in sdkconfig.defaults
 # we won't track the actual working sdkconfig files
 /IDE/Espressif/**/sdkconfig
 
-# auto-created CMake backups
-**/CMakeLists.txt.old
+# Espressif managed components to exclude:
+/IDE/Espressif/**/managed_components/**
+
+# Espressif managed component lock files to exclude.
+# "In general, it's ok to have it under version control, however, it ties
+# the solution to the exact version of ESP-IDF and will be ignored if an
+# example is built against another IDF version or for a different target.
+# So it's better to git ignore it for the examples."
+/IDE/Espressif/**/dependencies.lock
+
+# exclude any local oqs components
+/IDE/Espressif/ESP-IDF/examples/**/components/oqs
+
+/IDE/Espressif/**/sdkconfig.old
+
+# ESP Registry Files
+
+# Temporary wolfssl component install directories that are copied locally at install time
+/IDE/Espressif/wolfssl
+/IDE/Espressif/component-manager/wolfssl
+/IDE/Espressif/component-manager/wolfcrypt
+/IDE/Espressif/component-manager/src
+/IDE/Espressif/component-manager/dist
+
+# Exclude most of the example files that are copied at install time
+# from https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples
+/IDE/Espressif/component-manager/examples/*/CMakeLists.txt
+/IDE/Espressif/component-manager/examples/*/partitions_singleapp_large.csv
+/IDE/Espressif/component-manager/examples/*/sdkconfig.defaults
+/IDE/Espressif/component-manager/examples/*/main/CMakeLists.txt
+/IDE/Espressif/component-manager/examples/*/main/*.c
+/IDE/Espressif/component-manager/examples/*/main/*.h
+/IDE/Espressif/component-manager/examples/*/main/component.mk
+/IDE/Espressif/component-manager/examples/*/main/Kconfig.projbuild
+
+# The only ESP Registry Files specific to this location
+!/IDE/Espressif/component-manager/examples/*/main/idf_component.yml
+!/IDE/Espressif/component-manager/examples/*/README.md
+/IDE/Espressif/ESP-IDF/examples/wolfssl_test/components/cryptoauthlib
 
 # MagicCrypto (ARIA Cipher)
 MagicCrypto
