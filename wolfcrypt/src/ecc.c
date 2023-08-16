@@ -14749,6 +14749,11 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
         if (mp_cmp_d(t1, 1) == MP_EQ)
             break;
         res = mp_exptmod(t1, two, prime, t1);
+        if ((res == MP_OKAY) && (mp_cmp_d(M,i) == MP_EQ)) {
+          /* This is to clamp the loop in case 'prime' is not really prime */
+          res = MP_VAL;
+          break;
+        }
         if (res == MP_OKAY)
           i++;
       }
