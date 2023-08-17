@@ -39,7 +39,8 @@ FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
 
 while [ "$1" ]; do
-  if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
+  if [ "$1" = 'new' ]; then DO_NEW_ACTION='yes'; else
+  if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi; fi
   shift
 done
 
@@ -85,6 +86,49 @@ linuxv5)
   FIPS_INCS=('fips.h')
   COPY_DIRECT=('wolfcrypt/src/aes_gcm_asm.S')
   ;;
+linuxv5a)
+  FIPS_OPTION='v5'
+  FIPS_FILES=(
+    'fips.c:WCv5.0-RC12'
+    'fips_test.c:WCv5.0-RC12'
+    'wolfcrypt_first.c:WCv5.0-RC12'
+    'wolfcrypt_last.c:WCv5.0-RC12'
+    'fips.h:WCv5.0-RC12'
+  )
+  WC_C_FILES=(
+    'wolfcrypt/src/aes.c:WCv5.0-RC12'
+    'wolfcrypt/src/aes_asm.c:WCv5.0-RC12'
+    'wolfcrypt/src/cmac.c:WCv5.0-RC12'
+    'wolfcrypt/src/dh.c:WCv5.0-RC12'
+    'wolfcrypt/src/ecc.c:WCv5.0-RC12'
+    'wolfcrypt/src/hmac.c:WCv5.0-RC12'
+    'wolfcrypt/src/kdf.c:WCv5.0-RC12'
+    'wolfcrypt/src/random.c:WCv5.0-RC12'
+    'wolfcrypt/src/rsa.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha256.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha256_asm.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha3.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha512.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha512_asm.c:WCv5.0-RC12'
+    'wolfcrypt/src/aes_gcm_asm.S:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/aes.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/aes_asm.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/cmac.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/dh.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/ecc.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/hmac.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/kdf.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/random.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/rsa.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha256.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha256_asm.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha3.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/sha512_asm.h:WCv5.0-RC12'
+  )
+  ;;
 fips-ready)
   FIPS_OPTION='ready'
   FIPS_VERSION='master'
@@ -121,6 +165,50 @@ solaris)
   exit 1
 esac
 
+function checkout_tag() {
+    if ! $GIT branch --list | grep "my$1"
+    then
+        $GIT branch --no-track "my$1" "$1" || exit $?
+    fi
+}
+
+function checkout_files() {
+    local repo_path="$1"
+    shift
+    pushd $repo_path
+    for file_entry in "$@"
+    do
+        local name=${file_entry%%:*}
+        local tag=${file_entry#*:}
+        checkout_tag "$tag" || exit $?
+        $GIT checkout "my$tag" -- "$name" || exit $?
+    done
+    popd
+}
+
+function copy_files() {
+    local repo_path="$1"
+    shift
+    pushd $repo_path
+    for file_entry in "$@"
+    do
+        local name=${file_entry%%:*}
+        local tag=${file_entry#*:}
+        checkout_tag "$tag" || exit $?
+        $GIT checkout "my$tag" -- "$name" || exit $?
+    done
+    popd
+}
+
+if [ "$DO_NEW_ACTION" = 'yes' ]
+then
+    checkout_files '.' "${WC_C_FILES[@]}"
+    checkout_files './fips' "${FIPS_FILES[@]}"
+    exit
+fi
+echo "Escaped!"
+exit
+
 if ! $GIT clone . "$TEST_DIR"; then
     echo "fips-check: Couldn't duplicate current working directory."
     exit 1
@@ -139,36 +227,7 @@ case "$FIPS_OPTION" in
     ;;
 
 cavp-selftest*|v2|rand|v5*)
-    $GIT branch --no-track "my$CRYPT_VERSION" "$CRYPT_VERSION" || exit $?
-    # Checkout the fips versions of the wolfCrypt files from the repo.
-    for MOD in "${WC_MODS[@]}"
-    do
-        if [ -f "$CRYPT_SRC_PATH/$MOD.c" ]; then
-            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" || exit $?
-        fi
-        # aes_asm.S, sha256_asm.S sha512_asm.S
-        if [ -f "$CRYPT_SRC_PATH/$MOD.S" ]; then
-            echo "Checking out asm file: $MOD.S"
-            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.S" || exit $?
-        fi
-        # aes_asm.asm
-        if [ -f "$CRYPT_SRC_PATH/$MOD.asm" ]; then
-            echo "Checking out asm file: $MOD.asm"
-            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.asm" || exit $?
-        fi
-        if [ -f "$CRYPT_INC_PATH/$MOD.h" ]; then
-            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_INC_PATH/$MOD.h" || exit $?
-        fi
-    done
-
-    for MOD in "${COPY_DIRECT[@]}"
-    do
-        $GIT checkout "my$CRYPT_VERSION" -- "$MOD" || exit $?
-    done
-
-    $GIT branch --no-track "myrng$RNG_VERSION" "$RNG_VERSION" || exit $?
-    # Checkout the fips versions of the wolfCrypt files from the repo.
-    $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h" || exit $?
+    checkout_files '.' "${WC_C_FILES[@]}"
     ;;
 
 *)
