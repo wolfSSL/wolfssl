@@ -13475,7 +13475,7 @@ PRAGMA_GCC_DIAG_POP
                 if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
                     (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
                     /* cert type mismatch */
-                    WOLFSSL_MSG("unsuported certificate type received");
+                    WOLFSSL_MSG("unsupported certificate type received");
                     ret = UNSUPPORTED_CERTIFICATE;
                 }
             }
@@ -13486,7 +13486,7 @@ PRAGMA_GCC_DIAG_POP
                 if ((cType == WOLFSSL_CERT_TYPE_RPK && !args->dCert->isRPK) ||
                     (cType == WOLFSSL_CERT_TYPE_X509 && args->dCert->isRPK)) {
                     /* cert type mismatch */
-                    WOLFSSL_MSG("unsuported certificate type received");
+                    WOLFSSL_MSG("unsupported certificate type received");
                     ret = UNSUPPORTED_CERTIFICATE;
                 }
             }

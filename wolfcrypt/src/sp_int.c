@@ -6466,7 +6466,7 @@ static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
         }
         /* Sum digits of sum. */
         t = (t >> SP_WORD_SIZE) + (t & SP_MASK);
-        /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
+        /* Get top digit after multiplying by (2^SP_WORD_SIZE) / 3. */
         tt = (sp_int_digit)((t * SP_DIV_3_CONST) >> SP_WORD_SIZE);
         /* Subtract trial division. */
         tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
@@ -6498,7 +6498,7 @@ static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
     #ifndef SQR_MUL_ASM
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
+            /* Get top digit after multiplying by (2^SP_WORD_SIZE) / 3. */
             tt = (sp_int_digit)((t * SP_DIV_3_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
@@ -6559,7 +6559,7 @@ static void _sp_div_10(const sp_int* a, sp_int* r, sp_int_digit* rem)
     #ifndef SQR_MUL_ASM
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling by (2^SP_WORD_SIZE) / 10. */
+            /* Get top digit after multiplying by (2^SP_WORD_SIZE) / 10. */
             tt = (sp_int_digit)((t * SP_DIV_10_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 10);
@@ -6585,7 +6585,7 @@ static void _sp_div_10(const sp_int* a, sp_int* r, sp_int_digit* rem)
     #ifndef SQR_MUL_ASM
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling by (2^SP_WORD_SIZE) / 10. */
+            /* Get top digit after multiplying by (2^SP_WORD_SIZE) / 10. */
             tt = (sp_int_digit)((t * SP_DIV_10_CONST) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)(t - (sp_int_word)tt * 10);
@@ -6649,7 +6649,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
         #ifndef SQR_MUL_ASM
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling. */
+            /* Get top digit after multiplying. */
             tt = (sp_int_digit)((t * m) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
@@ -6676,7 +6676,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
         #ifndef SQR_MUL_ASM
             /* Combine remainder from last operation with this word. */
             t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling. */
+            /* Get top digit after multiplying. */
             tt = (sp_int_digit)((t * m) >> SP_WORD_SIZE);
             /* Subtract trial division. */
             tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
@@ -8744,9 +8744,9 @@ int sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
  *
  * Optimised code for when number of digits in a and b are the same.
  *
- * @param  [in]   a    SP integer to mulitply.
- * @param  [in]   b    SP integer to mulitply by.
- * @param  [out]  r    SP integer to hod reult.
+ * @param  [in]   a    SP integer to multiply.
+ * @param  [in]   b    SP integer to multiply by.
+ * @param  [out]  r    SP integer to hold result.
  *
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
@@ -8823,9 +8823,9 @@ static int _sp_mul_nxn(const sp_int* a, const sp_int* b, sp_int* r)
 
 /* Multiply a by b into r. r = a * b
  *
- * @param  [in]   a    SP integer to mulitply.
- * @param  [in]   b    SP integer to mulitply by.
- * @param  [out]  r    SP integer to hod reult.
+ * @param  [in]   a    SP integer to multiply.
+ * @param  [in]   b    SP integer to multiply by.
+ * @param  [out]  r    SP integer to hold result.
  *
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
@@ -8901,9 +8901,9 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 #else
 /* Multiply a by b into r. r = a * b
  *
- * @param  [in]   a    SP integer to mulitply.
- * @param  [in]   b    SP integer to mulitply by.
- * @param  [out]  r    SP integer to hod reult.
+ * @param  [in]   a    SP integer to multiply.
+ * @param  [in]   b    SP integer to multiply by.
+ * @param  [out]  r    SP integer to hold result.
  *
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
@@ -17617,7 +17617,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         a->used = (inSz + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF;
 
     #if defined(BIG_ENDIAN_ORDER) && !defined(WOLFSSL_SP_INT_DIGIT_ALIGN)
-        /* Data endian matches respresentation of number.
+        /* Data endian matches representation of number.
          * Directly copy if we don't have alignment issues.
          */
         for (i = (int)(inSz-1); i > SP_WORD_SIZEOF-1; i -= SP_WORD_SIZEOF) {
@@ -17901,7 +17901,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
         ch = in[i];
         /* Check character is valid. */
         if ((ch >= '0') && (ch <= '9')) {
-            /* Assume '0'..'9' are continuous valus as characters. */
+            /* Assume '0'..'9' are continuous values as characters. */
             ch -= '0';
         }
         else {
@@ -18495,7 +18495,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
  *
  * @param  [in]   a       SP integer to check.
  * @param  [in]   b       SP integer that is a small prime.
- * @param  [out]  result  MP_YES when number is likey prime.
+ * @param  [out]  result  MP_YES when number is likely prime.
  *                        MP_NO otherwise.
  * @param  [in]   n1      SP integer temporary.
  * @param  [in]   r       SP integer temporary.
