@@ -9516,6 +9516,195 @@ WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
 /*!
+ \ingroup Setup 
+ \brief  この関数はクライアント側で呼び出される場合には、サーバー側にCertificateメッセージで送信できる証明書タイプを設定します。
+ サーバー側で呼び出される場合には、受入れ可能なクライアント証明書タイプを設定します。
+ Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
+ 設定する証明書タイプは優先度順に格納したバイト配列として渡します。
+ 設定するバッファアドレスにNULLを渡すか、あるいはバッファサイズに0を渡すと規定値にもどすことができます。
+ 規定値はX509証明書（WOLFSSL_CERT_TYPE_X509）のみを扱う設定となっています。
+
+ \return WOLFSSL_SUCCESS 成功
+ \return BAD_FUNC_ARG ctxとしてNULLを渡した、あるいは不正な証明書タイプを指定した、
+ あるいはMAX_CLIENT_CERT_TYPE_CNT以上のバッファサイズを指定した、あるいは指定の証明書タイプに重複がある
+ \param ctx  wolfssl_ctxコンテキストポインタ
+ \param ctype  証明書タイプを格納したバッファへのポインタ
+ \param len  証明書タイプを格納したバッファのサイズ（バイト数）
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  char ctype[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(ctype)/sizeof(byte);
+　...
+
+  ret = wolfSSL_CTX_set_client_cert_type(ctx, ctype, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  この関数はサーバー側で呼び出される場合には、クライアント側にCertificateメッセージで送信できる証明書タイプを設定します。
+ クライアント側で呼び出される場合には、受入れ可能なサーバー証明書タイプを設定します。
+ Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
+ 設定する証明書タイプは優先度順に格納したバイト配列として渡します。
+ 設定するバッファアドレスにNULLを渡すか、あるいはバッファサイズに0を渡すと規定値にもどすことができます。
+ 規定値はX509証明書（WOLFSSL_CERT_TYPE_X509）のみを扱う設定となっています。
+
+ \return WOLFSSL_SUCCESS 成功
+ \return BAD_FUNC_ARG ctxとしてNULLを渡した、あるいは不正な証明書タイプを指定した、
+ あるいはMAX_SERVER_CERT_TYPE_CNT以上のバッファサイズを指定した、あるいは指定の証明書タイプに重複がある
+
+ \param ctx  wolfssl_ctxコンテキストポインタ
+ \param ctype  証明書タイプを格納したバッファへのポインタ
+ \param len  証明書タイプを格納したバッファのサイズ（バイト数）
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  char ctype[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(ctype)/sizeof(byte);
+　...
+
+  ret = wolfSSL_CTX_set_server_cert_type(ctx, ctype, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  この関数はクライアント側で呼び出される場合には、サーバー側にCertificateメッセージで送信できる証明書タイプを設定します。
+ サーバー側で呼び出される場合には、受入れ可能なクライアント証明書タイプを設定します。
+ Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
+ 設定する証明書タイプは優先度順に格納したバイト配列として渡します。
+ 設定するバッファアドレスにNULLを渡すか、あるいはバッファサイズに0を渡すと規定値にもどすことができます。
+ 規定値はX509証明書（WOLFSSL_CERT_TYPE_X509）のみを扱う設定となっています。
+
+ \return WOLFSSL_SUCCESS 成功
+ \return BAD_FUNC_ARG sslとしてNULLを渡した、あるいは不正な証明書タイプを指定した、
+ あるいはMAX_CLIENT_CERT_TYPE_CNT以上のバッファサイズを指定した、あるいは指定の証明書タイプに重複がある
+
+ \param ssl  WOLFSSL構造体へのポインタ
+ \param ctype  証明書タイプを格納したバッファへのポインタ
+ \param len  証明書タイプを格納したバッファのサイズ（バイト数）
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  char ctype[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(ctype)/sizeof(byte);
+　...
+
+  ret = wolfSSL_set_client_cert_type(ssl, ctype, len);
+ \endcode
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  この関数はサーバー側で呼び出される場合には、クライアント側にCertificateメッセージで送信できる証明書タイプを設定します。
+ クライアント側で呼び出される場合には、受入れ可能なサーバー証明書タイプを設定します。
+ Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
+ 設定する証明書タイプは優先度順に格納したバイト配列として渡します。
+ 設定するバッファアドレスにNULLを渡すか、あるいはバッファサイズに0を渡すと規定値にもどすことができます。
+ 規定値はX509証明書（WOLFSSL_CERT_TYPE_X509）のみを扱う設定となっています。
+
+ \return WOLFSSL_SUCCESS 成功
+ \return BAD_FUNC_ARG ctxとしてNULLを渡した、あるいは不正な証明書タイプを指定した、
+ あるいはMAX_SERVER_CERT_TYPE_CNT以上のバッファサイズを指定した、あるいは指定の証明書タイプに重複がある
+
+ \param ssl  WOLFSSL構造体へのポインタ
+ \param ctype  証明書タイプを格納したバッファへのポインタ
+ \param len  証明書タイプを格納したバッファのサイズ（バイト数）
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  char ctype[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(ctype)/sizeof(byte);
+　...
+
+  ret = wolfSSL_set_server_cert_type(ssl, ctype, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
+
+/*!
+ \ingroup SSL 
+ \brief  この関数はハンドシェーク終了後に呼び出し、相手とのネゴシエーションの結果得られたクライアント証明書のタイプを返します。
+ ネゴシエーションが発生しない場合には戻り値としてWOLFSSL_SUCCESSが返されますが、
+ 証明書タイプとしてはWOLFSSL_CERT_TYPE_UNKNOWNが返されます。
+
+ \return WOLFSSL_SUCCESS 成功時にかえります。tpに返された証明書タイプはWOLFSSL_CERT_TYPE_X509,
+  WOLFSSL_CERT_TYPE_RPK あるいはWOLFSSL_CERT_TYPE_UNKNOWNのいずれかとなります。
+ \return BAD_FUNC_ARG sslとしてNULLを渡した、あるいはtpとしてNULLを渡した
+ \param ssl  WOLFSSL構造体へのポインタ
+ \param tp  証明書タイプが返されるバッファへのポインタ
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  int tp;
+　...
+
+  ret = wolfSSL_get_negotiated_client_cert_type(ssl, &tp);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
+
+/*!
+ \ingroup SSL 
+ \brief  この関数はハンドシェーク終了後に呼び出し、相手とのネゴシエーションの結果得られたサーバー証明書のタイプを返します。
+ ネゴシエーションが発生しない場合には戻り値としてWOLFSSL_SUCCESSが返されますが、証明書タイプとしてはWOLFSSL_CERT_TYPE_UNKNOWNが返されます。
+ \return WOLFSSL_SUCCESS 成功時にかえります。tpに返された証明書タイプはWOLFSSL_CERT_TYPE_X509,
+  WOLFSSL_CERT_TYPE_RPK あるいはWOLFSSL_CERT_TYPE_UNKNOWNのいずれかとなります。
+ \return BAD_FUNC_ARG sslとしてNULLを渡した、あるいはtpとしてNULLを渡した
+ \param ssl  WOLFSSL構造体へのポインタ
+ \param tp  証明書タイプが返されるバッファへのポインタ
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  int tp;
+　...
+
+  ret = wolfSSL_get_negotiated_server_cert_type(ssl, &tp);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ */
+int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
+
+/*!
  \ingroup SSL
  \brief  この関数はテストのための固定/静的なエフェラルキーを設定します。
  \return 0  キーが正常にロードされました

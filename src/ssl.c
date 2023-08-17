@@ -7406,6 +7406,20 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
             return WOLFSSL_BAD_FILE;
         }
+#if defined(HAVE_RPK)
+        if (ssl) {
+            ssl->options.rpkState.isRPKLoaded = 0;
+            if (cert->isRPK) {
+                ssl->options.rpkState.isRPKLoaded = 1;
+            }
+        }
+        else if (ctx) {
+            ctx->rpkState.isRPKLoaded = 0;
+            if (cert->isRPK) {
+                ctx->rpkState.isRPKLoaded = 1;
+            }
+        }
+#endif /* HAVE_RPK */
 
         if (ssl) {
             if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -10186,6 +10200,232 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
 }
 
 #endif /* OPENSSL_EXTRA */
+
+#if defined(HAVE_RPK)
+/* Confirm that all the byte data in the buffer is unique.
+ * return 1 if all the byte data in the buffer is unique, otherwise 0.
+ */
+static int isArrayUnique(const char* buf, size_t len)
+{
+    size_t i, j;
+    /* check the array is unique */
+    for (i = 0; i < len -1; ++i) {
+        for (j = i+ 1; j < len; ++j) {
+            if (buf[i] == buf[j]) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+/* Set user preference for the client_cert_type exetnsion.
+ * Takes byte array containing cert types the caller can provide to its peer.
+ * Cert types are in preferred order in the array.
+ */
+WOLFSSL_API int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx,
+                                          const char* buf, int bufLen)
+{
+    int i;
+
+    if (ctx == NULL || bufLen > MAX_CLIENT_CERT_TYPE_CNT) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if buf is set to NULL or bufLen is set to zero, it defaults the setting*/
+    if (buf == NULL || bufLen == 0) {
+        ctx->rpkConfig.preferred_ClientCertTypeCnt = 1;
+        ctx->rpkConfig.preferred_ClientCertTypes[0]= WOLFSSL_CERT_TYPE_X509;
+        ctx->rpkConfig.preferred_ClientCertTypes[1]= WOLFSSL_CERT_TYPE_X509;
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (!isArrayUnique(buf, bufLen))
+        return BAD_FUNC_ARG;
+
+    for (i = 0; i < bufLen; i++){
+        if (buf[i] != WOLFSSL_CERT_TYPE_RPK && buf[i] != WOLFSSL_CERT_TYPE_X509)
+            return BAD_FUNC_ARG;
+
+        ctx->rpkConfig.preferred_ClientCertTypes[i] = buf[i];
+    }
+    ctx->rpkConfig.preferred_ClientCertTypeCnt = bufLen;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set user preference for the server_cert_type exetnsion.
+ * Takes byte array containing cert types the caller can provide to its peer.
+ * Cert types are in preferred order in the array.
+ */
+WOLFSSL_API int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx,
+                                                const char* buf, int bufLen)
+{
+    int i;
+
+    if (ctx == NULL || bufLen > MAX_SERVER_CERT_TYPE_CNT) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if buf is set to NULL or bufLen is set to zero, it defaults the setting*/
+    if (buf == NULL || bufLen == 0) {
+        ctx->rpkConfig.preferred_ServerCertTypeCnt = 1;
+        ctx->rpkConfig.preferred_ServerCertTypes[0]= WOLFSSL_CERT_TYPE_X509;
+        ctx->rpkConfig.preferred_ServerCertTypes[1]= WOLFSSL_CERT_TYPE_X509;
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (!isArrayUnique(buf, bufLen))
+        return BAD_FUNC_ARG;
+
+    for (i = 0; i < bufLen; i++){
+        if (buf[i] != WOLFSSL_CERT_TYPE_RPK && buf[i] != WOLFSSL_CERT_TYPE_X509)
+            return BAD_FUNC_ARG;
+
+        ctx->rpkConfig.preferred_ServerCertTypes[i] = buf[i];
+    }
+    ctx->rpkConfig.preferred_ServerCertTypeCnt = bufLen;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set user preference for the client_cert_type exetnsion.
+ * Takes byte array containing cert types the caller can provide to its peer.
+ * Cert types are in preferred order in the array.
+ */
+WOLFSSL_API int wolfSSL_set_client_cert_type(WOLFSSL* ssl,
+                                          const char* buf, int bufLen)
+{
+    int i;
+
+    if (ssl == NULL || bufLen > MAX_CLIENT_CERT_TYPE_CNT) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if buf is set to NULL or bufLen is set to zero, it defaults the setting*/
+    if (buf == NULL || bufLen == 0) {
+        ssl->options.rpkConfig.preferred_ClientCertTypeCnt = 1;
+        ssl->options.rpkConfig.preferred_ClientCertTypes[0]
+                                                    = WOLFSSL_CERT_TYPE_X509;
+        ssl->options.rpkConfig.preferred_ClientCertTypes[1]
+                                                    = WOLFSSL_CERT_TYPE_X509;
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (!isArrayUnique(buf, bufLen))
+        return BAD_FUNC_ARG;
+
+    for (i = 0; i < bufLen; i++){
+        if (buf[i] != WOLFSSL_CERT_TYPE_RPK && buf[i] != WOLFSSL_CERT_TYPE_X509)
+            return BAD_FUNC_ARG;
+
+        ssl->options.rpkConfig.preferred_ClientCertTypes[i] = buf[i];
+    }
+    ssl->options.rpkConfig.preferred_ClientCertTypeCnt = bufLen;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set user preference for the server_cert_type exetnsion.
+ * Takes byte array containing cert types the caller can provide to its peer.
+ * Cert types are in preferred order in the array.
+ */
+WOLFSSL_API int wolfSSL_set_server_cert_type(WOLFSSL* ssl,
+                                          const char* buf, int bufLen)
+{
+    int i;
+
+    if (ssl == NULL || bufLen > MAX_SERVER_CERT_TYPE_CNT) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if buf is set to NULL or bufLen is set to zero, it defaults the setting*/
+    if (buf == NULL || bufLen == 0) {
+        ssl->options.rpkConfig.preferred_ServerCertTypeCnt = 1;
+        ssl->options.rpkConfig.preferred_ServerCertTypes[0]
+                                                    = WOLFSSL_CERT_TYPE_X509;
+        ssl->options.rpkConfig.preferred_ServerCertTypes[1]
+                                                    = WOLFSSL_CERT_TYPE_X509;
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (!isArrayUnique(buf, bufLen))
+        return BAD_FUNC_ARG;
+
+    for (i = 0; i < bufLen; i++){
+        if (buf[i] != WOLFSSL_CERT_TYPE_RPK && buf[i] != WOLFSSL_CERT_TYPE_X509)
+            return BAD_FUNC_ARG;
+
+        ssl->options.rpkConfig.preferred_ServerCertTypes[i] = buf[i];
+    }
+    ssl->options.rpkConfig.preferred_ServerCertTypeCnt = bufLen;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* get negotiated certificate type value and return it to the second parameter.
+ * cert type value:
+ * -1: WOLFSSL_CERT_TYPE_UNKNOWN
+ *  0: WOLFSSL_CERT_TYPE_X509
+ *  2: WOLFSSL_CERT_TYPE_RPK
+ * return WOLFSSL_SUCCESS on success, otherwise negative value.
+ * in case no negotiation performed, it returns WOLFSSL_SUCCESS and -1 is for
+ * cert type.
+ */
+WOLFSSL_API int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL || tp == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (ssl->options.rpkState.received_ClientCertTypeCnt == 1)
+            *tp = ssl->options.rpkState.received_ClientCertTypes[0];
+        else
+            *tp = WOLFSSL_CERT_TYPE_UNKNOWN;
+    }
+    else {
+        if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
+            *tp = ssl->options.rpkState.sending_ClientCertTypes[0];
+        else
+            *tp = WOLFSSL_CERT_TYPE_UNKNOWN;
+    }
+    return ret;
+}
+
+/* get negotiated certificate type value and return it to the second parameter.
+ * cert type value:
+ * -1: WOLFSSL_CERT_TYPE_UNKNOWN
+ *  0: WOLFSSL_CERT_TYPE_X509
+ *  2: WOLFSSL_CERT_TYPE_RPK
+ * return WOLFSSL_SUCCESS on success, otherwise negative value.
+ * in case no negotiation performed, it returns WOLFSSL_SUCCESS and -1 is for
+ * cert type.
+ */
+WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL || tp == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
+            *tp = ssl->options.rpkState.received_ServerCertTypes[0];
+        else
+            *tp = WOLFSSL_CERT_TYPE_UNKNOWN;
+    }
+    else {
+        if (ssl->options.rpkState.sending_ServerCertTypeCnt == 1)
+            *tp = ssl->options.rpkState.sending_ServerCertTypes[0];
+        else
+            *tp = WOLFSSL_CERT_TYPE_UNKNOWN;
+    }
+    return ret;
+}
+
+#endif /* HAVE_RPK */
 
 int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
                                  int derSz)
