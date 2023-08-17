@@ -9,27 +9,6 @@
 # This should check out all the approved flavors. The command line
 # option selects the flavor. The keep option keeps the output
 # directory.
-#
-# Some variables may be overridden on the command line.
-
-Usage() {
-    cat <<usageText
-Usage: $0 [flavor] [keep]
-Flavor is one of:
-    netbsd-selftest
-    marvell-linux-selftest
-    linuxv2 (FIPSv2, use for Win10)
-    wolfrand
-    solaris
-    linuxv5 (current FIPS 140-3)
-    fips-ready (ready FIPS 140-3)
-    fips-dev (dev FIPS 140-3)
-Keep (default off) retains the XXX-fips-test temp dir for inspection.
-
-Example:
-    $0 windows keep
-usageText
-}
 
 # These variables may be overridden on the command line.
 MAKE="${MAKE:-make}"
@@ -38,6 +17,26 @@ TEST_DIR="${TEST_DIR:-XXX-fips-test}"
 FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
 FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
+
+Usage() {
+    cat <<usageText
+Usage: $0 [flavor] [keep]
+Flavor is one of:
+    linuxv2 (FIPSv2, use for Win10)
+    fipsv2-OE-ready (ready FIPSv2)
+    solaris
+    netbsd-selftest
+    marvell-linux-selftest
+    linuxv5 (current FIPS 140-3)
+    fips-ready (ready FIPS 140-3)
+    fips-dev (dev FIPS 140-3)
+    wolfrand
+Keep (default off) retains the temp dir $TEST_DIR for inspection.
+
+Example:
+    $0 windows keep
+usageText
+}
 
 while [ "$1" ]; do
   if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
@@ -56,6 +55,7 @@ linuxv2|fipsv2-OE-ready|solaris)
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:WCv4-stable'
+    'wolfcrypt/src/aes_asm.asm:WCv4-stable'
     'wolfcrypt/src/aes_asm.S:WCv4-stable'
     'wolfcrypt/src/cmac.c:WCv4-stable'
     'wolfcrypt/src/des3.c:WCv4-stable'
@@ -148,6 +148,7 @@ linuxv5)
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:WCv5.0-RC12'
+    'wolfcrypt/src/aes_asm.asm:WCv5.0-RC12'
     'wolfcrypt/src/aes_asm.S:WCv5.0-RC12'
     'wolfcrypt/src/aes_gcm_asm.S:WCv5.0-RC12'
     'wolfcrypt/src/cmac.c:WCv5.0-RC12'
@@ -282,7 +283,7 @@ copy_fips_files "${FIPS_FILES[@]}"
 if [ "$FLAVOR" = 'fipsv2-OE-ready' ] && [ -s wolfcrypt/src/fips.c ]
 then
     cp wolfcrypt/src/fips.c wolfcrypt/src/fips.c.bak
-    sed "s/^v4.0.0-alpha/fipsv2-OE-ready/" wolfcrypt/src/fips.c.bak >wolfcrypt/src/fips.c
+    sed "s/v4.0.0-alpha/fipsv2-OE-ready/" wolfcrypt/src/fips.c.bak >wolfcrypt/src/fips.c
 fi
 
 # run the make test
