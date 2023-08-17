@@ -45,44 +45,99 @@ while [ "$1" ]; do
 done
 
 case "$FLAVOR" in
-#linuxv2|fipsv2-OE-ready)
-#  FIPS_OPTION='v2'
-#  FIPS_VERSION='WCv4-stable'
-#  CRYPT_VERSION='WCv4-stable'
-#  RNG_VERSION='WCv4-rng-stable'
-#  WC_MODS=('aes' 'aes_asm' 'cmac' 'des3' 'dh' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha3' 'sha512')
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  ;;
-#netbsd-selftest)
-#  # non-FIPS, CAVP only but pull in selftest
-#  FIPS_OPTION='cavp-selftest'
-#  FIPS_VERSION='v3.14.2b'
-#  CRYPT_VERSION='v3.14.2'
-#  RNG_VERSION='v3.14.2'
-#  WC_MODS=('aes' 'dh' 'dsa' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha512')
-#  FIPS_SRCS=('selftest.c')
-#  ;;
-#marvell-linux-selftest)
-#  # non-FIPS, CAVP only but pull in selftest
-#  FIPS_OPTION='cavp-selftest-v2'
-#  FIPS_VERSION='v3.14.2b'
-#  CRYPT_VERSION='v4.1.0-stable'
-#  RNG_VERSION='v4.1.0-stable'
-#  WC_MODS=('aes' 'dh' 'dsa' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha512')
-#  FIPS_SRCS=('selftest.c')
-#  ;;
-#linuxv5)
-#  FIPS_OPTION='v5'
-#  FIPS_VERSION='WCv5.0-RC12'
-#  CRYPT_VERSION='WCv5.0-RC12'
-#  RNG_VERSION='WCv5.0-RC12'
-#  WC_MODS=('aes' 'aes_asm' 'cmac' 'dh' 'ecc' 'hmac' 'kdf' 'random' 'rsa' 'sha' 'sha256' 'sha256_asm' 'sha3' 'sha512' 'sha512_asm')
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  COPY_DIRECT=('wolfcrypt/src/aes_gcm_asm.S')
-#  ;;
-linuxv5a)
+linuxv2|fipsv2-OE-ready|solaris)
+  FIPS_OPTION='v2'
+  FIPS_FILES=('WCv4-stable'
+    'wolfcrypt/src/fips.c'
+    'wolfcrypt/src/fips_test.c'
+    'wolfcrypt/src/wolfcrypt_first.c'
+    'wolfcrypt/src/wolfcrypt_last.c'
+    'wolfssl/wolfcrypt/fips.h'
+  )
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/aes.c:WCv4-stable'
+    'wolfcrypt/src/aes_asm.S:WCv4-stable'
+    'wolfcrypt/src/cmac.c:WCv4-stable'
+    'wolfcrypt/src/des3.c:WCv4-stable'
+    'wolfcrypt/src/dh.c:WCv4-stable'
+    'wolfcrypt/src/ecc.c:WCv4-stable'
+    'wolfcrypt/src/hmac.c:WCv4-stable'
+    'wolfcrypt/src/random.c:WCv4-rng-stable'
+    'wolfcrypt/src/rsa.c:WCv4-stable'
+    'wolfcrypt/src/sha.c:WCv4-stable'
+    'wolfcrypt/src/sha256.c:WCv4-stable'
+    'wolfcrypt/src/sha3.c:WCv4-stable'
+    'wolfcrypt/src/sha512.c:WCv4-stable'
+    'wolfssl/wolfcrypt/aes.h:WCv4-stable'
+    'wolfssl/wolfcrypt/cmac.h:WCv4-stable'
+    'wolfssl/wolfcrypt/des3.h:WCv4-stable'
+    'wolfssl/wolfcrypt/dh.h:WCv4-stable'
+    'wolfssl/wolfcrypt/ecc.h:WCv4-stable'
+    'wolfssl/wolfcrypt/hmac.h:WCv4-stable'
+    'wolfssl/wolfcrypt/random.h:WCv4-rng-stable'
+    'wolfssl/wolfcrypt/rsa.h:WCv4-stable'
+    'wolfssl/wolfcrypt/sha.h:WCv4-stable'
+    'wolfssl/wolfcrypt/sha256.h:WCv4-stable'
+    'wolfssl/wolfcrypt/sha3.h:WCv4-stable'
+    'wolfssl/wolfcrypt/sha512.h:WCv4-stable'
+  )
+  if [ "$FLAVOR" = 'solaris' ]; then MAKE='gmake'; fi
+  ;;
+netbsd-selftest)
+  # non-FIPS, CAVP only but pull in selftest
+  FIPS_OPTION='cavp-selftest'
+  FIPS_FILES=('v3.14.2b' 'wolfcrypt/src/selftest.c')
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/aes.c:v3.14.2'
+    'wolfcrypt/src/dh.c:v3.14.2'
+    'wolfcrypt/src/dsa.c:v3.14.2'
+    'wolfcrypt/src/ecc.c:v3.14.2'
+    'wolfcrypt/src/hmac.c:v3.14.2'
+    'wolfcrypt/src/random.c:v3.14.2'
+    'wolfcrypt/src/rsa.c:v3.14.2'
+    'wolfcrypt/src/sha.c:v3.14.2'
+    'wolfcrypt/src/sha256.c:v3.14.2'
+    'wolfcrypt/src/sha512.c:v3.14.2'
+    'wolfssl/wolfcrypt/aes.h:v3.14.2'
+    'wolfssl/wolfcrypt/dh.h:v3.14.2'
+    'wolfssl/wolfcrypt/dsa.h:v3.14.2'
+    'wolfssl/wolfcrypt/ecc.h:v3.14.2'
+    'wolfssl/wolfcrypt/hmac.h:v3.14.2'
+    'wolfssl/wolfcrypt/random.h:v3.14.2'
+    'wolfssl/wolfcrypt/rsa.h:v3.14.2'
+    'wolfssl/wolfcrypt/sha.h:v3.14.2'
+    'wolfssl/wolfcrypt/sha256.h:v3.14.2'
+    'wolfssl/wolfcrypt/sha512.h:v3.14.2'
+  )
+  ;;
+marvell-linux-selftest)
+  # non-FIPS, CAVP only but pull in selftest
+  FIPS_OPTION='cavp-selftest-v2'
+  FIPS_FILES=('v3.14.2b' 'wolfcrypt/src/selftest.c')
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/aes.c:v4.1.0-stable'
+    'wolfcrypt/src/dh.c:v4.1.0-stable'
+    'wolfcrypt/src/dsa.c:v4.1.0-stable'
+    'wolfcrypt/src/ecc.c:v4.1.0-stable'
+    'wolfcrypt/src/hmac.c:v4.1.0-stable'
+    'wolfcrypt/src/random.c:v4.1.0-stable'
+    'wolfcrypt/src/rsa.c:v4.1.0-stable'
+    'wolfcrypt/src/sha.c:v4.1.0-stable'
+    'wolfcrypt/src/sha256.c:v4.1.0-stable'
+    'wolfcrypt/src/sha512.c:v4.1.0-stable'
+    'wolfssl/wolfcrypt/aes.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/dh.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/dsa.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/ecc.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/hmac.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/random.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/rsa.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/sha.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/sha256.h:v4.1.0-stable'
+    'wolfssl/wolfcrypt/sha512.h:v4.1.0-stable'
+  )
+  ;;
+linuxv5)
   FIPS_OPTION='v5'
   FIPS_FILES=('WCv5.0-RC12'
     'wolfcrypt/src/fips.c'
@@ -122,7 +177,7 @@ linuxv5a)
     'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
   )
   ;;
-fips-ready)
+fips-ready|fips-dev)
   FIPS_OPTION='ready'
   FIPS_FILES=('master'
     'wolfcrypt/src/fips.c'
@@ -131,32 +186,27 @@ fips-ready)
     'wolfcrypt/src/wolfcrypt_last.c'
     'wolfssl/wolfcrypt/fips.h'
   )
+  WOLFCRYPT_FILES=()
+  if [ "$FLAVOR" = 'fips-dev' ]; then FIPS_OPTION='dev'; fi
   ;;
-#fips-dev)
-#  FIPS_OPTION='dev'
-#  FIPS_VERSION='master'
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  ;;
-#wolfrand)
-#  FIPS_OPTION='rand'
-#  FIPS_VERSION='WRv4-stable'
-#  CRYPT_VERSION='WCv4-stable'
-#  RNG_VERSION='WCv4-rng-stable'
-#  WC_MODS=('hmac' 'random' 'sha256')
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  ;;
-#solaris)
-#  FIPS_OPTION='v2'
-#  FIPS_VERSION='WCv4-stable'
-#  CRYPT_VERSION='WCv4-stable'
-#  RNG_VERSION='WCv4-rng-stable'
-#  WC_MODS=('aes' 'aes_asm' 'cmac' 'des3' 'dh' 'ecc' 'hmac' 'random' 'rsa' 'sha' 'sha256' 'sha3' 'sha512')
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  MAKE='gmake'
-#  ;;
+wolfrand)
+  FIPS_OPTION='rand'
+  FIPS_FILES=('WRv4-stable'
+    'wolfcrypt/src/fips.c'
+    'wolfcrypt/src/fips_test.c'
+    'wolfcrypt/src/wolfcrypt_first.c'
+    'wolfcrypt/src/wolfcrypt_last.c'
+    'wolfssl/wolfcrypt/fips.h'
+  )
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/hmac.c:WCv4-stable'
+    'wolfcrypt/src/random.c:WCv4-rng-stable'
+    'wolfcrypt/src/sha256.c:WCv4-stable'
+    'wolfssl/wolfcrypt/hmac.h:WCv4-stable'
+    'wolfssl/wolfcrypt/random.h:WCv4-rng-stable'
+    'wolfssl/wolfcrypt/sha256.h:WCv4-stable'
+  )
+  ;;
 *)
   Usage
   exit 1
