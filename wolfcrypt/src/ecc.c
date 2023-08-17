@@ -1341,8 +1341,16 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
 
-int mp_jacobi(mp_int* a, mp_int* n, int* c);
-int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
+#ifdef HAVE_COMP_KEY
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL)
+
+#ifndef WOLFSSL_SP_MATH
+static int mp_jacobi(mp_int* a, mp_int* n, int* c);
+static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
+#endif
+#endif
+#endif
 
 
 /* Curve Specs */
@@ -14428,7 +14436,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifndef WOLFSSL_SP_MATH
 /* computes the jacobi c = (a | n) (or Legendre if n is prime)
  */
-int mp_jacobi(mp_int* a, mp_int* n, int* c)
+static int mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
 #ifdef WOLFSSL_SMALL_STACK
     mp_int*  a1 = NULL;
@@ -14552,7 +14560,7 @@ done:
  * The result is returned in the third argument x
  * the function returns MP_OKAY on success, MP_VAL or another error on failure
  */
-int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
+static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
 #ifdef SQRTMOD_USE_MOD_EXP
   int res;
