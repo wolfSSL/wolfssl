@@ -36,9 +36,8 @@ MAKE="${MAKE:-make}"
 GIT="${GIT:-git -c advice.detachedHead=false}"
 TEST_DIR="${TEST_DIR:-XXX-fips-test}"
 FLAVOR="${FLAVOR:-linux}"
-#KEEP="${KEEP:-no}"
-KEEP="${KEEP:-yes}"
-#FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
+KEEP="${KEEP:-no}"
+FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
 
 while [ "$1" ]; do
   if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
@@ -94,7 +93,8 @@ linuxv5a)
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:WCv5.0-RC12'
-    'wolfcrypt/src/aes_asm.c:WCv5.0-RC12'
+    'wolfcrypt/src/aes_asm.S:WCv5.0-RC12'
+    'wolfcrypt/src/aes_gcm_asm.S:WCv5.0-RC12'
     'wolfcrypt/src/cmac.c:WCv5.0-RC12'
     'wolfcrypt/src/dh.c:WCv5.0-RC12'
     'wolfcrypt/src/ecc.c:WCv5.0-RC12'
@@ -104,13 +104,11 @@ linuxv5a)
     'wolfcrypt/src/rsa.c:WCv5.0-RC12'
     'wolfcrypt/src/sha.c:WCv5.0-RC12'
     'wolfcrypt/src/sha256.c:WCv5.0-RC12'
-    'wolfcrypt/src/sha256_asm.c:WCv5.0-RC12'
+    'wolfcrypt/src/sha256_asm.S:WCv5.0-RC12'
     'wolfcrypt/src/sha3.c:WCv5.0-RC12'
     'wolfcrypt/src/sha512.c:WCv5.0-RC12'
-    'wolfcrypt/src/sha512_asm.c:WCv5.0-RC12'
-    'wolfcrypt/src/aes_gcm_asm.S:WCv5.0-RC12'
+    'wolfcrypt/src/sha512_asm.S:WCv5.0-RC12'
     'wolfssl/wolfcrypt/aes.h:WCv5.0-RC12'
-    'wolfssl/wolfcrypt/aes_asm.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/cmac.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/dh.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/ecc.h:WCv5.0-RC12'
@@ -120,18 +118,20 @@ linuxv5a)
     'wolfssl/wolfcrypt/rsa.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha256.h:WCv5.0-RC12'
-    'wolfssl/wolfcrypt/sha256_asm.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha3.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
-    'wolfssl/wolfcrypt/sha512_asm.h:WCv5.0-RC12'
   )
   ;;
-#fips-ready)
-#  FIPS_OPTION='ready'
-#  FIPS_VERSION='master'
-#  FIPS_SRCS=('fips.c' 'fips_test.c' 'wolfcrypt_first.c' 'wolfcrypt_last.c')
-#  FIPS_INCS=('fips.h')
-#  ;;
+fips-ready)
+  FIPS_OPTION='ready'
+  FIPS_FILES=('master'
+    'wolfcrypt/src/fips.c'
+    'wolfcrypt/src/fips_test.c'
+    'wolfcrypt/src/wolfcrypt_first.c'
+    'wolfcrypt/src/wolfcrypt_last.c'
+    'wolfssl/wolfcrypt/fips.h'
+  )
+  ;;
 #fips-dev)
 #  FIPS_OPTION='dev'
 #  FIPS_VERSION='master'
@@ -169,7 +169,7 @@ function checkout_files() {
     do
         local name=${file_entry%%:*}
         local tag=${file_entry#*:}
-        if ! $GIT branch --list | grep "my$tag"
+        if ! $GIT branch --list | grep --quiet "my$tag"
         then
             $GIT branch --no-track "my$tag" "$tag" || exit $?
         fi
@@ -183,7 +183,7 @@ function checkout_files() {
 function copy_fips_files() {
     local tag="$1"
     shift
-    if ! $GIT clone --depth 1 -b "$tag" 'git@github.com:wolfssl/fips.git' fips
+    if ! $GIT clone --depth 1 -b "$tag" "$FIPS_REPO" fips
     then
         echo "fips-check: Couldn't check out $tag from FIPS repository."
         exit 1
@@ -252,7 +252,7 @@ esac
 
 if ! $MAKE
 then
-    echo "fips-check: Make failed. Debris left for analysis."
+    echo 'fips-check: Make failed. Debris left for analysis.'
     exit 3
 fi
 
