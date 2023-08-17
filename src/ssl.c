@@ -14173,11 +14173,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         if (ssl->session == session) {
             WOLFSSL_MSG("ssl->session and session same");
         }
-        else
-#ifdef HAVE_STUNNEL
-        /* stunnel depends on the ex_data not being duplicated. Copy OpenSSL
-         * behaviour for now. */
-        if (session->type != WOLFSSL_SESSION_TYPE_CACHE) {
+        else if (session->type != WOLFSSL_SESSION_TYPE_CACHE) {
             if (wolfSSL_SESSION_up_ref(session) == WOLFSSL_SUCCESS) {
                 wolfSSL_FreeSession(ssl->ctx, ssl->session);
                 ssl->session = session;
@@ -14185,9 +14181,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
             else
                 ret = WOLFSSL_FAILURE;
         }
-        else
-#endif
-        {
+        else {
             ret = wolfSSL_DupSession(session, ssl->session, 0);
             if (ret != WOLFSSL_SUCCESS)
                 WOLFSSL_MSG("Session duplicate failed");
@@ -20607,7 +20601,6 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
 
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 {
-#ifdef HAVE_EXT_CACHE
     WOLFSSL_SESSION* copy;
 
     WOLFSSL_ENTER("wolfSSL_SESSION_dup");
@@ -20630,11 +20623,6 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
         copy = NULL;
     }
     return copy;
-#else
-    WOLFSSL_MSG("wolfSSL_SESSION_dup feature not compiled in");
-    (void)session;
-    return NULL;
-#endif /* HAVE_EXT_CACHE */
 }
 
 void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)

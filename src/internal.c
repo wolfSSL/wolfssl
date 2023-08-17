@@ -27456,6 +27456,20 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
+    int HaveUniqueSessionObj(WOLFSSL* ssl)
+    {
+        if (ssl->session->ref.count > 1) {
+            WOLFSSL_SESSION* newSession = wolfSSL_SESSION_dup(ssl->session);
+            if (newSession == NULL) {
+                WOLFSSL_MSG("Session duplicate failed");
+                return 0;
+            }
+            wolfSSL_FreeSession(ssl->ctx, ssl->session);
+            ssl->session = newSession;
+        }
+        return 1;
+    }
+
 #ifndef WOLFSSL_NO_TLS12
 
     /* handle generation of client_hello (1) */
@@ -28295,6 +28309,11 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         else {
             if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
+                    if (!HaveUniqueSessionObj(ssl)) {
+                        WOLFSSL_MSG("Unable to have unique session object");
+                        WOLFSSL_ERROR_VERBOSE(MEMORY_ERROR);
+                        return MEMORY_ERROR;
+                    }
 
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session->masterSecret, SECRET_LEN);
@@ -31810,14 +31829,8 @@ exit_scv:
 #ifdef HAVE_SESSION_TICKET
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
-    /* If the session is shared, we need to copy-on-write */
-    if (ssl->session->ref.count > 1) {
-        WOLFSSL_SESSION* nsession = wolfSSL_SESSION_dup(ssl->session);
-        if (nsession == NULL)
-            return MEMORY_E;
-        wolfSSL_FreeSession(ssl->ctx, ssl->session);
-        ssl->session = nsession;
-    }
+    if (!HaveUniqueSessionObj(ssl))
+        return MEMORY_ERROR;
 
     /* Free old dynamic ticket if we already had one */
     if (ssl->session->ticketLenAlloc > 0) {
