@@ -382,8 +382,7 @@
 #endif
 #include <wolfssl/certs_test.h>
 
-#define WOLFSSL_TEST_UTILS_INCLUDED
-#include "tests/utils.c"
+#include "tests/utils.h"
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */

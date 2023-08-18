@@ -45,8 +45,7 @@
 #include <examples/server/server.h>
 #include <examples/client/client.h>
 
-#define WOLFSSL_TEST_UTILS_INCLUDED
-#include "tests/utils.c"
+#include "tests/utils.h"
 
 #ifndef NO_SHA256
 void file_test(const char* file, byte* check);
