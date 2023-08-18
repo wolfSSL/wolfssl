@@ -90,10 +90,10 @@ EOF
     )
     for i in $PERMUTATIONS;do
         echo -e "\nTesting $SIDE permutations order $i...\n"
-        UDP_LOGFILE=/tmp/udp-$SIDE-$i
-        rm -f $UDP_LOGFILE
+        UDP_LOGFILE=$(mktemp)
         run_test "-r $i -S $SIDE -l $UDP_LOGFILE" "-Ta -w" "-w"
         echo "...produced $(grep -P 'client:|server:' $UDP_LOGFILE | wc -l) messages"
+        rm -f $UDP_LOGFILE
     done
     echo "All $SIDE msg permutations succeeded"
 }
@@ -112,10 +112,10 @@ EOF
     )
     for DELAY in $DELAYS;do
         echo -e "\nTesting delay $DELAY...\n"
-        UDP_LOGFILE=/tmp/udp-delay-$DELAY
-        rm -f $UDP_LOGFILE
+        UDP_LOGFILE=$(mktemp)
         run_test "-l $UDP_LOGFILE -t $DELAY" "-Ta -w" "-w"
         echo "...produced $(grep -P 'client:|server:' $UDP_LOGFILE | wc -l) messages"
+        rm -f $UDP_LOGFILE
     done
 }
 
