@@ -15682,6 +15682,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
+            if (ssl->msgsReceived.got_hello_retry_request) {
+                WOLFSSL_MSG("Received HelloVerifyRequest after a "
+                            "HelloRetryRequest");
+                WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+                return VERSION_ERROR;
+            }
             ssl->msgsReceived.got_hello_verify_request = 1;
 
             break;
