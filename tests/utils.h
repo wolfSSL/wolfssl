@@ -1,4 +1,4 @@
-/* utils.c
+/* utils.h
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -24,12 +24,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <tests/unit.h>
-
-#if !defined(WOLFSSL_TEST_UTILS_INCLUDED)
-    #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning utils.c does not need to be compiled separately
-    #endif
-#else
 
 #ifndef NO_FILESYSTEM
 
@@ -365,5 +359,3 @@ void join_thread(THREAD_TYPE thread)
     THREAD_CHECK_RET(wolfSSL_JoinThread(thread));
 }
 #endif /* SINGLE_THREADED */
-
-#endif /* WOLFSSL_TEST_UTILS_INCLUDED */
