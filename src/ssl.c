@@ -12460,14 +12460,15 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)
-                    && ssl->dtls13Rtx.sendAcks == 1) {
-                    ssl->dtls13Rtx.sendAcks = 0;
+                    && ssl->dtls13Rtx.sendAcks == 1
+                    && ssl->options.seenUnifiedHdr) {
                     /* we aren't negotiated the version yet, so we aren't sure
                      * the other end can speak v1.3. On the other side we have
                      * received a unified records, assuming that the
                      * ServerHello got lost, we will send an empty ACK. In case
                      * the server is a DTLS with version less than 1.3, it
                      * should just ignore the message */
+                    ssl->dtls13Rtx.sendAcks = 0;
                     if ((ssl->error = SendDtls13Ack(ssl)) < 0) {
                         if (ssl->error == WANT_WRITE)
                             ssl->dtls13SendingAckOrRtx = 1;

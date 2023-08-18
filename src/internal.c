@@ -10744,6 +10744,7 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     int ret;
 
     if (Dtls13IsUnifiedHeader(*(ssl->buffers.inputBuffer.buffer + *inOutIdx))) {
+        ssl->options.seenUnifiedHdr = 1; /* We can send ACKs to the peer */
 
         /* version 1.3 already negotiated */
         if (ssl->options.tls1_3) {

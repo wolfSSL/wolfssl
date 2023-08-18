@@ -820,10 +820,9 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
            messages. */
         /* We don't want to clear the buffer until we have done version
          * negotiation in the SH or have received a unified header in the
-         * DTLS record (ssl->dtls13Rtx.sendAcks should only be set when that
-         * is true). */
+         * DTLS record. */
         if (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
-                    ssl->dtls13Rtx.sendAcks)
+                    ssl->options.seenUnifiedHdr)
             /* Use 1.2 API to clear 1.2 buffers too */
             DtlsMsgPoolReset(ssl);
     }
@@ -2491,11 +2490,10 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
 
     /* We don't want to send acks until we have done version
      * negotiation in the SH or have received a unified header in the
-     * DTLS record (ssl->dtls13Rtx.sendAcks should only be set when that
-     * is true). */
+     * DTLS record. */
     if (ssl->dtls13Rtx.seenRecords != NULL &&
             (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
-                    ssl->dtls13Rtx.sendAcks)) {
+                    ssl->options.seenUnifiedHdr)) {
         ssl->dtls13Rtx.sendAcks = 0;
         /* reset fast timeout as we are sending ACKs */
         ssl->dtls13FastTimeout = 0;

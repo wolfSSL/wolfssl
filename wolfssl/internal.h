@@ -4610,6 +4610,7 @@ struct Options {
     word16            tls:1;              /* using TLS ? */
     word16            tls1_1:1;           /* using TLSv1.1+ ? */
     word16            tls1_3:1;           /* using TLSv1.3+ ? */
+    word16            seenUnifiedHdr:1;   /* received msg with unified header */
     word16            dtls:1;             /* using datagrams ? */
     word16            dtlsStateful:1;     /* allow stateful processing ? */
     word16            connReset:1;        /* has the peer reset */
