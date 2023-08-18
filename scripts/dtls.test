@@ -50,15 +50,19 @@ prepend() { # Usage: cmd 2>&1 | prepend "sometext "
     while read line; do echo "${1}${line}"; done
 }
 
-run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>"
+run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "<client args>"
     ((NUM_TESTS_RUN++))
-    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $2 2>&1 | prepend "[server] " &
+    echo "" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "$1" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo -e "\n${1}\n"
+    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $3 2>&1 | prepend "[server] " &
     SERVER_PID=$(($! - 1))
-    stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $1 2>&1 | prepend "[udp-proxy] " &
+    stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $2 2>&1 | prepend "[udp-proxy] " &
     UDP_PROXY_PID=$(($! - 1))
     sleep 0.2
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
-    timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $3 2>&1 | prepend "[client] "
+    timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
         echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
@@ -71,21 +75,18 @@ run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>
 
 test_dropping_packets () {
     for i in $(seq 3 11);do
-        echo -e "\ndropping ${i}th packet\n"
-        run_test "-d $i" "-Ta" ""
+        run_test "Dropping ${i}th packet" "-d $i" "-Ta" ""
     done
 
     # dropping last ack would be client error as wolfssl_read doesn't support WANT_WRITE as returned error
     for i in $(seq 0 10);do
-        echo -e "\nTesting WANT_WRITE: dropping packet $i\n"
-        run_test "-f $i" "-Ta -6" "-6"
+        run_test "Testing WANT_WRITE: dropping packet $i" "-f $i" "-Ta -6" "-6"
     done
 }
 
 # this test is based on detecting newSessionTicket message by its size. This is rather fragile.
 test_dropping_new_session_ticket() { # usage: test_dropping_new_session_ticket <size>
-    echo -e "\ndropping new session ticket packet of size $1\n"
-    run_test "-F $1" "-w" "-w --waitTicket"
+    run_test "Dropping new session ticket packet of size $1" "-F $1" "-w" "-w --waitTicket"
 }
 
 test_permutations () {
@@ -97,9 +98,8 @@ for p in itertools.permutations("$2"):
 EOF
     )
     for i in $PERMUTATIONS;do
-        echo -e "\nTesting $SIDE permutations order $i...\n"
         UDP_LOGFILE=$(mktemp)
-        run_test "-r $i -S $SIDE -l $UDP_LOGFILE" "-Ta -w" "-w"
+        run_test "Testing $SIDE permutations order $i" "-r $i -S $SIDE -l $UDP_LOGFILE" "-Ta -w" "-w"
         echo "...produced $(grep -P 'client:|server:' $UDP_LOGFILE | wc -l) messages"
         rm -f $UDP_LOGFILE
     done
@@ -119,9 +119,8 @@ for i in tt:
 EOF
     )
     for DELAY in $DELAYS;do
-        echo -e "\nTesting delay $DELAY...\n"
         UDP_LOGFILE=$(mktemp)
-        run_test "-l $UDP_LOGFILE -t $DELAY" "-Ta -w" "-w"
+        run_test "Testing delay $DELAY" "-l $UDP_LOGFILE -t $DELAY" "-Ta -w" "-w"
         echo "...produced $(grep -P 'client:|server:' $UDP_LOGFILE | wc -l) messages"
         rm -f $UDP_LOGFILE
     done
