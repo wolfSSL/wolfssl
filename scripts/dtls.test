@@ -46,7 +46,6 @@ run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>
     SERVER_PID=$!
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $1 2>&1 | prepend "[udp-proxy] " &
     UDP_PROXY_PID=$(($! - 1))
-    echo "UDP-proxy: $UDP_PROXY_PID"
     sleep 0.2
     timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $3 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
