@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+#set -x # enable debug output
+#set -e
 
 cleanup () {
     echo
@@ -22,6 +23,7 @@ UDP_PROXY_BIN=${UDP_PROXY_BIN:-"udp_proxy"}
 PROXY_PORT=1234
 SERVER_PORT=4321
 KEY_UPDATE_SIZE=35
+NUM_TESTS_FAILED=0
 
 # $WOLFSSL_ROOT/tests/unit.test tests/test-dtls13.conf
 
@@ -38,12 +40,14 @@ run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>
     SERVER_PID=$!
     sleep 0.2
     timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $3 2>&1 | prepend "[client] "
+    if [ $? != 0 ]; then
+        echo "Test failed"
+        ((NUM_TESTS_FAILED++))
+    fi
     wait $SERVER_PID
     SERVER_PID=
-    kill -INT $UDP_PROXY_PID
-    sleep 0.2 && kill $UDP_PROXY_PID || true
+    kill $UDP_PROXY_PID
     UDP_PROXY_PID=
-    echo "Test complete"
 }
 
 
@@ -75,7 +79,7 @@ for p in itertools.permutations("$2"):
 EOF
     )
     for i in $PERMUTATIONS;do
-        echo -n "\nTesting $SIDE permutations order $i...\n"
+        echo -e "\nTesting $SIDE permutations order $i...\n"
         UDP_LOGFILE=/tmp/udp-$SIDE-$i
         rm -f $UDP_LOGFILE
         run_test "-r $i -S $SIDE -l $UDP_LOGFILE" "-v4 -Ta -w" "-v4 -w"
@@ -97,7 +101,7 @@ for i in tt:
 EOF
     )
     for DELAY in $DELAYS;do
-        echo -n "\nTesting delay $DELAY...\n"
+        echo -e "\nTesting delay $DELAY...\n"
         UDP_LOGFILE=/tmp/udp-delay-$DELAY
         rm -f $UDP_LOGFILE
         run_test "-l $UDP_LOGFILE -t $DELAY" "-v4 -Ta -w" "-v4 -w"
@@ -118,5 +122,10 @@ if [ ! -z $DTLS13_DO_DELAY_TEST ];then
    test_time_delays
 fi
 
-echo
-echo "All tests SUCCEEDED!!!"
+if [ $NUM_TESTS_FAILED == 0 ]; then
+    echo -e "\nAll tests SUCCEEDED!!!\n"
+else
+    echo -e "\nThere were $NUM_TESTS_FAILED failures\n"
+fi
+
+exit $NUM_TESTS_FAILED
