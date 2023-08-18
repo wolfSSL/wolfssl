@@ -43,21 +43,21 @@ prepend() { # Usage: cmd 2>&1 | prepend "sometext "
 
 run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>"
     stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $2 2>&1 | prepend "[server] " &
-    SERVER_PID=$!
+    SERVER_PID=$(($! - 1))
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $1 2>&1 | prepend "[udp-proxy] " &
     UDP_PROXY_PID=$(($! - 1))
     sleep 0.2
+    # Wrap this command in a timeout so that a deadlock won't bring down the entire test
     timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $3 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
-        echo "Test failed"
+        echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
     fi
-    wait $SERVER_PID
+    kill $SERVER_PID >&/dev/null # make sure the server is no longer running
     SERVER_PID=
     kill $UDP_PROXY_PID
     UDP_PROXY_PID=
 }
-
 
 test_dropping_packets () {
     for i in $(seq 3 11);do
@@ -125,12 +125,12 @@ test_dropping_packets
 test_permutations client 012
 test_dropping_new_session_ticket 200
 
-if [ ! -z $DTLS13_DO_SERVER_PERMUTATION_TEST ];then
+if [ ! -z $DO_SERVER_PERMUTATION_TEST ];then
    test_permutations server 0123456
 fi
 
 # TODO: fix udp_proxy to not re-order close alert before app data
-if [ ! -z $DTLS13_DO_DELAY_TEST ];then
+if [ ! -z $DO_DELAY_TEST ];then
    test_time_delays
 fi
 
