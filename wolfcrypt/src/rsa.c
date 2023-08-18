@@ -3266,7 +3266,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     #elif defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) || \
           (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
             defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
-           /* SCE needs warpped key which is passed via
+           /* SCE needs wrapped key which is passed via
             * user ctx object of crypt-call back.
             */
        #ifdef WOLF_CRYPTO_CB

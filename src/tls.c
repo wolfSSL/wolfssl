@@ -10774,7 +10774,7 @@ static int GetCommonItem(const byte* a, byte aLen, const byte* b, byte bLen,
 }
 
 /* Creates a "client certificate type" extension if necessary.
- * Returns 0 if no error occured, negative value otherwise.
+ * Returns 0 if no error occurred, negative value otherwise.
  * A return of 0, it does not indicae that the extension was created.
  */
 static int TLSX_ClientCertificateType_Use(WOLFSSL* ssl, byte isServer)
@@ -11029,7 +11029,7 @@ static int TLSX_ClientCertificateType_GetSize(WOLFSSL* ssl, byte msgType)
 /* Server_Certificate_Type extension                                          */
 /******************************************************************************/
 /* Creates a "server certificate type" extension if necessary.
- * Returns 0 if no error occured, negative value otherwise.
+ * Returns 0 if no error occurred, negative value otherwise.
  * A return of 0, it does not indicae that the extension was created.
  */
 static int TLSX_ServerCertificateType_Use(WOLFSSL* ssl, byte isServer)

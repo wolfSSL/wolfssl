@@ -63448,7 +63448,7 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_s, certType_c, typeCnt_c),
                                                         WOLFSSL_SUCCESS);
 
-    /* have server tell to use x509 cert intensionally. This will bring
+    /* have server tell to use x509 cert intentionally. This will bring
      * certificate type mismatch in client side.
      */
     certType_s[0] = WOLFSSL_CERT_TYPE_X509;
@@ -63530,7 +63530,7 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_set_client_cert_type(ssl_s, certType_c, typeCnt_c),
                                                         WOLFSSL_SUCCESS);
 
-    /* have server tell to use x509 cert intensionally. This will bring
+    /* have server tell to use x509 cert intentionally. This will bring
      * certificate type mismatch in client side.
      */
     certType_s[0] = WOLFSSL_CERT_TYPE_X509;
@@ -63574,7 +63574,7 @@ static int test_tls13_rpk_handshake(void)
 
 
 #if defined(WOLFSSL_ALWAYS_VERIFY_CB)
-    /*  Both client and server load RPK cert and set certificate vefiry
+    /*  Both client and server load RPK cert and set certificate verify
      *  callbacks then start handshaking.
      *  Confirm both side can refer the peer's cert.
      */
@@ -63614,7 +63614,7 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType_s, typeCnt_s),
                                                         WOLFSSL_SUCCESS);
 
-    /* set certificate verify callcack to both client and server */
+    /* set certificate verify callback to both client and server */
     int isServer = 0;
     wolfSSL_SetCertCbCtx(ssl_c, &isServer);
     wolfSSL_set_verify(ssl_c, SSL_VERIFY_PEER, MyRpkVerifyCb);
