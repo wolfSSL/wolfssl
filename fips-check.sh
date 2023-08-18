@@ -46,12 +46,12 @@ done
 case "$FLAVOR" in
 linuxv2|fipsv2-OE-ready|solaris)
   FIPS_OPTION='v2'
-  FIPS_FILES=('WCv4-stable'
-    'wolfcrypt/src/fips.c'
-    'wolfcrypt/src/fips_test.c'
-    'wolfcrypt/src/wolfcrypt_first.c'
-    'wolfcrypt/src/wolfcrypt_last.c'
-    'wolfssl/wolfcrypt/fips.h'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:WCv4-stable'
+    'wolfcrypt/src/fips_test.c:WCv4-stable'
+    'wolfcrypt/src/wolfcrypt_first.c:WCv4-stable'
+    'wolfcrypt/src/wolfcrypt_last.c:WCv4-stable'
+    'wolfssl/wolfcrypt/fips.h:WCv4-stable'
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:WCv4-stable'
@@ -86,7 +86,7 @@ linuxv2|fipsv2-OE-ready|solaris)
 netbsd-selftest)
   # non-FIPS, CAVP only but pull in selftest
   FIPS_OPTION='cavp-selftest'
-  FIPS_FILES=('v3.14.2b' 'wolfcrypt/src/selftest.c')
+  FIPS_FILES=('wolfcrypt/src/selftest.c:v3.14.2b')
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:v3.14.2'
     'wolfcrypt/src/dh.c:v3.14.2'
@@ -113,7 +113,7 @@ netbsd-selftest)
 marvell-linux-selftest)
   # non-FIPS, CAVP only but pull in selftest
   FIPS_OPTION='cavp-selftest-v2'
-  FIPS_FILES=('v3.14.2b' 'wolfcrypt/src/selftest.c')
+  FIPS_FILES=('wolfcrypt/src/selftest.c:v3.14.2b')
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:v4.1.0-stable'
     'wolfcrypt/src/dh.c:v4.1.0-stable'
@@ -139,12 +139,12 @@ marvell-linux-selftest)
   ;;
 linuxv5)
   FIPS_OPTION='v5'
-  FIPS_FILES=('WCv5.0-RC12'
-    'wolfcrypt/src/fips.c'
-    'wolfcrypt/src/fips_test.c'
-    'wolfcrypt/src/wolfcrypt_first.c'
-    'wolfcrypt/src/wolfcrypt_last.c'
-    'wolfssl/wolfcrypt/fips.h'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:WCv5.0-RC12'
+    'wolfcrypt/src/fips_test.c:WCv5.0-RC12'
+    'wolfcrypt/src/wolfcrypt_first.c:WCv5.0-RC12'
+    'wolfcrypt/src/wolfcrypt_last.c:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/fips.h:WCv5.0-RC12'
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:WCv5.0-RC12'
@@ -180,24 +180,24 @@ linuxv5)
   ;;
 fips-ready|fips-dev)
   FIPS_OPTION='ready'
-  FIPS_FILES=('master'
-    'wolfcrypt/src/fips.c'
-    'wolfcrypt/src/fips_test.c'
-    'wolfcrypt/src/wolfcrypt_first.c'
-    'wolfcrypt/src/wolfcrypt_last.c'
-    'wolfssl/wolfcrypt/fips.h'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:master'
+    'wolfcrypt/src/fips_test.c:master'
+    'wolfcrypt/src/wolfcrypt_first.c:master'
+    'wolfcrypt/src/wolfcrypt_last.c:master'
+    'wolfssl/wolfcrypt/fips.h:master'
   )
   WOLFCRYPT_FILES=()
   if [ "$FLAVOR" = 'fips-dev' ]; then FIPS_OPTION='dev'; fi
   ;;
 wolfrand)
   FIPS_OPTION='rand'
-  FIPS_FILES=('WRv4-stable'
-    'wolfcrypt/src/fips.c'
-    'wolfcrypt/src/fips_test.c'
-    'wolfcrypt/src/wolfcrypt_first.c'
-    'wolfcrypt/src/wolfcrypt_last.c'
-    'wolfssl/wolfcrypt/fips.h'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:WRv4-stable'
+    'wolfcrypt/src/fips_test.c:WRv4-stable'
+    'wolfcrypt/src/wolfcrypt_first.c:WRv4-stable'
+    'wolfcrypt/src/wolfcrypt_last.c:WRv4-stable'
+    'wolfssl/wolfcrypt/fips.h:WRv4-stable'
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/hmac.c:WCv4-stable'
@@ -213,14 +213,17 @@ wolfrand)
   exit 1
 esac
 
-# checkout_files takes an array of pairs of file paths and git tags to checkout.
-# It will check to see if mytag exists and if not will make that tag a branch.
+# checkout_files takes an array of pairs of file paths and git tags to
+# checkout. It will check to see if mytag exists and if not will make that
+# tag a branch.
 function checkout_files() {
+    local name
+    local tag
     for file_entry in "$@"
     do
-        local name=${file_entry%%:*}
-        local tag=${file_entry#*:}
-        if ! $GIT branch --list | grep --quiet "my$tag"
+        name=${file_entry%%:*}
+        tag=${file_entry#*:}
+        if ! $GIT rev-parse -q --verify "my$tag" >/dev/null
         then
             $GIT branch --no-track "my$tag" "$tag" || exit $?
         fi
@@ -228,20 +231,27 @@ function checkout_files() {
     done
 }
 
-# copy_fips_files clones the FIPS repository. It takes an array of file paths, where
-# it breaks apart into file name and path, then copies it from the file from the fips
-# directory to the path. The first item is the name of the tag.
+# copy_fips_files takes an array of pairs of file paths and git tags to
+# checkout. It will check to see if mytag exists and if now will make that
+# tag a branch.  It breaks the filepath apart into file name and path, then
+# copies it from the file from the fips directory to the path.
 function copy_fips_files() {
-    local tag="$1"
-    shift
-    if ! $GIT clone --depth 1 -b "$tag" "$FIPS_REPO" fips
-    then
-        echo "fips-check: Couldn't check out $tag from FIPS repository."
-        exit 1
-    fi
-    for file_path in "$@"
+    local name
+    local bname
+    local dname
+    local tag
+    for file_entry in "$@"
     do
-        cp fips/"$(basename "$file_path")" "$(dirname "$file_path")"
+        name=${file_entry%%:*}
+        tag=${file_entry#*:}
+        bname=$(basename "$name")
+        dname=$(dirname "$name")
+        if ! $GIT rev-parse -q --verify "my$tag" >/dev/null
+        then
+            $GIT branch --no-track "my$tag" "$tag" || exit $?
+        fi
+        $GIT checkout "my$tag" -- "$bname" || exit $?
+        cp "$bname" "../$dname"
     done
 }
 
@@ -252,27 +262,16 @@ fi
 
 pushd "$TEST_DIR" || exit 2
 
-case "$FIPS_OPTION" in
-
-*dev)
-    echo "Don't need to copy in tagged wolfCrypt files for fips-dev."
-    ;;
-
-*ready)
-    echo "Don't need to copy in tagged wolfCrypt files for FIPS Ready."
-    ;;
-
-cavp-selftest*|v2|rand|v5*)
-    checkout_files "${WOLFCRYPT_FILES[@]}"
-    ;;
-
-*)
-    echo "fips-check: Invalid FIPS option ${FIPS_OPTION}."
+if ! $GIT clone "$FIPS_REPO" fips
+then
+    echo "fips-check: Couldn't check out FIPS repository."
     exit 1
-    ;;
-esac
+fi
 
-copy_fips_files "${FIPS_FILES[@]}"
+checkout_files "${WOLFCRYPT_FILES[@]}" || exit 3
+pushd fips || exit 2
+copy_fips_files "${FIPS_FILES[@]}" || exit 3
+popd || exit 2
 
 # When checking out cert 3389 ready code, NIST will no longer perform
 # new certifications on 140-2 modules. If we were to use the latest files from
