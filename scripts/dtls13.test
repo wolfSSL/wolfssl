@@ -13,6 +13,11 @@ cleanup () {
         echo "Killing server $SERVER_PID"
         kill $SERVER_PID
     fi
+    if [ ! -z "$TCPDUMP_PID" ];then
+        echo "Killing tcpdump $TCPDUMP_PID"
+        sleep 1
+        kill $TCPDUMP_PID
+    fi
 }
 
 trap cleanup err exit
@@ -107,6 +112,10 @@ EOF
         echo "...produced $(grep -P 'client:|server:' $UDP_LOGFILE | wc -l) messages"
     done
 }
+
+echo "Starting capture"
+tcpdump -i lo -n port ${SERVER_PORT} -w ./dtls.pcap -U &
+TCPDUMP_PID=$!
 
 test_dropping_packets
 test_permutations client 012
