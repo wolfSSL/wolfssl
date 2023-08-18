@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# This script can be run with several environment variables set dictating its
+# run. You can set the following to what you like:
+WOLFSSL_ROOT=${WOLFSSL_ROOT:-$(pwd)}
+UDP_PROXY_BIN=${UDP_PROXY_BIN:-"udp_proxy"}
+DTLS_VERSION=${DTLS_VERSION:-"-v4"}
+# Additionally, you can add the following tests by setting it to '1':
+DO_EXTENDED_SERVER_PERMUTATION_TEST=${DO_EXTENDED_SERVER_PERMUTATION_TEST:-0}
+DO_DELAY_TEST=${DO_DELAY_TEST:-0}
+
+# An example use would be: DTLS_VERSION=-v3 scripts/dtls.test
+
 #set -x # enable debug output
 
 cleanup () {
@@ -22,9 +33,6 @@ cleanup () {
 
 trap cleanup err exit
 
-WOLFSSL_ROOT=${WOLFSSL_ROOT:-$(pwd)}
-UDP_PROXY_BIN=${UDP_PROXY_BIN:-"udp_proxy"}
-DTLS_VERSION=${DTLS_VERSION:-"-v4"}
 PROXY_PORT=1234
 SERVER_PORT=4321
 KEY_UPDATE_SIZE=35
@@ -122,17 +130,21 @@ EOF
 echo "Starting capture"
 tcpdump -i lo -n port ${SERVER_PORT} -w ./dtls${DTLS_VERSION}.pcap -U &
 TCPDUMP_PID=$!
+sleep 0.5
 
 test_dropping_packets
 test_permutations client 012
-test_dropping_new_session_ticket 200
 
-if [ ! -z $DO_SERVER_PERMUTATION_TEST ];then
+if [ "$DO_EXTENDED_SERVER_PERMUTATION_TEST" = "1" ];then
    test_permutations server 0123456
+else
+   test_permutations server 012
 fi
 
+test_dropping_new_session_ticket 200
+
 # TODO: fix udp_proxy to not re-order close alert before app data
-if [ ! -z $DO_DELAY_TEST ];then
+if [ "$DO_DELAY_TEST" = "1" ];then
    test_time_delays
 fi
 
