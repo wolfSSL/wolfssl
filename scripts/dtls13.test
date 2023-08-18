@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #set -x # enable debug output
-#set -e
 
 cleanup () {
     echo
@@ -33,11 +32,11 @@ prepend() { # Usage: cmd 2>&1 | prepend "sometext "
 }
 
 run_test() { # usage: run_test "<udp-proxy args>" "<server args>" "<client args>"
+    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $2 2>&1 | prepend "[server] " &
+    SERVER_PID=$!
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT -u $1 2>&1 | prepend "[udp-proxy] " &
     UDP_PROXY_PID=$(($! - 1))
     echo "UDP-proxy: $UDP_PROXY_PID"
-    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $2 2>&1 | prepend "[server] " &
-    SERVER_PID=$!
     sleep 0.2
     timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $3 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
