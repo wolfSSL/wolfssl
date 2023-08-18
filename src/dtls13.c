@@ -352,6 +352,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     while (msg != NULL) {
+        int downgraded = 0;
         idx = 0;
 
         /* message not in order */
@@ -367,6 +368,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         if (IsAtLeastTLSv1_3(ssl->version)) {
             ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
                     msg->sz, msg->sz);
+            if (!IsAtLeastTLSv1_3(ssl->version))
+                downgraded = 1;
         }
         else {
             ret = DoHandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
@@ -381,6 +384,11 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                          ssl->options.handShakeDone && ret == WC_PENDING_E)) {
             if (IsAtLeastTLSv1_3(ssl->version))
                 Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
+            else if (downgraded)
+                /* DoHandShakeMsgType normally handles the hs number but if
+                 * DoTls13HandShakeMsgType processed 1.2 msgs then this wasn't
+                 * incremented. */
+                ssl->keys.dtls_expected_peer_handshake_number++;
 
             ssl->dtls_rx_msg_list = msg->next;
             DtlsMsgDelete(msg, ssl->heap);
