@@ -10,6 +10,8 @@ DO_EXTENDED_SERVER_PERMUTATION_TEST=${DO_EXTENDED_SERVER_PERMUTATION_TEST:-0}
 DO_DELAY_TEST=${DO_DELAY_TEST:-0}
 
 # An example use would be: DTLS_VERSION=-v3 scripts/dtls.test
+# Note the output also consists of a single PCAP file which has a set of
+# three packets (1-byte, strlen()-byte, 1-byte payload) deliniating each test.
 
 #set -x # enable debug output
 
