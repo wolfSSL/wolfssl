@@ -815,9 +815,9 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
             Dtls13MaybeSaveClientHello(ssl);
 
         /* In the handshake, receiving part of the next flight, acknowledge the
-           sent flight. The only exception is, on the server side, receiving the
-           last client flight does not ACK any sent new_session_ticket
-           messages. */
+         * sent flight. */
+        /* On the server side, receiving the last client flight does not ACK any
+         * sent new_session_ticket messages. */
         /* We don't want to clear the buffer until we have done version
          * negotiation in the SH or have received a unified header in the
          * DTLS record. */
