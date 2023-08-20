@@ -1,21 +1,21 @@
 /*!
      \ingroup CMAC
-     \brief Cmac 構造体をデフォルトで初期化する
-     \return 成功したら 0 を返す
-     \param cmac Cmac 構造体へのポインタ
-     \param キー キー ポインタ
-     \param keySz キー ポインタのサイズ (16、24、または 32)
-     \param type 常に WC_CMAC_AES = 1
-     \param 未使用 使用されていません。互換性に関する将来の潜在的な使用のために存在します
+     \brief Cmac構造体をデフォルト値で初期化します
+     \return 成功したら0を返します
+     \param cmac Cmac構造体へのポインタ
+     \param key 鍵データへのポインタ
+     \param keySz 鍵データのサイズ(16、24、または 32)
+     \param type 常にWC_CMAC_AES（=1）
+     \param unused 使用されていません。互換性に関する将来の潜在的な使用のために存在します
 
      _例_
      \code
      Cmac cmac[1];
-     ret = wc_InitCmac(cmac、キー、keySz、WC_CMAC_AES、NULL);
-     もし (ret == 0) {
+     ret = wc_InitCmac(cmac、key、keySz、WC_CMAC_AES、NULL);
+     if (ret == 0) {
          ret = wc_CmacUpdate(cmac、in、inSz);
      }
-     もし (ret == 0) {
+     if (ret == 0) {
          ret = wc_CmacFinal(cmac, out, outSz);
      }
      \endcode
@@ -25,29 +25,29 @@
      \sa wc_CmacFinal
 */
 int wc_InitCmac(Cmac* cmac,
-                 const byte* キー、word32 keySz、
-                 int型、void*未使用);
+                 const byte* key、word32 keySz、
+                 int type、void* unused);
 
 /*!
      \ingroup CMAC
-     \brief Cmac 構造体をデフォルトで初期化する
-     \return 成功したら 0 を返す
-     \param cmac Cmac 構造体へのポインタ
-     \param キー キー ポインタ
-     \param keySz キー ポインタのサイズ (16、24、または 32)
-     \param type 常に WC_CMAC_AES = 1
-     \param 未使用 使用されていません。互換性に関する将来の潜在的な使用のために存在します
-     \param heap 動的割り当てに使用されるヒープ ヒントへのポインター。 通常、スタティック メモリ オプションで使用されます。 NULL にすることができます。
-     \param devId 非同期ハードウェアで使用する ID。 非同期ハードウェアを使用していない場合は、INVALID_DEVID に設定します。
+     \brief Cmac構造体をデフォルト値で初期化します
+     \return 成功したら0を返します
+     \param cmac Cmac構造体へのポインタ
+     \param key 鍵データへのポインタ
+     \param keySz 鍵データのサイズ(16、24、または 32)
+     \param type 常にWC_CMAC_AES（=1）
+     \param unused 使用されていません。互換性に関する将来の潜在的な使用のために存在します
+     \param heap 動的割り当てに使用されるヒープヒントへのポインタ。 通常、スタティックメモリオプションで使用されます。 NULLにすることができます。
+     \param devId 非同期ハードウェアで使用するID。非同期ハードウェアを使用していない場合は、INVALID_DEVIDに設定します。
 
      _例_
      \code
      Cmac cmac[1];
-     ret = wc_InitCmac_ex(cmac、キー、keySz、WC_CMAC_AES、NULL、NULL、INVALID_DEVID);
-     もし (ret == 0) {
-         ret = wc_CmacUpdate(cmac、in、inSz);
+     ret = wc_InitCmac_ex(cmac, key, keySz, WC_CMAC_AES, NULL, NULL, INVALID_DEVID);
+     if (ret == 0) {
+         ret = wc_CmacUpdate(cmac, in, inSz);
      }
-     もし (ret == 0) {
+     if (ret == 0) {
          ret = wc_CmacFinal(cmac, out, &outSz);
      }
      \endcode
@@ -57,15 +57,15 @@ int wc_InitCmac(Cmac* cmac,
      \sa wc_CmacFinal
 */
 int wc_InitCmac_ex(Cmac* cmac,
-                 const byte* キー、word32 keySz、
-                 int 型、void* 未使用、void* ヒープ、int devId);
+                 const byte* key, word32 keySz,
+                 int type, void* unused、void* heap, int devId);
 
 /*!
      \ingroup CMAC
      \brief 暗号ベースのメッセージ認証コード入力データを追加
-     \return 成功したら 0 を返す
-     \param cmac Cmac 構造体へのポインタ
-     \param in 処理する入力データの 
+     \return 成功したら0を返します
+     \param cmac Cmac構造体へのポインタ
+     \param in 処理する入力データへのポインタ
      \param inSz 入力データのサイズ
 
      _例_
@@ -81,11 +81,11 @@ int wc_CmacUpdate(Cmac* cmac,
 
 /*!
      \ingroup CMAC
-     \brief 暗号ベースのメッセージ認証コードを使用して最終結果を生成する
-     \return 成功したら 0 を返す
-     \param cmac Cmac 構造体へのポインタ
-     \param out 結果を返すポインタ
-     \param outSz 出力のポインタサイズ (in/out)
+     \brief 暗号ベースのメッセージ認証コードを使用して最終結果を生成します
+     \return 成功したら0を返します
+     \param cmac Cmac構造体へのポインタ
+     \param out 結果の出力先バッファへのポインタ
+     \param outSz 結果の出力先バッファサイズ (in/out)
 
      _例_
      \code
@@ -100,14 +100,14 @@ int wc_CmacFinal(Cmac* cmac,
 
 /*!
      \ingroup CMAC
-     \brief CMAC を生成するためのシングル ショット関数
-     \return 成功したら 0 を返す
-     \param out 結果を返すポインタ
+     \brief CMACを生成するためのシングルショット関数
+     \return 成功したら0を返します
+     \param out 結果の出力先バッファへのポインタ
      \param outSz 出力のポインタサイズ (in/out)
-     \param in 処理する入力データのポインタ 
+     \param in 処理する入力データのポインタ
      \param inSz 入力データのサイズ
-     \param キー キー ポインタ
-     \param keySz キー ポインタのサイズ (16、24、または 32)
+     \param key 鍵データへのポインタ
+     \param keySz 鍵データのサイズ (16、24、または 32)
 
      _例_
      \code
@@ -122,14 +122,14 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 /*!
      \ingroup CMAC
-     \brief CMAC を検証するためのシングル ショット機能
-     \return 成功したら 0 を返す
-     \param 結果を返すチェック ポインタ
-     \param checkSz チェックアウト バッファのサイズ
+     \brief CMACを検証するためのシングルショット関数
+     \return 成功したら0を返します
+     \param check 検証対象となるCMAC処理結果データへのポインタ
+     \param checkSz CMAC処理結果データのサイズ
      \param in 処理する入力データのポインタ
      \param inSz 入力データのサイズ
-     \param キー キー ポインタ
-     \param keySz キー ポインタのサイズ (16、24、または 32)
+     \param key 鍵データへのポインタ
+     \param keySz 鍵データのサイズ (16、24、または 32)
 
      _例_
      \code
@@ -145,9 +145,10 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
 
 /*!
      \ingroup CMAC
-     \brief ハードウェアがシングル ショットを必要とし、更新をメモリにキャッシュする必要がある場合にのみ、WOLFSSL_HASH_KEEP で使用されます
-     \return 成功したら 0 を返す
-     処理する入力データの \param
+     \brief WOLFSSL_HASH_KEEPマクロ定義時のみ使用可能。ハードウェアがシングルショットを必要とし、更新をメモリにキャッシュする必要がある場合に使用します。
+     \return 成功したら0を返します
+     \param cmac Cmac構造体へのポインタ
+     \param in 処理する入力データへのポインタ
      \param inSz 入力データのサイズ
 
      _例_

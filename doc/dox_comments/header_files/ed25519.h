@@ -1,21 +1,21 @@
 /*!
     \ingroup ED25519
 
-    \brief This function generates the Ed25519 public key from the private key.
-    It stores the public key in the buffer pubKey, and sets the bytes
-    written to this buffer in pubKeySz.
+    \brief This function generates the Ed25519 public key from the private key,
+    stored in the ed25519_key object. It stores the public key in the buffer
+    pubKey.
 
     \return 0 Returned upon successfully making the public key.
-    \return BAD_FUNC_ARG Returned ifi key or pubKey evaluate to NULL, or if the
+    \return BAD_FUNC_ARG Returned if key or pubKey evaluate to NULL, or if the
     specified key size is not 32 bytes (Ed25519 has 32 byte keys).
+    \return ECC_PRIV_KEY_E returned if the ed25519_key object does not have 
+    the private key in it.
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
 
     \param [in] key Pointer to the ed25519_key for which to generate a key.
-    \param [out] out Pointer to the buffer in which to store the public key.
-    \param [in,out] outLen Pointer to a word32 object with the size available
-    in out. Set with the number of bytes written to out after successfully
-    exporting the public key.
+    \param [out] pubKey Pointer to the buffer in which to store the public key.
+    \param [in] pubKeySz Size of the public key. Should be ED25519_PUB_KEY_SIZE.
 
     _Example_
     \code
@@ -301,7 +301,7 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inlen, byte* out,
     \ingroup ED25519
 
     \brief This function verifies the Ed25519 signature of a message to ensure
-    authenticity. It returns the answer through res, with 1 corresponding to
+    authenticity. It returns the answer through ret, with 1 corresponding to
     a valid signature, and 0 corresponding to an invalid signature.
 
     \return 0 Returned upon successfully performing the signature
@@ -315,7 +315,7 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inlen, byte* out,
     \param [in] siglen Length of the signature to verify.
     \param [in] msg Pointer to the buffer containing the message to verify.
     \param [in] msgLen Length of the message to verify.
-    \param [out] res Pointer to the result of the verification. 1 indicates the
+    \param [out] ret Pointer to the result of the verification. 1 indicates the
     message was successfully verified.
     \param [in] key Pointer to a public Ed25519 key with which to verify the
     signature.
@@ -351,7 +351,7 @@ int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 
     \brief This function verifies the Ed25519 signature of a message to ensure
     authenticity. The context is included as part of the data
-    verified. It returns the answer through res, with 1 corresponding to
+    verified. It returns the answer through ret, with 1 corresponding to
     a valid signature, and 0 corresponding to an invalid signature.
 
     \return 0 Returned upon successfully performing the signature
@@ -365,7 +365,7 @@ int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \param [in] siglen Length of the signature to verify.
     \param [in] msg Pointer to the buffer containing the message to verify.
     \param [in] msgLen Length of the message to verify.
-    \param [out] res Pointer to the result of the verification. 1 indicates the
+    \param [out] ret Pointer to the result of the verification. 1 indicates the
     message was successfully verified.
     \param [in] key Pointer to a public Ed25519 key with which to verify the
     signature.
@@ -408,7 +408,7 @@ int wc_ed25519ctx_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     message to ensure authenticity. The context is included as part of the data
     verified. The hash is the pre-hashed message before signature calculation.
     The hash algorithm used to create message digest must be SHA-512.
-    The answer is returned through res, with 1 corresponding to a valid
+    The answer is returned through ret, with 1 corresponding to a valid
     signature, and 0 corresponding to an invalid signature.
 
 
@@ -424,7 +424,7 @@ int wc_ed25519ctx_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \param [in] hash Pointer to the buffer containing the hash of the message
     to verify.
     \param [in] hashLen Length of the hash to verify.
-    \param [out] res Pointer to the result of the verification. 1 indicates the
+    \param [out] ret Pointer to the result of the verification. 1 indicates the
     message was successfully verified.
     \param [in] key Pointer to a public Ed25519 key with which to verify the
     signature.
@@ -466,7 +466,7 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \brief This function verifies the Ed25519 signature of a message to ensure
     authenticity. The context is included as part of the data
     verified. The message is pre-hashed before verification. It returns the
-    answer through res, with 1 corresponding to a valid signature, and 0
+    answer through ret, with 1 corresponding to a valid signature, and 0
     corresponding to an invalid signature.
 
     \return 0 Returned upon successfully performing the signature
@@ -480,7 +480,7 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \param [in] siglen Length of the signature to verify.
     \param [in] msg Pointer to the buffer containing the message to verify.
     \param [in] msgLen Length of the message to verify.
-    \param [out] res Pointer to the result of the verification. 1 indicates the
+    \param [out] ret Pointer to the result of the verification. 1 indicates the
     message was successfully verified.
     \param [in] key Pointer to a public Ed25519 key with which to verify the
     signature.
@@ -562,7 +562,7 @@ void wc_ed25519_free(ed25519_key* key);
 /*!
     \ingroup ED25519
 
-    \brief This function imports a public ed25519_key pair from a buffer
+    \brief This function imports a public ed25519_key from a buffer
     containing the public key. This function will handle both compressed and
     uncompressed keys. The public key is checked that it matches the private
     key when one is present.
@@ -600,7 +600,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
 /*!
     \ingroup ED25519
 
-    \brief This function imports a public ed25519_key pair from a buffer
+    \brief This function imports a public ed25519_key from a buffer
     containing the public key. This function will handle both compressed and
     uncompressed keys. Check public key matches private key, when present,
     when not trusted.
@@ -649,8 +649,6 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
 
     \param [in] priv Pointer to the buffer containing the private key.
     \param [in] privSz Length of the private key.
-    \param [in] pub Pointer to the buffer containing the public key.
-    \param [in] pubSz Length of the public key.
     \param [in,out] key Pointer to the ed25519_key object in which to store the
     imported private key.
 
