@@ -64893,6 +64893,90 @@ static int test_dtls_client_hello_timeout(void)
     return EXPECT_RESULT();
 }
 
+/**
+ * Make sure we don't send RSA Signature Hash Algorithms in the
+ * CertificateRequest when we don't have any such ciphers set.
+ * @return EXPECT_RESULT()
+ */
+static int test_certreq_sighash_algos(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int idx = 0;
+    int maxIdx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS_ECDHE_ECDSA_WITH_NULL_SHA:"
+            "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+            "./certs/ca-ecc-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_s, SSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, "./certs/ecc-key.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, "./certs/server-ecc.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Find the CertificateRequest message */
+    for (idx = 0; idx < test_ctx.c_len && EXPECT_SUCCESS();) {
+        word16 len;
+        ExpectIntEQ(test_ctx.c_buff[idx++], handshake);
+        ExpectIntEQ(test_ctx.c_buff[idx++], SSLv3_MAJOR);
+        ExpectIntEQ(test_ctx.c_buff[idx++], TLSv1_2_MINOR);
+        ato16(test_ctx.c_buff + idx, &len);
+        idx += OPAQUE16_LEN;
+        if (test_ctx.c_buff[idx] == certificate_request) {
+            idx++;
+            /* length */
+            idx += OPAQUE24_LEN;
+            /* cert types */
+            idx += 1 + test_ctx.c_buff[idx];
+            /* Sig algos */
+            ato16(test_ctx.c_buff + idx, &len);
+            idx += OPAQUE16_LEN;
+            maxIdx = idx + (int)len;
+            for (; idx < maxIdx && EXPECT_SUCCESS(); idx += OPAQUE16_LEN) {
+                if (test_ctx.c_buff[idx+1] == ED25519_SA_MINOR ||
+                        test_ctx.c_buff[idx+1] == ED448_SA_MINOR)
+                    ExpectIntEQ(test_ctx.c_buff[idx], NEW_SA_MAJOR);
+                else
+                    ExpectIntEQ(test_ctx.c_buff[idx+1], ecc_dsa_sa_algo);
+            }
+            break;
+        }
+        else {
+            idx += (int)len;
+        }
+    }
+    ExpectIntLT(idx, test_ctx.c_len);
+
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66155,6 +66239,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_downgrade_scr),
     TEST_DECL(test_dtls_client_hello_timeout_downgrade),
     TEST_DECL(test_dtls_client_hello_timeout),
+    TEST_DECL(test_certreq_sighash_algos),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
