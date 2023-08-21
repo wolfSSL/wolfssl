@@ -76,8 +76,8 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
 }
 
 test_dropping_packets () {
-    for i in $(seq 3 11);do
-        run_test "Dropping ${i}th packet" "-d $i" "-Ta" ""
+    for i in $(seq 0 11);do
+        run_test "Dropping ${i}th packet" "-f $i" "-Ta" ""
     done
 
     # dropping last ack would be client error as wolfssl_read doesn't support WANT_WRITE as returned error
