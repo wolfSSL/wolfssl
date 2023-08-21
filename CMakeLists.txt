@@ -531,6 +531,22 @@ if(WOLFSSL_AESCTR AND NOT WOLFSSL_FORTRESS)
         "-DWOLFSSL_AES_DIRECT")
 endif()
 
+# if we find an ARIA_DIR turn on ARIA support
+if ("$ENV{ARIA_DIR}" STREQUAL "")
+    set(HAVE_ARIA 0)
+    set(WOLFSSL_ARIA 0)
+else()
+    message(STATUS "Found ARIA_DIR = $ENV{ARIA_DIR}")
+    message(STATUS "Setting HAVE_ARIA, WOLFSSL_ARIA")
+    set(HAVE_ARIA 1)
+    set(WOLFSSL_ARIA 1)
+endif()
+
+# ARIA
+add_option("WOLFSSL_ARIA"
+    "Enable wolfSSL ARIA support (default: disabled)"
+    "no" "yes;no")
+
 # AES-CCM
 add_option("WOLFSSL_AESCCM"
     "Enable wolfSSL AES-CCM support (default: disabled)"
@@ -1877,6 +1893,9 @@ if (WOLFSSL_CAAM)
    list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
 endif()
 
+if (WOLFSSL_ARIA)
+   list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_ARIA")
+endif()
 
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
@@ -2001,12 +2020,44 @@ set(LIB_SOURCES "")
 # in the *.am files.
 generate_lib_src_list("${LIB_SOURCES}")
 if(BUILD_SHARED_LIBS)
+    message(STATUS "BUILD_SHARED_LIBS enabled: ${LIB_SOURCES}")
     add_library(wolfssl SHARED ${LIB_SOURCES})
 else()
+    message(STATUS "Static Libs: ${LIB_SOURCES}")
     add_library(wolfssl STATIC ${LIB_SOURCES})
 endif()
 
 add_library(wolfssl::wolfssl ALIAS wolfssl)
+
+if(WOLFSSL_ARIA)
+    find_package(ARIA)
+
+    if (ARIA_FOUND)
+        # message(STATUS "find_package FOUND ARIA")
+    else()
+        message(WARNING "WOLFSSL_ARIA is enabled, but find_package did not find ARIA MagicCrypto")
+    endif()
+
+    list(APPEND WOLFSSL_LINK_LIBS    "${ARIA_LIB_FILE}")
+    list(APPEND WOLFSSL_INCLUDE_DIRS "${ARIA_INCLUDE_DIR}")
+
+    # there's also a wolfssl port API to include
+    include_directories("wolfssl/wolfcrypt/port/aria")
+    add_library(MagicCrypto_lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/port/aria/aria-crypt.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/port/aria/aria-cryptocb.c
+    )
+
+    set_target_properties(MagicCrypto_lib PROPERTIES OUTPUT_NAME "MagicCrypto")
+    target_link_libraries(MagicCrypto_lib wolfssl)
+    target_compile_options(MagicCrypto_lib PRIVATE "-DHAVE_ARIA")
+
+    set(HAVE_ARIA 1)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ARIA")
+
+    message("ARIA Check: WOLFSSL_LINK_LIBS    = ${WOLFSSL_LINK_LIBS}")
+    message("ARIA Check: WOLFSSL_INCLUDE_DIRS = ${WOLFSSL_INCLUDE_DIRS}")
+endif()
 
 set_target_properties(wolfssl
     PROPERTIES
@@ -2280,6 +2331,15 @@ else()
     list(APPEND HEADER_EXCLUDE
       "wolfssl/wolfcrypt/port/intel/quickassist_sync.h")
   endif()
+endif()
+
+if(NOT BUILD_ARIA)
+  list(APPEND HEADER_EXCLUDE
+    "MagicCrypto/include/mcapi.h")
+  list(APPEND HEADER_EXCLUDE
+    "MagicCrypto/include/mcapi_error.h")
+  list(APPEND HEADER_EXCLUDE
+    "MagicCrypto/include/mcapi_type.h")
 endif()
 
 if(NOT BUILD_SP)

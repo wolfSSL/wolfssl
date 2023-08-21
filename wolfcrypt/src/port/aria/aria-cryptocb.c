@@ -39,6 +39,7 @@ size and a key size of 128, 192, or 256 bits.
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
 int wc_AriaInit(void)
 {
