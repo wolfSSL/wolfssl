@@ -661,13 +661,19 @@ static void UpdateMissedDataSessions(void)
 #endif
 
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
-static int addSecretNode(unsigned char* clientRandom, unsigned char* masterSecret, char* error);
+static int addSecretNode(unsigned char* clientRandom,
+                         unsigned char* masterSecret,
+                         char* error);
 static void hexToBin(const char* hex, unsigned char* bin, int binLength);
 static int parseKeyLogFile(const char* fileName, char* error);
 static unsigned char* findMasterSecret(unsigned char* clientRandom);
 static void freeSecretList(void);
-static int snifferSecretCb(unsigned char* client_random, unsigned char* output_secret);
+static int snifferSecretCb(unsigned char* client_random,
+                           unsigned char* output_secret);
 static void setSnifferSecretCb(SnifferSession* session);
+static int addKeyLogSnifferServerHelper(const char* address,
+                                        int port,
+                                        char* error);
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
 
@@ -1188,8 +1194,14 @@ static void TraceSetServer(const char* srv, int port, const char* keyFile)
 {
     if (TraceOn) {
         XFPRINTF(TraceFile, "\tTrying to install a new Sniffer Server with\n");
-        XFPRINTF(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n", srv, port,
-                                                                    keyFile);
+        if (keyFile != NULL) {
+            XFPRINTF(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n",
+                     srv, port, keyFile);
+        }
+        else {
+            XFPRINTF(TraceFile, "\tserver: %s, port: %d\n",
+                     srv, port);
+        }
     }
 }
 
@@ -1758,6 +1770,7 @@ static int CreateWatchSnifferServer(char* error)
 
 #endif
 
+
 /* Caller locks ServerListMutex */
 static int SetNamedPrivateKey(const char* name, const char* address, int port,
     const char* keyFile, int keySz, int typeKey, const char* password,
@@ -1806,10 +1819,11 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     if (serverIp.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
-                       sizeof(serverIp.ip4)) == 1) {
+                       sizeof(serverIp.ip4)) == 1)
     #else
-        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1) {
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1)
     #endif
+        {
             serverIp.version = IPV6;
         }
     }
@@ -3745,7 +3759,6 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             switch (extType) {
         #ifdef WOLFSSL_TLS13
             case EXT_KEY_SHARE:
-                // BRN-sniffer-TODO: TLS 1-3: This is where both client and server keys are actually obtained (client key was cached until now, but we grab them both and store them here)
                 ret = ProcessServerKeyShare(session, input, extLen, error);
                 if (ret != 0) {
                     SetError(SERVER_HELLO_INPUT_STR, error, session,
@@ -3905,7 +3918,6 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* Setup handshake keys */
     if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
-        // BRN-sniffer-TODO (TLS13): This is where handshake keys are set up and likely where we need to inject them
         ret = SetupKeys(session->cliKs.key, &session->cliKs.key_len,
             session, error, &session->cliKs);
         if (ret != 0) {
@@ -4154,7 +4166,6 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                     SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                     break;
                 }
-                // BRN-sniffer-TODO (TLS13): This is where the client public key is stored by the sniffer
                 XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             }
             break;
@@ -6553,10 +6564,10 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
                               SnifferSession* session, char* error)
 {
     if (session && session->flags.fatalError == FATAL_ERROR_STATE) {
-        RemoveSession(session, ipInfo, tcpInfo, 0);
         if (!session->verboseErr) {
             SetError(FATAL_ERROR_STR, error, NULL, 0);
         }
+        RemoveSession(session, ipInfo, tcpInfo, 0);
         return 1;
     }
     return 0;
@@ -7233,6 +7244,7 @@ static unsigned int secretHashFunction(unsigned char* clientRandom);
     #define UNLOCK_SECRET_LIST() wc_UnLockMutex(&secretListMutex)
 #endif
 
+
 /*
  * Basic polynomial hash function that maps a 32-byte client random value to an
  * array index
@@ -7249,6 +7261,7 @@ static unsigned int secretHashFunction(unsigned char* clientRandom)
 
     return hash;
 }
+
 
 static int addSecretNode(unsigned char* clientRandom,
                          unsigned char* masterSecret,
@@ -7282,11 +7295,9 @@ static int addSecretNode(unsigned char* clientRandom,
             if (memcmp(current->clientRandom,
                        clientRandom,
                        CLIENT_RANDOM_LENGTH) == 0) {
-                // BRN-sniffer-TODO: what if the same client random has a
-                // different master secret? Should we just update it? or
-                // return error?
+                /* No need for a new node, since it already exists */
                 fprintf(stderr, "Found duplicate client random value in "
-                                "keylog file. Rejecting\n");
+                                "keylog file. Rejecting.\n");
                 XFREE(newSecretNode, NULL, DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
                 break;
             }
@@ -7340,6 +7351,7 @@ static void hexToBin(const char* hex, unsigned char* bin, int binLength)
         sscanf(hex + 2 * i, "%02hhx", &bin[i]);
     }
 }
+
 
 static int parseKeyLogFile(const char* fileName, char* error)
 {
@@ -7425,6 +7437,7 @@ static int snifferSecretCb(unsigned char* client_random,
     return WOLFSSL_SNIFFER_ERROR;
 }
 
+
 static void setSnifferSecretCb(SnifferSession* session)
 {
     session->context->useKeyLogFile = 1;
@@ -7433,34 +7446,32 @@ static void setSnifferSecretCb(SnifferSession* session)
 }
 
 
-WOLFSSL_API
-SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address,
-                                                  int port,
-                                                  const char* keylogfile,
-                                                  char* error)
+/*
+ * Helper function that creates a sniffer server object that can decrypt using
+ * a keylog file, and adds it to the server list
+ *
+ * NOTE: the caller is responsible for locking and unlocking the server list
+ */
+static int addKeyLogSnifferServerHelper(const char* address,
+                                        int port,
+                                        char* error)
 {
-    int ret = WOLFSSL_SNIFFER_ERROR;
     IpAddrInfo     serverIp = {0};
-
-    TraceHeader();
-    TraceSetServer(address, port, keylogfile);
-
     SnifferServer *sniffer = NULL;
 
-    if (keylogfile == NULL) {
-        SetError(KEYLOG_FILE_INVALID, error, NULL, 0);
-        return WOLFSSL_SNIFFER_ERROR;
-    }
+    TraceHeader();
+    TraceSetServer(address, port, NULL);
 
     serverIp.version = IPV4;
     serverIp.ip4 = XINET_ADDR(address);
     if (serverIp.ip4 == XINADDR_NONE) {
     #ifdef FUSION_RTOS
         if (XINET_PTON(AF_INET6, address, serverIp.ip6,
-                       sizeof(serverIp.ip4)) == 1) {
+                       sizeof(serverIp.ip4)) == 1)
     #else
-        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1) {
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1)
     #endif
+        {
             serverIp.version = IPV6;
         }
     }
@@ -7476,7 +7487,7 @@ SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address,
                 NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
         if (sniffer == NULL) {
             SetError(MEMORY_STR, error, NULL, 0);
-            return -1;
+            return WOLFSSL_SNIFFER_ERROR;
         }
         InitSnifferServer(sniffer);
 
@@ -7489,17 +7500,12 @@ SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address,
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
             FreeSnifferServer(sniffer);
-            return -1;
+            return WOLFSSL_SNIFFER_ERROR;
         }
     #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
         if (CryptoDeviceId != INVALID_DEVID)
             wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
     #endif
-
-        /* We've initialized the sniffer server and added it to the ServerList
-         * without initializing its keys, so we must now tag it as a key log
-         * file sniffer, as it won't be useable otherwise */
-        sniffer->useKeyLogFile = 1;
 
         sniffer->next = ServerList;
         ServerList = sniffer;
@@ -7508,20 +7514,55 @@ SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address,
         printf("SESSION ALREADY EXISTS\n");
     }
 
-    ret = parseKeyLogFile(keylogfile, error);
-    if (ret != 0) {
-        FreeSnifferServer(sniffer);
-        return ret;
+    /* Tag the new or existing server as requiring keylog support to
+     * decrypt, otherwise it won't be useable */
+    sniffer->useKeyLogFile = 1;
+
+    return 0;
+}
+
+/*
+ * Creates a sniffer server that is able to decrypt using secrets from a
+ * keylog file, and adds it to the server list
+ *
+ * If a server at the address and port already exists, it will be marked
+ * for keylog file decryption
+ */
+int ssl_CreateKeyLogSnifferServer(const char* address, int port, char* error)
+{
+    int ret = 0;
+
+    if (address == NULL) {
+        SetError(KEYLOG_FILE_INVALID, error, NULL, 0);
+        return WOLFSSL_SNIFFER_ERROR;
     }
-    else {
-        Trace(NEW_SERVER_STR);
-    }
+
+    LOCK_SERVER_LIST();
+
+    ret = addKeyLogSnifferServerHelper(address, port, error);
+
+    UNLOCK_SERVER_LIST();
 
     return ret;
 }
 
-#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
+/*
+ * Loads secrets to decrypt TLS traffic from a keylog file. Only sniffer
+ * servers registered with ssl_createKeyLogSnifferServer() will be able to
+ * decrypt using these secrets
+ */
+int ssl_LoadSecretsFromKeyLogFile(const char* keylogfile, char* error)
+{
+    if (keylogfile == NULL) {
+        SetError(KEYLOG_FILE_INVALID, error, NULL, 0);
+        return WOLFSSL_SNIFFER_ERROR;
+    }
+
+    return parseKeyLogFile(keylogfile, error);
+}
+
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
 
 #undef ERROR_OUT

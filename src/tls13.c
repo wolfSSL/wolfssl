@@ -1386,7 +1386,6 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
  *          store ready for provisioning.
  * returns 0 on success, otherwise failure.
  */
-// BRN-sniffer-TODO(TLS13): this function is where I think we should be grabbing secrets from sniffer and storing them (or deriving keys based on them...tbd which is exported)
 int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
     int   ret = BAD_FUNC_ARG; /* Assume failure */
@@ -1425,15 +1424,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     switch (secret) {
 #ifdef WOLFSSL_EARLY_DATA
         case early_data_key:
-            /*
-             * BRN-sniffer-TODO(TLS13): Maybe something like:
-             * #if SNIFFER
-             * ssl->clientSecret = getSecretFromSniffer(CLIENT_EARLY_TRAFFIC_SECRET)
-             * #else
-             * the following code
-             */
             ret = DeriveEarlyTrafficSecret(ssl, ssl->clientSecret,
-
                                            WOLFSSL_CLIENT_END);
             if (ret != 0)
                 goto end;

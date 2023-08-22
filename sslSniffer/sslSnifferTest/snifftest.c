@@ -1198,15 +1198,21 @@ int main(int argc, char** argv)
         saveFile = 1;
         pcap = pcap_open_offline(pcapFile , err);
         if (pcap == NULL) {
-            printf("pcap_open_offline failed %s\n", err);
+            fprintf(stderr, "pcap_open_offline failed %s\n", err);
             err_sys(err);
         }
         else {
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
             if (sslKeyLogFile != NULL) {
-                ret = ssl_LoadSecretsFromKeyLogFile(server, port, sslKeyLogFile, err);
+                ret = ssl_LoadSecretsFromKeyLogFile(sslKeyLogFile, err);
                 if (ret != 0) {
-                    printf("ERROR=%d, unable to load secrets from key log file\n",ret);
+                    fprintf(stderr, "ERROR=%d, unable to load secrets from keylog file\n",ret);
+                    err_sys(err);
+                }
+
+                ret = ssl_CreateKeyLogSnifferServer(server, port, err);
+                if (ret != 0) {
+                    fprintf(stderr, "ERROR=%d, unable to create keylog sniffer server\n",ret);
                     err_sys(err);
                 }
             }
@@ -1215,6 +1221,7 @@ int main(int argc, char** argv)
             {
                 ret = load_key(NULL, server, port, keyFilesSrc, passwd, err);
                 if (ret != 0) {
+                    fprintf(stderr, "Failed to load key\n");
                     err_sys(err);
                 }
             }
@@ -1223,13 +1230,13 @@ int main(int argc, char** argv)
             /* Only let through TCP/IP packets */
             ret = pcap_compile(pcap, &pcap_fp, "(ip6 or ip) and tcp", 0, 0);
             if (ret != 0) {
-                printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+                fprintf(stderr, "pcap_compile failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
 
             ret = pcap_setfilter(pcap, &pcap_fp);
             if (ret != 0) {
-                printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
+                fprintf(stderr, "pcap_setfilter failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
 

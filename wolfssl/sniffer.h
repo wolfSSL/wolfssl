@@ -316,8 +316,12 @@ SSL_SNIFFER_API int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents,
 #ifdef WOLFSSL_SNIFFER_KEYLOGFILE
 
 WOLFSSL_API
-SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* address, int port,
-                                                  const char* keylogfile,
+SSL_SNIFFER_API int ssl_CreateKeyLogSnifferServer(const char* address,
+                                                  int port,
+                                                  char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_LoadSecretsFromKeyLogFile(const char* keylogfile,
                                                   char* error);
 
 typedef int (*SSLSnifferSecretCb)(unsigned char* client_random,
