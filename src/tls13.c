@@ -13729,6 +13729,12 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
             str = "SERVER_TRAFFIC_SECRET_0"; break;
         case EXPORTER_SECRET:
             str = "EXPORTER_SECRET"; break;
+        default:
+#ifdef WOLFSSL_SSLKEYLOGFILE_OUTPUT
+            XFCLOSE(fp);
+#endif
+            return BAD_FUNC_ARG;
+            break;
     }
 
     fprintf(fp, "%s ", str);

@@ -1324,6 +1324,17 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
 fi
 
+# KeyLog file export
+AC_ARG_ENABLE([keylog-export],
+              [AS_HELP_STRING([--enable-keylog-export],[Enable (DANGEROUS INSECURE) exporting TLS secrets to an NSS keylog file (default: disabled)])],
+    [ ENABLED_KEYLOG_EXPORT=$enableval ],
+    [ ENABLED_KEYLOG_EXPORT=no ]
+    )
+if test "$ENABLED_KEYLOG_EXPORT" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE"
+fi
+
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
 AC_ARG_ENABLE([tls13-draft18],
     [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
@@ -9449,6 +9460,7 @@ echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
+echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo ""
 echo "---"
 
