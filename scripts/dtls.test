@@ -22,7 +22,6 @@ if [ "${AM_BWRAPPED-}" != "yes" ]; then
     if [ -n "$bwrap_path" ]; then
         export AM_BWRAPPED=yes
         exec "$bwrap_path" --cap-add ALL --unshare-net --dev-bind / / "$0" "$@"
-        exit $?
     fi
 fi
 
