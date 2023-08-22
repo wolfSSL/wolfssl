@@ -5,13 +5,25 @@
 WOLFSSL_ROOT=${WOLFSSL_ROOT:-$(pwd)}
 UDP_PROXY_BIN=${UDP_PROXY_BIN:-"udp_proxy"}
 DTLS_VERSION=${DTLS_VERSION:-"-v4"}
+PCAP_FILENAME=${PCAP_FILENAME:-"dtls${DTLS_VERSION}.pcap"}
 # Additionally, you can add the following tests by setting it to '1':
 DO_EXTENDED_SERVER_PERMUTATION_TEST=${DO_EXTENDED_SERVER_PERMUTATION_TEST:-0}
 DO_DELAY_TEST=${DO_DELAY_TEST:-0}
 
 # An example use would be: DTLS_VERSION=-v3 scripts/dtls.test
+# Note the output also consists of a single PCAP file which has a set of
+# three packets (1-byte, strlen()-byte, 1-byte payload) deliniating each test.
 
 #set -x # enable debug output
+
+# bwrap execution environment to avoid port conflicts
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --cap-add ALL --unshare-net --dev-bind / / "$0" "$@"
+    fi
+fi
 
 cleanup () {
     echo
@@ -62,7 +74,7 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
     UDP_PROXY_PID=$(($! - 1))
     sleep 0.2
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
-    timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
+    timeout -s KILL 1m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
         echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
@@ -74,8 +86,8 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
 }
 
 test_dropping_packets () {
-    for i in $(seq 3 11);do
-        run_test "Dropping ${i}th packet" "-d $i" "-Ta" ""
+    for i in $(seq 0 11);do
+        run_test "Dropping ${i}th packet" "-f $i" "-Ta" ""
     done
 
     # dropping last ack would be client error as wolfssl_read doesn't support WANT_WRITE as returned error
@@ -127,7 +139,7 @@ EOF
 }
 
 echo "Starting capture"
-tcpdump -i lo -n port ${SERVER_PORT} -w ./dtls${DTLS_VERSION}.pcap -U &
+tcpdump -i lo -n port ${SERVER_PORT} -w ${PCAP_FILENAME} -U &
 TCPDUMP_PID=$!
 sleep 0.5
 
@@ -153,4 +165,5 @@ else
     echo -e "\nThere were $NUM_TESTS_FAILED failures out of $NUM_TESTS_RUN tests\n"
 fi
 
+echo "The script ran for $SECONDS seconds"
 exit $NUM_TESTS_FAILED
