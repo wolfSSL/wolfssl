@@ -74,7 +74,7 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
     UDP_PROXY_PID=$(($! - 1))
     sleep 0.2
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
-    timeout -s KILL 5m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
+    timeout -s KILL 1m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
         echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
