@@ -5,6 +5,7 @@
 WOLFSSL_ROOT=${WOLFSSL_ROOT:-$(pwd)}
 UDP_PROXY_BIN=${UDP_PROXY_BIN:-"udp_proxy"}
 DTLS_VERSION=${DTLS_VERSION:-"-v4"}
+PCAP_FILENAME=${PCAP_FILENAME:-"dtls${DTLS_VERSION}.pcap"}
 # Additionally, you can add the following tests by setting it to '1':
 DO_EXTENDED_SERVER_PERMUTATION_TEST=${DO_EXTENDED_SERVER_PERMUTATION_TEST:-0}
 DO_DELAY_TEST=${DO_DELAY_TEST:-0}
@@ -138,7 +139,7 @@ EOF
 }
 
 echo "Starting capture"
-tcpdump -i lo -n port ${SERVER_PORT} -w ./dtls${DTLS_VERSION}.pcap -U &
+tcpdump -i lo -n port ${SERVER_PORT} -w ${PCAP_FILENAME} -U &
 TCPDUMP_PID=$!
 sleep 0.5
 
