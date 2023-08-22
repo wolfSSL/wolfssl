@@ -166,4 +166,5 @@ else
     echo -e "\nThere were $NUM_TESTS_FAILED failures out of $NUM_TESTS_RUN tests\n"
 fi
 
+echo "The script ran for $SECONDS seconds"
 exit $NUM_TESTS_FAILED
