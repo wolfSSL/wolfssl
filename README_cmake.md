@@ -52,6 +52,19 @@ popd
 
 The ARIA cipher needs a 3rd party source binary, typically called `MagicCrypto.tar.gz`.
 
+The MagicCrypto files can be either copied to the local `wolfssl` directory, or an environment variable `ARIA_DIR` can
+be set to point to the location.
+
+Simply having the environment variable or local `MagicCrypto` directory _will not_ automatically enable the ARIA Ciphers.
+
+To enable ARIA Ciphers in wolfSSL for `CMake`:
+
+```
+cmake .. -DWOLFSSL_ARIA=yes
+```
+
+The `cmake` settings will be retained in cache. The `-DWOLFSSL_ARIA=yes` does not need to be respecified unless build directory is cleaned.
+
 When debugging, these environment variables may be helpful:
 
 #### Enable ARIA Cipher for Linux Examples

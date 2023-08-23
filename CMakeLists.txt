@@ -30,6 +30,17 @@ endif()
 
 project(wolfssl VERSION 5.6.3 LANGUAGES C ASM)
 
+# Set WOLFSSL_ROOT if not already defined
+if ("${WOLFSSL_ROOT}" STREQUAL "")
+    # we'll assume this CMakeLists.txt is in the root of wolfSSL
+    if (EXISTS "${CMAKE_SOURCE_DIR}/wolfcrypt/src/")
+        get_filename_component(WOLFSSL_ROOT "${CMAKE_SOURCE_DIR}" ABSOLUTE)
+        message(STATUS "Found WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
+    endif()
+else()
+    message(STATUS "Using predefined WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
+endif()
+
 # shared library versioning
 # increment if interfaces have been added, removed or changed
 set(LIBTOOL_CURRENT 40)
@@ -529,17 +540,6 @@ if(WOLFSSL_AESCTR AND NOT WOLFSSL_FORTRESS)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_AES_COUNTER"
         "-DWOLFSSL_AES_DIRECT")
-endif()
-
-# if we find an ARIA_DIR turn on ARIA support
-if ("$ENV{ARIA_DIR}" STREQUAL "")
-    set(HAVE_ARIA 0)
-    set(WOLFSSL_ARIA 0)
-else()
-    message(STATUS "Found ARIA_DIR = $ENV{ARIA_DIR}")
-    message(STATUS "Setting HAVE_ARIA, WOLFSSL_ARIA")
-    set(HAVE_ARIA 1)
-    set(WOLFSSL_ARIA 1)
 endif()
 
 # ARIA
@@ -2029,20 +2029,44 @@ endif()
 
 add_library(wolfssl::wolfssl ALIAS wolfssl)
 
+if (NOT "$ENV{ARIA_DIR}" STREQUAL "")
+    message(STATUS "Found Environment variable ARIA_DIR=$ENV{ARIA_DIR}")
+    if(WOLFSSL_ARIA)
+        message(STATUS "wolfSSL WOLFSSL_ARIA is enabled")
+    else()
+        message(STATUS "wolfSSL WOLFSSL_ARIA is not enabled. To enable, specify a user_settings.h file or run: cmake .. -DWOLFSSL_ARIA=yes")
+        message(STATUS "Clear the ARIA_DIR environment variable to otherwise suppress this message when not using ARIA ciphers.")
+    endif()
+endif()
+
+# ARIA Check
 if(WOLFSSL_ARIA)
+    message(STATUS "WOLFSSL_ARIA is enabled")
+
     find_package(ARIA)
 
-    if (ARIA_FOUND)
-        # message(STATUS "find_package FOUND ARIA")
+    if(ARIA_FOUND)
+        message(STATUS "ARIA find_package() success.")
     else()
-        message(WARNING "WOLFSSL_ARIA is enabled, but find_package did not find ARIA MagicCrypto")
+        message(FATAL_ERROR "WOLFSSL_ARIA is enabled, but find_package() did not find ARIA MagicCrypto.\n"
+                            "Check ARIA_DIR environment variable and/or copy MagicCrypto directory locally.")
     endif()
 
-    list(APPEND WOLFSSL_LINK_LIBS    "${ARIA_LIB_FILE}")
-    list(APPEND WOLFSSL_INCLUDE_DIRS "${ARIA_INCLUDE_DIR}")
+    list(APPEND WOLFSSL_LINK_LIBS "${ARIA_LIB_FILE}")
 
-    # there's also a wolfssl port API to include
-    include_directories("wolfssl/wolfcrypt/port/aria")
+    # The cmake target_include_directories() will complain about local directories,
+    # so we'll handle MagicCrypto differently when found in wolfssl.
+    # see below to use include_directories() instead.
+    if(ARIA_IS_LOCAL)
+        # there's also a wolfssl port API to include, plus local ARIA include
+        include_directories("wolfssl/wolfcrypt/port/aria" "MagicCrypto/include")
+    else()
+        # see below for target_include_directories() instead
+        include_directories("wolfssl/wolfcrypt/port/aria")
+        message(STATUS "ARIA_IS_LOCAL is false, appending ${ARIA_INCLUDE_DIR} to WOLFSSL_INCLUDE_DIRS")
+        list(APPEND WOLFSSL_INCLUDE_DIRS "${ARIA_INCLUDE_DIR}")
+    endif()
+
     add_library(MagicCrypto_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/port/aria/aria-crypt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/port/aria/aria-cryptocb.c
@@ -2052,11 +2076,11 @@ if(WOLFSSL_ARIA)
     target_link_libraries(MagicCrypto_lib wolfssl)
     target_compile_options(MagicCrypto_lib PRIVATE "-DHAVE_ARIA")
 
+    # ARIA was enabled and we successfully found it.
     set(HAVE_ARIA 1)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ARIA")
 
-    message("ARIA Check: WOLFSSL_LINK_LIBS    = ${WOLFSSL_LINK_LIBS}")
-    message("ARIA Check: WOLFSSL_INCLUDE_DIRS = ${WOLFSSL_INCLUDE_DIRS}")
+    message(STATUS "ARIA Check: WOLFSSL_LINK_LIBS    = ${WOLFSSL_LINK_LIBS}")
 endif()
 
 set_target_properties(wolfssl
@@ -2074,6 +2098,12 @@ target_compile_definitions(wolfssl PUBLIC ${WOLFSSL_DEFINITIONS})
 ####################################################
 # Include Directories
 ####################################################
+
+if("${WOLFSSL_INCLUDE_DIRS}" STREQUAL "")
+    message(STATUS "WOLFSSL_INCLUDE_DIRS is blank. No additional directories will be added.")
+else()
+    message(STATUS "WOLFSSL_INCLUDE_DIRS = ${WOLFSSL_INCLUDE_DIRS}")
+endif()
 
 target_include_directories(wolfssl
     PUBLIC
@@ -2331,15 +2361,6 @@ else()
     list(APPEND HEADER_EXCLUDE
       "wolfssl/wolfcrypt/port/intel/quickassist_sync.h")
   endif()
-endif()
-
-if(NOT BUILD_ARIA)
-  list(APPEND HEADER_EXCLUDE
-    "MagicCrypto/include/mcapi.h")
-  list(APPEND HEADER_EXCLUDE
-    "MagicCrypto/include/mcapi_error.h")
-  list(APPEND HEADER_EXCLUDE
-    "MagicCrypto/include/mcapi_type.h")
 endif()
 
 if(NOT BUILD_SP)
