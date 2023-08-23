@@ -19247,7 +19247,7 @@ static int DecodeKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
 #else
     ASNGetData dataASN[keyUsageASN_Length];
     word32 idx = 0;
-    byte keyUsage[OPAQUE16_LEN];
+    byte keyUsage[2];
     word32 keyUsageSz = sizeof(keyUsage);
     int ret;
     WOLFSSL_ENTER("DecodeKeyUsage");

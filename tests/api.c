@@ -57789,6 +57789,48 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL)
+static int test_multiple_crls_same_issuer_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_multiple_crls_same_issuer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL)
+    test_ssl_cbf client_cbs, server_cbs;
+    struct {
+        const char* server_cert;
+        const char* server_key;
+    } test_params[] = {
+        { "./certs/server-cert.pem", "./certs/server-key.pem" },
+        { "./certs/server-revoked-cert.pem", "./certs/server-revoked-key.pem" }
+    };
+    size_t i;
+
+    for (i = 0; i < (sizeof(test_params)/sizeof(*test_params)); i++) {
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        server_cbs.certPemFile = test_params[i].server_cert;
+        server_cbs.keyPemFile = test_params[i].server_key;
+        client_cbs.crlPemFile = "./certs/crl/extra-crls/general-server-crl.pem";
+
+        client_cbs.ctx_ready = test_multiple_crls_same_issuer_ctx_ready;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+            &server_cbs, NULL), TEST_FAIL);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_SetTmpEC_DHE_Sz(void)
 {
     EXPECT_DECLS;
@@ -64901,7 +64943,10 @@ static int test_dtls_client_hello_timeout(void)
 static int test_certreq_sighash_algos(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_AES_CBC)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -64911,7 +64956,8 @@ static int test_certreq_sighash_algos(void)
     int maxIdx = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS_ECDHE_ECDSA_WITH_NULL_SHA:"
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+            "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:"
             "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
@@ -66048,6 +66094,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
     TEST_DECL(test_wolfSSL_CTX_trust_peer_cert),
     TEST_DECL(test_wolfSSL_CTX_LoadCRL),
+    TEST_DECL(test_multiple_crls_same_issuer),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_file),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_buffer),
     TEST_DECL(test_wolfSSL_CTX_SetMinMaxDhKey_Sz),

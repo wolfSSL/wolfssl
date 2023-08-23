@@ -2464,7 +2464,14 @@ typedef struct CRL_Entry CRL_Entry;
 #endif
 /* Complete CRL */
 struct CRL_Entry {
+    wolfSSL_Mutex verifyMutex;
+    byte*   toBeSigned;
+    byte*   signature;
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
+#endif
     CRL_Entry* next;                      /* next entry */
+    /* DupCRL_Entry copies data after the `next` member */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
@@ -2484,9 +2491,7 @@ struct CRL_Entry {
     int     totalCerts;             /* number on list     */
     int     version;                /* version of certificate */
     int     verified;
-    byte*   toBeSigned;
     word32  tbsSz;
-    byte*   signature;
     word32  signatureSz;
     word32  signatureOID;
 #if !defined(NO_SKID) && !defined(NO_ASN)
@@ -2494,9 +2499,6 @@ struct CRL_Entry {
     byte    extAuthKeyId[KEYID_SIZE];
 #endif
     int                   crlNumber;  /* CRL number extension */
-#if defined(OPENSSL_EXTRA)
-    WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
-#endif
 };
 
 
@@ -2534,7 +2536,7 @@ struct WOLFSSL_CRL {
 #ifdef HAVE_CRL_IO
     CbCrlIO               crlIOCb;
 #endif
-    wolfSSL_Mutex         crlLock;       /* CRL list lock */
+    wolfSSL_RwLock        crlLock;       /* CRL list lock */
     CRL_Monitor           monitors[WOLFSSL_CRL_MONITORS_LEN];
 #ifdef HAVE_CRL_MONITOR
     COND_TYPE             cond;          /* condition to signal setup */
