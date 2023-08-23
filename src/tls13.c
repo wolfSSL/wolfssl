@@ -414,6 +414,7 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     word32      protocolLen;
     int         digestAlg = 0;
 
+
     switch (hashAlgo) {
     #ifndef NO_SHA256
         case sha256_mac:
@@ -610,6 +611,17 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key, int side)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support,
+     * obtain the appropriate secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        return ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                    SNIFFER_SECRET_CLIENT_EARLY_TRAFFIC_SECRET,
+                                    key);
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->secret,
                     earlyTrafficLabel, EARLY_TRAFFIC_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1, side);
@@ -658,6 +670,16 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support,
+     * obtain the appropriate secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        return ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                               SNIFFER_SECRET_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
+                               key);
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1, WOLFSSL_CLIENT_END);
@@ -703,9 +725,21 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support,
+     * obtain the appropriate secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        return ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                SNIFFER_SECRET_SERVER_HANDSHAKE_TRAFFIC_SECRET,
+                                key);
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     serverHandshakeLabel, SERVER_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1, WOLFSSL_SERVER_END);
+
 #ifdef HAVE_SECRET_CALLBACK
     if (ret == 0 && ssl->tls13SecretCb != NULL) {
         ret = ssl->tls13SecretCb(ssl, SERVER_HANDSHAKE_TRAFFIC_SECRET, key,
@@ -748,9 +782,21 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support,
+     * obtain the appropriate secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        return ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                    SNIFFER_SECRET_CLIENT_TRAFFIC_SECRET,
+                                    key);
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     clientAppLabel, CLIENT_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1, WOLFSSL_CLIENT_END);
+
 #ifdef HAVE_SECRET_CALLBACK
     if (ret == 0 && ssl->tls13SecretCb != NULL) {
         ret = ssl->tls13SecretCb(ssl, CLIENT_TRAFFIC_SECRET, key,
@@ -793,9 +839,21 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support,
+     * obtain the appropriate secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        return ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                    SNIFFER_SECRET_SERVER_TRAFFIC_SECRET,
+                                    key);
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     serverAppLabel, SERVER_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1, WOLFSSL_SERVER_END);
+
 #ifdef HAVE_SECRET_CALLBACK
     if (ret == 0 && ssl->tls13SecretCb != NULL) {
         ret = ssl->tls13SecretCb(ssl, SERVER_TRAFFIC_SECRET, key,

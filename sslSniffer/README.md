@@ -39,8 +39,7 @@ The STARTTLS option allows the sniffer to receive and ignore plaintext before re
 
 `./configure --enable-sniffer CPPFLAGS=-DSTARTTLS_ALLOWED`
 
-The SSL KeyLog file option enables the sniffer to decrypt TLS traffic using the master secret obtained from a [NSS keylog file](https://web.archive.org/web/20220531072242/https://firefox-source-docs.mozilla.org/security/nss/legacy/key_log_format/index.html). This allows the sniffer to decrypt all TLS traffic, even for TLS connections using ephemeral cipher suites. Currently, sniffer keylog file support is limited to TLSv1.2 traffic. WolfSSL can be configured to export a keylog file using the `-DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE` macros, independently from the sniffer feature (NOTE: never do this in a production environment, as it is inherently insecure). To enable sniffer support for keylog files,
-use the following configure command line and build as before:
+The SSL Keylog file option enables the sniffer to decrypt TLS traffic using the master secret obtained from a [NSS keylog file](https://web.archive.org/web/20220531072242/https://firefox-source-docs.mozilla.org/security/nss/legacy/key_log_format/index.html). This allows the sniffer to decrypt all TLS traffic, even for TLS connections using ephemeral cipher suites. Keylog file sniffing is supported for TLS versions 1.2 and 1.3. WolfSSL can be configured to export a keylog file using the `--enable-keylog-export` configure option, independently from the sniffer feature (NOTE: never do this in a production environment, as it is inherently insecure). To enable sniffer support for keylog files, use the following configure command line and build as before:
 
 `./configure --enable-sniffer CPPFLAGS=-DWOLFSSL_SNIFFER_KEYLOGFILE`
 
@@ -326,7 +325,7 @@ int ssl_LoadSecretsFromKeyLogFile(const char* keylogfile, char* error)
 
 Loads secrets to decrypt TLS traffic from a keylog file. Only sniffer servers registered with `ssl_createKeyLogSnifferServer()` will be able to decrypt using these secrets
 
-This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is only supported for TLS 1.2 traffic.
+This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is supported for TLS versions 1.2 and 1.3.
 
 Return Values:
 * 0 on success
@@ -340,7 +339,7 @@ int ssl_CreateKeyLogSnifferServer(const char* address, int port, char* error)
 
 Creates a sniffer session based on `serverAddress` and `port`, and uses secrets obtained from a keylog file to decrypt traffic. Keylog files should be loaded using `ssl_LoadSecretsFromKeyLogFile()`.
 
-This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is only supported for TLS 1.2 traffic.
+This function requires that sniffer keylog file support (`WOLFSSL_SNIFFER_KEYLOGFILE`) is enabled in the build. Keylog file sniffing is supported for TLS versions 1.2 and 1.3.
 
 Return Values:
 * 0 on success
@@ -680,7 +679,7 @@ Remember to always start the sniffing application before the server.  This is im
 
 ### Cipher Suite Limitations
 
-As a passive sniffer the wolfSSL sniffer will not be able to decode any SSL session that uses DHE (Ephemeral Diffie-Hellman) because it will not have access to the temporary key that the server generates.  You may need to disable DHE cipher suites on the server and/or client to prevent these cipher suites from being used.
+As a passive sniffer the wolfSSL sniffer will not be able to decode any SSL session that uses DHE (Ephemeral Diffie-Hellman) because it will not have access to the temporary key that the server generates. You may need to disable DHE cipher suites on the server and/or client to prevent these cipher suites from being used. The notable exception to this is if the sniffer session uses the keylog file feature, in which case any session using TLS 1.2 or 1.3 can be decoded.
 
 ### Thread Safety
 
