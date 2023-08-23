@@ -91,30 +91,6 @@ build_aria_test() {
 
 set -e
 
-
-# export ARIA_DIR=./MagicCrypto
-# export THIS_MESSAGE="ARIA Environment Variable with MagicCrypto in wolfssl, ARIA Enabled"
-# build_aria_test "$THIS_MESSAGE" "$ARIA_BUILD_DIR" "-DWOLFSSL_ARIA=yes"
-
-
-# ARIA Environment Variable with bad directory
-# export ARIA_DIR=./UnknownDirectory
-# export THIS_MESSAGE="ARIA Environment Variable with bad directory, ARIA not enabled."
-# build_aria_test "$THIS_MESSAGE" "$ARIA_BUILD_DIR"
-
-# set +e
-# export ARIA_DIR=./UnknownDirectory
-# export THIS_MESSAGE="ARIA Environment Variable with bad directory, ARIA Enabled"
-# build_aria_test "$THIS_MESSAGE" "$ARIA_BUILD_DIR" "-DWOLFSSL_ARIA=yes"
-# if [ $? -eq 0 ]; then
-#     echo "Error: expected failure not detected"
-#     exit 1
-# else
-#     echo "Properly detected bad directory and failed as expected."
-# fi
-
-
-set -e
 # No ARIA Environment Variable
 export ARIA_DIR=
 export THIS_MESSAGE="No ARIA Environment Variable, ARIA not enabled."
@@ -160,64 +136,5 @@ else
 fi
 
 echo "aria_cmake_build_test completed successfully!"
+
 exit 0
-
-
-# *****************************************************
-# standard build; no ARIA, no environment variable
-# *****************************************************
-export ARIA_DIR=
-export ARIA_BUILD_OPTION=
-
-# Start this build ------------------------------------
-rm -rf   $BUiLD_DIR
-mkdir -p $BUiLD_DIR
-pushd    $BUiLD_DIR
-cmake ..
-cmake --build .
-
-# View the available ciphers with:
-./examples/client/client -e
-popd
-# done with this build --------------------------------
-
-
-# *****************************************************
-# standard build; no ARIA, outside environment variable
-# *****************************************************
-export ARIA_DIR=/mnt/c/workspace/MagicCrypto
-
-# Start this build ------------------------------------
-rm -rf   $BUiLD_DIR
-mkdir -p $BUiLD_DIR
-pushd    $BUiLD_DIR
-cmake ..
-cmake --build .
-
-# View the available ciphers with:
-./examples/client/client -e
-popd
-# done with this build --------------------------------
-
-
-# *****************************************************
-#
-# *****************************************************
-export ARIA_DIR=
-export ARIA_BUILD_OPTION=
-
-# Start this build ------------------------------------
-rm -rf   $BUiLD_DIR
-mkdir -p $BUiLD_DIR
-pushd    $BUiLD_DIR
-cmake ..
-cmake --build .
-
-# View the available ciphers with:
-./examples/client/client -e
-popd
-# done with this build --------------------------------
-
-
-
-# cmake .. -DWOLFSSL_ARIA=yes
