@@ -1231,7 +1231,7 @@ int wc_DerToPem(const byte* der, word32 derSz, byte* output,
 
     word32 pemSz;
     byte* cipher_info[] { Additional cipher info. }
-    pemSz = wc_DerToPemEx(der, derSz,pemFormatted,FOURK_BUF, ,CERT_TYPE);
+    pemSz = wc_DerToPemEx(der, derSz, pemFormatted, FOURK_BUF, cipher_info, CERT_TYPE);
     \endcode
 
     \sa wc_PemCertToDer
