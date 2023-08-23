@@ -915,7 +915,7 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { NULL, 0, NULL }
 };
 
-#ifdef HAVE_LIBOQS
+#if defined(HAVE_LIBOQS) && defined(HAVE_SPHINCS)
 /* All recognized post-quantum asymmetric algorithm choosing command line
  * options. (Part 2) */
 static const bench_pq_alg bench_pq_asym_opt2[] = {
@@ -934,7 +934,7 @@ static const bench_pq_alg bench_pq_asym_opt2[] = {
       OQS_SIG_alg_sphincs_shake_256s_simple },
     { NULL, 0, NULL }
 };
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_LIBOQS && HAVE_SPHINCS */
 #endif /* HAVE_PQC */
 
 #ifdef HAVE_WNR
@@ -10357,10 +10357,10 @@ static void Usage(void)
 #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str, &line);
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_LIBOQS) && defined(HAVE_SPHINCS)
     for (i=0; bench_pq_asym_opt2[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt2[i].str, &line);
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_LIBOQS && HAVE_SPHINCS */
 #endif /* HAVE_PQC */
 #if defined(WOLFSSL_HAVE_LMS)
     for (i=0; bench_pq_hash_sig_opt[i].str != NULL; i++)
@@ -10601,6 +10601,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
+        #ifdef HAVE_SPHINCS
             /* Both bench_pq_asym_opt and bench_pq_asym_opt2 are looking for
              * -pq, so we need to do a special case for -pq since optMatched
              * was set to 1 just above. */
@@ -10616,6 +10617,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
+        #endif
         #endif /* HAVE_PQC */
             /* Other known cryptographic algorithms */
             for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {
