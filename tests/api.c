@@ -64936,7 +64936,7 @@ static int test_dtls_client_hello_timeout(void)
     return EXPECT_RESULT();
 }
 
-/* Make sure we don't send acks before getting a server hello */
+/* DTLS test when dropping the changed cipher spec message */
 static int test_dtls_dropped_ccs(void)
 {
     EXPECT_DECLS;
