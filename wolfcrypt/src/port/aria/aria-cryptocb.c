@@ -35,8 +35,9 @@ size and a key size of 128, 192, or 256 bits.
 
 #ifdef HAVE_ARIA
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 
