@@ -662,13 +662,15 @@ static void UpdateMissedDataSessions(void)
 
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
 static int addSecretNode(unsigned char* clientRandom,
+                         int type,
                          unsigned char* masterSecret,
                          char* error);
 static void hexToBin(const char* hex, unsigned char* bin, int binLength);
 static int parseKeyLogFile(const char* fileName, char* error);
-static unsigned char* findMasterSecret(unsigned char* clientRandom);
+static unsigned char* findSecret(unsigned char* clientRandom, int type);
 static void freeSecretList(void);
 static int snifferSecretCb(unsigned char* client_random,
+                           int type,
                            unsigned char* output_secret);
 static void setSnifferSecretCb(SnifferSession* session);
 static int addKeyLogSnifferServerHelper(const char* address,
@@ -7207,15 +7209,18 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
 
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
 
-#define CLIENT_RANDOM_LABEL_LENGTH 13
-#define CLIENT_RANDOM_LENGTH 32
-#define MASTER_SECRET_LENGTH 48
-#define CLIENT_RANDOM_BITS ((CLIENT_RANDOM_LENGTH) * 8)
-
+/* Maximum length of the NSS Keylog prefix string */
+#define MAX_PREFIX_LENGTH (31)
+/* Maximum length (in bytes) required to store the binary representation of
+ * the "client random" value parsed from keylog file */
+#define CLIENT_RANDOM_LENGTH (32)
+/* Maximum length (in bytes) required to store the binary representation of the
+ * "secret" value parsed from keylog file */
+#define SECRET_LENGTH (48)
 
 typedef struct SecretNode {
     unsigned char clientRandom[CLIENT_RANDOM_LENGTH];
-    unsigned char masterSecret[MASTER_SECRET_LENGTH];
+    unsigned char secrets[SNIFFER_SECRET_NUM_SECRET_TYPES][SECRET_LENGTH];
     struct SecretNode* next;
 } SecretNode;
 
@@ -7232,7 +7237,6 @@ secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
 #ifndef HAVE_C___ATOMIC
 static WOLFSSL_GLOBAL wolfSSL_Mutex secretListMutex;
 #endif
-
 
 static unsigned int secretHashFunction(unsigned char* clientRandom);
 
@@ -7253,9 +7257,10 @@ static unsigned int secretHashFunction(unsigned char* clientRandom)
 {
     int i = 0;
     unsigned int hash = 0;
+    const int CLIENT_RANDOM_NUM_BITS = CLIENT_RANDOM_LENGTH * 8;
 
     for (i = 0; i < CLIENT_RANDOM_LENGTH; i++) {
-        hash = (hash * CLIENT_RANDOM_BITS + clientRandom[i])
+        hash = (hash * CLIENT_RANDOM_NUM_BITS + clientRandom[i])
             % WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE;
     }
 
@@ -7263,62 +7268,67 @@ static unsigned int secretHashFunction(unsigned char* clientRandom)
 }
 
 
+/*
+ * Adds a new secret to the secret table, creating a new node based on the
+ * client random if necessary. If the client random is already present in the
+ * list, the requested secret will be updated.
+ */
 static int addSecretNode(unsigned char* clientRandom,
-                         unsigned char* masterSecret,
+                         int type,
+                         unsigned char* secret,
                          char* error)
 {
-    unsigned int index        = 0;
-    SecretNode* newSecretNode = NULL;
+    int index = 0;
+    int ret = 0;
+    SecretNode* node = NULL;
 
-    newSecretNode = (SecretNode*)XMALLOC(sizeof(SecretNode),
-                                         NULL,
-                                         DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
-    if (newSecretNode == NULL) {
-        SetError(MEMORY_STR, error, NULL, 0);
+    if (type >= SNIFFER_SECRET_NUM_SECRET_TYPES) {
         return WOLFSSL_SNIFFER_ERROR;
     }
-
-    XMEMCPY(newSecretNode->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH);
-    XMEMCPY(newSecretNode->masterSecret, masterSecret, MASTER_SECRET_LENGTH);
 
     LOCK_SECRET_LIST();
 
     index = secretHashFunction(clientRandom);
-    newSecretNode->next = NULL;
+    node = secretHashTable[index];
 
-    if (secretHashTable[index] == NULL) {
-        secretHashTable[index] = newSecretNode;
-    }
-    else {
-        SecretNode* current = secretHashTable[index];
-        while (current != NULL) {
-            if (memcmp(current->clientRandom,
-                       clientRandom,
-                       CLIENT_RANDOM_LENGTH) == 0) {
-                /* No need for a new node, since it already exists */
-                fprintf(stderr, "Found duplicate client random value in "
-                                "keylog file. Rejecting.\n");
-                XFREE(newSecretNode, NULL, DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
-                break;
-            }
-            if (current->next == NULL) {
-                current->next = newSecretNode;
-                break;
-            }
-            current = current->next;
+    while(node) {
+        /* Node already exists, so just add the requested secret */
+        if (XMEMCMP(node->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH)
+            == 0)
+        {
+            XMEMCPY(node->secrets[type], secret, SECRET_LENGTH);
+            ret = 0;
+            goto unlockReturn;
         }
+        node = node ->next;
     }
+
+    node = (SecretNode*)XMALLOC(sizeof(SecretNode),
+                                NULL,
+                                DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE);
+    if (node == NULL) {
+        SetError(MEMORY_STR, error, NULL, 0);
+        ret = WOLFSSL_SNIFFER_ERROR;
+        goto unlockReturn;
+    }
+
+    XMEMCPY(node->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH);
+    XMEMCPY(node->secrets[type], secret, SECRET_LENGTH);
+    node->next = secretHashTable[index];
+    secretHashTable[index] = node;
+
+unlockReturn:
 
     UNLOCK_SECRET_LIST();
 
-    return 0;
+    return ret;
 }
 
 
 /*
  * Looks up a master secret for a given client random from the keylog file
  */
-static unsigned char* findMasterSecret(unsigned char* clientRandom)
+static unsigned char* findSecret(unsigned char* clientRandom, int type)
 {
     unsigned char* secret = NULL;
     SecretNode* node = NULL;
@@ -7332,7 +7342,7 @@ static unsigned char* findMasterSecret(unsigned char* clientRandom)
     while (node != NULL) {
         if (XMEMCMP(node->clientRandom,
                     clientRandom, CLIENT_RANDOM_LENGTH) == 0) {
-            secret = node->masterSecret;
+            secret = node->secrets[type];
             break;
         }
         node = node->next;
@@ -7348,23 +7358,25 @@ static void hexToBin(const char* hex, unsigned char* bin, int binLength)
 {
     int i = 0;
     for (i = 0; i < binLength; i++) {
-        sscanf(hex + 2 * i, "%02hhx", &bin[i]);
+        sscanf(hex + 2*i, "%02hhx", &bin[i]);
     }
 }
 
-
+/*
+ * Helper function to parse secrets from the keylog file into the secret table
+ */
 static int parseKeyLogFile(const char* fileName, char* error)
 {
-    const char CLIENT_RANDOM_LABEL_STR[] = "CLIENT_RANDOM";
     unsigned char clientRandom[CLIENT_RANDOM_LENGTH];
-    unsigned char masterSecret[MASTER_SECRET_LENGTH];
+    unsigned char secret[SECRET_LENGTH];
     FILE* file = NULL;
     int ret = 0;
+    int  type = 0;
     /* +1 for null terminator */
-    char clientRandomLabel[CLIENT_RANDOM_LABEL_LENGTH + 1] = {0};
+    char prefix[MAX_PREFIX_LENGTH + 1] = {0};
     /* 2 chars for Hexadecimal representation, plus null terminator */
     char clientRandomHex[2 * CLIENT_RANDOM_LENGTH + 1] = {0};
-    char masterSecretHex[2 * MASTER_SECRET_LENGTH + 1] = {0};
+    char secretHex[2 * SECRET_LENGTH + 1] = {0};
 
 
     file = fopen(fileName, "r");
@@ -7374,16 +7386,43 @@ static int parseKeyLogFile(const char* fileName, char* error)
         return WOLFSSL_SNIFFER_ERROR;
     }
 
-    while (fscanf(file, "%13s %64s %96s",
-                  clientRandomLabel, clientRandomHex, masterSecretHex) == 3) {
-        if (XSTRCMP(clientRandomLabel, CLIENT_RANDOM_LABEL_STR) == 0) {
-            hexToBin(clientRandomHex, clientRandom, CLIENT_RANDOM_LENGTH);
-            hexToBin(masterSecretHex, masterSecret, MASTER_SECRET_LENGTH);
-            ret = addSecretNode(clientRandom, masterSecret, error);
-            if (ret != 0) {
-                fclose(file);
-                return ret;
-            }
+    /* Format specifiers for each column should be:
+     * MAX_PREFIX_LENGTH, 2*CLIENT_RANDOM_LENGTH, and 2*SECRET_LENGTH */
+    while (fscanf(file, "%31s %64s %96s", prefix, clientRandomHex, secretHex)
+            == 3) {
+
+        if (XSTRCMP(prefix, "CLIENT_RANDOM") == 0) {
+            type = SNIFFER_SECRET_TLS12_MASTER_SECRET;
+        }
+#if defined(WOLFSSL_TLS13)
+        else if (XSTRCMP(prefix, "CLIENT_EARLY_TRAFFIC_SECRET") == 0) {
+            type = SNIFFER_SECRET_CLIENT_EARLY_TRAFFIC_SECRET;
+        }
+        else if (XSTRCMP(prefix, "CLIENT_HANDSHAKE_TRAFFIC_SECRET") == 0) {
+            type = SNIFFER_SECRET_CLIENT_HANDSHAKE_TRAFFIC_SECRET;
+        }
+        else if (XSTRCMP(prefix, "SERVER_HANDSHAKE_TRAFFIC_SECRET") == 0) {
+            type = SNIFFER_SECRET_SERVER_HANDSHAKE_TRAFFIC_SECRET;
+        }
+        else if (XSTRCMP(prefix, "CLIENT_TRAFFIC_SECRET_0") == 0) {
+            type = SNIFFER_SECRET_CLIENT_TRAFFIC_SECRET;
+        }
+        else if (XSTRCMP(prefix, "SERVER_TRAFFIC_SECRET_0") == 0) {
+            type = SNIFFER_SECRET_SERVER_TRAFFIC_SECRET;
+        }
+#endif /* WOLFSSL_TLS13 */
+        else {
+            fprintf(stderr, "unrecognized prefix: %s\n", prefix);
+            continue;
+        }
+
+        hexToBin(clientRandomHex, clientRandom, CLIENT_RANDOM_LENGTH);
+        hexToBin(secretHex, secret, SECRET_LENGTH);
+        ret = addSecretNode(clientRandom, type, secret, error);
+
+        if (ret != 0) {
+            fclose(file);
+            return ret;
         }
     }
     fclose(file);
@@ -7418,6 +7457,7 @@ static void freeSecretList(void)
  * Looks up secret based on client random and copies it to output_secret
  */
 static int snifferSecretCb(unsigned char* client_random,
+                           int type,
                            unsigned char* output_secret)
 {
     unsigned char* secret = NULL;
@@ -7426,10 +7466,14 @@ static int snifferSecretCb(unsigned char* client_random,
         return WOLFSSL_SNIFFER_FATAL_ERROR;
     }
 
+    if (type >= SNIFFER_SECRET_NUM_SECRET_TYPES) {
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    }
+
     /* get secret from secret table based on client random */
-    secret = findMasterSecret(client_random);
+    secret = findSecret(client_random, type);
     if (secret != NULL) {
-        XMEMCPY(output_secret, secret, MASTER_SECRET_LENGTH);
+        XMEMCPY(output_secret, secret, SECRET_LENGTH);
         return 0;
     }
 

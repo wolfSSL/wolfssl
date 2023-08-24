@@ -520,7 +520,9 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
     /* If this is called from a sniffer session with keylog file support, obtain
      * the master secret from the callback */
     if (ssl->snifferSecretCb != NULL) {
-        ret = ssl->snifferSecretCb(ssl->arrays->clientRandom, ssl->arrays->masterSecret);
+        ret = ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                   SNIFFER_SECRET_TLS12_MASTER_SECRET,
+                                   ssl->arrays->masterSecret);
         if (ret != 0) {
             return ret;
         }
@@ -15227,4 +15229,5 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* NO_TLS */
+
 #endif /* WOLFCRYPT_ONLY */
