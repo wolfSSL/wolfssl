@@ -42,7 +42,7 @@ run_test() { # Usage: run_test <cipher> [serverArgs [clientArgs]]
 }
 
 run_sequence() {
-    if [ "$1" == "tls13-dh" ] || [ "$1" == "tls13-ecc" ]; then # TLS v1.3
+    if [ "$1" == "tls13-dh" ] || [ "$1" == "tls13-ecc" ] || [ "$1" == "tls13-keylog" ]; then # TLS v1.3
         run_test "TLS13-AES128-GCM-SHA256" "-v 4" "-v 4"
         run_test "TLS13-AES256-GCM-SHA384" "-v 4" "-v 4"
         run_test "TLS13-CHACHA20-POLY1305-SHA256" "-v 4" "-v 4"
@@ -86,6 +86,10 @@ run_capture() {
     ./configure "${config_flags[@]}" 1>/dev/null || exit $?
     make 1>/dev/null || exit $?
 
+    if [[ "$1" == "tls12-keylog" || "$1" == "tls13-keylog" ]]; then
+        rm -f ./sslkeylog.log
+    fi
+
     echo "starting capture"
     tcpdump -i lo -n port 11111 -w ./scripts/sniffer-${1}.pcap -U &
     tcpdump_pid=$!
@@ -93,13 +97,14 @@ run_capture() {
     sleep 1
     kill -15 $tcpdump_pid; tcpdump_pid=0
 
-    if [ "$1" == "tls12-keylog" ]; then
+    if [[ "$1" == "tls12-keylog" || "$1" == "tls13-keylog" ]]; then
         cp ./sslkeylog.log ./scripts/sniffer-${1}.sslkeylog
     fi
 }
 
 run_capture "tls12"               ""
 run_capture "tls12-keylog"        "--enable-enc-then-mac=no --enable-keylog-export CFLAGS='-Wno-cpp -DWOLFSSL_SNIFFER_KEYLOGFILE'"
+run_capture "tls13-keylog"        "--enable-keylog-export CFLAGS='-Wno-cpp -DWOLFSSL_SNIFFER_KEYLOGFILE'"
 run_capture "tls13-ecc"           ""
 run_capture "tls13-ecc-resume"    "--enable-session-ticket"
 run_capture "tls13-dh"            "--disable-ecc"
