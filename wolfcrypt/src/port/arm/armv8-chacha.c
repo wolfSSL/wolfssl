@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
 #ifdef HAVE_CHACHA
 
 #include <wolfssl/wolfcrypt/chacha.h>
@@ -2896,4 +2896,4 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 }
 
 #endif /* HAVE_CHACHA */
-#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_NEON */

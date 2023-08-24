@@ -20079,7 +20079,7 @@ static int test_wc_DsaExportKeyRaw(void)
 static int test_wc_ed25519_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key   key;
     WC_RNG        rng;
     unsigned char pubkey[ED25519_PUB_KEY_SIZE];
@@ -20221,7 +20221,9 @@ static int test_wc_ed25519_import_public(void)
 
     ExpectIntEQ(wc_ed25519_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &pubKey), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_import_public_ex(in, inlen, &pubKey, 1), 0);
     ExpectIntEQ(XMEMCMP(in, pubKey.p, inlen), 0);
@@ -20260,7 +20262,9 @@ static int test_wc_ed25519_import_private_key(void)
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, privKeySz, pubKey,
         pubKeySz, &key, 1), 0);
@@ -20308,13 +20312,32 @@ static int test_wc_ed25519_export(void)
     byte        pub[ED25519_PUB_KEY_SIZE];
     word32      privSz = sizeof(priv);
     word32      pubSz = sizeof(pub);
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_export_public(&key, pub, &pubSz), 0);
     ExpectIntEQ(pubSz, ED25519_KEY_SIZE);
@@ -20350,13 +20373,32 @@ static int test_wc_ed25519_size(void)
 #if defined(HAVE_ED25519)
     ed25519_key key;
     WC_RNG      rng;
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_size(&key), ED25519_KEY_SIZE);
     /* Test bad args. */
@@ -20395,13 +20437,32 @@ static int test_wc_ed25519_exportKey(void)
     word32      privSz      = sizeof(priv);
     word32      pubSz       = sizeof(pub);
     word32      privOnlySz  = sizeof(privOnly);
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_export_private(&key, privOnly, &privOnlySz), 0);
     /* Test bad args. */

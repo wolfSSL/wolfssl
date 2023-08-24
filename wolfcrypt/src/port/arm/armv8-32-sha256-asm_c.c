@@ -30,84 +30,37 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifndef __aarch64__
+#if !defined(__aarch64__) && defined(__arm__)
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
 static const uint32_t L_SHA256_transform_len_k[] = {
-    0x428a2f98,
-    0x71374491,
-    0xb5c0fbcf,
-    0xe9b5dba5,
-    0x3956c25b,
-    0x59f111f1,
-    0x923f82a4,
-    0xab1c5ed5,
-    0xd807aa98,
-    0x12835b01,
-    0x243185be,
-    0x550c7dc3,
-    0x72be5d74,
-    0x80deb1fe,
-    0x9bdc06a7,
-    0xc19bf174,
-    0xe49b69c1,
-    0xefbe4786,
-    0xfc19dc6,
-    0x240ca1cc,
-    0x2de92c6f,
-    0x4a7484aa,
-    0x5cb0a9dc,
-    0x76f988da,
-    0x983e5152,
-    0xa831c66d,
-    0xb00327c8,
-    0xbf597fc7,
-    0xc6e00bf3,
-    0xd5a79147,
-    0x6ca6351,
-    0x14292967,
-    0x27b70a85,
-    0x2e1b2138,
-    0x4d2c6dfc,
-    0x53380d13,
-    0x650a7354,
-    0x766a0abb,
-    0x81c2c92e,
-    0x92722c85,
-    0xa2bfe8a1,
-    0xa81a664b,
-    0xc24b8b70,
-    0xc76c51a3,
-    0xd192e819,
-    0xd6990624,
-    0xf40e3585,
-    0x106aa070,
-    0x19a4c116,
-    0x1e376c08,
-    0x2748774c,
-    0x34b0bcb5,
-    0x391c0cb3,
-    0x4ed8aa4a,
-    0x5b9cca4f,
-    0x682e6ff3,
-    0x748f82ee,
-    0x78a5636f,
-    0x84c87814,
-    0x8cc70208,
-    0x90befffa,
-    0xa4506ceb,
-    0xbef9a3f7,
-    0xc67178f2,
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p);
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha256* sha256 asm ("r0") = sha256_p;
@@ -170,30 +123,14 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "\n"
     "L_SHA256_transform_len_begin_%=: \n\t"
         /* Load, Reverse and Store W - 64 bytes */
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r4, [%[data]]\n\t"
         "ldr	r5, [%[data], #4]\n\t"
-#else
-        "ldrd	r4, r5, [%[data]]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r6, [%[data], #8]\n\t"
         "ldr	r7, [%[data], #12]\n\t"
-#else
-        "ldrd	r6, r7, [%[data], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r8, [%[data], #16]\n\t"
         "ldr	r9, [%[data], #20]\n\t"
-#else
-        "ldrd	r8, r9, [%[data], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r10, [%[data], #24]\n\t"
         "ldr	r11, [%[data], #28]\n\t"
-#else
-        "ldrd	r10, r11, [%[data], #24]\n\t"
-#endif
         "rev	r4, r4\n\t"
         "rev	r5, r5\n\t"
         "rev	r6, r6\n\t"
@@ -226,30 +163,14 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 #else
         "strd	r10, r11, [sp, #24]\n\t"
 #endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r4, [%[data], #32]\n\t"
         "ldr	r5, [%[data], #36]\n\t"
-#else
-        "ldrd	r4, r5, [%[data], #32]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r6, [%[data], #40]\n\t"
         "ldr	r7, [%[data], #44]\n\t"
-#else
-        "ldrd	r6, r7, [%[data], #40]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r8, [%[data], #48]\n\t"
         "ldr	r9, [%[data], #52]\n\t"
-#else
-        "ldrd	r8, r9, [%[data], #48]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r10, [%[data], #56]\n\t"
         "ldr	r11, [%[data], #60]\n\t"
-#else
-        "ldrd	r10, r11, [%[data], #56]\n\t"
-#endif
         "rev	r4, r4\n\t"
         "rev	r5, r5\n\t"
         "rev	r6, r6\n\t"
@@ -1667,7 +1588,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "bne	L_SHA256_transform_len_begin_%=\n\t"
         "add	sp, sp, #0xc0\n\t"
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k)
+        : [L_SHA256_transform_len_k] "g" (L_SHA256_transform_len_k)
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
@@ -1677,73 +1598,25 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static const uint32_t L_SHA256_transform_neon_len_k[] = {
-    0x428a2f98,
-    0x71374491,
-    0xb5c0fbcf,
-    0xe9b5dba5,
-    0x3956c25b,
-    0x59f111f1,
-    0x923f82a4,
-    0xab1c5ed5,
-    0xd807aa98,
-    0x12835b01,
-    0x243185be,
-    0x550c7dc3,
-    0x72be5d74,
-    0x80deb1fe,
-    0x9bdc06a7,
-    0xc19bf174,
-    0xe49b69c1,
-    0xefbe4786,
-    0xfc19dc6,
-    0x240ca1cc,
-    0x2de92c6f,
-    0x4a7484aa,
-    0x5cb0a9dc,
-    0x76f988da,
-    0x983e5152,
-    0xa831c66d,
-    0xb00327c8,
-    0xbf597fc7,
-    0xc6e00bf3,
-    0xd5a79147,
-    0x6ca6351,
-    0x14292967,
-    0x27b70a85,
-    0x2e1b2138,
-    0x4d2c6dfc,
-    0x53380d13,
-    0x650a7354,
-    0x766a0abb,
-    0x81c2c92e,
-    0x92722c85,
-    0xa2bfe8a1,
-    0xa81a664b,
-    0xc24b8b70,
-    0xc76c51a3,
-    0xd192e819,
-    0xd6990624,
-    0xf40e3585,
-    0x106aa070,
-    0x19a4c116,
-    0x1e376c08,
-    0x2748774c,
-    0x34b0bcb5,
-    0x391c0cb3,
-    0x4ed8aa4a,
-    0x5b9cca4f,
-    0x682e6ff3,
-    0x748f82ee,
-    0x78a5636f,
-    0x84c87814,
-    0x8cc70208,
-    0x90befffa,
-    0xa4506ceb,
-    0xbef9a3f7,
-    0xc67178f2,
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p);
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha256* sha256 asm ("r0") = sha256_p;
@@ -2776,12 +2649,13 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k)
+        : [L_SHA256_transform_neon_len_k] "g" (L_SHA256_transform_neon_len_k)
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11"
     );
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM_INLINE */

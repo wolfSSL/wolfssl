@@ -3061,6 +3061,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 #endif
     int      infinity;
 
+#ifndef WC_NO_CACHE_RESISTANT
 #ifdef WOLFSSL_SMALL_STACK
     tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
     if (tmp == NULL) {
@@ -3069,6 +3070,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 #endif
     if (err == MP_OKAY)
         err = mp_init(tmp);
+#endif
 
     /* Step 1: R[0] = P; R[1] = P */
     /* R[0] = P */
@@ -3217,7 +3219,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     if (err == MP_OKAY)
         err = mp_copy(R[0]->z, Q->z);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_CACHE_RESISTANT)
     XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
 

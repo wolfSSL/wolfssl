@@ -30,7 +30,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifndef __aarch64__
+#if !defined(__aarch64__) && defined(__arm__)
+#ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
@@ -306,30 +307,14 @@ Transform_Sha512_Len:
 	# Start of loop processing a block
 L_SHA512_transform_len_begin:
 	# Load, Reverse and Store W
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
-#else
-	ldrd	r4, r5, [r1]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
-#else
-	ldrd	r6, r7, [r1, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
-#else
-	ldrd	r8, r9, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
-#else
-	ldrd	r10, r11, [r1, #24]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -346,30 +331,14 @@ L_SHA512_transform_len_begin:
 	str	r8, [sp, #20]
 	str	r11, [sp, #24]
 	str	r10, [sp, #28]
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #32]
 	ldr	r5, [r1, #36]
-#else
-	ldrd	r4, r5, [r1, #32]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #40]
 	ldr	r7, [r1, #44]
-#else
-	ldrd	r6, r7, [r1, #40]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #48]
 	ldr	r9, [r1, #52]
-#else
-	ldrd	r8, r9, [r1, #48]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #56]
 	ldr	r11, [r1, #60]
-#else
-	ldrd	r10, r11, [r1, #56]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -386,30 +355,14 @@ L_SHA512_transform_len_begin:
 	str	r8, [sp, #52]
 	str	r11, [sp, #56]
 	str	r10, [sp, #60]
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #64]
 	ldr	r5, [r1, #68]
-#else
-	ldrd	r4, r5, [r1, #64]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #72]
 	ldr	r7, [r1, #76]
-#else
-	ldrd	r6, r7, [r1, #72]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #80]
 	ldr	r9, [r1, #84]
-#else
-	ldrd	r8, r9, [r1, #80]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #88]
 	ldr	r11, [r1, #92]
-#else
-	ldrd	r10, r11, [r1, #88]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -426,30 +379,14 @@ L_SHA512_transform_len_begin:
 	str	r8, [sp, #84]
 	str	r11, [sp, #88]
 	str	r10, [sp, #92]
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #96]
 	ldr	r5, [r1, #100]
-#else
-	ldrd	r4, r5, [r1, #96]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #104]
 	ldr	r7, [r1, #108]
-#else
-	ldrd	r6, r7, [r1, #104]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #112]
 	ldr	r9, [r1, #116]
-#else
-	ldrd	r8, r9, [r1, #112]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #120]
 	ldr	r11, [r1, #124]
-#else
-	ldrd	r10, r11, [r1, #120]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -9233,9 +9170,10 @@ L_SHA512_transform_neon_len_start:
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
+#endif /* !WOLFSSL_ARMASM_INLINE */

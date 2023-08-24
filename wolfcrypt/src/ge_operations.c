@@ -58,19 +58,23 @@
 
 static void ge_p2_0(ge_p2 *h);
 #ifndef CURVED25519_ASM
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
 static void ge_precomp_0(ge_precomp *h);
+#endif
 static void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p);
 #endif
 static WC_INLINE void ge_p3_to_cached(ge_cached *r,const ge_p3 *p);
+
+#ifndef CURVED25519_ASM
 static void ge_p1p1_to_p2(ge_p2 *r,const ge_p1p1 *p);
 static WC_INLINE void ge_p1p1_to_p3(ge_p3 *r,const ge_p1p1 *p);
 static WC_INLINE void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p);
 static void ge_p3_dbl(ge_p1p1 *r,const ge_p3 *p);
-
 static WC_INLINE void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q);
 static WC_INLINE void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q);
 static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q);
 static WC_INLINE void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q);
+#endif
 
 /*
 ge means group element.
@@ -95,28 +99,6 @@ Representations:
 #define ORDER_4     0x1dea2f
 #define ORDER_5     0xa6f7c
 
-#ifdef CURVED25519_ASM_32BIT
-word64 load_3(const unsigned char *in)
-{
-  word64 result;
-  result = (word64) in[0];
-  result |= ((word64) in[1]) << 8;
-  result |= ((word64) in[2]) << 16;
-  return result;
-}
-
-
-word64 load_4(const unsigned char *in)
-{
-  word64 result;
-  result = (word64) in[0];
-  result |= ((word64) in[1]) << 8;
-  result |= ((word64) in[2]) << 16;
-  result |= ((word64) in[3]) << 24;
-  return result;
-}
-#endif
-
 /*
 Input:
   s[0]+256*s[1]+...+256^63*s[63] = s
@@ -126,6 +108,7 @@ Output:
   where l = 2^252 + 27742317777372353535851937790883648493.
   Overwrites s in place.
 */
+#ifndef CURVED25519_ASM
 void sc_reduce(byte* s)
 {
     sword64 t[24];
@@ -638,7 +621,9 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[30] = (byte)(t[11] >>  9);
     s[31] = (byte)(t[11] >> 17);
 }
+#endif
 #else
+#ifndef CURVED25519_ASM
 static word64 load_6(const byte* a)
 {
     word64 n;
@@ -929,26 +914,20 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     s[30] = (byte)(t[ 5] >> 30);
     s[31] = (byte)(t[ 5] >> 38);
 }
+#endif /* !CURVED25519_ASM */
 #endif /* !HAVE___UINT128_T || NO_CURVED25519_128BIT */
 
 int ge_compress_key(byte* out, const byte* xIn, const byte* yIn, word32 keySz)
 {
-    ge     x,y,z;
-    ge_p3  g;
+    ge_p2  g;
     byte   bArray[ED25519_KEY_SIZE];
     word32 i;
 
-    fe_0(x);
-    fe_0(y);
-    fe_1(z);
-    fe_frombytes(x, xIn);
-    fe_frombytes(y, yIn);
+    fe_frombytes(g.X, xIn);
+    fe_frombytes(g.Y, yIn);
+    fe_1(g.Z);
 
-    fe_copy(g.X, x);
-    fe_copy(g.Y, y);
-    fe_copy(g.Z, z);
-
-    ge_p3_tobytes(bArray, &g);
+    ge_tobytes(bArray, &g);
 
     for (i = 0; i < keySz; i++) {
         out[keySz - 1 - i] = bArray[i];
@@ -961,9 +940,9 @@ int ge_compress_key(byte* out, const byte* xIn, const byte* yIn, word32 keySz)
 /*
 r = p + q
 */
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-#ifndef CURVED25519_ASM
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -976,11 +955,8 @@ static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
     fe_add(r->Y,r->Z,r->Y);
     fe_add(r->Z,t0,r->T);
     fe_sub(r->T,t0,r->T);
-#else
-    fe_ge_add(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z, p->T, q->Z, q->T2d,
-              q->YplusX, q->YminusX);
-#endif
 }
+#endif
 
 
 #ifndef CURVED25519_ASM
@@ -994,11 +970,12 @@ static unsigned char equal(unsigned char b,unsigned char c)
   return (unsigned char)y;
 }
 
-
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
 static unsigned char negative(signed char b)
 {
   return ((unsigned char)b) >> 7;
 }
+#endif
 
 
 static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
@@ -1011,6 +988,7 @@ static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
 }
 #endif
 
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
 #ifdef CURVED25519_ASM_64BIT
 static const ge_precomp base[64][8] = {
 {
@@ -9188,6 +9166,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   }
 #endif
 }
+#endif /* HAVE_ED25519_SIGN || HAVE_ED25519_MAKE_KEY */
 
 
 #define SLIDE_SIZE 256
@@ -9596,9 +9575,9 @@ int ge_frombytes_negate_vartime(ge_p3 *h,const unsigned char *s)
 r = p + q
 */
 
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-#ifndef CURVED25519_ASM
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -9610,11 +9589,8 @@ static WC_INLINE void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
     fe_add(r->Y,r->Z,r->Y);
     fe_add(r->Z,t0,r->T);
     fe_sub(r->T,t0,r->T);
-#else
-    fe_ge_madd(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z, p->T, q->xy2d,
-              q->yplusx, q->yminusx);
-#endif
 }
+#endif
 
 
 /* ge msub */
@@ -9623,9 +9599,9 @@ static WC_INLINE void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 r = p - q
 */
 
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-#ifndef CURVED25519_ASM
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -9637,11 +9613,8 @@ static WC_INLINE void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
     fe_add(r->Y,r->Z,r->Y);
     fe_sub(r->Z,t0,r->T);
     fe_add(r->T,t0,r->T);
-#else
-    fe_ge_msub(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z, p->T, q->xy2d,
-              q->yplusx, q->yminusx);
-#endif
 }
+#endif
 
 
 /* ge p1p1 to p2 */
@@ -9649,16 +9622,14 @@ static WC_INLINE void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 r = p
 */
 
+#ifndef CURVED25519_ASM
 static void ge_p1p1_to_p2(ge_p2 *r,const ge_p1p1 *p)
 {
-#ifndef CURVED25519_ASM
   fe_mul(r->X,p->X,p->T);
   fe_mul(r->Y,p->Y,p->Z);
   fe_mul(r->Z,p->Z,p->T);
-#else
-  fe_ge_to_p2(r->X, r->Y, r->Z, p->X, p->Y, p->Z, p->T);
-#endif
 }
+#endif
 
 
 /* ge p1p1 to p3 */
@@ -9667,17 +9638,15 @@ static void ge_p1p1_to_p2(ge_p2 *r,const ge_p1p1 *p)
 r = p
 */
 
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_p1p1_to_p3(ge_p3 *r,const ge_p1p1 *p)
 {
-#ifndef CURVED25519_ASM
   fe_mul(r->X,p->X,p->T);
   fe_mul(r->Y,p->Y,p->Z);
   fe_mul(r->Z,p->Z,p->T);
   fe_mul(r->T,p->X,p->Y);
-#else
-  fe_ge_to_p3(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z, p->T);
-#endif
 }
+#endif
 
 
 /* ge p2 0 */
@@ -9696,9 +9665,9 @@ static void ge_p2_0(ge_p2 *h)
 r = 2 * p
 */
 
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
 {
-#ifndef CURVED25519_ASM
     ge t0;
     fe_sq(r->X,p->X);
     fe_sq(r->Z,p->Y);
@@ -9709,10 +9678,8 @@ static WC_INLINE void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
     fe_sub(r->Z,r->Z,r->X);
     fe_sub(r->X,t0,r->Y);
     fe_sub(r->T,r->T,r->Z);
-#else
-    fe_ge_dbl(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z);
-#endif
 }
+#endif
 
 
 /* ge p3 dble */
@@ -9721,16 +9688,14 @@ static WC_INLINE void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
 r = 2 * p
 */
 
+#ifndef CURVED25519_ASM
 static void ge_p3_dbl(ge_p1p1 *r,const ge_p3 *p)
 {
-#ifndef CURVED25519_ASM
     ge_p2 q;
     ge_p3_to_p2(&q,p);
     ge_p2_dbl(r,&q);
-#else
-    fe_ge_dbl(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z);
-#endif
 }
+#endif
 
 
 /* ge p3 to cached */
@@ -9784,6 +9749,7 @@ static void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p)
 #endif
 
 
+#ifdef GE_P3_TOBYTES_IMPL
 /* ge p3 tobytes */
 void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
 {
@@ -9797,9 +9763,11 @@ void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
   fe_tobytes(s,y);
   s[31] ^= (unsigned char)(fe_isnegative(x) << 7);
 }
+#endif
 
 
 #ifndef CURVED25519_ASM
+#if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_MAKE_KEY)
 /* ge_precomp_0 */
 static void ge_precomp_0(ge_precomp *h)
 {
@@ -9808,6 +9776,7 @@ static void ge_precomp_0(ge_precomp *h)
   fe_0(h->xy2d);
 }
 #endif
+#endif
 
 
 /* ge_sub */
@@ -9815,9 +9784,9 @@ static void ge_precomp_0(ge_precomp *h)
 r = p - q
 */
 
+#ifndef CURVED25519_ASM
 static WC_INLINE void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-#ifndef CURVED25519_ASM
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -9830,12 +9799,8 @@ static WC_INLINE void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
     fe_add(r->Y,r->Z,r->Y);
     fe_sub(r->Z,t0,r->T);
     fe_add(r->T,t0,r->T);
-#else
-    fe_ge_sub(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z, p->T, q->Z, q->T2d,
-              q->YplusX, q->YminusX);
-#endif
 }
-
+#endif
 
 /* ge tobytes */
 void ge_tobytes(unsigned char *s,const ge_p2 *h)

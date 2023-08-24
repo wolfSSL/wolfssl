@@ -31081,8 +31081,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
 #if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
     wc_ed25519_init_ex(&key3, HEAP_HINT, devId);
 #endif
+#ifdef HAVE_ED25519_MAKE_KEY
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key2);
+#endif
 
     /* helper functions for signature and key size */
     keySz = wc_ed25519_size(&key);
@@ -31251,7 +31253,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     ret = ed25519_test_cert();
     if (ret < 0)
         return ret;
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_ED25519_MAKE_KEY)
     ret = ed25519_test_make_cert();
     if (ret < 0)
         return ret;
@@ -46473,7 +46475,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.curve25519.private_key->devId = devIdArg;
         }
     #endif /* HAVE_CURVE25519 */
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
         if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519kg.key->devId = INVALID_DEVID;

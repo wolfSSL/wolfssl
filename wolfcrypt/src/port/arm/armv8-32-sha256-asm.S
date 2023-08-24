@@ -30,7 +30,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifndef __aarch64__
+#if !defined(__aarch64__) && defined(__arm__)
+#ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
@@ -162,30 +163,14 @@ Transform_Sha256_Len:
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load, Reverse and Store W - 64 bytes
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
-#else
-	ldrd	r4, r5, [r1]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
-#else
-	ldrd	r6, r7, [r1, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
-#else
-	ldrd	r8, r9, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
-#else
-	ldrd	r10, r11, [r1, #24]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -218,30 +203,14 @@ L_SHA256_transform_len_begin:
 #else
 	strd	r10, r11, [sp, #24]
 #endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #32]
 	ldr	r5, [r1, #36]
-#else
-	ldrd	r4, r5, [r1, #32]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #40]
 	ldr	r7, [r1, #44]
-#else
-	ldrd	r6, r7, [r1, #40]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #48]
 	ldr	r9, [r1, #52]
-#else
-	ldrd	r8, r9, [r1, #48]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #56]
 	ldr	r11, [r1, #60]
-#else
-	ldrd	r10, r11, [r1, #56]
-#endif
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -2765,9 +2734,10 @@ L_SHA256_transform_neon_len_start:
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
+#endif /* !WOLFSSL_ARMASM_INLINE */

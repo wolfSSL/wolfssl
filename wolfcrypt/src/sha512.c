@@ -26,7 +26,9 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PSOC6_CRYPTO)
+#if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
+    (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO)
 
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
