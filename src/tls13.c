@@ -3762,6 +3762,12 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
     if (psk == NULL)
         return BAD_FUNC_ARG;
 
+    if (!HaveUniqueSessionObj(ssl)) {
+        WOLFSSL_MSG("Unable to have unique session object");
+        WOLFSSL_ERROR_VERBOSE(MEMORY_ERROR);
+        return MEMORY_ERROR;
+    }
+
     suite[0] = ssl->options.cipherSuite0;
     suite[1] = ssl->options.cipherSuite;
 

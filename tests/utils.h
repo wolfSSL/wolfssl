@@ -207,7 +207,9 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
         *rounds = 0;
     while (!handshake_complete && max_rounds > 0) {
         if (!hs_c) {
+            wolfSSL_SetLoggingPrefix("client");
             ret = wolfSSL_connect(ssl_c);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_c = 1;
             }
@@ -219,7 +221,9 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
             }
         }
         if (!hs_s) {
+            wolfSSL_SetLoggingPrefix("server");
             ret = wolfSSL_accept(ssl_s);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_s = 1;
             }

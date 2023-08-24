@@ -5855,7 +5855,9 @@ static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
     }
     while ((!handshake_complete) && (max_rounds > 0)) {
         if (!hs_c) {
+            wolfSSL_SetLoggingPrefix("client");
             ret = wolfSSL_connect(ctx->c_ssl);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_c = 1;
             }
@@ -5872,7 +5874,9 @@ static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
             }
         }
         if (!hs_s) {
+            wolfSSL_SetLoggingPrefix("server");
             ret = wolfSSL_accept(ctx->s_ssl);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_s = 1;
             }
@@ -5921,7 +5925,9 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
         msglen_s = ctx->s_msglen;
     }
 
+    wolfSSL_SetLoggingPrefix("client");
     ExpectIntEQ(wolfSSL_write(ctx->c_ssl, msg_c, msglen_c), msglen_c);
+    wolfSSL_SetLoggingPrefix("server");
     ExpectIntGT(idx = wolfSSL_read(ctx->s_ssl, input, sizeof(input) - 1), 0);
     if (idx >= 0) {
         input[idx] = '\0';
@@ -5929,7 +5935,9 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
     ExpectIntGT(fprintf(stderr, "Client message: %s\n", input), 0);
     ExpectIntEQ(wolfSSL_write(ctx->s_ssl, msg_s, msglen_s), msglen_s);
     ctx->s_cb.return_code = EXPECT_RESULT();
+    wolfSSL_SetLoggingPrefix("client");
     ExpectIntGT(idx = wolfSSL_read(ctx->c_ssl, input, sizeof(input) - 1), 0);
+    wolfSSL_SetLoggingPrefix(NULL);
     if (idx >= 0) {
         input[idx] = '\0';
     }
@@ -64445,6 +64453,91 @@ static int test_session_ticket_no_id(void)
 }
 #endif
 
+static int test_session_ticket_hs_update(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    struct test_memio_ctx test_ctx3;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_c2 = NULL;
+    WOLFSSL *ssl_c3 = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL *ssl_s2 = NULL;
+    WOLFSSL *ssl_s3 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    byte read_data[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    XMEMSET(&test_ctx3, 0, sizeof(test_ctx3));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Generate tickets */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_SetLoggingPrefix("client");
+    /* Read the ticket msg */
+    ExpectIntEQ(wolfSSL_read(ssl_c, read_data, sizeof(read_data)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx3, &ctx_c, &ctx_s, &ssl_c3, &ssl_s3,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
+
+    wolfSSL_SetLoggingPrefix("client");
+    /* Exchange intial flights for the second connection */
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_accept(ssl_s2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s2, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    /* Complete third connection so that new tickets are exchanged */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+    /* Read the ticket msg */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_read(ssl_c3, read_data, sizeof(read_data)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c3, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    /* Complete second connection */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c3), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_s3);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
 static void test_dtls_downgrade_scr_server_ctx_ready_server(WOLFSSL_CTX* ctx)
@@ -65826,6 +65919,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
     TEST_DECL(test_dtls_1_0_hvr_downgrade),
     TEST_DECL(test_session_ticket_no_id),
+    TEST_DECL(test_session_ticket_hs_update),
     TEST_DECL(test_dtls_downgrade_scr_server),
     TEST_DECL(test_dtls_downgrade_scr),
     /* This test needs to stay at the end to clean up any caches allocated. */
