@@ -20011,9 +20011,10 @@ static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
 
 static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 {
-    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0) &&
+            !ssl->options.dtlsHsRetain) {
         WOLFSSL_MSG("Silently dropping plaintext DTLS message "
-                    "on established connection.");
+                    "on established connection when we have nothing to send.");
         return 1;
     }
 
