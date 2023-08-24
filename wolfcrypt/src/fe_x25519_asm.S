@@ -116,17 +116,6 @@ L_fe_init_get_flags:
         movq	%rax, _fe_mul121666_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_sq2_avx2@GOTPCREL(%rip), %rax
-#else
-        leaq	_fe_sq2_avx2(%rip), %rax
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        movq	fe_sq2_p@GOTPCREL(%rip), %rdx
-        movq	%rax, (%rdx)
-#else
-        movq	%rax, _fe_sq2_p(%rip)
-#endif /* __APPLE__ */
-#ifndef __APPLE__
         movq	fe_invert_avx2@GOTPCREL(%rip), %rax
 #else
         leaq	_fe_invert_avx2(%rip), %rax
@@ -148,6 +137,18 @@ L_fe_init_get_flags:
 #else
         movq	%rax, _curve25519_p(%rip)
 #endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+        movq	fe_sq2_avx2@GOTPCREL(%rip), %rax
+#else
+        leaq	_fe_sq2_avx2(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	fe_sq2_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _fe_sq2_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_pow22523_avx2@GOTPCREL(%rip), %rax
 #else
@@ -160,82 +161,105 @@ L_fe_init_get_flags:
         movq	%rax, _fe_pow22523_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_to_p2_avx2@GOTPCREL(%rip), %rax
+        movq	ge_p1p1_to_p2_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_to_p2_avx2(%rip), %rax
+        leaq	_ge_p1p1_to_p2_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_to_p2_p@GOTPCREL(%rip), %rdx
+        movq	ge_p1p1_to_p2_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_to_p2_p(%rip)
+        movq	%rax, _ge_p1p1_to_p2_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_to_p3_avx2@GOTPCREL(%rip), %rax
+        movq	ge_p1p1_to_p3_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_to_p3_avx2(%rip), %rax
+        leaq	_ge_p1p1_to_p3_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_to_p3_p@GOTPCREL(%rip), %rdx
+        movq	ge_p1p1_to_p3_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_to_p3_p(%rip)
+        movq	%rax, _ge_p1p1_to_p3_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_dbl_avx2@GOTPCREL(%rip), %rax
+        movq	ge_p2_dbl_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_dbl_avx2(%rip), %rax
+        leaq	_ge_p2_dbl_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_dbl_p@GOTPCREL(%rip), %rdx
+        movq	ge_p2_dbl_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_dbl_p(%rip)
+        movq	%rax, _ge_p2_dbl_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_madd_avx2@GOTPCREL(%rip), %rax
+        movq	ge_madd_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_madd_avx2(%rip), %rax
+        leaq	_ge_madd_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_madd_p@GOTPCREL(%rip), %rdx
+        movq	ge_madd_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_madd_p(%rip)
+        movq	%rax, _ge_madd_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_msub_avx2@GOTPCREL(%rip), %rax
+        movq	ge_msub_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_msub_avx2(%rip), %rax
+        leaq	_ge_msub_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_msub_p@GOTPCREL(%rip), %rdx
+        movq	ge_msub_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_msub_p(%rip)
+        movq	%rax, _ge_msub_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_add_avx2@GOTPCREL(%rip), %rax
+        movq	ge_add_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_add_avx2(%rip), %rax
+        leaq	_ge_add_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_add_p@GOTPCREL(%rip), %rdx
+        movq	ge_add_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_add_p(%rip)
+        movq	%rax, _ge_add_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_sub_avx2@GOTPCREL(%rip), %rax
+        movq	ge_sub_avx2@GOTPCREL(%rip), %rax
 #else
-        leaq	_fe_ge_sub_avx2(%rip), %rax
+        leaq	_ge_sub_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	fe_ge_sub_p@GOTPCREL(%rip), %rdx
+        movq	ge_sub_p@GOTPCREL(%rip), %rdx
         movq	%rax, (%rdx)
 #else
-        movq	%rax, _fe_ge_sub_p(%rip)
+        movq	%rax, _ge_sub_p(%rip)
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	sc_reduce_avx2@GOTPCREL(%rip), %rax
+#else
+        leaq	_sc_reduce_avx2(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	sc_reduce_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _sc_reduce_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	sc_muladd_avx2@GOTPCREL(%rip), %rax
+#else
+        leaq	_sc_muladd_avx2(%rip), %rax
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        movq	sc_muladd_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
+#else
+        movq	%rax, _sc_muladd_p(%rip)
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
 L_fe_init_flags_done:
 #ifndef __APPLE__
         movq	cpuFlagsSet@GOTPCREL(%rip), %rdx
@@ -400,21 +424,19 @@ _fe_sub:
         movq	16(%rsi), %r8
         movq	24(%rsi), %r9
         subq	(%rdx), %rax
-        movq	$0x00, %r10
         sbbq	8(%rdx), %rcx
-        movq	$-19, %r11
         sbbq	16(%rdx), %r8
-        movq	$0x7fffffffffffffff, %r12
         sbbq	24(%rdx), %r9
-        sbbq	$0x00, %r10
-        #   Mask the modulus
-        andq	%r10, %r11
-        andq	%r10, %r12
+        sbbq	%r11, %r11
+        shldq	$0x01, %r9, %r11
+        movq	$0x7fffffffffffffff, %r12
+        imulq	$-19, %r11
+        andq	%r12, %r9
         #   Add modulus (if underflow)
-        addq	%r11, %rax
-        adcq	%r10, %rcx
-        adcq	%r10, %r8
-        adcq	%r12, %r9
+        subq	%r11, %rax
+        sbbq	$0x00, %rcx
+        sbbq	$0x00, %r8
+        sbbq	$0x00, %r9
         movq	%rax, (%rdi)
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
@@ -443,21 +465,20 @@ _fe_add:
         addq	(%rdx), %rax
         movq	16(%rsi), %r8
         adcq	8(%rdx), %rcx
-        movq	24(%rsi), %r10
+        movq	24(%rsi), %r9
         adcq	16(%rdx), %r8
-        movq	$-19, %r11
-        adcq	24(%rdx), %r10
+        adcq	24(%rdx), %r9
+        movq	$0x00, %r11
+        adcq	$0x00, %r11
+        shldq	$0x01, %r9, %r11
         movq	$0x7fffffffffffffff, %r12
-        movq	%r10, %r9
-        sarq	$63, %r10
-        #   Mask the modulus
-        andq	%r10, %r11
-        andq	%r10, %r12
+        imulq	$19, %r11
+        andq	%r12, %r9
         #   Sub modulus (if overflow)
-        subq	%r11, %rax
-        sbbq	%r10, %rcx
-        sbbq	%r10, %r8
-        sbbq	%r12, %r9
+        addq	%r11, %rax
+        adcq	$0x00, %rcx
+        adcq	$0x00, %r8
+        adcq	$0x00, %r9
         movq	%rax, (%rdi)
         movq	%rcx, 8(%rdi)
         movq	%r8, 16(%rdi)
@@ -943,26 +964,6 @@ _fe_mul121666:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	fe_sq2
-.type	fe_sq2,@function
-.align	16
-fe_sq2:
-#else
-.section	__TEXT,__text
-.globl	_fe_sq2
-.p2align	4
-_fe_sq2:
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        jmpq	*fe_sq2_p(%rip)
-#else
-        jmpq	*_fe_sq2_p(%rip)
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.size	fe_sq2,.-fe_sq2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
 .globl	fe_invert
 .type	fe_invert,@function
 .align	16
@@ -1001,6 +1002,30 @@ _curve25519:
 #ifndef __APPLE__
 .size	curve25519,.-curve25519
 #endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	fe_sq2
+.type	fe_sq2,@function
+.align	16
+fe_sq2:
+#else
+.section	__TEXT,__text
+.globl	_fe_sq2
+.p2align	4
+_fe_sq2:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        jmpq	*fe_sq2_p(%rip)
+#else
+        jmpq	*_fe_sq2_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.size	fe_sq2,.-fe_sq2
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
 .globl	fe_pow22523
@@ -1021,146 +1046,206 @@ _fe_pow22523:
 #ifndef __APPLE__
 .size	fe_pow22523,.-fe_pow22523
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_to_p2
-.type	fe_ge_to_p2,@function
+.globl	ge_p1p1_to_p2
+.type	ge_p1p1_to_p2,@function
 .align	16
-fe_ge_to_p2:
+ge_p1p1_to_p2:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_to_p2
+.globl	_ge_p1p1_to_p2
 .p2align	4
-_fe_ge_to_p2:
+_ge_p1p1_to_p2:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_to_p2_p(%rip)
+        jmpq	*ge_p1p1_to_p2_p(%rip)
 #else
-        jmpq	*_fe_ge_to_p2_p(%rip)
+        jmpq	*_ge_p1p1_to_p2_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_to_p2,.-fe_ge_to_p2
+.size	ge_p1p1_to_p2,.-ge_p1p1_to_p2
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_to_p3
-.type	fe_ge_to_p3,@function
+.globl	ge_p1p1_to_p3
+.type	ge_p1p1_to_p3,@function
 .align	16
-fe_ge_to_p3:
+ge_p1p1_to_p3:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_to_p3
+.globl	_ge_p1p1_to_p3
 .p2align	4
-_fe_ge_to_p3:
+_ge_p1p1_to_p3:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_to_p3_p(%rip)
+        jmpq	*ge_p1p1_to_p3_p(%rip)
 #else
-        jmpq	*_fe_ge_to_p3_p(%rip)
+        jmpq	*_ge_p1p1_to_p3_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_to_p3,.-fe_ge_to_p3
+.size	ge_p1p1_to_p3,.-ge_p1p1_to_p3
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_dbl
-.type	fe_ge_dbl,@function
+.globl	ge_p2_dbl
+.type	ge_p2_dbl,@function
 .align	16
-fe_ge_dbl:
+ge_p2_dbl:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_dbl
+.globl	_ge_p2_dbl
 .p2align	4
-_fe_ge_dbl:
+_ge_p2_dbl:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_dbl_p(%rip)
+        jmpq	*ge_p2_dbl_p(%rip)
 #else
-        jmpq	*_fe_ge_dbl_p(%rip)
+        jmpq	*_ge_p2_dbl_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_dbl,.-fe_ge_dbl
+.size	ge_p2_dbl,.-ge_p2_dbl
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_madd
-.type	fe_ge_madd,@function
+.globl	ge_madd
+.type	ge_madd,@function
 .align	16
-fe_ge_madd:
+ge_madd:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_madd
+.globl	_ge_madd
 .p2align	4
-_fe_ge_madd:
+_ge_madd:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_madd_p(%rip)
+        jmpq	*ge_madd_p(%rip)
 #else
-        jmpq	*_fe_ge_madd_p(%rip)
+        jmpq	*_ge_madd_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_madd,.-fe_ge_madd
+.size	ge_madd,.-ge_madd
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_msub
-.type	fe_ge_msub,@function
+.globl	ge_msub
+.type	ge_msub,@function
 .align	16
-fe_ge_msub:
+ge_msub:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_msub
+.globl	_ge_msub
 .p2align	4
-_fe_ge_msub:
+_ge_msub:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_msub_p(%rip)
+        jmpq	*ge_msub_p(%rip)
 #else
-        jmpq	*_fe_ge_msub_p(%rip)
+        jmpq	*_ge_msub_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_msub,.-fe_ge_msub
+.size	ge_msub,.-ge_msub
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_add
-.type	fe_ge_add,@function
+.globl	ge_add
+.type	ge_add,@function
 .align	16
-fe_ge_add:
+ge_add:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_add
+.globl	_ge_add
 .p2align	4
-_fe_ge_add:
+_ge_add:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_add_p(%rip)
+        jmpq	*ge_add_p(%rip)
 #else
-        jmpq	*_fe_ge_add_p(%rip)
+        jmpq	*_ge_add_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_add,.-fe_ge_add
+.size	ge_add,.-ge_add
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
 #ifndef __APPLE__
 .text
-.globl	fe_ge_sub
-.type	fe_ge_sub,@function
+.globl	ge_sub
+.type	ge_sub,@function
 .align	16
-fe_ge_sub:
+ge_sub:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_sub
+.globl	_ge_sub
 .p2align	4
-_fe_ge_sub:
+_ge_sub:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        jmpq	*fe_ge_sub_p(%rip)
+        jmpq	*ge_sub_p(%rip)
 #else
-        jmpq	*_fe_ge_sub_p(%rip)
+        jmpq	*_ge_sub_p(%rip)
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.size	fe_ge_sub,.-fe_ge_sub
+.size	ge_sub,.-ge_sub
 #endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	sc_reduce
+.type	sc_reduce,@function
+.align	16
+sc_reduce:
+#else
+.section	__TEXT,__text
+.globl	_sc_reduce
+.p2align	4
+_sc_reduce:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        jmpq	*sc_reduce_p(%rip)
+#else
+        jmpq	*_sc_reduce_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.size	sc_reduce,.-sc_reduce
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	sc_muladd
+.type	sc_muladd,@function
+.align	16
+sc_muladd:
+#else
+.section	__TEXT,__text
+.globl	_sc_muladd
+.p2align	4
+_sc_muladd:
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        jmpq	*sc_muladd_p(%rip)
+#else
+        jmpq	*_sc_muladd_p(%rip)
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.size	sc_muladd,.-sc_muladd
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519 */
 #ifndef __APPLE__
 .data
 .type	cpuFlagsSet, @object
@@ -1223,18 +1308,6 @@ _fe_mul121666_p:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_sq2_p, @object
-.size	fe_sq2_p,8
-fe_sq2_p:
-	.quad	fe_sq2_x64
-#else
-.section	__DATA,__data
-.p2align	2
-_fe_sq2_p:
-	.quad	_fe_sq2_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.data
 .type	fe_invert_p, @object
 .size	fe_invert_p,8
 fe_invert_p:
@@ -1257,6 +1330,19 @@ curve25519_p:
 _curve25519_p:
 	.quad	_curve25519_x64
 #endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.data
+.type	fe_sq2_p, @object
+.size	fe_sq2_p,8
+fe_sq2_p:
+	.quad	fe_sq2_x64
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_sq2_p:
+	.quad	_fe_sq2_x64
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 .type	fe_pow22523_p, @object
@@ -1271,88 +1357,113 @@ _fe_pow22523_p:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_to_p2_p, @object
-.size	fe_ge_to_p2_p,8
-fe_ge_to_p2_p:
-	.quad	fe_ge_to_p2_x64
+.type	ge_p1p1_to_p2_p, @object
+.size	ge_p1p1_to_p2_p,8
+ge_p1p1_to_p2_p:
+	.quad	ge_p1p1_to_p2_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_to_p2_p:
-	.quad	_fe_ge_to_p2_x64
+_ge_p1p1_to_p2_p:
+	.quad	_ge_p1p1_to_p2_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_to_p3_p, @object
-.size	fe_ge_to_p3_p,8
-fe_ge_to_p3_p:
-	.quad	fe_ge_to_p3_x64
+.type	ge_p1p1_to_p3_p, @object
+.size	ge_p1p1_to_p3_p,8
+ge_p1p1_to_p3_p:
+	.quad	ge_p1p1_to_p3_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_to_p3_p:
-	.quad	_fe_ge_to_p3_x64
+_ge_p1p1_to_p3_p:
+	.quad	_ge_p1p1_to_p3_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_dbl_p, @object
-.size	fe_ge_dbl_p,8
-fe_ge_dbl_p:
-	.quad	fe_ge_dbl_x64
+.type	ge_p2_dbl_p, @object
+.size	ge_p2_dbl_p,8
+ge_p2_dbl_p:
+	.quad	ge_p2_dbl_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_dbl_p:
-	.quad	_fe_ge_dbl_x64
+_ge_p2_dbl_p:
+	.quad	_ge_p2_dbl_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_madd_p, @object
-.size	fe_ge_madd_p,8
-fe_ge_madd_p:
-	.quad	fe_ge_madd_x64
+.type	ge_madd_p, @object
+.size	ge_madd_p,8
+ge_madd_p:
+	.quad	ge_madd_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_madd_p:
-	.quad	_fe_ge_madd_x64
+_ge_madd_p:
+	.quad	_ge_madd_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_msub_p, @object
-.size	fe_ge_msub_p,8
-fe_ge_msub_p:
-	.quad	fe_ge_msub_x64
+.type	ge_msub_p, @object
+.size	ge_msub_p,8
+ge_msub_p:
+	.quad	ge_msub_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_msub_p:
-	.quad	_fe_ge_msub_x64
+_ge_msub_p:
+	.quad	_ge_msub_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_add_p, @object
-.size	fe_ge_add_p,8
-fe_ge_add_p:
-	.quad	fe_ge_add_x64
+.type	ge_add_p, @object
+.size	ge_add_p,8
+ge_add_p:
+	.quad	ge_add_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_add_p:
-	.quad	_fe_ge_add_x64
+_ge_add_p:
+	.quad	_ge_add_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
-.type	fe_ge_sub_p, @object
-.size	fe_ge_sub_p,8
-fe_ge_sub_p:
-	.quad	fe_ge_sub_x64
+.type	ge_sub_p, @object
+.size	ge_sub_p,8
+ge_sub_p:
+	.quad	ge_sub_x64
 #else
 .section	__DATA,__data
 .p2align	2
-_fe_ge_sub_p:
-	.quad	_fe_ge_sub_x64
+_ge_sub_p:
+	.quad	_ge_sub_x64
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	sc_reduce_p, @object
+.size	sc_reduce_p,8
+sc_reduce_p:
+	.quad	sc_reduce_x64
+#else
+.section	__DATA,__data
+.p2align	2
+_sc_reduce_p:
+	.quad	_sc_reduce_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	sc_muladd_p, @object
+.size	sc_muladd_p,8
+sc_muladd_p:
+	.quad	sc_muladd_x64
+#else
+.section	__DATA,__data
+.p2align	2
+_sc_muladd_p:
+	.quad	_sc_muladd_x64
+#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
 #ifndef __APPLE__
 .text
 .globl	fe_mul_x64
@@ -1470,52 +1581,40 @@ _fe_mul_x64:
         mulq	24(%rsi)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbx
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %r8
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbx, %r8
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
+        movq	$0x7fffffffffffffff, %rbx
+        movq	%r11, %rax
+        sarq	$63, %rax
+        andq	$19, %rax
         andq	%rbx, %r11
         addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r11
-        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -1621,52 +1720,40 @@ _fe_sq_x64:
         addq	%r15, %r12
         adcq	$0x00, %r13
         adcq	$0x00, %r14
-        # Reduce
+        movq	$38, %rax
+        mulq	%r14
+        addq	%rax, %r10
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %r15
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        shldq	$0x01, %r10, %r11
+        shldq	$0x01, %r10, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%r15, %r10
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %r15
+        movq	$38, %rax
         mulq	%r11
         xorq	%r11, %r11
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r11
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %r8
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
         adcq	%rdx, %r13
-        mulq	%r14
-        #  Add remaining product results in
-        addq	%r11, %r8
+        addq	%r15, %rcx
+        adcq	%r11, %r8
         adcq	%r12, %r9
         adcq	%r13, %r10
-        adcq	%rax, %r10
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r10, %rdx
-        imulq	$19, %rdx, %rax
+        movq	$0x7fffffffffffffff, %r15
+        movq	%r10, %rax
+        sarq	$63, %rax
+        andq	$19, %rax
         andq	%r15, %r10
         addq	%rax, %rcx
-        adcq	$0x00, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        # Reduce if top bit set
-        movq	%r10, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%r15, %r10
-        addq	%rdx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -1774,55 +1861,34 @@ L_fe_sq_n_x64:
         addq	%rbx, %r13
         adcq	$0x00, %r14
         adcq	$0x00, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbx
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %r8
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbx, %r8
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
@@ -1889,169 +1955,6 @@ _fe_mul121666_x64:
         repz retq
 #ifndef __APPLE__
 .size	fe_mul121666_x64,.-fe_mul121666_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_sq2_x64
-.type	fe_sq2_x64,@function
-.align	16
-fe_sq2_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_sq2_x64
-.p2align	4
-_fe_sq2_x64:
-#endif /* __APPLE__ */
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        pushq	%rbx
-        # Square * 2
-        #  A[0] * A[1]
-        movq	(%rsi), %rax
-        mulq	8(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * A[2]
-        movq	(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[0] * A[3]
-        movq	(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * A[2]
-        movq	8(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[1] * A[3]
-        movq	8(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        #  A[2] * A[3]
-        movq	16(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        # Double
-        xorq	%r14, %r14
-        addq	%r8, %r8
-        adcq	%r9, %r9
-        adcq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        adcq	%r13, %r13
-        adcq	$0x00, %r14
-        #  A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        movq	%rax, %rcx
-        movq	%rdx, %r15
-        #  A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%r15, %r8
-        adcq	%rax, %r9
-        adcq	$0x00, %rdx
-        movq	%rdx, %r15
-        #  A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
-        addq	%r15, %r10
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        movq	%rdx, %r15
-        #  A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        addq	%r15, %r12
-        adcq	$0x00, %r13
-        adcq	$0x00, %r14
-        # Reduce
-        movq	$0x7fffffffffffffff, %rbx
-        xorq	%rax, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$3, %r14, %rax
-        shldq	$2, %r13, %r14
-        shldq	$2, %r12, %r13
-        shldq	$2, %r11, %r12
-        shldq	$2, %r10, %r11
-        shldq	$0x01, %r9, %r10
-        shldq	$0x01, %r8, %r9
-        shldq	$0x01, %rcx, %r8
-        shlq	$0x01, %rcx
-        andq	%rbx, %r10
-        #  Two out left, one in right
-        andq	%rbx, %r14
-        #  Multiply top bits by 19*19
-        imulq	$0x169, %rax, %r15
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r11
-        xorq	%r11, %r11
-        addq	%rax, %rcx
-        movq	$19, %rax
-        adcq	%rdx, %r11
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        #  Add remaining produce results in
-        addq	%r15, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%rax, %r10
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r10, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbx, %r10
-        addq	%rax, %rcx
-        adcq	$0x00, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        # Reduce if top bit set
-        movq	%r10, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r10
-        addq	%rdx, %rcx
-        adcq	$0x00, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        # Store
-        movq	%rcx, (%rdi)
-        movq	%r8, 8(%rdi)
-        movq	%r9, 16(%rdi)
-        movq	%r10, 24(%rdi)
-        popq	%rbx
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        repz retq
-#ifndef __APPLE__
-.size	fe_sq2_x64,.-fe_sq2_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -2328,9 +2231,9 @@ _curve25519_x64:
         pushq	%rbx
         pushq	%rbp
         movq	%rdx, %r8
-        subq	$0xb8, %rsp
+        subq	$0xb0, %rsp
         xorq	%rbx, %rbx
-        movq	%rdi, 176(%rsp)
+        movq	%rdi, 168(%rsp)
         # Set one
         movq	$0x01, (%rdi)
         movq	$0x00, 8(%rdi)
@@ -2355,12 +2258,12 @@ _curve25519_x64:
         movq	%r9, 72(%rsp)
         movq	%r10, 80(%rsp)
         movq	%r11, 88(%rsp)
-        movb	$62, 168(%rsp)
-        movq	$3, 160(%rsp)
-L_curve25519_x64_words:
+        movq	$0xfe, %r9
 L_curve25519_x64_bits:
-        movq	160(%rsp), %r9
-        movb	168(%rsp), %cl
+        movq	%r9, 160(%rsp)
+        movq	%r9, %rcx
+        andq	$63, %rcx
+        shrq	$6, %r9
         movq	(%rsi,%r9,8), %rbp
         shrq	%cl, %rbp
         andq	$0x01, %rbp
@@ -2409,48 +2312,45 @@ L_curve25519_x64_bits:
         xorq	%r10, 48(%rsp)
         xorq	%r11, 56(%rsp)
         movq	%rbp, %rbx
+        # Add-Sub
         # Add
         movq	(%rdi), %rcx
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
-        movq	24(%rdi), %rbp
+        movq	24(%rdi), %r11
         movq	%rcx, %r12
         addq	(%rsp), %rcx
         movq	%r9, %r13
         adcq	8(%rsp), %r9
         movq	%r10, %r14
         adcq	16(%rsp), %r10
-        movq	%rbp, %r15
-        adcq	24(%rsp), %rbp
-        movq	$-19, %rax
-        movq	%rbp, %r11
+        movq	%r11, %r15
+        adcq	24(%rsp), %r11
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r11, %rax
         movq	$0x7fffffffffffffff, %rdx
-        sarq	$63, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r11
         #   Sub modulus (if overflow)
-        subq	%rax, %rcx
-        sbbq	%rbp, %r9
-        sbbq	%rbp, %r10
-        sbbq	%rdx, %r11
+        addq	%rax, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         # Sub
         subq	(%rsp), %r12
-        movq	$0x00, %rbp
         sbbq	8(%rsp), %r13
-        movq	$-19, %rax
         sbbq	16(%rsp), %r14
-        movq	$0x7fffffffffffffff, %rdx
         sbbq	24(%rsp), %r15
-        sbbq	$0x00, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        sbbq	%rax, %rax
+        shldq	$0x01, %r15, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %r15
         #   Add modulus (if underflow)
-        addq	%rax, %r12
-        adcq	%rbp, %r13
-        adcq	%rbp, %r14
-        adcq	%rdx, %r15
+        subq	%rax, %r12
+        sbbq	$0x00, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
         movq	%rcx, (%rdi)
         movq	%r9, 8(%rdi)
         movq	%r10, 16(%rdi)
@@ -2459,204 +2359,180 @@ L_curve25519_x64_bits:
         movq	%r13, 136(%rsp)
         movq	%r14, 144(%rsp)
         movq	%r15, 152(%rsp)
+        # Add-Sub
         # Add
         movq	64(%rsp), %rcx
         movq	72(%rsp), %r9
         movq	80(%rsp), %r10
-        movq	88(%rsp), %rbp
+        movq	88(%rsp), %r11
         movq	%rcx, %r12
         addq	32(%rsp), %rcx
         movq	%r9, %r13
         adcq	40(%rsp), %r9
         movq	%r10, %r14
         adcq	48(%rsp), %r10
-        movq	%rbp, %r15
-        adcq	56(%rsp), %rbp
-        movq	$-19, %rax
-        movq	%rbp, %r11
+        movq	%r11, %r15
+        adcq	56(%rsp), %r11
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r11, %rax
         movq	$0x7fffffffffffffff, %rdx
-        sarq	$63, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r11
         #   Sub modulus (if overflow)
-        subq	%rax, %rcx
-        sbbq	%rbp, %r9
-        sbbq	%rbp, %r10
-        sbbq	%rdx, %r11
+        addq	%rax, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         # Sub
         subq	32(%rsp), %r12
-        movq	$0x00, %rbp
         sbbq	40(%rsp), %r13
-        movq	$-19, %rax
         sbbq	48(%rsp), %r14
-        movq	$0x7fffffffffffffff, %rdx
         sbbq	56(%rsp), %r15
-        sbbq	$0x00, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        sbbq	%rax, %rax
+        shldq	$0x01, %r15, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %r15
         #   Add modulus (if underflow)
-        addq	%rax, %r12
-        adcq	%rbp, %r13
-        adcq	%rbp, %r14
-        adcq	%rdx, %r15
-        movq	%rcx, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
+        subq	%rax, %r12
+        sbbq	$0x00, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
+        movq	%rcx, 32(%rsp)
+        movq	%r9, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r11, 56(%rsp)
         movq	%r12, 96(%rsp)
         movq	%r13, 104(%rsp)
         movq	%r14, 112(%rsp)
         movq	%r15, 120(%rsp)
         # Multiply
         #  A[0] * B[0]
-        movq	(%rdi), %rax
-        mulq	96(%rsp)
+        movq	128(%rsp), %rax
+        mulq	32(%rsp)
         movq	%rax, %rcx
         movq	%rdx, %r9
         #  A[0] * B[1]
-        movq	8(%rdi), %rax
-        mulq	96(%rsp)
+        movq	136(%rsp), %rax
+        mulq	32(%rsp)
         xorq	%r10, %r10
         addq	%rax, %r9
         adcq	%rdx, %r10
         #  A[1] * B[0]
-        movq	(%rdi), %rax
-        mulq	104(%rsp)
+        movq	128(%rsp), %rax
+        mulq	40(%rsp)
         xorq	%r11, %r11
         addq	%rax, %r9
         adcq	%rdx, %r10
         adcq	$0x00, %r11
         #  A[0] * B[2]
-        movq	16(%rdi), %rax
-        mulq	96(%rsp)
+        movq	144(%rsp), %rax
+        mulq	32(%rsp)
         addq	%rax, %r10
         adcq	%rdx, %r11
         #  A[1] * B[1]
-        movq	8(%rdi), %rax
-        mulq	104(%rsp)
+        movq	136(%rsp), %rax
+        mulq	40(%rsp)
         xorq	%r12, %r12
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[2] * B[0]
-        movq	(%rdi), %rax
-        mulq	112(%rsp)
+        movq	128(%rsp), %rax
+        mulq	48(%rsp)
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[0] * B[3]
-        movq	24(%rdi), %rax
-        mulq	96(%rsp)
+        movq	152(%rsp), %rax
+        mulq	32(%rsp)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[2]
-        movq	16(%rdi), %rax
-        mulq	104(%rsp)
+        movq	144(%rsp), %rax
+        mulq	40(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[2] * B[1]
-        movq	8(%rdi), %rax
-        mulq	112(%rsp)
+        movq	136(%rsp), %rax
+        mulq	48(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[3] * B[0]
-        movq	(%rdi), %rax
-        mulq	120(%rsp)
+        movq	128(%rsp), %rax
+        mulq	56(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[3]
-        movq	24(%rdi), %rax
-        mulq	104(%rsp)
+        movq	152(%rsp), %rax
+        mulq	40(%rsp)
         xorq	%r14, %r14
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[2]
-        movq	16(%rdi), %rax
-        mulq	112(%rsp)
+        movq	144(%rsp), %rax
+        mulq	48(%rsp)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[3] * B[1]
-        movq	8(%rdi), %rax
-        mulq	120(%rsp)
+        movq	136(%rsp), %rax
+        mulq	56(%rsp)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[3]
-        movq	24(%rdi), %rax
-        mulq	112(%rsp)
+        movq	152(%rsp), %rax
+        mulq	48(%rsp)
         xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[2]
-        movq	16(%rdi), %rax
-        mulq	120(%rsp)
+        movq	144(%rsp), %rax
+        mulq	56(%rsp)
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[3]
-        movq	24(%rdi), %rax
-        mulq	120(%rsp)
+        movq	152(%rsp), %rax
+        mulq	56(%rsp)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, 32(%rsp)
         movq	%r9, 40(%rsp)
@@ -2664,152 +2540,131 @@ L_curve25519_x64_bits:
         movq	%r11, 56(%rsp)
         # Multiply
         #  A[0] * B[0]
-        movq	128(%rsp), %rax
-        mulq	(%rsp)
+        movq	(%rdi), %rax
+        mulq	96(%rsp)
         movq	%rax, %rcx
         movq	%rdx, %r9
         #  A[0] * B[1]
-        movq	136(%rsp), %rax
-        mulq	(%rsp)
+        movq	8(%rdi), %rax
+        mulq	96(%rsp)
         xorq	%r10, %r10
         addq	%rax, %r9
         adcq	%rdx, %r10
         #  A[1] * B[0]
-        movq	128(%rsp), %rax
-        mulq	8(%rsp)
+        movq	(%rdi), %rax
+        mulq	104(%rsp)
         xorq	%r11, %r11
         addq	%rax, %r9
         adcq	%rdx, %r10
         adcq	$0x00, %r11
         #  A[0] * B[2]
-        movq	144(%rsp), %rax
-        mulq	(%rsp)
+        movq	16(%rdi), %rax
+        mulq	96(%rsp)
         addq	%rax, %r10
         adcq	%rdx, %r11
         #  A[1] * B[1]
-        movq	136(%rsp), %rax
-        mulq	8(%rsp)
+        movq	8(%rdi), %rax
+        mulq	104(%rsp)
         xorq	%r12, %r12
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[2] * B[0]
-        movq	128(%rsp), %rax
-        mulq	16(%rsp)
+        movq	(%rdi), %rax
+        mulq	112(%rsp)
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[0] * B[3]
-        movq	152(%rsp), %rax
-        mulq	(%rsp)
+        movq	24(%rdi), %rax
+        mulq	96(%rsp)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[2]
-        movq	144(%rsp), %rax
-        mulq	8(%rsp)
+        movq	16(%rdi), %rax
+        mulq	104(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[2] * B[1]
-        movq	136(%rsp), %rax
-        mulq	16(%rsp)
+        movq	8(%rdi), %rax
+        mulq	112(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[3] * B[0]
-        movq	128(%rsp), %rax
-        mulq	24(%rsp)
+        movq	(%rdi), %rax
+        mulq	120(%rsp)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[3]
-        movq	152(%rsp), %rax
-        mulq	8(%rsp)
+        movq	24(%rdi), %rax
+        mulq	104(%rsp)
         xorq	%r14, %r14
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[2]
-        movq	144(%rsp), %rax
-        mulq	16(%rsp)
+        movq	16(%rdi), %rax
+        mulq	112(%rsp)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[3] * B[1]
-        movq	136(%rsp), %rax
-        mulq	24(%rsp)
+        movq	8(%rdi), %rax
+        mulq	120(%rsp)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[3]
-        movq	152(%rsp), %rax
-        mulq	16(%rsp)
+        movq	24(%rdi), %rax
+        mulq	112(%rsp)
         xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[2]
-        movq	144(%rsp), %rax
-        mulq	24(%rsp)
+        movq	16(%rdi), %rax
+        mulq	120(%rsp)
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[3]
-        movq	152(%rsp), %rax
-        mulq	24(%rsp)
+        movq	24(%rdi), %rax
+        mulq	120(%rsp)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, (%rsp)
         movq	%r9, 8(%rsp)
@@ -2887,55 +2742,34 @@ L_curve25519_x64_bits:
         addq	%rbp, %r13
         adcq	$0x00, %r14
         adcq	$0x00, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, 96(%rsp)
         movq	%r9, 104(%rsp)
@@ -3013,110 +2847,86 @@ L_curve25519_x64_bits:
         addq	%rbp, %r13
         adcq	$0x00, %r14
         adcq	$0x00, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
         movq	%r11, 152(%rsp)
+        # Add-Sub
         # Add
-        movq	32(%rsp), %rcx
-        movq	40(%rsp), %r9
-        movq	48(%rsp), %r10
-        movq	56(%rsp), %rbp
+        movq	(%rsp), %rcx
+        movq	8(%rsp), %r9
+        movq	16(%rsp), %r10
+        movq	24(%rsp), %r11
         movq	%rcx, %r12
-        addq	(%rsp), %rcx
+        addq	32(%rsp), %rcx
         movq	%r9, %r13
-        adcq	8(%rsp), %r9
+        adcq	40(%rsp), %r9
         movq	%r10, %r14
-        adcq	16(%rsp), %r10
-        movq	%rbp, %r15
-        adcq	24(%rsp), %rbp
-        movq	$-19, %rax
-        movq	%rbp, %r11
+        adcq	48(%rsp), %r10
+        movq	%r11, %r15
+        adcq	56(%rsp), %r11
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r11, %rax
         movq	$0x7fffffffffffffff, %rdx
-        sarq	$63, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r11
         #   Sub modulus (if overflow)
-        subq	%rax, %rcx
-        sbbq	%rbp, %r9
-        sbbq	%rbp, %r10
-        sbbq	%rdx, %r11
+        addq	%rax, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         # Sub
-        subq	(%rsp), %r12
-        movq	$0x00, %rbp
-        sbbq	8(%rsp), %r13
-        movq	$-19, %rax
-        sbbq	16(%rsp), %r14
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rsp), %r15
-        sbbq	$0x00, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        subq	32(%rsp), %r12
+        sbbq	40(%rsp), %r13
+        sbbq	48(%rsp), %r14
+        sbbq	56(%rsp), %r15
+        sbbq	%rax, %rax
+        shldq	$0x01, %r15, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %r15
         #   Add modulus (if underflow)
-        addq	%rax, %r12
-        adcq	%rbp, %r13
-        adcq	%rbp, %r14
-        adcq	%rdx, %r15
+        subq	%rax, %r12
+        sbbq	$0x00, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
         movq	%rcx, 64(%rsp)
         movq	%r9, 72(%rsp)
         movq	%r10, 80(%rsp)
         movq	%r11, 88(%rsp)
-        movq	%r12, (%rsp)
-        movq	%r13, 8(%rsp)
-        movq	%r14, 16(%rsp)
-        movq	%r15, 24(%rsp)
+        movq	%r12, 32(%rsp)
+        movq	%r13, 40(%rsp)
+        movq	%r14, 48(%rsp)
+        movq	%r15, 56(%rsp)
         # Multiply
         #  A[0] * B[0]
         movq	96(%rsp), %rax
@@ -3216,55 +3026,34 @@ L_curve25519_x64_bits:
         mulq	152(%rsp)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, (%rdi)
         movq	%r9, 8(%rdi)
@@ -3276,58 +3065,56 @@ L_curve25519_x64_bits:
         movq	144(%rsp), %r10
         movq	152(%rsp), %r11
         subq	96(%rsp), %rcx
-        movq	$0x00, %rbp
         sbbq	104(%rsp), %r9
-        movq	$-19, %rax
         sbbq	112(%rsp), %r10
-        movq	$0x7fffffffffffffff, %rdx
         sbbq	120(%rsp), %r11
-        sbbq	$0x00, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        sbbq	%rax, %rax
+        shldq	$0x01, %r11, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$-19, %rax
+        andq	%rdx, %r11
         #   Add modulus (if underflow)
-        addq	%rax, %rcx
-        adcq	%rbp, %r9
-        adcq	%rbp, %r10
-        adcq	%rdx, %r11
+        subq	%rax, %rcx
+        sbbq	$0x00, %r9
+        sbbq	$0x00, %r10
+        sbbq	$0x00, %r11
         movq	%rcx, 128(%rsp)
         movq	%r9, 136(%rsp)
         movq	%r10, 144(%rsp)
         movq	%r11, 152(%rsp)
         # Square
         #  A[0] * A[1]
-        movq	(%rsp), %rax
-        mulq	8(%rsp)
+        movq	32(%rsp), %rax
+        mulq	40(%rsp)
         movq	%rax, %r9
         movq	%rdx, %r10
         #  A[0] * A[2]
-        movq	(%rsp), %rax
-        mulq	16(%rsp)
+        movq	32(%rsp), %rax
+        mulq	48(%rsp)
         xorq	%r11, %r11
         addq	%rax, %r10
         adcq	%rdx, %r11
         #  A[0] * A[3]
-        movq	(%rsp), %rax
-        mulq	24(%rsp)
+        movq	32(%rsp), %rax
+        mulq	56(%rsp)
         xorq	%r12, %r12
         addq	%rax, %r11
         adcq	%rdx, %r12
         #  A[1] * A[2]
-        movq	8(%rsp), %rax
-        mulq	16(%rsp)
+        movq	40(%rsp), %rax
+        mulq	48(%rsp)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * A[3]
-        movq	8(%rsp), %rax
-        mulq	24(%rsp)
+        movq	40(%rsp), %rax
+        mulq	56(%rsp)
         addq	%rax, %r12
         adcq	%rdx, %r13
         #  A[2] * A[3]
-        movq	16(%rsp), %rax
-        mulq	24(%rsp)
+        movq	48(%rsp), %rax
+        mulq	56(%rsp)
         xorq	%r14, %r14
         addq	%rax, %r13
         adcq	%rdx, %r14
@@ -3341,86 +3128,65 @@ L_curve25519_x64_bits:
         adcq	%r14, %r14
         adcq	$0x00, %r15
         #  A[0] * A[0]
-        movq	(%rsp), %rax
+        movq	32(%rsp), %rax
         mulq	%rax
         movq	%rax, %rcx
         movq	%rdx, %rbp
         #  A[1] * A[1]
-        movq	8(%rsp), %rax
+        movq	40(%rsp), %rax
         mulq	%rax
         addq	%rbp, %r9
         adcq	%rax, %r10
         adcq	$0x00, %rdx
         movq	%rdx, %rbp
         #  A[2] * A[2]
-        movq	16(%rsp), %rax
+        movq	48(%rsp), %rax
         mulq	%rax
         addq	%rbp, %r11
         adcq	%rax, %r12
         adcq	$0x00, %rdx
         movq	%rdx, %rbp
         #  A[3] * A[3]
-        movq	24(%rsp), %rax
+        movq	56(%rsp), %rax
         mulq	%rax
         addq	%rax, %r14
         adcq	%rdx, %r15
         addq	%rbp, %r13
         adcq	$0x00, %r14
         adcq	$0x00, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
-        movq	%rcx, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
+        movq	%rcx, 32(%rsp)
+        movq	%r9, 40(%rsp)
+        movq	%r10, 48(%rsp)
+        movq	%r11, 56(%rsp)
         # Multiply by 121666
         movq	$0x1db42, %rax
         mulq	128(%rsp)
@@ -3450,10 +3216,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
-        movq	%rcx, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	%r10, 48(%rsp)
-        movq	%r11, 56(%rsp)
+        movq	%rcx, (%rsp)
+        movq	%r9, 8(%rsp)
+        movq	%r10, 16(%rsp)
+        movq	%r11, 24(%rsp)
         # Square
         #  A[0] * A[1]
         movq	64(%rsp), %rax
@@ -3526,55 +3292,34 @@ L_curve25519_x64_bits:
         addq	%rbp, %r13
         adcq	$0x00, %r14
         adcq	$0x00, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, 64(%rsp)
         movq	%r9, 72(%rsp)
@@ -3583,176 +3328,154 @@ L_curve25519_x64_bits:
         # Add
         movq	96(%rsp), %rcx
         movq	104(%rsp), %r9
-        addq	32(%rsp), %rcx
+        addq	(%rsp), %rcx
         movq	112(%rsp), %r10
-        adcq	40(%rsp), %r9
-        movq	120(%rsp), %rbp
-        adcq	48(%rsp), %r10
-        movq	$-19, %rax
-        adcq	56(%rsp), %rbp
+        adcq	8(%rsp), %r9
+        movq	120(%rsp), %r11
+        adcq	16(%rsp), %r10
+        adcq	24(%rsp), %r11
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r11, %rax
         movq	$0x7fffffffffffffff, %rdx
-        movq	%rbp, %r11
-        sarq	$63, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r11
         #   Sub modulus (if overflow)
-        subq	%rax, %rcx
-        sbbq	%rbp, %r9
-        sbbq	%rbp, %r10
-        sbbq	%rdx, %r11
+        addq	%rax, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
         movq	%rcx, 96(%rsp)
         movq	%r9, 104(%rsp)
         movq	%r10, 112(%rsp)
         movq	%r11, 120(%rsp)
         # Multiply
         #  A[0] * B[0]
-        movq	(%rsp), %rax
+        movq	32(%rsp), %rax
         mulq	(%r8)
         movq	%rax, %rcx
         movq	%rdx, %r9
         #  A[0] * B[1]
-        movq	8(%rsp), %rax
+        movq	40(%rsp), %rax
         mulq	(%r8)
         xorq	%r10, %r10
         addq	%rax, %r9
         adcq	%rdx, %r10
         #  A[1] * B[0]
-        movq	(%rsp), %rax
+        movq	32(%rsp), %rax
         mulq	8(%r8)
         xorq	%r11, %r11
         addq	%rax, %r9
         adcq	%rdx, %r10
         adcq	$0x00, %r11
         #  A[0] * B[2]
-        movq	16(%rsp), %rax
+        movq	48(%rsp), %rax
         mulq	(%r8)
         addq	%rax, %r10
         adcq	%rdx, %r11
         #  A[1] * B[1]
-        movq	8(%rsp), %rax
+        movq	40(%rsp), %rax
         mulq	8(%r8)
         xorq	%r12, %r12
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[2] * B[0]
-        movq	(%rsp), %rax
+        movq	32(%rsp), %rax
         mulq	16(%r8)
         addq	%rax, %r10
         adcq	%rdx, %r11
         adcq	$0x00, %r12
         #  A[0] * B[3]
-        movq	24(%rsp), %rax
+        movq	56(%rsp), %rax
         mulq	(%r8)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[2]
-        movq	16(%rsp), %rax
+        movq	48(%rsp), %rax
         mulq	8(%r8)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[2] * B[1]
-        movq	8(%rsp), %rax
+        movq	40(%rsp), %rax
         mulq	16(%r8)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[3] * B[0]
-        movq	(%rsp), %rax
+        movq	32(%rsp), %rax
         mulq	24(%r8)
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
         #  A[1] * B[3]
-        movq	24(%rsp), %rax
+        movq	56(%rsp), %rax
         mulq	8(%r8)
         xorq	%r14, %r14
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[2]
-        movq	16(%rsp), %rax
+        movq	48(%rsp), %rax
         mulq	16(%r8)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[3] * B[1]
-        movq	8(%rsp), %rax
+        movq	40(%rsp), %rax
         mulq	24(%r8)
         addq	%rax, %r12
         adcq	%rdx, %r13
         adcq	$0x00, %r14
         #  A[2] * B[3]
-        movq	24(%rsp), %rax
+        movq	56(%rsp), %rax
         mulq	16(%r8)
         xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[2]
-        movq	16(%rsp), %rax
+        movq	48(%rsp), %rax
         mulq	24(%r8)
         addq	%rax, %r13
         adcq	%rdx, %r14
         adcq	$0x00, %r15
         #  A[3] * B[3]
-        movq	24(%rsp), %rax
+        movq	56(%rsp), %rax
         mulq	24(%r8)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, 32(%rsp)
         movq	%r9, 40(%rsp)
@@ -3857,65 +3580,42 @@ L_curve25519_x64_bits:
         mulq	152(%rsp)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbp, %r11
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbp, %r11
-        addq	%rdx, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
         # Store
         movq	%rcx, (%rsp)
         movq	%r9, 8(%rsp)
         movq	%r10, 16(%rsp)
         movq	%r11, 24(%rsp)
-        decb	168(%rsp)
+        movq	160(%rsp), %r9
+        decq	%r9
         jge	L_curve25519_x64_bits
-        movq	$63, 168(%rsp)
-        decb	160(%rsp)
-        jge	L_curve25519_x64_words
         # Invert
         leaq	32(%rsp), %rdi
         movq	%rsp, %rsi
@@ -4153,7 +3853,7 @@ L_curve25519_x64_bits:
 #else
         callq	_fe_mul_x64
 #endif /* __APPLE__ */
-        movq	176(%rsp), %rdi
+        movq	168(%rsp), %rdi
         # Multiply
         #  A[0] * B[0]
         movq	(%rsp), %rax
@@ -4253,77 +3953,66 @@ L_curve25519_x64_bits:
         mulq	24(%rdi)
         addq	%rax, %r14
         adcq	%rdx, %r15
-        # Reduce
+        movq	$38, %rax
+        mulq	%r15
+        addq	%rax, %r11
+        adcq	$0x00, %rdx
         movq	$0x7fffffffffffffff, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rdx
+        imulq	$19, %rdx, %rdx
         andq	%rbp, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
+        movq	%rdx, %rbp
+        movq	$38, %rax
         mulq	%r12
         xorq	%r12, %r12
         addq	%rax, %rcx
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r12
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
         adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        addq	%rbp, %rcx
+        adcq	%r12, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
+        movq	$0x7fffffffffffffff, %rbp
+        movq	%r11, %rax
+        sarq	$63, %rax
+        andq	$19, %rax
         andq	%rbp, %r11
         addq	%rax, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
-        # Reduce if top bit set
+        movq	$0x7fffffffffffffff, %rax
+        movq	%rcx, %rdx
+        addq	$19, %rdx
+        movq	%r9, %rdx
+        adcq	$0x00, %rdx
+        movq	%r10, %rdx
+        adcq	$0x00, %rdx
         movq	%r11, %rdx
+        adcq	$0x00, %rdx
         sarq	$63, %rdx
         andq	$19, %rdx
-        andq	%rbp, %r11
+        andq	%rax, %r11
         addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
-        movq	%rcx, %rax
-        addq	$19, %rax
-        movq	%r9, %rax
-        adcq	$0x00, %rax
-        movq	%r10, %rax
-        adcq	$0x00, %rax
-        movq	%r11, %rax
-        adcq	$0x00, %rax
-        sarq	$63, %rax
-        andq	$19, %rax
-        addq	%rax, %rcx
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        andq	%rbp, %r11
         # Store
         movq	%rcx, (%rdi)
         movq	%r9, 8(%rdi)
         movq	%r10, 16(%rdi)
         movq	%r11, 24(%rdi)
         xorq	%rax, %rax
-        addq	$0xb8, %rsp
+        addq	$0xb0, %rsp
         popq	%rbp
         popq	%rbx
         popq	%r15
@@ -4333,6 +4022,149 @@ L_curve25519_x64_bits:
         repz retq
 #ifndef __APPLE__
 .size	curve25519_x64,.-curve25519_x64
+#endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	fe_sq2_x64
+.type	fe_sq2_x64,@function
+.align	16
+fe_sq2_x64:
+#else
+.section	__TEXT,__text
+.globl	_fe_sq2_x64
+.p2align	4
+_fe_sq2_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        # Square * 2
+        #  A[0] * A[1]
+        movq	(%rsi), %rax
+        mulq	8(%rsi)
+        movq	%rax, %r8
+        movq	%rdx, %r9
+        #  A[0] * A[2]
+        movq	(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r10, %r10
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        #  A[0] * A[3]
+        movq	(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * A[2]
+        movq	8(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[1] * A[3]
+        movq	8(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[2] * A[3]
+        movq	16(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        # Double
+        xorq	%r14, %r14
+        addq	%r8, %r8
+        adcq	%r9, %r9
+        adcq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        adcq	$0x00, %r14
+        #  A[0] * A[0]
+        movq	(%rsi), %rax
+        mulq	%rax
+        movq	%rax, %rcx
+        movq	%rdx, %r15
+        #  A[1] * A[1]
+        movq	8(%rsi), %rax
+        mulq	%rax
+        addq	%r15, %r8
+        adcq	%rax, %r9
+        adcq	$0x00, %rdx
+        movq	%rdx, %r15
+        #  A[2] * A[2]
+        movq	16(%rsi), %rax
+        mulq	%rax
+        addq	%r15, %r10
+        adcq	%rax, %r11
+        adcq	$0x00, %rdx
+        movq	%rdx, %r15
+        #  A[3] * A[3]
+        movq	24(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        addq	%r15, %r12
+        adcq	$0x00, %r13
+        adcq	$0x00, %r14
+        movq	$38, %rax
+        mulq	%r14
+        addq	%rax, %r10
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r15
+        shldq	$0x01, %r10, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r15, %r10
+        movq	%rdx, %r15
+        movq	$38, %rax
+        mulq	%r11
+        xorq	%r11, %r11
+        addq	%rax, %rcx
+        movq	$38, %rax
+        adcq	%rdx, %r11
+        mulq	%r12
+        xorq	%r12, %r12
+        addq	%rax, %r8
+        movq	$38, %rax
+        adcq	%rdx, %r12
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        adcq	%rdx, %r13
+        addq	%r15, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        adcq	%r13, %r10
+        mov	%r10, %rax
+        shldq	$0x01, %r9, %r10
+        shldq	$0x01, %r8, %r9
+        shldq	$0x01, %rcx, %r8
+        shlq	$0x01, %rcx
+        movq	$0x7fffffffffffffff, %r15
+        shrq	$62, %rax
+        andq	%r15, %r10
+        imulq	$19, %rax, %rax
+        addq	%rax, %rcx
+        adcq	$0x00, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        # Store
+        movq	%rcx, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	%r9, 16(%rdi)
+        movq	%r10, 24(%rdi)
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	fe_sq2_x64,.-fe_sq2_x64
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -4591,4961 +4423,4678 @@ _fe_pow22523_x64:
         repz retq
 #ifndef __APPLE__
 .text
-.globl	fe_ge_to_p2_x64
-.type	fe_ge_to_p2_x64,@function
+.globl	ge_p1p1_to_p2_x64
+.type	ge_p1p1_to_p2_x64,@function
 .align	16
-fe_ge_to_p2_x64:
+ge_p1p1_to_p2_x64:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_to_p2_x64
+.globl	_ge_p1p1_to_p2_x64
 .p2align	4
-_fe_ge_to_p2_x64:
+_ge_p1p1_to_p2_x64:
 #endif /* __APPLE__ */
-        pushq	%rbx
         pushq	%r12
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        subq	$40, %rsp
-        movq	%rsi, (%rsp)
-        movq	%rdx, 8(%rsp)
-        movq	%rcx, 16(%rsp)
-        movq	%r8, 24(%rsp)
-        movq	%r9, 32(%rsp)
-        movq	16(%rsp), %rsi
-        movq	88(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	24(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	32(%rsp), %rsi
-        movq	88(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$40, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_to_p2_x64,.-fe_ge_to_p2_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_to_p3_x64
-.type	fe_ge_to_p3_x64,@function
-.align	16
-fe_ge_to_p3_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_to_p3_x64
-.p2align	4
-_fe_ge_to_p3_x64:
-#endif /* __APPLE__ */
         pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$40, %rsp
-        movq	%rsi, (%rsp)
-        movq	%rdx, 8(%rsp)
-        movq	%rcx, 16(%rsp)
-        movq	%r8, 24(%rsp)
-        movq	%r9, 32(%rsp)
-        movq	24(%rsp), %rsi
-        movq	96(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	32(%rsp), %rsi
-        movq	88(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	88(%rsp), %rsi
-        movq	96(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	24(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$40, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_to_p3_x64,.-fe_ge_to_p3_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_dbl_x64
-.type	fe_ge_dbl_x64,@function
-.align	16
-fe_ge_dbl_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_dbl_x64
-.p2align	4
-_fe_ge_dbl_x64:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
+        subq	$16, %rsp
         movq	%rdi, (%rsp)
         movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	(%rsp), %rdi
-        movq	32(%rsp), %rsi
-        # Square
-        #  A[0] * A[1]
-        movq	(%rsi), %rax
-        mulq	8(%rsi)
+        movq	%rsi, %rcx
+        addq	$0x60, %rcx
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
         movq	%rax, %r9
         movq	%rdx, %r10
-        #  A[0] * A[2]
-        movq	(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
         xorq	%r11, %r11
         addq	%rax, %r10
         adcq	%rdx, %r11
-        #  A[0] * A[3]
-        movq	(%rsi), %rax
-        mulq	24(%rsi)
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
         addq	%rax, %r11
         adcq	%rdx, %r12
-        #  A[1] * A[2]
-        movq	8(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
-        #  A[1] * A[3]
-        movq	8(%rsi), %rax
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
         mulq	24(%rsi)
         addq	%rax, %r12
         adcq	%rdx, %r13
-        #  A[2] * A[3]
-        movq	16(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r14, %r14
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
-        # Double
-        xorq	%r15, %r15
-        addq	%r9, %r9
-        adcq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        adcq	%r13, %r13
-        adcq	%r14, %r14
         adcq	$0x00, %r15
-        #  A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        movq	%rax, %r8
-        movq	%rdx, %rcx
-        #  A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%rcx, %r9
-        adcq	%rax, %r10
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
-        addq	%rcx, %r11
-        adcq	%rax, %r12
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
         addq	%rax, %r14
         adcq	%rdx, %r15
-        addq	%rcx, %r13
-        adcq	$0x00, %r14
-        adcq	$0x00, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r14
         mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        adcq	%r15, %r12
         # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        # Square
-        #  A[0] * A[1]
-        movq	(%rsi), %rax
-        mulq	8(%rsi)
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$0x40, %rsi
+        addq	$0x40, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
         movq	%rax, %r9
         movq	%rdx, %r10
-        #  A[0] * A[2]
-        movq	(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
         xorq	%r11, %r11
         addq	%rax, %r10
         adcq	%rdx, %r11
-        #  A[0] * A[3]
-        movq	(%rsi), %rax
-        mulq	24(%rsi)
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
         addq	%rax, %r11
         adcq	%rdx, %r12
-        #  A[1] * A[2]
-        movq	8(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
-        #  A[1] * A[3]
-        movq	8(%rsi), %rax
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
         mulq	24(%rsi)
         addq	%rax, %r12
         adcq	%rdx, %r13
-        #  A[2] * A[3]
-        movq	16(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r14, %r14
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
-        # Double
-        xorq	%r15, %r15
-        addq	%r9, %r9
-        adcq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        adcq	%r13, %r13
-        adcq	%r14, %r14
         adcq	$0x00, %r15
-        #  A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        movq	%rax, %r8
-        movq	%rdx, %rcx
-        #  A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%rcx, %r9
-        adcq	%rax, %r10
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
-        addq	%rcx, %r11
-        adcq	%rax, %r12
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
         addq	%rax, %r14
         adcq	%rdx, %r15
-        addq	%rcx, %r13
-        adcq	$0x00, %r14
-        adcq	$0x00, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
         mulq	%r13
         xorq	%r13, %r13
         addq	%rax, %r9
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r13
         mulq	%r14
         xorq	%r14, %r14
         addq	%rax, %r10
-        movq	$19, %rax
+        movq	$38, %rax
         adcq	%rdx, %r14
         mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
         adcq	%r13, %r10
         adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        movq	%rsi, %rcx
+        subq	$32, %rcx
+        subq	$32, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r9
+        movq	%rdx, %r10
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p1p1_to_p2_x64,.-ge_p1p1_to_p2_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_p1p1_to_p3_x64
+.type	ge_p1p1_to_p3_x64,@function
+.align	16
+ge_p1p1_to_p3_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_p1p1_to_p3_x64
+.p2align	4
+_ge_p1p1_to_p3_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        subq	$16, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rsi, %rcx
+        addq	$0x60, %rcx
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r9
+        movq	%rdx, %r10
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        addq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r9
+        movq	%rdx, %r10
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$0x40, %rsi
+        subq	$0x40, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r9
+        movq	%rdx, %r10
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        addq	$32, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r9
+        movq	%rdx, %r10
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p1p1_to_p3_x64,.-ge_p1p1_to_p3_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_p2_dbl_x64
+.type	ge_p2_dbl_x64,@function
+.align	16
+ge_p2_dbl_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_p2_dbl_x64
+.p2align	4
+_ge_p2_dbl_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        subq	$16, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        addq	$0x40, %rdi
+        # Square
+        #  A[0] * A[1]
+        movq	(%rsi), %rax
+        mulq	8(%rsi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * A[2]
+        movq	(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[0] * A[3]
+        movq	(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * A[2]
+        movq	8(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * A[3]
+        movq	8(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        #  A[2] * A[3]
+        movq	16(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        # Double
+        xorq	%rbx, %rbx
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        adcq	%r14, %r14
+        adcq	%r15, %r15
+        adcq	$0x00, %rbx
+        #  A[0] * A[0]
+        movq	(%rsi), %rax
+        mulq	%rax
+        movq	%rax, %r9
+        movq	%rdx, %r8
+        #  A[1] * A[1]
+        movq	8(%rsi), %rax
+        mulq	%rax
+        addq	%r8, %r10
         adcq	%rax, %r11
         adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        movq	%rdx, %r8
+        #  A[2] * A[2]
+        movq	16(%rsi), %rax
+        mulq	%rax
+        addq	%r8, %r12
+        adcq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	%rdx, %r8
+        #  A[3] * A[3]
+        movq	24(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        addq	%r8, %r14
+        adcq	$0x00, %r15
+        adcq	$0x00, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
         # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	128(%rsp), %rsi
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$32, %rsi
+        # Square
+        #  A[0] * A[1]
+        movq	(%rsi), %rax
+        mulq	8(%rsi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * A[2]
+        movq	(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[0] * A[3]
+        movq	(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * A[2]
+        movq	8(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * A[3]
+        movq	8(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        #  A[2] * A[3]
+        movq	16(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        # Double
+        xorq	%rbx, %rbx
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        adcq	%r14, %r14
+        adcq	%r15, %r15
+        adcq	$0x00, %rbx
+        #  A[0] * A[0]
+        movq	(%rsi), %rax
+        mulq	%rax
+        movq	%rax, %r9
+        movq	%rdx, %r8
+        #  A[1] * A[1]
+        movq	8(%rsi), %rax
+        mulq	%rax
+        addq	%r8, %r10
+        adcq	%rax, %r11
+        adcq	$0x00, %rdx
+        movq	%rdx, %r8
+        #  A[2] * A[2]
+        movq	16(%rsi), %rax
+        mulq	%rax
+        addq	%r8, %r12
+        adcq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	%rdx, %r8
+        #  A[3] * A[3]
+        movq	24(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        addq	%r8, %r14
+        adcq	$0x00, %r15
+        adcq	$0x00, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%rdi, %rsi
+        subq	$32, %rdi
+        # Add-Sub
+        # Add
+        movq	%r9, %r13
+        addq	(%rsi), %r9
+        movq	%r10, %r14
+        adcq	8(%rsi), %r10
+        movq	%r11, %r15
+        adcq	16(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	24(%rsi), %r12
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r12, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r12
+        #   Sub modulus (if overflow)
+        addq	%rax, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        # Sub
+        subq	(%rsi), %r13
+        sbbq	8(%rsi), %r14
+        sbbq	16(%rsi), %r15
+        sbbq	24(%rsi), %rbx
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbx, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbx
+        #   Add modulus (if underflow)
+        subq	%rax, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        movq	%r13, (%rsi)
+        movq	%r14, 8(%rsi)
+        movq	%r15, 16(%rsi)
+        movq	%rbx, 24(%rsi)
+        movq	8(%rsp), %rcx
+        movq	%rcx, %rsi
+        addq	$32, %rsi
+        subq	$32, %rdi
+        # Add
+        movq	(%rsi), %r9
+        movq	8(%rsi), %r10
+        addq	(%rcx), %r9
+        movq	16(%rsi), %r11
+        adcq	8(%rcx), %r10
+        movq	24(%rsi), %r12
+        adcq	16(%rcx), %r11
+        adcq	24(%rcx), %r12
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r12, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r12
+        #   Sub modulus (if overflow)
+        addq	%rax, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        # Square
+        #  A[0] * A[1]
+        movq	(%rdi), %rax
+        mulq	8(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * A[2]
+        movq	(%rdi), %rax
+        mulq	16(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[0] * A[3]
+        movq	(%rdi), %rax
+        mulq	24(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * A[2]
+        movq	8(%rdi), %rax
+        mulq	16(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * A[3]
+        movq	8(%rdi), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        #  A[2] * A[3]
+        movq	16(%rdi), %rax
+        mulq	24(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        # Double
+        xorq	%rbx, %rbx
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        adcq	%r14, %r14
+        adcq	%r15, %r15
+        adcq	$0x00, %rbx
+        #  A[0] * A[0]
+        movq	(%rdi), %rax
+        mulq	%rax
+        movq	%rax, %r9
+        movq	%rdx, %r8
+        #  A[1] * A[1]
+        movq	8(%rdi), %rax
+        mulq	%rax
+        addq	%r8, %r10
+        adcq	%rax, %r11
+        adcq	$0x00, %rdx
+        movq	%rdx, %r8
+        #  A[2] * A[2]
+        movq	16(%rdi), %rax
+        mulq	%rax
+        addq	%r8, %r12
+        adcq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	%rdx, %r8
+        #  A[3] * A[3]
+        movq	24(%rdi), %rax
+        mulq	%rax
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        addq	%r8, %r14
+        adcq	$0x00, %r15
+        adcq	$0x00, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        # Store
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Sub
+        subq	(%rsi), %r9
+        sbbq	8(%rsi), %r10
+        sbbq	16(%rsi), %r11
+        sbbq	24(%rsi), %r12
+        sbbq	%rax, %rax
+        shldq	$0x01, %r12, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$-19, %rax
+        andq	%rdx, %r12
+        #   Add modulus (if underflow)
+        subq	%rax, %r9
+        sbbq	$0x00, %r10
+        sbbq	$0x00, %r11
+        sbbq	$0x00, %r12
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$0x40, %rcx
         # Square * 2
         #  A[0] * A[1]
-        movq	(%rsi), %rax
-        mulq	8(%rsi)
-        movq	%rax, %r9
-        movq	%rdx, %r10
+        movq	(%rcx), %rax
+        mulq	8(%rcx)
+        movq	%rax, %r10
+        movq	%rdx, %r11
         #  A[0] * A[2]
-        movq	(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[0] * A[3]
-        movq	(%rsi), %rax
-        mulq	24(%rsi)
+        movq	(%rcx), %rax
+        mulq	16(%rcx)
         xorq	%r12, %r12
         addq	%rax, %r11
         adcq	%rdx, %r12
-        #  A[1] * A[2]
-        movq	8(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[0] * A[3]
+        movq	(%rcx), %rax
+        mulq	24(%rcx)
         xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * A[3]
-        movq	8(%rsi), %rax
-        mulq	24(%rsi)
         addq	%rax, %r12
         adcq	%rdx, %r13
-        #  A[2] * A[3]
-        movq	16(%rsi), %rax
-        mulq	24(%rsi)
+        #  A[1] * A[2]
+        movq	8(%rcx), %rax
+        mulq	16(%rcx)
         xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[1] * A[3]
+        movq	8(%rcx), %rax
+        mulq	24(%rcx)
         addq	%rax, %r13
         adcq	%rdx, %r14
-        # Double
+        #  A[2] * A[3]
+        movq	16(%rcx), %rax
+        mulq	24(%rcx)
         xorq	%r15, %r15
-        addq	%r9, %r9
-        adcq	%r10, %r10
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        # Double
+        xorq	%rbx, %rbx
+        addq	%r10, %r10
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
         adcq	%r14, %r14
-        adcq	$0x00, %r15
+        adcq	%r15, %r15
+        adcq	$0x00, %rbx
         #  A[0] * A[0]
-        movq	(%rsi), %rax
+        movq	(%rcx), %rax
         mulq	%rax
-        movq	%rax, %r8
-        movq	%rdx, %rcx
+        movq	%rax, %r9
+        movq	%rdx, %r8
         #  A[1] * A[1]
-        movq	8(%rsi), %rax
+        movq	8(%rcx), %rax
         mulq	%rax
-        addq	%rcx, %r9
-        adcq	%rax, %r10
+        addq	%r8, %r10
+        adcq	%rax, %r11
         adcq	$0x00, %rdx
-        movq	%rdx, %rcx
+        movq	%rdx, %r8
         #  A[2] * A[2]
-        movq	16(%rsi), %rax
+        movq	16(%rcx), %rax
         mulq	%rax
-        addq	%rcx, %r11
-        adcq	%rax, %r12
+        addq	%r8, %r12
+        adcq	%rax, %r13
         adcq	$0x00, %rdx
-        movq	%rdx, %rcx
+        movq	%rdx, %r8
         #  A[3] * A[3]
-        movq	24(%rsi), %rax
+        movq	24(%rcx), %rax
         mulq	%rax
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        addq	%rcx, %r13
-        adcq	$0x00, %r14
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        addq	%r8, %r14
         adcq	$0x00, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rbx
-        xorq	%rax, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$3, %r15, %rax
-        shldq	$2, %r14, %r15
-        shldq	$2, %r13, %r14
-        shldq	$2, %r12, %r13
-        shldq	$2, %r11, %r12
+        adcq	$0x00, %rbx
+        movq	$38, %rax
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r8, %r12
+        movq	%rdx, %r8
+        movq	$38, %rax
+        mulq	%r13
+        xorq	%r13, %r13
+        addq	%rax, %r9
+        movq	$38, %rax
+        adcq	%rdx, %r13
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        adcq	%rdx, %r15
+        addq	%r8, %r9
+        adcq	%r13, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        mov	%r12, %rax
+        shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
         shldq	$0x01, %r9, %r10
-        shldq	$0x01, %r8, %r9
-        shlq	$0x01, %r8
-        andq	%rbx, %r11
-        #  Two out left, one in right
-        andq	%rbx, %r15
-        #  Multiply top bits by 19*19
-        imulq	$0x169, %rax, %rcx
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
+        shlq	$0x01, %r9
+        movq	$0x7fffffffffffffff, %r8
+        shrq	$62, %rax
+        andq	%r8, %r12
+        imulq	$19, %rax, %rax
         addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining produce results in
-        addq	%rcx, %r8
-        adcq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rbx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	32(%rsp), %rsi
-        movq	40(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
+        movq	%rdi, %rsi
+        addq	$0x40, %rsi
+        addq	$0x60, %rdi
+        # Sub
+        subq	(%rsi), %r9
+        sbbq	8(%rsi), %r10
+        sbbq	16(%rsi), %r11
+        sbbq	24(%rsi), %r12
+        sbbq	%rax, %rax
+        shldq	$0x01, %r12, %rax
         movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
+        imulq	$-19, %rax
+        andq	%rdx, %r12
+        #   Add modulus (if underflow)
+        subq	%rax, %r9
+        sbbq	$0x00, %r10
+        sbbq	$0x00, %r11
+        sbbq	$0x00, %r12
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p2_dbl_x64,.-ge_p2_dbl_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_madd_x64
+.type	ge_madd_x64,@function
+.align	16
+ge_madd_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_madd_x64
+.p2align	4
+_ge_madd_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rcx
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rcx, 16(%rsp)
+        movq	%rsi, %r8
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        movq	16(%rcx), %r12
+        movq	24(%rcx), %r13
+        movq	%r10, %r14
+        addq	(%r8), %r10
+        movq	%r11, %r15
+        adcq	8(%r8), %r11
+        movq	%r12, %rbx
+        adcq	16(%r8), %r12
+        movq	%r13, %rbp
+        adcq	24(%r8), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
         #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rdi
-        movq	8(%rsp), %rsi
-        # Square
-        #  A[0] * A[1]
-        movq	(%rsi), %rax
-        mulq	8(%rsi)
-        movq	%rax, %r9
-        movq	%rdx, %r10
-        #  A[0] * A[2]
-        movq	(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%r11, %r11
         addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[0] * A[3]
-        movq	(%rsi), %rax
-        mulq	24(%rsi)
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%r8), %r14
+        sbbq	8(%r8), %r15
+        sbbq	16(%r8), %rbx
+        sbbq	24(%r8), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rcx
+        addq	$32, %rcx
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rsi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rsi)
         xorq	%r12, %r12
         addq	%rax, %r11
         adcq	%rdx, %r12
-        #  A[1] * A[2]
-        movq	8(%rsi), %rax
-        mulq	16(%rsi)
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r13, %r13
         addq	%rax, %r11
         adcq	%rdx, %r12
         adcq	$0x00, %r13
-        #  A[1] * A[3]
-        movq	8(%rsi), %rax
-        mulq	24(%rsi)
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rsi)
         addq	%rax, %r12
         adcq	%rdx, %r13
-        #  A[2] * A[3]
-        movq	16(%rsi), %rax
-        mulq	24(%rsi)
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rsi)
         xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rsi)
+        xorq	%r15, %r15
         addq	%rax, %r13
         adcq	%rdx, %r14
-        # Double
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rsi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rsi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rsi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
         xorq	%r15, %r15
-        addq	%r9, %r9
-        adcq	%r10, %r10
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        addq	$0x60, %r8
+        addq	$32, %rcx
+        addq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        subq	$0x40, %rcx
+        subq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        subq	$32, %r8
+        # Double
+        movq	(%r8), %r10
+        movq	8(%r8), %r11
+        addq	%r10, %r10
+        movq	16(%r8), %r12
+        adcq	%r11, %r11
+        movq	24(%r8), %r13
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%rdi, %rsi
+        addq	$0x60, %rsi
+        addq	$0x40, %rdi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_madd_x64,.-ge_madd_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_msub_x64
+.type	ge_msub_x64,@function
+.align	16
+ge_msub_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_msub_x64
+.p2align	4
+_ge_msub_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rcx
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rcx, 16(%rsp)
+        movq	%rsi, %r8
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        movq	16(%rcx), %r12
+        movq	24(%rcx), %r13
+        movq	%r10, %r14
+        addq	(%r8), %r10
+        movq	%r11, %r15
+        adcq	8(%r8), %r11
+        movq	%r12, %rbx
+        adcq	16(%r8), %r12
+        movq	%r13, %rbp
+        adcq	24(%r8), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%r8), %r14
+        sbbq	8(%r8), %r15
+        sbbq	16(%r8), %rbx
+        sbbq	24(%r8), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rcx
+        addq	$32, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        addq	$0x60, %r8
+        addq	$0x40, %rcx
+        addq	$0x40, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        subq	$32, %rcx
+        subq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        subq	$32, %r8
+        addq	$0x40, %rdi
+        # Double
+        movq	(%r8), %r10
+        movq	8(%r8), %r11
+        addq	%r10, %r10
+        movq	16(%r8), %r12
+        adcq	%r11, %r11
+        movq	24(%r8), %r13
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_msub_x64,.-ge_msub_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_add_x64
+.type	ge_add_x64,@function
+.align	16
+ge_add_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_add_x64
+.p2align	4
+_ge_add_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rcx
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rcx, 16(%rsp)
+        movq	%rsi, %r8
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        movq	16(%rcx), %r12
+        movq	24(%rcx), %r13
+        movq	%r10, %r14
+        addq	(%r8), %r10
+        movq	%r11, %r15
+        adcq	8(%r8), %r11
+        movq	%r12, %rbx
+        adcq	16(%r8), %r12
+        movq	%r13, %rbp
+        adcq	24(%r8), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%r8), %r14
+        sbbq	8(%r8), %r15
+        sbbq	16(%r8), %rbx
+        sbbq	24(%r8), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rcx
+        addq	$32, %rcx
+        addq	$32, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        addq	$0x60, %r8
+        addq	$0x40, %rcx
+        addq	$0x40, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        subq	$0x60, %rcx
+        subq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        subq	$32, %r8
+        addq	$0x40, %rcx
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        addq	$0x40, %rdi
+        # Double
+        addq	%r10, %r10
         adcq	%r11, %r11
         adcq	%r12, %r12
         adcq	%r13, %r13
-        adcq	%r14, %r14
-        adcq	$0x00, %r15
-        #  A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        movq	%rax, %r8
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_add_x64,.-ge_add_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_sub_x64
+.type	ge_sub_x64,@function
+.align	16
+ge_sub_x64:
+#else
+.section	__TEXT,__text
+.globl	_ge_sub_x64
+.p2align	4
+_ge_sub_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
         movq	%rdx, %rcx
-        #  A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%rcx, %r9
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rcx, 16(%rsp)
+        movq	%rsi, %r8
+        movq	%rsi, %rcx
+        addq	$32, %rcx
+        movq	%rdi, %rsi
+        addq	$32, %rsi
+        # Add-Sub
+        # Add
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        movq	16(%rcx), %r12
+        movq	24(%rcx), %r13
+        movq	%r10, %r14
+        addq	(%r8), %r10
+        movq	%r11, %r15
+        adcq	8(%r8), %r11
+        movq	%r12, %rbx
+        adcq	16(%r8), %r12
+        movq	%r13, %rbp
+        adcq	24(%r8), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%r8), %r14
+        sbbq	8(%r8), %r15
+        sbbq	16(%r8), %rbx
+        sbbq	24(%r8), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rcx
+        addq	$32, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        addq	$0x60, %r8
+        addq	$0x60, %rcx
+        addq	$0x40, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        subq	$0x40, %rcx
+        subq	$0x60, %rdi
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%rdi)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%rdi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%rdi)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%rdi)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%rdi)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        subq	$32, %r8
+        addq	$32, %rcx
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rcx), %rax
+        mulq	(%r8)
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        #  A[0] * B[1]
+        movq	8(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r12, %r12
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        #  A[1] * B[0]
+        movq	(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[0] * B[2]
+        movq	16(%rcx), %rax
+        mulq	(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        #  A[1] * B[1]
+        movq	8(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[0]
+        movq	(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[0] * B[3]
+        movq	24(%rcx), %rax
+        mulq	(%r8)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[2]
+        movq	16(%rcx), %rax
+        mulq	8(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[2] * B[1]
+        movq	8(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[0]
+        movq	(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[1] * B[3]
+        movq	24(%rcx), %rax
+        mulq	8(%r8)
+        xorq	%rbx, %rbx
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[2]
+        movq	16(%rcx), %rax
+        mulq	16(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[3] * B[1]
+        movq	8(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        adcq	$0x00, %rbx
+        #  A[2] * B[3]
+        movq	24(%rcx), %rax
+        mulq	16(%r8)
+        xorq	%rbp, %rbp
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[2]
+        movq	16(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %r15
+        adcq	%rdx, %rbx
+        adcq	$0x00, %rbp
+        #  A[3] * B[3]
+        movq	24(%rcx), %rax
+        mulq	24(%r8)
+        addq	%rax, %rbx
+        adcq	%rdx, %rbp
+        movq	$38, %rax
+        mulq	%rbp
+        addq	%rax, %r13
+        adcq	$0x00, %rdx
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %rdx
+        imulq	$19, %rdx, %rdx
+        andq	%r9, %r13
+        movq	%rdx, %r9
+        movq	$38, %rax
+        mulq	%r14
+        xorq	%r14, %r14
+        addq	%rax, %r10
+        movq	$38, %rax
+        adcq	%rdx, %r14
+        mulq	%r15
+        xorq	%r15, %r15
+        addq	%rax, %r11
+        movq	$38, %rax
+        adcq	%rdx, %r15
+        mulq	%rbx
+        xorq	%rbx, %rbx
+        addq	%rax, %r12
+        adcq	%rdx, %rbx
+        addq	%r9, %r10
+        adcq	%r14, %r11
+        adcq	%r15, %r12
+        adcq	%rbx, %r13
+        # Store
+        # Double
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%rdi, %rsi
+        addq	$0x40, %rsi
+        addq	$0x60, %rdi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rdi), %r10
+        movq	%r11, %r15
+        adcq	8(%rdi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rdi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rdi), %r13
+        movq	$0x00, %rax
+        adcq	$0x00, %rax
+        shldq	$0x01, %r13, %rax
+        movq	$0x7fffffffffffffff, %rdx
+        imulq	$19, %rax
+        andq	%rdx, %r13
+        #   Sub modulus (if overflow)
+        addq	%rax, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rdi), %r14
+        sbbq	8(%rdi), %r15
+        sbbq	16(%rdi), %rbx
+        sbbq	24(%rdi), %rbp
+        sbbq	%rax, %rax
+        shldq	$0x01, %rbp, %rax
+        imulq	$-19, %rax
+        andq	%rdx, %rbp
+        #   Add modulus (if underflow)
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_sub_x64,.-ge_sub_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	sc_reduce_x64
+.type	sc_reduce_x64,@function
+.align	16
+sc_reduce_x64:
+#else
+.section	__TEXT,__text
+.globl	_sc_reduce_x64
+.p2align	4
+_sc_reduce_x64:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	(%rdi), %r8
+        movq	8(%rdi), %r9
+        movq	16(%rdi), %r10
+        movq	24(%rdi), %r11
+        movq	32(%rdi), %r12
+        movq	40(%rdi), %r13
+        movq	48(%rdi), %r14
+        movq	56(%rdi), %r15
+        movq	%r15, %rcx
+        movq	$0xfffffffffffffff, %rsi
+        shrq	$56, %rcx
+        shldq	$4, %r14, %r15
+        shldq	$4, %r13, %r14
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rsi, %r11
+        andq	%rsi, %r15
+        # Add order times bits 504..511
+        subq	%rcx, %r14
+        sbbq	$0x00, %r15
+        movq	$0xeb2106215d086329, %rax
+        mulq	%rcx
+        movq	$0x00, %rsi
+        addq	%rax, %r13
+        movq	$0xa7ed9ce5a30a2c13, %rax
+        adcq	%rdx, %rsi
+        mulq	%rcx
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	%rsi, %r14
+        adcq	$0x00, %r15
+        # Sub product of top 4 words and order
+        movq	$0xa7ed9ce5a30a2c13, %rcx
+        movq	%r12, %rax
+        mulq	%rcx
+        mov	$0x00, %rbp
+        addq	%rax, %r8
+        adcq	%rdx, %rbp
+        movq	%r13, %rax
+        mulq	%rcx
+        movq	$0x00, %rsi
+        addq	%rax, %r9
+        adcq	%rdx, %rsi
+        movq	%r14, %rax
+        mulq	%rcx
+        addq	%rbp, %r9
         adcq	%rax, %r10
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
+        adcq	%rdx, %r11
+        mov	$0x00, %rbx
+        adcq	$0x00, %rbx
+        movq	%r15, %rax
+        mulq	%rcx
+        addq	%rsi, %r10
+        adcq	%rax, %r11
+        adcq	%rdx, %rbx
+        movq	$0xeb2106215d086329, %rcx
+        movq	%r12, %rax
+        mulq	%rcx
+        mov	$0x00, %rbp
+        addq	%rax, %r9
+        adcq	%rdx, %rbp
+        movq	%r13, %rax
+        mulq	%rcx
+        movq	$0x00, %rsi
+        addq	%rax, %r10
+        adcq	%rdx, %rsi
+        movq	%r14, %rax
+        mulq	%rcx
+        addq	%rbp, %r10
+        adcq	%rax, %r11
+        adcq	%rdx, %rbx
+        mov	$0x00, %rbp
+        adcq	$0x00, %rbp
+        movq	%r15, %rax
+        mulq	%rcx
+        addq	%rsi, %r11
+        adcq	%rax, %rbx
+        adcq	%rdx, %rbp
+        subq	%r12, %r10
+        movq	%rbx, %r12
+        sbbq	%r13, %r11
+        movq	%rbp, %r13
+        sbbq	%r14, %r12
+        sbbq	%r15, %r13
+        movq	%r13, %rcx
+        sarq	$57, %rcx
+        #   Conditionally subtract order starting at bit 125
+        movq	$0xa000000000000000, %rax
+        movq	$0xcb024c634b9eba7d, %rdx
+        movq	$0x29bdf3bd45ef39a, %rbx
+        movq	$0x200000000000000, %rbp
+        andq	%rcx, %rax
+        andq	%rcx, %rdx
+        andq	%rcx, %rbx
+        andq	%rcx, %rbp
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        adcq	%rbx, %r11
+        adcq	$0x00, %r12
+        adcq	%rbp, %r13
+        #   Move bits 252-376 to own registers
+        movq	$0xfffffffffffffff, %rcx
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rcx, %r11
+        # Sub product of top 2 words and order
+        #   * -5812631a5cf5d3ed
+        movq	$0xa7ed9ce5a30a2c13, %rcx
+        movq	%r12, %rax
+        mulq	%rcx
+        movq	$0x00, %rbx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rbx
+        movq	%r13, %rax
+        mulq	%rcx
+        addq	%rax, %r9
+        adcq	%rdx, %rbx
+        #   * -14def9dea2f79cd7
+        movq	$0xeb2106215d086329, %rcx
+        movq	%r12, %rax
+        mulq	%rcx
+        movq	$0x00, %rbp
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        adcq	$0x00, %rbp
+        movq	%r13, %rax
+        mulq	%rcx
+        addq	%rax, %r10
+        adcq	%rdx, %rbp
+        #   Add overflows at 2 * 64
+        movq	$0xfffffffffffffff, %rsi
+        andq	%rsi, %r11
+        addq	%rbx, %r10
+        adcq	%rbp, %r11
+        #   Subtract top at 2 * 64
+        subq	%r12, %r10
+        sbbq	%r13, %r11
+        sbbq	%rsi, %rsi
+        #   Conditional sub order
+        movq	$0x5812631a5cf5d3ed, %rax
+        movq	$0x14def9dea2f79cd6, %rdx
+        movq	$0x1000000000000000, %rbx
+        andq	%rsi, %rax
+        andq	%rsi, %rdx
+        andq	%rsi, %rbx
+        addq	%rax, %r8
+        movq	$0xfffffffffffffff, %rax
+        adcq	%rdx, %r9
+        adcq	$0x00, %r10
+        adcq	%rbx, %r11
+        andq	%rax, %r11
+        # Store result
+        movq	%r8, (%rdi)
+        movq	%r9, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	sc_reduce_x64,.-sc_reduce_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	sc_muladd_x64
+.type	sc_muladd_x64,@function
+.align	16
+sc_muladd_x64:
+#else
+.section	__TEXT,__text
+.globl	_sc_muladd_x64
+.p2align	4
+_sc_muladd_x64:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        movq	%rdx, %rbp
+        # Multiply
+        #  A[0] * B[0]
+        movq	(%rbp), %rax
+        mulq	(%rsi)
+        movq	%rax, %r8
+        movq	%rdx, %r9
+        #  A[0] * B[1]
+        movq	8(%rbp), %rax
+        mulq	(%rsi)
+        xorq	%r10, %r10
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        #  A[1] * B[0]
+        movq	(%rbp), %rax
+        mulq	8(%rsi)
+        xorq	%r11, %r11
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        adcq	$0x00, %r11
+        #  A[0] * B[2]
+        movq	16(%rbp), %rax
+        mulq	(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        #  A[1] * B[1]
+        movq	8(%rbp), %rax
+        mulq	8(%rsi)
+        xorq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[2] * B[0]
+        movq	(%rbp), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        #  A[0] * B[3]
+        movq	24(%rbp), %rax
+        mulq	(%rsi)
+        xorq	%r13, %r13
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[1] * B[2]
+        movq	16(%rbp), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[2] * B[1]
+        movq	8(%rbp), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[3] * B[0]
+        movq	(%rbp), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r11
+        adcq	%rdx, %r12
+        adcq	$0x00, %r13
+        #  A[1] * B[3]
+        movq	24(%rbp), %rax
+        mulq	8(%rsi)
+        xorq	%r14, %r14
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[2]
+        movq	16(%rbp), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[3] * B[1]
+        movq	8(%rbp), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        #  A[2] * B[3]
+        movq	24(%rbp), %rax
+        mulq	16(%rsi)
+        xorq	%r15, %r15
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[2]
+        movq	16(%rbp), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r13
+        adcq	%rdx, %r14
+        adcq	$0x00, %r15
+        #  A[3] * B[3]
+        movq	24(%rbp), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r14
+        adcq	%rdx, %r15
+        # Add c to a * b
+        addq	(%rcx), %r8
+        adcq	8(%rcx), %r9
+        adcq	16(%rcx), %r10
+        adcq	24(%rcx), %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        adcq	$0x00, %r14
+        adcq	$0x00, %r15
+        movq	%r15, %rbx
+        movq	$0xfffffffffffffff, %rcx
+        shrq	$56, %rbx
+        shldq	$4, %r14, %r15
+        shldq	$4, %r13, %r14
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rcx, %r11
+        andq	%rcx, %r15
+        # Add order times bits 504..507
+        subq	%rbx, %r14
+        sbbq	$0x00, %r15
+        movq	$0xeb2106215d086329, %rax
+        mulq	%rbx
+        movq	$0x00, %rcx
+        addq	%rax, %r13
+        movq	$0xa7ed9ce5a30a2c13, %rax
+        adcq	%rdx, %rcx
+        mulq	%rbx
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	%rcx, %r14
+        adcq	$0x00, %r15
+        # Sub product of top 4 words and order
+        movq	$0xa7ed9ce5a30a2c13, %rbx
+        movq	%r12, %rax
+        mulq	%rbx
+        mov	$0x00, %rbp
+        addq	%rax, %r8
+        adcq	%rdx, %rbp
+        movq	%r13, %rax
+        mulq	%rbx
+        movq	$0x00, %rcx
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        movq	%r14, %rax
+        mulq	%rbx
+        addq	%rbp, %r9
+        adcq	%rax, %r10
+        adcq	%rdx, %r11
+        mov	$0x00, %rsi
+        adcq	$0x00, %rsi
+        movq	%r15, %rax
+        mulq	%rbx
+        addq	%rcx, %r10
+        adcq	%rax, %r11
+        adcq	%rdx, %rsi
+        movq	$0xeb2106215d086329, %rbx
+        movq	%r12, %rax
+        mulq	%rbx
+        mov	$0x00, %rbp
+        addq	%rax, %r9
+        adcq	%rdx, %rbp
+        movq	%r13, %rax
+        mulq	%rbx
+        movq	$0x00, %rcx
+        addq	%rax, %r10
+        adcq	%rdx, %rcx
+        movq	%r14, %rax
+        mulq	%rbx
+        addq	%rbp, %r10
+        adcq	%rax, %r11
+        adcq	%rdx, %rsi
+        mov	$0x00, %rbp
+        adcq	$0x00, %rbp
+        movq	%r15, %rax
+        mulq	%rbx
         addq	%rcx, %r11
-        adcq	%rax, %r12
-        adcq	$0x00, %rdx
-        movq	%rdx, %rcx
-        #  A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        addq	%rcx, %r13
-        adcq	$0x00, %r14
-        adcq	$0x00, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
+        adcq	%rax, %rsi
+        adcq	%rdx, %rbp
+        subq	%r12, %r10
+        movq	%rsi, %r12
+        sbbq	%r13, %r11
+        movq	%rbp, %r13
+        sbbq	%r14, %r12
+        sbbq	%r15, %r13
+        movq	%r13, %rbx
+        sarq	$57, %rbx
+        #   Conditionally subtract order starting at bit 125
+        movq	$0xa000000000000000, %rax
+        movq	$0xcb024c634b9eba7d, %rdx
+        movq	$0x29bdf3bd45ef39a, %rsi
+        movq	$0x200000000000000, %rbp
+        andq	%rbx, %rax
+        andq	%rbx, %rdx
+        andq	%rbx, %rsi
+        andq	%rbx, %rbp
         addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
+        adcq	%rdx, %r10
+        adcq	%rsi, %r11
+        adcq	$0x00, %r12
+        adcq	%rbp, %r13
+        #   Move bits 252-376 to own registers
+        movq	$0xfffffffffffffff, %rbx
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rbx, %r11
+        # Sub product of top 2 words and order
+        #   * -5812631a5cf5d3ed
+        movq	$0xa7ed9ce5a30a2c13, %rbx
+        movq	%r12, %rax
+        mulq	%rbx
+        movq	$0x00, %rsi
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rsi
+        movq	%r13, %rax
+        mulq	%rbx
+        addq	%rax, %r9
+        adcq	%rdx, %rsi
+        #   * -14def9dea2f79cd7
+        movq	$0xeb2106215d086329, %rbx
+        movq	%r12, %rax
+        mulq	%rbx
+        movq	$0x00, %rbp
+        addq	%rax, %r9
+        adcq	%rdx, %r10
+        adcq	$0x00, %rbp
+        movq	%r13, %rax
+        mulq	%rbx
         addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
+        adcq	%rdx, %rbp
+        #   Add overflows at 2 * 64
+        movq	$0xfffffffffffffff, %rcx
         andq	%rcx, %r11
+        addq	%rsi, %r10
+        adcq	%rbp, %r11
+        #   Subtract top at 2 * 64
+        subq	%r12, %r10
+        sbbq	%r13, %r11
+        sbbq	%rcx, %rcx
+        #   Conditional sub order
+        movq	$0x5812631a5cf5d3ed, %rax
+        movq	$0x14def9dea2f79cd6, %rdx
+        movq	$0x1000000000000000, %rsi
+        andq	%rcx, %rax
+        andq	%rcx, %rdx
+        andq	%rcx, %rsi
         addq	%rax, %r8
-        adcq	$0x00, %r9
+        movq	$0xfffffffffffffff, %rax
+        adcq	%rdx, %r9
         adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
+        adcq	%rsi, %r11
+        andq	%rax, %r11
+        # Store result
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
         movq	%r10, 16(%rdi)
         movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	24(%rsp), %rsi
-        movq	16(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$0x50, %rsp
+        popq	%rbx
         popq	%r15
         popq	%r14
         popq	%r13
         popq	%r12
-        popq	%rbx
+        popq	%rbp
         repz retq
 #ifndef __APPLE__
-.size	fe_ge_dbl_x64,.-fe_ge_dbl_x64
+.size	sc_muladd_x64,.-sc_muladd_x64
 #endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_madd_x64
-.type	fe_ge_madd_x64,@function
-.align	16
-fe_ge_madd_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_madd_x64
-.p2align	4
-_fe_ge_madd_x64:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	152(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	8(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	144(%rsp), %rsi
-        movq	136(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rdi
-        movq	128(%rsp), %rsi
-        movq	128(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$0x50, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_madd_x64,.-fe_ge_madd_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_msub_x64
-.type	fe_ge_msub_x64,@function
-.align	16
-fe_ge_msub_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_msub_x64
-.p2align	4
-_fe_ge_msub_x64:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	8(%rsp), %rsi
-        movq	152(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	144(%rsp), %rsi
-        movq	136(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rdi
-        movq	128(%rsp), %rsi
-        movq	128(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$0x50, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_msub_x64,.-fe_ge_msub_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_add_x64
-.type	fe_ge_add_x64,@function
-.align	16
-fe_ge_add_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_add_x64
-.p2align	4
-_fe_ge_add_x64:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	8(%rsp), %rsi
-        movq	168(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	152(%rsp), %rsi
-        movq	136(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	128(%rsp), %rsi
-        movq	144(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$0x50, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_add_x64,.-fe_ge_add_x64
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_sub_x64
-.type	fe_ge_sub_x64,@function
-.align	16
-fe_ge_sub_x64:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_sub_x64
-.p2align	4
-_fe_ge_sub_x64:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	40(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	168(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	8(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        movq	152(%rsp), %rsi
-        movq	136(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	128(%rsp), %rsi
-        movq	144(%rsp), %rbx
-        # Multiply
-        #  A[0] * B[0]
-        movq	(%rbx), %rax
-        mulq	(%rsi)
-        movq	%rax, %r8
-        movq	%rdx, %r9
-        #  A[0] * B[1]
-        movq	8(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r10, %r10
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        #  A[1] * B[0]
-        movq	(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r11, %r11
-        addq	%rax, %r9
-        adcq	%rdx, %r10
-        adcq	$0x00, %r11
-        #  A[0] * B[2]
-        movq	16(%rbx), %rax
-        mulq	(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        #  A[1] * B[1]
-        movq	8(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[2] * B[0]
-        movq	(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        #  A[0] * B[3]
-        movq	24(%rbx), %rax
-        mulq	(%rsi)
-        xorq	%r13, %r13
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[2]
-        movq	16(%rbx), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[2] * B[1]
-        movq	8(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[3] * B[0]
-        movq	(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r11
-        adcq	%rdx, %r12
-        adcq	$0x00, %r13
-        #  A[1] * B[3]
-        movq	24(%rbx), %rax
-        mulq	8(%rsi)
-        xorq	%r14, %r14
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[2]
-        movq	16(%rbx), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[3] * B[1]
-        movq	8(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r12
-        adcq	%rdx, %r13
-        adcq	$0x00, %r14
-        #  A[2] * B[3]
-        movq	24(%rbx), %rax
-        mulq	16(%rsi)
-        xorq	%r15, %r15
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[2]
-        movq	16(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r13
-        adcq	%rdx, %r14
-        adcq	$0x00, %r15
-        #  A[3] * B[3]
-        movq	24(%rbx), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r14
-        adcq	%rdx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rax
-        mulq	%r12
-        xorq	%r12, %r12
-        addq	%rax, %r8
-        movq	$19, %rax
-        adcq	%rdx, %r12
-        mulq	%r13
-        xorq	%r13, %r13
-        addq	%rax, %r9
-        movq	$19, %rax
-        adcq	%rdx, %r13
-        mulq	%r14
-        xorq	%r14, %r14
-        addq	%rax, %r10
-        movq	$19, %rax
-        adcq	%rdx, %r14
-        mulq	%r15
-        #  Add remaining product results in
-        addq	%r12, %r9
-        adcq	%r13, %r10
-        adcq	%r14, %r11
-        adcq	%rax, %r11
-        adcq	$0x00, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rdi
-        movq	(%rsp), %rsi
-        movq	(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	16(%rsp), %rsi
-        movq	8(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rbx), %r8
-        movq	$0x00, %rcx
-        sbbq	8(%rbx), %r9
-        movq	$-19, %rax
-        sbbq	16(%rbx), %r10
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	24(%rbx), %r11
-        sbbq	$0x00, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r8
-        adcq	%rcx, %r9
-        adcq	%rcx, %r10
-        adcq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rdi
-        leaq	48(%rsp), %rsi
-        movq	24(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rcx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rax
-        adcq	24(%rbx), %rcx
-        movq	$0x7fffffffffffffff, %rdx
-        movq	%rcx, %r11
-        sarq	$63, %rcx
-        #   Mask the modulus
-        andq	%rcx, %rax
-        andq	%rcx, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %r8
-        sbbq	%rcx, %r9
-        sbbq	%rcx, %r10
-        sbbq	%rdx, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$0x50, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_sub_x64,.-fe_ge_sub_x64
-#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .text
@@ -9575,12 +9124,11 @@ _fe_mul_avx2:
         mulxq	8(%rsi), %rax, %rcx
         xorq	%r15, %r15
         adcxq	%rax, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
+        # A[3] * B[1]
+        movq	8(%rbx), %rdx
+        mulxq	24(%rsi), %r12, %r13
         adcxq	%rcx, %r10
         # A[0] * B[1]
-        movq	8(%rbx), %rdx
         mulxq	(%rsi), %rax, %rcx
         adoxq	%rax, %r9
         # A[2] * B[1]
@@ -9604,10 +9152,10 @@ _fe_mul_avx2:
         mulxq	8(%rsi), %rdx, %rax
         adcxq	%rcx, %r11
         adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
+        # A[1] * B[3]
+        movq	24(%rbx), %rdx
         adoxq	%rax, %r11
-        mulxq	24(%rsi), %rax, %rcx
+        mulxq	8(%rsi), %rax, %rcx
         adcxq	%rax, %r12
         # A[2] * B[2]
         movq	16(%rbx), %rdx
@@ -9626,34 +9174,33 @@ _fe_mul_avx2:
         xorq	%rcx, %rcx
         adcxq	%rdx, %r11
         # A[3] * B[0]
-        movq	(%rbx), %rdx
+        movq	24(%rsi), %rdx
         adcxq	%rax, %r12
-        mulxq	24(%rsi), %rdx, %rax
+        mulxq	(%rbx), %rdx, %rax
         adoxq	%rdx, %r11
         adoxq	%rax, %r12
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rbx), %rdx, %rax
+        adcxq	%rdx, %r13
         # A[2] * B[3]
         movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rax
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
         adcxq	%rax, %r14
-        mulxq	24(%rsi), %rax, %rdx
+        mulxq	16(%rsi), %rax, %rdx
         adcxq	%rcx, %r15
         adoxq	%rax, %r13
         adoxq	%rdx, %r14
         adoxq	%rcx, %r15
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%r15, %r15, %rax
+        addq	%r15, %r11
+        adcq	$0x00, %rax
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rax
+        imulq	$19, %rax, %rax
         andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
+        adoxq	%rax, %r8
         mulxq	%r12, %rax, %r12
         adcxq	%rax, %r8
         adoxq	%r12, %r9
@@ -9663,20 +9210,8 @@ _fe_mul_avx2:
         mulxq	%r14, %rax, %r14
         adcxq	%rax, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
+        adcxq	%rcx, %r11
         movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
         movq	%r11, %rdx
         sarq	$63, %rdx
         andq	$19, %rdx
@@ -9717,93 +9252,81 @@ _fe_sq_avx2:
         pushq	%r14
         pushq	%r15
         # Square
-        # A[0] * A[1]
         movq	(%rsi), %rdx
-        mulxq	8(%rsi), %r9, %r10
+        movq	8(%rsi), %rax
+        # A[0] * A[1]
+        movq	%rdx, %r15
+        mulxq	%rax, %r9, %r10
         # A[0] * A[3]
         mulxq	24(%rsi), %r11, %r12
         # A[2] * A[1]
         movq	16(%rsi), %rdx
-        mulxq	8(%rsi), %rcx, %rbx
-        xorq	%r15, %r15
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r8, %r8
         adoxq	%rcx, %r11
         # A[2] * A[3]
         mulxq	24(%rsi), %r13, %r14
         adoxq	%rbx, %r12
         # A[2] * A[0]
-        mulxq	(%rsi), %rcx, %rbx
-        adoxq	%r15, %r13
+        mulxq	%r15, %rcx, %rbx
+        adoxq	%r8, %r13
         adcxq	%rcx, %r10
-        adoxq	%r15, %r14
+        adoxq	%r8, %r14
         # A[1] * A[3]
-        movq	8(%rsi), %rdx
-        mulxq	24(%rsi), %rax, %r8
+        movq	%rax, %rdx
+        mulxq	24(%rsi), %rcx, %rdx
         adcxq	%rbx, %r11
-        adcxq	%rax, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
+        adcxq	%rcx, %r12
+        adcxq	%rdx, %r13
+        adcxq	%r8, %r14
         # A[0] * A[0]
-        movq	(%rsi), %rdx
-        mulxq	%rdx, %r8, %rax
+        movq	%r15, %rdx
+        mulxq	%rdx, %r8, %rcx
+        xorq	%r15, %r15
         adcxq	%r9, %r9
         # A[1] * A[1]
-        movq	8(%rsi), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r9
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r10, %r10
-        adoxq	%rax, %r9
-        adcxq	%r11, %r11
         adoxq	%rcx, %r10
+        adcxq	%r11, %r11
         # A[2] * A[2]
         movq	16(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r12, %r12
         adoxq	%rbx, %r11
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r12, %r12
+        adoxq	%rbx, %r12
         adcxq	%r13, %r13
-        adoxq	%rax, %r12
         # A[3] * A[3]
         movq	24(%rsi), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r14, %r14
         adoxq	%rcx, %r13
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r14, %r14
+        adoxq	%rcx, %r14
         adcxq	%r15, %r15
-        adoxq	%rax, %r14
         adoxq	%rbx, %r15
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%r15, %r15, %rbx
+        addq	%r15, %r11
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r12, %rax, %r12
-        adcxq	%rax, %r8
+        adoxq	%rbx, %r8
+        mulxq	%r12, %rbx, %r12
+        adcxq	%rbx, %r8
         adoxq	%r12, %r9
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
+        adcxq	%rcx, %r11
         movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
         movq	%r11, %rdx
         sarq	$63, %rdx
         andq	$19, %rdx
@@ -9847,101 +9370,80 @@ _fe_sq_n_avx2:
         movq	%rdx, %rbp
 L_fe_sq_n_avx2:
         # Square
-        # A[0] * A[1]
         movq	(%rsi), %rdx
-        mulxq	8(%rsi), %r9, %r10
+        movq	8(%rsi), %rax
+        # A[0] * A[1]
+        movq	%rdx, %r15
+        mulxq	%rax, %r9, %r10
         # A[0] * A[3]
         mulxq	24(%rsi), %r11, %r12
         # A[2] * A[1]
         movq	16(%rsi), %rdx
-        mulxq	8(%rsi), %rcx, %rbx
-        xorq	%r15, %r15
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r8, %r8
         adoxq	%rcx, %r11
         # A[2] * A[3]
         mulxq	24(%rsi), %r13, %r14
         adoxq	%rbx, %r12
         # A[2] * A[0]
-        mulxq	(%rsi), %rcx, %rbx
-        adoxq	%r15, %r13
+        mulxq	%r15, %rcx, %rbx
+        adoxq	%r8, %r13
         adcxq	%rcx, %r10
-        adoxq	%r15, %r14
+        adoxq	%r8, %r14
         # A[1] * A[3]
-        movq	8(%rsi), %rdx
-        mulxq	24(%rsi), %rax, %r8
+        movq	%rax, %rdx
+        mulxq	24(%rsi), %rcx, %rdx
         adcxq	%rbx, %r11
-        adcxq	%rax, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
+        adcxq	%rcx, %r12
+        adcxq	%rdx, %r13
+        adcxq	%r8, %r14
         # A[0] * A[0]
-        movq	(%rsi), %rdx
-        mulxq	%rdx, %r8, %rax
+        movq	%r15, %rdx
+        mulxq	%rdx, %r8, %rcx
+        xorq	%r15, %r15
         adcxq	%r9, %r9
         # A[1] * A[1]
-        movq	8(%rsi), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r9
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r10, %r10
-        adoxq	%rax, %r9
-        adcxq	%r11, %r11
         adoxq	%rcx, %r10
+        adcxq	%r11, %r11
         # A[2] * A[2]
         movq	16(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r12, %r12
         adoxq	%rbx, %r11
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r12, %r12
+        adoxq	%rbx, %r12
         adcxq	%r13, %r13
-        adoxq	%rax, %r12
         # A[3] * A[3]
         movq	24(%rsi), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r14, %r14
         adoxq	%rcx, %r13
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r14, %r14
+        adoxq	%rcx, %r14
         adcxq	%r15, %r15
-        adoxq	%rax, %r14
         adoxq	%rbx, %r15
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%r15, %r15, %rbx
+        addq	%r15, %r11
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
+        shldq	$0x01, %r11, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r12, %rax, %r12
-        adcxq	%rax, %r8
+        adoxq	%rbx, %r8
+        mulxq	%r12, %rbx, %r12
+        adcxq	%rbx, %r8
         adoxq	%r12, %r9
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        adcxq	%rcx, %r11
         # Store
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
@@ -9999,144 +9501,6 @@ _fe_mul121666_avx2:
         repz retq
 #ifndef __APPLE__
 .size	fe_mul121666_avx2,.-fe_mul121666_avx2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_sq2_avx2
-.type	fe_sq2_avx2,@function
-.align	16
-fe_sq2_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_sq2_avx2
-.p2align	4
-_fe_sq2_avx2:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        # Square * 2
-        # A[0] * A[1]
-        movq	(%rsi), %rdx
-        mulxq	8(%rsi), %r9, %r10
-        # A[0] * A[3]
-        mulxq	24(%rsi), %r11, %r12
-        # A[2] * A[1]
-        movq	16(%rsi), %rdx
-        mulxq	8(%rsi), %rcx, %rbx
-        xorq	%r15, %r15
-        adoxq	%rcx, %r11
-        # A[2] * A[3]
-        mulxq	24(%rsi), %r13, %r14
-        adoxq	%rbx, %r12
-        # A[2] * A[0]
-        mulxq	(%rsi), %rcx, %rbx
-        adoxq	%r15, %r13
-        adcxq	%rcx, %r10
-        adoxq	%r15, %r14
-        # A[1] * A[3]
-        movq	8(%rsi), %rdx
-        mulxq	24(%rsi), %rax, %r8
-        adcxq	%rbx, %r11
-        adcxq	%rax, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
-        # A[0] * A[0]
-        movq	(%rsi), %rdx
-        mulxq	%rdx, %r8, %rax
-        adcxq	%r9, %r9
-        # A[1] * A[1]
-        movq	8(%rsi), %rdx
-        mulxq	%rdx, %rcx, %rbx
-        adcxq	%r10, %r10
-        adoxq	%rax, %r9
-        adcxq	%r11, %r11
-        adoxq	%rcx, %r10
-        # A[2] * A[2]
-        movq	16(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r12, %r12
-        adoxq	%rbx, %r11
-        adcxq	%r13, %r13
-        adoxq	%rax, %r12
-        # A[3] * A[3]
-        movq	24(%rsi), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r14, %r14
-        adoxq	%rcx, %r13
-        adcxq	%r15, %r15
-        adoxq	%rax, %r14
-        adoxq	%rbx, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rbx
-        xorq	%rax, %rax
-        #  Move top half into t4-t7 and remove top bit from t3 and double
-        shldq	$3, %r15, %rax
-        shldq	$2, %r14, %r15
-        shldq	$2, %r13, %r14
-        shldq	$2, %r12, %r13
-        shldq	$2, %r11, %r12
-        shldq	$0x01, %r10, %r11
-        shldq	$0x01, %r9, %r10
-        shldq	$0x01, %r8, %r9
-        shlq	$0x01, %r8
-        andq	%rbx, %r11
-        #  Two out left, one in right
-        andq	%rbx, %r15
-        #  Multiply top bits by 19*19
-        imulq	$0x169, %rax, %rcx
-        xorq	%rbx, %rbx
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        adoxq	%rcx, %r8
-        mulxq	%r12, %rax, %r12
-        adcxq	%rax, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rax
-        andq	%rbx, %r11
-        addq	%rax, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_sq2_avx2,.-fe_sq2_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -10413,9 +9777,9 @@ _curve25519_avx2:
         pushq	%r15
         pushq	%rbp
         movq	%rdx, %r8
-        subq	$0xc0, %rsp
-        movq	$0x00, 184(%rsp)
-        movq	%rdi, 176(%rsp)
+        subq	$0xb8, %rsp
+        movq	$0x00, 176(%rsp)
+        movq	%rdi, 168(%rsp)
         # Set one
         movq	$0x01, (%rdi)
         movq	$0x00, 8(%rdi)
@@ -10440,18 +9804,18 @@ _curve25519_avx2:
         movq	%r10, 72(%rsp)
         movq	%r11, 80(%rsp)
         movq	%r12, 88(%rsp)
-        movb	$62, 168(%rsp)
-        movq	$3, 160(%rsp)
-L_curve25519_avx2_words:
+        movq	$0xfe, %rbx
 L_curve25519_avx2_bits:
-        movq	184(%rsp), %rbx
-        movq	160(%rsp), %r9
-        movb	168(%rsp), %cl
-        movq	(%rsi,%r9,8), %rax
-        shrq	%cl, %rax
-        andq	$0x01, %rax
-        xorq	%rax, %rbx
-        negq	%rbx
+        movq	176(%rsp), %rax
+        movq	%rbx, 160(%rsp)
+        movq	%rbx, %rcx
+        andq	$63, %rcx
+        shrq	$6, %rbx
+        movq	(%rsi,%rbx,8), %rbx
+        shrq	%cl, %rbx
+        andq	$0x01, %rbx
+        xorq	%rbx, %rax
+        negq	%rax
         # Conditional Swap
         movq	(%rdi), %r9
         movq	8(%rdi), %r10
@@ -10461,10 +9825,10 @@ L_curve25519_avx2_bits:
         xorq	72(%rsp), %r10
         xorq	80(%rsp), %r11
         xorq	88(%rsp), %r12
-        andq	%rbx, %r9
-        andq	%rbx, %r10
-        andq	%rbx, %r11
-        andq	%rbx, %r12
+        andq	%rax, %r9
+        andq	%rax, %r10
+        andq	%rax, %r11
+        andq	%rax, %r12
         xorq	%r9, (%rdi)
         xorq	%r10, 8(%rdi)
         xorq	%r11, 16(%rdi)
@@ -10482,10 +9846,10 @@ L_curve25519_avx2_bits:
         xorq	40(%rsp), %r10
         xorq	48(%rsp), %r11
         xorq	56(%rsp), %r12
-        andq	%rbx, %r9
-        andq	%rbx, %r10
-        andq	%rbx, %r11
-        andq	%rbx, %r12
+        andq	%rax, %r9
+        andq	%rax, %r10
+        andq	%rax, %r11
+        andq	%rax, %r12
         xorq	%r9, (%rsp)
         xorq	%r10, 8(%rsp)
         xorq	%r11, 16(%rsp)
@@ -10494,49 +9858,46 @@ L_curve25519_avx2_bits:
         xorq	%r10, 40(%rsp)
         xorq	%r11, 48(%rsp)
         xorq	%r12, 56(%rsp)
-        movq	%rax, 184(%rsp)
+        movq	%rbx, 176(%rsp)
+        # Add-Sub
         # Add
         movq	(%rdi), %r9
         movq	8(%rdi), %r10
         movq	16(%rdi), %r11
-        movq	24(%rdi), %rax
+        movq	24(%rdi), %r12
         movq	%r9, %r13
         addq	(%rsp), %r9
         movq	%r10, %r14
         adcq	8(%rsp), %r10
         movq	%r11, %r15
         adcq	16(%rsp), %r11
-        movq	%rax, %rbp
-        adcq	24(%rsp), %rax
-        movq	$-19, %rcx
-        movq	%rax, %r12
+        movq	%r12, %rbp
+        adcq	24(%rsp), %r12
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r12, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        sarq	$63, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        imulq	$19, %rcx
+        andq	%rbx, %r12
         #   Sub modulus (if overflow)
-        subq	%rcx, %r9
-        sbbq	%rax, %r10
-        sbbq	%rax, %r11
-        sbbq	%rbx, %r12
+        addq	%rcx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         # Sub
         subq	(%rsp), %r13
-        movq	$0x00, %rax
         sbbq	8(%rsp), %r14
-        movq	$-19, %rcx
         sbbq	16(%rsp), %r15
-        movq	$0x7fffffffffffffff, %rbx
         sbbq	24(%rsp), %rbp
-        sbbq	$0x00, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %rbp, %rcx
+        imulq	$-19, %rcx
+        andq	%rbx, %rbp
         #   Add modulus (if underflow)
-        addq	%rcx, %r13
-        adcq	%rax, %r14
-        adcq	%rax, %r15
-        adcq	%rbx, %rbp
+        subq	%rcx, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbp
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
         movq	%r11, 16(%rdi)
@@ -10545,56 +9906,155 @@ L_curve25519_avx2_bits:
         movq	%r14, 136(%rsp)
         movq	%r15, 144(%rsp)
         movq	%rbp, 152(%rsp)
+        # Add-Sub
         # Add
         movq	64(%rsp), %r9
         movq	72(%rsp), %r10
         movq	80(%rsp), %r11
-        movq	88(%rsp), %rax
+        movq	88(%rsp), %r12
         movq	%r9, %r13
         addq	32(%rsp), %r9
         movq	%r10, %r14
         adcq	40(%rsp), %r10
         movq	%r11, %r15
         adcq	48(%rsp), %r11
-        movq	%rax, %rbp
-        adcq	56(%rsp), %rax
-        movq	$-19, %rcx
-        movq	%rax, %r12
+        movq	%r12, %rbp
+        adcq	56(%rsp), %r12
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r12, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        sarq	$63, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        imulq	$19, %rcx
+        andq	%rbx, %r12
         #   Sub modulus (if overflow)
-        subq	%rcx, %r9
-        sbbq	%rax, %r10
-        sbbq	%rax, %r11
-        sbbq	%rbx, %r12
+        addq	%rcx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         # Sub
         subq	32(%rsp), %r13
-        movq	$0x00, %rax
         sbbq	40(%rsp), %r14
-        movq	$-19, %rcx
         sbbq	48(%rsp), %r15
-        movq	$0x7fffffffffffffff, %rbx
         sbbq	56(%rsp), %rbp
-        sbbq	$0x00, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %rbp, %rcx
+        imulq	$-19, %rcx
+        andq	%rbx, %rbp
         #   Add modulus (if underflow)
-        addq	%rcx, %r13
-        adcq	%rax, %r14
-        adcq	%rax, %r15
-        adcq	%rbx, %rbp
-        movq	%r9, (%rsp)
-        movq	%r10, 8(%rsp)
-        movq	%r11, 16(%rsp)
-        movq	%r12, 24(%rsp)
+        subq	%rcx, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbp
+        movq	%r9, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r11, 48(%rsp)
+        movq	%r12, 56(%rsp)
         movq	%r13, 96(%rsp)
         movq	%r14, 104(%rsp)
         movq	%r15, 112(%rsp)
         movq	%rbp, 120(%rsp)
+        # Multiply
+        # A[0] * B[0]
+        movq	128(%rsp), %rdx
+        mulxq	32(%rsp), %r9, %r10
+        # A[2] * B[0]
+        mulxq	48(%rsp), %r11, %r12
+        # A[1] * B[0]
+        mulxq	40(%rsp), %rcx, %rbx
+        xorq	%rbp, %rbp
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	136(%rsp), %rdx
+        mulxq	56(%rsp), %r13, %r14
+        adcxq	%rbx, %r11
+        # A[0] * B[1]
+        mulxq	32(%rsp), %rcx, %rbx
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	48(%rsp), %rcx, %r15
+        adoxq	%rbx, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	144(%rsp), %rdx
+        mulxq	40(%rsp), %rcx, %rbx
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbp, %r14
+        adoxq	%rbx, %r13
+        # A[0] * B[2]
+        mulxq	32(%rsp), %rcx, %rbx
+        adoxq	%rbp, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	136(%rsp), %rdx
+        mulxq	40(%rsp), %rdx, %rcx
+        adcxq	%rbx, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	152(%rsp), %rdx
+        adoxq	%rcx, %r12
+        mulxq	40(%rsp), %rcx, %rbx
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	144(%rsp), %rdx
+        mulxq	48(%rsp), %rdx, %rcx
+        adcxq	%rbx, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	152(%rsp), %rdx
+        adoxq	%rcx, %r14
+        mulxq	56(%rsp), %rcx, %rbx
+        adoxq	%rbp, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	32(%rsp), %rdx, %rcx
+        adcxq	%rbx, %rbp
+        xorq	%rbx, %rbx
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	56(%rsp), %rdx
+        adcxq	%rcx, %r13
+        mulxq	128(%rsp), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	56(%rsp), %rdx
+        mulxq	144(%rsp), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	152(%rsp), %rdx
+        adcxq	%rcx, %r15
+        mulxq	48(%rsp), %rcx, %rdx
+        adcxq	%rbx, %rbp
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%rbx, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %rbx
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%rbx, %r12
+        xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%rbx, %r12
+        # Store
+        movq	%r9, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r11, 48(%rsp)
+        movq	%r12, 56(%rsp)
         # Multiply
         # A[0] * B[0]
         movq	(%rdi), %rdx
@@ -10605,12 +10065,11 @@ L_curve25519_avx2_bits:
         mulxq	104(%rsp), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	24(%rdi), %rdx
-        mulxq	104(%rsp), %r13, %r14
+        # A[3] * B[1]
+        movq	8(%rdi), %rdx
+        mulxq	120(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        movq	8(%rdi), %rdx
         mulxq	96(%rsp), %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
@@ -10634,10 +10093,10 @@ L_curve25519_avx2_bits:
         mulxq	104(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	8(%rdi), %rdx
+        # A[1] * B[3]
+        movq	24(%rdi), %rdx
         adoxq	%rcx, %r12
-        mulxq	120(%rsp), %rcx, %rbx
+        mulxq	104(%rsp), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
         movq	16(%rdi), %rdx
@@ -10656,34 +10115,33 @@ L_curve25519_avx2_bits:
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	(%rdi), %rdx
+        movq	120(%rsp), %rdx
         adcxq	%rcx, %r13
-        mulxq	120(%rsp), %rdx, %rcx
+        mulxq	(%rdi), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	120(%rsp), %rdx
+        mulxq	16(%rdi), %rdx, %rcx
+        adcxq	%rdx, %r14
         # A[2] * B[3]
         movq	24(%rdi), %rdx
-        mulxq	112(%rsp), %rdx, %rcx
-        adcxq	%rdx, %r14
-        # A[3] * B[2]
-        movq	16(%rdi), %rdx
         adcxq	%rcx, %r15
-        mulxq	120(%rsp), %rcx, %rdx
+        mulxq	112(%rsp), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
         andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
         mulxq	%r13, %rcx, %r13
         adcxq	%rcx, %r9
         adoxq	%r13, %r10
@@ -10693,410 +10151,219 @@ L_curve25519_avx2_bits:
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Store
-        movq	%r9, 32(%rsp)
-        movq	%r10, 40(%rsp)
-        movq	%r11, 48(%rsp)
-        movq	%r12, 56(%rsp)
-        # Multiply
-        # A[0] * B[0]
-        movq	128(%rsp), %rdx
-        mulxq	(%rsp), %r9, %r10
-        # A[2] * B[0]
-        mulxq	16(%rsp), %r11, %r12
-        # A[1] * B[0]
-        mulxq	8(%rsp), %rcx, %rbx
-        xorq	%rbp, %rbp
-        adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	152(%rsp), %rdx
-        mulxq	8(%rsp), %r13, %r14
-        adcxq	%rbx, %r11
-        # A[0] * B[1]
-        movq	136(%rsp), %rdx
-        mulxq	(%rsp), %rcx, %rbx
-        adoxq	%rcx, %r10
-        # A[2] * B[1]
-        mulxq	16(%rsp), %rcx, %r15
-        adoxq	%rbx, %r11
-        adcxq	%rcx, %r12
-        # A[1] * B[2]
-        movq	144(%rsp), %rdx
-        mulxq	8(%rsp), %rcx, %rbx
-        adcxq	%r15, %r13
-        adoxq	%rcx, %r12
-        adcxq	%rbp, %r14
-        adoxq	%rbx, %r13
-        # A[0] * B[2]
-        mulxq	(%rsp), %rcx, %rbx
-        adoxq	%rbp, %r14
-        xorq	%r15, %r15
-        adcxq	%rcx, %r11
-        # A[1] * B[1]
-        movq	136(%rsp), %rdx
-        mulxq	8(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
-        adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	136(%rsp), %rdx
-        adoxq	%rcx, %r12
-        mulxq	24(%rsp), %rcx, %rbx
-        adcxq	%rcx, %r13
-        # A[2] * B[2]
-        movq	144(%rsp), %rdx
-        mulxq	16(%rsp), %rdx, %rcx
-        adcxq	%rbx, %r14
-        adoxq	%rdx, %r13
-        # A[3] * B[3]
-        movq	152(%rsp), %rdx
-        adoxq	%rcx, %r14
-        mulxq	24(%rsp), %rcx, %rbx
-        adoxq	%rbp, %r15
-        adcxq	%rcx, %r15
-        # A[0] * B[3]
-        mulxq	(%rsp), %rdx, %rcx
-        adcxq	%rbx, %rbp
-        xorq	%rbx, %rbx
-        adcxq	%rdx, %r12
-        # A[3] * B[0]
-        movq	128(%rsp), %rdx
-        adcxq	%rcx, %r13
-        mulxq	24(%rsp), %rdx, %rcx
-        adoxq	%rdx, %r12
-        adoxq	%rcx, %r13
-        # A[2] * B[3]
-        movq	152(%rsp), %rdx
-        mulxq	16(%rsp), %rdx, %rcx
-        adcxq	%rdx, %r14
-        # A[3] * B[2]
-        movq	144(%rsp), %rdx
-        adcxq	%rcx, %r15
-        mulxq	24(%rsp), %rcx, %rdx
-        adcxq	%rbx, %rbp
-        adoxq	%rcx, %r14
-        adoxq	%rdx, %r15
-        adoxq	%rbx, %rbp
-        # Reduce
-        movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rbx, %rbx
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %rcx, %r15
-        adcxq	%rcx, %r11
-        adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
         # Store
         movq	%r9, (%rsp)
         movq	%r10, 8(%rsp)
         movq	%r11, 16(%rsp)
         movq	%r12, 24(%rsp)
         # Square
-        # A[0] * A[1]
         movq	128(%rsp), %rdx
-        mulxq	136(%rsp), %r10, %r11
+        movq	136(%rsp), %rax
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%rax, %r10, %r11
         # A[0] * A[3]
         mulxq	152(%rsp), %r12, %r13
         # A[2] * A[1]
         movq	144(%rsp), %rdx
-        mulxq	136(%rsp), %rcx, %rbx
-        xorq	%rbp, %rbp
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r9, %r9
         adoxq	%rcx, %r12
         # A[2] * A[3]
         mulxq	152(%rsp), %r14, %r15
         adoxq	%rbx, %r13
         # A[2] * A[0]
-        mulxq	128(%rsp), %rcx, %rbx
-        adoxq	%rbp, %r14
+        mulxq	%rbp, %rcx, %rbx
+        adoxq	%r9, %r14
         adcxq	%rcx, %r11
-        adoxq	%rbp, %r15
+        adoxq	%r9, %r15
         # A[1] * A[3]
-        movq	136(%rsp), %rdx
-        mulxq	152(%rsp), %rax, %r9
+        movq	%rax, %rdx
+        mulxq	152(%rsp), %rcx, %rdx
         adcxq	%rbx, %r12
-        adcxq	%rax, %r13
-        adcxq	%r9, %r14
-        adcxq	%rbp, %r15
-        # Double with Carry Flag
-        xorq	%rbp, %rbp
+        adcxq	%rcx, %r13
+        adcxq	%rdx, %r14
+        adcxq	%r9, %r15
         # A[0] * A[0]
-        movq	128(%rsp), %rdx
-        mulxq	%rdx, %r9, %rax
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r9, %rcx
+        xorq	%rbp, %rbp
         adcxq	%r10, %r10
         # A[1] * A[1]
-        movq	136(%rsp), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r10
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r11, %r11
-        adoxq	%rax, %r10
-        adcxq	%r12, %r12
         adoxq	%rcx, %r11
+        adcxq	%r12, %r12
         # A[2] * A[2]
         movq	144(%rsp), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r13, %r13
         adoxq	%rbx, %r12
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r13, %r13
+        adoxq	%rbx, %r13
         adcxq	%r14, %r14
-        adoxq	%rax, %r13
         # A[3] * A[3]
         movq	152(%rsp), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r15, %r15
         adoxq	%rcx, %r14
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r15, %r15
+        adoxq	%rcx, %r15
         adcxq	%rbp, %rbp
-        adoxq	%rax, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rbx
+        addq	%rbp, %r12
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        adoxq	%rbx, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %rax, %r15
-        adcxq	%rax, %r11
+        mulxq	%r15, %rbx, %r15
+        adcxq	%rbx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r12
-        addq	%rax, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rcx, %r12
         # Store
         movq	%r9, 96(%rsp)
         movq	%r10, 104(%rsp)
         movq	%r11, 112(%rsp)
         movq	%r12, 120(%rsp)
         # Square
-        # A[0] * A[1]
         movq	(%rdi), %rdx
-        mulxq	8(%rdi), %r10, %r11
+        movq	8(%rdi), %rax
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%rax, %r10, %r11
         # A[0] * A[3]
         mulxq	24(%rdi), %r12, %r13
         # A[2] * A[1]
         movq	16(%rdi), %rdx
-        mulxq	8(%rdi), %rcx, %rbx
-        xorq	%rbp, %rbp
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r9, %r9
         adoxq	%rcx, %r12
         # A[2] * A[3]
         mulxq	24(%rdi), %r14, %r15
         adoxq	%rbx, %r13
         # A[2] * A[0]
-        mulxq	(%rdi), %rcx, %rbx
-        adoxq	%rbp, %r14
+        mulxq	%rbp, %rcx, %rbx
+        adoxq	%r9, %r14
         adcxq	%rcx, %r11
-        adoxq	%rbp, %r15
+        adoxq	%r9, %r15
         # A[1] * A[3]
-        movq	8(%rdi), %rdx
-        mulxq	24(%rdi), %rax, %r9
+        movq	%rax, %rdx
+        mulxq	24(%rdi), %rcx, %rdx
         adcxq	%rbx, %r12
-        adcxq	%rax, %r13
-        adcxq	%r9, %r14
-        adcxq	%rbp, %r15
-        # Double with Carry Flag
-        xorq	%rbp, %rbp
+        adcxq	%rcx, %r13
+        adcxq	%rdx, %r14
+        adcxq	%r9, %r15
         # A[0] * A[0]
-        movq	(%rdi), %rdx
-        mulxq	%rdx, %r9, %rax
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r9, %rcx
+        xorq	%rbp, %rbp
         adcxq	%r10, %r10
         # A[1] * A[1]
-        movq	8(%rdi), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r10
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r11, %r11
-        adoxq	%rax, %r10
-        adcxq	%r12, %r12
         adoxq	%rcx, %r11
+        adcxq	%r12, %r12
         # A[2] * A[2]
         movq	16(%rdi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r13, %r13
         adoxq	%rbx, %r12
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r13, %r13
+        adoxq	%rbx, %r13
         adcxq	%r14, %r14
-        adoxq	%rax, %r13
         # A[3] * A[3]
         movq	24(%rdi), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r15, %r15
         adoxq	%rcx, %r14
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r15, %r15
+        adoxq	%rcx, %r15
         adcxq	%rbp, %rbp
-        adoxq	%rax, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rbx
+        addq	%rbp, %r12
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        adoxq	%rbx, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %rax, %r15
-        adcxq	%rax, %r11
+        mulxq	%r15, %rbx, %r15
+        adcxq	%rbx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r12
-        addq	%rax, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rcx, %r12
         # Store
         movq	%r9, 128(%rsp)
         movq	%r10, 136(%rsp)
         movq	%r11, 144(%rsp)
         movq	%r12, 152(%rsp)
+        # Add-Sub
         # Add
-        movq	32(%rsp), %r9
-        movq	40(%rsp), %r10
-        movq	48(%rsp), %r11
-        movq	56(%rsp), %rax
+        movq	(%rsp), %r9
+        movq	8(%rsp), %r10
+        movq	16(%rsp), %r11
+        movq	24(%rsp), %r12
         movq	%r9, %r13
-        addq	(%rsp), %r9
+        addq	32(%rsp), %r9
         movq	%r10, %r14
-        adcq	8(%rsp), %r10
+        adcq	40(%rsp), %r10
         movq	%r11, %r15
-        adcq	16(%rsp), %r11
-        movq	%rax, %rbp
-        adcq	24(%rsp), %rax
-        movq	$-19, %rcx
-        movq	%rax, %r12
+        adcq	48(%rsp), %r11
+        movq	%r12, %rbp
+        adcq	56(%rsp), %r12
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r12, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        sarq	$63, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        imulq	$19, %rcx
+        andq	%rbx, %r12
         #   Sub modulus (if overflow)
-        subq	%rcx, %r9
-        sbbq	%rax, %r10
-        sbbq	%rax, %r11
-        sbbq	%rbx, %r12
+        addq	%rcx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         # Sub
-        subq	(%rsp), %r13
-        movq	$0x00, %rax
-        sbbq	8(%rsp), %r14
-        movq	$-19, %rcx
-        sbbq	16(%rsp), %r15
-        movq	$0x7fffffffffffffff, %rbx
-        sbbq	24(%rsp), %rbp
-        sbbq	$0x00, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        subq	32(%rsp), %r13
+        sbbq	40(%rsp), %r14
+        sbbq	48(%rsp), %r15
+        sbbq	56(%rsp), %rbp
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %rbp, %rcx
+        imulq	$-19, %rcx
+        andq	%rbx, %rbp
         #   Add modulus (if underflow)
-        addq	%rcx, %r13
-        adcq	%rax, %r14
-        adcq	%rax, %r15
-        adcq	%rbx, %rbp
+        subq	%rcx, %r13
+        sbbq	$0x00, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbp
         movq	%r9, 64(%rsp)
         movq	%r10, 72(%rsp)
         movq	%r11, 80(%rsp)
         movq	%r12, 88(%rsp)
-        movq	%r13, (%rsp)
-        movq	%r14, 8(%rsp)
-        movq	%r15, 16(%rsp)
-        movq	%rbp, 24(%rsp)
+        movq	%r13, 32(%rsp)
+        movq	%r14, 40(%rsp)
+        movq	%r15, 48(%rsp)
+        movq	%rbp, 56(%rsp)
         # Multiply
         # A[0] * B[0]
         movq	96(%rsp), %rdx
@@ -11107,12 +10374,11 @@ L_curve25519_avx2_bits:
         mulxq	136(%rsp), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	120(%rsp), %rdx
-        mulxq	136(%rsp), %r13, %r14
+        # A[3] * B[1]
+        movq	104(%rsp), %rdx
+        mulxq	152(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        movq	104(%rsp), %rdx
         mulxq	128(%rsp), %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
@@ -11136,10 +10402,10 @@ L_curve25519_avx2_bits:
         mulxq	136(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	104(%rsp), %rdx
+        # A[1] * B[3]
+        movq	120(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	152(%rsp), %rcx, %rbx
+        mulxq	136(%rsp), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
         movq	112(%rsp), %rdx
@@ -11158,34 +10424,33 @@ L_curve25519_avx2_bits:
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	96(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adcxq	%rcx, %r13
-        mulxq	152(%rsp), %rdx, %rcx
+        mulxq	96(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	152(%rsp), %rdx
+        mulxq	112(%rsp), %rdx, %rcx
+        adcxq	%rdx, %r14
         # A[2] * B[3]
         movq	120(%rsp), %rdx
-        mulxq	144(%rsp), %rdx, %rcx
-        adcxq	%rdx, %r14
-        # A[3] * B[2]
-        movq	112(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	152(%rsp), %rcx, %rdx
+        mulxq	144(%rsp), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
         andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
         mulxq	%r13, %rcx, %r13
         adcxq	%rcx, %r9
         adoxq	%r13, %r10
@@ -11195,28 +10460,7 @@ L_curve25519_avx2_bits:
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rbx, %r12
         # Store
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
@@ -11228,126 +10472,103 @@ L_curve25519_avx2_bits:
         movq	144(%rsp), %r11
         movq	152(%rsp), %r12
         subq	96(%rsp), %r9
-        movq	$0x00, %rax
         sbbq	104(%rsp), %r10
-        movq	$-19, %rcx
         sbbq	112(%rsp), %r11
-        movq	$0x7fffffffffffffff, %rbx
         sbbq	120(%rsp), %r12
-        sbbq	$0x00, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %r12, %rcx
+        movq	$0x7fffffffffffffff, %rbx
+        imulq	$-19, %rcx
+        andq	%rbx, %r12
         #   Add modulus (if underflow)
-        addq	%rcx, %r9
-        adcq	%rax, %r10
-        adcq	%rax, %r11
-        adcq	%rbx, %r12
+        subq	%rcx, %r9
+        sbbq	$0x00, %r10
+        sbbq	$0x00, %r11
+        sbbq	$0x00, %r12
         movq	%r9, 128(%rsp)
         movq	%r10, 136(%rsp)
         movq	%r11, 144(%rsp)
         movq	%r12, 152(%rsp)
         # Square
+        movq	32(%rsp), %rdx
+        movq	40(%rsp), %rax
         # A[0] * A[1]
-        movq	(%rsp), %rdx
-        mulxq	8(%rsp), %r10, %r11
+        movq	%rdx, %rbp
+        mulxq	%rax, %r10, %r11
         # A[0] * A[3]
-        mulxq	24(%rsp), %r12, %r13
+        mulxq	56(%rsp), %r12, %r13
         # A[2] * A[1]
-        movq	16(%rsp), %rdx
-        mulxq	8(%rsp), %rcx, %rbx
-        xorq	%rbp, %rbp
+        movq	48(%rsp), %rdx
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r9, %r9
         adoxq	%rcx, %r12
         # A[2] * A[3]
-        mulxq	24(%rsp), %r14, %r15
+        mulxq	56(%rsp), %r14, %r15
         adoxq	%rbx, %r13
         # A[2] * A[0]
-        mulxq	(%rsp), %rcx, %rbx
-        adoxq	%rbp, %r14
+        mulxq	%rbp, %rcx, %rbx
+        adoxq	%r9, %r14
         adcxq	%rcx, %r11
-        adoxq	%rbp, %r15
+        adoxq	%r9, %r15
         # A[1] * A[3]
-        movq	8(%rsp), %rdx
-        mulxq	24(%rsp), %rax, %r9
+        movq	%rax, %rdx
+        mulxq	56(%rsp), %rcx, %rdx
         adcxq	%rbx, %r12
-        adcxq	%rax, %r13
-        adcxq	%r9, %r14
-        adcxq	%rbp, %r15
-        # Double with Carry Flag
-        xorq	%rbp, %rbp
+        adcxq	%rcx, %r13
+        adcxq	%rdx, %r14
+        adcxq	%r9, %r15
         # A[0] * A[0]
-        movq	(%rsp), %rdx
-        mulxq	%rdx, %r9, %rax
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r9, %rcx
+        xorq	%rbp, %rbp
         adcxq	%r10, %r10
         # A[1] * A[1]
-        movq	8(%rsp), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r10
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r11, %r11
-        adoxq	%rax, %r10
-        adcxq	%r12, %r12
         adoxq	%rcx, %r11
+        adcxq	%r12, %r12
         # A[2] * A[2]
-        movq	16(%rsp), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r13, %r13
+        movq	48(%rsp), %rdx
         adoxq	%rbx, %r12
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r13, %r13
+        adoxq	%rbx, %r13
         adcxq	%r14, %r14
-        adoxq	%rax, %r13
         # A[3] * A[3]
-        movq	24(%rsp), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r15, %r15
+        movq	56(%rsp), %rdx
         adoxq	%rcx, %r14
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r15, %r15
+        adoxq	%rcx, %r15
         adcxq	%rbp, %rbp
-        adoxq	%rax, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rbx
+        addq	%rbp, %r12
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        adoxq	%rbx, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %rax, %r15
-        adcxq	%rax, %r11
+        mulxq	%r15, %rbx, %r15
+        adcxq	%rbx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r12
-        addq	%rax, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rcx, %r12
         # Store
-        movq	%r9, (%rsp)
-        movq	%r10, 8(%rsp)
-        movq	%r11, 16(%rsp)
-        movq	%r12, 24(%rsp)
+        movq	%r9, 32(%rsp)
+        movq	%r10, 40(%rsp)
+        movq	%r11, 48(%rsp)
+        movq	%r12, 56(%rsp)
         movq	$0x1db42, %rdx
         mulxq	128(%rsp), %r9, %rbp
         mulxq	136(%rsp), %r10, %r15
@@ -11365,106 +10586,85 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
-        movq	%r9, 32(%rsp)
-        movq	%r10, 40(%rsp)
-        movq	%r11, 48(%rsp)
-        movq	%r12, 56(%rsp)
+        movq	%r9, (%rsp)
+        movq	%r10, 8(%rsp)
+        movq	%r11, 16(%rsp)
+        movq	%r12, 24(%rsp)
         # Square
-        # A[0] * A[1]
         movq	64(%rsp), %rdx
-        mulxq	72(%rsp), %r10, %r11
+        movq	72(%rsp), %rax
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%rax, %r10, %r11
         # A[0] * A[3]
         mulxq	88(%rsp), %r12, %r13
         # A[2] * A[1]
         movq	80(%rsp), %rdx
-        mulxq	72(%rsp), %rcx, %rbx
-        xorq	%rbp, %rbp
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r9, %r9
         adoxq	%rcx, %r12
         # A[2] * A[3]
         mulxq	88(%rsp), %r14, %r15
         adoxq	%rbx, %r13
         # A[2] * A[0]
-        mulxq	64(%rsp), %rcx, %rbx
-        adoxq	%rbp, %r14
+        mulxq	%rbp, %rcx, %rbx
+        adoxq	%r9, %r14
         adcxq	%rcx, %r11
-        adoxq	%rbp, %r15
+        adoxq	%r9, %r15
         # A[1] * A[3]
-        movq	72(%rsp), %rdx
-        mulxq	88(%rsp), %rax, %r9
+        movq	%rax, %rdx
+        mulxq	88(%rsp), %rcx, %rdx
         adcxq	%rbx, %r12
-        adcxq	%rax, %r13
-        adcxq	%r9, %r14
-        adcxq	%rbp, %r15
-        # Double with Carry Flag
-        xorq	%rbp, %rbp
+        adcxq	%rcx, %r13
+        adcxq	%rdx, %r14
+        adcxq	%r9, %r15
         # A[0] * A[0]
-        movq	64(%rsp), %rdx
-        mulxq	%rdx, %r9, %rax
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r9, %rcx
+        xorq	%rbp, %rbp
         adcxq	%r10, %r10
         # A[1] * A[1]
-        movq	72(%rsp), %rdx
+        movq	%rax, %rdx
+        adoxq	%rcx, %r10
         mulxq	%rdx, %rcx, %rbx
         adcxq	%r11, %r11
-        adoxq	%rax, %r10
-        adcxq	%r12, %r12
         adoxq	%rcx, %r11
+        adcxq	%r12, %r12
         # A[2] * A[2]
         movq	80(%rsp), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adcxq	%r13, %r13
         adoxq	%rbx, %r12
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r13, %r13
+        adoxq	%rbx, %r13
         adcxq	%r14, %r14
-        adoxq	%rax, %r13
         # A[3] * A[3]
         movq	88(%rsp), %rdx
-        mulxq	%rdx, %rax, %rbx
-        adcxq	%r15, %r15
         adoxq	%rcx, %r14
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r15, %r15
+        adoxq	%rcx, %r15
         adcxq	%rbp, %rbp
-        adoxq	%rax, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rbx
+        addq	%rbp, %r12
+        adcq	$0x00, %rbx
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rbx
+        imulq	$19, %rbx, %rbx
         andq	%rcx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rcx, %rcx
-        mulxq	%r13, %rax, %r13
-        adcxq	%rax, %r9
+        adoxq	%rbx, %r9
+        mulxq	%r13, %rbx, %r13
+        adcxq	%rbx, %r9
         adoxq	%r13, %r10
-        mulxq	%r14, %rax, %r14
-        adcxq	%rax, %r10
+        mulxq	%r14, %rbx, %r14
+        adcxq	%rbx, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %rax, %r15
-        adcxq	%rax, %r11
+        mulxq	%r15, %rbx, %r15
+        adcxq	%rbx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rax
-        andq	%rcx, %r12
-        addq	%rax, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rcx, %r12
         # Store
         movq	%r9, 64(%rsp)
         movq	%r10, 72(%rsp)
@@ -11473,31 +10673,30 @@ L_curve25519_avx2_bits:
         # Add
         movq	96(%rsp), %r9
         movq	104(%rsp), %r10
-        addq	32(%rsp), %r9
+        addq	(%rsp), %r9
         movq	112(%rsp), %r11
-        adcq	40(%rsp), %r10
-        movq	120(%rsp), %rax
-        adcq	48(%rsp), %r11
-        movq	$-19, %rcx
-        adcq	56(%rsp), %rax
+        adcq	8(%rsp), %r10
+        movq	120(%rsp), %r12
+        adcq	16(%rsp), %r11
+        adcq	24(%rsp), %r12
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r12, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        movq	%rax, %r12
-        sarq	$63, %rax
-        #   Mask the modulus
-        andq	%rax, %rcx
-        andq	%rax, %rbx
+        imulq	$19, %rcx
+        andq	%rbx, %r12
         #   Sub modulus (if overflow)
-        subq	%rcx, %r9
-        sbbq	%rax, %r10
-        sbbq	%rax, %r11
-        sbbq	%rbx, %r12
+        addq	%rcx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
         movq	%r9, 96(%rsp)
         movq	%r10, 104(%rsp)
         movq	%r11, 112(%rsp)
         movq	%r12, 120(%rsp)
         # Multiply
         # A[0] * B[0]
-        movq	(%rsp), %rdx
+        movq	32(%rsp), %rdx
         mulxq	(%r8), %r9, %r10
         # A[2] * B[0]
         mulxq	16(%r8), %r11, %r12
@@ -11505,12 +10704,11 @@ L_curve25519_avx2_bits:
         mulxq	8(%r8), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	24(%rsp), %rdx
-        mulxq	8(%r8), %r13, %r14
+        # A[3] * B[1]
+        movq	40(%rsp), %rdx
+        mulxq	24(%r8), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        movq	8(%rsp), %rdx
         mulxq	(%r8), %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
@@ -11518,7 +10716,7 @@ L_curve25519_avx2_bits:
         adoxq	%rbx, %r11
         adcxq	%rcx, %r12
         # A[1] * B[2]
-        movq	16(%rsp), %rdx
+        movq	48(%rsp), %rdx
         mulxq	8(%r8), %rcx, %rbx
         adcxq	%r15, %r13
         adoxq	%rcx, %r12
@@ -11530,22 +10728,22 @@ L_curve25519_avx2_bits:
         xorq	%r15, %r15
         adcxq	%rcx, %r11
         # A[1] * B[1]
-        movq	8(%rsp), %rdx
+        movq	40(%rsp), %rdx
         mulxq	8(%r8), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	8(%rsp), %rdx
+        # A[1] * B[3]
+        movq	56(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	24(%r8), %rcx, %rbx
+        mulxq	8(%r8), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
-        movq	16(%rsp), %rdx
+        movq	48(%rsp), %rdx
         mulxq	16(%r8), %rdx, %rcx
         adcxq	%rbx, %r14
         adoxq	%rdx, %r13
         # A[3] * B[3]
-        movq	24(%rsp), %rdx
+        movq	56(%rsp), %rdx
         adoxq	%rcx, %r14
         mulxq	24(%r8), %rcx, %rbx
         adoxq	%rbp, %r15
@@ -11556,34 +10754,33 @@ L_curve25519_avx2_bits:
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	(%rsp), %rdx
+        movq	24(%r8), %rdx
         adcxq	%rcx, %r13
-        mulxq	24(%r8), %rdx, %rcx
+        mulxq	32(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
-        # A[2] * B[3]
-        movq	24(%rsp), %rdx
-        mulxq	16(%r8), %rdx, %rcx
-        adcxq	%rdx, %r14
         # A[3] * B[2]
-        movq	16(%rsp), %rdx
+        movq	24(%r8), %rdx
+        mulxq	48(%rsp), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	56(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	24(%r8), %rcx, %rdx
+        mulxq	16(%r8), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
         andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
         mulxq	%r13, %rcx, %r13
         adcxq	%rcx, %r9
         adoxq	%r13, %r10
@@ -11593,28 +10790,7 @@ L_curve25519_avx2_bits:
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rbx, %r12
         # Store
         movq	%r9, 32(%rsp)
         movq	%r10, 40(%rsp)
@@ -11630,12 +10806,11 @@ L_curve25519_avx2_bits:
         mulxq	136(%rsp), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	120(%rsp), %rdx
-        mulxq	136(%rsp), %r13, %r14
+        # A[3] * B[1]
+        movq	104(%rsp), %rdx
+        mulxq	152(%rsp), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        movq	104(%rsp), %rdx
         mulxq	128(%rsp), %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
@@ -11659,10 +10834,10 @@ L_curve25519_avx2_bits:
         mulxq	136(%rsp), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	104(%rsp), %rdx
+        # A[1] * B[3]
+        movq	120(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	152(%rsp), %rcx, %rbx
+        mulxq	136(%rsp), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
         movq	112(%rsp), %rdx
@@ -11681,34 +10856,33 @@ L_curve25519_avx2_bits:
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	96(%rsp), %rdx
+        movq	152(%rsp), %rdx
         adcxq	%rcx, %r13
-        mulxq	152(%rsp), %rdx, %rcx
+        mulxq	96(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	152(%rsp), %rdx
+        mulxq	112(%rsp), %rdx, %rcx
+        adcxq	%rdx, %r14
         # A[2] * B[3]
         movq	120(%rsp), %rdx
-        mulxq	144(%rsp), %rdx, %rcx
-        adcxq	%rdx, %r14
-        # A[3] * B[2]
-        movq	112(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	152(%rsp), %rcx, %rdx
+        mulxq	144(%rsp), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
         andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
         mulxq	%r13, %rcx, %r13
         adcxq	%rcx, %r9
         adoxq	%r13, %r10
@@ -11718,38 +10892,15 @@ L_curve25519_avx2_bits:
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
-        movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
-        movq	%r12, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rbx, %r12
-        addq	%rdx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
+        adcxq	%rbx, %r12
         # Store
         movq	%r9, (%rsp)
         movq	%r10, 8(%rsp)
         movq	%r11, 16(%rsp)
         movq	%r12, 24(%rsp)
-        decb	168(%rsp)
+        movq	160(%rsp), %rbx
+        decq	%rbx
         jge	L_curve25519_avx2_bits
-        movq	$63, 168(%rsp)
-        decb	160(%rsp)
-        jge	L_curve25519_avx2_words
         # Invert
         leaq	32(%rsp), %rdi
         movq	%rsp, %rsi
@@ -11987,7 +11138,7 @@ L_curve25519_avx2_bits:
 #else
         callq	_fe_mul_avx2
 #endif /* __APPLE__ */
-        movq	176(%rsp), %rdi
+        movq	168(%rsp), %rdi
         # Multiply
         # A[0] * B[0]
         movq	(%rsp), %rdx
@@ -11998,12 +11149,11 @@ L_curve25519_avx2_bits:
         mulxq	8(%rdi), %rcx, %rbx
         xorq	%rbp, %rbp
         adcxq	%rcx, %r10
-        # A[1] * B[3]
-        movq	24(%rsp), %rdx
-        mulxq	8(%rdi), %r13, %r14
+        # A[3] * B[1]
+        movq	8(%rsp), %rdx
+        mulxq	24(%rdi), %r13, %r14
         adcxq	%rbx, %r11
         # A[0] * B[1]
-        movq	8(%rsp), %rdx
         mulxq	(%rdi), %rcx, %rbx
         adoxq	%rcx, %r10
         # A[2] * B[1]
@@ -12027,10 +11177,10 @@ L_curve25519_avx2_bits:
         mulxq	8(%rdi), %rdx, %rcx
         adcxq	%rbx, %r12
         adoxq	%rdx, %r11
-        # A[3] * B[1]
-        movq	8(%rsp), %rdx
+        # A[1] * B[3]
+        movq	24(%rsp), %rdx
         adoxq	%rcx, %r12
-        mulxq	24(%rdi), %rcx, %rbx
+        mulxq	8(%rdi), %rcx, %rbx
         adcxq	%rcx, %r13
         # A[2] * B[2]
         movq	16(%rsp), %rdx
@@ -12049,34 +11199,33 @@ L_curve25519_avx2_bits:
         xorq	%rbx, %rbx
         adcxq	%rdx, %r12
         # A[3] * B[0]
-        movq	(%rsp), %rdx
+        movq	24(%rdi), %rdx
         adcxq	%rcx, %r13
-        mulxq	24(%rdi), %rdx, %rcx
+        mulxq	(%rsp), %rdx, %rcx
         adoxq	%rdx, %r12
         adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rdi), %rdx
+        mulxq	16(%rsp), %rdx, %rcx
+        adcxq	%rdx, %r14
         # A[2] * B[3]
         movq	24(%rsp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rdx, %r14
-        # A[3] * B[2]
-        movq	16(%rsp), %rdx
         adcxq	%rcx, %r15
-        mulxq	24(%rdi), %rcx, %rdx
+        mulxq	16(%rdi), %rcx, %rdx
         adcxq	%rbx, %rbp
         adoxq	%rcx, %r14
         adoxq	%rdx, %r15
         adoxq	%rbx, %rbp
-        # Reduce
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %rcx
+        addq	%rbp, %r12
+        adcq	$0x00, %rcx
         movq	$0x7fffffffffffffff, %rbx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r15, %rbp
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
         andq	%rbx, %r12
-        #  Multiply top half by 19
-        movq	$19, %rdx
         xorq	%rbx, %rbx
+        adoxq	%rcx, %r9
         mulxq	%r13, %rcx, %r13
         adcxq	%rcx, %r9
         adoxq	%r13, %r10
@@ -12086,20 +11235,8 @@ L_curve25519_avx2_bits:
         mulxq	%r15, %rcx, %r15
         adcxq	%rcx, %r11
         adoxq	%r15, %r12
-        mulxq	%rbp, %rbp, %rdx
-        adcxq	%rbp, %r12
-        adoxq	%rbx, %rdx
-        adcxq	%rbx, %rdx
-        #  Overflow
-        shldq	$0x01, %r12, %rdx
+        adcxq	%rbx, %r12
         movq	$0x7fffffffffffffff, %rbx
-        imulq	$19, %rdx, %rcx
-        andq	%rbx, %r12
-        addq	%rcx, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        adcq	$0x00, %r12
-        # Reduce if top bit set
         movq	%r12, %rdx
         sarq	$63, %rdx
         andq	$19, %rdx
@@ -12108,7 +11245,7 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
-        movq	$0x7fffffffffffffff, %rbx
+        movq	$0x7fffffffffffffff, %rcx
         movq	%r9, %rdx
         addq	$19, %rdx
         movq	%r10, %rdx
@@ -12119,18 +11256,18 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %rdx
         sarq	$63, %rdx
         andq	$19, %rdx
+        andq	%rcx, %r12
         addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
-        andq	%rbx, %r12
         # Store
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
         movq	%r11, 16(%rdi)
         movq	%r12, 24(%rdi)
         xorq	%rax, %rax
-        addq	$0xc0, %rsp
+        addq	$0xb8, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -12140,6 +11277,126 @@ L_curve25519_avx2_bits:
         repz retq
 #ifndef __APPLE__
 .size	curve25519_avx2,.-curve25519_avx2
+#endif /* __APPLE__ */
+#ifdef HAVE_ED25519
+#ifndef __APPLE__
+.text
+.globl	fe_sq2_avx2
+.type	fe_sq2_avx2,@function
+.align	16
+fe_sq2_avx2:
+#else
+.section	__TEXT,__text
+.globl	_fe_sq2_avx2
+.p2align	4
+_fe_sq2_avx2:
+#endif /* __APPLE__ */
+        pushq	%rbx
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        # Square * 2
+        movq	(%rsi), %rdx
+        movq	8(%rsi), %rax
+        # A[0] * A[1]
+        movq	%rdx, %r15
+        mulxq	%rax, %r9, %r10
+        # A[0] * A[3]
+        mulxq	24(%rsi), %r11, %r12
+        # A[2] * A[1]
+        movq	16(%rsi), %rdx
+        mulxq	%rax, %rcx, %rbx
+        xorq	%r8, %r8
+        adoxq	%rcx, %r11
+        # A[2] * A[3]
+        mulxq	24(%rsi), %r13, %r14
+        adoxq	%rbx, %r12
+        # A[2] * A[0]
+        mulxq	%r15, %rcx, %rbx
+        adoxq	%r8, %r13
+        adcxq	%rcx, %r10
+        adoxq	%r8, %r14
+        # A[1] * A[3]
+        movq	%rax, %rdx
+        mulxq	24(%rsi), %rcx, %rdx
+        adcxq	%rbx, %r11
+        adcxq	%rcx, %r12
+        adcxq	%rdx, %r13
+        adcxq	%r8, %r14
+        # A[0] * A[0]
+        movq	%r15, %rdx
+        mulxq	%rdx, %r8, %rcx
+        xorq	%r15, %r15
+        adcxq	%r9, %r9
+        # A[1] * A[1]
+        movq	%rax, %rdx
+        adoxq	%rcx, %r9
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r10, %r10
+        adoxq	%rcx, %r10
+        adcxq	%r11, %r11
+        # A[2] * A[2]
+        movq	16(%rsi), %rdx
+        adoxq	%rbx, %r11
+        mulxq	%rdx, %rbx, %rcx
+        adcxq	%r12, %r12
+        adoxq	%rbx, %r12
+        adcxq	%r13, %r13
+        # A[3] * A[3]
+        movq	24(%rsi), %rdx
+        adoxq	%rcx, %r13
+        mulxq	%rdx, %rcx, %rbx
+        adcxq	%r14, %r14
+        adoxq	%rcx, %r14
+        adcxq	%r15, %r15
+        adoxq	%rbx, %r15
+        movq	$38, %rdx
+        mulxq	%r15, %r15, %rax
+        addq	%r15, %r11
+        adcq	$0x00, %rax
+        movq	$0x7fffffffffffffff, %rcx
+        shldq	$0x01, %r11, %rax
+        imulq	$19, %rax, %rax
+        andq	%rcx, %r11
+        xorq	%rcx, %rcx
+        adoxq	%rax, %r8
+        mulxq	%r12, %rax, %r12
+        adcxq	%rax, %r8
+        adoxq	%r12, %r9
+        mulxq	%r13, %rax, %r13
+        adcxq	%rax, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rax, %r14
+        adcxq	%rax, %r10
+        adoxq	%r14, %r11
+        adcxq	%rcx, %r11
+        mov	%r11, %rax
+        shldq	$0x01, %r10, %r11
+        shldq	$0x01, %r9, %r10
+        shldq	$0x01, %r8, %r9
+        shlq	$0x01, %r8
+        movq	$0x7fffffffffffffff, %rcx
+        shrq	$62, %rax
+        andq	%rcx, %r11
+        imulq	$19, %rax, %rax
+        addq	%rax, %r8
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        # Store
+        movq	%r8, (%rdi)
+        movq	%r9, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        popq	%rbx
+        repz retq
+#ifndef __APPLE__
+.size	fe_sq2_avx2,.-fe_sq2_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -12218,7 +11475,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	32(%rsp), %rdi
         leaq	32(%rsp), %rsi
-        movb	$4, %dl
+        movq	$4, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12241,7 +11498,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	32(%rsp), %rdi
         leaq	32(%rsp), %rsi
-        movb	$9, %dl
+        movq	$9, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12264,7 +11521,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	64(%rsp), %rdi
         leaq	64(%rsp), %rsi
-        movb	$19, %dl
+        movq	$19, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12287,7 +11544,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	32(%rsp), %rdi
         leaq	32(%rsp), %rsi
-        movb	$9, %dl
+        movq	$9, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12310,7 +11567,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	32(%rsp), %rdi
         leaq	32(%rsp), %rsi
-        movb	$49, %dl
+        movq	$49, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12333,7 +11590,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	64(%rsp), %rdi
         leaq	64(%rsp), %rsi
-        movb	$0x63, %dl
+        movq	$0x63, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12356,7 +11613,7 @@ _fe_pow22523_avx2:
 #endif /* __APPLE__ */
         leaq	32(%rsp), %rdi
         leaq	32(%rsp), %rsi
-        movb	$49, %dl
+        movq	$49, %rdx
 #ifndef __APPLE__
         callq	fe_sq_n_avx2@plt
 #else
@@ -12398,4197 +11655,3916 @@ _fe_pow22523_avx2:
         repz retq
 #ifndef __APPLE__
 .text
-.globl	fe_ge_to_p2_avx2
-.type	fe_ge_to_p2_avx2,@function
+.globl	ge_p1p1_to_p2_avx2
+.type	ge_p1p1_to_p2_avx2,@function
 .align	16
-fe_ge_to_p2_avx2:
+ge_p1p1_to_p2_avx2:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_to_p2_avx2
+.globl	_ge_p1p1_to_p2_avx2
 .p2align	4
-_fe_ge_to_p2_avx2:
+_ge_p1p1_to_p2_avx2:
 #endif /* __APPLE__ */
-        pushq	%rbx
         pushq	%r12
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        subq	$40, %rsp
-        movq	%rsi, (%rsp)
-        movq	%rdx, 8(%rsp)
-        movq	%rcx, 16(%rsp)
-        movq	%r8, 24(%rsp)
-        movq	%r9, 32(%rsp)
-        movq	16(%rsp), %rsi
-        movq	88(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	24(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	88(%rsp), %rsi
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rsi), %rdx
-        mulxq	(%rbx), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rbx), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rbx), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rsi), %rdx
-        mulxq	8(%rbx), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rsi), %rdx
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rbx), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rsi), %rdx
-        mulxq	8(%rbx), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rsi), %rdx
-        mulxq	8(%rbx), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rsi), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rbx), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rsi), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rsi), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rbx), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rbx), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rsi), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rbx), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rsi), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rsi), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rbx), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$40, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_to_p2_avx2,.-fe_ge_to_p2_avx2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_to_p3_avx2
-.type	fe_ge_to_p3_avx2,@function
-.align	16
-fe_ge_to_p3_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_to_p3_avx2
-.p2align	4
-_fe_ge_to_p3_avx2:
-#endif /* __APPLE__ */
         pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$40, %rsp
-        movq	%rsi, (%rsp)
-        movq	%rdx, 8(%rsp)
-        movq	%rcx, 16(%rsp)
-        movq	%r8, 24(%rsp)
-        movq	%r9, 32(%rsp)
-        movq	24(%rsp), %rsi
-        movq	96(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	(%rsp), %rdi
-        movq	32(%rsp), %rsi
-        movq	88(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	96(%rsp), %rsi
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rsi), %rdx
-        mulxq	(%rbx), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rbx), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rbx), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rsi), %rdx
-        mulxq	8(%rbx), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rsi), %rdx
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rbx), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rsi), %rdx
-        mulxq	8(%rbx), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rsi), %rdx
-        mulxq	8(%rbx), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rsi), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rbx), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rsi), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rsi), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rbx), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rbx), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rsi), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rbx), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rsi), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rsi), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rbx), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	24(%rsp), %rsi
-        movq	32(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        addq	$40, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_to_p3_avx2,.-fe_ge_to_p3_avx2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_dbl_avx2
-.type	fe_ge_dbl_avx2,@function
-.align	16
-fe_ge_dbl_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_dbl_avx2
-.p2align	4
-_fe_ge_dbl_avx2:
-#endif /* __APPLE__ */
-        pushq	%rbp
-        pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$48, %rsp
+        subq	$16, %rsp
         movq	%rdi, (%rsp)
         movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	32(%rsp), %rsi
-        # Square
-        # A[0] * A[1]
-        movq	(%rsi), %rdx
-        mulxq	8(%rsi), %r9, %r10
-        # A[0] * A[3]
-        mulxq	24(%rsi), %r11, %r12
-        # A[2] * A[1]
-        movq	16(%rsi), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adoxq	%rcx, %r11
-        # A[2] * A[3]
+        leaq	96(%rsi), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
         mulxq	24(%rsi), %r13, %r14
-        adoxq	%rax, %r12
-        # A[2] * A[0]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        adcxq	%rcx, %r10
-        adoxq	%r15, %r14
-        # A[1] * A[3]
-        movq	8(%rsi), %rdx
-        mulxq	24(%rsi), %rbp, %r8
-        adcxq	%rax, %r11
-        adcxq	%rbp, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
-        # A[0] * A[0]
-        movq	(%rsi), %rdx
-        mulxq	%rdx, %r8, %rbp
-        adcxq	%r9, %r9
-        # A[1] * A[1]
-        movq	8(%rsi), %rdx
-        mulxq	%rdx, %rcx, %rax
-        adcxq	%r10, %r10
-        adoxq	%rbp, %r9
-        adcxq	%r11, %r11
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
         adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        leaq	64(%rsi), %rsi
+        leaq	64(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        leaq	-32(%rsi), %rax
+        leaq	-32(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p1p1_to_p2_avx2,.-ge_p1p1_to_p2_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_p1p1_to_p3_avx2
+.type	ge_p1p1_to_p3_avx2,@function
+.align	16
+ge_p1p1_to_p3_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_p1p1_to_p3_avx2
+.p2align	4
+_ge_p1p1_to_p3_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        subq	$16, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        leaq	96(%rsi), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        leaq	32(%rsi), %rax
+        leaq	96(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        leaq	64(%rsi), %rsi
+        leaq	-64(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        leaq	32(%rsi), %rax
+        leaq	32(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r9, %r10
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r11, %r12
+        # A[1] * B[0]
+        mulxq	8(%rsi), %rcx, %r8
+        xorq	%rbx, %rbx
+        adcxq	%rcx, %r10
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r13, %r14
+        adcxq	%r8, %r11
+        # A[0] * B[1]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rcx, %r10
+        # A[2] * B[1]
+        mulxq	16(%rsi), %rcx, %r15
+        adoxq	%r8, %r11
+        adcxq	%rcx, %r12
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%r15, %r13
+        adoxq	%rcx, %r12
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        # A[0] * B[2]
+        mulxq	(%rsi), %rcx, %r8
+        adoxq	%rbx, %r14
+        xorq	%r15, %r15
+        adcxq	%rcx, %r11
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %rcx
+        adcxq	%r8, %r12
+        adoxq	%rdx, %r11
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r12
+        mulxq	8(%rsi), %rcx, %r8
+        adcxq	%rcx, %r13
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %rcx
+        adcxq	%r8, %r14
+        adoxq	%rdx, %r13
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r14
+        mulxq	24(%rsi), %rcx, %r8
+        adoxq	%rbx, %r15
+        adcxq	%rcx, %r15
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rcx
+        adcxq	%r8, %rbx
+        xorq	%r8, %r8
+        adcxq	%rdx, %r12
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%rcx, %r13
+        mulxq	(%rax), %rdx, %rcx
+        adoxq	%rdx, %r12
+        adoxq	%rcx, %r13
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %rcx
+        adcxq	%rdx, %r14
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%rcx, %r15
+        mulxq	16(%rsi), %rcx, %rdx
+        adcxq	%r8, %rbx
+        adoxq	%rcx, %r14
+        adoxq	%rdx, %r15
+        adoxq	%r8, %rbx
+        movq	$38, %rdx
+        mulxq	%rbx, %rbx, %rcx
+        addq	%rbx, %r12
+        adcq	$0x00, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        shldq	$0x01, %r12, %rcx
+        imulq	$19, %rcx, %rcx
+        andq	%r8, %r12
+        xorq	%r8, %r8
+        adoxq	%rcx, %r9
+        mulxq	%r13, %rcx, %r13
+        adcxq	%rcx, %r9
+        adoxq	%r13, %r10
+        mulxq	%r14, %rcx, %r14
+        adcxq	%rcx, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %rcx, %r15
+        adcxq	%rcx, %r11
+        adoxq	%r15, %r12
+        adcxq	%r8, %r12
+        # Store
+        movq	%r9, (%rdi)
+        movq	%r10, 8(%rdi)
+        movq	%r11, 16(%rdi)
+        movq	%r12, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p1p1_to_p3_avx2,.-ge_p1p1_to_p3_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_p2_dbl_avx2
+.type	ge_p2_dbl_avx2,@function
+.align	16
+ge_p2_dbl_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_p2_dbl_avx2
+.p2align	4
+_ge_p2_dbl_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        subq	$16, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        leaq	64(%rdi), %rdi
+        # Square
+        movq	(%rsi), %rdx
+        movq	8(%rsi), %r9
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%r9, %r11, %r12
+        # A[0] * A[3]
+        mulxq	24(%rsi), %r13, %r14
+        # A[2] * A[1]
+        movq	16(%rsi), %rdx
+        mulxq	%r9, %rcx, %r8
+        xorq	%r10, %r10
+        adoxq	%rcx, %r13
+        # A[2] * A[3]
+        mulxq	24(%rsi), %r15, %rbx
+        adoxq	%r8, %r14
+        # A[2] * A[0]
+        mulxq	%rbp, %rcx, %r8
+        adoxq	%r10, %r15
+        adcxq	%rcx, %r12
+        adoxq	%r10, %rbx
+        # A[1] * A[3]
+        movq	%r9, %rdx
+        mulxq	24(%rsi), %rcx, %rdx
+        adcxq	%r8, %r13
+        adcxq	%rcx, %r14
+        adcxq	%rdx, %r15
+        adcxq	%r10, %rbx
+        # A[0] * A[0]
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r10, %rcx
+        xorq	%rbp, %rbp
+        adcxq	%r11, %r11
+        # A[1] * A[1]
+        movq	%r9, %rdx
+        adoxq	%rcx, %r11
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%r12, %r12
+        adoxq	%rcx, %r12
+        adcxq	%r13, %r13
         # A[2] * A[2]
         movq	16(%rsi), %rdx
-        mulxq	%rdx, %rbp, %rcx
-        adcxq	%r12, %r12
-        adoxq	%rax, %r11
-        adcxq	%r13, %r13
-        adoxq	%rbp, %r12
+        adoxq	%r8, %r13
+        mulxq	%rdx, %r8, %rcx
+        adcxq	%r14, %r14
+        adoxq	%r8, %r14
+        adcxq	%r15, %r15
         # A[3] * A[3]
         movq	24(%rsi), %rdx
-        mulxq	%rdx, %rbp, %rax
-        adcxq	%r14, %r14
-        adoxq	%rcx, %r13
-        adcxq	%r15, %r15
-        adoxq	%rbp, %r14
-        adoxq	%rax, %r15
-        # Reduce
+        adoxq	%rcx, %r15
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%rbx, %rbx
+        adoxq	%rcx, %rbx
+        adcxq	%rbp, %rbp
+        adoxq	%r8, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
         movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%rcx, %r13
         xorq	%rcx, %rcx
-        mulxq	%r12, %rbp, %r12
-        adcxq	%rbp, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rbp, %r13
-        adcxq	%rbp, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rbp, %r14
-        adcxq	%rbp, %r10
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
         adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rbp
-        andq	%rcx, %r11
-        addq	%rbp, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%rcx, %r13
         # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	16(%rsp), %rdi
-        movq	40(%rsp), %rbx
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	32(%rsi), %rsi
         # Square
-        # A[0] * A[1]
-        movq	(%rbx), %rdx
-        mulxq	8(%rbx), %r9, %r10
-        # A[0] * A[3]
-        mulxq	24(%rbx), %r11, %r12
-        # A[2] * A[1]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rbx), %rcx, %rax
-        xorq	%r15, %r15
-        adoxq	%rcx, %r11
-        # A[2] * A[3]
-        mulxq	24(%rbx), %r13, %r14
-        adoxq	%rax, %r12
-        # A[2] * A[0]
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%r15, %r13
-        adcxq	%rcx, %r10
-        adoxq	%r15, %r14
-        # A[1] * A[3]
-        movq	8(%rbx), %rdx
-        mulxq	24(%rbx), %rbp, %r8
-        adcxq	%rax, %r11
-        adcxq	%rbp, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
-        # A[0] * A[0]
-        movq	(%rbx), %rdx
-        mulxq	%rdx, %r8, %rbp
-        adcxq	%r9, %r9
-        # A[1] * A[1]
-        movq	8(%rbx), %rdx
-        mulxq	%rdx, %rcx, %rax
-        adcxq	%r10, %r10
-        adoxq	%rbp, %r9
-        adcxq	%r11, %r11
-        adoxq	%rcx, %r10
-        # A[2] * A[2]
-        movq	16(%rbx), %rdx
-        mulxq	%rdx, %rbp, %rcx
-        adcxq	%r12, %r12
-        adoxq	%rax, %r11
-        adcxq	%r13, %r13
-        adoxq	%rbp, %r12
-        # A[3] * A[3]
-        movq	24(%rbx), %rdx
-        mulxq	%rdx, %rbp, %rax
-        adcxq	%r14, %r14
-        adoxq	%rcx, %r13
-        adcxq	%r15, %r15
-        adoxq	%rbp, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rcx, %rcx
-        mulxq	%r12, %rbp, %r12
-        adcxq	%rbp, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rbp, %r13
-        adcxq	%rbp, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rbp, %r14
-        adcxq	%rbp, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rbp
-        andq	%rcx, %r11
-        addq	%rbp, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        # Add
-        movq	(%rsi), %r8
+        movq	(%rsi), %rdx
         movq	8(%rsi), %r9
-        addq	(%rbx), %r8
-        movq	16(%rsi), %r10
-        adcq	8(%rbx), %r9
-        movq	24(%rsi), %rdx
-        adcq	16(%rbx), %r10
-        movq	$-19, %rcx
-        adcq	24(%rbx), %rdx
-        movq	$0x7fffffffffffffff, %rax
-        movq	%rdx, %r11
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	24(%rsp), %rsi
-        # Square
         # A[0] * A[1]
-        movq	(%rdi), %rdx
-        mulxq	8(%rdi), %r9, %r10
+        movq	%rdx, %rbp
+        mulxq	%r9, %r11, %r12
         # A[0] * A[3]
-        mulxq	24(%rdi), %r11, %r12
+        mulxq	24(%rsi), %r13, %r14
         # A[2] * A[1]
-        movq	16(%rdi), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adoxq	%rcx, %r11
-        # A[2] * A[3]
-        mulxq	24(%rdi), %r13, %r14
-        adoxq	%rax, %r12
-        # A[2] * A[0]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        adcxq	%rcx, %r10
-        adoxq	%r15, %r14
-        # A[1] * A[3]
-        movq	8(%rdi), %rdx
-        mulxq	24(%rdi), %rbp, %r8
-        adcxq	%rax, %r11
-        adcxq	%rbp, %r12
-        adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
-        # A[0] * A[0]
-        movq	(%rdi), %rdx
-        mulxq	%rdx, %r8, %rbp
-        adcxq	%r9, %r9
-        # A[1] * A[1]
-        movq	8(%rdi), %rdx
-        mulxq	%rdx, %rcx, %rax
-        adcxq	%r10, %r10
-        adoxq	%rbp, %r9
-        adcxq	%r11, %r11
-        adoxq	%rcx, %r10
-        # A[2] * A[2]
-        movq	16(%rdi), %rdx
-        mulxq	%rdx, %rbp, %rcx
-        adcxq	%r12, %r12
-        adoxq	%rax, %r11
-        adcxq	%r13, %r13
-        adoxq	%rbp, %r12
-        # A[3] * A[3]
-        movq	24(%rdi), %rdx
-        mulxq	%rdx, %rbp, %rax
-        adcxq	%r14, %r14
+        movq	16(%rsi), %rdx
+        mulxq	%r9, %rcx, %r8
+        xorq	%r10, %r10
         adoxq	%rcx, %r13
-        adcxq	%r15, %r15
-        adoxq	%rbp, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rcx
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rcx, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rcx, %rcx
-        mulxq	%r12, %rbp, %r12
-        adcxq	%rbp, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rbp, %r13
-        adcxq	%rbp, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rbp, %r14
-        adcxq	%rbp, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rcx, %rdx
-        adcxq	%rcx, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rcx
-        imulq	$19, %rdx, %rbp
-        andq	%rcx, %r11
-        addq	%rbp, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rcx, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	16(%rsp), %rsi
-        movq	(%rsp), %rbx
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %rdx
-        movq	%r8, %r12
-        addq	(%rbx), %r8
-        movq	%r9, %r13
-        adcq	8(%rbx), %r9
-        movq	%r10, %r14
-        adcq	16(%rbx), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbx), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbx), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbx), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbx), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbx), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	24(%rsp), %rsi
-        # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rdi), %r8
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r9
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r10
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r11
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r8
-        adcq	%rdx, %r9
-        adcq	%rdx, %r10
-        adcq	%rax, %r11
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	104(%rsp), %rdi
-        # Square * 2
-        # A[0] * A[1]
-        movq	(%rdi), %rdx
-        mulxq	8(%rdi), %r9, %r10
-        # A[0] * A[3]
-        mulxq	24(%rdi), %r11, %r12
-        # A[2] * A[1]
-        movq	16(%rdi), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adoxq	%rcx, %r11
         # A[2] * A[3]
-        mulxq	24(%rdi), %r13, %r14
-        adoxq	%rax, %r12
+        mulxq	24(%rsi), %r15, %rbx
+        adoxq	%r8, %r14
         # A[2] * A[0]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        adcxq	%rcx, %r10
-        adoxq	%r15, %r14
+        mulxq	%rbp, %rcx, %r8
+        adoxq	%r10, %r15
+        adcxq	%rcx, %r12
+        adoxq	%r10, %rbx
         # A[1] * A[3]
-        movq	8(%rdi), %rdx
-        mulxq	24(%rdi), %rbp, %r8
-        adcxq	%rax, %r11
-        adcxq	%rbp, %r12
+        movq	%r9, %rdx
+        mulxq	24(%rsi), %rcx, %rdx
         adcxq	%r8, %r13
-        adcxq	%r15, %r14
-        # Double with Carry Flag
-        xorq	%r15, %r15
+        adcxq	%rcx, %r14
+        adcxq	%rdx, %r15
+        adcxq	%r10, %rbx
         # A[0] * A[0]
-        movq	(%rdi), %rdx
-        mulxq	%rdx, %r8, %rbp
-        adcxq	%r9, %r9
-        # A[1] * A[1]
-        movq	8(%rdi), %rdx
-        mulxq	%rdx, %rcx, %rax
-        adcxq	%r10, %r10
-        adoxq	%rbp, %r9
-        adcxq	%r11, %r11
-        adoxq	%rcx, %r10
-        # A[2] * A[2]
-        movq	16(%rdi), %rdx
-        mulxq	%rdx, %rbp, %rcx
-        adcxq	%r12, %r12
-        adoxq	%rax, %r11
-        adcxq	%r13, %r13
-        adoxq	%rbp, %r12
-        # A[3] * A[3]
-        movq	24(%rdi), %rdx
-        mulxq	%rdx, %rbp, %rax
-        adcxq	%r14, %r14
-        adoxq	%rcx, %r13
-        adcxq	%r15, %r15
-        adoxq	%rbp, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r10, %rcx
         xorq	%rbp, %rbp
-        #  Move top half into t4-t7 and remove top bit from t3 and double
-        shldq	$3, %r15, %rbp
-        shldq	$2, %r14, %r15
-        shldq	$2, %r13, %r14
-        shldq	$2, %r12, %r13
-        shldq	$2, %r11, %r12
+        adcxq	%r11, %r11
+        # A[1] * A[1]
+        movq	%r9, %rdx
+        adoxq	%rcx, %r11
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%r12, %r12
+        adoxq	%rcx, %r12
+        adcxq	%r13, %r13
+        # A[2] * A[2]
+        movq	16(%rsi), %rdx
+        adoxq	%r8, %r13
+        mulxq	%rdx, %r8, %rcx
+        adcxq	%r14, %r14
+        adoxq	%r8, %r14
+        adcxq	%r15, %r15
+        # A[3] * A[3]
+        movq	24(%rsi), %rdx
+        adoxq	%rcx, %r15
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%rbx, %rbx
+        adoxq	%rcx, %rbx
+        adcxq	%rbp, %rbp
+        adoxq	%r8, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %rcx
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%rcx, %r13
+        xorq	%rcx, %rcx
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%rcx, %r13
+        # Store
+        movq	%rdi, %rsi
+        leaq	-32(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r13, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        imulq	$19, %rcx
+        andq	%r8, %r13
+        #   Sub modulus (if overflow)
+        addq	%rcx, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %rbp, %rcx
+        imulq	$-19, %rcx
+        andq	%r8, %rbp
+        #   Add modulus (if underflow)
+        subq	%rcx, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	8(%rsp), %rax
+        leaq	32(%rax), %rsi
+        leaq	-32(%rdi), %rdi
+        # Add
+        movq	(%rsi), %r10
+        movq	8(%rsi), %r11
+        addq	(%rax), %r10
+        movq	16(%rsi), %r12
+        adcq	8(%rax), %r11
+        movq	24(%rsi), %r13
+        adcq	16(%rax), %r12
+        adcq	24(%rax), %r13
+        movq	$0x00, %rcx
+        adcq	$0x00, %rcx
+        shldq	$0x01, %r13, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        imulq	$19, %rcx
+        andq	%r8, %r13
+        #   Sub modulus (if overflow)
+        addq	%rcx, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        # Square
+        movq	(%rdi), %rdx
+        movq	8(%rdi), %r9
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%r9, %r11, %r12
+        # A[0] * A[3]
+        mulxq	24(%rdi), %r13, %r14
+        # A[2] * A[1]
+        movq	16(%rdi), %rdx
+        mulxq	%r9, %rcx, %r8
+        xorq	%r10, %r10
+        adoxq	%rcx, %r13
+        # A[2] * A[3]
+        mulxq	24(%rdi), %r15, %rbx
+        adoxq	%r8, %r14
+        # A[2] * A[0]
+        mulxq	%rbp, %rcx, %r8
+        adoxq	%r10, %r15
+        adcxq	%rcx, %r12
+        adoxq	%r10, %rbx
+        # A[1] * A[3]
+        movq	%r9, %rdx
+        mulxq	24(%rdi), %rcx, %rdx
+        adcxq	%r8, %r13
+        adcxq	%rcx, %r14
+        adcxq	%rdx, %r15
+        adcxq	%r10, %rbx
+        # A[0] * A[0]
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r10, %rcx
+        xorq	%rbp, %rbp
+        adcxq	%r11, %r11
+        # A[1] * A[1]
+        movq	%r9, %rdx
+        adoxq	%rcx, %r11
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%r12, %r12
+        adoxq	%rcx, %r12
+        adcxq	%r13, %r13
+        # A[2] * A[2]
+        movq	16(%rdi), %rdx
+        adoxq	%r8, %r13
+        mulxq	%rdx, %r8, %rcx
+        adcxq	%r14, %r14
+        adoxq	%r8, %r14
+        adcxq	%r15, %r15
+        # A[3] * A[3]
+        movq	24(%rdi), %rdx
+        adoxq	%rcx, %r15
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%rbx, %rbx
+        adoxq	%rcx, %rbx
+        adcxq	%rbp, %rbp
+        adoxq	%r8, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %rcx
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%rcx, %r13
+        xorq	%rcx, %rcx
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%rcx, %r13
+        # Store
+        leaq	32(%rdi), %rsi
+        # Sub
+        subq	(%rsi), %r10
+        sbbq	8(%rsi), %r11
+        sbbq	16(%rsi), %r12
+        sbbq	24(%rsi), %r13
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %r13, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        imulq	$-19, %rcx
+        andq	%r8, %r13
+        #   Add modulus (if underflow)
+        subq	%rcx, %r10
+        sbbq	$0x00, %r11
+        sbbq	$0x00, %r12
+        sbbq	$0x00, %r13
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	64(%rax), %rax
+        # Square * 2
+        movq	(%rax), %rdx
+        movq	8(%rax), %r9
+        # A[0] * A[1]
+        movq	%rdx, %rbp
+        mulxq	%r9, %r11, %r12
+        # A[0] * A[3]
+        mulxq	24(%rax), %r13, %r14
+        # A[2] * A[1]
+        movq	16(%rax), %rdx
+        mulxq	%r9, %rcx, %r8
+        xorq	%r10, %r10
+        adoxq	%rcx, %r13
+        # A[2] * A[3]
+        mulxq	24(%rax), %r15, %rbx
+        adoxq	%r8, %r14
+        # A[2] * A[0]
+        mulxq	%rbp, %rcx, %r8
+        adoxq	%r10, %r15
+        adcxq	%rcx, %r12
+        adoxq	%r10, %rbx
+        # A[1] * A[3]
+        movq	%r9, %rdx
+        mulxq	24(%rax), %rcx, %rdx
+        adcxq	%r8, %r13
+        adcxq	%rcx, %r14
+        adcxq	%rdx, %r15
+        adcxq	%r10, %rbx
+        # A[0] * A[0]
+        movq	%rbp, %rdx
+        mulxq	%rdx, %r10, %rcx
+        xorq	%rbp, %rbp
+        adcxq	%r11, %r11
+        # A[1] * A[1]
+        movq	%r9, %rdx
+        adoxq	%rcx, %r11
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%r12, %r12
+        adoxq	%rcx, %r12
+        adcxq	%r13, %r13
+        # A[2] * A[2]
+        movq	16(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	%rdx, %r8, %rcx
+        adcxq	%r14, %r14
+        adoxq	%r8, %r14
+        adcxq	%r15, %r15
+        # A[3] * A[3]
+        movq	24(%rax), %rdx
+        adoxq	%rcx, %r15
+        mulxq	%rdx, %rcx, %r8
+        adcxq	%rbx, %rbx
+        adoxq	%rcx, %rbx
+        adcxq	%rbp, %rbp
+        adoxq	%r8, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r9
+        addq	%rbp, %r13
+        adcq	$0x00, %r9
+        movq	$0x7fffffffffffffff, %rcx
+        shldq	$0x01, %r13, %r9
+        imulq	$19, %r9, %r9
+        andq	%rcx, %r13
+        xorq	%rcx, %rcx
+        adoxq	%r9, %r10
+        mulxq	%r14, %r9, %r14
+        adcxq	%r9, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r9, %r15
+        adcxq	%r9, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r9, %rbx
+        adcxq	%r9, %r12
+        adoxq	%rbx, %r13
+        adcxq	%rcx, %r13
+        mov	%r13, %r9
+        shldq	$0x01, %r12, %r13
+        shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
-        shldq	$0x01, %r9, %r10
-        shldq	$0x01, %r8, %r9
-        shlq	$0x01, %r8
-        andq	%rax, %r11
-        #  Two out left, one in right
-        andq	%rax, %r15
-        #  Multiply top bits by 19*19
-        imulq	$0x169, %rbp, %rcx
-        xorq	%rax, %rax
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        adoxq	%rcx, %r8
-        mulxq	%r12, %rbp, %r12
-        adcxq	%rbp, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rbp, %r13
-        adcxq	%rbp, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rbp, %r14
-        adcxq	%rbp, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rbp
-        andq	%rax, %r11
-        addq	%rbp, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
+        shlq	$0x01, %r10
+        movq	$0x7fffffffffffffff, %rcx
+        shrq	$62, %r9
+        andq	%rcx, %r13
+        imulq	$19, %r9, %r9
+        addq	%r9, %r10
         adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
         # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	16(%rsp), %rdi
+        leaq	64(%rdi), %rsi
+        leaq	96(%rdi), %rdi
         # Sub
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %r11
-        subq	(%rdi), %r8
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r9
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r10
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r11
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
+        subq	(%rsi), %r10
+        sbbq	8(%rsi), %r11
+        sbbq	16(%rsi), %r12
+        sbbq	24(%rsi), %r13
+        sbbq	%rcx, %rcx
+        shldq	$0x01, %r13, %rcx
+        movq	$0x7fffffffffffffff, %r8
+        imulq	$-19, %rcx
+        andq	%r8, %r13
         #   Add modulus (if underflow)
+        subq	%rcx, %r10
+        sbbq	$0x00, %r11
+        sbbq	$0x00, %r12
+        sbbq	$0x00, %r13
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        addq	$16, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_p2_dbl_avx2,.-ge_p2_dbl_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_madd_avx2
+.type	ge_madd_avx2,@function
+.align	16
+ge_madd_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_madd_avx2
+.p2align	4
+_ge_madd_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rax
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rax, 16(%rsp)
+        leaq	96(%rsi), %rcx
+        leaq	64(%rax), %rax
+        leaq	96(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%rsi, %rcx
+        leaq	32(%rsi), %rax
+        leaq	-64(%rdi), %rsi
+        leaq	-96(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rax), %r10
+        movq	8(%rax), %r11
+        movq	16(%rax), %r12
+        movq	24(%rax), %r13
+        movq	%r10, %r14
+        addq	(%rcx), %r10
+        movq	%r11, %r15
+        adcq	8(%rcx), %r11
+        movq	%r12, %rbx
+        adcq	16(%rcx), %r12
+        movq	%r13, %rbp
+        adcq	24(%rcx), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rcx), %r14
+        sbbq	8(%rcx), %r15
+        sbbq	16(%rcx), %rbx
+        sbbq	24(%rcx), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rdi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rdi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rdi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rdi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rdi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rdi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rdi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rdi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rdi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rdi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rdi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rdi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rsi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rsi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rsi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rsi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        # Add-Sub
+        # Add
+        movq	(%rdi), %r10
+        movq	8(%rdi), %r11
+        movq	16(%rdi), %r12
+        movq	24(%rdi), %r13
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        leaq	64(%rcx), %rcx
+        # Double
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        addq	%r10, %r10
+        movq	16(%rcx), %r12
+        adcq	%r11, %r11
+        movq	24(%rcx), %r13
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        leaq	96(%rdi), %rsi
+        leaq	64(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_madd_avx2,.-ge_madd_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_msub_avx2
+.type	ge_msub_avx2,@function
+.align	16
+ge_msub_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_msub_avx2
+.p2align	4
+_ge_msub_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rax
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rax, 16(%rsp)
+        leaq	96(%rsi), %rcx
+        leaq	64(%rax), %rax
+        leaq	96(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%rsi, %rcx
+        leaq	32(%rsi), %rax
+        leaq	-64(%rdi), %rsi
+        leaq	-96(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rax), %r10
+        movq	8(%rax), %r11
+        movq	16(%rax), %r12
+        movq	24(%rax), %r13
+        movq	%r10, %r14
+        addq	(%rcx), %r10
+        movq	%r11, %r15
+        adcq	8(%rcx), %r11
+        movq	%r12, %rbx
+        adcq	16(%rcx), %r12
+        movq	%r13, %rbp
+        adcq	24(%rcx), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rcx), %r14
+        sbbq	8(%rcx), %r15
+        sbbq	16(%rcx), %rbx
+        sbbq	24(%rcx), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rax
+        leaq	32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rdi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rdi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rdi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rdi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rdi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rdi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rdi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rdi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rdi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rdi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rdi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rdi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	-32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rsi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rsi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rsi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rsi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        # Add-Sub
+        # Add
+        movq	(%rdi), %r10
+        movq	8(%rdi), %r11
+        movq	16(%rdi), %r12
+        movq	24(%rdi), %r13
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        leaq	64(%rcx), %rcx
+        # Double
+        movq	(%rcx), %r10
+        movq	8(%rcx), %r11
+        addq	%r10, %r10
+        movq	16(%rcx), %r12
+        adcq	%r11, %r11
+        movq	24(%rcx), %r13
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        leaq	96(%rdi), %rsi
+        leaq	64(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_msub_avx2,.-ge_msub_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_add_avx2
+.type	ge_add_avx2,@function
+.align	16
+ge_add_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_add_avx2
+.p2align	4
+_ge_add_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rax
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rax, 16(%rsp)
+        leaq	96(%rsi), %rcx
+        leaq	96(%rax), %rax
+        leaq	96(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%rsi, %rcx
+        leaq	32(%rsi), %rax
+        leaq	-64(%rdi), %rsi
+        leaq	-96(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rax), %r10
+        movq	8(%rax), %r11
+        movq	16(%rax), %r12
+        movq	24(%rax), %r13
+        movq	%r10, %r14
+        addq	(%rcx), %r10
+        movq	%r11, %r15
+        adcq	8(%rcx), %r11
+        movq	%r12, %rbx
+        adcq	16(%rcx), %r12
+        movq	%r13, %rbp
+        adcq	24(%rcx), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rcx), %r14
+        sbbq	8(%rcx), %r15
+        sbbq	16(%rcx), %rbx
+        sbbq	24(%rcx), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rdi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rdi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rdi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rdi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rdi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rdi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rdi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rdi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rdi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rdi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rdi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rdi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rsi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rsi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rsi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rsi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        leaq	64(%rcx), %rcx
+        leaq	32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        leaq	64(%rdi), %rdi
+        # Double
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	-64(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rdi), %r10
+        movq	8(%rdi), %r11
+        movq	16(%rdi), %r12
+        movq	24(%rdi), %r13
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        leaq	96(%rdi), %rsi
+        leaq	64(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rdi), %r10
+        movq	8(%rdi), %r11
+        movq	16(%rdi), %r12
+        movq	24(%rdi), %r13
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_add_avx2,.-ge_add_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	ge_sub_avx2
+.type	ge_sub_avx2,@function
+.align	16
+ge_sub_avx2:
+#else
+.section	__TEXT,__text
+.globl	_ge_sub_avx2
+.p2align	4
+_ge_sub_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	%rdx, %rax
+        subq	$24, %rsp
+        movq	%rdi, (%rsp)
+        movq	%rsi, 8(%rsp)
+        movq	%rax, 16(%rsp)
+        leaq	96(%rsi), %rcx
+        leaq	96(%rax), %rax
+        leaq	96(%rdi), %rdi
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%rsi, %rcx
+        leaq	32(%rsi), %rax
+        leaq	-64(%rdi), %rsi
+        leaq	-96(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rax), %r10
+        movq	8(%rax), %r11
+        movq	16(%rax), %r12
+        movq	24(%rax), %r13
+        movq	%r10, %r14
+        addq	(%rcx), %r10
+        movq	%r11, %r15
+        adcq	8(%rcx), %r11
+        movq	%r12, %rbx
+        adcq	16(%rcx), %r12
+        movq	%r13, %rbp
+        adcq	24(%rcx), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rcx), %r14
+        sbbq	8(%rcx), %r15
+        sbbq	16(%rcx), %rbx
+        sbbq	24(%rcx), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        movq	16(%rsp), %rax
+        leaq	32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rdi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rdi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rdi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rdi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rdi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rdi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rdi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rdi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rdi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rdi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rdi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rdi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rdi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rdi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	-32(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rsi), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rsi), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rsi), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rsi), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rsi), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rsi), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rsi), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rsi), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rsi), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rsi), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rsi), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rsi), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rsi), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        leaq	64(%rcx), %rcx
+        leaq	64(%rax), %rax
+        # Multiply
+        # A[0] * B[0]
+        movq	(%rax), %rdx
+        mulxq	(%rcx), %r10, %r11
+        # A[2] * B[0]
+        mulxq	16(%rcx), %r12, %r13
+        # A[1] * B[0]
+        mulxq	8(%rcx), %r8, %r9
+        xorq	%rbp, %rbp
+        adcxq	%r8, %r11
+        # A[3] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	24(%rcx), %r14, %r15
+        adcxq	%r9, %r12
+        # A[0] * B[1]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%r8, %r11
+        # A[2] * B[1]
+        mulxq	16(%rcx), %r8, %rbx
+        adoxq	%r9, %r12
+        adcxq	%r8, %r13
+        # A[1] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%rbx, %r14
+        adoxq	%r8, %r13
+        adcxq	%rbp, %r15
+        adoxq	%r9, %r14
+        # A[0] * B[2]
+        mulxq	(%rcx), %r8, %r9
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%r8, %r12
+        # A[1] * B[1]
+        movq	8(%rax), %rdx
+        mulxq	8(%rcx), %rdx, %r8
+        adcxq	%r9, %r13
+        adoxq	%rdx, %r12
+        # A[1] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r13
+        mulxq	8(%rcx), %r8, %r9
+        adcxq	%r8, %r14
+        # A[2] * B[2]
+        movq	16(%rax), %rdx
+        mulxq	16(%rcx), %rdx, %r8
+        adcxq	%r9, %r15
+        adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%rax), %rdx
+        adoxq	%r8, %r15
+        mulxq	24(%rcx), %r8, %r9
+        adoxq	%rbp, %rbx
+        adcxq	%r8, %rbx
+        # A[0] * B[3]
+        mulxq	(%rcx), %rdx, %r8
+        adcxq	%r9, %rbp
+        xorq	%r9, %r9
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
+        movq	24(%rcx), %rdx
+        adcxq	%r8, %r14
+        mulxq	(%rax), %rdx, %r8
+        adoxq	%rdx, %r13
+        adoxq	%r8, %r14
+        # A[3] * B[2]
+        movq	24(%rcx), %rdx
+        mulxq	16(%rax), %rdx, %r8
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%rax), %rdx
+        adcxq	%r8, %rbx
+        mulxq	16(%rcx), %r8, %rdx
+        adcxq	%r9, %rbp
+        adoxq	%r8, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%r9, %rbp
+        movq	$38, %rdx
+        mulxq	%rbp, %rbp, %r8
+        addq	%rbp, %r13
+        adcq	$0x00, %r8
+        movq	$0x7fffffffffffffff, %r9
+        shldq	$0x01, %r13, %r8
+        imulq	$19, %r8, %r8
+        andq	%r9, %r13
+        xorq	%r9, %r9
+        adoxq	%r8, %r10
+        mulxq	%r14, %r8, %r14
+        adcxq	%r8, %r10
+        adoxq	%r14, %r11
+        mulxq	%r15, %r8, %r15
+        adcxq	%r8, %r11
+        adoxq	%r15, %r12
+        mulxq	%rbx, %r8, %rbx
+        adcxq	%r8, %r12
+        adoxq	%rbx, %r13
+        adcxq	%r9, %r13
+        # Store
+        leaq	64(%rdi), %rdi
+        # Double
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        adcq	%r13, %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        leaq	-64(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rdi), %r10
+        movq	8(%rdi), %r11
+        movq	16(%rdi), %r12
+        movq	24(%rdi), %r13
+        movq	%r10, %r14
+        addq	(%rsi), %r10
+        movq	%r11, %r15
+        adcq	8(%rsi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rsi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rsi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rsi), %r14
+        sbbq	8(%rsi), %r15
+        sbbq	16(%rsi), %rbx
+        sbbq	24(%rsi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rsi)
+        movq	%r11, 8(%rsi)
+        movq	%r12, 16(%rsi)
+        movq	%r13, 24(%rsi)
+        movq	%r14, (%rdi)
+        movq	%r15, 8(%rdi)
+        movq	%rbx, 16(%rdi)
+        movq	%rbp, 24(%rdi)
+        leaq	64(%rdi), %rsi
+        leaq	96(%rdi), %rdi
+        # Add-Sub
+        # Add
+        movq	(%rsi), %r10
+        movq	8(%rsi), %r11
+        movq	16(%rsi), %r12
+        movq	24(%rsi), %r13
+        movq	%r10, %r14
+        addq	(%rdi), %r10
+        movq	%r11, %r15
+        adcq	8(%rdi), %r11
+        movq	%r12, %rbx
+        adcq	16(%rdi), %r12
+        movq	%r13, %rbp
+        adcq	24(%rdi), %r13
+        movq	$0x00, %r8
+        adcq	$0x00, %r8
+        shldq	$0x01, %r13, %r8
+        movq	$0x7fffffffffffffff, %r9
+        imulq	$19, %r8
+        andq	%r9, %r13
+        #   Sub modulus (if overflow)
+        addq	%r8, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        adcq	$0x00, %r13
+        # Sub
+        subq	(%rdi), %r14
+        sbbq	8(%rdi), %r15
+        sbbq	16(%rdi), %rbx
+        sbbq	24(%rdi), %rbp
+        sbbq	%r8, %r8
+        shldq	$0x01, %rbp, %r8
+        imulq	$-19, %r8
+        andq	%r9, %rbp
+        #   Add modulus (if underflow)
+        subq	%r8, %r14
+        sbbq	$0x00, %r15
+        sbbq	$0x00, %rbx
+        sbbq	$0x00, %rbp
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        movq	%r14, (%rsi)
+        movq	%r15, 8(%rsi)
+        movq	%rbx, 16(%rsi)
+        movq	%rbp, 24(%rsi)
+        addq	$24, %rsp
+        popq	%rbp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	ge_sub_avx2,.-ge_sub_avx2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	sc_reduce_avx2
+.type	sc_reduce_avx2,@function
+.align	16
+sc_reduce_avx2:
+#else
+.section	__TEXT,__text
+.globl	_sc_reduce_avx2
+.p2align	4
+_sc_reduce_avx2:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        pushq	%rbp
+        movq	(%rdi), %r8
+        movq	8(%rdi), %r9
+        movq	16(%rdi), %r10
+        movq	24(%rdi), %r11
+        movq	32(%rdi), %r12
+        movq	40(%rdi), %r13
+        movq	48(%rdi), %r14
+        movq	56(%rdi), %r15
+        movq	%r15, %rax
+        movq	$0xfffffffffffffff, %rcx
+        shrq	$56, %rax
+        shldq	$4, %r14, %r15
+        shldq	$4, %r13, %r14
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rcx, %r11
+        andq	%rcx, %r15
+        # Add order times bits 504..511
+        subq	%rax, %r14
+        sbbq	$0x00, %r15
+        movq	$0xeb2106215d086329, %rdx
+        mulxq	%rax, %rsi, %rcx
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        addq	%rsi, %r13
+        mulxq	%rax, %rsi, %rbx
+        adcq	$0x00, %rcx
+        addq	%rsi, %r12
+        adcq	%rbx, %r13
+        adcq	%rcx, %r14
+        adcq	$0x00, %r15
+        # Sub product of top 4 words and order
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        mulx	%r12, %rcx, %rax
         addq	%rcx, %r8
-        adcq	%rdx, %r9
-        adcq	%rdx, %r10
+        adcq	%rax, %r9
+        mulx	%r14, %rcx, %rax
+        adcq	%rcx, %r10
         adcq	%rax, %r11
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        addq	$48, %rsp
+        mov	$0x00, %rsi
+        adcq	$0x00, %rsi
+        mulx	%r13, %rcx, %rax
+        addq	%rcx, %r9
+        adcq	%rax, %r10
+        mulx	%r15, %rcx, %rax
+        adcq	%rcx, %r11
+        adcq	%rax, %rsi
+        movq	$0xeb2106215d086329, %rdx
+        mulx	%r12, %rcx, %rax
+        addq	%rcx, %r9
+        adcq	%rax, %r10
+        mulx	%r14, %rcx, %rax
+        adcq	%rcx, %r11
+        adcq	%rax, %rsi
+        mov	$0x00, %rbx
+        adcq	$0x00, %rbx
+        mulx	%r13, %rcx, %rax
+        addq	%rcx, %r10
+        adcq	%rax, %r11
+        mulx	%r15, %rcx, %rax
+        adcq	%rcx, %rsi
+        adcq	%rax, %rbx
+        subq	%r12, %r10
+        movq	%rsi, %r12
+        sbbq	%r13, %r11
+        movq	%rbx, %r13
+        sbbq	%r14, %r12
+        sbbq	%r15, %r13
+        movq	%r13, %rax
+        sarq	$57, %rax
+        #   Conditionally subtract order starting at bit 125
+        movq	$0xa000000000000000, %rsi
+        movq	$0xcb024c634b9eba7d, %rbx
+        movq	$0x29bdf3bd45ef39a, %rbp
+        movq	$0x200000000000000, %rcx
+        andq	%rax, %rsi
+        andq	%rax, %rbx
+        andq	%rax, %rbp
+        andq	%rax, %rcx
+        addq	%rsi, %r9
+        adcq	%rbx, %r10
+        adcq	%rbp, %r11
+        adcq	$0x00, %r12
+        adcq	%rcx, %r13
+        #   Move bits 252-376 to own registers
+        movq	$0xfffffffffffffff, %rax
+        shldq	$4, %r12, %r13
+        shldq	$4, %r11, %r12
+        andq	%rax, %r11
+        # Sub product of top 2 words and order
+        #   * -5812631a5cf5d3ed
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        mulx	%r12, %rbp, %rax
+        movq	$0x00, %rsi
+        addq	%rbp, %r8
+        adcq	%rax, %r9
+        mulx	%r13, %rbp, %rax
+        adcq	$0x00, %rsi
+        addq	%rbp, %r9
+        adcq	%rax, %rsi
+        #   * -14def9dea2f79cd7
+        movq	$0xeb2106215d086329, %rdx
+        mulx	%r12, %rbp, %rax
+        movq	$0x00, %rbx
+        addq	%rbp, %r9
+        adcq	%rax, %r10
+        mulx	%r13, %rbp, %rax
+        adcq	$0x00, %rbx
+        addq	%rbp, %r10
+        adcq	%rax, %rbx
+        #   Add overflows at 2 * 64
+        movq	$0xfffffffffffffff, %rcx
+        andq	%rcx, %r11
+        addq	%rsi, %r10
+        adcq	%rbx, %r11
+        #   Subtract top at 2 * 64
+        subq	%r12, %r10
+        sbbq	%r13, %r11
+        sbbq	%rcx, %rcx
+        #   Conditional sub order
+        movq	$0x5812631a5cf5d3ed, %rsi
+        movq	$0x14def9dea2f79cd6, %rbx
+        movq	$0x1000000000000000, %rbp
+        andq	%rcx, %rsi
+        andq	%rcx, %rbx
+        andq	%rcx, %rbp
+        addq	%rsi, %r8
+        movq	$0xfffffffffffffff, %rsi
+        adcq	%rbx, %r9
+        adcq	$0x00, %r10
+        adcq	%rbp, %r11
+        andq	%rsi, %r11
+        # Store result
+        movq	%r8, (%rdi)
+        movq	%r9, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        popq	%rbp
+        popq	%rbx
         popq	%r15
         popq	%r14
         popq	%r13
         popq	%r12
-        popq	%rbx
-        popq	%rbp
         repz retq
 #ifndef __APPLE__
-.size	fe_ge_dbl_avx2,.-fe_ge_dbl_avx2
+.size	sc_reduce_avx2,.-sc_reduce_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	fe_ge_madd_avx2
-.type	fe_ge_madd_avx2,@function
+.globl	sc_muladd_avx2
+.type	sc_muladd_avx2,@function
 .align	16
-fe_ge_madd_avx2:
+sc_muladd_avx2:
 #else
 .section	__TEXT,__text
-.globl	_fe_ge_madd_avx2
+.globl	_sc_muladd_avx2
 .p2align	4
-_fe_ge_madd_avx2:
+_sc_muladd_avx2:
 #endif /* __APPLE__ */
-        pushq	%rbp
-        pushq	%rbx
         pushq	%r12
         pushq	%r13
         pushq	%r14
         pushq	%r15
-        subq	$48, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	8(%rsp), %rsi
-        movq	40(%rsp), %rbx
-        movq	32(%rsp), %rbp
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rbp), %r8
-        movq	%r9, %r13
-        adcq	8(%rbp), %r9
-        movq	%r10, %r14
-        adcq	16(%rbp), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbp), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbp), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbp), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbp), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbp), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	16(%rsp), %rbx
-        movq	128(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rdi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rdi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rdi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rdi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rdi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rdi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rdi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rdi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rdi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	136(%rsp), %rdi
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rdi), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rdi), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rdi), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rdi), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rdi), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rdi), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rdi), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rdi), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rdi), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rdi), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rdi), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	24(%rsp), %rdi
-        movq	120(%rsp), %rsi
-        movq	112(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rdi
-        movq	(%rsp), %rsi
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rdi), %r8
-        movq	%r9, %r13
-        adcq	8(%rdi), %r9
-        movq	%r10, %r14
-        adcq	16(%rdi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rdi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rdi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	104(%rsp), %rdi
-        # Double
-        movq	(%rdi), %r8
-        movq	8(%rdi), %r9
-        addq	%r8, %r8
-        movq	16(%rdi), %r10
-        adcq	%r9, %r9
-        movq	24(%rdi), %rdx
-        adcq	%r10, %r10
-        movq	$-19, %rcx
-        adcq	%rdx, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        movq	%rdx, %r11
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	24(%rsp), %rdi
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rdi), %r8
-        movq	%r9, %r13
-        adcq	8(%rdi), %r9
-        movq	%r10, %r14
-        adcq	16(%rdi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rdi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rdi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	%r12, (%rdi)
-        movq	%r13, 8(%rdi)
-        movq	%r14, 16(%rdi)
-        movq	%r15, 24(%rdi)
-        addq	$48, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        popq	%rbp
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_madd_avx2,.-fe_ge_madd_avx2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_msub_avx2
-.type	fe_ge_msub_avx2,@function
-.align	16
-fe_ge_msub_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_msub_avx2
-.p2align	4
-_fe_ge_msub_avx2:
-#endif /* __APPLE__ */
-        pushq	%rbp
         pushq	%rbx
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$48, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	8(%rsp), %rsi
-        movq	40(%rsp), %rbx
-        movq	32(%rsp), %rbp
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rbp), %r8
-        movq	%r9, %r13
-        adcq	8(%rbp), %r9
-        movq	%r10, %r14
-        adcq	16(%rbp), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbp), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbp), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbp), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbp), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbp), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	16(%rsp), %rbx
-        movq	136(%rsp), %rbp
+        pushq	%rbp
+        movq	%rdx, %r8
+        movq	%rcx, %r9
         # Multiply
         # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rdi), %r8, %r9
+        movq	(%r8), %rdx
+        mulxq	(%rsi), %r10, %r11
         # A[2] * B[0]
-        mulxq	16(%rdi), %r10, %r11
+        mulxq	16(%rsi), %r12, %r13
         # A[1] * B[0]
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rdi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rdi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rdi), %rdx, %rcx
+        mulxq	8(%rsi), %rax, %rcx
+        xorq	%rbp, %rbp
         adcxq	%rax, %r11
-        adoxq	%rdx, %r10
         # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rdi), %rcx, %rax
+        movq	8(%r8), %rdx
+        mulxq	24(%rsi), %r14, %r15
         adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rdi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rdi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rdi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	128(%rsp), %rdi
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rdi), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rdi), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
         # A[0] * B[1]
-        movq	8(%rdi), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
+        mulxq	(%rsi), %rax, %rcx
+        adoxq	%rax, %r11
         # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rdi), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rdi), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rdi), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rdi), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rdi), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rdi), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
+        mulxq	16(%rsi), %rax, %rbx
         adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rdi), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rdi), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	24(%rsp), %rdi
-        movq	120(%rsp), %rsi
-        movq	112(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
+        adcxq	%rax, %r13
+        # A[1] * B[2]
+        movq	16(%r8), %rdx
+        mulxq	8(%rsi), %rax, %rcx
+        adcxq	%rbx, %r14
+        adoxq	%rax, %r13
+        adcxq	%rbp, %r15
+        adoxq	%rcx, %r14
+        # A[0] * B[2]
+        mulxq	(%rsi), %rax, %rcx
+        adoxq	%rbp, %r15
+        xorq	%rbx, %rbx
+        adcxq	%rax, %r12
+        # A[1] * B[1]
+        movq	8(%r8), %rdx
+        mulxq	8(%rsi), %rdx, %rax
+        adcxq	%rcx, %r13
+        adoxq	%rdx, %r12
         # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
+        movq	24(%r8), %rdx
+        adoxq	%rax, %r13
+        mulxq	8(%rsi), %rax, %rcx
+        adcxq	%rax, %r14
         # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
+        movq	16(%r8), %rdx
+        mulxq	16(%rsi), %rdx, %rax
+        adcxq	%rcx, %r15
         adoxq	%rdx, %r14
+        # A[3] * B[3]
+        movq	24(%r8), %rdx
         adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	8(%rsp), %rsi
-        movq	(%rsp), %rbp
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rsi), %r8
-        movq	%r9, %r13
-        adcq	8(%rsi), %r9
-        movq	%r10, %r14
-        adcq	16(%rsi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rsi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rsi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rsi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rsi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rsi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	%r12, (%rbp)
-        movq	%r13, 8(%rbp)
-        movq	%r14, 16(%rbp)
-        movq	%r15, 24(%rbp)
-        movq	104(%rsp), %rsi
-        # Double
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        addq	%r8, %r8
-        movq	16(%rsi), %r10
-        adcq	%r9, %r9
+        mulxq	24(%rsi), %rax, %rcx
+        adoxq	%rbp, %rbx
+        adcxq	%rax, %rbx
+        # A[0] * B[3]
+        mulxq	(%rsi), %rdx, %rax
+        adcxq	%rcx, %rbp
+        xorq	%rcx, %rcx
+        adcxq	%rdx, %r13
+        # A[3] * B[0]
         movq	24(%rsi), %rdx
-        adcq	%r10, %r10
-        movq	$-19, %rcx
-        adcq	%rdx, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        movq	%rdx, %r11
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rdi), %r8
-        movq	%r9, %r13
-        adcq	8(%rdi), %r9
-        movq	%r10, %r14
-        adcq	16(%rdi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rdi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rdi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rbx)
-        movq	%r13, 8(%rbx)
-        movq	%r14, 16(%rbx)
-        movq	%r15, 24(%rbx)
-        addq	$48, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbx
-        popq	%rbp
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_msub_avx2,.-fe_ge_msub_avx2
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_add_avx2
-.type	fe_ge_add_avx2,@function
-.align	16
-fe_ge_add_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_add_avx2
-.p2align	4
-_fe_ge_add_avx2:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%rbp
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	8(%rsp), %rsi
-        movq	40(%rsp), %rbx
-        movq	32(%rsp), %rbp
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rbp), %r8
-        movq	%r9, %r13
-        adcq	8(%rbp), %r9
-        movq	%r10, %r14
-        adcq	16(%rbp), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbp), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbp), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbp), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbp), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbp), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	16(%rsp), %rbx
-        movq	168(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rdi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rdi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rdi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rdi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rdi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rdi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rdi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rdi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rdx, %r13
+        adcxq	%rax, %r14
+        mulxq	(%r8), %rdx, %rax
+        adoxq	%rdx, %r13
+        adoxq	%rax, %r14
         # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rdi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	176(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	24(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        movq	144(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rbx), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rbx), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rbx), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rbx), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rbx), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rbx), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rbx), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rbx), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rbx), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rbx), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rbx), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rbx), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	136(%rsp), %rsi
-        movq	152(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rsi
-        # Double
-        movq	(%rdi), %r8
-        movq	8(%rdi), %r9
-        addq	%r8, %r8
-        movq	16(%rdi), %r10
-        adcq	%r9, %r9
-        movq	24(%rdi), %rdx
-        adcq	%r10, %r10
-        movq	$-19, %rcx
-        adcq	%rdx, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        movq	%rdx, %r11
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	8(%rsp), %rbx
-        movq	16(%rsp), %rbp
-        # Add
-        movq	(%rbp), %r8
-        movq	8(%rbp), %r9
-        movq	16(%rbp), %r10
-        movq	24(%rbp), %rdx
-        movq	%r8, %r12
-        addq	(%rbx), %r8
-        movq	%r9, %r13
-        adcq	8(%rbx), %r9
-        movq	%r10, %r14
-        adcq	16(%rbx), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbx), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbx), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbx), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbx), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbx), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	%r12, (%rdi)
-        movq	%r13, 8(%rdi)
-        movq	%r14, 16(%rdi)
-        movq	%r15, 24(%rdi)
-        movq	24(%rsp), %rdi
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
         movq	24(%rsi), %rdx
-        movq	%r8, %r12
-        addq	(%rdi), %r8
-        movq	%r9, %r13
-        adcq	8(%rdi), %r9
-        movq	%r10, %r14
-        adcq	16(%rdi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rdi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rdi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
+        mulxq	16(%r8), %rdx, %rax
+        adcxq	%rdx, %r15
+        # A[2] * B[3]
+        movq	24(%r8), %rdx
+        adcxq	%rax, %rbx
+        mulxq	16(%rsi), %rax, %rdx
+        adcxq	%rcx, %rbp
+        adoxq	%rax, %r15
+        adoxq	%rdx, %rbx
+        adoxq	%rcx, %rbp
+        # Add c to a * b
+        addq	(%r9), %r10
+        adcq	8(%r9), %r11
+        adcq	16(%r9), %r12
+        adcq	24(%r9), %r13
+        adcq	$0x00, %r14
+        adcq	$0x00, %r15
+        adcq	$0x00, %rbx
+        adcq	$0x00, %rbp
+        movq	%rbp, %rax
+        movq	$0xfffffffffffffff, %rcx
+        shrq	$56, %rax
+        shldq	$4, %rbx, %rbp
+        shldq	$4, %r15, %rbx
+        shldq	$4, %r14, %r15
+        shldq	$4, %r13, %r14
+        andq	%rcx, %r13
+        andq	%rcx, %rbp
+        # Add order times bits 504..507
+        subq	%rax, %rbx
+        sbbq	$0x00, %rbp
+        movq	$0xeb2106215d086329, %rdx
+        mulxq	%rax, %rsi, %rcx
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        addq	%rsi, %r15
+        mulxq	%rax, %rsi, %r8
+        adcq	$0x00, %rcx
+        addq	%rsi, %r14
+        adcq	%r8, %r15
+        adcq	%rcx, %rbx
+        adcq	$0x00, %rbp
+        # Sub product of top 4 words and order
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        mulx	%r14, %rcx, %rax
+        addq	%rcx, %r10
+        adcq	%rax, %r11
+        mulx	%rbx, %rcx, %rax
+        adcq	%rcx, %r12
+        adcq	%rax, %r13
+        mov	$0x00, %rsi
+        adcq	$0x00, %rsi
+        mulx	%r15, %rcx, %rax
+        addq	%rcx, %r11
+        adcq	%rax, %r12
+        mulx	%rbp, %rcx, %rax
+        adcq	%rcx, %r13
+        adcq	%rax, %rsi
+        movq	$0xeb2106215d086329, %rdx
+        mulx	%r14, %rcx, %rax
+        addq	%rcx, %r11
+        adcq	%rax, %r12
+        mulx	%rbx, %rcx, %rax
+        adcq	%rcx, %r13
+        adcq	%rax, %rsi
+        mov	$0x00, %r8
+        adcq	$0x00, %r8
+        mulx	%r15, %rcx, %rax
         addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rbp)
-        movq	%r9, 8(%rbp)
-        movq	%r10, 16(%rbp)
-        movq	%r11, 24(%rbp)
-        movq	%r12, (%rdi)
-        movq	%r13, 8(%rdi)
-        movq	%r14, 16(%rdi)
-        movq	%r15, 24(%rdi)
-        addq	$0x50, %rsp
+        adcq	%rax, %r13
+        mulx	%rbp, %rcx, %rax
+        adcq	%rcx, %rsi
+        adcq	%rax, %r8
+        subq	%r14, %r12
+        movq	%rsi, %r14
+        sbbq	%r15, %r13
+        movq	%r8, %r15
+        sbbq	%rbx, %r14
+        sbbq	%rbp, %r15
+        movq	%r15, %rax
+        sarq	$57, %rax
+        #   Conditionally subtract order starting at bit 125
+        movq	$0xa000000000000000, %rsi
+        movq	$0xcb024c634b9eba7d, %r8
+        movq	$0x29bdf3bd45ef39a, %r9
+        movq	$0x200000000000000, %rcx
+        andq	%rax, %rsi
+        andq	%rax, %r8
+        andq	%rax, %r9
+        andq	%rax, %rcx
+        addq	%rsi, %r11
+        adcq	%r8, %r12
+        adcq	%r9, %r13
+        adcq	$0x00, %r14
+        adcq	%rcx, %r15
+        #   Move bits 252-376 to own registers
+        movq	$0xfffffffffffffff, %rax
+        shldq	$4, %r14, %r15
+        shldq	$4, %r13, %r14
+        andq	%rax, %r13
+        # Sub product of top 2 words and order
+        #   * -5812631a5cf5d3ed
+        movq	$0xa7ed9ce5a30a2c13, %rdx
+        mulx	%r14, %r9, %rax
+        movq	$0x00, %rsi
+        addq	%r9, %r10
+        adcq	%rax, %r11
+        mulx	%r15, %r9, %rax
+        adcq	$0x00, %rsi
+        addq	%r9, %r11
+        adcq	%rax, %rsi
+        #   * -14def9dea2f79cd7
+        movq	$0xeb2106215d086329, %rdx
+        mulx	%r14, %r9, %rax
+        movq	$0x00, %r8
+        addq	%r9, %r11
+        adcq	%rax, %r12
+        mulx	%r15, %r9, %rax
+        adcq	$0x00, %r8
+        addq	%r9, %r12
+        adcq	%rax, %r8
+        #   Add overflows at 2 * 64
+        movq	$0xfffffffffffffff, %rcx
+        andq	%rcx, %r13
+        addq	%rsi, %r12
+        adcq	%r8, %r13
+        #   Subtract top at 2 * 64
+        subq	%r14, %r12
+        sbbq	%r15, %r13
+        sbbq	%rcx, %rcx
+        #   Conditional sub order
+        movq	$0x5812631a5cf5d3ed, %rsi
+        movq	$0x14def9dea2f79cd6, %r8
+        movq	$0x1000000000000000, %r9
+        andq	%rcx, %rsi
+        andq	%rcx, %r8
+        andq	%rcx, %r9
+        addq	%rsi, %r10
+        movq	$0xfffffffffffffff, %rsi
+        adcq	%r8, %r11
+        adcq	$0x00, %r12
+        adcq	%r9, %r13
+        andq	%rsi, %r13
+        # Store result
+        movq	%r10, (%rdi)
+        movq	%r11, 8(%rdi)
+        movq	%r12, 16(%rdi)
+        movq	%r13, 24(%rdi)
+        popq	%rbp
+        popq	%rbx
         popq	%r15
         popq	%r14
         popq	%r13
         popq	%r12
-        popq	%rbp
-        popq	%rbx
         repz retq
 #ifndef __APPLE__
-.size	fe_ge_add_avx2,.-fe_ge_add_avx2
+.size	sc_muladd_avx2,.-sc_muladd_avx2
 #endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	fe_ge_sub_avx2
-.type	fe_ge_sub_avx2,@function
-.align	16
-fe_ge_sub_avx2:
-#else
-.section	__TEXT,__text
-.globl	_fe_ge_sub_avx2
-.p2align	4
-_fe_ge_sub_avx2:
-#endif /* __APPLE__ */
-        pushq	%rbx
-        pushq	%rbp
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x50, %rsp
-        movq	%rdi, (%rsp)
-        movq	%rsi, 8(%rsp)
-        movq	%rdx, 16(%rsp)
-        movq	%rcx, 24(%rsp)
-        movq	%r8, 32(%rsp)
-        movq	%r9, 40(%rsp)
-        movq	8(%rsp), %rsi
-        movq	40(%rsp), %rbx
-        movq	32(%rsp), %rbp
-        # Add
-        movq	(%rbx), %r8
-        movq	8(%rbx), %r9
-        movq	16(%rbx), %r10
-        movq	24(%rbx), %rdx
-        movq	%r8, %r12
-        addq	(%rbp), %r8
-        movq	%r9, %r13
-        adcq	8(%rbp), %r9
-        movq	%r10, %r14
-        adcq	16(%rbp), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbp), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbp), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbp), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbp), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbp), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rsi)
-        movq	%r13, 8(%rsi)
-        movq	%r14, 16(%rsi)
-        movq	%r15, 24(%rsi)
-        movq	16(%rsp), %rbx
-        movq	176(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rdi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rdi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rdi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rdi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rdi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rdi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rdi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rdi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rdi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rdi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rdi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rdi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rdi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rdi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	168(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	24(%rsp), %rsi
-        movq	160(%rsp), %rbx
-        movq	144(%rsp), %rbp
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbp), %rdx
-        mulxq	(%rbx), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rbx), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rbx), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	8(%rbx), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rbx), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	8(%rbx), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rbx), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbp), %rdx
-        mulxq	8(%rbx), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbp), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rbx), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbp), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbp), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rbx), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rbx), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbp), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rbx), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbp), %rdx
-        mulxq	16(%rbx), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbp), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rbx), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	136(%rsp), %rsi
-        movq	152(%rsp), %rbx
-        # Multiply
-        # A[0] * B[0]
-        movq	(%rbx), %rdx
-        mulxq	(%rsi), %r8, %r9
-        # A[2] * B[0]
-        mulxq	16(%rsi), %r10, %r11
-        # A[1] * B[0]
-        mulxq	8(%rsi), %rcx, %rax
-        xorq	%r15, %r15
-        adcxq	%rcx, %r9
-        # A[1] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	8(%rsi), %r12, %r13
-        adcxq	%rax, %r10
-        # A[0] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%rcx, %r9
-        # A[2] * B[1]
-        mulxq	16(%rsi), %rcx, %r14
-        adoxq	%rax, %r10
-        adcxq	%rcx, %r11
-        # A[1] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	8(%rsi), %rcx, %rax
-        adcxq	%r14, %r12
-        adoxq	%rcx, %r11
-        adcxq	%r15, %r13
-        adoxq	%rax, %r12
-        # A[0] * B[2]
-        mulxq	(%rsi), %rcx, %rax
-        adoxq	%r15, %r13
-        xorq	%r14, %r14
-        adcxq	%rcx, %r10
-        # A[1] * B[1]
-        movq	8(%rbx), %rdx
-        mulxq	8(%rsi), %rdx, %rcx
-        adcxq	%rax, %r11
-        adoxq	%rdx, %r10
-        # A[3] * B[1]
-        movq	8(%rbx), %rdx
-        adoxq	%rcx, %r11
-        mulxq	24(%rsi), %rcx, %rax
-        adcxq	%rcx, %r12
-        # A[2] * B[2]
-        movq	16(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rdx, %r12
-        # A[3] * B[3]
-        movq	24(%rbx), %rdx
-        adoxq	%rcx, %r13
-        mulxq	24(%rsi), %rcx, %rax
-        adoxq	%r15, %r14
-        adcxq	%rcx, %r14
-        # A[0] * B[3]
-        mulxq	(%rsi), %rdx, %rcx
-        adcxq	%rax, %r15
-        xorq	%rax, %rax
-        adcxq	%rdx, %r11
-        # A[3] * B[0]
-        movq	(%rbx), %rdx
-        adcxq	%rcx, %r12
-        mulxq	24(%rsi), %rdx, %rcx
-        adoxq	%rdx, %r11
-        adoxq	%rcx, %r12
-        # A[2] * B[3]
-        movq	24(%rbx), %rdx
-        mulxq	16(%rsi), %rdx, %rcx
-        adcxq	%rdx, %r13
-        # A[3] * B[2]
-        movq	16(%rbx), %rdx
-        adcxq	%rcx, %r14
-        mulxq	24(%rsi), %rcx, %rdx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %r13
-        adoxq	%rdx, %r14
-        adoxq	%rax, %r15
-        # Reduce
-        movq	$0x7fffffffffffffff, %rax
-        #  Move top half into t4-t7 and remove top bit from t3
-        shldq	$0x01, %r14, %r15
-        shldq	$0x01, %r13, %r14
-        shldq	$0x01, %r12, %r13
-        shldq	$0x01, %r11, %r12
-        andq	%rax, %r11
-        #  Multiply top half by 19
-        movq	$19, %rdx
-        xorq	%rax, %rax
-        mulxq	%r12, %rcx, %r12
-        adcxq	%rcx, %r8
-        adoxq	%r12, %r9
-        mulxq	%r13, %rcx, %r13
-        adcxq	%rcx, %r9
-        adoxq	%r13, %r10
-        mulxq	%r14, %rcx, %r14
-        adcxq	%rcx, %r10
-        adoxq	%r14, %r11
-        mulxq	%r15, %r15, %rdx
-        adcxq	%r15, %r11
-        adoxq	%rax, %rdx
-        adcxq	%rax, %rdx
-        #  Overflow
-        shldq	$0x01, %r11, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        imulq	$19, %rdx, %rcx
-        andq	%rax, %r11
-        addq	%rcx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Reduce if top bit set
-        movq	%r11, %rdx
-        sarq	$63, %rdx
-        andq	$19, %rdx
-        andq	%rax, %r11
-        addq	%rdx, %r8
-        adcq	$0x00, %r9
-        adcq	$0x00, %r10
-        adcq	$0x00, %r11
-        # Store
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        leaq	48(%rsp), %rsi
-        # Double
-        movq	(%rdi), %r8
-        movq	8(%rdi), %r9
-        addq	%r8, %r8
-        movq	16(%rdi), %r10
-        adcq	%r9, %r9
-        movq	24(%rdi), %rdx
-        adcq	%r10, %r10
-        movq	$-19, %rcx
-        adcq	%rdx, %rdx
-        movq	$0x7fffffffffffffff, %rax
-        movq	%rdx, %r11
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        movq	%r8, (%rsi)
-        movq	%r9, 8(%rsi)
-        movq	%r10, 16(%rsi)
-        movq	%r11, 24(%rsi)
-        movq	8(%rsp), %rbx
-        movq	16(%rsp), %rbp
-        # Add
-        movq	(%rbp), %r8
-        movq	8(%rbp), %r9
-        movq	16(%rbp), %r10
-        movq	24(%rbp), %rdx
-        movq	%r8, %r12
-        addq	(%rbx), %r8
-        movq	%r9, %r13
-        adcq	8(%rbx), %r9
-        movq	%r10, %r14
-        adcq	16(%rbx), %r10
-        movq	%rdx, %r15
-        adcq	24(%rbx), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rbx), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rbx), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rbx), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rbx), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rbx)
-        movq	%r9, 8(%rbx)
-        movq	%r10, 16(%rbx)
-        movq	%r11, 24(%rbx)
-        movq	%r12, (%rdi)
-        movq	%r13, 8(%rdi)
-        movq	%r14, 16(%rdi)
-        movq	%r15, 24(%rdi)
-        movq	24(%rsp), %rdi
-        # Add
-        movq	(%rsi), %r8
-        movq	8(%rsi), %r9
-        movq	16(%rsi), %r10
-        movq	24(%rsi), %rdx
-        movq	%r8, %r12
-        addq	(%rdi), %r8
-        movq	%r9, %r13
-        adcq	8(%rdi), %r9
-        movq	%r10, %r14
-        adcq	16(%rdi), %r10
-        movq	%rdx, %r15
-        adcq	24(%rdi), %rdx
-        movq	$-19, %rcx
-        movq	%rdx, %r11
-        movq	$0x7fffffffffffffff, %rax
-        sarq	$63, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Sub modulus (if overflow)
-        subq	%rcx, %r8
-        sbbq	%rdx, %r9
-        sbbq	%rdx, %r10
-        sbbq	%rax, %r11
-        # Sub
-        subq	(%rdi), %r12
-        movq	$0x00, %rdx
-        sbbq	8(%rdi), %r13
-        movq	$-19, %rcx
-        sbbq	16(%rdi), %r14
-        movq	$0x7fffffffffffffff, %rax
-        sbbq	24(%rdi), %r15
-        sbbq	$0x00, %rdx
-        #   Mask the modulus
-        andq	%rdx, %rcx
-        andq	%rdx, %rax
-        #   Add modulus (if underflow)
-        addq	%rcx, %r12
-        adcq	%rdx, %r13
-        adcq	%rdx, %r14
-        adcq	%rax, %r15
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, (%rbp)
-        movq	%r13, 8(%rbp)
-        movq	%r14, 16(%rbp)
-        movq	%r15, 24(%rbp)
-        addq	$0x50, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbp
-        popq	%rbx
-        repz retq
-#ifndef __APPLE__
-.size	fe_ge_sub_avx2,.-fe_ge_sub_avx2
-#endif /* __APPLE__ */
+#endif /* HAVE_ED25519 */
 #endif /* HAVE_INTEL_AVX2 */
 
 #if defined(__linux__) && defined(__ELF__)

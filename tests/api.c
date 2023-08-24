@@ -3728,7 +3728,7 @@ static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
     WOLFSSL_CTX* ctx;
     const char* ca_expired_cert_file = "./certs/test/expired/expired-ca.der";
     byte ca_expired_cert[TWOK_BUF];
-    word32 sizeof_ca_expired_cert;
+    word32 sizeof_ca_expired_cert = 0;
     XFILE fp = XBADFILE;
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -5855,7 +5855,9 @@ static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
     }
     while ((!handshake_complete) && (max_rounds > 0)) {
         if (!hs_c) {
+            wolfSSL_SetLoggingPrefix("client");
             ret = wolfSSL_connect(ctx->c_ssl);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_c = 1;
             }
@@ -5872,7 +5874,9 @@ static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
             }
         }
         if (!hs_s) {
+            wolfSSL_SetLoggingPrefix("server");
             ret = wolfSSL_accept(ctx->s_ssl);
+            wolfSSL_SetLoggingPrefix(NULL);
             if (ret == WOLFSSL_SUCCESS) {
                 hs_s = 1;
             }
@@ -5921,7 +5925,9 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
         msglen_s = ctx->s_msglen;
     }
 
+    wolfSSL_SetLoggingPrefix("client");
     ExpectIntEQ(wolfSSL_write(ctx->c_ssl, msg_c, msglen_c), msglen_c);
+    wolfSSL_SetLoggingPrefix("server");
     ExpectIntGT(idx = wolfSSL_read(ctx->s_ssl, input, sizeof(input) - 1), 0);
     if (idx >= 0) {
         input[idx] = '\0';
@@ -5929,7 +5935,9 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
     ExpectIntGT(fprintf(stderr, "Client message: %s\n", input), 0);
     ExpectIntEQ(wolfSSL_write(ctx->s_ssl, msg_s, msglen_s), msglen_s);
     ctx->s_cb.return_code = EXPECT_RESULT();
+    wolfSSL_SetLoggingPrefix("client");
     ExpectIntGT(idx = wolfSSL_read(ctx->c_ssl, input, sizeof(input) - 1), 0);
+    wolfSSL_SetLoggingPrefix(NULL);
     if (idx >= 0) {
         input[idx] = '\0';
     }
@@ -11337,7 +11345,7 @@ static int test_wolfSSL_no_password_cb(void)
     const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
     const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
     XFILE f = XBADFILE;
-    int bytes;
+    int bytes = 0;
 
 #ifndef NO_WOLFSSL_CLIENT
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLS_client_method()));
@@ -19788,7 +19796,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     DsaKey key;
     WC_RNG rng;
     byte*  der = NULL;
-    word32 sz;
+    word32 sz = 0;
     word32 idx = 0;
 
     XMEMSET(&key, 0, sizeof(DsaKey));
@@ -20079,7 +20087,7 @@ static int test_wc_DsaExportKeyRaw(void)
 static int test_wc_ed25519_make_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key   key;
     WC_RNG        rng;
     unsigned char pubkey[ED25519_PUB_KEY_SIZE];
@@ -20221,7 +20229,9 @@ static int test_wc_ed25519_import_public(void)
 
     ExpectIntEQ(wc_ed25519_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &pubKey), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_import_public_ex(in, inlen, &pubKey, 1), 0);
     ExpectIntEQ(XMEMCMP(in, pubKey.p, inlen), 0);
@@ -20260,7 +20270,9 @@ static int test_wc_ed25519_import_private_key(void)
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, privKeySz, pubKey,
         pubKeySz, &key, 1), 0);
@@ -20308,13 +20320,32 @@ static int test_wc_ed25519_export(void)
     byte        pub[ED25519_PUB_KEY_SIZE];
     word32      privSz = sizeof(priv);
     word32      pubSz = sizeof(pub);
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_export_public(&key, pub, &pubSz), 0);
     ExpectIntEQ(pubSz, ED25519_KEY_SIZE);
@@ -20350,13 +20381,32 @@ static int test_wc_ed25519_size(void)
 #if defined(HAVE_ED25519)
     ed25519_key key;
     WC_RNG      rng;
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_size(&key), ED25519_KEY_SIZE);
     /* Test bad args. */
@@ -20395,13 +20445,32 @@ static int test_wc_ed25519_exportKey(void)
     word32      privSz      = sizeof(priv);
     word32      pubSz       = sizeof(pub);
     word32      privOnlySz  = sizeof(privOnly);
+#ifndef HAVE_ED25519_MAKE_KEY
+    const byte  privKey[] = {
+        0xf8, 0x55, 0xb7, 0xb6, 0x49, 0x3f, 0x99, 0x9c,
+        0x88, 0xe3, 0xc5, 0x42, 0x6a, 0xa4, 0x47, 0x4a,
+        0xe4, 0x95, 0xda, 0xdb, 0xbf, 0xf8, 0xa7, 0x42,
+        0x9d, 0x0e, 0xe7, 0xd0, 0x57, 0x8f, 0x16, 0x69
+    };
+    const byte  pubKey[] = {
+        0x42, 0x3b, 0x7a, 0xf9, 0x82, 0xcf, 0xf9, 0xdf,
+        0x19, 0xdd, 0xf3, 0xf0, 0x32, 0x29, 0x6d, 0xfa,
+        0xfd, 0x76, 0x4f, 0x68, 0xc2, 0xc2, 0xe0, 0x6c,
+        0x47, 0xae, 0xc2, 0x55, 0x68, 0xac, 0x0d, 0x4d
+    };
+#endif
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+#else
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, sizeof(privKey),
+        pubKey, sizeof(pubKey), &key, 1), 0);
+#endif
 
     ExpectIntEQ(wc_ed25519_export_private(&key, privOnly, &privOnlySz), 0);
     /* Test bad args. */
@@ -26113,7 +26182,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_256)
     /* test of decrypt callback with KEKRI enveloped data */
     {
-        int envelopedSz;
+        int envelopedSz = 0;
         const byte keyId[] = { 0x00 };
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -26638,7 +26707,7 @@ static int test_wc_PKCS7_BER(void)
 #ifndef NO_DES3
     byte   decoded[2048];
 #endif
-    word32 derSz;
+    word32 derSz = 0;
 
     ExpectTrue((f = XFOPEN(fName, "rb")) != XBADFILE);
     ExpectTrue((derSz = (word32)XFREAD(der, 1, sizeof(der), f)) > 0);
@@ -64227,20 +64296,52 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         0x0d, 0x00, 0x00, 0x11, 0x00, 0x00, 0x0d, 0x00, 0x2f, 0x00, 0x01, 0xff,
         0xff, 0xff, 0xff, 0xfa, 0x0d, 0x00, 0x00, 0x00, 0xad, 0x02
     };
+    const byte shBadCaNamesExt2[] = {
+        0x16, 0x03, 0x04, 0x00, 0x3f, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0xcf,
+        0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
+        0x65, 0xb8, 0x91, 0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e, 0x07,
+        0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c, 0x00, 0x13, 0x03, 0x00, 0x00,
+        0x13, 0x94, 0x7e, 0x00, 0x03, 0x0b, 0xf7, 0x03, 0x00, 0x2b, 0x00, 0x02,
+        0x03, 0x04, 0x00, 0x33, 0x00, 0x02, 0x00, 0x19, 0x16, 0x03, 0x03, 0x00,
+        0x5e, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0x7f, 0xd0, 0x2d, 0xea, 0x6e,
+        0x53, 0xa1, 0x6a, 0xc9, 0xc8, 0x54, 0xef, 0x75, 0xe4, 0xd9, 0xc6, 0x3e,
+        0x74, 0xcb, 0x30, 0x80, 0xcc, 0x83, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0xc0, 0x5a, 0x00, 0xc0, 0xb5, 0x00, 0x00, 0x11, 0x8f, 0x00, 0x00,
+        0x03, 0x03, 0x00, 0x0c, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, 0x53, 0x25,
+        0x00, 0x00, 0x08, 0x00, 0x00, 0x06, 0x00, 0x04, 0x02, 0x05, 0x00, 0x00,
+        0x0d, 0x00, 0x00, 0x11, 0x00, 0x00, 0x0d, 0x00, 0x2f, 0x00, 0x06, 0x00,
+        0x04, 0x00, 0x03, 0x30, 0x00, 0x13, 0x94, 0x00, 0x06, 0x00, 0x04, 0x02
+    };
+    int i = 0;
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
-        wolfTLSv1_3_client_method, NULL), 0);
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+            wolfTLSv1_3_client_method, NULL), 0);
 
-    XMEMCPY(test_ctx.c_buff, shBadCaNamesExt, sizeof(shBadCaNamesExt));
-    test_ctx.c_len = sizeof(shBadCaNamesExt);
+        switch (i) {
+            case 0:
+                XMEMCPY(test_ctx.c_buff, shBadCaNamesExt,
+                        sizeof(shBadCaNamesExt));
+                test_ctx.c_len = sizeof(shBadCaNamesExt);
+                break;
+            case 1:
+                XMEMCPY(test_ctx.c_buff, shBadCaNamesExt2,
+                        sizeof(shBadCaNamesExt2));
+                test_ctx.c_len = sizeof(shBadCaNamesExt2);
+                break;
+        }
 
-    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), BUFFER_ERROR);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), BUFFER_ERROR);
 
-    wolfSSL_free(ssl_c);
-    wolfSSL_CTX_free(ctx_c);
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+    }
+
 #endif
     return EXPECT_RESULT();
 }
@@ -64351,6 +64452,91 @@ static int test_session_ticket_no_id(void)
     return EXPECT_RESULT();
 }
 #endif
+
+static int test_session_ticket_hs_update(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    struct test_memio_ctx test_ctx3;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_c2 = NULL;
+    WOLFSSL *ssl_c3 = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL *ssl_s2 = NULL;
+    WOLFSSL *ssl_s3 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    byte read_data[1];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    XMEMSET(&test_ctx3, 0, sizeof(test_ctx3));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Generate tickets */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_SetLoggingPrefix("client");
+    /* Read the ticket msg */
+    ExpectIntEQ(wolfSSL_read(ssl_c, read_data, sizeof(read_data)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx3, &ctx_c, &ctx_s, &ssl_c3, &ssl_s3,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
+
+    wolfSSL_SetLoggingPrefix("client");
+    /* Exchange intial flights for the second connection */
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_accept(ssl_s2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s2, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    /* Complete third connection so that new tickets are exchanged */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c3, ssl_s3, 10, NULL), 0);
+    /* Read the ticket msg */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_read(ssl_c3, read_data, sizeof(read_data)),
+            WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c3, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    wolfSSL_SetLoggingPrefix(NULL);
+
+    /* Complete second connection */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 1);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c3), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_c3);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_free(ssl_s3);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_SECURE_RENEGOTIATION)
@@ -65733,6 +65919,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
     TEST_DECL(test_dtls_1_0_hvr_downgrade),
     TEST_DECL(test_session_ticket_no_id),
+    TEST_DECL(test_session_ticket_hs_update),
     TEST_DECL(test_dtls_downgrade_scr_server),
     TEST_DECL(test_dtls_downgrade_scr),
     /* This test needs to stay at the end to clean up any caches allocated. */

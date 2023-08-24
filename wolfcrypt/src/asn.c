@@ -639,13 +639,13 @@ static word32 SizeASN_Num(word32 n, int bits, byte tag)
  * @param [in]      idx    Index of item working on.
  */
 static void SizeASN_CalcDataLength(const ASNItem* asn, ASNSetData *data,
-                                   int idx, int max)
+                                   int idx, int maxIdx)
 {
     int j;
 
     data[idx].data.buffer.length = 0;
     /* Sum the item length of all items underneath. */
-    for (j = idx + 1; j < max; j++) {
+    for (j = idx + 1; j < maxIdx; j++) {
         /* Stop looking if the next ASN.1 is same level or higher. */
         if (asn[j].depth <= asn[idx].depth)
             break;

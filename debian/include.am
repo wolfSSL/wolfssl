@@ -1,0 +1,77 @@
+# vim:ft=automake
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+deb:
+# Setup meta folders
+	mkdir -p debian/libwolfssl/DEBIAN debian/libwolfssl-dev/DEBIAN
+# "Install" wolfSSL
+	make install exec_prefix=$(CURDIR)/debian/libwolfssl/usr \
+		prefix=$(CURDIR)/debian/libwolfssl-dev/usr
+# deb shared lib stuff
+	fakeroot dh_makeshlibs
+	dh_shlibdeps
+	dh_installdeb
+# Generate the lib and src descriptions
+	fakeroot dh_gencontrol
+# Make adjustments to the package structure and to satisfy lintian checks
+# Correct doc dir name
+	@rm -rf debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev
+	@mv debian/libwolfssl-dev/usr/share/doc/wolfssl \
+		debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev
+# Clear lib folder
+	@rm -rf debian/libwolfssl-dev/usr/lib
+	@mkdir -p debian/libwolfssl-dev/usr/lib
+# Move the top level .so into the dev pkg
+	@mv debian/libwolfssl/usr/lib/libwolfssl.so debian/libwolfssl-dev/usr/lib
+# Create correct pkg doc dir
+	@rm -rf debian/libwolfssl/usr/share/doc/libwolfssl
+	@mkdir -p debian/libwolfssl/usr/share/doc/libwolfssl
+# Place changelog
+	@gzip -n -9 -c debian/changelog | \
+		tee debian/libwolfssl/usr/share/doc/libwolfssl/changelog.gz > \
+		debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev/changelog.gz
+# Place copyright
+	@cp debian/copyright debian/libwolfssl/usr/share/doc/libwolfssl
+	@cp debian/copyright debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev
+# Remove .la file https://wiki.debian.org/ReleaseGoals/LAFileRemoval
+	@rm debian/libwolfssl/usr/lib/libwolfssl.la
+# Strip unwanted symbols
+# https://www.debian.org/doc/debian-policy/ch-files.html#binaries
+	@strip --strip-unneeded debian/libwolfssl/usr/lib/libwolfssl.so.*.*.*
+# Place pkgconfig so that it is available for cross-compilation
+# https://lintian.debian.org/tags/pkg-config-unavailable-for-cross-compilation
+	@rm -rf debian/libwolfssl/usr/lib/$(DEB_HOST_MULTIARCH)
+	@mkdir -p debian/libwolfssl/usr/lib/$(DEB_HOST_MULTIARCH)
+	@mv debian/libwolfssl/usr/lib/pkgconfig \
+		debian/libwolfssl/usr/lib/$(DEB_HOST_MULTIARCH)
+# Set the expected access rules
+	@chmod 644 debian/libwolfssl/usr/lib/libwolfssl.so.*.*.*
+	@chmod 644 debian/libwolfssl/usr/share/doc/libwolfssl/changelog.gz \
+		debian/libwolfssl/usr/share/doc/libwolfssl/copyright \
+		debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev/changelog.gz \
+		debian/libwolfssl-dev/usr/share/doc/libwolfssl-dev/copyright
+# Do this as the last step to mark all directories with the correct access bits
+	@find debian/libwolfssl*/usr -type d | xargs chmod 755
+# Generate debs
+	dpkg-deb --root-owner-group -b debian/libwolfssl .
+	dpkg-deb --root-owner-group -b debian/libwolfssl-dev .
+# Check that everything is correct with lintian
+# - we don't provide a manual page for wolfssl-config
+# - we don't care about matching the soname for our debs
+	lintian *.deb --fail-on error,warning --tag-display-limit 0 \
+		--suppress-tags no-manual-page,package-name-doesnt-match-sonames
+# Clean up the working dirs
+	make deb-clean
+
+deb-docker:
+	docker build -t "debian-builder:Dockerfile" Docker/packaging/debian
+	docker run --rm -v $(CURDIR):/opt/wolfssl debian-builder:Dockerfile \
+		bash -c 'cd /opt/wolfssl && ./config.status --recheck && make deb && \
+				make clean deb-clean &> /dev/null'
+# To allow the user to keep using the configuration on the host
+	@./config.status --recheck &> /dev/null
+
+deb-clean:
+	rm -rf debian/libwolfssl debian/libwolfssl-dev debian/files \
+		debian/*.substvars debian/.debhelper

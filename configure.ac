@@ -71,6 +71,9 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
        ])
 
+WOLFSSL_BUILD_DATE=$(date -R)
+AC_SUBST([WOLFSSL_BUILD_DATE])
+
 
 # Moved these size of and type checks before the library checks.
 # The library checks add the library to subsequent test compiles
@@ -1324,6 +1327,17 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
 fi
 
+# KeyLog file export
+AC_ARG_ENABLE([keylog-export],
+              [AS_HELP_STRING([--enable-keylog-export],[Enable (DANGEROUS INSECURE) exporting TLS secrets to an NSS keylog file (default: disabled)])],
+    [ ENABLED_KEYLOG_EXPORT=$enableval ],
+    [ ENABLED_KEYLOG_EXPORT=no ]
+    )
+if test "$ENABLED_KEYLOG_EXPORT" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE"
+fi
+
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
 AC_ARG_ENABLE([tls13-draft18],
     [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
@@ -2548,6 +2562,7 @@ then
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
+            ENABLED_ARMASM_NEON=yes
 
             # Check for and set -mstrict-align compiler flag
             # Used to set assumption that Aarch64 systems will not handle
@@ -2567,18 +2582,30 @@ then
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto])
             ;;
         armv7a*)
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=yes
             AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
             ;;
+        armv7m*)
+            # QEMU doesn't work with armv7-m
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            # Include options.h
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=no
+            AC_MSG_NOTICE([32bit ARMv7-m found])
+            ;;
         *)
-            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"
+            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
+            ENABLED_ARMASM_NEON=yes
             AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
             ;;
         esac
@@ -2594,6 +2621,17 @@ if test "$ENABLED_ARMASM_SM3" = "yes"; then
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
+fi
+if test "$ENABLED_ARMASM_CRYPTO" = "no"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_HW_CRYPTO"
+fi
+if test "$ENABLED_ARMASM_NEON" = "no"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_NEON"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_NO_NEON"
+fi
+
+if test "$ENABLED_ARMASM_INLINE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_INLINE"
 fi
 
 # Xilinx hardened crypto
@@ -3587,6 +3625,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CURVE25519"
     ENABLED_FEMATH=yes
 fi
 
@@ -8368,6 +8407,8 @@ AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
 
 AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"])
+AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
+      [AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
@@ -8830,6 +8871,7 @@ AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
+AM_CONDITIONAL([BUILD_ARMASM_NEON],[test "x$ENABLED_ARMASM_NEON" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -9009,6 +9051,8 @@ AC_CONFIG_FILES([Makefile
         wolfssl/version.h
         wolfssl/options.h
         support/wolfssl.pc
+        debian/control
+        debian/changelog
         rpm/spec
         wolfcrypt/test/test_paths.h
         ])
@@ -9449,6 +9493,7 @@ echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
+echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo ""
 echo "---"
 

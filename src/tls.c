@@ -516,6 +516,21 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int ret;
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support, obtain
+     * the master secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        ret = ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                   SNIFFER_SECRET_TLS12_MASTER_SECRET,
+                                   ssl->arrays->masterSecret);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = DeriveTlsKeys(ssl);
+        return ret;
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
 #ifdef HAVE_EXTENDED_MASTER
     if (ssl->options.haveEMS) {
         word32 hashSz = HSHASH_SZ;
@@ -6664,7 +6679,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
-        if (extLen > length)
+        if (idx + extLen > length)
             ret = BUFFER_ERROR;
 
         if (ret == 0) {
@@ -15214,4 +15229,5 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* NO_TLS */
+
 #endif /* WOLFCRYPT_ONLY */

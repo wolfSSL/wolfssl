@@ -1,0 +1,38 @@
+name: Packaging Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Package wolfSSL
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v3
+
+      - name: Configure wolfSSL
+        run: |
+          autoreconf -ivf
+          ./configure --enable-distro --disable-examples --disable-silent-rules
+
+      - name: Build wolfSSL .deb
+        run: make deb-docker
+
+      - name: Build wolfSSL .rpm
+        run: make rpm-docker
+
+      - name: Confirm packages built
+        run: |
+          DEB_COUNT=$(find -name 'libwolfssl*.deb' | wc -l)
+          if [ "$DEB_COUNT" != "2" ]; then
+            echo Did not find exactly two deb packages!!!
+            exit 1
+          fi
+          RPM_COUNT=$(find -name 'wolfssl*.rpm' | wc -l)
+          if [ "$RPM_COUNT" != "4" ]; then
+            echo Did not find exactly four rpm packages!!!
+            exit 1
+          fi

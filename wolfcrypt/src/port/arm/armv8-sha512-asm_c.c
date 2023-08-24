@@ -30,6 +30,7 @@
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifdef WOLFSSL_ARMASM_INLINE
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_SHA512
@@ -1665,3 +1666,4 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data, word32 len
 #endif /* WOLFSSL_SHA512 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM_INLINE */

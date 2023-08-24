@@ -1,0 +1,9 @@
+snifftest 5.6.3
+sniffer features: key_callback tls_v13 tls_v12 static_ephemeral sni extended_master rsa dh ecc rsa_static dh_static ssl_keylog_file 
+
+SSL App Data(22:14):hello wolfssl!
+SSL App Data(24:22):I hear you fa shizzle!
+SSL App Data(50:14):hello wolfssl!
+SSL App Data(51:22):I hear you fa shizzle!
+SSL App Data(77:14):hello wolfssl!
+SSL App Data(78:22):I hear you fa shizzle!

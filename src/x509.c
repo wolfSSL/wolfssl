@@ -10722,6 +10722,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
                 case MBSTRING_UTF8:
                     type = CTC_UTF8;
                     break;
+                case MBSTRING_ASC:
                 case V_ASN1_PRINTABLESTRING:
                     type = CTC_PRINTABLE;
                     break;

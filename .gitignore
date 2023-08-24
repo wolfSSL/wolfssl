@@ -424,4 +424,8 @@ user_settings_asm.h
 
 # MagicCrypto (ARIA Cipher)
 MagicCrypto
-/out
+
+# debian packaging
+debian/changelog
+debian/control
+*.deb
