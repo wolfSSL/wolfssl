@@ -13,7 +13,7 @@ Architecture: any
 Section: libs
 Priority: optional
 Pre-Depends:
-Depends: 
+Depends:
  ${shlibs:Depends},
  ${misc:Depends}
 Description: wolfSSL encryption library

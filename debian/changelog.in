@@ -1,6 +1,6 @@
 wolfssl (@VERSION@) stable; urgency=medium
 
-  * For a full changelog see 
+  * For a full changelog see
     https://github.com/wolfSSL/wolfssl/blob/master/ChangeLog.md
 
  -- wolfSSL <support@wolfssl.com>  @WOLFSSL_BUILD_DATE@
