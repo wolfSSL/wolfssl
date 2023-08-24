@@ -36,6 +36,8 @@ jobs:
         uses: ./.github/workflows/curl.yml
     krb5:
         uses: ./.github/workflows/krb5.yml
+    packaging:
+        uses: ./.github/workflows/packaging.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml

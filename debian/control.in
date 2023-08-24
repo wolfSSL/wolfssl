@@ -1,0 +1,44 @@
+Source: wolfssl
+Maintainer: wolfSSL <support@wolfssl.com>
+Section: libs
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+Vcs-Git: https://github.com/wolfSSL/wolfssl.git
+Vcs-browser: https://github.com/wolfSSL/wolfssl
+Homepage: https://www.wolfssl.com/
+
+Package: libwolfssl
+Architecture: any
+Section: libs
+Priority: optional
+Pre-Depends:
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: wolfSSL encryption library
+ The wolfSSL embedded SSL library (formerly CyaSSL) is a lightweight SSL/TLS
+ library written in ANSI C and targeted for embedded, RTOS, and
+ resource-constrained environments - primarily because of its small size, speed,
+ and feature set. It is commonly used in standard operating environments as well
+ because of its royalty-free pricing and excellent cross platform support.
+ wolfSSL supports industry standards up to the current TLS 1.3 and DTLS 1.3
+ levels.
+
+Package: libwolfssl-dev
+Architecture: any
+Section: libdevel
+Priority: optional
+Pre-Depends:
+Depends:
+ libwolfssl (= ${binary:Version}),
+ ${misc:Depends}
+Description: wolfSSL encryption library
+ The wolfSSL embedded SSL library (formerly CyaSSL) is a lightweight SSL/TLS
+ library written in ANSI C and targeted for embedded, RTOS, and
+ resource-constrained environments - primarily because of its small size, speed,
+ and feature set. It is commonly used in standard operating environments as well
+ because of its royalty-free pricing and excellent cross platform support.
+ wolfSSL supports industry standards up to the current TLS 1.3 and DTLS 1.3
+ levels.
+

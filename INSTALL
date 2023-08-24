@@ -309,3 +309,22 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 
     Run the benchmark against LMS/HSS with:
     $ ./wolfcrypt/benchmark/benchmark -lms_hss
+
+18. Building for Debian, Ubuntu, Linux Mint, and derivatives
+
+    To generate a .deb package, configure wolfSSL with the desired
+    configuration. Then run `make deb` to generate a Debian package
+    with the current configuration. To build the package inside a
+    Docker container, use `make deb-docker`. In both cases the
+    resulting packages are placed in the root directory of the
+    project.
+
+18. Building for RHEL, Fedora, CentOS, SUSE, and openSUSE
+
+    To generate a .rpm package, configure wolfSSL with the desired
+    configuration. Then run `make rpm` to generate a .rpm package
+    with the current configuration. To build the package inside a
+    Docker container, use `make rpm-docker`. In both cases the
+    resulting packages are placed in the root directory of the
+    project.
+
