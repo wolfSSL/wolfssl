@@ -6677,7 +6677,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
-        if (extLen > length)
+        if (idx + extLen > length)
             ret = BUFFER_ERROR;
 
         if (ret == 0) {
