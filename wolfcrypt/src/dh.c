@@ -1336,7 +1336,7 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
         *pubSz = binSz;
 
     mp_clear(y);
-    mp_clear(x);
+    mp_forcezero(x);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(y, key->heap, DYNAMIC_TYPE_DH);
     XFREE(x, key->heap, DYNAMIC_TYPE_DH);

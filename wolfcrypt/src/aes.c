@@ -4385,6 +4385,19 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return 0;
         }
 
+        int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+                                        const byte* iv, int dir)
+        {
+            if (aes == NULL) {
+                return BAD_FUNC_ARG;
+            }
+            if (len > sizeof(aes->key)) {
+                return BAD_FUNC_ARG;
+            }
+
+            return wc_AesSetKeyLocal(aes, key, len, iv, dir, 0);
+        }
+
     #endif /* NEED_AES_CTR_SOFT */
 
 #endif /* WOLFSSL_AES_COUNTER */
