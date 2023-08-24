@@ -2464,14 +2464,16 @@ typedef struct CRL_Entry CRL_Entry;
 #endif
 /* Complete CRL */
 struct CRL_Entry {
-    wolfSSL_Mutex verifyMutex;
     byte*   toBeSigned;
     byte*   signature;
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
     CRL_Entry* next;                      /* next entry */
-    /* DupCRL_Entry copies data after the `next` member */
+    wolfSSL_Mutex verifyMutex;
+    /* DupCRL_Entry copies data after the `verifyMutex` member. Using the mutex
+     * as the marker because clang-tidy doesn't like taking the sizeof a
+     * pointer. */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */

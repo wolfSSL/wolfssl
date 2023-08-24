@@ -366,7 +366,8 @@
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
-    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE)
+    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
+    || !defined(WOLFSSL_NO_TLS12)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -64946,7 +64947,7 @@ static int test_certreq_sighash_algos(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
     defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
-    defined(HAVE_AES_CBC)
+    defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -64957,15 +64958,14 @@ static int test_certreq_sighash_algos(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.c_ciphers = test_ctx.s_ciphers =
-            "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:"
-            "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+            "ECDHE-ECDSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA384";
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
 
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
             "./certs/ca-ecc-cert.pem", NULL), WOLFSSL_SUCCESS);
 
-    wolfSSL_set_verify(ssl_s, SSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, "./certs/ecc-key.pem",
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, "./certs/server-ecc.pem",
