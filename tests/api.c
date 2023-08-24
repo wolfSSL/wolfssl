@@ -3728,7 +3728,7 @@ static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
     WOLFSSL_CTX* ctx;
     const char* ca_expired_cert_file = "./certs/test/expired/expired-ca.der";
     byte ca_expired_cert[TWOK_BUF];
-    word32 sizeof_ca_expired_cert;
+    word32 sizeof_ca_expired_cert = 0;
     XFILE fp = XBADFILE;
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -11337,7 +11337,7 @@ static int test_wolfSSL_no_password_cb(void)
     const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
     const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
     XFILE f = XBADFILE;
-    int bytes;
+    int bytes = 0;
 
 #ifndef NO_WOLFSSL_CLIENT
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLS_client_method()));
@@ -19788,7 +19788,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     DsaKey key;
     WC_RNG rng;
     byte*  der = NULL;
-    word32 sz;
+    word32 sz = 0;
     word32 idx = 0;
 
     XMEMSET(&key, 0, sizeof(DsaKey));
@@ -26174,7 +26174,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_256)
     /* test of decrypt callback with KEKRI enveloped data */
     {
-        int envelopedSz;
+        int envelopedSz = 0;
         const byte keyId[] = { 0x00 };
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -26699,7 +26699,7 @@ static int test_wc_PKCS7_BER(void)
 #ifndef NO_DES3
     byte   decoded[2048];
 #endif
-    word32 derSz;
+    word32 derSz = 0;
 
     ExpectTrue((f = XFOPEN(fName, "rb")) != XBADFILE);
     ExpectTrue((derSz = (word32)XFREAD(der, 1, sizeof(der), f)) > 0);
