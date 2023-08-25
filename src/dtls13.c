@@ -352,6 +352,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     while (msg != NULL) {
+        int downgraded = 0;
         idx = 0;
 
         /* message not in order */
@@ -362,8 +363,18 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         if (!msg->ready)
             break;
 
-        ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
-                msg->sz, msg->sz);
+        /* We may have DTLS <=1.2 msgs stored from before we knew which version
+         * we were going to use. Interpret correctly. */
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                    msg->sz, msg->sz);
+            if (!IsAtLeastTLSv1_3(ssl->version))
+                downgraded = 1;
+        }
+        else {
+            ret = DoHandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                    msg->sz, msg->sz);
+        }
 
         /* processing certificate_request triggers a connect. The error came
          * from there, the message can be considered processed successfully.
@@ -371,7 +382,13 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
          * waiting to flush the output buffer. */
         if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
                          ssl->options.handShakeDone && ret == WC_PENDING_E)) {
-            Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
+            if (IsAtLeastTLSv1_3(ssl->version))
+                Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
+            else if (downgraded)
+                /* DoHandShakeMsgType normally handles the hs number but if
+                 * DoTls13HandShakeMsgType processed 1.2 msgs then this wasn't
+                 * incremented. */
+                ssl->keys.dtls_expected_peer_handshake_number++;
 
             ssl->dtls_rx_msg_list = msg->next;
             DtlsMsgDelete(msg, ssl->heap);
@@ -625,7 +642,7 @@ static void Dtls13RtxRecordUnlink(WOLFSSL* ssl, Dtls13RtxRecord** prevNext,
     *prevNext = r->next;
 }
 
-static void Dtls13RtxFlushBuffered(WOLFSSL* ssl, byte keepNewSessionTicket)
+void Dtls13RtxFlushBuffered(WOLFSSL* ssl, byte keepNewSessionTicket)
 {
     Dtls13RtxRecord *r, **prevNext;
 
@@ -806,10 +823,16 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
             Dtls13MaybeSaveClientHello(ssl);
 
         /* In the handshake, receiving part of the next flight, acknowledge the
-           sent flight. The only exception is, on the server side, receiving the
-           last client flight does not ACK any sent new_session_ticket
-           messages. */
-        Dtls13RtxFlushBuffered(ssl, 1);
+         * sent flight. */
+        /* On the server side, receiving the last client flight does not ACK any
+         * sent new_session_ticket messages. */
+        /* We don't want to clear the buffer until we have done version
+         * negotiation in the SH or have received a unified header in the
+         * DTLS record. */
+        if (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
+                    ssl->options.seenUnifiedHdr)
+            /* Use 1.2 API to clear 1.2 buffers too */
+            DtlsMsgPoolReset(ssl);
     }
 
     if (ssl->keys.dtls_peer_handshake_number <
@@ -853,6 +876,8 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
 void Dtls13FreeFsmResources(WOLFSSL* ssl)
 {
     Dtls13RtxFlushAcks(ssl);
+    /* Use 1.2 API to clear 1.2 buffers too */
+    DtlsMsgPoolReset(ssl);
     Dtls13RtxFlushBuffered(ssl, 0);
 }
 
@@ -2471,7 +2496,12 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
 {
     int ret = 0;
 
-    if (ssl->dtls13Rtx.seenRecords != NULL) {
+    /* We don't want to send acks until we have done version
+     * negotiation in the SH or have received a unified header in the
+     * DTLS record. */
+    if (ssl->dtls13Rtx.seenRecords != NULL &&
+            (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
+                    ssl->options.seenUnifiedHdr)) {
         ssl->dtls13Rtx.sendAcks = 0;
         /* reset fast timeout as we are sending ACKs */
         ssl->dtls13FastTimeout = 0;
