@@ -33,6 +33,7 @@
 #if !defined(__aarch64__) && defined(__arm__)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
+#ifdef HAVE_AES_DECRYPT
 	.text
 	.type	L_AES_ARM32_td_data, %object
 	.size	L_AES_ARM32_td_data, 1024
@@ -294,6 +295,8 @@ L_AES_ARM32_td_data:
 	.word	0x70d532b6
 	.word	0x74486c5c
 	.word	0x42d0b857
+#endif /* HAVE_AES_DECRYPT */
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te_data, %object
 	.size	L_AES_ARM32_te_data, 1024
@@ -555,18 +558,23 @@ L_AES_ARM32_te_data:
 	.word	0xfca85454
 	.word	0xd66dbbbb
 	.word	0x3a2c1616
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#ifdef HAVE_AES_DECRYPT
 	.text
 	.type	L_AES_ARM32_td, %object
 	.size	L_AES_ARM32_td, 12
 	.align	4
 L_AES_ARM32_td:
 	.word	L_AES_ARM32_td_data
+#endif /* HAVE_AES_DECRYPT */
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te, %object
 	.size	L_AES_ARM32_te, 12
 	.align	4
 L_AES_ARM32_te:
 	.word	L_AES_ARM32_te_data
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.align	4
@@ -574,8 +582,10 @@ L_AES_ARM32_te:
 	.type	AES_invert_key, %function
 AES_invert_key:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ldr	r12, L_AES_ARM32_te
-	ldr	lr, L_AES_ARM32_td
+	adr	r12, L_AES_ARM32_te
+	ldr	r12, [r12]
+	adr	lr, L_AES_ARM32_td
+	ldr	lr, [lr]
 	add	r10, r0, r1, lsl #4
 	mov	r11, r1
 L_AES_invert_key_loop:
@@ -681,7 +691,8 @@ L_AES_ARM32_rcon:
 	.type	AES_set_encrypt_key, %function
 AES_set_encrypt_key:
 	push	{r4, r5, r6, r7, r8, lr}
-	ldr	r8, L_AES_ARM32_te
+	adr	r8, L_AES_ARM32_te
+	ldr	r8, [r8]
 	adr	lr, L_AES_ARM32_rcon
 	cmp	r1, #0x80
 	beq	L_AES_set_encrypt_key_start_128
@@ -911,7 +922,6 @@ L_AES_set_encrypt_key_loop_128:
 L_AES_set_encrypt_key_end:
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
-#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.align	4
 	.globl	AES_encrypt_block
@@ -1123,12 +1133,14 @@ L_AES_encrypt_block_nr:
 	eor	r7, r7, r11
 	pop	{pc}
 	.size	AES_encrypt_block,.-AES_encrypt_block
+#if defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te_ecb, %object
 	.size	L_AES_ARM32_te_ecb, 12
 	.align	4
 L_AES_ARM32_te_ecb:
 	.word	L_AES_ARM32_te_data
+#endif /* HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.align	4
@@ -1137,7 +1149,8 @@ L_AES_ARM32_te_ecb:
 AES_ECB_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_te_ecb
+	adr	r0, L_AES_ARM32_te_ecb
+	ldr	r0, [r0]
 	ldr	r12, [sp, #36]
 	push	{r3}
 	cmp	r12, #10
@@ -1259,7 +1272,8 @@ AES_CBC_encrypt:
 	ldr	r8, [sp, #36]
 	ldr	r9, [sp, #40]
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_te_ecb
+	adr	r0, L_AES_ARM32_te_ecb
+	ldr	r0, [r0]
 	ldm	r9, {r4, r5, r6, r7}
 	push	{r3, r9}
 	cmp	r8, #10
@@ -1394,7 +1408,8 @@ AES_CTR_encrypt:
 	ldr	r12, [sp, #36]
 	ldr	r8, [sp, #40]
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_te_ecb
+	adr	r0, L_AES_ARM32_te_ecb
+	ldr	r0, [r0]
 	ldm	r8, {r4, r5, r6, r7}
 	rev	r4, r4
 	rev	r5, r5
@@ -1540,7 +1555,6 @@ L_AES_CTR_encrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
-#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 	.text
@@ -2030,7 +2044,8 @@ AES_ECB_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	ldr	r8, [sp, #36]
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_td_ecb
+	adr	r0, L_AES_ARM32_td_ecb
+	ldr	r0, [r0]
 	adr	r12, L_AES_ARM32_td4
 	cmp	r8, #10
 	beq	L_AES_ECB_decrypt_start_block_128
@@ -2147,7 +2162,8 @@ AES_CBC_decrypt:
 	ldr	r8, [sp, #36]
 	ldr	r4, [sp, #40]
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_td_ecb
+	adr	r0, L_AES_ARM32_td_ecb
+	ldr	r0, [r0]
 	adr	r12, L_AES_ARM32_td4
 	push	{r3, r4}
 	cmp	r8, #10
@@ -3118,7 +3134,8 @@ AES_GCM_encrypt:
 	ldr	r12, [sp, #36]
 	ldr	r8, [sp, #40]
 	mov	lr, r0
-	ldr	r0, L_AES_ARM32_te_gcm
+	adr	r0, L_AES_ARM32_te_gcm
+	ldr	r0, [r0]
 	ldm	r8, {r4, r5, r6, r7}
 	rev	r4, r4
 	rev	r5, r5

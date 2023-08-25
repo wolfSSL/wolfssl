@@ -48,7 +48,7 @@
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
-void fe_init(void)
+void fe_init()
 {
     __asm__ __volatile__ (
         "\n\t"
@@ -59,7 +59,7 @@ void fe_init(void)
 }
 
 void fe_add_sub_op(void);
-void fe_add_sub_op(void)
+void fe_add_sub_op()
 {
     __asm__ __volatile__ (
         /* Add-Sub */
@@ -156,7 +156,7 @@ void fe_add_sub_op(void)
 }
 
 void fe_sub_op(void);
-void fe_sub_op(void)
+void fe_sub_op()
 {
     __asm__ __volatile__ (
         /* Sub */
@@ -190,18 +190,22 @@ void fe_sub_op(void)
     );
 }
 
-void fe_sub(fe r, const fe a, const fe b)
+void fe_sub(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_sub_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 void fe_add_op(void);
-void fe_add_op(void)
+void fe_add_op()
 {
     __asm__ __volatile__ (
         /* Add */
@@ -235,31 +239,41 @@ void fe_add_op(void)
     );
 }
 
-void fe_add(fe r, const fe a, const fe b)
+void fe_add(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_add_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 #ifdef HAVE_ED25519
-void fe_frombytes(fe out, const unsigned char* in)
+void fe_frombytes(fe out_p, const unsigned char* in_p)
 {
+    register sword32* out asm ("r0") = (sword32*)out_p;
+    register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
+
     __asm__ __volatile__ (
         "LDM	%[in], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "BFC	r9, #31, #1\n\t"
         "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [out] "+l" (out), [in] "+l" (in)
+        : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
-void fe_tobytes(unsigned char* out, const fe n)
+void fe_tobytes(unsigned char* out_p, const fe n_p)
 {
+    register unsigned char* out asm ("r0") = (unsigned char*)out_p;
+    register const sword32* n asm ("r1") = (const sword32*)n_p;
+
     __asm__ __volatile__ (
         "LDM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r10, r2, #0x13\n\t"
@@ -282,47 +296,56 @@ void fe_tobytes(unsigned char* out, const fe n)
         "ADC	r9, r9, #0x0\n\t"
         "BFC	r9, #31, #1\n\t"
         "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [out] "+l" (out), [n] "+l" (n)
+        : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
 }
 
-void fe_1(fe n)
+void fe_1(fe n_p)
 {
+    register sword32* n asm ("r0") = (sword32*)n_p;
+
     __asm__ __volatile__ (
         /* Set one */
         "MOV	r2, #0x1\n\t"
         "MOV	r3, #0x0\n\t"
-        "STRD	r2, r3, [%[n]]\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
         "MOV	r2, #0x0\n\t"
-        "STRD	r2, r3, [%[n], #8]\n\t"
-        "STRD	r2, r3, [%[n], #16]\n\t"
-        "STRD	r2, r3, [%[n], #24]\n\t"
-        : [n] "+l" (n)
+        "STM	%[n]!, {r2, r3}\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
+        "SUB	%[n], %[n], #0x20\n\t"
+        : [n] "+r" (n)
         :
         : "memory", "r2", "r3"
     );
 }
 
-void fe_0(fe n)
+void fe_0(fe n_p)
 {
+    register sword32* n asm ("r0") = (sword32*)n_p;
+
     __asm__ __volatile__ (
         /* Set zero */
         "MOV	r2, #0x0\n\t"
         "MOV	r3, #0x0\n\t"
-        "STRD	r2, r3, [%[n]]\n\t"
-        "STRD	r2, r3, [%[n], #8]\n\t"
-        "STRD	r2, r3, [%[n], #16]\n\t"
-        "STRD	r2, r3, [%[n], #24]\n\t"
-        : [n] "+l" (n)
+        "STM	%[n]!, {r2, r3}\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
+        "STM	%[n]!, {r2, r3}\n\t"
+        "SUB	%[n], %[n], #0x20\n\t"
+        : [n] "+r" (n)
         :
         : "memory", "r2", "r3"
     );
 }
 
-void fe_copy(fe r, const fe a)
+void fe_copy(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         /* Copy */
         "LDRD	r2, r3, [%[a]]\n\t"
@@ -333,14 +356,17 @@ void fe_copy(fe r, const fe a)
         "LDRD	r4, r5, [%[a], #24]\n\t"
         "STRD	r2, r3, [%[r], #16]\n\t"
         "STRD	r4, r5, [%[r], #24]\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5"
     );
 }
 
-void fe_neg(fe r, const fe a)
+void fe_neg(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "MVN	r7, #0x0\n\t"
         "MVN	r6, #0x12\n\t"
@@ -357,14 +383,16 @@ void fe_neg(fe r, const fe a)
         "SBCS	r4, r7, r4\n\t"
         "SBC	r5, r6, r5\n\t"
         "STM	%[r]!, {r2, r3, r4, r5}\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7"
     );
 }
 
-int fe_isnonzero(const fe a)
+int fe_isnonzero(const fe a_p)
 {
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r1, r2, #0x13\n\t"
@@ -393,15 +421,17 @@ int fe_isnonzero(const fe a)
         "ORR	r4, r4, r6\n\t"
         "ORR	r2, r2, r8\n\t"
         "ORR	%[a], r2, r4\n\t"
-        : [a] "+l" (a)
+        : [a] "+r" (a)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (uint32_t)(size_t)a;
 }
 
-int fe_isnegative(const fe a)
+int fe_isnegative(const fe a_p)
 {
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "LDM	%[a]!, {r2, r3, r4, r5}\n\t"
         "ADDS	r1, r2, #0x13\n\t"
@@ -417,7 +447,7 @@ int fe_isnegative(const fe a)
         "AND	%[a], r2, #0x1\n\t"
         "LSR	r1, r1, #31\n\t"
         "EOR	%[a], %[a], r1\n\t"
-        : [a] "+l" (a)
+        : [a] "+r" (a)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5"
     );
@@ -425,8 +455,12 @@ int fe_isnegative(const fe a)
 }
 
 #ifndef WC_NO_CACHE_RESISTANT
-void fe_cmov_table(fe* r, fe* base, signed char b)
+void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
+
     __asm__ __volatile__ (
         "SXTB	%[b], %[b]\n\t"
         "SBFX	r3, %[b], #7, #1\n\t"
@@ -1391,15 +1425,19 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
         "STRD	r4, r5, [%[r], #24]\n\t"
         "STRD	r6, r7, [%[r], #56]\n\t"
         "STRD	r8, r9, [%[r], #88]\n\t"
-        : [r] "+l" (r), [base] "+l" (base), [b] "+l" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10", "r11", "r12", "lr"
     );
 }
 
 #else
-void fe_cmov_table(fe* r, fe* base, signed char b)
+void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
+
     __asm__ __volatile__ (
         "SXTB	%[b], %[b]\n\t"
         "SBFX	r3, %[b], #7, #1\n\t"
@@ -1493,7 +1531,7 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
         "AND	r7, r7, lr\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "SUB	%[base], %[base], %[b]\n\t"
-        : [r] "+l" (r), [base] "+l" (base), [b] "+l" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
@@ -1502,7 +1540,7 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_ED25519 */
 void fe_mul_op(void);
-void fe_mul_op(void)
+void fe_mul_op()
 {
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
@@ -1634,18 +1672,22 @@ void fe_mul_op(void)
     );
 }
 
-void fe_mul(fe r, const fe a, const fe b)
+void fe_mul(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_mul_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 void fe_sq_op(void);
-void fe_sq_op(void)
+void fe_sq_op()
 {
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x20\n\t"
@@ -1763,18 +1805,25 @@ void fe_sq_op(void)
     );
 }
 
-void fe_sq(fe r, const fe a)
+void fe_sq(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "BL	fe_sq_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void fe_mul121666(fe r, fe a)
+#ifdef HAVE_CURVE25519
+void fe_mul121666(fe r_p, fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register sword32* a asm ("r1") = (sword32*)a_p;
+
     __asm__ __volatile__ (
         /* Multiply by 121666 */
         "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -1803,15 +1852,19 @@ void fe_mul121666(fe r, fe a)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
 #ifndef WC_NO_CACHE_RESISTANT
-int curve25519(byte* r, const byte* n, const byte* a)
+int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xbc\n\t"
         "STR	%[r], [sp, #160]\n\t"
@@ -1822,26 +1875,31 @@ int curve25519(byte* r, const byte* n, const byte* a)
         /* Set one */
         "MOV	r10, #0x1\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [%[r]]\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
         "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [%[r], #8]\n\t"
-        "STRD	r10, r11, [%[r], #16]\n\t"
-        "STRD	r10, r11, [%[r], #24]\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "SUB	%[r], %[r], #0x20\n\t"
+        "MOV	r3, sp\n\t"
         /* Set zero */
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp]\n\t"
-        "STRD	r10, r11, [sp, #8]\n\t"
-        "STRD	r10, r11, [sp, #16]\n\t"
-        "STRD	r10, r11, [sp, #24]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "SUB	r3, r3, #0x20\n\t"
+        "ADD	r3, sp, #0x20\n\t"
         /* Set one */
         "MOV	r10, #0x1\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp, #32]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
         "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [sp, #40]\n\t"
-        "STRD	r10, r11, [sp, #48]\n\t"
-        "STRD	r10, r11, [sp, #56]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "SUB	r3, r3, #0x20\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -1866,8 +1924,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "LDR	%[r], [sp, #160]\n\t"
         /* Conditional Swap */
         "RSB	%[n], %[n], #0x0\n\t"
-        "LDRD	r4, r5, [%[r]]\n\t"
-        "LDRD	r6, r7, [sp, #64]\n\t"
+        "MOV	r3, r0\n\t"
+        "ADD	r12, sp, #0x40\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1876,10 +1936,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r]]\n\t"
-        "STRD	r6, r7, [sp, #64]\n\t"
-        "LDRD	r4, r5, [%[r], #8]\n\t"
-        "LDRD	r6, r7, [sp, #72]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1888,10 +1948,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #8]\n\t"
-        "STRD	r6, r7, [sp, #72]\n\t"
-        "LDRD	r4, r5, [%[r], #16]\n\t"
-        "LDRD	r6, r7, [sp, #80]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1900,10 +1960,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #16]\n\t"
-        "STRD	r6, r7, [sp, #80]\n\t"
-        "LDRD	r4, r5, [%[r], #24]\n\t"
-        "LDRD	r6, r7, [sp, #88]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1912,13 +1972,15 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #24]\n\t"
-        "STRD	r6, r7, [sp, #88]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
         "LDR	%[n], [sp, #172]\n\t"
         /* Conditional Swap */
         "RSB	%[n], %[n], #0x0\n\t"
-        "LDRD	r4, r5, [sp]\n\t"
-        "LDRD	r6, r7, [sp, #32]\n\t"
+        "MOV	r3, sp\n\t"
+        "ADD	r12, sp, #0x20\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1927,10 +1989,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp]\n\t"
-        "STRD	r6, r7, [sp, #32]\n\t"
-        "LDRD	r4, r5, [sp, #8]\n\t"
-        "LDRD	r6, r7, [sp, #40]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1939,10 +2001,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #8]\n\t"
-        "STRD	r6, r7, [sp, #40]\n\t"
-        "LDRD	r4, r5, [sp, #16]\n\t"
-        "LDRD	r6, r7, [sp, #48]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1951,10 +2013,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #16]\n\t"
-        "STRD	r6, r7, [sp, #48]\n\t"
-        "LDRD	r4, r5, [sp, #24]\n\t"
-        "LDRD	r6, r7, [sp, #56]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1963,8 +2025,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #24]\n\t"
-        "STRD	r6, r7, [sp, #56]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
         "LDR	%[n], [sp, #184]\n\t"
         "STR	%[n], [sp, #172]\n\t"
         "MOV	r3, sp\n\t"
@@ -2193,7 +2255,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "BL	fe_mul_op\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xbc\n\t"
-        : [r] "+l" (r), [n] "+l" (n), [a] "+l" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
     );
@@ -2201,8 +2263,12 @@ int curve25519(byte* r, const byte* n, const byte* a)
 }
 
 #else
-int curve25519(byte* r, const byte* n, const byte* a)
+int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc0\n\t"
         "STR	%[r], [sp, #176]\n\t"
@@ -2218,26 +2284,31 @@ int curve25519(byte* r, const byte* n, const byte* a)
         /* Set one */
         "MOV	r10, #0x1\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [%[r]]\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
         "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [%[r], #8]\n\t"
-        "STRD	r10, r11, [%[r], #16]\n\t"
-        "STRD	r10, r11, [%[r], #24]\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "STM	%[r]!, {r10, r11}\n\t"
+        "SUB	%[r], %[r], #0x20\n\t"
+        "MOV	r3, sp\n\t"
         /* Set zero */
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp]\n\t"
-        "STRD	r10, r11, [sp, #8]\n\t"
-        "STRD	r10, r11, [sp, #16]\n\t"
-        "STRD	r10, r11, [sp, #24]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "SUB	r3, r3, #0x20\n\t"
+        "ADD	r3, sp, #0x20\n\t"
         /* Set one */
         "MOV	r10, #0x1\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp, #32]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
         "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [sp, #40]\n\t"
-        "STRD	r10, r11, [sp, #48]\n\t"
-        "STRD	r10, r11, [sp, #56]\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "STM	r3!, {r10, r11}\n\t"
+        "SUB	r3, r3, #0x20\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -2508,7 +2579,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
-        : [r] "+l" (r), [n] "+l" (n), [a] "+l" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
     );
@@ -2516,9 +2587,13 @@ int curve25519(byte* r, const byte* n, const byte* a)
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
-void fe_invert(fe r, const fe a)
+void fe_invert(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x88\n\t"
         /* Invert */
@@ -2678,14 +2753,17 @@ void fe_invert(fe r, const fe a)
         "LDR	%[a], [sp, #132]\n\t"
         "LDR	%[r], [sp, #128]\n\t"
         "ADD	sp, sp, #0x88\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
-void fe_sq2(fe r, const fe a)
+void fe_sq2(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x24\n\t"
         "STRD	r0, r1, [sp, #28]\n\t"
@@ -2831,14 +2909,17 @@ void fe_sq2(fe r, const fe a)
         "STM	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "MOV	r0, r12\n\t"
         "MOV	r1, lr\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr"
     );
 }
 
-void fe_pow22523(fe r, const fe a)
+void fe_pow22523(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x68\n\t"
         /* pow22523 */
@@ -2998,14 +3079,17 @@ void fe_pow22523(fe r, const fe a)
         "LDR	%[a], [sp, #100]\n\t"
         "LDR	%[r], [sp, #96]\n\t"
         "ADD	sp, sp, #0x68\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
-void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
+void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
 {
+    register ge_p2 * r asm ("r0") = (ge_p2 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3025,14 +3109,17 @@ void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
-void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
+void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
 {
+    register ge_p3 * r asm ("r0") = (ge_p3 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3057,14 +3144,17 @@ void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
-void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
+void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p2 * p asm ("r1") = (const ge_p2 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3101,14 +3191,18 @@ void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
         "MOV	r1, r0\n\t"
         "BL	fe_sub_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_madd(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3179,14 +3273,18 @@ void ge_madd(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
         "ADD	r1, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_msub(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3258,14 +3356,18 @@ void ge_msub(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_add(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3337,14 +3439,18 @@ void ge_add(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3416,14 +3522,16 @@ void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void sc_reduce(byte* s)
+void sc_reduce(byte* s_p)
 {
+    register byte* s asm ("r0") = (byte*)s_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x34\n\t"
         /* Load bits 252-511 */
@@ -3694,14 +3802,19 @@ void sc_reduce(byte* s)
         /* Store result */
         "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #0x34\n\t"
-        : [s] "+l" (s)
+        : [s] "+r" (s)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
+void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 {
+    register byte* s asm ("r0") = (byte*)s_p;
+    register const byte* a asm ("r1") = (const byte*)a_p;
+    register const byte* b asm ("r2") = (const byte*)b_p;
+    register const byte* c asm ("r3") = (const byte*)c_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x50\n\t"
         "ADD	lr, sp, #0x44\n\t"
@@ -4096,7 +4209,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         /* Store result */
         "STM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
         "ADD	sp, sp, #0x50\n\t"
-        : [s] "+l" (s), [a] "+l" (a), [b] "+l" (b), [c] "+l" (c)
+        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );

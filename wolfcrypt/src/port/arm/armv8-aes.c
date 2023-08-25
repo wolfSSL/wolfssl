@@ -31,6 +31,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
@@ -41,7 +42,6 @@
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -5467,7 +5467,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

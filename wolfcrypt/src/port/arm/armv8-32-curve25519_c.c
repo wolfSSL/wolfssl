@@ -28,6 +28,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__arm__)
@@ -36,6 +37,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 /* Based on work by: Emil Lenngren
  * https://github.com/pornin/X25519-Cortex-M4
@@ -50,7 +52,6 @@
 
 void fe_init()
 {
-
     __asm__ __volatile__ (
         "\n\t"
         :
@@ -62,7 +63,6 @@ void fe_init()
 void fe_add_sub_op(void);
 void fe_add_sub_op()
 {
-
     __asm__ __volatile__ (
         /* Add-Sub */
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
@@ -269,7 +269,6 @@ void fe_add_sub_op()
 void fe_sub_op(void);
 void fe_sub_op()
 {
-
     __asm__ __volatile__ (
         /* Sub */
         "ldm	r2!, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
@@ -307,9 +306,9 @@ void fe_sub_op()
 
 void fe_sub(fe r_p, const fe a_p, const fe b_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
-    register const fe b asm ("r2") = b_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
 
     __asm__ __volatile__ (
         "bl	fe_sub_op\n\t"
@@ -322,7 +321,6 @@ void fe_sub(fe r_p, const fe a_p, const fe b_p)
 void fe_add_op(void);
 void fe_add_op()
 {
-
     __asm__ __volatile__ (
         /* Add */
         "ldm	r2!, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
@@ -361,9 +359,9 @@ void fe_add_op()
 
 void fe_add(fe r_p, const fe a_p, const fe b_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
-    register const fe b asm ("r2") = b_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
 
     __asm__ __volatile__ (
         "bl	fe_add_op\n\t"
@@ -376,8 +374,8 @@ void fe_add(fe r_p, const fe a_p, const fe b_p)
 #ifdef HAVE_ED25519
 void fe_frombytes(fe out_p, const unsigned char* in_p)
 {
-    register fe out asm ("r0") = out_p;
-    register const unsigned char* in asm ("r1") = in_p;
+    register sword32* out asm ("r0") = (sword32*)out_p;
+    register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
 
     __asm__ __volatile__ (
         "ldm	%[in], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -391,8 +389,8 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
 
 void fe_tobytes(unsigned char* out_p, const fe n_p)
 {
-    register unsigned char* out asm ("r0") = out_p;
-    register const fe n asm ("r1") = n_p;
+    register unsigned char* out asm ("r0") = (unsigned char*)out_p;
+    register const sword32* n asm ("r1") = (const sword32*)n_p;
 
     __asm__ __volatile__ (
         "ldm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -424,7 +422,7 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
 
 void fe_1(fe n_p)
 {
-    register fe n asm ("r0") = n_p;
+    register sword32* n asm ("r0") = (sword32*)n_p;
 
     __asm__ __volatile__ (
         /* Set one */
@@ -463,7 +461,7 @@ void fe_1(fe n_p)
 
 void fe_0(fe n_p)
 {
-    register fe n asm ("r0") = n_p;
+    register sword32* n asm ("r0") = (sword32*)n_p;
 
     __asm__ __volatile__ (
         /* Set zero */
@@ -501,8 +499,8 @@ void fe_0(fe n_p)
 
 void fe_copy(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         /* Copy */
@@ -562,8 +560,8 @@ void fe_copy(fe r_p, const fe a_p)
 
 void fe_neg(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "mvn	lr, #0\n\t"
@@ -589,7 +587,7 @@ void fe_neg(fe r_p, const fe a_p)
 
 int fe_isnonzero(const fe a_p)
 {
-    register const fe a asm ("r0") = a_p;
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "ldm	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -628,7 +626,7 @@ int fe_isnonzero(const fe a_p)
 
 int fe_isnegative(const fe a_p)
 {
-    register const fe a asm ("r0") = a_p;
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "ldm	%[a]!, {r2, r3, r4, r5}\n\t"
@@ -655,9 +653,9 @@ int fe_isnegative(const fe a_p)
 #ifndef WC_NO_CACHE_RESISTANT
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
-    register fe* r asm ("r0") = r_p;
-    register fe* base asm ("r1") = base_p;
-    register signed char b asm ("r2") = b_p;
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
 
     __asm__ __volatile__ (
         "sxtb	%[b], %[b]\n\t"
@@ -2364,9 +2362,9 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #else
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
-    register fe* r asm ("r0") = r_p;
-    register fe* base asm ("r1") = base_p;
-    register signed char b asm ("r2") = b_p;
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
 
     __asm__ __volatile__ (
         "sxtb	%[b], %[b]\n\t"
@@ -2472,7 +2470,6 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 void fe_mul_op(void);
 void fe_mul_op()
 {
-
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
@@ -2610,9 +2607,9 @@ void fe_mul_op()
 
 void fe_mul(fe r_p, const fe a_p, const fe b_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
-    register const fe b asm ("r2") = b_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
 
     __asm__ __volatile__ (
         "bl	fe_mul_op\n\t"
@@ -2625,7 +2622,6 @@ void fe_mul(fe r_p, const fe a_p, const fe b_p)
 void fe_sq_op(void);
 void fe_sq_op()
 {
-
     __asm__ __volatile__ (
         "sub	sp, sp, #32\n\t"
         "str	r0, [sp, #28]\n\t"
@@ -2749,8 +2745,8 @@ void fe_sq_op()
 
 void fe_sq(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "bl	fe_sq_op\n\t"
@@ -2762,8 +2758,8 @@ void fe_sq(fe r_p, const fe a_p)
 
 void fe_mul121666(fe r_p, fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register sword32* a asm ("r1") = (sword32*)a_p;
 
     __asm__ __volatile__ (
         /* Multiply by 121666 */
@@ -2808,9 +2804,9 @@ void fe_mul121666(fe r_p, fe a_p)
 #ifndef WC_NO_CACHE_RESISTANT
 int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
-    register byte* r asm ("r0") = r_p;
-    register const byte* n asm ("r1") = n_p;
-    register const byte* a asm ("r2") = a_p;
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xbc\n\t"
@@ -3423,9 +3419,9 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 #else
 int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
-    register byte* r asm ("r0") = r_p;
-    register const byte* n asm ("r1") = n_p;
-    register const byte* a asm ("r2") = a_p;
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
@@ -3802,8 +3798,8 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 #ifdef HAVE_ED25519
 void fe_invert(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x88\n\t"
@@ -3972,8 +3968,8 @@ void fe_invert(fe r_p, const fe a_p)
 
 void fe_sq2(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #36\n\t"
@@ -4138,8 +4134,8 @@ void fe_sq2(fe r_p, const fe a_p)
 
 void fe_pow22523(fe r_p, const fe a_p)
 {
-    register fe r asm ("r0") = r_p;
-    register const fe a asm ("r1") = a_p;
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x68\n\t"
@@ -4308,8 +4304,8 @@ void fe_pow22523(fe r_p, const fe a_p)
 
 void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
 {
-    register ge_p2 * r asm ("r0") = r_p;
-    register const ge_p1p1 * p asm ("r1") = p_p;
+    register ge_p2 * r asm ("r0") = (ge_p2 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -4338,8 +4334,8 @@ void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
 
 void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
 {
-    register ge_p3 * r asm ("r0") = r_p;
-    register const ge_p1p1 * p asm ("r1") = p_p;
+    register ge_p3 * r asm ("r0") = (ge_p3 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -4373,8 +4369,8 @@ void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
 
 void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
 {
-    register ge_p1p1 * r asm ("r0") = r_p;
-    register const ge_p2 * p asm ("r1") = p_p;
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p2 * p asm ("r1") = (const ge_p2 *)p_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -4420,9 +4416,9 @@ void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
 
 void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
-    register ge_p1p1 * r asm ("r0") = r_p;
-    register const ge_p3 * p asm ("r1") = p_p;
-    register const ge_precomp * q asm ("r2") = q_p;
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #12\n\t"
@@ -4502,9 +4498,9 @@ void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 
 void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
-    register ge_p1p1 * r asm ("r0") = r_p;
-    register const ge_p3 * p asm ("r1") = p_p;
-    register const ge_precomp * q asm ("r2") = q_p;
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #12\n\t"
@@ -4585,9 +4581,9 @@ void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 
 void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
-    register ge_p1p1 * r asm ("r0") = r_p;
-    register const ge_p3 * p asm ("r1") = p_p;
-    register const ge_cached* q asm ("r2") = q_p;
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
@@ -4668,9 +4664,9 @@ void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 
 void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
-    register ge_p1p1 * r asm ("r0") = r_p;
-    register const ge_p3 * p asm ("r1") = p_p;
-    register const ge_cached* q asm ("r2") = q_p;
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
@@ -4751,7 +4747,7 @@ void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 
 void sc_reduce(byte* s_p)
 {
-    register byte* s asm ("r0") = s_p;
+    register byte* s asm ("r0") = (byte*)s_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #52\n\t"
@@ -5163,10 +5159,10 @@ void sc_reduce(byte* s_p)
 
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 {
-    register byte* s asm ("r0") = s_p;
-    register const byte* a asm ("r1") = a_p;
-    register const byte* b asm ("r2") = b_p;
-    register const byte* c asm ("r3") = c_p;
+    register byte* s asm ("r0") = (byte*)s_p;
+    register const byte* a asm ("r1") = (const byte*)a_p;
+    register const byte* b asm ("r2") = (const byte*)b_p;
+    register const byte* c asm ("r3") = (const byte*)c_p;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x50\n\t"

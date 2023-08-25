@@ -2268,7 +2268,7 @@ AC_ARG_ENABLE([aescbc],
 if test "$ENABLED_AESCBC" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_CBC"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DNO_AES_CBC"
 fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
