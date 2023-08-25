@@ -2668,9 +2668,8 @@ if test "$ENABLED_ARIA" = "yes"
 then
     ARIA_DIR=MagicCrypto
     # Enable dependency
-    ENABLED_OPENSSLEXTRA="yes"
     CFLAGS="$CFLAGS -I$ARIA_DIR/include"
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ARIA -DOPENSSL_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ARIA"
     AM_LDFLAGS="$AM_LDFLAGS -L$ARIA_DIR/lib -lMagicCrypto"
     build_pwd="$(pwd)"
     headers="mcapi_error.h mcapi_type.h mcapi.h"
