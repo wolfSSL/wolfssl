@@ -199,7 +199,7 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
     }
 #ifdef WOLF_CRYPTO_CB_CMD
     else if (info->algo_type == WC_ALGO_TYPE_NONE) {
-        printf("Crypto CB: CMD %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
 #endif
