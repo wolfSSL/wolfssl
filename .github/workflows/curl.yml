@@ -21,7 +21,7 @@ jobs:
         configure: --enable-curl
         install: true
 
-    - name: Build and test stunnel
+    - name: Build and test curl
       uses: wolfSSL/actions-build-autotools-project@v1
       with:
         repository: curl/curl

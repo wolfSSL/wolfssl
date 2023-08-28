@@ -2026,7 +2026,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -122, -123, -124,       -127, -128, -129, -159,
+    int missing[] = { -122, -123, -124,             -128, -129, -159,
                       -163, -164, -165, -166, -167, -168, -169, -233,
                       0 };
 

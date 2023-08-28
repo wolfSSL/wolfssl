@@ -366,7 +366,8 @@
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
-    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE)
+    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
+    || !defined(WOLFSSL_NO_TLS12)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -5597,7 +5598,7 @@ static WC_INLINE int test_ssl_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
     }
 
     if ((unsigned)(*len + sz) > TEST_SSL_MEMIO_BUF_SZ)
-            return WOLFSSL_CBIO_ERR_WANT_READ;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
     XMEMCPY(buf + *len, data, sz);
     *len += sz;
@@ -57789,6 +57790,48 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL)
+static int test_multiple_crls_same_issuer_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_multiple_crls_same_issuer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL)
+    test_ssl_cbf client_cbs, server_cbs;
+    struct {
+        const char* server_cert;
+        const char* server_key;
+    } test_params[] = {
+        { "./certs/server-cert.pem", "./certs/server-key.pem" },
+        { "./certs/server-revoked-cert.pem", "./certs/server-revoked-key.pem" }
+    };
+    size_t i;
+
+    for (i = 0; i < (sizeof(test_params)/sizeof(*test_params)); i++) {
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        server_cbs.certPemFile = test_params[i].server_cert;
+        server_cbs.keyPemFile = test_params[i].server_key;
+        client_cbs.crlPemFile = "./certs/crl/extra-crls/general-server-crl.pem";
+
+        client_cbs.ctx_ready = test_multiple_crls_same_issuer_ctx_ready;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+            &server_cbs, NULL), TEST_FAIL);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_SetTmpEC_DHE_Sz(void)
 {
     EXPECT_DECLS;
@@ -64662,6 +64705,324 @@ static int test_dtls_downgrade_scr(void)
 }
 #endif
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+static int test_dtls_client_hello_timeout_downgrade_read_cb(WOLFSSL *ssl,
+        char *data, int sz, void *ctx)
+{
+    static int call_counter = 0;
+    call_counter++;
+    (void)ssl;
+    (void)data;
+    (void)sz;
+    (void)ctx;
+    switch (call_counter) {
+        case 1:
+        case 2:
+            return WOLFSSL_CBIO_ERR_TIMEOUT;
+        case 3:
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        default:
+            AssertIntLE(call_counter, 3);
+            return -1;
+    }
+}
+#endif
+
+/* Make sure we don't send acks before getting a server hello */
+static int test_dtls_client_hello_timeout_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    DtlsRecordLayerHeader* dtlsRH;
+    size_t len;
+    byte sequence_number[8];
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLS_client_method, wolfDTLSv1_2_server_method), 0);
+
+        if (i == 0) {
+            /* First time simulate timeout in IO layer */
+            /* CH1 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* HVR */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+            /* CH2 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* SH flight */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+            /* Drop the SH */
+            dtlsRH = (DtlsRecordLayerHeader*)(test_ctx.c_buff);
+            len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+            XMEMMOVE(test_ctx.c_buff, test_ctx.c_buff +
+                    sizeof(DtlsRecordLayerHeader) + len, test_ctx.c_len -
+                   (sizeof(DtlsRecordLayerHeader) + len));
+            test_ctx.c_len -= sizeof(DtlsRecordLayerHeader) + len;
+            /* Read the remainder of the flight */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            wolfSSL_SSLSetIORecv(ssl_c,
+                    test_dtls_client_hello_timeout_downgrade_read_cb);
+            /* CH3 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            wolfSSL_SSLSetIORecv(ssl_c, test_memio_read_cb);
+        }
+        else {
+            /* Second time call wolfSSL_dtls_got_timeout */
+            /* CH1 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* HVR */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+            /* CH2 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* SH flight */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+            /* Drop the SH */
+            dtlsRH = (DtlsRecordLayerHeader*)(test_ctx.c_buff);
+            len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+            XMEMMOVE(test_ctx.c_buff, test_ctx.c_buff +
+                    sizeof(DtlsRecordLayerHeader) + len, test_ctx.c_len -
+                   (sizeof(DtlsRecordLayerHeader) + len));
+            test_ctx.c_len -= sizeof(DtlsRecordLayerHeader) + len;
+            /* Read the remainder of the flight */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* Quick timeout should be set as we received at least one msg */
+            ExpectIntEQ(wolfSSL_dtls13_use_quick_timeout(ssl_c), 1);
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+            /* Quick timeout should be cleared after a quick timeout */
+            /* CH3 */
+            ExpectIntEQ(wolfSSL_dtls13_use_quick_timeout(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        }
+
+        /* Parse out to make sure we got exactly one ClientHello message */
+        XMEMSET(&sequence_number, 0, sizeof(sequence_number));
+        /* Second ClientHello after HVR */
+        sequence_number[7] = 2;
+        dtlsRH = (DtlsRecordLayerHeader*)test_ctx.s_buff;
+        ExpectIntEQ(dtlsRH->type, handshake);
+        ExpectIntEQ(dtlsRH->pvMajor, DTLS_MAJOR);
+        ExpectIntEQ(dtlsRH->pvMinor, DTLSv1_2_MINOR);
+        ExpectIntEQ(XMEMCMP(sequence_number, dtlsRH->sequence_number,
+                sizeof(sequence_number)), 0);
+        len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+        ExpectIntEQ(sizeof(DtlsRecordLayerHeader) + len, test_ctx.s_len);
+
+        /* Connection should be able to continue */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        ssl_c = NULL;
+        ssl_s = NULL;
+        ctx_c = NULL;
+        ctx_s = NULL;
+        if (!EXPECT_SUCCESS())
+            break;
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+static int test_dtls_client_hello_timeout_read_cb(WOLFSSL *ssl, char *data,
+        int sz, void *ctx)
+{
+    static int call_counter = 0;
+    call_counter++;
+    (void)ssl;
+    (void)data;
+    (void)sz;
+    (void)ctx;
+    switch (call_counter) {
+        case 1:
+            return WOLFSSL_CBIO_ERR_TIMEOUT;
+        case 2:
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        default:
+            AssertIntLE(call_counter, 2);
+            return -1;
+    }
+}
+#endif
+
+/* Make sure we don't send acks before getting a server hello */
+static int test_dtls_client_hello_timeout(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL_CTX *ctx_c = NULL;
+    struct test_memio_ctx test_ctx;
+    DtlsRecordLayerHeader* dtlsRH;
+    size_t idx;
+    size_t len;
+    byte sequence_number[8];
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+            wolfDTLSv1_3_client_method, NULL), 0);
+
+        if (i == 0) {
+            /* First time simulate timeout in IO layer */
+            wolfSSL_SSLSetIORecv(ssl_c, test_dtls_client_hello_timeout_read_cb);
+            ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        }
+        else {
+            /* Second time call wolfSSL_dtls_got_timeout */
+            ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        }
+
+        /* Parse out to make sure we got exactly two ClientHello messages */
+        idx = 0;
+        XMEMSET(&sequence_number, 0, sizeof(sequence_number));
+        /* First ClientHello */
+        dtlsRH = (DtlsRecordLayerHeader*)(test_ctx.s_buff + idx);
+        ExpectIntEQ(dtlsRH->type, handshake);
+        ExpectIntEQ(dtlsRH->pvMajor, DTLS_MAJOR);
+        ExpectIntEQ(dtlsRH->pvMinor, DTLSv1_2_MINOR);
+        ExpectIntEQ(XMEMCMP(sequence_number, dtlsRH->sequence_number,
+                sizeof(sequence_number)), 0);
+        len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+        ExpectIntLT(idx + sizeof(DtlsRecordLayerHeader) + len, test_ctx.s_len);
+        idx += sizeof(DtlsRecordLayerHeader) + len;
+        /* Second ClientHello */
+        sequence_number[7] = 1;
+        dtlsRH = (DtlsRecordLayerHeader*)(test_ctx.s_buff + idx);
+        ExpectIntEQ(dtlsRH->type, handshake);
+        ExpectIntEQ(dtlsRH->pvMajor, DTLS_MAJOR);
+        ExpectIntEQ(dtlsRH->pvMinor, DTLSv1_2_MINOR);
+        ExpectIntEQ(XMEMCMP(sequence_number, dtlsRH->sequence_number,
+                sizeof(sequence_number)), 0);
+        len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+        ExpectIntEQ(idx + sizeof(DtlsRecordLayerHeader) + len, test_ctx.s_len);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        ssl_c = NULL;
+        ctx_c = NULL;
+        if (!EXPECT_SUCCESS())
+            break;
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/**
+ * Make sure we don't send RSA Signature Hash Algorithms in the
+ * CertificateRequest when we don't have any such ciphers set.
+ * @return EXPECT_RESULT()
+ */
+static int test_certreq_sighash_algos(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int idx = 0;
+    int maxIdx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers =
+            "ECDHE-ECDSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA384";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+            "./certs/ca-ecc-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_s, "./certs/ecc-key.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_s, "./certs/server-ecc.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Find the CertificateRequest message */
+    for (idx = 0; idx < test_ctx.c_len && EXPECT_SUCCESS();) {
+        word16 len;
+        ExpectIntEQ(test_ctx.c_buff[idx++], handshake);
+        ExpectIntEQ(test_ctx.c_buff[idx++], SSLv3_MAJOR);
+        ExpectIntEQ(test_ctx.c_buff[idx++], TLSv1_2_MINOR);
+        ato16(test_ctx.c_buff + idx, &len);
+        idx += OPAQUE16_LEN;
+        if (test_ctx.c_buff[idx] == certificate_request) {
+            idx++;
+            /* length */
+            idx += OPAQUE24_LEN;
+            /* cert types */
+            idx += 1 + test_ctx.c_buff[idx];
+            /* Sig algos */
+            ato16(test_ctx.c_buff + idx, &len);
+            idx += OPAQUE16_LEN;
+            maxIdx = idx + (int)len;
+            for (; idx < maxIdx && EXPECT_SUCCESS(); idx += OPAQUE16_LEN) {
+                if (test_ctx.c_buff[idx+1] == ED25519_SA_MINOR ||
+                        test_ctx.c_buff[idx+1] == ED448_SA_MINOR)
+                    ExpectIntEQ(test_ctx.c_buff[idx], NEW_SA_MAJOR);
+                else
+                    ExpectIntEQ(test_ctx.c_buff[idx+1], ecc_dsa_sa_algo);
+            }
+            break;
+        }
+        else {
+            idx += (int)len;
+        }
+    }
+    ExpectIntLT(idx, test_ctx.c_len);
+
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -65733,6 +66094,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_use_certificate_chain_file_format),
     TEST_DECL(test_wolfSSL_CTX_trust_peer_cert),
     TEST_DECL(test_wolfSSL_CTX_LoadCRL),
+    TEST_DECL(test_multiple_crls_same_issuer),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_file),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_buffer),
     TEST_DECL(test_wolfSSL_CTX_SetMinMaxDhKey_Sz),
@@ -65922,6 +66284,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_session_ticket_hs_update),
     TEST_DECL(test_dtls_downgrade_scr_server),
     TEST_DECL(test_dtls_downgrade_scr),
+    TEST_DECL(test_dtls_client_hello_timeout_downgrade),
+    TEST_DECL(test_dtls_client_hello_timeout),
+    TEST_DECL(test_certreq_sighash_algos),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

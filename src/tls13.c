@@ -5088,6 +5088,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_MSG("HelloRetryRequest format");
         *extMsgType = hello_retry_request;
 
+        if (ssl->msgsReceived.got_hello_verify_request) {
+            WOLFSSL_MSG("Received HelloRetryRequest after a "
+                        "HelloVerifyRequest");
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+            return VERSION_ERROR;
+        }
+
         /* A HelloRetryRequest comes in as an ServerHello for MiddleBox compat.
          * Found message to be a HelloRetryRequest.
          * Don't allow more than one HelloRetryRequest or ServerHello.
