@@ -25906,7 +25906,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             #endif
             #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
                                                              defined(HAVE_ED448)
-                if (((haveSig && SIG_ECDSA) == 0) && XSTRSTR(name, "ECDSA"))
+                if (XSTRSTR(name, "ECDSA"))
                     haveSig |= SIG_ECDSA;
                 else
             #endif
@@ -25915,11 +25915,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     haveSig |= SIG_ANON;
                 else
             #endif
-                if (((haveSig & SIG_RSA) == 0)
-                    #ifndef NO_PSK
-                        && (XSTRSTR(name, "PSK") == NULL)
-                    #endif
-                   ) {
+            #ifndef NO_PSK
+                if (XSTRSTR(name, "PSK") == NULL)
+            #endif
+                {
+                    /* Fall back to RSA */
                     haveSig |= SIG_RSA;
                 }
 
