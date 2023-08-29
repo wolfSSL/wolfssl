@@ -157,7 +157,9 @@ endif
 
 if BUILD_AES
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes.c
+if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
+endif BUILD_ARMASM
 if BUILD_ARMASM_NEON
 if !BUILD_ARMASM_CRYPTO
 if BUILD_ARMASM_INLINE
@@ -409,7 +411,9 @@ endif
 if !BUILD_FIPS_CURRENT
 if BUILD_AES
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes.c
+if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
+endif BUILD_ARMASM
 if BUILD_ARMASM_NEON
 if !BUILD_ARMASM_CRYPTO
 if BUILD_ARMASM_INLINE

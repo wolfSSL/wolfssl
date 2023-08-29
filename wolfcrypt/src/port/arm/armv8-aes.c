@@ -5622,6 +5622,13 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0) {
         return 0;
     }
+    if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+#else
+        return BAD_FUNC_ARG;
+#endif
+    }
 
     AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,
         (unsigned char*)aes->reg);
@@ -5643,6 +5650,13 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (sz == 0) {
         return 0;
+    }
+    if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+#else
+        return BAD_FUNC_ARG;
+#endif
     }
 
     AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,

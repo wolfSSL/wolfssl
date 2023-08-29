@@ -277,33 +277,38 @@ fe_tobytes:
 	.globl	fe_1
 	.type	fe_1, %function
 fe_1:
+	PUSH	{r4, r5, r6, r7, r8, r9, lr}
 	# Set one
 	MOV	r2, #0x1
 	MOV	r3, #0x0
-	STM	r0!, {r2, r3}
-	MOV	r2, #0x0
-	STM	r0!, {r2, r3}
-	STM	r0!, {r2, r3}
-	STM	r0!, {r2, r3}
-	SUB	r0, r0, #0x20
-	BX	lr
-	# Cycle Count = 20
+	MOV	r4, #0x0
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
+	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	POP	{r4, r5, r6, r7, r8, r9, pc}
+	# Cycle Count = 33
 	.size	fe_1,.-fe_1
 	.text
 	.align	4
 	.globl	fe_0
 	.type	fe_0, %function
 fe_0:
+	PUSH	{r4, r5, r6, r7, r8, r9, lr}
 	# Set zero
 	MOV	r2, #0x0
 	MOV	r3, #0x0
-	STM	r0!, {r2, r3}
-	STM	r0!, {r2, r3}
-	STM	r0!, {r2, r3}
-	STM	r0!, {r2, r3}
-	SUB	r0, r0, #0x20
-	BX	lr
-	# Cycle Count = 19
+	MOV	r4, #0x0
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
+	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	POP	{r4, r5, r6, r7, r8, r9, pc}
+	# Cycle Count = 33
 	.size	fe_0,.-fe_0
 	.text
 	.align	4
@@ -406,6 +411,7 @@ fe_isnegative:
 	POP	{r4, r5, pc}
 	# Cycle Count = 31
 	.size	fe_isnegative,.-fe_isnegative
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
 	.text
 	.align	4
@@ -1482,6 +1488,7 @@ fe_cmov_table:
 	# Cycle Count = 160
 	.size	fe_cmov_table,.-fe_cmov_table
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 	.text
 	.align	4
@@ -1803,34 +1810,20 @@ curve25519:
 	STR	r2, [sp, #168]
 	MOV	r1, #0x0
 	STR	r1, [sp, #172]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STM	r0!, {r10, r11}
-	MOV	r10, #0x0
-	STM	r0!, {r10, r11}
-	STM	r0!, {r10, r11}
-	STM	r0!, {r10, r11}
-	SUB	r0, r0, #0x20
-	MOV	r3, sp
-	# Set zero
+	MOV	r4, #0x1
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
 	MOV	r10, #0x0
 	MOV	r11, #0x0
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	SUB	r3, r3, #0x20
+	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x20
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STM	r3!, {r10, r11}
-	MOV	r10, #0x0
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	SUB	r3, r3, #0x20
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
+	MOV	r4, #0x0
+	MOV	r3, sp
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x40
 	# Copy
 	LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}
@@ -2177,7 +2170,7 @@ L_curve25519_inv_8:
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xbc
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 693
+	# Cycle Count = 682
 	.size	curve25519,.-curve25519
 #else
 	.text
@@ -2197,34 +2190,20 @@ curve25519:
 	STR	r4, [sp, #188]
 	MOV	r1, #0x0
 	STR	r1, [sp, #164]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STM	r0!, {r10, r11}
-	MOV	r10, #0x0
-	STM	r0!, {r10, r11}
-	STM	r0!, {r10, r11}
-	STM	r0!, {r10, r11}
-	SUB	r0, r0, #0x20
-	MOV	r3, sp
-	# Set zero
+	MOV	r4, #0x1
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
 	MOV	r10, #0x0
 	MOV	r11, #0x0
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	SUB	r3, r3, #0x20
+	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x20
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STM	r3!, {r10, r11}
-	MOV	r10, #0x0
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	STM	r3!, {r10, r11}
-	SUB	r3, r3, #0x20
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
+	MOV	r4, #0x0
+	MOV	r3, sp
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x40
 	# Copy
 	LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}
@@ -2487,7 +2466,7 @@ L_curve25519_inv_8:
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 600
+	# Cycle Count = 589
 	.size	curve25519,.-curve25519
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_CURVE25519 */
@@ -3659,6 +3638,7 @@ sc_reduce:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 482
 	.size	sc_reduce,.-sc_reduce
+#ifdef HAVE_ED25519_SIGN
 	.text
 	.align	4
 	.globl	sc_muladd
@@ -4061,6 +4041,7 @@ sc_muladd:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 728
 	.size	sc_muladd,.-sc_muladd
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */

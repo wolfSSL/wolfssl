@@ -1566,49 +1566,49 @@ AES_decrypt_block:
 L_AES_decrypt_block_nr:
 	ubfx	r8, r7, #16, #8
 	lsr	r11, r4, #24
-	ubfx	lr, r6, #8, #8
-	ubfx	r2, r5, #0, #8
+	ubfx	r12, r6, #8, #8
+	ubfx	lr, r5, #0, #8
 	ldr	r8, [r0, r8, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r9, r4, #16, #8
 	eor	r8, r8, r11, ror #24
 	lsr	r11, r5, #24
-	eor	r8, r8, lr, ror #8
-	ubfx	lr, r7, #8, #8
-	eor	r8, r8, r2, ror #16
-	ubfx	r2, r6, #0, #8
+	eor	r8, r8, r12, ror #8
+	ubfx	r12, r7, #8, #8
+	eor	r8, r8, lr, ror #16
+	ubfx	lr, r6, #0, #8
 	ldr	r9, [r0, r9, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r10, r5, #16, #8
 	eor	r9, r9, r11, ror #24
 	lsr	r11, r6, #24
-	eor	r9, r9, lr, ror #8
-	ubfx	lr, r4, #8, #8
-	eor	r9, r9, r2, ror #16
-	ubfx	r2, r7, #0, #8
+	eor	r9, r9, r12, ror #8
+	ubfx	r12, r4, #8, #8
+	eor	r9, r9, lr, ror #16
+	ubfx	lr, r7, #0, #8
 	ldr	r10, [r0, r10, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r4, r4, #0, #8
 	eor	r10, r10, r11, ror #24
 	ubfx	r11, r6, #16, #8
-	eor	r10, r10, lr, ror #8
-	lsr	lr, r7, #24
-	eor	r10, r10, r2, ror #16
-	ubfx	r2, r5, #8, #8
+	eor	r10, r10, r12, ror #8
+	lsr	r12, r7, #24
+	eor	r10, r10, lr, ror #16
+	ubfx	lr, r5, #8, #8
 	ldr	r4, [r0, r4, lsl #2]
-	ldr	lr, [r0, lr, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
-	eor	lr, lr, r4, ror #24
+	ldr	lr, [r0, lr, lsl #2]
+	eor	r12, r12, r4, ror #24
 	ldm	r3!, {r4, r5, r6, r7}
-	eor	r11, r11, r2, ror #8
-	eor	r11, r11, lr, ror #24
+	eor	r11, r11, lr, ror #8
+	eor	r11, r11, r12, ror #24
 	#   XOR in Key Schedule
 	eor	r8, r8, r4
 	eor	r9, r9, r5
@@ -1616,49 +1616,49 @@ L_AES_decrypt_block_nr:
 	eor	r11, r11, r7
 	ubfx	r4, r11, #16, #8
 	lsr	r7, r8, #24
-	ubfx	lr, r10, #8, #8
-	ubfx	r2, r9, #0, #8
+	ubfx	r12, r10, #8, #8
+	ubfx	lr, r9, #0, #8
 	ldr	r4, [r0, r4, lsl #2]
 	ldr	r7, [r0, r7, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r5, r8, #16, #8
 	eor	r4, r4, r7, ror #24
 	lsr	r7, r9, #24
-	eor	r4, r4, lr, ror #8
-	ubfx	lr, r11, #8, #8
-	eor	r4, r4, r2, ror #16
-	ubfx	r2, r10, #0, #8
+	eor	r4, r4, r12, ror #8
+	ubfx	r12, r11, #8, #8
+	eor	r4, r4, lr, ror #16
+	ubfx	lr, r10, #0, #8
 	ldr	r5, [r0, r5, lsl #2]
 	ldr	r7, [r0, r7, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r6, r9, #16, #8
 	eor	r5, r5, r7, ror #24
 	lsr	r7, r10, #24
-	eor	r5, r5, lr, ror #8
-	ubfx	lr, r8, #8, #8
-	eor	r5, r5, r2, ror #16
-	ubfx	r2, r11, #0, #8
+	eor	r5, r5, r12, ror #8
+	ubfx	r12, r8, #8, #8
+	eor	r5, r5, lr, ror #16
+	ubfx	lr, r11, #0, #8
 	ldr	r6, [r0, r6, lsl #2]
 	ldr	r7, [r0, r7, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r8, r8, #0, #8
 	eor	r6, r6, r7, ror #24
 	ubfx	r7, r10, #16, #8
-	eor	r6, r6, lr, ror #8
-	lsr	lr, r11, #24
-	eor	r6, r6, r2, ror #16
-	ubfx	r2, r9, #8, #8
+	eor	r6, r6, r12, ror #8
+	lsr	r12, r11, #24
+	eor	r6, r6, lr, ror #16
+	ubfx	lr, r9, #8, #8
 	ldr	r8, [r0, r8, lsl #2]
-	ldr	lr, [r0, lr, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	r7, [r0, r7, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
-	eor	lr, lr, r8, ror #24
+	ldr	lr, [r0, lr, lsl #2]
+	eor	r12, r12, r8, ror #24
 	ldm	r3!, {r8, r9, r10, r11}
-	eor	r7, r7, r2, ror #8
-	eor	r7, r7, lr, ror #24
+	eor	r7, r7, lr, ror #8
+	eor	r7, r7, r12, ror #24
 	#   XOR in Key Schedule
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -1668,49 +1668,49 @@ L_AES_decrypt_block_nr:
 	bne	L_AES_decrypt_block_nr
 	ubfx	r8, r7, #16, #8
 	lsr	r11, r4, #24
-	ubfx	lr, r6, #8, #8
-	ubfx	r2, r5, #0, #8
+	ubfx	r12, r6, #8, #8
+	ubfx	lr, r5, #0, #8
 	ldr	r8, [r0, r8, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r9, r4, #16, #8
 	eor	r8, r8, r11, ror #24
 	lsr	r11, r5, #24
-	eor	r8, r8, lr, ror #8
-	ubfx	lr, r7, #8, #8
-	eor	r8, r8, r2, ror #16
-	ubfx	r2, r6, #0, #8
+	eor	r8, r8, r12, ror #8
+	ubfx	r12, r7, #8, #8
+	eor	r8, r8, lr, ror #16
+	ubfx	lr, r6, #0, #8
 	ldr	r9, [r0, r9, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r10, r5, #16, #8
 	eor	r9, r9, r11, ror #24
 	lsr	r11, r6, #24
-	eor	r9, r9, lr, ror #8
-	ubfx	lr, r4, #8, #8
-	eor	r9, r9, r2, ror #16
-	ubfx	r2, r7, #0, #8
+	eor	r9, r9, r12, ror #8
+	ubfx	r12, r4, #8, #8
+	eor	r9, r9, lr, ror #16
+	ubfx	lr, r7, #0, #8
 	ldr	r10, [r0, r10, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	lr, [r0, lr, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
 	ubfx	r4, r4, #0, #8
 	eor	r10, r10, r11, ror #24
 	ubfx	r11, r6, #16, #8
-	eor	r10, r10, lr, ror #8
-	lsr	lr, r7, #24
-	eor	r10, r10, r2, ror #16
-	ubfx	r2, r5, #8, #8
+	eor	r10, r10, r12, ror #8
+	lsr	r12, r7, #24
+	eor	r10, r10, lr, ror #16
+	ubfx	lr, r5, #8, #8
 	ldr	r4, [r0, r4, lsl #2]
-	ldr	lr, [r0, lr, lsl #2]
+	ldr	r12, [r0, r12, lsl #2]
 	ldr	r11, [r0, r11, lsl #2]
-	ldr	r2, [r0, r2, lsl #2]
-	eor	lr, lr, r4, ror #24
+	ldr	lr, [r0, lr, lsl #2]
+	eor	r12, r12, r4, ror #24
 	ldm	r3!, {r4, r5, r6, r7}
-	eor	r11, r11, r2, ror #8
-	eor	r11, r11, lr, ror #24
+	eor	r11, r11, lr, ror #8
+	eor	r11, r11, r12, ror #24
 	#   XOR in Key Schedule
 	eor	r8, r8, r4
 	eor	r9, r9, r5
@@ -1718,49 +1718,49 @@ L_AES_decrypt_block_nr:
 	eor	r11, r11, r7
 	ubfx	r4, r9, #0, #8
 	ubfx	r7, r10, #8, #8
-	ubfx	lr, r11, #16, #8
-	lsr	r2, r8, #24
-	ldrb	r4, [r12, r4]
-	ldrb	r7, [r12, r7]
-	ldrb	lr, [r12, lr]
-	ldrb	r2, [r12, r2]
+	ubfx	r12, r11, #16, #8
+	lsr	lr, r8, #24
+	ldrb	r4, [r2, r4]
+	ldrb	r7, [r2, r7]
+	ldrb	r12, [r2, r12]
+	ldrb	lr, [r2, lr]
 	ubfx	r5, r10, #0, #8
 	eor	r4, r4, r7, lsl #8
 	ubfx	r7, r11, #8, #8
-	eor	r4, r4, lr, lsl #16
-	ubfx	lr, r8, #16, #8
-	eor	r4, r4, r2, lsl #24
-	lsr	r2, r9, #24
-	ldrb	r7, [r12, r7]
-	ldrb	r2, [r12, r2]
-	ldrb	r5, [r12, r5]
-	ldrb	lr, [r12, lr]
+	eor	r4, r4, r12, lsl #16
+	ubfx	r12, r8, #16, #8
+	eor	r4, r4, lr, lsl #24
+	lsr	lr, r9, #24
+	ldrb	r7, [r2, r7]
+	ldrb	lr, [r2, lr]
+	ldrb	r5, [r2, r5]
+	ldrb	r12, [r2, r12]
 	ubfx	r6, r11, #0, #8
 	eor	r5, r5, r7, lsl #8
 	ubfx	r7, r8, #8, #8
-	eor	r5, r5, lr, lsl #16
-	ubfx	lr, r9, #16, #8
-	eor	r5, r5, r2, lsl #24
-	lsr	r2, r10, #24
-	ldrb	r7, [r12, r7]
-	ldrb	r2, [r12, r2]
-	ldrb	r6, [r12, r6]
-	ldrb	lr, [r12, lr]
+	eor	r5, r5, r12, lsl #16
+	ubfx	r12, r9, #16, #8
+	eor	r5, r5, lr, lsl #24
+	lsr	lr, r10, #24
+	ldrb	r7, [r2, r7]
+	ldrb	lr, [r2, lr]
+	ldrb	r6, [r2, r6]
+	ldrb	r12, [r2, r12]
 	lsr	r11, r11, #24
 	eor	r6, r6, r7, lsl #8
 	ubfx	r7, r8, #0, #8
-	eor	r6, r6, lr, lsl #16
-	ubfx	lr, r9, #8, #8
-	eor	r6, r6, r2, lsl #24
-	ubfx	r2, r10, #16, #8
-	ldrb	r11, [r12, r11]
-	ldrb	lr, [r12, lr]
-	ldrb	r7, [r12, r7]
-	ldrb	r2, [r12, r2]
-	eor	lr, lr, r11, lsl #16
+	eor	r6, r6, r12, lsl #16
+	ubfx	r12, r9, #8, #8
+	eor	r6, r6, lr, lsl #24
+	ubfx	lr, r10, #16, #8
+	ldrb	r11, [r2, r11]
+	ldrb	r12, [r2, r12]
+	ldrb	r7, [r2, r7]
+	ldrb	lr, [r2, lr]
+	eor	r12, r12, r11, lsl #16
 	ldm	r3, {r8, r9, r10, r11}
-	eor	r7, r7, lr, lsl #8
-	eor	r7, r7, r2, lsl #16
+	eor	r7, r7, r12, lsl #8
+	eor	r7, r7, lr, lsl #16
 	#   XOR in Key Schedule
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2046,7 +2046,8 @@ AES_ECB_decrypt:
 	mov	lr, r0
 	adr	r0, L_AES_ARM32_td_ecb
 	ldr	r0, [r0]
-	adr	r12, L_AES_ARM32_td4
+	mov	r12, r2
+	adr	r2, L_AES_ARM32_td4
 	cmp	r8, #10
 	beq	L_AES_ECB_decrypt_start_block_128
 	cmp	r8, #12
@@ -2060,7 +2061,7 @@ L_AES_ECB_decrypt_loop_block_256:
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	push	{r1, r2, r3, lr}
+	push	{r1, r3, r12, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	# Round: 0 - XOR in key schedule
 	eor	r4, r4, r8
@@ -2069,7 +2070,7 @@ L_AES_ECB_decrypt_loop_block_256:
 	eor	r7, r7, r11
 	mov	r1, #6
 	bl	AES_decrypt_block
-	pop	{r1, r2, r3, lr}
+	pop	{r1, r3, r12, lr}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -2078,7 +2079,7 @@ L_AES_ECB_decrypt_loop_block_256:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_ECB_decrypt_loop_block_256
@@ -2093,7 +2094,7 @@ L_AES_ECB_decrypt_loop_block_192:
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	push	{r1, r2, r3, lr}
+	push	{r1, r3, r12, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	# Round: 0 - XOR in key schedule
 	eor	r4, r4, r8
@@ -2102,7 +2103,7 @@ L_AES_ECB_decrypt_loop_block_192:
 	eor	r7, r7, r11
 	mov	r1, #5
 	bl	AES_decrypt_block
-	pop	{r1, r2, r3, lr}
+	pop	{r1, r3, r12, lr}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -2111,7 +2112,7 @@ L_AES_ECB_decrypt_loop_block_192:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_ECB_decrypt_loop_block_192
@@ -2126,7 +2127,7 @@ L_AES_ECB_decrypt_loop_block_128:
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	push	{r1, r2, r3, lr}
+	push	{r1, r3, r12, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	# Round: 0 - XOR in key schedule
 	eor	r4, r4, r8
@@ -2135,7 +2136,7 @@ L_AES_ECB_decrypt_loop_block_128:
 	eor	r7, r7, r11
 	mov	r1, #4
 	bl	AES_decrypt_block
-	pop	{r1, r2, r3, lr}
+	pop	{r1, r3, r12, lr}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
@@ -2144,7 +2145,7 @@ L_AES_ECB_decrypt_loop_block_128:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_ECB_decrypt_loop_block_128
@@ -2164,14 +2165,15 @@ AES_CBC_decrypt:
 	mov	lr, r0
 	adr	r0, L_AES_ARM32_td_ecb
 	ldr	r0, [r0]
-	adr	r12, L_AES_ARM32_td4
+	mov	r12, r2
+	adr	r2, L_AES_ARM32_td4
 	push	{r3, r4}
 	cmp	r8, #10
 	beq	L_AES_CBC_decrypt_loop_block_128
 	cmp	r8, #12
 	beq	L_AES_CBC_decrypt_loop_block_192
 L_AES_CBC_decrypt_loop_block_256:
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2207,7 +2209,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	rev	r6, r6
 	rev	r7, r7
 	ldm	lr, {r8, r9, r10, r11}
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2217,11 +2219,11 @@ L_AES_CBC_decrypt_loop_block_256:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	beq	L_AES_CBC_decrypt_end_odd
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2268,7 +2270,7 @@ L_AES_CBC_decrypt_loop_block_256:
 #else
 	ldrd	r10, r11, [lr, #24]
 #endif
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2278,13 +2280,13 @@ L_AES_CBC_decrypt_loop_block_256:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_256
 	b	L_AES_CBC_decrypt_end
 L_AES_CBC_decrypt_loop_block_192:
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2320,7 +2322,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	rev	r6, r6
 	rev	r7, r7
 	ldm	lr, {r8, r9, r10, r11}
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2330,11 +2332,11 @@ L_AES_CBC_decrypt_loop_block_192:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	beq	L_AES_CBC_decrypt_end_odd
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2381,7 +2383,7 @@ L_AES_CBC_decrypt_loop_block_192:
 #else
 	ldrd	r10, r11, [lr, #24]
 #endif
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2391,13 +2393,13 @@ L_AES_CBC_decrypt_loop_block_192:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_192
 	b	L_AES_CBC_decrypt_end
 L_AES_CBC_decrypt_loop_block_128:
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2433,7 +2435,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	rev	r6, r6
 	rev	r7, r7
 	ldm	lr, {r8, r9, r10, r11}
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2443,11 +2445,11 @@ L_AES_CBC_decrypt_loop_block_128:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	beq	L_AES_CBC_decrypt_end_odd
-	push	{r1, r2, lr}
+	push	{r1, r12, lr}
 	ldr	r4, [lr]
 	ldr	r5, [lr, #4]
 	ldr	r6, [lr, #8]
@@ -2494,7 +2496,7 @@ L_AES_CBC_decrypt_loop_block_128:
 #else
 	ldrd	r10, r11, [lr, #24]
 #endif
-	pop	{r1, r2, lr}
+	pop	{r1, r12, lr}
 	ldr	r3, [sp]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
@@ -2504,7 +2506,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	str	r5, [r1, #4]
 	str	r6, [r1, #8]
 	str	r7, [r1, #12]
-	subs	r2, r2, #16
+	subs	r12, r12, #16
 	add	lr, lr, #16
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_128

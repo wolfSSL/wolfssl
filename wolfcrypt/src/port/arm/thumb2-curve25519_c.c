@@ -310,15 +310,16 @@ void fe_1(fe n_p)
         /* Set one */
         "MOV	r2, #0x1\n\t"
         "MOV	r3, #0x0\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "MOV	r2, #0x0\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "SUB	%[n], %[n], #0x20\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
+        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
@@ -330,14 +331,16 @@ void fe_0(fe n_p)
         /* Set zero */
         "MOV	r2, #0x0\n\t"
         "MOV	r3, #0x0\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "STM	%[n]!, {r2, r3}\n\t"
-        "SUB	%[n], %[n], #0x20\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
+        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
@@ -454,6 +457,7 @@ int fe_isnegative(const fe a_p)
     return (uint32_t)(size_t)a;
 }
 
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
@@ -1538,6 +1542,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 void fe_mul_op(void);
 void fe_mul_op()
@@ -1872,34 +1877,20 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "STR	%[a], [sp, #168]\n\t"
         "MOV	%[n], #0x0\n\t"
         "STR	%[n], [sp, #172]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "SUB	%[r], %[r], #0x20\n\t"
-        "MOV	r3, sp\n\t"
-        /* Set zero */
+        "MOV	r4, #0x1\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "SUB	r3, r3, #0x20\n\t"
+        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x20\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "SUB	r3, r3, #0x20\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r3, sp\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -2281,34 +2272,20 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "STR	r4, [sp, #188]\n\t"
         "MOV	%[n], #0x0\n\t"
         "STR	%[n], [sp, #164]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "STM	%[r]!, {r10, r11}\n\t"
-        "SUB	%[r], %[r], #0x20\n\t"
-        "MOV	r3, sp\n\t"
-        /* Set zero */
+        "MOV	r4, #0x1\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "SUB	r3, r3, #0x20\n\t"
+        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x20\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "STM	r3!, {r10, r11}\n\t"
-        "SUB	r3, r3, #0x20\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r3, sp\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -3808,6 +3785,7 @@ void sc_reduce(byte* s_p)
     );
 }
 
+#ifdef HAVE_ED25519_SIGN
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 {
     register byte* s asm ("r0") = (byte*)s_p;
@@ -4215,6 +4193,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
     );
 }
 
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
