@@ -1428,7 +1428,7 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
 
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS) && \
-  (defined(WOLFSSL_QT) && \
+  ((defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)) && \
   !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR))
     /* invalid path */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
