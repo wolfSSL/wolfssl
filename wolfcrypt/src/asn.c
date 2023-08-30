@@ -3283,8 +3283,21 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
-    if (((input[idx] & 0x80) == 0x80) && (input[idx - 1] != 0x00))
+    /* should not be hit but adding in an additional sanity check */
+    if (idx + length > maxIdx) {
         return MP_INIT_E;
+    }
+
+    if ((input[idx] & 0x80) == 0x80) {
+        if (idx < 1) {
+            /* needs at least one byte for length value */
+            return MP_INIT_E;
+        }
+
+        if (input[idx - 1] != 0x00) {
+            return MP_INIT_E;
+        }
+    }
 
     if (initNum) {
         if (mp_init(mpi) != MP_OKAY)
