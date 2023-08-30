@@ -339,6 +339,35 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb)
 }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_CMD
+static int wc_CryptoCb_CommandDev(CryptoCb* dev, int cmd_type, void *arg,
+        void* *out_arg)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    if ((dev != NULL) && (dev->cb != NULL)) {
+        /* Invoke the command callback */
+        wc_CryptoInfo info;
+        XMEMSET(&info, 0, sizeof(info));
+        info.algo_type = WC_ALGO_TYPE_NONE;
+        info.cmd.type  = cmd_type;
+        info.cmd.ctx   = arg;
+        ret = dev->cb(dev, &info, dev->ctx);
+        if(out_arg != NULL) {
+            *out_arg = info.cmd.ctx;
+        }
+    }
+    return ret;
+}
+
+int wc_CryptoCb_Command(int devId, int cmd_type, void *arg, void* *out_arg)
+{
+    /* Find the matching dev */
+    CryptoCb* dev;
+    dev = wc_CryptoCb_GetDevice(devId);
+    return  wc_CryptoCb_CommandDev(dev, cmd_type, arg, out_arg);
+}
+#endif
+
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     int rc = 0;
@@ -357,17 +386,13 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 
 #ifdef WOLF_CRYPTO_CB_CMD
     if (cb != NULL) {
+        void* resp = NULL;
         /* Invoke callback with register command */
-        wc_CryptoInfo info;
-        XMEMSET(&info, 0, sizeof(info));
-        info.algo_type = WC_ALGO_TYPE_NONE;
-        info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_REGISTER;
-        info.cmd.ctx   = ctx;  /* cb may update on success */
-
-        rc = cb(devId, &info, ctx);
+        rc = wc_CryptoCb_CommandDev(dev, WC_CRYPTOCB_CMD_TYPE_REGISTER, ctx,
+                &resp);
         if (rc == 0) {
             /* Success.  Update dev->ctx */
-            dev->ctx = info.cmd.ctx;
+            dev->ctx = resp;
         }
         else if ((rc == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) ||
                  (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) {
@@ -398,19 +423,14 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
 
 #ifdef WOLF_CRYPTO_CB_CMD
     if (dev->cb != NULL) {
-        /* Invoke callback with unregister command.*/
-        wc_CryptoInfo info;
-        XMEMSET(&info, 0, sizeof(info));
-        info.algo_type = WC_ALGO_TYPE_NONE;
-        info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_UNREGISTER;
-        info.cmd.ctx   = NULL;  /* Not used */
-
-        /* Ignore errors here */
-        dev->cb(devId, &info, dev->ctx);
+        /* Invoke callback with unregister command. Ignore errors*/
+        wc_CryptoCb_CommandDev(dev, WC_CRYPTOCB_CMD_TYPE_UNREGISTER, NULL,
+                NULL);
     }
 #endif
     wc_CryptoCb_ClearDev(dev);
 }
+
 
 #ifndef NO_RSA
 int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
