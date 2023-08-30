@@ -351,7 +351,7 @@ static int wc_CryptoCb_CommandDev(CryptoCb* dev, int cmd_type, void *arg,
         info.algo_type = WC_ALGO_TYPE_NONE;
         info.cmd.type  = cmd_type;
         info.cmd.ctx   = arg;
-        ret = dev->cb(dev, &info, dev->ctx);
+        ret = dev->cb(dev->devId, &info, dev->ctx);
         if(out_arg != NULL) {
             *out_arg = info.cmd.ctx;
         }
