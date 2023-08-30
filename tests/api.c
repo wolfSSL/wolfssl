@@ -66211,11 +66211,13 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_dtls_stateless),
     TEST_DECL(test_generate_cookie),
 
+#ifndef NO_BIO
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_BIO_connect),
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+#endif
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(WOLFSSL_NO_TLS12)
     TEST_DECL(test_DhCallbacks),
