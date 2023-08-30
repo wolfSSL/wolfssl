@@ -29437,6 +29437,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
             printf("ECIES: AES_128_CBC, HKDF_SHA256, HMAC_SHA256\n");
         }
     }
+#ifdef HAVE_X963_KDF
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
+            ecKDF_X963_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CBC, KDF_X963_SHA256, HMAC_SHA256\n");
+        }
+    }
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
+            ecKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CBC, KDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
 #endif
 #ifdef WOLFSSL_AES_256
     if (ret == 0) {
