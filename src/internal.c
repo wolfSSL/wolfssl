@@ -9199,13 +9199,21 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
      * to be used for triggering retransmission of whole DtlsMsgPool.
      * change cipher suite type is not verified here
      */
-    return ((fragOffset == 0) &&
-           (((ssl->options.side == WOLFSSL_SERVER_END) &&
-             ((type == client_hello) ||
-             ((ssl->options.verifyPeer) && (type == certificate)) ||
-             ((!ssl->options.verifyPeer) && (type == client_key_exchange)))) ||
-            ((ssl->options.side == WOLFSSL_CLIENT_END) &&
-             (type == hello_request || type == server_hello))));
+    if (fragOffset == 0) {
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            if (type == client_hello)
+                return 1;
+            else if (ssl->options.verifyPeer && type == certificate)
+                return 1;
+            else if (!ssl->options.verifyPeer && type == client_key_exchange)
+                return 1;
+        }
+        else {
+            if (type == hello_request || type == server_hello)
+                return 1;
+        }
+    }
+    return 0;
 }
 
 
@@ -20003,9 +20011,10 @@ static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
 
 static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 {
-    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0) &&
+            !ssl->options.dtlsHsRetain) {
         WOLFSSL_MSG("Silently dropping plaintext DTLS message "
-                    "on established connection.");
+                    "on established connection when we have nothing to send.");
         return 1;
     }
 
