@@ -1341,8 +1341,16 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
 
-int mp_jacobi(mp_int* a, mp_int* n, int* c);
-int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
+#ifdef HAVE_COMP_KEY
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL)
+
+#ifndef WOLFSSL_SP_MATH
+static int mp_jacobi(mp_int* a, mp_int* n, int* c);
+static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
+#endif
+#endif
+#endif
 
 
 /* Curve Specs */
@@ -3053,6 +3061,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 #endif
     int      infinity;
 
+#ifndef WC_NO_CACHE_RESISTANT
 #ifdef WOLFSSL_SMALL_STACK
     tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
     if (tmp == NULL) {
@@ -3061,6 +3070,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 #endif
     if (err == MP_OKAY)
         err = mp_init(tmp);
+#endif
 
     /* Step 1: R[0] = P; R[1] = P */
     /* R[0] = P */
@@ -3209,7 +3219,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     if (err == MP_OKAY)
         err = mp_copy(R[0]->z, Q->z);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_CACHE_RESISTANT)
     XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
@@ -13833,7 +13843,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret + pubKeySz,
                                                                      &sharedSz);
     #endif
-    } while (ret == WC_PENDING_E);
+    }
+    while (ret == WC_PENDING_E);
+
     if (ret == 0) {
     #ifdef WOLFSSL_ECIES_ISO18033
         /* KDF data is encoded public key and secret. */
@@ -13845,6 +13857,30 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                            keys, (word32)keysLen);
                 break;
+            case ecHKDF_SHA1 :
+                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                           keys, (word32)keysLen);
+                break;
+#if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
+            case ecKDF_X963_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_X963_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+#endif
+
 
             default:
                 ret = BAD_FUNC_ARG;
@@ -14240,6 +14276,29 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                            keys, (word32)keysLen);
                 break;
+            case ecHKDF_SHA1 :
+                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                           keys, (word32)keysLen);
+                break;
+#if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
+            case ecKDF_X963_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_X963_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+#endif
 
             default:
                 ret = BAD_FUNC_ARG;
@@ -14428,7 +14487,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifndef WOLFSSL_SP_MATH
 /* computes the jacobi c = (a | n) (or Legendre if n is prime)
  */
-int mp_jacobi(mp_int* a, mp_int* n, int* c)
+static int mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
 #ifdef WOLFSSL_SMALL_STACK
     mp_int*  a1 = NULL;
@@ -14552,7 +14611,7 @@ done:
  * The result is returned in the third argument x
  * the function returns MP_OKAY on success, MP_VAL or another error on failure
  */
-int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
+static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
 #ifdef SQRTMOD_USE_MOD_EXP
   int res;
@@ -14749,6 +14808,11 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
         if (mp_cmp_d(t1, 1) == MP_EQ)
             break;
         res = mp_exptmod(t1, two, prime, t1);
+        if ((res == MP_OKAY) && (mp_cmp_d(M,i) == MP_EQ)) {
+          /* This is to clamp the loop in case 'prime' is not really prime */
+          res = MP_VAL;
+          break;
+        }
         if (res == MP_OKAY)
           i++;
       }

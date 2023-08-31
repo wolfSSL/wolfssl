@@ -688,6 +688,28 @@ run_renewcerts(){
     echo "---------------------------------------------------------------------"
 
     ############################################################
+    ########## update Raw Public Key certificates ##############
+    ############################################################
+    echo "Updating  certificates"
+    echo "Updating client-cert-rpk.der"
+    cp client-keyPub.der ./rpk/client-cert-rpk.der
+    check_result $? "Step 1"
+
+    echo "Updating client-ecc-cert-rpk.der"
+    cp ecc-client-keyPub.der ./rpk/ecc-client-cert-rpk.der
+    check_result $? "Step 2"
+
+    echo "Updating server-cert-rpk.der"
+    openssl rsa -inform pem -in server-key.pem -outform der -out ./rpk/server-cert-rpk.der -pubout
+    check_result $? "Step 3"
+
+    echo "Updating server-ecc-cert-rpk.der"
+    openssl ec -inform pem -in ecc-key.pem -outform der -out ./rpk/server-ecc-cert-rpk.der -pubout
+    check_result $? "Step 4"
+
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ###### update the ecc-rsa-server.p12 file ##################
     ############################################################
     echo "Updating ecc-rsa-server.p12 (password is \"\")"

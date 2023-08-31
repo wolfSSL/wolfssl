@@ -38,7 +38,7 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
@@ -54,7 +54,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
     #ifndef NO_TLS
             ssl->options.tls = 1;
         #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
-            #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+            #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
                 !defined(WOLFSSL_RENESAS_TSIP_TLS)
             ssl->hmac = TLS_hmac;
             #else
@@ -77,7 +77,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
     #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls && ssl->version.major == DTLS_MAJOR) {
         #ifndef WOLFSSL_AEAD_ONLY
-            #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+            #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
                 !defined(WOLFSSL_RENESAS_TSIP_TLS)
             ssl->hmac = TLS_hmac;
             #else

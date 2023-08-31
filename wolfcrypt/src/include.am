@@ -124,10 +124,10 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_sha.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_rsa.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_util.c \
-              wolfcrypt/src/port/Renesas/renesas_sce_util.c \
-              wolfcrypt/src/port/Renesas/renesas_sce_aes.c \
-              wolfcrypt/src/port/Renesas/renesas_sce_sha.c \
-              wolfcrypt/src/port/Renesas/renesas_sce_rsa.c \
+              wolfcrypt/src/port/Renesas/renesas_fspsm_util.c \
+              wolfcrypt/src/port/Renesas/renesas_fspsm_aes.c \
+              wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c \
+              wolfcrypt/src/port/Renesas/renesas_fspsm_rsa.c \
               wolfcrypt/src/port/Renesas/renesas_common.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_util.c \

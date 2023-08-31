@@ -5,7 +5,7 @@ library written in ANSI C and targeted for embedded, RTOS, and
 resource-constrained environments - primarily because of its small size, speed,
 and feature set.  It is commonly used in standard operating environments as well
 because of its royalty-free pricing and excellent cross platform support.
-wolfSSL supports industry standards up to the current TLS 1.3 and DTLS 1.2
+wolfSSL supports industry standards up to the current TLS 1.3 and DTLS 1.3
 levels, is up to 20 times smaller than OpenSSL, and offers progressive ciphers
 such as ChaCha20, Curve25519, and Blake2b. User benchmarking and feedback
 reports dramatically better performance when using wolfSSL over OpenSSL.

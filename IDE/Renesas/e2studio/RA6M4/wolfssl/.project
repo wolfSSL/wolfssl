@@ -397,24 +397,24 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_common.c</locationURI>
 		</link>
 		<link>
-			<name>wolfCrypt/port/renesas_sce_aes.c</name>
+			<name>wolfCrypt/port/renesas_fspsm_aes.c</name>
 			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_aes.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_fspsm_aes.c</locationURI>
 		</link>
 		<link>
-			<name>wolfCrypt/port/renesas_sce_rsa.c</name>
+			<name>wolfCrypt/port/renesas_fspsm_rsa.c</name>
 			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_rsa.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_fspsm_rsa.c</locationURI>
 		</link>
 		<link>
-			<name>wolfCrypt/port/renesas_sce_sha.c</name>
+			<name>wolfCrypt/port/renesas_fspsm_sha.c</name>
 			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_sha.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c</locationURI>
 		</link>
 		<link>
-			<name>wolfCrypt/port/renesas_sce_util.c</name>
+			<name>wolfCrypt/port/renesas_fspsm_util.c</name>
 			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_sce_util.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_fspsm_util.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

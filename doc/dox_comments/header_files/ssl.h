@@ -859,7 +859,7 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
 
 /*!
     \brief Used to export a serialized TLS session. This function is for
-    importing a serialized state of the connection.
+    exporting a serialized state of the connection.
     In most cases wolfSSL_get1_session should be used instead of
     wolfSSL_tls_export.
     Additional debug info can be displayed with the macro
@@ -1164,7 +1164,7 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int form
     \sa wolfSSL_use_certificate_chain_file
 */
 int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
-                                                const char* format);
+                                                const char* path);
 
 /*!
     \ingroup CertsKeys
@@ -1439,9 +1439,9 @@ int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX* ctx, const char* file, int f
     \brief This function returns the maximum chain depth allowed, which is 9 by
     default, for a valid session i.e. there is a non-null session object (ssl).
 
-    \return MAX_CHAIN_DEPTH returned if the WOLFSSL_CTX structure is not
+    \return MAX_CHAIN_DEPTH returned if the WOLFSSL structure is not
     NULL. By default the value is 9.
-    \return BAD_FUNC_ARG returned if the WOLFSSL_CTX structure is NULL.
+    \return BAD_FUNC_ARG returned if the WOLFSSL structure is NULL.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -1794,7 +1794,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
     a socket file descriptor.
 
     \return SSL_SUCCESS upon success.
-    \return Bad_FUNC_ARG upon failure.
+    \return BAD_FUNC_ARG upon failure.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
     \param fd file descriptor to use with SSL/TLS connection.
@@ -1828,7 +1828,7 @@ int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
     addr and addr_len parameters set to NULL.
 
     \return SSL_SUCCESS upon success.
-    \return Bad_FUNC_ARG upon failure.
+    \return BAD_FUNC_ARG upon failure.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
     \param fd file descriptor to use with SSL/TLS connection.
@@ -2822,7 +2822,7 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     \return none No return.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
-    \param mode session timeout value in seconds
+    \param mode flags indicating verification mode for peer's cert.
     \param verify_callback callback to be called when verification fails.
     If no callback is desired, the NULL pointer can be used for
     verify_callback.
@@ -2870,7 +2870,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
     \return none No return.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
-    \param mode session timeout value in seconds.
+    \param mode flags indicating verification mode for peer's cert.
     \param verify_callback callback to be called when verification fails.
     If no callback is desired, the NULL pointer can
     be used for verify_callback.
@@ -3138,6 +3138,7 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode);
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param cb a SessionSecretCb type that is a function pointer with the above
     signature.
+    \param ctx a pointer to the user context to be stored
 
     _Example_
     \code
@@ -3169,7 +3170,7 @@ int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx);
     \return FWRITE_ERROR returned if XFWRITE failed to write to the file.
     \return BAD_MUTEX_E returned if there was a mutex lock failure.
 
-    \param name is a constant char pointer that points to a file for writing.
+    \param fname is a constant char pointer that points to a file for writing.
 
     _Example_
     \code
@@ -3184,7 +3185,7 @@ int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx);
     \sa wolfSSL_restore_session_cache
     \sa wolfSSL_memrestore_session_cache
 */
-int  wolfSSL_save_session_cache(const char*);
+int  wolfSSL_save_session_cache(const char* fname);
 
 /*!
     \ingroup IO
@@ -3214,7 +3215,7 @@ int  wolfSSL_save_session_cache(const char*);
     \sa XFREAD
     \sa XFOPEN
 */
-int  wolfSSL_restore_session_cache(const char*);
+int  wolfSSL_restore_session_cache(const char* fname);
 
 /*!
     \ingroup IO
@@ -3312,7 +3313,7 @@ int  wolfSSL_get_session_cache_memsize(void);
 
     \param ctx a pointer to a WOLFSSL_CTX structure, holding the
     certificate information.
-    \param fname  the cert cache buffer.
+    \param fname  a constant char pointer that points to a file for writing.
 
     _Example_
     \code
@@ -3344,7 +3345,7 @@ int  wolfSSL_CTX_save_cert_cache(WOLFSSL_CTX* ctx, const char* fname);
 
     \param ctx a pointer to a WOLFSSL_CTX structure, holding the certificate
     information.
-    \param fname the cert cache buffer.
+    \param fname a constant char pointer that points to a file for reading.
 
     _Example_
     \code
@@ -3462,7 +3463,7 @@ int  wolfSSL_CTX_memrestore_cert_cache(WOLFSSL_CTX* ctx, const void* mem, int sz
 
     \sa CM_GetCertCacheMemSize
 */
-int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
+int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -3599,7 +3600,7 @@ void wolfSSL_dtls_set_using_nonblock(WOLFSSL* ssl, int nonblock);
     \sa wolfSSL_dtls_got_timeout
     \sa wolfSSL_dtls_set_using_nonblock
 */
-int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);
+int  wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl);
 /*!
     \brief This function returns the current timeout value in seconds for
     the WOLFSSL object. When using non-blocking sockets, something in the user
@@ -3919,7 +3920,7 @@ int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
     \sa wolfSSL_ERR_print_errors_fp
     \sa wolfSSL_load_error_strings
 */
-char* wolfSSL_ERR_error_string(unsigned long,char*);
+char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data);
 
 /*!
     \ingroup Debug
@@ -3963,7 +3964,7 @@ void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
     structure is within the WOLFSSL structure.
 
     \return 1 SSL_SENT_SHUTDOWN is returned.
-    \return 2 SS_RECEIVED_SHUTDOWN is returned.
+    \return 2 SSL_RECEIVED_SHUTDOWN is returned.
 
     \param ssl a constant pointer to a WOLFSSL structure, created using
     wolfSSL_new().
@@ -3989,7 +3990,7 @@ void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
 
     \sa wolfSSL_SESSION_free
 */
-int  wolfSSL_get_shutdown(const WOLFSSL*);
+int  wolfSSL_get_shutdown(const WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -4016,7 +4017,7 @@ int  wolfSSL_get_shutdown(const WOLFSSL*);
     \sa wolfSSL_GetSessionIndex
     \sa wolfSSL_memsave_session_cache
 */
-int  wolfSSL_session_reused(WOLFSSL*);
+int  wolfSSL_session_reused(WOLFSSL* ssl);
 
 /*!
     \ingroup TLS
@@ -4046,7 +4047,7 @@ int  wolfSSL_session_reused(WOLFSSL*);
     \sa wolfSSL_get_keys
     \sa wolfSSL_set_shutdown
 */
-int  wolfSSL_is_init_finished(WOLFSSL*);
+int  wolfSSL_is_init_finished(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -4078,7 +4079,7 @@ int  wolfSSL_is_init_finished(WOLFSSL*);
 
     \sa wolfSSL_lib_version
 */
-const char*  wolfSSL_get_version(WOLFSSL*);
+const char*  wolfSSL_get_version(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -4142,7 +4143,7 @@ int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
     \sa wolfSSL_get_cipher_name_internal
     \sa wolfSSL_get_cipher_name
 */
-WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
+WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -4482,7 +4483,7 @@ int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
     \sa wolfSSL_BIO_new, wolfSSL_BIO_s_mem
     \sa wolfSSL_BIO_new, wolfSSL_BIO_free
 */
-int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
+int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *bio);
 
 /*!
     \ingroup IO
@@ -4782,7 +4783,7 @@ char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     \sa wolfSSL_get_peer_certificate
     \sa wolfSSL_X509_NAME_oneline
 */
-WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
+WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert);
 
 /*!
     \ingroup CertsKeys
@@ -4811,7 +4812,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
     \sa wolfSSL_X509_get_isCA
     \sa wolfSSL_get_peer_certificate
 */
-WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
+WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert);
 
 /*!
     \ingroup CertsKeys
@@ -4823,7 +4824,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
     structure is returned.
     \return 0 returned if there is not a valid x509 structure passed in.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param cert a pointer to a WOLFSSL_X509 structure.
 
     _Example_
     \code
@@ -4842,7 +4843,7 @@ WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
     \sa wolfSSL_X509_get_issuer_name
     \sa wolfSSL_X509_get_isCA
 */
-int  wolfSSL_X509_get_isCA(WOLFSSL_X509*);
+int  wolfSSL_X509_get_isCA(WOLFSSL_X509* cert);
 
 /*!
     \ingroup CertsKeys
@@ -4884,7 +4885,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
     \return int an integer value is returned which was retrieved from
     the x509 object.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param cert a pointer to a WOLFSSL_X509 structure.
 
     _Example_
     \code
@@ -4906,7 +4907,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
     \sa wolfSSL_X509_notAfter
     \sa wolfSSL_X509_free
 */
-int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
+int wolfSSL_X509_get_signature_type(WOLFSSL_X509* cert);
 
 /*!
     \brief This function frees a WOLFSSL_X509 structure.
@@ -5192,7 +5193,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
     \sa wolfSSL_CTX_free
     \sa wolfSSL_CTX_set_read_ahead
 */
-int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
+int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -5203,6 +5204,7 @@ int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
     \return SSL_FAILURE If ctx is NULL then SSL_FAILURE is returned.
 
     \param ctx WOLFSSL_CTX structure to set read ahead flag.
+    \param v read ahead flag
 
     _Example_
     \code
@@ -5333,7 +5335,7 @@ long wolfSSL_set_options(WOLFSSL *s, long op);
     \sa wolfSSL_free
     \sa wolfSSL_set_options
 */
-long wolfSSL_get_options(const WOLFSSL *s);
+long wolfSSL_get_options(const WOLFSSL *ssl);
 
 /*!
     \ingroup Setup
@@ -5359,7 +5361,7 @@ long wolfSSL_get_options(const WOLFSSL *s);
     \sa wolfSSL_new
     \sa wolfSSL_free
 */
-long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
+long wolfSSL_set_tlsext_debug_arg(WOLFSSL *ssl, void *arg);
 
 /*!
     \ingroup openSSL
@@ -5372,7 +5374,7 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg);
     \return 1 upon success.
     \return 0 upon error.
 
-    \param s pointer to WolfSSL struct which is created by SSL_new() function
+    \param s pointer to WOLFSSL struct which is created by SSL_new() function
     \param type ssl extension type which TLSEXT_STATUSTYPE_ocsp is
     only supported.
 
@@ -5518,7 +5520,7 @@ void  wolfSSL_ERR_print_errors_cb (
     \sa wolfSSL_CTX_set_psk_client_callback
 */
 void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX* ctx,
-                                                    wc_psk_client_callback);
+                                                    wc_psk_client_callback cb);
 
 /*!
     \brief Sets the PSK client side callback.
@@ -14427,7 +14429,7 @@ int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 /*!
  \ingroup SSL
  \brief Sign a message with the chosen message digest, padding, and RSA key
- \return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
+ \return WOLFSSL_SUCCESS on success and c on error
  \param type      Hash NID
  \param m         Message to sign. Most likely this will be the digest of
                   the message to sign
@@ -14489,6 +14491,211 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
             object class.
  */
 int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
+
+/*!
+ \ingroup Setup 
+ \brief  In case this function is called in a client side, set certificate types 
+ that can be sent to its peer. In case called in a server side,
+ set certificate types that can be acceptable from its peer. Put cert types in the
+ buffer with prioritised order. To reset the settings to default, pass NULL
+ for the buffer or pass zero for len. By default, certificate type is only X509. 
+ In case both side intend to send or accept "Raw public key" cert,
+ WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
+
+ \return WOLFSSL_SUCCESS if cert types set successfully
+ \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
+  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or 
+  a duplicate value is found in buf.
+
+ \param ctx  WOLFSSL_CTX object pointer
+ \param buf  A buffer where certificate types are stored
+ \param len  buf size in bytes (same as number of certificate types included)
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  char buf[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(buf)/sizeof(char);
+  ...
+
+  ret = wolfSSL_CTX_set_client_cert_type(ctx, buf, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  In case this function is called in a server side, set certificate types 
+ that can be sent to its peer. In case called in a client side,
+ set certificate types that can be acceptable from its peer. Put cert types in the
+ buffer with prioritised order. To reset the settings to default, pass NULL
+ for the buffer or pass zero for len. By default, certificate type is only X509. 
+ In case both side intend to send or accept "Raw public key" cert,
+ WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
+
+ \return WOLFSSL_SUCCESS if cert types set successfully
+ \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
+  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or 
+  a duplicate value is found in buf.
+
+ \param ctx  WOLFSSL_CTX object pointer
+ \param buf  A buffer where certificate types are stored
+ \param len  buf size in bytes (same as number of certificate types included)
+    _Example_
+ \code
+  int ret;
+  WOLFSSL_CTX* ctx;
+  char buf[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(buf)/sizeof(char);
+  ...
+
+  ret = wolfSSL_CTX_set_server_cert_type(ctx, buf, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  In case this function is called in a client side, set certificate types 
+ that can be sent to its peer. In case called in a server side,
+ set certificate types that can be acceptable from its peer. Put cert types in the
+ buffer with prioritised order. To reset the settings to default, pass NULL
+ for the buffer or pass zero for len. By default, certificate type is only X509. 
+ In case both side intend to send or accept "Raw public key" cert,
+ WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
+
+ \return WOLFSSL_SUCCESS if cert types set successfully
+ \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
+  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or 
+  a duplicate value is found in buf.
+
+ \param ssl  WOLFSSL object pointer
+ \param buf  A buffer where certificate types are stored
+ \param len  buf size in bytes (same as number of certificate types included)
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  char buf[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(buf)/sizeof(char);
+  ...
+
+  ret = wolfSSL_set_client_cert_type(ssl, buf, len);
+ \endcode
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
+
+/*!
+ \ingroup Setup 
+ \brief  In case this function is called in a server side, set certificate types 
+ that can be sent to its peer. In case called in a client side,
+ set certificate types that can be acceptable from its peer. Put cert types in the
+ buffer with prioritised order. To reset the settings to default, pass NULL
+ for the buffer or pass zero for len. By default, certificate type is only X509. 
+ In case both side intend to send or accept "Raw public key" cert,
+ WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
+
+ \return WOLFSSL_SUCCESS if cert types set successfully
+ \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
+  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or 
+  a duplicate value is found in buf.
+
+ \param ctx  WOLFSSL_CTX object pointer
+ \param buf  A buffer where certificate types are stored
+ \param len  buf size in bytes (same as number of certificate types included)
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  char buf[] = {WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509};
+  int len = sizeof(buf)/sizeof(char);
+  ...
+
+  ret = wolfSSL_set_server_cert_type(ssl, buf, len);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
+
+/*!
+ \ingroup SSL 
+ \brief  This function returns the result of the client certificate type 
+ negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
+  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is 
+  returned as the certificate type.
+
+ \return WOLFSSL_SUCCESS if a negotiated certificate type could be got
+ \return BAD_FUNC_ARG if NULL was passed for ctx or tp
+ \param ssl  WOLFSSL object pointer
+ \param tp  A buffer where a certificate type is to be returned. One of three 
+ certificate types will be returned: WOLFSSL_CERT_TYPE_RPK, 
+ WOLFSSL_CERT_TYPE_X509 or WOLFSSL_CERT_TYPE_UNKNOWN.
+
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  int tp;
+  ...
+
+  ret = wolfSSL_get_negotiated_client_cert_type(ssl, &tp);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_get_negotiated_server_cert_type
+ */
+int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
+
+/*!
+ \ingroup SSL 
+ \brief  This function returns the result of the server certificate type 
+ negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
+  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is 
+  returned as the certificate type.
+
+ \return WOLFSSL_SUCCESS if a negotiated certificate type could be got
+ \return BAD_FUNC_ARG if NULL was passed for ctx or tp
+ \param ssl  WOLFSSL object pointer
+ \param tp  A buffer where a certificate type is to be returned. One of three 
+ certificate types will be returned: WOLFSSL_CERT_TYPE_RPK, 
+ WOLFSSL_CERT_TYPE_X509 or WOLFSSL_CERT_TYPE_UNKNOWN.
+    _Example_
+ \code
+  int ret;
+  WOLFSSL* ssl;
+  int tp;
+　...
+
+  ret = wolfSSL_get_negotiated_server_cert_type(ssl, &tp);
+ \endcode
+ \sa wolfSSL_set_client_cert_type
+ \sa wolfSSL_CTX_set_client_cert_type
+ \sa wolfSSL_set_server_cert_type
+ \sa wolfSSL_CTX_set_server_cert_type
+ \sa wolfSSL_get_negotiated_client_cert_type
+ */
+int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
 

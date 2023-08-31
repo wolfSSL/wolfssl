@@ -2026,7 +2026,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -122, -123, -124,       -127, -128, -129, -159,
+    int missing[] = { -122, -123, -124,             -128, -129, -159,
                       -163, -164, -165, -166, -167, -168, -169, -233,
                       0 };
 
@@ -29437,6 +29437,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
             printf("ECIES: AES_128_CBC, HKDF_SHA256, HMAC_SHA256\n");
         }
     }
+#ifdef HAVE_X963_KDF
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
+            ecKDF_X963_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CBC, KDF_X963_SHA256, HMAC_SHA256\n");
+        }
+    }
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
+            ecKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CBC, KDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
 #endif
 #ifdef WOLFSSL_AES_256
     if (ret == 0) {
@@ -31081,8 +31097,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
 #if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
     wc_ed25519_init_ex(&key3, HEAP_HINT, devId);
 #endif
+#ifdef HAVE_ED25519_MAKE_KEY
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key2);
+#endif
 
     /* helper functions for signature and key size */
     keySz = wc_ed25519_size(&key);
@@ -31251,7 +31269,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     ret = ed25519_test_cert();
     if (ret < 0)
         return ret;
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_ED25519_MAKE_KEY)
     ret = ed25519_test_make_cert();
     if (ret < 0)
         return ret;
@@ -46473,7 +46491,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.curve25519.private_key->devId = devIdArg;
         }
     #endif /* HAVE_CURVE25519 */
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
         if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519kg.key->devId = INVALID_DEVID;

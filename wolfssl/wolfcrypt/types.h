@@ -1023,7 +1023,8 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_PB_BUFFER  = 1003,
         DYNAMIC_TYPE_SNIFFER_TICKET_ID  = 1004,
         DYNAMIC_TYPE_SNIFFER_NAMED_KEY  = 1005,
-        DYNAMIC_TYPE_SNIFFER_KEY        = 1006
+        DYNAMIC_TYPE_SNIFFER_KEY        = 1006,
+        DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE = 1007
     };
 
     /* max error buffer string size */
@@ -1445,7 +1446,7 @@ typedef struct w64wrapper {
          *                  callbacks
          * WOLFSSL_THREAD_NO_JOIN - attribute that should be used to declare
          *                          thread callbacks that don't require cleanup
-         * WOLFSSL_COND - defined if this system suports signaling
+         * WOLFSSL_COND - defined if this system supports signaling
          * COND_TYPE - type that should be passed into the signaling API
          * WOLFSSL_THREAD_VOID_RETURN - defined if the thread callback has a
          *                              void return

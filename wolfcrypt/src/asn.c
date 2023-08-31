@@ -176,7 +176,7 @@ ASN Options:
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
@@ -639,13 +639,13 @@ static word32 SizeASN_Num(word32 n, int bits, byte tag)
  * @param [in]      idx    Index of item working on.
  */
 static void SizeASN_CalcDataLength(const ASNItem* asn, ASNSetData *data,
-                                   int idx, int max)
+                                   int idx, int maxIdx)
 {
     int j;
 
     data[idx].data.buffer.length = 0;
     /* Sum the item length of all items underneath. */
-    for (j = idx + 1; j < max; j++) {
+    for (j = idx + 1; j < maxIdx; j++) {
         /* Stop looking if the next ASN.1 is same level or higher. */
         if (asn[j].depth <= asn[idx].depth)
             break;
@@ -3283,8 +3283,21 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
-    if (((input[idx] & 0x80) == 0x80) && (input[idx - 1] != 0x00))
+    /* should not be hit but adding in an additional sanity check */
+    if (idx + length > maxIdx) {
         return MP_INIT_E;
+    }
+
+    if ((input[idx] & 0x80) == 0x80) {
+        if (idx < 1) {
+            /* needs at least one byte for length value */
+            return MP_INIT_E;
+        }
+
+        if (input[idx - 1] != 0x00) {
+            return MP_INIT_E;
+        }
+    }
 
     if (initNum) {
         if (mp_init(mpi) != MP_OKAY)
@@ -5733,7 +5746,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     actualOidSz = (word32)length;
 #endif /* NO_VERIFY_OID */
 
-#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS) && defined(HAVE_SPHINCS)
     /* Since we are summing it up, there could be collisions...and indeed there
      * are: SPHINCS_FAST_LEVEL1 and SPHINCS_FAST_LEVEL3.
      *
@@ -9225,7 +9238,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 #ifndef NO_RSA
 
 #ifndef HAVE_USER_RSA
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 /* This function is to retrieve key position information in a cert.*
  * The information will be used to call TSIP TLS-linked API for    *
  * certificate verification.                                       */
@@ -11285,7 +11298,7 @@ void FreeDecodedCert(DecodedCert* cert)
     if (cert->subjectName != NULL)
         wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->subjectName);
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     if (cert->sce_tsip_encRsaKeyIdx != NULL)
         XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
 #endif
@@ -11940,7 +11953,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     if (GetSequence(source, srcIdx, &length, pubIdx + (word32)pubLen) < 0)
         return ASN_PARSE_E;
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = pubIdx;
 #endif
@@ -11976,7 +11989,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     cert->publicKeyIndex = dataASN[RSACERTKEYASN_IDX_SEQ].offset;
 #endif
 
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
         /* Start of SEQUENCE. */
         cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = dataASN[RSACERTKEYASN_IDX_SEQ].offset;
@@ -12062,7 +12075,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         if ((ret = CheckCurve(cert->pkCurveOID)) < 0)
             return ECC_CURVE_OID_E;
 
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+    #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
         cert->sigCtx.CertAtt.curve_id = ret;
     #else
         (void)ret;
@@ -12071,7 +12084,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
         if (ret != 0)
             return ret;
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+    #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
         cert->sigCtx.CertAtt.pubkey_n_start =
                 cert->sigCtx.CertAtt.pubkey_e_start = (*srcIdx + 1);
         cert->sigCtx.CertAtt.pubkey_n_len = ((length - 1) >> 1);
@@ -15055,6 +15068,54 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                               int stopAfterPubKey);
 #endif
 
+/* Assumes the target is a Raw-Public-Key certificate and parsed up to the
+ * public key. Returns CRYPTOCB_UNAVAILABLE if it determines that the cert is
+ * different from the Paw-Public-Key cert. In that case, cert->srcIdx is not
+ * consumed so as successing parse function can take over.
+ * In case that the target is Raw-Public-Key cert and contains a public key,
+ * returns 0  and consumes cert->srcIdx so as a public key retrieval function
+ * can follow.
+ */
+#if defined(HAVE_RPK)
+int TryDecodeRPKToKey(DecodedCert* cert)
+{
+    int ret = 0, len;
+    word32 tmpIdx;
+    word32 oid;
+
+    WOLFSSL_ENTER("TryDecodeRPKToKey");
+
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
+
+    tmpIdx = cert->srcIdx;
+
+    /* both X509 cert and RPK cert should start with a Sequence tag */
+    if (ret == 0) {
+        if (GetSequence(cert->source, &tmpIdx, &len, cert->maxIdx) < 0)
+            ret = ASN_PARSE_E;
+    }
+    /* TBSCertificate of X509 or AlgorithmIdentifier of RPK cert */
+    if (ret == 0) {
+        if (GetSequence(cert->source, &tmpIdx, &len, cert->maxIdx) < 0)
+            ret = ASN_PARSE_E;
+    }
+    /* OBJ ID should be next in RPK cert */
+    if (ret == 0) {
+        if (GetObjectId(cert->source, &tmpIdx, &oid, oidKeyType, cert->maxIdx)
+                                                                            < 0)
+            ret = CRYPTOCB_UNAVAILABLE;
+    }
+    /* consume cert->srcIdx */
+    if (ret == 0) {
+        WOLFSSL_MSG("Looks like RPK certificate");
+        cert->srcIdx = tmpIdx;
+    }
+    WOLFSSL_LEAVE("TryDecodeRPKToKey", ret);
+    return ret;
+}
+#endif /* HAVE_RPK */
+
 /* Parse the certificate up to the X.509 public key.
  *
  * If cert data is invalid then badDate get set to error value.
@@ -15146,6 +15207,20 @@ int DecodeToKey(DecodedCert* cert, int verify)
 #ifndef WOLFSSL_ASN_TEMPLATE
     int badDate = 0;
     int ret;
+
+#if defined(HAVE_RPK)
+
+    /* Raw Public Key certificate has only a SubjectPublicKeyInfo structure
+     * as its contents. So try to call GetCertKey to get public key from it.
+     * If it fails, the cert should be a X509 cert and proceed to process as
+     * x509 cert. */
+    ret = GetCertKey(cert, cert->source, &cert->srcIdx, cert->maxIdx);
+    if (ret == 0) {
+        WOLFSSL_MSG("Raw Public Key certificate found and parsed");
+        cert->isRPK = 1;
+        return ret;
+    }
+#endif /* HAVE_RPK */
 
     if ( (ret = wc_GetPubX509(cert, verify, &badDate)) < 0)
         return ret;
@@ -16013,7 +16088,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     byte* rsaKeyIdx)
 {
     int ret = 0;
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
 
@@ -16031,7 +16106,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
     WOLFSSL_ENTER("ConfirmSignature");
 
-#if !defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_RENESAS_FSPSM_TLS)
     (void)rsaKeyIdx;
 #else
     #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -16696,12 +16771,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                 key, keySz,
                                 sigCtx->pkCtxRsa);
                     }
-                #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+                #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
                     !defined(WOLFSSL_RENESAS_TSIP_TLS)
                     else
                 #else
                     if (!sigCtx->pkCbRsa || ret == CRYPTOCB_UNAVAILABLE)
-                #endif /* WOLFSSL_RENESAS_SCEPROTECT */
+                #endif /* WOLFSSL_RENESAS_FSPSM_TLS */
                 #endif /* HAVE_PK_CALLBACKS */
                     {
                         ret = wc_RsaSSL_VerifyInline(sigCtx->sigCpy, sigSz,
@@ -16770,12 +16845,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                 key, keySz, &sigCtx->verify,
                                 sigCtx->pkCtxEcc);
                     }
-                #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+                #if !defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
                     !defined(WOLFSSL_RENESAS_TSIP_TLS)
                     else
                 #else
                     if (!sigCtx->pkCbEcc || ret == CRYPTOCB_UNAVAILABLE)
-                #endif /* WOLFSSL_RENESAS_SCEPROTECT */
+                #endif /* WOLFSSL_RENESAS_FSPSM_TLS */
                 #endif /* HAVE_PK_CALLBACKS */
                     {
                         ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
@@ -16896,7 +16971,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     int encodedSigSz, verifySz;
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-                                            defined(WOLFSSL_RENESAS_SCEPROTECT)
+                                            defined(WOLFSSL_RENESAS_FSPSM_TLS)
                     if (sigCtx->CertAtt.verifyByTSIP_SCE == 1) break;
                 #endif
                 #ifdef WOLFSSL_SMALL_STACK
@@ -19185,14 +19260,24 @@ static int DecodeKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
 #else
     ASNGetData dataASN[keyUsageASN_Length];
     word32 idx = 0;
+    byte keyUsage[2];
+    word32 keyUsageSz = sizeof(keyUsage);
+    int ret;
     WOLFSSL_ENTER("DecodeKeyUsage");
 
     /* Clear dynamic data and set where to store extended key usage. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_Int16Bit(&dataASN[KEYUSAGEASN_IDX_STR], &cert->extKeyUsage);
+    GetASN_Buffer(&dataASN[KEYUSAGEASN_IDX_STR], keyUsage, &keyUsageSz);
     /* Parse key usage. */
-    return GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
+    ret = GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
                         &idx, sz);
+    if (ret == 0) {
+        /* Decode the bit string number as LE */
+        cert->extKeyUsage = (word16)(keyUsage[0]);
+        if (keyUsageSz == 2)
+            cert->extKeyUsage |= (word16)(keyUsage[1] << 8);
+    }
+    return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
@@ -20751,6 +20836,41 @@ end:
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
+
+#if defined(HAVE_RPK)
+/* ASN template for a Raw Public Key certificate defined RFC7250. */
+static const ASNItem RPKCertASN[] = {
+/* SubjectPublicKeyInfo ::= SEQUENCE */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+    /* algorithm    AlgorithmIdentifier */
+    /* AlgorithmIdentifier ::= SEQUENCE */   { 1, ASN_SEQUENCE, 1, 1, 0 },
+        /* Algorithm  OBJECT IDENTIFIER */
+        /* TBS_SPUBKEYINFO_ALGO_OID     */       { 2, ASN_OBJECT_ID, 0, 0, 0 },
+        /* parameters   ANY defined by algorithm OPTIONAL */
+        /* TBS_SPUBKEYINFO_ALGO_NULL     */      { 2, ASN_TAG_NULL, 0, 0, 2 },
+        /* TBS_SPUBKEYINFO_ALGO_CURVEID  */      { 2, ASN_OBJECT_ID, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+        /* TBS_SPUBKEYINFO_ALGO_P_SEQ    */      { 2, ASN_SEQUENCE, 1, 0, 2 },
+#endif
+        /* subjectPublicKey   BIT STRING */
+        /* TBS_SPUBKEYINFO_PUBKEY        */   { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+/* Number of items in ASN template for a RawPublicKey certificate. */
+#define RPKCertASN_Length (sizeof(RPKCertASN) / sizeof(ASNItem))
+
+enum {
+    RPKCERTASN_IDX_SPUBKEYINFO_SEQ = 0,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_SEQ,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_NULL,
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID,
+#ifdef WC_RSA_PSS
+    RPKCERTASN_IDX_SPUBKEYINFO_ALGO_P_SEQ,
+#endif
+    RPKCERTASN_IDX_SPUBKEYINFO_PUBKEY,
+};
+
+#endif /* HAVE_RPK */
+
 /* ASN template for an X509 certificate.
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
@@ -20954,6 +21074,40 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     word32 pubKeyOffset = 0;
     word32 pubKeyEnd = 0;
     int done = 0;
+
+#if defined(HAVE_RPK)
+    /* try to parse the cert as Raw Public Key cert */
+    DECL_ASNGETDATA(RPKdataASN, RPKCertASN_Length);
+    CALLOC_ASNGETDATA(RPKdataASN, RPKCertASN_Length, ret, cert->heap);
+    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
+                                                                oidKeyType);
+    GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID],
+                                                                oidCurveType);
+    ret = GetASN_Items(RPKCertASN, RPKdataASN, RPKCertASN_Length, 1,
+                           cert->source, &cert->srcIdx, cert->maxIdx);
+    if (ret == 0) {
+        cert->keyOID =
+                RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID].data.oid.sum;
+
+        /* Parse the public key. */
+        pubKeyOffset = RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_SEQ].offset;
+        pubKeyEnd = cert->maxIdx;
+        ret = GetCertKey(cert, cert->source, &pubKeyOffset, pubKeyEnd);
+        if (ret == 0) {
+            WOLFSSL_MSG("Raw Public Key certificate found and parsed");
+            cert->isRPK = 1;
+        }
+    }
+    /* Dispose of memory before allocating for extension decoding. */
+    FREE_ASNGETDATA(RPKdataASN, cert->heap);
+
+    if (ret == 0) {
+        return ret;
+    }
+    else {
+        ret = 0;    /* proceed to the original x509 parsing */
+    }
+#endif /* HAVE_RPK */
 
     CALLOC_ASNGETDATA(dataASN, x509CertASN_Length, ret, cert->heap);
 
@@ -22507,7 +22661,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    len = 0;
 #endif
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     int    idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
@@ -22536,7 +22690,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
 
         WOLFSSL_MSG("Parsed Past Key");
-
+#if defined(HAVE_RPK)
+        if (cert->isRPK) {
+            return ret;
+        }
+#endif /* HAVE_RPK */
 
 #ifdef WOLFSSL_CERT_REQ
         /* Read attributes */
@@ -22781,6 +22939,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
             }
+#if defined(HAVE_RPK)
+            if (cert->isRPK) {
+                return ret;
+            }
+#endif /* HAVE_RPK */
         }
 #endif
 
@@ -22906,7 +23069,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
         #endif /* HAVE_OCSP */
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
@@ -31698,9 +31861,16 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     }
     if (ret == 0) {
         /* Encode DSA signature into buffer. */
-        SetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, out);
-        /* Set the actual encoding size. */
-        *outLen = (word32)sz;
+        ret = SetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, out);
+        if (ret >= 0) {
+            if (ret == sz) {
+                /* Set the actual encoding size. */
+                *outLen = (word32)sz;
+                ret = 0;
+            } else {
+                ret = BAD_STATE_E;
+            }
+        }
     }
 
     return ret;

@@ -116,8 +116,9 @@ EXTRA_DIST += scripts/stm32l4-v4_0_1_build.sh
 
 EXTRA_DIST += scripts/cleanup_testfiles.sh
 
+EXTRA_DIST += scripts/dtls.test
+
 if BUILD_DTLS13
-EXTRA_DIST += scripts/dtls13.test
 EXTRA_DIST += scripts/dtlscid.test
 endif
 

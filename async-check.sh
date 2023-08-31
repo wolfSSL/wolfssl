@@ -91,7 +91,7 @@ set -e
 
 if [ -d ./async ];
 then
-    echo "\n\nUsing existing async repo\n\n"
+    echo "Using existing async repo"
 else
     # make a clone of the wolfAsyncCrypt repository
     git clone --depth 1 $ASYNC_REPO async
