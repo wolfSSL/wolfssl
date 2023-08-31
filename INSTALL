@@ -271,7 +271,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     The multi-threaded version will mainly have speedups for key
     generation and signing.
 
-    The default LMS build (--enable-lms=yes) will look for
+    The default LMS build (--enable-lms) will look for
     hss_lib.a first, and hss_lib_thread.a second, in a specified
     hash-sigs dir.
 
@@ -308,8 +308,8 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     $ ./configure \
         --enable-static \
         --disable-shared \
-        --enable-lms=yes \
-        --with-liblms=<path to dir containing hss_lib_thread.a>
+        --enable-lms \
+        --with-liblms=<path to dir containing hss_lib.a or hss_lib_thread.a>
     $ make
 
     Run the benchmark against LMS/HSS with:
