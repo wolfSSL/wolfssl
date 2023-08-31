@@ -393,7 +393,7 @@ int  wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
     \return ASN_NO_SIGNER_E CA証明書の主体者を検証することができない場合に返されます。
 
     \param cert 主体者の別名を設定する対象のCert構造体へのポインタ
-    \param file PEM形式の証明書を格納しているバッファへのポインタ。
+    \param file PEM形式の証明書のファイルパス
 
     _Example_
     \code
@@ -901,7 +901,7 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
     \return MEMORY_E メモリの確保に失敗した際に返されます。
 
     \param fileName PEM形式のファイルパス
-    \param derBuf DER形式証明書を出力する先のバッファ
+    \param derBuf DER形式証明書を出力する先のバッファへのポインタ
     \param derSz DER形式証明書を出力する先のバッファのサイズ
 
     _Example_
@@ -1127,7 +1127,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup ASN
 
-    \brief この関数はECC秘密鍵をDER形式で出力します。
+    \brief この関数はECC秘密鍵をDER形式でバッファに出力します。
 
     \return ECC秘密鍵をDER形式での出力に成功した場合にはバッファへ出力したサイズを返します。
     \return BAD_FUNC_ARG 出力バッファoutputがNULLあるいはinLenがゼロの場合に返します。
@@ -1201,7 +1201,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     処理したバッファのサイズを返します。変換して得られるDER形式のECC公開鍵は出力バッファに格納されます。
     AlgCurveフラグの指定により、アルゴリズムと曲線情報をヘッダーに含めることができます。
 
-    \return >0 成功時には処理したバッファのサイズを返します。
+    \return 成功時には処理したバッファのサイズを返します。
     \return BAD_FUNC_ARG 出力バッファoutputあるいはecc_key構造体keyがNULLの場合に返します。
     \return LENGTH_ONLY_E ECC公開鍵のサイズ取得に失敗した場合に返します。
     \return BUFFER_E 出力バッファが必要量より小さい場合に返します。
@@ -1496,7 +1496,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out,
 /*!
     \ingroup ASN
 
-    \brief この関数は暗号化されたPKCS#8のDER形式の鍵を受け取り、復号してPKCS#8 非暗号化DER形式に変換します。
+    \brief この関数は暗号化されたPKCS#8のDER形式の鍵を受け取り、復号してPKCS#8 DER形式に変換します。
      wc_EncryptPKCS8Keyによって行われた暗号化を元に戻します。RFC5208を参照してください。
      入力データは復号データによって上書きされます。
 
@@ -1794,11 +1794,11 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // failed to set the callback
     }
 
-    // oid: Array of integers that are the dot separated values in an oid.
-    // oidSz: Number of values in oid.
-    // crit: Whether the extension was mark critical.
-    // der: The der encoding of the content of the extension.
-    // derSz: The size in bytes of the der encoding.
+    // oid: OIDを構成するドット区切りの数を格納した配列
+    // oidSz: oid内の値の数
+    // crit: 拡張がクリティカルとマークされているか
+    // der: DERエンコードされている拡張の内容
+    // derSz: 拡張の内容のサイズ
     int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
                             const unsigned char* der, word32 derSz) {
 
@@ -1808,6 +1808,8 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // 表明することになります。この拡張を処理できると判断できない場合にはエラーを
         // 返してください。クリティカルとマークされている未知の拡張に遭遇した際の標準的
         // な振る舞いはASN_CRIT_EXT_Eを返すことです。
+        // 簡潔にするためにこの例ではすべての拡張情報を受け入れ可としていますが、実際には実情に沿うようにロジックを追加してください。
+
         return 0;
     }
     \endcode
