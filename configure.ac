@@ -1141,69 +1141,6 @@ then
 fi
 
 
-# liblms
-# Get the path to the hash-sigs LMS HSS lib.
-ENABLED_LIBLMS="no"
-tryliblmsdir=""
-AC_ARG_WITH([liblms],
-    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
-    [
-        AC_MSG_CHECKING([for liblms])
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
-
-        if test "x$liblms_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryliblmsdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                tryliblmsdir="/usr/local"
-            fi
-
-            # 1. By default use the hash-sigs single-threaded static library.
-            # 2. If 1 not found, then use the multi-threaded static lib.
-            # 3. If 2 not found, then use the multi-threaded dynamic lib.
-            if test -e $tryliblmsdir/hss_lib.a; then
-                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
-                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib.a"
-                enable_shared=no
-                enable_static=yes
-                liblms_linked=yes
-            elif test -e $tryliblmsdir/hss_lib_thread.a; then
-                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
-                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib_thread.a"
-                enable_shared=no
-                enable_static=yes
-                liblms_linked=yes
-            elif test -e $tryliblmsdir/lib/libhss.so; then
-                LIBS="$LIBS -lhss"
-                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir/include/hss"
-                LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliblmsdir/lib"
-
-                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
-            else
-                AC_MSG_ERROR([liblms isn't found.
-                If it's already installed, specify its path using --with-liblms=/dir/])
-            fi
-
-            if test "x$liblms_linked" = "xno" ; then
-                AC_MSG_ERROR([liblms isn't found.
-                If it's already installed, specify its path using --with-liblms=/dir/])
-            fi
-
-            AC_MSG_RESULT([yes])
-            AM_CPPFLAGS="$CPPFLAGS"
-            AM_LDFLAGS="$LDFLAGS"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBLMS"
-        ENABLED_LIBLMS="yes"
-    ]
-)
-
-
 # LMS
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
@@ -1218,6 +1155,10 @@ do
   yes)
     ;;
   no)
+    ;;
+  verify-only)
+    LMS_VERIFY_ONLY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY"
     ;;
   wolfssl)
     ENABLED_WC_LMS=yes
@@ -1243,6 +1184,72 @@ then
     fi
 fi
 
+# liblms
+# Get the path to the hash-sigs LMS HSS lib.
+ENABLED_LIBLMS="no"
+tryliblmsdir=""
+AC_ARG_WITH([liblms],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
+    [
+        AC_MSG_CHECKING([for liblms])
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
+
+        if test "x$liblms_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryliblmsdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                tryliblmsdir="/usr/local"
+            fi
+
+            # 1. If verify only build, use hss_verify.a
+            # 2. If normal build, by default use single-threaded hss_lib.a
+            # 3. If 2 not found, then use the multi-threaded hss_lib_thread.a
+            if test "$LMS_VERIFY_ONLY" = "yes"; then
+                if test -e $tryliblmsdir/hss_verify.a; then
+                    CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                    LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_verify.a"
+                    enable_shared=no
+                    enable_static=yes
+                    liblms_linked=yes
+                else
+                    AC_MSG_ERROR([hss_verify.a isn't found.
+                    If it's already installed, specify its path using --with-liblms=/dir/])
+                fi
+            elif test -e $tryliblmsdir/hss_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            elif test -e $tryliblmsdir/hss_lib_thread.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBLMS -I$tryliblmsdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $tryliblmsdir/hss_lib_thread.a"
+                enable_shared=no
+                enable_static=yes
+                liblms_linked=yes
+            else
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            if test "x$liblms_linked" = "xno" ; then
+                AC_MSG_ERROR([liblms isn't found.
+                If it's already installed, specify its path using --with-liblms=/dir/])
+            fi
+
+            AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$CPPFLAGS"
+            AM_LDFLAGS="$LDFLAGS"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBLMS"
+        ENABLED_LIBLMS="yes"
+    ]
+)
 
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
