@@ -5218,6 +5218,10 @@ WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    WOLFSSL_API int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled);
+#endif
+
 /*  */
 #define SSL2_VERSION                     0x0002
 #define SSL3_VERSION                     0x0300

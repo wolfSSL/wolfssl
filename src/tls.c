@@ -67,7 +67,6 @@
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static int TLSX_KeyShare_IsSupported(int namedGroup);
-static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 #endif
 
 #ifdef HAVE_SUPPORTED_CURVES
@@ -7769,7 +7768,7 @@ int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
  * list  The linked list of key share entry objects.
  * heap  The heap used for allocation.
  */
-static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
+void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 {
     KeyShareEntry* current;
 
@@ -8722,7 +8721,7 @@ int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
 int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType)
 {
-    int ret;
+    int ret = 0;
     KeyShareEntry *keyShareEntry = NULL;
     word16 group;
 
@@ -8784,24 +8783,50 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (ssl->error != WC_PENDING_E)
     #endif
         {
-            /* Check the selected group was supported by ClientHello extensions. */
+            /* Check the selected group was supported by ClientHello
+             * extensions. */
             if (!TLSX_SupportedGroups_Find(ssl, group, ssl->extensions)) {
                 WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
             }
 
-            /* Check if the group was sent. */
-            if (TLSX_KeyShare_Find(ssl, group)) {
-                WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
-                return BAD_KEY_SHARE_DATA;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+            /* If we sent an empty key share then we can just limit the keyshare
+             * to the one selected by the server. */
+            if (ssl->options.dtlsSentEmptyKS) {
+                if (!TLSX_KeyShare_SelectGroup(ssl, group)) {
+                    /* Clear out all groups if not found */
+                    ret = TLSX_KeyShare_Empty(ssl);
+                    if (ret != 0)
+                        return ret;
+                }
+            }
+            else
+#endif
+            {
+                /* Check if the group was sent. */
+                if (TLSX_KeyShare_Find(ssl, group)) {
+                    WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+                    return BAD_KEY_SHARE_DATA;
+                }
+
+                /* Clear out unusable key shares. */
+                ret = TLSX_KeyShare_Empty(ssl);
+                if (ret != 0)
+                    return ret;
             }
 
-            /* Clear out unusable key shares. */
-            ret = TLSX_KeyShare_Empty(ssl);
-            if (ret != 0)
-                return ret;
         }
 
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        /* Check if we were able to limit the keyshare entries to one group */
+        if (ssl->options.dtlsSentEmptyKS &&
+                TLSX_KeyShare_SelectGroup(ssl, group)) {
+            /* Nothing to do */
+        }
+        else
+#endif
 #ifdef HAVE_PQC
         /* For post-quantum groups, do this in TLSX_PopulateExtensions(). */
         if (!WOLFSSL_NAMED_GROUP_IS_PQC(group))
@@ -9099,6 +9124,38 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     if (kse != NULL)
         *kse = keyShareEntry;
 
+    return 0;
+}
+
+/* Clear out all entries except for group
+ *
+ * ssl  The SSL/TLS object.
+ * returns 1 when the group was found and 0 when it wasn't found.
+ *  */
+int TLSX_KeyShare_SelectGroup(WOLFSSL* ssl, word16 group)
+{
+    TLSX* extension;
+    KeyShareEntry* list;
+    KeyShareEntry** prev;
+
+    /* Find the KeyShare extension if it exists. */
+    extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+    if (extension != NULL) {
+        for (prev = (KeyShareEntry**)&extension->data,
+                list = (KeyShareEntry*)extension->data; list != NULL;
+                prev = &list->next, list = list->next) {
+            if (list->group == group) {
+                /* Unlink it from the list */
+                *prev = list->next;
+                list->next = NULL;
+                /* Free the list */
+                TLSX_KeyShare_FreeAll((KeyShareEntry*)extension->data,
+                        ssl->heap);
+                extension->data = list;
+                return 1;
+            }
+        }
+    }
     return 0;
 }
 

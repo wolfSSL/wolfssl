@@ -4410,10 +4410,48 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 #endif
 
-    /* Include length of TLS extensions. */
-    ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
-    if (ret != 0)
-        return ret;
+    {
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        int maxFrag = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
+        word16 lenWithoutExts = args->length;
+#endif
+
+        /* Include length of TLS extensions. */
+        ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+        if (ret != 0)
+            return ret;
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        if (ssl->options.dtls && args->length > maxFrag &&
+                TLSX_Find(ssl->extensions, TLSX_COOKIE) == NULL) {
+            /* Try again with an empty key share if we would be fragmenting
+             * without a cookie */
+            TLSX* ks = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+            if (ks == NULL) {
+                WOLFSSL_MSG("No key share and CH can't fit in one fragment.");
+                return BUFFER_ERROR;
+            }
+            args->length = lenWithoutExts;
+            if (ssl->dtls13KSE != NULL)
+                TLSX_KeyShare_FreeAll(ssl->dtls13KSE, ssl->heap);
+            ssl->dtls13KSE = (KeyShareEntry*)ks->data;
+            ks->data = NULL;
+            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+            if (ret != 0) {
+                /* Restore key share data */
+                ks->data = ssl->dtls13KSE;
+                ssl->dtls13KSE = NULL;
+                return ret;
+            }
+            if (args->length > maxFrag) {
+                WOLFSSL_MSG("Can't fit first CH in one fragment.");
+                return BUFFER_ERROR;
+            }
+            WOLFSSL_MSG("Sending empty key share so we don't fragment CH1");
+            ssl->options.dtlsSentEmptyKS = 1;
+        }
+#endif
+    }
 
     /* Total message size. */
     args->sendSz = args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -4652,6 +4690,19 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == 0)
         FreeAsyncCtx(ssl, 0);
+#endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if ((ret == 0 || ret == WANT_WRITE) && ssl->dtls13KSE != NULL) {
+        /* Restore the keyshare */
+        TLSX* ks = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (ks == NULL || ks->data != NULL) {
+            WOLFSSL_MSG("Missing key share or key share data not NULL");
+            return BUFFER_ERROR;
+        }
+        WOLFSSL_MSG("Restored key share");
+        ks->data = ssl->dtls13KSE;
+        ssl->dtls13KSE = NULL;
+    }
 #endif
 
     WOLFSSL_LEAVE("SendTls13ClientHello", ret);
@@ -6624,11 +6675,20 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
     /* Update the ssl->options.dtlsStateful setting `if` statement in
      * wolfSSL_accept_TLSv13 when changing this one. */
-    if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie) {
-        ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
+    if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
+            !ssl->options.dtlsStateful) {
+        ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0);
         if (ret != 0 || !ssl->options.dtlsStateful) {
             *inOutIdx += helloSz;
             goto exit_dch;
+        }
+        if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
+            int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+            if (cbret < 0) {
+                ssl->error = cbret;
+                WOLFSSL_MSG("ClientHello Good Cb don't continue error");
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
     }
     ssl->options.dtlsStateful = 1;
@@ -13222,17 +13282,6 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_SECOND_REPLY_DONE :
-
-#ifdef WOLFSSL_DTLS
-            if (ssl->chGoodCb != NULL) {
-                int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
-                if (cbret < 0) {
-                    ssl->error = cbret;
-                    WOLFSSL_MSG("ClientHello Good Cb don't continue error");
-                    return WOLFSSL_FATAL_ERROR;
-                }
-            }
-#endif
 
             if ((ssl->error = SendTls13ServerHello(ssl, server_hello)) != 0) {
                 WOLFSSL_ERROR(ssl->error);

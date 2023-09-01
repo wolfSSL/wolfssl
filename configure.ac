@@ -4516,6 +4516,21 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
 fi
 
+# DTLS 1.3 Fragment Second ClientHello
+AC_ARG_ENABLE([dtls-frag-ch],
+    [AS_HELP_STRING([--enable-dtls-frag-ch],[Enable wolfSSL DTLS 1.3 ClientHello fragmenting (default: disabled)])],
+    [ ENABLED_DTLS_CH_FRAG=$enableval ],
+    [ ENABLED_DTLS_CH_FRAG=no ]
+    )
+if test "x$ENABLED_DTLS_CH_FRAG" = "xyes"
+then
+  if test "x$ENABLED_DTLS13" != "xyes"
+  then
+    AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ClientHello fragmenting])
+  fi
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CH_FRAG"
+fi
+
 # CODING
 AC_ARG_ENABLE([coding],
     [AS_HELP_STRING([--enable-coding],[Enable Coding base 16/64 (default: enabled)])],

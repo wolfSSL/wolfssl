@@ -3322,6 +3322,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 #endif /* WOLFSSL_DTLS_CID */
 
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (doDTLS)
+        wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+#endif
+
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
             #ifdef WOLFSSL_DTLS

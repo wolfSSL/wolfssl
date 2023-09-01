@@ -3353,8 +3353,10 @@ typedef struct KeyShareEntry {
     struct KeyShareEntry* next;      /* List pointer             */
 } KeyShareEntry;
 
+WOLFSSL_LOCAL void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 WOLFSSL_LOCAL int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group,
         word16 len, byte* data, KeyShareEntry **kse, TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_KeyShare_SelectGroup(WOLFSSL* ssl, word16 group);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl,
         TLSX** extensions);
@@ -4616,7 +4618,12 @@ struct Options {
     word16            tls1_3:1;           /* using TLSv1.3+ ? */
     word16            seenUnifiedHdr:1;   /* received msg with unified header */
     word16            dtls:1;             /* using datagrams ? */
+#ifdef WOLFSSL_DTLS
     word16            dtlsStateful:1;     /* allow stateful processing ? */
+#endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    word16            dtlsSentEmptyKS:1;  /* did we send an empty key share ? */
+#endif
     word16            connReset:1;        /* has the peer reset */
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
@@ -4727,6 +4734,9 @@ struct Options {
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    word16            dtls13ChFrag:1;                                          
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
     word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
@@ -5417,7 +5427,7 @@ struct WOLFSSL {
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
-                                        *  ClientHello */
+                                        *  ClientHello that passed basic tests */
     void*             chGoodCtx;       /*  user ClientHello cb context  */
 #endif
 #ifndef NO_HANDSHAKE_DONE_CB
@@ -5611,6 +5621,9 @@ struct WOLFSSL {
     Dtls13Rtx dtls13Rtx;
     byte *dtls13ClientHello;
     word16 dtls13ClientHelloSz;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    KeyShareEntry* dtls13KSE;
+#endif
 
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_DTLS_CID
@@ -6268,7 +6281,7 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
-            const byte* input, word32* inOutIdx, word32 helloSz);
+            const byte* input, word32 helloSz, byte isFirstCHFrag);
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 #endif /* WOLFSSL_DTLS */
 

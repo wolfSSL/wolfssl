@@ -1573,6 +1573,19 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
     return 0;
 }
 
+static int Dtls13AcceptFragmented(WOLFSSL *ssl, enum HandShakeType type)
+{
+    if (IsEncryptionOn(ssl, 0))
+        return 1;
+    if (ssl->options.side == WOLFSSL_CLIENT_END && type == server_hello)
+        return 1;
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (ssl->options.side == WOLFSSL_SERVER_END && type == client_hello &&
+            ssl->options.dtls13ChFrag && ssl->options.dtlsStateful)
+        return 1;
+#endif
+    return 0;
+}
 /**
  * Dtls13HandshakeRecv() - process an handshake message. Deal with
  fragmentation if needed
@@ -1646,13 +1659,33 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     isFirst = fragOff == 0;
     isComplete = isFirst && fragLength == messageLength;
 
-    if (!isComplete && !IsEncryptionOn(ssl, 0)) {
+    if (!isComplete && !Dtls13AcceptFragmented(ssl, handshakeType)) {
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        /* check if the first CH fragment contains a valid cookie */
+        if (ssl->options.dtls13ChFrag && !ssl->options.dtlsStateful &&
+                isFirst && handshakeType == client_hello &&
+                DoClientHelloStateless(ssl, input + idx, fragLength, 1) == 0) {
+            /* We can save this message and continue as stateful. */
+            if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
+                int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+                if (cbret < 0) {
+                    ssl->error = cbret;
+                    WOLFSSL_MSG("ClientHello Good Cb don't continue error");
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+            WOLFSSL_MSG("ClientHello fragment verified");
+        }
+        else
+#endif
+        {
 #ifdef WOLFSSL_DEBUG_TLS
-        WOLFSSL_MSG("DTLS1.3 not accepting fragmented plaintext message");
+            WOLFSSL_MSG("DTLS1.3 not accepting fragmented plaintext message");
 #endif /* WOLFSSL_DEBUG_TLS */
-        /* ignore the message */
-        *processedSize = idx + fragLength + ssl->keys.padSz;
-        return 0;
+            /* ignore the message */
+            *processedSize = idx + fragLength + ssl->keys.padSz;
+            return 0;
+        }
     }
 
     usingAsyncCrypto = ssl->devId != INVALID_DEVID;
@@ -2796,5 +2829,17 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
     return 0;
 }
 #endif
+
+#ifdef WOLFSSL_DTLS_CH_FRAG
+int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
+{
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        return WOLFSSL_FAILURE;
+    }
+    ssl->options.dtls13ChFrag = !!enabled;
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 
 #endif /* WOLFSSL_DTLS13 */
