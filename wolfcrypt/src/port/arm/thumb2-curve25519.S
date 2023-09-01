@@ -277,31 +277,38 @@ fe_tobytes:
 	.globl	fe_1
 	.type	fe_1, %function
 fe_1:
+	PUSH	{r4, r5, r6, r7, r8, r9, lr}
 	# Set one
 	MOV	r2, #0x1
 	MOV	r3, #0x0
-	STRD	r2, r3, [r0]
-	MOV	r2, #0x0
-	STRD	r2, r3, [r0, #8]
-	STRD	r2, r3, [r0, #16]
-	STRD	r2, r3, [r0, #24]
-	BX	lr
-	# Cycle Count = 19
+	MOV	r4, #0x0
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
+	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	POP	{r4, r5, r6, r7, r8, r9, pc}
+	# Cycle Count = 33
 	.size	fe_1,.-fe_1
 	.text
 	.align	4
 	.globl	fe_0
 	.type	fe_0, %function
 fe_0:
+	PUSH	{r4, r5, r6, r7, r8, r9, lr}
 	# Set zero
 	MOV	r2, #0x0
 	MOV	r3, #0x0
-	STRD	r2, r3, [r0]
-	STRD	r2, r3, [r0, #8]
-	STRD	r2, r3, [r0, #16]
-	STRD	r2, r3, [r0, #24]
-	BX	lr
-	# Cycle Count = 18
+	MOV	r4, #0x0
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
+	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	POP	{r4, r5, r6, r7, r8, r9, pc}
+	# Cycle Count = 33
 	.size	fe_0,.-fe_0
 	.text
 	.align	4
@@ -404,6 +411,7 @@ fe_isnegative:
 	POP	{r4, r5, pc}
 	# Cycle Count = 31
 	.size	fe_isnegative,.-fe_isnegative
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
 	.text
 	.align	4
@@ -1480,6 +1488,7 @@ fe_cmov_table:
 	# Cycle Count = 160
 	.size	fe_cmov_table,.-fe_cmov_table
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 	.text
 	.align	4
@@ -1751,6 +1760,7 @@ fe_sq:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 24
 	.size	fe_sq,.-fe_sq
+#ifdef HAVE_CURVE25519
 	.text
 	.align	4
 	.globl	fe_mul121666
@@ -1800,29 +1810,20 @@ curve25519:
 	STR	r2, [sp, #168]
 	MOV	r1, #0x0
 	STR	r1, [sp, #172]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STRD	r10, r11, [r0]
-	MOV	r10, #0x0
-	STRD	r10, r11, [r0, #8]
-	STRD	r10, r11, [r0, #16]
-	STRD	r10, r11, [r0, #24]
-	# Set zero
+	MOV	r4, #0x1
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
 	MOV	r10, #0x0
 	MOV	r11, #0x0
-	STRD	r10, r11, [sp]
-	STRD	r10, r11, [sp, #8]
-	STRD	r10, r11, [sp, #16]
-	STRD	r10, r11, [sp, #24]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STRD	r10, r11, [sp, #32]
-	MOV	r10, #0x0
-	STRD	r10, r11, [sp, #40]
-	STRD	r10, r11, [sp, #48]
-	STRD	r10, r11, [sp, #56]
+	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
+	ADD	r3, sp, #0x20
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
+	MOV	r4, #0x0
+	MOV	r3, sp
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x40
 	# Copy
 	LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}
@@ -1845,8 +1846,10 @@ L_curve25519_bits:
 	LDR	r0, [sp, #160]
 	# Conditional Swap
 	RSB	r1, r1, #0x0
-	LDRD	r4, r5, [r0]
-	LDRD	r6, r7, [sp, #64]
+	MOV	r3, r0
+	ADD	r12, sp, #0x40
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1855,10 +1858,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [r0]
-	STRD	r6, r7, [sp, #64]
-	LDRD	r4, r5, [r0, #8]
-	LDRD	r6, r7, [sp, #72]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1867,10 +1870,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [r0, #8]
-	STRD	r6, r7, [sp, #72]
-	LDRD	r4, r5, [r0, #16]
-	LDRD	r6, r7, [sp, #80]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1879,10 +1882,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [r0, #16]
-	STRD	r6, r7, [sp, #80]
-	LDRD	r4, r5, [r0, #24]
-	LDRD	r6, r7, [sp, #88]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1891,13 +1894,15 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [r0, #24]
-	STRD	r6, r7, [sp, #88]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
 	LDR	r1, [sp, #172]
 	# Conditional Swap
 	RSB	r1, r1, #0x0
-	LDRD	r4, r5, [sp]
-	LDRD	r6, r7, [sp, #32]
+	MOV	r3, sp
+	ADD	r12, sp, #0x20
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1906,10 +1911,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [sp]
-	STRD	r6, r7, [sp, #32]
-	LDRD	r4, r5, [sp, #8]
-	LDRD	r6, r7, [sp, #40]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1918,10 +1923,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [sp, #8]
-	STRD	r6, r7, [sp, #40]
-	LDRD	r4, r5, [sp, #16]
-	LDRD	r6, r7, [sp, #48]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1930,10 +1935,10 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [sp, #16]
-	STRD	r6, r7, [sp, #48]
-	LDRD	r4, r5, [sp, #24]
-	LDRD	r6, r7, [sp, #56]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
+	LDM	r3, {r4, r5}
+	LDM	r12, {r6, r7}
 	EOR	r8, r4, r6
 	EOR	r9, r5, r7
 	AND	r8, r8, r1
@@ -1942,8 +1947,8 @@ L_curve25519_bits:
 	EOR	r5, r5, r9
 	EOR	r6, r6, r8
 	EOR	r7, r7, r9
-	STRD	r4, r5, [sp, #24]
-	STRD	r6, r7, [sp, #56]
+	STM	r3!, {r4, r5}
+	STM	r12!, {r6, r7}
 	LDR	r1, [sp, #184]
 	STR	r1, [sp, #172]
 	MOV	r3, sp
@@ -2165,7 +2170,7 @@ L_curve25519_inv_8:
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xbc
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 684
+	# Cycle Count = 682
 	.size	curve25519,.-curve25519
 #else
 	.text
@@ -2185,29 +2190,20 @@ curve25519:
 	STR	r4, [sp, #188]
 	MOV	r1, #0x0
 	STR	r1, [sp, #164]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STRD	r10, r11, [r0]
-	MOV	r10, #0x0
-	STRD	r10, r11, [r0, #8]
-	STRD	r10, r11, [r0, #16]
-	STRD	r10, r11, [r0, #24]
-	# Set zero
+	MOV	r4, #0x1
+	MOV	r5, #0x0
+	MOV	r6, #0x0
+	MOV	r7, #0x0
+	MOV	r8, #0x0
+	MOV	r9, #0x0
 	MOV	r10, #0x0
 	MOV	r11, #0x0
-	STRD	r10, r11, [sp]
-	STRD	r10, r11, [sp, #8]
-	STRD	r10, r11, [sp, #16]
-	STRD	r10, r11, [sp, #24]
-	# Set one
-	MOV	r10, #0x1
-	MOV	r11, #0x0
-	STRD	r10, r11, [sp, #32]
-	MOV	r10, #0x0
-	STRD	r10, r11, [sp, #40]
-	STRD	r10, r11, [sp, #48]
-	STRD	r10, r11, [sp, #56]
+	STM	r0, {r4, r5, r6, r7, r8, r9, r10, r11}
+	ADD	r3, sp, #0x20
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
+	MOV	r4, #0x0
+	MOV	r3, sp
+	STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}
 	ADD	r3, sp, #0x40
 	# Copy
 	LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}
@@ -2470,9 +2466,10 @@ L_curve25519_inv_8:
 	MOV	r0, #0x0
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 595
+	# Cycle Count = 589
 	.size	curve25519,.-curve25519
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
 	.text
 	.align	4
@@ -3641,6 +3638,7 @@ sc_reduce:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 482
 	.size	sc_reduce,.-sc_reduce
+#ifdef HAVE_ED25519_SIGN
 	.text
 	.align	4
 	.globl	sc_muladd
@@ -4043,6 +4041,7 @@ sc_muladd:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 728
 	.size	sc_muladd,.-sc_muladd
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */

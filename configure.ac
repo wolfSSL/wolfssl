@@ -2275,7 +2275,7 @@ AC_ARG_ENABLE([aescbc],
 if test "$ENABLED_AESCBC" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_CBC"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DNO_AES_CBC"
 fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
@@ -2589,7 +2589,7 @@ then
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto])
             ;;
         armv7a*)
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
