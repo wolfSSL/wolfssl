@@ -1158,7 +1158,7 @@ do
     ;;
   verify-only)
     LMS_VERIFY_ONLY=yes
-    AM_CFLAGS="$AM_CFLAGS -DLMS_VERIFY_ONLY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY"
     ;;
   wolfssl)
     ENABLED_WC_LMS=yes

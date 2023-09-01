@@ -157,7 +157,7 @@
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     #include <wolfssl/wolfcrypt/lms.h>
 #ifdef HAVE_LIBLMS
     #include <wolfssl/wolfcrypt/ext_lms.h>
@@ -870,7 +870,7 @@ static const bench_alg bench_other_opt[] = {
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
 typedef struct bench_pq_hash_sig_alg {
     /* Command line option string. */
     const char* str;
@@ -883,7 +883,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-lms_hss", BENCH_LMS_HSS},
     { NULL, 0}
 };
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
 /* The post-quantum-specific mapping of command line option to bit values and
@@ -2832,11 +2832,11 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     if (bench_all || (bench_pq_hash_sig_algs & BENCH_LMS_HSS)) {
         bench_lms();
     }
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #ifdef HAVE_ECC
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
@@ -7664,7 +7664,7 @@ void bench_kyber(int type)
 }
 #endif
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
 /* WC_LMS_PARM_L2_H10_W2
  * signature length: 9300 */
 static const byte lms_priv_L2_H10_W2[64] =
@@ -8031,7 +8031,7 @@ void bench_lms(void)
     return;
 }
 
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #ifdef HAVE_ECC
 
@@ -10368,10 +10368,10 @@ static void Usage(void)
         print_alg(bench_pq_asym_opt2[i].str, &line);
 #endif /* HAVE_LIBOQS && HAVE_SPHINCS */
 #endif /* HAVE_PQC */
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     for (i=0; bench_pq_hash_sig_opt[i].str != NULL; i++)
         print_alg(bench_pq_hash_sig_opt[i].str, &line);
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
     printf("\n");
 #endif /* !WOLFSSL_BENCHMARK_ALL */
     e++;
@@ -10634,7 +10634,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                 }
             }
 
-        #if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+        #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
             /* post-quantum stateful hash-based signatures */
             for (i=0; !optMatched && bench_pq_hash_sig_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_hash_sig_opt[i].str)) {
@@ -10643,7 +10643,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+        #endif
 #endif
             if (!optMatched) {
                 printf("Option not recognized: %s\n", argv[1]);

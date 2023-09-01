@@ -37,7 +37,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef LMS_VERIFY_ONLY
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
 /* If built against hss_lib_thread.a, the hash-sigs lib will spawn
  * worker threads to parallelize cpu intensive tasks. This will mainly
  * speedup key generation and signing, and to a lesser extent
@@ -102,7 +102,8 @@ static bool LmsWritePrivKey(unsigned char *private_key,
     }
 
     /* Use write callback that saves private key to non-volatile storage. */
-    ret = key->write_private_key(private_key, len_private_key, key->context);
+    ret = key->write_private_key(private_key, (word32)len_private_key,
+                                 key->context);
 
     if (ret != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
         WOLFSSL_MSG("error: LmsKey write_private_key failed");
@@ -141,7 +142,8 @@ static bool LmsReadPrivKey(unsigned char *private_key,
     }
 
     /* Use read callback that reads private key from non-volatile storage. */
-    ret = key->read_private_key(private_key, len_private_key, key->context);
+    ret = key->read_private_key(private_key, (word32)len_private_key,
+                                key->context);
 
     if (ret != WC_LMS_RC_READ_TO_MEMORY) {
         WOLFSSL_MSG("error: LmsKey read_private_key failed");
@@ -152,7 +154,7 @@ static bool LmsReadPrivKey(unsigned char *private_key,
 
     return true;
 }
-#endif /* ifndef LMS_VERIFY_ONLY */
+#endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
 
 const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm)
 {
@@ -244,7 +246,7 @@ int wc_LmsKey_Init(LmsKey * key, void * heap, int devId)
 
     ForceZero(key, sizeof(LmsKey));
 
-#ifndef LMS_VERIFY_ONLY
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
     hss_init_extra_info(&key->info);
     /* Set the max number of worker threads that hash-sigs can spawn. */
     hss_extra_info_set_threads(&key->info, EXT_LMS_MAX_THREADS);
@@ -253,7 +255,7 @@ int wc_LmsKey_Init(LmsKey * key, void * heap, int devId)
     key->write_private_key = NULL;
     key->read_private_key = NULL;
     key->context = NULL;
-#endif /* ifndef LMS_VERIFY_ONLY */
+#endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
     key->state = WC_LMS_STATE_INITED;
 
     return 0;
@@ -483,12 +485,12 @@ void wc_LmsKey_Free(LmsKey* key)
         return;
     }
 
-#ifndef LMS_VERIFY_ONLY
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
     if (key->working_key != NULL) {
         hss_free_working_key(key->working_key);
         key->working_key = NULL;
     }
-#endif /* ifndef LMS_VERIFY_ONLY */
+#endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */
 
     ForceZero(key, sizeof(LmsKey));
 
@@ -497,7 +499,7 @@ void wc_LmsKey_Free(LmsKey* key)
     return;
 }
 
-#ifndef LMS_VERIFY_ONLY
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
 /* Set the write private key callback to the LMS key structure.
  *
  * The callback must be able to write/update the private key to
@@ -807,7 +809,7 @@ int wc_LmsKey_SigsLeft(LmsKey * key)
     return 1;
 }
 
-#endif /* ifndef LMS_VERIFY_ONLY*/
+#endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY*/
 
 /* Given a levels, height, winternitz parameter set, determine
  * the public key length */
@@ -950,7 +952,7 @@ int wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
         return BAD_FUNC_ARG;
     }
 
-#ifdef LMS_VERIFY_ONLY
+#ifdef WOLFSSL_LMS_VERIFY_ONLY
     result = hss_validate_signature(key->pub, (const void *) msg, msgSz, sig,
                                     sigSz, NULL);
 #else

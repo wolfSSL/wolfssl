@@ -575,10 +575,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  kyber_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(LMS_VERIFY_ONLY)
+    #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test(void);
     #endif
-    #if defined(LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
+    #if defined(WOLFSSL_LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
     #endif
 #endif
@@ -1612,14 +1612,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(LMS_VERIFY_ONLY)
+    #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
     if ( (ret = lms_test()) != 0)
         TEST_FAIL("LMS      test failed!\n", ret);
     else
         TEST_PASS("LMS      test passed!\n");
     #endif
 
-    #if defined(LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
+    #if defined(WOLFSSL_LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
     if ( (ret = lms_test_verify_only()) != 0)
         TEST_FAIL("LMS      test failed!\n", ret);
     else
@@ -34955,7 +34955,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 #endif /* WOLFSSL_HAVE_KYBER */
 
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
 static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
@@ -35090,9 +35090,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     return ret;
 }
 
-#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(LMS_VERIFY_ONLY) */
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
-#if defined(WOLFSSL_HAVE_LMS) && defined(LMS_VERIFY_ONLY) && \
+#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY) && \
     !defined(WOLFSSL_SMALL_STACK)
 
 /* A simple LMS verify only test.
@@ -35365,7 +35365,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     return ret;
 }
 
-#endif /* if defined(WOLFSSL_HAVE_LMS) && defined(LMS_VERIFY_ONLY) &&
+#endif /* if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY) &&
         *    !defined(WOLFSSL_SMALL_STACK) */
 
 static const int fiducial3 = WC_TEST_RET_LN; /* source code reference point --
