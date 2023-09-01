@@ -5984,6 +5984,11 @@ then
         ENABLED_CERTGEN="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
+    fi
     if test "x$ENABLED_SNI" = "xno"
     then
         ENABLED_SNI="yes"
