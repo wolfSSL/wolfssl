@@ -58,7 +58,13 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {9};
+static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
+#ifdef BIG_ENDIAN_ORDER
+    0x09000000
+#else
+    9
+#endif
+};
 
 /* Curve25519 private key must be less than order */
 /* These functions clamp private k and check it */
