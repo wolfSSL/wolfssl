@@ -58,13 +58,8 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-static const word32 kCurve25519BasePoint[CURVE25519_KEYSIZE/sizeof(word32)] = {
-#ifdef BIG_ENDIAN_ORDER
-    0x09000000
-#else
-    9
-#endif
-};
+ALIGN16 static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] =
+    { 9 };
 
 /* Curve25519 private key must be less than order */
 /* These functions clamp private k and check it */
@@ -139,7 +134,7 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-    ret = curve25519(pub, priv, (byte*)kCurve25519BasePoint);
+    ret = curve25519(pub, priv, kCurve25519BasePoint);
 
     RESTORE_VECTOR_REGISTERS();
 #endif

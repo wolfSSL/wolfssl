@@ -33836,7 +33836,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                               ed25519_key* key, word32 inSz)
 {
     int ret;
-    byte pubKey[ED25519_PUB_KEY_SIZE];
+    byte pubKey[2*ED25519_PUB_KEY_SIZE+1];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -34127,7 +34127,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz)
 {
     int ret;
-    byte pubKey[ED448_PUB_KEY_SIZE];
+    byte pubKey[2 * ED448_PUB_KEY_SIZE + 1];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {

@@ -260,9 +260,23 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
     register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
 
     __asm__ __volatile__ (
-        "LDM	%[in], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDR	r2, [%[in]]\n\t"
+        "LDR	r3, [%[in], #4]\n\t"
+        "LDR	r4, [%[in], #8]\n\t"
+        "LDR	r5, [%[in], #12]\n\t"
+        "LDR	r6, [%[in], #16]\n\t"
+        "LDR	r7, [%[in], #20]\n\t"
+        "LDR	r8, [%[in], #24]\n\t"
+        "LDR	r9, [%[in], #28]\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STR	r2, [%[out]]\n\t"
+        "STR	r3, [%[out], #4]\n\t"
+        "STR	r4, [%[out], #8]\n\t"
+        "STR	r5, [%[out], #12]\n\t"
+        "STR	r6, [%[out], #16]\n\t"
+        "STR	r7, [%[out], #20]\n\t"
+        "STR	r8, [%[out], #24]\n\t"
+        "STR	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
@@ -295,7 +309,14 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "STR	r2, [%[out]]\n\t"
+        "STR	r3, [%[out], #4]\n\t"
+        "STR	r4, [%[out], #8]\n\t"
+        "STR	r5, [%[out], #12]\n\t"
+        "STR	r6, [%[out], #16]\n\t"
+        "STR	r7, [%[out], #20]\n\t"
+        "STR	r8, [%[out], #24]\n\t"
+        "STR	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
@@ -3896,10 +3917,10 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "MOV	%[c], r12\n\t"
         "ADD	lr, sp, #0x20\n\t"
         "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
-        "LDR	%[s], [sp, #68]\n\t"
+        "MOV	%[s], sp\n\t"
         /* Add c to a * b */
         "LDR	lr, [sp, #76]\n\t"
-        "LDM	sp!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
         "LDM	lr!, {%[a], r10, r11, r12}\n\t"
         "ADDS	%[b], %[b], %[a]\n\t"
         "ADCS	%[c], %[c], r10\n\t"
@@ -3911,8 +3932,8 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADCS	r8, r8, r11\n\t"
         "ADCS	r9, r9, r12\n\t"
         "MOV	%[a], r9\n\t"
-        "STM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
-        "LDM	sp, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	%[s]!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
         "ADCS	%[b], %[b], #0x0\n\t"
         "ADCS	%[c], %[c], #0x0\n\t"
         "ADCS	r4, r4, #0x0\n\t"
@@ -3921,10 +3942,9 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADCS	r7, r7, #0x0\n\t"
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "SUB	%[s], %[s], #0x20\n\t"
         /* Get 252..503 and 504..507 */
         "LSR	lr, r9, #24\n\t"
-        "BFC	r9, #24, #8\n\t"
         "LSL	r9, r9, #4\n\t"
         "ORR	r9, r9, r8, LSR #28\n\t"
         "LSL	r8, r8, #4\n\t"
@@ -3941,6 +3961,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ORR	%[c], %[c], %[b], LSR #28\n\t"
         "LSL	%[b], %[b], #4\n\t"
         "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "BFC	r9, #28, #4\n\t"
         /* Add order times bits 504..507 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
@@ -4184,8 +4205,16 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, %[a]\n\t"
         "BFC	r9, #28, #4\n\t"
+        "LDR	%[s], [sp, #68]\n\t"
         /* Store result */
-        "STM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "STR	%[b], [%[s]]\n\t"
+        "STR	%[c], [%[s], #4]\n\t"
+        "STR	r4, [%[s], #8]\n\t"
+        "STR	r5, [%[s], #12]\n\t"
+        "STR	r6, [%[s], #16]\n\t"
+        "STR	r7, [%[s], #20]\n\t"
+        "STR	r8, [%[s], #24]\n\t"
+        "STR	r9, [%[s], #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :

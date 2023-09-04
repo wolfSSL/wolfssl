@@ -236,11 +236,25 @@ fe_add:
 	.type	fe_frombytes, %function
 fe_frombytes:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
-	LDM	r1, {r2, r3, r4, r5, r6, r7, r8, r9}
+	LDR	r2, [r1]
+	LDR	r3, [r1, #4]
+	LDR	r4, [r1, #8]
+	LDR	r5, [r1, #12]
+	LDR	r6, [r1, #16]
+	LDR	r7, [r1, #20]
+	LDR	r8, [r1, #24]
+	LDR	r9, [r1, #28]
 	BFC	r9, #31, #1
-	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	STR	r2, [r0]
+	STR	r3, [r0, #4]
+	STR	r4, [r0, #8]
+	STR	r5, [r0, #12]
+	STR	r6, [r0, #16]
+	STR	r7, [r0, #20]
+	STR	r8, [r0, #24]
+	STR	r9, [r0, #28]
 	POP	{r4, r5, r6, r7, r8, r9, pc}
-	# Cycle Count = 35
+	# Cycle Count = 49
 	.size	fe_frombytes,.-fe_frombytes
 	.text
 	.align	4
@@ -268,9 +282,16 @@ fe_tobytes:
 	ADCS	r8, r8, #0x0
 	ADC	r9, r9, #0x0
 	BFC	r9, #31, #1
-	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	STR	r2, [r0]
+	STR	r3, [r0, #4]
+	STR	r4, [r0, #8]
+	STR	r5, [r0, #12]
+	STR	r6, [r0, #16]
+	STR	r7, [r0, #20]
+	STR	r8, [r0, #24]
+	STR	r9, [r0, #28]
 	POP	{r4, r5, r6, r7, r8, r9, r10, pc}
-	# Cycle Count = 55
+	# Cycle Count = 62
 	.size	fe_tobytes,.-fe_tobytes
 	.text
 	.align	4
@@ -3747,10 +3768,10 @@ sc_muladd:
 	MOV	r3, r12
 	ADD	lr, sp, #0x20
 	STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}
-	LDR	r0, [sp, #68]
+	MOV	r0, sp
 	# Add c to a * b
 	LDR	lr, [sp, #76]
-	LDM	sp!, {r2, r3, r4, r5, r6, r7, r8, r9}
+	LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
 	LDM	lr!, {r1, r10, r11, r12}
 	ADDS	r2, r2, r1
 	ADCS	r3, r3, r10
@@ -3762,8 +3783,8 @@ sc_muladd:
 	ADCS	r8, r8, r11
 	ADCS	r9, r9, r12
 	MOV	r1, r9
-	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
-	LDM	sp, {r2, r3, r4, r5, r6, r7, r8, r9}
+	STM	r0!, {r2, r3, r4, r5, r6, r7, r8, r9}
+	LDM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
 	ADCS	r2, r2, #0x0
 	ADCS	r3, r3, #0x0
 	ADCS	r4, r4, #0x0
@@ -3772,10 +3793,9 @@ sc_muladd:
 	ADCS	r7, r7, #0x0
 	ADCS	r8, r8, #0x0
 	ADC	r9, r9, #0x0
-	SUB	sp, sp, #0x20
+	SUB	r0, r0, #0x20
 	# Get 252..503 and 504..507
 	LSR	lr, r9, #24
-	BFC	r9, #24, #8
 	LSL	r9, r9, #4
 	ORR	r9, r9, r8, LSR #28
 	LSL	r8, r8, #4
@@ -3792,6 +3812,7 @@ sc_muladd:
 	ORR	r3, r3, r2, LSR #28
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
+	BFC	r9, #28, #4
 	# Add order times bits 504..507
 	MOV	r10, #0x2c13
 	MOVT	r10, #0xa30a
@@ -4035,11 +4056,19 @@ sc_muladd:
 	ADCS	r8, r8, #0x0
 	ADC	r9, r9, r1
 	BFC	r9, #28, #4
+	LDR	r0, [sp, #68]
 	# Store result
-	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
+	STR	r2, [r0]
+	STR	r3, [r0, #4]
+	STR	r4, [r0, #8]
+	STR	r5, [r0, #12]
+	STR	r6, [r0, #16]
+	STR	r7, [r0, #20]
+	STR	r8, [r0, #24]
+	STR	r9, [r0, #28]
 	ADD	sp, sp, #0x50
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 728
+	# Cycle Count = 736
 	.size	sc_muladd,.-sc_muladd
 #endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */

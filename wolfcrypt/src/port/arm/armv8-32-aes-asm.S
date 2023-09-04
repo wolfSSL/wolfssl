@@ -1447,10 +1447,10 @@ L_AES_CTR_encrypt_loop_block_256:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]
@@ -1489,10 +1489,10 @@ L_AES_CTR_encrypt_loop_block_192:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]
@@ -1531,10 +1531,10 @@ L_AES_CTR_encrypt_loop_block_128:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]
@@ -3172,10 +3172,10 @@ L_AES_GCM_encrypt_loop_block_256:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]
@@ -3211,10 +3211,10 @@ L_AES_GCM_encrypt_loop_block_192:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]
@@ -3250,10 +3250,10 @@ L_AES_GCM_encrypt_loop_block_128:
 	ldr	r9, [lr, #4]
 	ldr	r10, [lr, #8]
 	ldr	r11, [lr, #12]
-	eor	r4, r8
-	eor	r5, r9
-	eor	r6, r10
-	eor	r7, r11
+	eor	r4, r4, r8
+	eor	r5, r5, r9
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 	ldr	r8, [sp, #4]
 	str	r4, [r1]
 	str	r5, [r1, #4]

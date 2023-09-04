@@ -12494,6 +12494,7 @@ static int test_wc_Sha256Update(void)
 #ifndef NO_SHA256
     wc_Sha256 sha256;
     byte hash[WC_SHA256_DIGEST_SIZE];
+    byte hash_unaligned[WC_SHA256_DIGEST_SIZE+1];
     testVector a, b, c;
 
     ExpectIntEQ(wc_InitSha256(&sha256), 0);
@@ -12516,6 +12517,11 @@ static int test_wc_Sha256Update(void)
     ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen), 0);
     ExpectIntEQ(wc_Sha256Final(&sha256, hash), 0);
     ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA256_DIGEST_SIZE), 0);
+
+    /* Unaligned check. */
+    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input+1, (word32)a.inLen-1),
+        0);
+    ExpectIntEQ(wc_Sha256Final(&sha256, hash_unaligned + 1), 0);
 
     /* Try passing in bad values */
     b.input = NULL;
@@ -12721,6 +12727,7 @@ static int test_wc_Sha512Update(void)
 #ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
     byte hash[WC_SHA512_DIGEST_SIZE];
+    byte hash_unaligned[WC_SHA512_DIGEST_SIZE + 1];
     testVector a, b, c;
 
     ExpectIntEQ(wc_InitSha512(&sha512), 0);
@@ -12746,6 +12753,11 @@ static int test_wc_Sha512Update(void)
     ExpectIntEQ(wc_Sha512Final(&sha512, hash), 0);
 
     ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA512_DIGEST_SIZE), 0);
+
+    /* Unaligned check. */
+    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)a.input+1, (word32)a.inLen-1),
+        0);
+    ExpectIntEQ(wc_Sha512Final(&sha512, hash_unaligned+1), 0);
 
     /* Try passing in bad values */
     b.input = NULL;
@@ -20091,7 +20103,8 @@ static int test_wc_ed25519_make_key(void)
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key   key;
     WC_RNG        rng;
-    unsigned char pubkey[ED25519_PUB_KEY_SIZE];
+    unsigned char pubkey[ED25519_PUB_KEY_SIZE+1];
+    int           pubkey_sz = ED25519_PUB_KEY_SIZE;
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -20099,7 +20112,9 @@ static int test_wc_ed25519_make_key(void)
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, sizeof(pubkey)),
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, pubkey_sz),
+        ECC_PRIV_KEY_E);
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey+1, pubkey_sz),
         ECC_PRIV_KEY_E);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
@@ -20149,10 +20164,10 @@ static int test_wc_ed25519_sign_msg(void)
     WC_RNG      rng;
     ed25519_key key;
     byte        msg[] = "Everybody gets Friday off.\n";
-    byte        sig[ED25519_SIG_SIZE];
+    byte        sig[ED25519_SIG_SIZE+1];
     word32      msglen = sizeof(msg);
-    word32      siglen = sizeof(sig);
-    word32      badSigLen = sizeof(sig) - 1;
+    word32      siglen = ED25519_SIG_SIZE;
+    word32      badSigLen = ED25519_SIG_SIZE - 1;
 #ifdef HAVE_ED25519_VERIFY
     int         verify_ok = 0; /*1 = Verify success.*/
 #endif
@@ -20160,7 +20175,7 @@ static int test_wc_ed25519_sign_msg(void)
     /* Initialize stack variables. */
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
-    XMEMSET(sig, 0, siglen);
+    XMEMSET(sig, 0, sizeof(sig));
 
     /* Initialize key. */
     ExpectIntEQ(wc_ed25519_init(&key), 0);
@@ -20168,6 +20183,8 @@ static int test_wc_ed25519_sign_msg(void)
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
     ExpectIntEQ(wc_ed25519_sign_msg(msg, msglen, sig, &siglen, &key), 0);
+    ExpectIntEQ(siglen, ED25519_SIG_SIZE);
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, msglen, sig+1, &siglen, &key), 0);
     ExpectIntEQ(siglen, ED25519_SIG_SIZE);
 
     /* Test bad args. */
@@ -20185,24 +20202,24 @@ static int test_wc_ed25519_sign_msg(void)
     badSigLen -= 1;
 
 #ifdef HAVE_ED25519_VERIFY
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, &verify_ok,
         &key), 0);
     ExpectIntEQ(verify_ok, 1);
 
     /* Test bad args. */
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen - 1, msg, msglen, &verify_ok,
-        &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen + 1, msg, msglen, &verify_ok,
-        &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen - 1, msg, msglen,
+        &verify_ok, &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen + 1, msg, msglen,
+        &verify_ok, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, NULL, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, NULL, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, NULL, &key),
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, NULL, &key),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, &verify_ok,
         NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, badSigLen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, badSigLen, msg, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
 #endif /* Verify. */
 
