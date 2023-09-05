@@ -7679,6 +7679,7 @@ L_SHA512_transform_neon_len_k:
 	.type	Transform_Sha512_Len, %function
 Transform_Sha512_Len:
 	vpush	{d8-d15}
+	adr	r3, L_SHA512_transform_neon_len_k
 	# Load digest into working vars
 	vldm.64	r0, {d0-d7}
 	# Start of loop processing a block
@@ -7715,7 +7716,6 @@ L_SHA512_transform_neon_len_begin:
 	vrev64.8	d30, d30
 	vrev64.8	d31, d31
 #endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
-	adr	r3, L_SHA512_transform_neon_len_k
 	mov	r12, #4
 	# Start of 16 rounds
 L_SHA512_transform_neon_len_start:
@@ -9164,6 +9164,7 @@ L_SHA512_transform_neon_len_start:
 #endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	vstm.64	r0, {d0-d7}
 	subs	r2, r2, #0x80
+	sub	r3, r3, #0x280
 	bne	L_SHA512_transform_neon_len_begin
 	vpop	{d8-d15}
 	bx	lr
