@@ -895,8 +895,12 @@ enum ecEncAlgo {
 };
 
 enum ecKdfAlgo {
-    ecHKDF_SHA256 = 1,  /* default */
-    ecHKDF_SHA1   = 2
+    ecHKDF_SHA256      = 1,  /* default */
+    ecHKDF_SHA1        = 2,
+    ecKDF_X963_SHA1    = 3,
+    ecKDF_X963_SHA256  = 4,
+    ecKDF_SHA1         = 5,
+    ecKDF_SHA256       = 6
 };
 
 enum ecMacAlgo {

@@ -56,7 +56,7 @@ typedef struct Gcm {
 } Gcm;
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#ifdef WOLFSSL_ARMASM
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,

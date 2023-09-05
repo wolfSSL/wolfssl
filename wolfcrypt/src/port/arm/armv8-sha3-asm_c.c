@@ -23,6 +23,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
