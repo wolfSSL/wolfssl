@@ -863,6 +863,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         }
     }
 
+    ForceZero(&hash, sizeof(hash));
     _HashFree(enmhashId, &hash);
 
     return ret;
