@@ -1747,7 +1747,7 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
         XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
 
-        return InitSha256_ex(sha256, sha256->heap, sha256->devId);  /* reset state */
+        return wc_InitSha256_ex(sha256, sha256->heap, sha256->devId);  /* reset state */
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
