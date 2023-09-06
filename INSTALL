@@ -264,20 +264,20 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     branch of the hash-sigs project.
 
     Currently the hash-sigs project only builds static libraries:
+      - hss_verify.a: a single-threaded verify-only static lib.
       - hss_lib.a: a single-threaded static lib.
       - hss_lib_thread.a: a multi-threaded static lib.
 
     The multi-threaded version will mainly have speedups for key
     generation and signing.
 
-    Additionally, the hash-sigs project can be modified to build
-    and install a shared library in /usr/local with either single
-    or multi-threaded versions.  If the shared version has been
-    built, libhss.so is the assumed name.
+    The default LMS build (--enable-lms) will look for
+    hss_lib.a first, and hss_lib_thread.a second, in a specified
+    hash-sigs dir.
 
-    wolfSSL supports either option, and by default will look for
-    hss_lib.a first, and hss_lib_thread.a second, and libhss.so
-    lastly, in a specified hash-sigs dir.
+    The LMS verify-only build (--enable-lms=verify-only) will look
+    for hss_verify.a only, which is a slimmer library that includes
+    only the minimal functions necessary for signature verification.
 
     How to get and build the hash-sigs library:
       $ mkdir ~/hash_sigs
@@ -299,12 +299,17 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
       $ ls *.a
       hss_lib_thread.a
 
+    To build verify-only:
+      $ make hss_verify.a
+      $ ls *.a
+      hss_verify.a
+
     Build wolfSSL with
     $ ./configure \
         --enable-static \
         --disable-shared \
-        --enable-lms=yes \
-        --with-liblms=<path to dir containing hss_lib_thread.a>
+        --enable-lms \
+        --with-liblms=<path to dir containing hss_lib.a or hss_lib_thread.a>
     $ make
 
     Run the benchmark against LMS/HSS with:

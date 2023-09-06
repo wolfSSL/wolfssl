@@ -23,6 +23,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
@@ -6312,9 +6313,9 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-48]!\n\t"
         "add	x29, sp, #0\n\t"
-        "str	%w[r], [x29, #16]\n\t"
-        "str	%w[p], [x29, #24]\n\t"
-        "str	%w[q], [x29, #32]\n\t"
+        "str	%x[r], [x29, #16]\n\t"
+        "str	%x[p], [x29, #24]\n\t"
+        "str	%x[q], [x29, #32]\n\t"
         "mov	x3, x1\n\t"
         "add	x2, x1, #32\n\t"
         "add	x1, x0, #32\n\t"
@@ -6808,9 +6809,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-48]!\n\t"
         "add	x29, sp, #0\n\t"
-        "str	%w[r], [x29, #16]\n\t"
-        "str	%w[p], [x29, #24]\n\t"
-        "str	%w[q], [x29, #32]\n\t"
+        "str	%x[r], [x29, #16]\n\t"
+        "str	%x[p], [x29, #24]\n\t"
+        "str	%x[q], [x29, #32]\n\t"
         "mov	x3, x1\n\t"
         "add	x2, x1, #32\n\t"
         "add	x1, x0, #32\n\t"
@@ -7430,9 +7431,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-48]!\n\t"
         "add	x29, sp, #0\n\t"
-        "str	%w[r], [x29, #16]\n\t"
-        "str	%w[p], [x29, #24]\n\t"
-        "str	%w[q], [x29, #32]\n\t"
+        "str	%x[r], [x29, #16]\n\t"
+        "str	%x[p], [x29, #24]\n\t"
+        "str	%x[q], [x29, #32]\n\t"
         "mov	x3, x1\n\t"
         "add	x2, x1, #32\n\t"
         "add	x1, x0, #32\n\t"
