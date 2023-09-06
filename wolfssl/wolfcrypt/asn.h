@@ -2194,6 +2194,11 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                          word32 maxIdx);
 
+#ifndef WOLFSSL_ASN_TEMPLATE
+WOLFSSL_ASN_API int GetASNInt(const byte* input, word32* inOutIdx, int* len,
+                              word32 maxIdx);
+#endif
+
 #ifdef HAVE_OID_ENCODING
     WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
