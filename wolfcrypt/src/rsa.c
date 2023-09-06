@@ -4741,7 +4741,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+#if defined(WC_ENABLE_ASYNC_RSA_INTERNAL) && \
     defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
     #ifdef HAVE_CAVIUM
@@ -4749,7 +4749,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #elif defined(HAVE_INTEL_QA)
         err = IntelQaRsaKeyGen(&key->asyncDev, key, size, e, rng);
         goto out;
-    #else
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_RSA_MAKE)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
             sw->rsaMake.rng = rng;
@@ -4759,6 +4759,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             err = WC_PENDING_E;
             goto out;
         }
+    #else
+        #error "Not implemented"
     #endif
     }
 #endif
