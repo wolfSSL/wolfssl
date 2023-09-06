@@ -85,6 +85,10 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 
+#ifdef WOLFSSL_HASH_FLAGS
+    sha256->flags = 0;
+#endif
+
     return ret;
 }
 
@@ -1575,6 +1579,9 @@ int wc_Sha256Transform(wc_Sha256* sha256, const unsigned char* data)
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
 
+    #ifdef WOLFSSL_HASH_FLAGS
+        sha224->flags = 0;
+    #endif
         return ret;
     }
 

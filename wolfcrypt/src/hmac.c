@@ -1173,6 +1173,8 @@ void wc_HmacFree(Hmac* hmac)
         default:
             break;
     }
+
+    ForceZero(hmac, sizeof(*hmac));
 }
 #endif /* WOLFSSL_KCAPI_HMAC */
 
