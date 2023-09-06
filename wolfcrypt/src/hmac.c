@@ -1173,6 +1173,8 @@ void wc_HmacFree(Hmac* hmac)
         default:
             break;
     }
+
+    ForceZero(hmac, sizeof(*hmac));
 }
 #endif /* WOLFSSL_KCAPI_HMAC */
 
@@ -1233,7 +1235,6 @@ int wolfSSL_GetHmacMaxSize(void)
                 ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
             if (ret == 0)
                 ret = wc_HmacFinal(myHmac,  out);
-            ForceZero(myHmac, sizeof(Hmac));
             wc_HmacFree(myHmac);
         }
     #ifdef WOLFSSL_SMALL_STACK
@@ -1325,7 +1326,6 @@ int wolfSSL_GetHmacMaxSize(void)
             n++;
         }
 
-        ForceZero(myHmac, sizeof(Hmac));
         wc_HmacFree(myHmac);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(myHmac, NULL, DYNAMIC_TYPE_HMAC);
