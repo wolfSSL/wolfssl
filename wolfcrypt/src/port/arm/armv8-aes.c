@@ -1452,6 +1452,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return 0;
 }
 
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+        const byte* iv, int dir)
+{
+    (void)dir;
+    return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+}
+
 #endif /* WOLFSSL_AES_COUNTER */
 
 #ifdef HAVE_AESGCM
@@ -4212,6 +4219,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return 0;
 }
 
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+        const byte* iv, int dir)
+{
+    (void)dir;
+    return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+}
+
 #endif /* WOLFSSL_AES_COUNTER */
 
 #ifdef HAVE_AESGCM
@@ -5723,6 +5737,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
         const byte* iv, int dir)
 {
+    (void)dir;
     return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 }
 #endif /* WOLFSSL_AES_COUNTER */
