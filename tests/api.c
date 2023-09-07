@@ -1428,7 +1428,7 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
 
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS) && \
-  (defined(WOLFSSL_QT) && \
+  ((defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)) && \
   !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR))
     /* invalid path */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
@@ -64936,6 +64936,73 @@ static int test_dtls_client_hello_timeout(void)
     return EXPECT_RESULT();
 }
 
+/* DTLS test when dropping the changed cipher spec message */
+static int test_dtls_dropped_ccs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    DtlsRecordLayerHeader* dtlsRH;
+    size_t len;
+    byte data[1];
+
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HVR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server ccs + finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+
+    /* Drop the ccs */
+    dtlsRH = (DtlsRecordLayerHeader*)test_ctx.c_buff;
+    len = (size_t)((dtlsRH->length[0] << 8) | dtlsRH->length[1]);
+    ExpectIntEQ(len, 1);
+    ExpectIntEQ(dtlsRH->type, change_cipher_spec);
+    if (EXPECT_SUCCESS()) {
+        XMEMMOVE(test_ctx.c_buff, test_ctx.c_buff +
+                sizeof(DtlsRecordLayerHeader) + len, test_ctx.c_len -
+               (sizeof(DtlsRecordLayerHeader) + len));
+    }
+    test_ctx.c_len -= sizeof(DtlsRecordLayerHeader) + len;
+
+    /* Client rtx flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    /* Server ccs + finished rtx */
+    ExpectIntEQ(wolfSSL_read(ssl_s, data, sizeof(data)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client processes finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 /**
  * Make sure we don't send RSA Signature Hash Algorithms in the
  * CertificateRequest when we don't have any such ciphers set.
@@ -66286,6 +66353,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_downgrade_scr),
     TEST_DECL(test_dtls_client_hello_timeout_downgrade),
     TEST_DECL(test_dtls_client_hello_timeout),
+    TEST_DECL(test_dtls_dropped_ccs),
     TEST_DECL(test_certreq_sighash_algos),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
@@ -66386,9 +66454,28 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-{
-   return (double)(TimeNowInMilliseconds() / 1000.0);
-}
+    #if defined(_MSC_VER) && defined(_WIN32)
+    {
+        /* there's no gettimeofday for Windows, so we'll use system time */
+        #define EPOCH_DIFF 11644473600LL
+        FILETIME currentFileTime;
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
+
+        ULARGE_INTEGER uli = { 0, 0 };
+        uli.LowPart = currentFileTime.dwLowDateTime;
+        uli.HighPart = currentFileTime.dwHighDateTime;
+
+        /* Convert to seconds since Unix epoch */
+        return (double)((uli.QuadPart - (EPOCH_DIFF * 10000000)) / 10000000.0);
+    }
+    #else
+    {
+        struct timeval tv;
+        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    }
+    #endif
 #endif
 
 int ApiTest(void)
@@ -66457,7 +66544,7 @@ int ApiTest(void)
         #endif
         #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
             if (ret != TEST_SKIPPED) {
-                printf(" %s (%9.3lf)\n", apitest_res_string(ret), timeDiff);
+                printf(" %s (%9.5lf)\n", apitest_res_string(ret), timeDiff);
             }
             else
         #endif
