@@ -3353,10 +3353,8 @@ typedef struct KeyShareEntry {
     struct KeyShareEntry* next;      /* List pointer             */
 } KeyShareEntry;
 
-WOLFSSL_LOCAL void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 WOLFSSL_LOCAL int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group,
         word16 len, byte* data, KeyShareEntry **kse, TLSX** extensions);
-WOLFSSL_LOCAL int TLSX_KeyShare_SelectGroup(WOLFSSL* ssl, word16 group);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl,
         TLSX** extensions);
@@ -4621,9 +4619,6 @@ struct Options {
 #ifdef WOLFSSL_DTLS
     word16            dtlsStateful:1;     /* allow stateful processing ? */
 #endif
-#ifdef WOLFSSL_DTLS_CH_FRAG
-    word16            dtlsSentEmptyKS:1;  /* did we send an empty key share ? */
-#endif
     word16            connReset:1;        /* has the peer reset */
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
@@ -5621,9 +5616,6 @@ struct WOLFSSL {
     Dtls13Rtx dtls13Rtx;
     byte *dtls13ClientHello;
     word16 dtls13ClientHelloSz;
-#ifdef WOLFSSL_DTLS_CH_FRAG
-    KeyShareEntry* dtls13KSE;
-#endif
 
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_DTLS_CID

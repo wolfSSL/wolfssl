@@ -8017,12 +8017,6 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ssl->dtls13ClientHello = NULL;
         ssl->dtls13ClientHelloSz = 0;
     }
-#ifdef WOLFSSL_DTLS_CH_FRAG
-    if (ssl->dtls13KSE != NULL) {
-        TLSX_KeyShare_FreeAll(ssl->dtls13KSE, ssl->heap);
-        ssl->dtls13KSE = NULL;
-    }
-#endif
 #endif /* WOLFSSL_DTLS13 */
 
 #endif /* WOLFSSL_DTLS */

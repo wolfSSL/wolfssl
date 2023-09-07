@@ -4426,29 +4426,18 @@ int SendTls13ClientHello(WOLFSSL* ssl)
                 TLSX_Find(ssl->extensions, TLSX_COOKIE) == NULL) {
             /* Try again with an empty key share if we would be fragmenting
              * without a cookie */
-            TLSX* ks = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
-            if (ks == NULL) {
-                WOLFSSL_MSG("No key share and CH can't fit in one fragment.");
-                return BUFFER_ERROR;
-            }
-            args->length = lenWithoutExts;
-            if (ssl->dtls13KSE != NULL)
-                TLSX_KeyShare_FreeAll(ssl->dtls13KSE, ssl->heap);
-            ssl->dtls13KSE = (KeyShareEntry*)ks->data;
-            ks->data = NULL;
-            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
-            if (ret != 0) {
-                /* Restore key share data */
-                ks->data = ssl->dtls13KSE;
-                ssl->dtls13KSE = NULL;
+            ret = TLSX_KeyShare_Empty(ssl);
+            if (ret != 0)
                 return ret;
-            }
+            args->length = lenWithoutExts;
+            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+            if (ret != 0)
+                return ret;
             if (args->length > maxFrag) {
                 WOLFSSL_MSG("Can't fit first CH in one fragment.");
                 return BUFFER_ERROR;
             }
             WOLFSSL_MSG("Sending empty key share so we don't fragment CH1");
-            ssl->options.dtlsSentEmptyKS = 1;
         }
 #endif
     }
@@ -4690,19 +4679,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == 0)
         FreeAsyncCtx(ssl, 0);
-#endif
-#ifdef WOLFSSL_DTLS_CH_FRAG
-    if ((ret == 0 || ret == WANT_WRITE) && ssl->dtls13KSE != NULL) {
-        /* Restore the keyshare */
-        TLSX* ks = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
-        if (ks == NULL || ks->data != NULL) {
-            WOLFSSL_MSG("Missing key share or key share data not NULL");
-            return BUFFER_ERROR;
-        }
-        WOLFSSL_MSG("Restored key share");
-        ks->data = ssl->dtls13KSE;
-        ssl->dtls13KSE = NULL;
-    }
 #endif
 
     WOLFSSL_LEAVE("SendTls13ClientHello", ret);
