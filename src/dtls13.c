@@ -1661,10 +1661,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     if (!isComplete && !Dtls13AcceptFragmented(ssl, handshakeType)) {
 #ifdef WOLFSSL_DTLS_CH_FRAG
+        byte tls13 = 0;
         /* check if the first CH fragment contains a valid cookie */
         if (ssl->options.dtls13ChFrag && !ssl->options.dtlsStateful &&
                 isFirst && handshakeType == client_hello &&
-                DoClientHelloStateless(ssl, input + idx, fragLength, 1) == 0) {
+                DoClientHelloStateless(ssl, input + idx, fragLength, 1, &tls13)
+                    == 0 && tls13) {
             /* We can save this message and continue as stateful. */
             if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
                 int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);

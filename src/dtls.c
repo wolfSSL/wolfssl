@@ -882,7 +882,7 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
 }
 
 int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
-        byte isFirstCHFrag)
+        byte isFirstCHFrag, byte* tls13)
 {
     int ret;
     WolfSSL_CH ch;
@@ -897,6 +897,8 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 "WOLFSSL_DTLS_CH_FRAG is not defined. This should not happen.");
 #endif
     }
+    if (tls13 != NULL)
+        *tls13 = 0;
 
     XMEMSET(&ch, 0, sizeof(ch));
 
@@ -910,6 +912,8 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
         ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
         if (ret != 0)
             return ret;
+        if (tls13 != NULL)
+            *tls13 = isTls13;
         if (isTls13) {
             int tlsxFound;
             ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
