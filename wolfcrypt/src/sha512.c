@@ -1126,6 +1126,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha512->W != NULL) {
+        ForceZero(sha512->W, sizeof(word64) * 16);
         XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha512->W = NULL;
     }
@@ -1137,6 +1138,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 
 #if defined(WOLFSSL_HASH_KEEP)
     if (sha512->msg != NULL) {
+        ForceZero(sha512->msg, sha512->len);
         XFREE(sha512->msg, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha512->msg = NULL;
     }
@@ -1145,6 +1147,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    ForceZero(sha512, sizeof(*sha512));
 }
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) \
     && !defined(WOLFSSL_KCAPI_HASH)
@@ -1197,6 +1201,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
     XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
+    ForceZero(buffer, WC_SHA512_BLOCK_SIZE);
     XFREE(buffer, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
@@ -1446,6 +1451,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha384->W != NULL) {
+        ForceZero(sha384->W, sizeof(word64) * 16);
         XFREE(sha384->W, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha384->W = NULL;
     }
@@ -1457,6 +1463,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #if defined(WOLFSSL_HASH_KEEP)
     if (sha384->msg != NULL) {
+        ForceZero(sha384->msg, sha384->len);
         XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha384->msg = NULL;
     }
@@ -1476,6 +1483,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
         sha384->hSession = NULL;
     }
 #endif
+
+    ForceZero(sha384, sizeof(*sha384));
 }
 
 #endif /* WOLFSSL_SHA384 */

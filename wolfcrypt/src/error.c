@@ -595,7 +595,7 @@ const char* wc_GetErrorString(int error)
     case SM4_CCM_AUTH_E:
         return "SM4-CCM Authentication check fail";
 
-    case DEGRADED_FIPS_E:
+    case FIPS_DEGRADED_E:
         return "FIPS module in DEGRADED mode";
 
     default:

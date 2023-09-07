@@ -931,6 +931,7 @@ static int InitSha256(wc_Sha256* sha256)
         }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return 0;
@@ -1690,10 +1691,11 @@ static int InitSha256(wc_Sha256* sha256)
             return;
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    if (sha224->W != NULL) {
-        XFREE(sha224->W, NULL, DYNAMIC_TYPE_DIGEST);
-        sha224->W = NULL;
-    }
+        if (sha224->W != NULL) {
+            ForceZero(sha224->W, sizeof(word32) * WC_SHA224_BLOCK_SIZE);
+            XFREE(sha224->W, NULL, DYNAMIC_TYPE_DIGEST);
+            sha224->W = NULL;
+        }
 #endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
@@ -1707,11 +1709,13 @@ static int InitSha256(wc_Sha256* sha256)
         KcapiHashFree(&sha224->kcapi);
     #endif
     #if defined(WOLFSSL_RENESAS_RX64_HASH)
-    if (sha224->msg != NULL) {
-        XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sha224->msg = NULL;
-    }
+        if (sha224->msg != NULL) {
+            ForceZero(sha224->msg, sha224->len);
+            XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            sha224->msg = NULL;
+        }
     #endif
+        ForceZero(sha224, sizeof(*sha224));
     }
 #endif /* WOLFSSL_SHA224 */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
@@ -1737,6 +1741,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha256->W != NULL) {
+        ForceZero(sha256->W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(sha256->W, NULL, DYNAMIC_TYPE_DIGEST);
         sha256->W = NULL;
     }
@@ -1772,6 +1777,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     defined(WOLFSSL_HASH_KEEP)
 
     if (sha256->msg != NULL) {
+        ForceZero(sha256->msg, sha256->len);
         XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha256->msg = NULL;
     }
@@ -1813,6 +1819,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
         ESP_LOGV(TAG, "Hardware unlock not needed in wc_Sha256Free.");
     }
 #endif
+    ForceZero(sha256, sizeof(*sha256));
 }
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
