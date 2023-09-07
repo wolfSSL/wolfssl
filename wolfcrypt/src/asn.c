@@ -2548,7 +2548,6 @@ int GetOctetString(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
     return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
 }
 
-#ifndef WOLFSSL_ASN_TEMPLATE
 /* Get the DER/BER encoding of an ASN.1 INTEGER header.
  *
  * Removes the leading zero byte when found.
@@ -2562,7 +2561,7 @@ int GetOctetString(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
  *         or invalid use of or missing leading zero.
  *         Otherwise, 0 to indicate success.
  */
-static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
+int GetASNInt(const byte* input, word32* inOutIdx, int* len,
                      word32 maxIdx)
 {
     int    ret;
@@ -2598,6 +2597,7 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
+#ifndef WOLFSSL_ASN_TEMPLATE
 #ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 7 bits.
