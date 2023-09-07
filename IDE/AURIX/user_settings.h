@@ -98,7 +98,6 @@ extern unsigned int my_rng_seed_gen(void);
 
     #define WOLFSSL_SP_NO_MALLOC
     //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
-    //#define WOLFSSL_SP_CACHE_RESISTANT
 
     /* use smaller version of code */
     #define WOLFSSL_SP_SMALL
