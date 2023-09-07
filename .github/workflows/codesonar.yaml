@@ -106,12 +106,11 @@ jobs:
             -hubpwfile "$CSONAR_HUB_PWFILE"
             -project "$PROJECT_NAME"
             -property repo.url ${{ github.repositoryUrl }}
-            -property commit.sha $COMMIT_ID
             -property commit.link "$GITHUB_REPO_URL/commit/$COMMIT_ID"
             -property PR.link $PRLINK
             -property branch.name $BRANCH
             -property target.branch $TARGET
-            -property target.diff_link $DIFFLINK
+            -property New_findings $DIFFLINK
             -name $NAME
             -conf-file codesonar.conf
             "$CSONAR_HUB_URL"
