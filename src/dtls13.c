@@ -1668,7 +1668,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
                 DoClientHelloStateless(ssl, input + idx, fragLength, 1, &tls13)
                     == 0 && tls13) {
             /* We can save this message and continue as stateful. */
-            if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
+            if (ssl->chGoodCb != NULL) {
                 int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
                 if (cbret < 0) {
                     ssl->error = cbret;

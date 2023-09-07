@@ -28,7 +28,7 @@
  *     clientHello messages will consume resources on the server.
  * WOLFSSL_DTLS_CH_FRAG
  *     Allow a server to process a fragmented second/verified (one containing a
- *     valid cookie response) ClientHello message. The first/unverifies (one
+ *     valid cookie response) ClientHello message. The first/unverified (one
  *     without a cookie extension) ClientHello MUST be unfragmented so that the
  *     DTLS server can process it statelessly. This is only implemented for
  *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
@@ -895,6 +895,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #else
         WOLFSSL_MSG("\tProcessing fragmented ClientHello but "
                 "WOLFSSL_DTLS_CH_FRAG is not defined. This should not happen.");
+        return BAD_STATE_E;
 #endif
     }
     if (tls13 != NULL)
@@ -945,7 +946,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #ifdef WOLFSSL_DTLS_CH_FRAG
         /* Don't send anything here when processing fragment */
         if (isFirstCHFrag)
-            ret = BUFFER_ERROR;
+            ret = COOKIE_ERROR;
         else
 #endif
             ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
@@ -966,7 +967,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #ifdef WOLFSSL_DTLS_CH_FRAG
             /* Don't send anything here when processing fragment */
             if (isFirstCHFrag)
-                ret = BUFFER_ERROR;
+                ret = COOKIE_ERROR;
             else
 #endif
                 ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
