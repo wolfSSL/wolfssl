@@ -74,7 +74,7 @@ int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
     if (sha == NULL ||  (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)data, len);
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)data, len);
     XSecure_Sha3Update(&(sha->xSec.cinst), XIL_CAST_U64(data), len);
 
     return 0;
@@ -91,7 +91,7 @@ int wc_Sha3_384_Final(wc_Sha3* sha, byte* out)
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, WC_SHA3_384_DIGEST_SIZE);
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)out, WC_SHA3_384_DIGEST_SIZE);
     XSecure_Sha3Finish(&(sha->xSec.cinst), XIL_CAST_U64(out));
 
     return wc_InitSha3_384(sha, NULL, INVALID_DEVID);
