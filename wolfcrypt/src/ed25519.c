@@ -182,6 +182,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
     return ret;
 }
 
+#ifdef HAVE_ED25519_MAKE_KEY
 int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
                            word32 pubKeySz)
 {
@@ -267,6 +268,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 
     return ret;
 }
+#endif /* HAVE_ED25519_MAKE_KEY */
 
 
 #ifdef HAVE_ED25519_SIGN
@@ -1236,6 +1238,7 @@ int wc_ed25519_export_key(ed25519_key* key,
 int wc_ed25519_check_key(ed25519_key* key)
 {
     int ret = 0;
+#ifdef HAVE_ED25519_MAKE_KEY
     unsigned char pubKey[ED25519_PUB_KEY_SIZE];
 
     if (!key->pubKeySet)
@@ -1244,6 +1247,9 @@ int wc_ed25519_check_key(ed25519_key* key)
         ret = wc_ed25519_make_public(key, pubKey, sizeof(pubKey));
     if (ret == 0 && XMEMCMP(pubKey, key->p, ED25519_PUB_KEY_SIZE) != 0)
         ret = PUBLIC_KEY_E;
+#else
+     (void)key;
+#endif /* HAVE_ED25519_MAKE_KEY */
 
     return ret;
 }

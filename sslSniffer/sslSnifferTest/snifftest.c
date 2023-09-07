@@ -144,6 +144,8 @@ enum {
     #endif
 #endif
 
+#define DEFAULT_SERVER_IP   "127.0.0.1"
+#define DEFAULT_SERVER_PORT (443)
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 static const byte rsaHash[] = {
@@ -470,19 +472,11 @@ static void show_appinfo(void)
     #ifdef WOLFSSL_STATIC_DH
         "dh_static "
     #endif
+    #ifdef WOLFSSL_SNIFFER_KEYLOGFILE
+        "ssl_keylog_file "
+    #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
     "\n\n"
     );
-}
-static void show_usage(void)
-{
-    printf("usage:\n");
-    printf("\t./snifftest\n");
-    printf("\t\tprompts for options\n");
-#ifdef THREADED_SNIFFTEST
-    printf("\t./snifftest dump pemKey [server] [port] [password] [threads]\n");
-#else
-    printf("\t./snifftest dump pemKey [server] [port] [password]\n");
-#endif
 }
 
 typedef struct SnifferPacket {
@@ -955,7 +949,6 @@ int main(int argc, char** argv)
     int          ret = 0;
     int          hadBadPacket = 0;
     int          inum = 0;
-    int          port = 0;
     int          saveFile = 0;
     int          i = 0, defDev = 0;
     int          packetNumber = 0;
@@ -963,9 +956,13 @@ int main(int argc, char** argv)
     char         err[PCAP_ERRBUF_SIZE];
     char         filter[32];
     const char  *keyFilesSrc = NULL;
+#ifdef WOLFSSL_SNIFFER_KEYLOGFILE
+    const char  *sslKeyLogFile = NULL;
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
     char         keyFilesBuf[MAX_FILENAME_SZ];
     char         keyFilesUser[MAX_FILENAME_SZ];
-    const char  *server = NULL;
+    const char  *server = DEFAULT_SERVER_IP;
+    int          port   = DEFAULT_SERVER_PORT;
     const char  *sniName = NULL;
     const char  *passwd = NULL;
     pcap_if_t   *d;
@@ -977,17 +974,12 @@ int main(int argc, char** argv)
     workerThreadCount = 1;
 #else
     workerThreadCount = 5;
-    if (argc >= 7)
-        workerThreadCount = XATOI(argv[6]);
 #endif
-    SnifferWorker workers[workerThreadCount];
-    int           used[workerThreadCount];
 #endif
 
     show_appinfo();
 
     signal(SIGINT, sig_handler);
-
 
 #ifndef THREADED_SNIFFTEST
     #ifndef _WIN32
@@ -1140,50 +1132,116 @@ int main(int argc, char** argv)
             }
         }
     }
-    else if (argc >= 3) {
-        saveFile = 1;
-        pcap = pcap_open_offline(argv[1], err);
-        if (pcap == NULL) {
-            printf("pcap_open_offline failed %s\n", err);
-            ret = -1;
-        }
-        else {
-            /* defaults for server and port */
-            port = 443;
-            server = "127.0.0.1";
-            keyFilesSrc = argv[2];
+    else {
+        char *pcapFile = NULL;
 
-            if (argc >= 4)
-                server = argv[3];
-
-            if (argc >= 5)
-                port = XATOI(argv[4]);
-
-            if (argc >= 6)
-                passwd = argv[5];
-
-            ret = load_key(NULL, server, port, keyFilesSrc, passwd, err);
-            if (ret != 0) {
+        for (i = 1; i < argc; i++) {
+            if (strcmp(argv[i], "-pcap") == 0 && i + 1 < argc) {
+                pcapFile = argv[++i];
+            }
+            else if (strcmp(argv[i], "-key") == 0 && i + 1 < argc) {
+                keyFilesSrc = argv[++i];
+            }
+            else if (strcmp(argv[i], "-server") == 0 && i + 1 < argc) {
+                server = argv[++i];
+            }
+            else if (strcmp(argv[i], "-port") == 0 && i + 1 < argc) {
+                port = XATOI(argv[++i]);
+            }
+            else if (strcmp(argv[i], "-password") == 0 && i + 1 < argc) {
+                passwd = argv[++i];
+            }
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+            else if (strcmp(argv[i], "-keylogfile") == 0 && i + 1 < argc) {
+                sslKeyLogFile = argv[++i];
+            }
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+#if defined(THREADED_SNIFFTEST)
+            else if (strcmp(argv[i], "-threads") == 0 && i + 1 < argc) {
+                workerThreadCount = XATOI(argv[++i]);
+            }
+#endif /* THREADED_SNIFFTEST */
+            else {
+                fprintf(stderr, "Invalid option or missing argument: %s\n", argv[i]);
+                fprintf(stderr, "Usage: %s -pcap pcap_arg -key key_arg"
+                        " [-password password_arg] [-server server_arg] [-port port_arg]"
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+                        " [-keylogfile keylogfile_arg]"
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+#if defined(THREADED_SNIFFTEST)
+                        " [-threads threads_arg]"
+#endif /* THREADED_SNIFFTEST */
+                        "\n", argv[0]);
                 exit(EXIT_FAILURE);
             }
+        }
+
+        if (!pcapFile) {
+            fprintf(stderr, "Error: -pcap option is required.\n");
+            exit(EXIT_FAILURE);
+        }
+
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+        /* If we offer keylog support, then user must provide EITHER a pubkey
+         * OR a keylog file but NOT both */
+        if ((!keyFilesSrc && !sslKeyLogFile) || (keyFilesSrc && sslKeyLogFile)) {
+            fprintf(stderr, "Error: either -key OR -keylogfile option required but NOT both.\n");
+            exit(EXIT_FAILURE);
+        }
+#else
+        if (!keyFilesSrc) {
+            fprintf(stderr, "Error: -key option is required.\n");
+            exit(EXIT_FAILURE);
+        }
+#endif
+
+        saveFile = 1;
+        pcap = pcap_open_offline(pcapFile , err);
+        if (pcap == NULL) {
+            fprintf(stderr, "pcap_open_offline failed %s\n", err);
+            err_sys(err);
+        }
+        else {
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+            if (sslKeyLogFile != NULL) {
+                ret = ssl_LoadSecretsFromKeyLogFile(sslKeyLogFile, err);
+                if (ret != 0) {
+                    fprintf(stderr, "ERROR=%d, unable to load secrets from keylog file\n",ret);
+                    err_sys(err);
+                }
+
+                ret = ssl_CreateKeyLogSnifferServer(server, port, err);
+                if (ret != 0) {
+                    fprintf(stderr, "ERROR=%d, unable to create keylog sniffer server\n",ret);
+                    err_sys(err);
+                }
+            }
+            else
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+            {
+                ret = load_key(NULL, server, port, keyFilesSrc, passwd, err);
+                if (ret != 0) {
+                    fprintf(stderr, "Failed to load key\n");
+                    err_sys(err);
+                }
+            }
+
 
             /* Only let through TCP/IP packets */
             ret = pcap_compile(pcap, &pcap_fp, "(ip6 or ip) and tcp", 0, 0);
             if (ret != 0) {
-                printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+                fprintf(stderr, "pcap_compile failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
 
             ret = pcap_setfilter(pcap, &pcap_fp);
             if (ret != 0) {
-                printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
+                fprintf(stderr, "pcap_setfilter failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
+
+
         }
-    }
-    else {
-        show_usage();
-        exit(EXIT_FAILURE);
     }
 
     if (ret != 0)
@@ -1193,6 +1251,9 @@ int main(int argc, char** argv)
         frame = NULL_IF_FRAME_LEN;
 
 #ifdef THREADED_SNIFFTEST
+    SnifferWorker workers[workerThreadCount];
+    int           used[workerThreadCount];
+
     XMEMSET(used, 0, sizeof(used));
     XMEMSET(&workers, 0, sizeof(workers));
 

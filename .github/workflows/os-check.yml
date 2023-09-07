@@ -23,7 +23,7 @@ jobs:
     name: make check
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -43,7 +43,7 @@ jobs:
     name: make user_setting.h
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -66,7 +66,7 @@ jobs:
     name: make user_setting.h (testwolfcrypt only)
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -87,7 +87,7 @@ jobs:
     name: make user_setting.h (with sed)
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
     - uses: actions/checkout@v3
     - if: ${{ matrix.os == 'macos-latest' }}

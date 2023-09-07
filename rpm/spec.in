@@ -15,7 +15,7 @@ BuildRequires: sed
 BuildRequires: tar
 URL: http://www.wolfssl.com/
 
-Packager: Brian Aker <brian@tangent.org>
+Packager: wolfSSL <support@wolfssl.com>
 
 Source: http://wolfssl.com/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
@@ -51,6 +51,7 @@ fi
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
 mkdir -p $RPM_BUILD_ROOT/
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
+%{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.a
 
 %check
 
@@ -78,165 +79,16 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 
-%{_libdir}/libwolfssl@LIBSUFFIX@.so
-%{_libdir}/libwolfssl@LIBSUFFIX@.so.@WOLFSSL_LIBRARY_VERSION_FIRST@
-%{_libdir}/libwolfssl@LIBSUFFIX@.so.@WOLFSSL_LIBRARY_VERSION_FIRST@.@WOLFSSL_LIBRARY_VERSION_SECOND@.@WOLFSSL_LIBRARY_VERSION_THIRD@
+%{_libdir}/libwolfssl@LIBSUFFIX@.so*
 
 %files devel
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog.md COPYING README README.md
 %{_bindir}/wolfssl-config
-%{_includedir}/wolfssl/callbacks.h
-%{_includedir}/wolfssl/certs_test.h
-%{_includedir}/wolfssl/crl.h
-%{_includedir}/wolfssl/error-ssl.h
-%{_includedir}/wolfssl/ocsp.h
-%{_includedir}/wolfssl/openssl/aes.h
-%{_includedir}/wolfssl/openssl/asn1.h
-%{_includedir}/wolfssl/openssl/asn1t.h
-%{_includedir}/wolfssl/openssl/bio.h
-%{_includedir}/wolfssl/openssl/bn.h
-%{_includedir}/wolfssl/openssl/cms.h
-%{_includedir}/wolfssl/openssl/buffer.h
-%{_includedir}/wolfssl/openssl/camellia.h
-%{_includedir}/wolfssl/openssl/cmac.h
-%{_includedir}/wolfssl/openssl/compat_types.h
-%{_includedir}/wolfssl/openssl/conf.h
-%{_includedir}/wolfssl/openssl/crypto.h
-%{_includedir}/wolfssl/openssl/des.h
-%{_includedir}/wolfssl/openssl/dh.h
-%{_includedir}/wolfssl/openssl/dsa.h
-%{_includedir}/wolfssl/openssl/ec.h
-%{_includedir}/wolfssl/openssl/ec25519.h
-%{_includedir}/wolfssl/openssl/ec448.h
-%{_includedir}/wolfssl/openssl/ecdh.h
-%{_includedir}/wolfssl/openssl/ecdsa.h
-%{_includedir}/wolfssl/openssl/ed25519.h
-%{_includedir}/wolfssl/openssl/ed448.h
-%{_includedir}/wolfssl/openssl/engine.h
-%{_includedir}/wolfssl/openssl/err.h
-%{_includedir}/wolfssl/openssl/evp.h
-%{_includedir}/wolfssl/openssl/fips_rand.h
-%{_includedir}/wolfssl/openssl/hmac.h
-%{_includedir}/wolfssl/openssl/kdf.h
-%{_includedir}/wolfssl/openssl/lhash.h
-%{_includedir}/wolfssl/openssl/md4.h
-%{_includedir}/wolfssl/openssl/md5.h
-%{_includedir}/wolfssl/openssl/modes.h
-%{_includedir}/wolfssl/openssl/obj_mac.h
-%{_includedir}/wolfssl/openssl/objects.h
-%{_includedir}/wolfssl/openssl/ocsp.h
-%{_includedir}/wolfssl/openssl/opensslconf.h
-%{_includedir}/wolfssl/openssl/opensslv.h
-%{_includedir}/wolfssl/openssl/ossl_typ.h
-%{_includedir}/wolfssl/openssl/pem.h
-%{_includedir}/wolfssl/openssl/pkcs12.h
-%{_includedir}/wolfssl/openssl/pkcs7.h
-%{_includedir}/wolfssl/openssl/rand.h
-%{_includedir}/wolfssl/openssl/rc4.h
-%{_includedir}/wolfssl/openssl/ripemd.h
-%{_includedir}/wolfssl/openssl/rsa.h
-%{_includedir}/wolfssl/openssl/sha.h
-%{_includedir}/wolfssl/openssl/srp.h
-%{_includedir}/wolfssl/openssl/sha3.h
-%{_includedir}/wolfssl/openssl/ssl.h
-%{_includedir}/wolfssl/openssl/ssl23.h
-%{_includedir}/wolfssl/openssl/stack.h
-%{_includedir}/wolfssl/openssl/txt_db.h
-%{_includedir}/wolfssl/openssl/tls1.h
-%{_includedir}/wolfssl/openssl/ui.h
-%{_includedir}/wolfssl/openssl/x509.h
-%{_includedir}/wolfssl/openssl/x509_vfy.h
-%{_includedir}/wolfssl/openssl/x509v3.h
-%{_includedir}/wolfssl/options.h
-%{_includedir}/wolfssl/quic.h
-%{_includedir}/wolfssl/sniffer.h
-%{_includedir}/wolfssl/sniffer_error.h
-%{_includedir}/wolfssl/ssl.h
-%{_includedir}/wolfssl/test.h
-%{_includedir}/wolfssl/version.h
-%{_includedir}/wolfssl/wolfcrypt/aes.h
-%{_includedir}/wolfssl/wolfcrypt/arc4.h
-%{_includedir}/wolfssl/wolfcrypt/asn.h
-%{_includedir}/wolfssl/wolfcrypt/asn_public.h
-%{_includedir}/wolfssl/wolfcrypt/blake2-impl.h
-%{_includedir}/wolfssl/wolfcrypt/blake2-int.h
-%{_includedir}/wolfssl/wolfcrypt/blake2.h
-%{_includedir}/wolfssl/wolfcrypt/camellia.h
-%{_includedir}/wolfssl/wolfcrypt/chacha.h
-%{_includedir}/wolfssl/wolfcrypt/chacha20_poly1305.h
-%{_includedir}/wolfssl/wolfcrypt/cmac.h
-%{_includedir}/wolfssl/wolfcrypt/coding.h
-%{_includedir}/wolfssl/wolfcrypt/compress.h
-%{_includedir}/wolfssl/wolfcrypt/cpuid.h
-%{_includedir}/wolfssl/wolfcrypt/cryptocb.h
-%{_includedir}/wolfssl/wolfcrypt/curve25519.h
-%{_includedir}/wolfssl/wolfcrypt/curve448.h
-%{_includedir}/wolfssl/wolfcrypt/des3.h
-%{_includedir}/wolfssl/wolfcrypt/dh.h
-%{_includedir}/wolfssl/wolfcrypt/dsa.h
-%{_includedir}/wolfssl/wolfcrypt/ecc.h
-%{_includedir}/wolfssl/wolfcrypt/eccsi.h
-%{_includedir}/wolfssl/wolfcrypt/ed25519.h
-%{_includedir}/wolfssl/wolfcrypt/ed448.h
-%{_includedir}/wolfssl/wolfcrypt/error-crypt.h
-%{_includedir}/wolfssl/wolfcrypt/ext_kyber.h
-%{_includedir}/wolfssl/wolfcrypt/falcon.h
-%{_includedir}/wolfssl/wolfcrypt/dilithium.h
-%{_includedir}/wolfssl/wolfcrypt/sphincs.h
-%{_includedir}/wolfssl/wolfcrypt/fe_448.h
-%{_includedir}/wolfssl/wolfcrypt/fe_operations.h
-%{_includedir}/wolfssl/wolfcrypt/fips_test.h
-%{_includedir}/wolfssl/wolfcrypt/ge_448.h
-%{_includedir}/wolfssl/wolfcrypt/ge_operations.h
-%{_includedir}/wolfssl/wolfcrypt/hash.h
-%{_includedir}/wolfssl/wolfcrypt/hmac.h
-%{_includedir}/wolfssl/wolfcrypt/hpke.h
-%{_includedir}/wolfssl/wolfcrypt/integer.h
-%{_includedir}/wolfssl/wolfcrypt/kdf.h
-%{_includedir}/wolfssl/wolfcrypt/kyber.h
-%{_includedir}/wolfssl/wolfcrypt/logging.h
-%{_includedir}/wolfssl/wolfcrypt/md2.h
-%{_includedir}/wolfssl/wolfcrypt/md4.h
-%{_includedir}/wolfssl/wolfcrypt/md5.h
-%{_includedir}/wolfssl/wolfcrypt/mem_track.h
-%{_includedir}/wolfssl/wolfcrypt/memory.h
-%{_includedir}/wolfssl/wolfcrypt/misc.h
-%{_includedir}/wolfssl/wolfcrypt/mpi_class.h
-%{_includedir}/wolfssl/wolfcrypt/mpi_superclass.h
-%{_includedir}/wolfssl/wolfcrypt/pkcs12.h
-%{_includedir}/wolfssl/wolfcrypt/pkcs7.h
-%{_includedir}/wolfssl/wolfcrypt/poly1305.h
-%{_includedir}/wolfssl/wolfcrypt/pwdbased.h
-%{_includedir}/wolfssl/wolfcrypt/random.h
-%{_includedir}/wolfssl/wolfcrypt/ripemd.h
-%{_includedir}/wolfssl/wolfcrypt/rc2.h
-%{_includedir}/wolfssl/wolfcrypt/rsa.h
-%{_includedir}/wolfssl/wolfcrypt/sakke.h
-%{_includedir}/wolfssl/wolfcrypt/settings.h
-%{_includedir}/wolfssl/wolfcrypt/sha.h
-%{_includedir}/wolfssl/wolfcrypt/sha256.h
-%{_includedir}/wolfssl/wolfcrypt/sha3.h
-%{_includedir}/wolfssl/wolfcrypt/sha512.h
-%{_includedir}/wolfssl/wolfcrypt/siphash.h
-%{_includedir}/wolfssl/wolfcrypt/signature.h
-%if "@INCLUDE_SP_INT@" != "no"
-%{_includedir}/wolfssl/wolfcrypt/sp_int.h
-%endif
-%{_includedir}/wolfssl/wolfcrypt/srp.h
-%{_includedir}/wolfssl/wolfcrypt/tfm.h
-%{_includedir}/wolfssl/wolfcrypt/types.h
-%{_includedir}/wolfssl/wolfcrypt/visibility.h
-%{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
-%{_includedir}/wolfssl/wolfcrypt/wc_port.h
-%{_includedir}/wolfssl/wolfcrypt/wc_kyber.h
-%{_includedir}/wolfssl/wolfcrypt/wolfevent.h
-%{_includedir}/wolfssl/wolfcrypt/wolfmath.h
-%{_includedir}/wolfssl/wolfio.h
+%{_includedir}/wolfssl/*.h
+%{_includedir}/wolfssl/wolfcrypt/*.h
+%{_includedir}/wolfssl/openssl/*.h
 %{_libdir}/pkgconfig/wolfssl.pc
-%if "@ENABLED_FIPS@" != "no"
-%{_includedir}/wolfssl/wolfcrypt/fips.h
-%endif
 
 %changelog
 * Mon Oct 17 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>

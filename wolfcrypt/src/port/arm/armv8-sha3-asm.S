@@ -30,6 +30,7 @@
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA3
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
@@ -213,3 +214,4 @@ L_sha3_crypto_begin:
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
+#endif /* !WOLFSSL_ARMASM_INLINE */

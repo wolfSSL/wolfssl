@@ -18,6 +18,32 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    /* FSP SM stands for Flexible Software Package Security Module
+    *  WOLFSSL_RENESAS_FSPSM enables fundamental code when it uses.
+    *    e.g. Open/Close/Random generator
+    *  WOLFSSL_RENESAS_FSPSPM_TLS enables TLS related code for FSP SM
+    *    e.g. Certificate verification, Master Secret Generation
+    *  WOLFSSL_RENESAS_SCEPROTECT enables specific code for SCE if needed
+    */
+    #define WOLFSSL_RENESAS_FSPSM
+    #define WOLFSSL_RENESAS_FSPSM_TLS
+#endif
+
+    /* XXX_CRYPTONLY definition enables FSP SM module for Crypto only use.
+    *  Therefore, it disables TLS related API use
+    */
+/* #   define WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
+
+#if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    #undef  WOLFSSL_RENESAS_FSPSM_TLS
+    #define WOLFSSL_RENESAS_FSPSM_CRYPTONLY
+
+    #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+        #define WOLFSSL_RENESAS_SCEPROTECT
+    #endif
+#endif
+
 /* Operating Environment and Threading */
 #define FREERTOS
 #define FREERTOS_TCP
@@ -61,6 +87,9 @@
     #define printf myprintf
 #endif
 
+/* Enable the following definition to use TLS 1.3
+ * For TLS1.3 use "extended-master" needs to turn on
+ */
 /* #define WOLFSSL_TLS13 */
 
 #if defined(WOLFSSL_TLS13)

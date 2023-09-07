@@ -75,6 +75,7 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->options.connectState = CONNECT_BEGIN;
     ssl->options.acceptState = ACCEPT_BEGIN;
     ssl->options.handShakeState = NULL_STATE;
+    ssl->options.seenUnifiedHdr = 0;
     ssl->msgsReceived.got_client_hello = 0;
     ssl->keys.dtls_handshake_number = 0;
     ssl->keys.dtls_expected_peer_handshake_number = 0;

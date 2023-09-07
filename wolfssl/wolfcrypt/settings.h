@@ -417,15 +417,15 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */
+    #define FSPSM_TLS_MASTERSECRET_SIZE         80  /* 20 words */
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE  64
-    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in bytes */
-    #define SCE_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
-    #define SCE_TLS_SERVERRANDOM_SZ           36  /* in bytes */
-    #define SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
+    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560   /* in bytes */
+    #define FSPSM_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
+    #define FSPSM_TLS_SERVERRANDOM_SZ           36  /* in bytes */
+    #define FSPSM_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
 
-    #define WOLFSSL_RENESAS_SCEPROTECT_ECC
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
+    #define WOLFSSL_RENESAS_FSPSM_ECC
+    #if defined(WOLFSSL_RENESAS_FSPSM_ECC)
         #define HAVE_PK_CALLBACKS
         /* #define DEBUG_PK_CB */
     #endif
@@ -2229,8 +2229,15 @@ extern void uITRON4_free(void *p) ;
 
 /* Ed25519 Configs */
 #ifdef HAVE_ED25519
-    /* By default enable sign, verify, key export and import */
+    /* By default enable make key, sign, verify, key export and import */
+    #ifndef NO_ED25519_MAKE_KEY
+        #undef HAVE_ED25519_MAKE_KEY
+        #define HAVE_ED25519_MAKE_KEY
+    #endif
     #ifndef NO_ED25519_SIGN
+        #ifndef HAVE_ED25519_MAKE_KEY
+           #error "Need HAVE_ED25519_MAKE_KEY with HAVE_ED25519_SIGN"
+        #endif
         #undef HAVE_ED25519_SIGN
         #define HAVE_ED25519_SIGN
     #endif
@@ -2978,7 +2985,9 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_PQC
 #define HAVE_FALCON
 #define HAVE_DILITHIUM
-#define HAVE_SPHINCS
+#ifndef WOLFSSL_NO_SPHINCS
+    #define HAVE_SPHINCS
+#endif
 #ifndef WOLFSSL_HAVE_KYBER
     #define WOLFSSL_HAVE_KYBER
     #define WOLFSSL_KYBER512

@@ -140,4 +140,5 @@ include certs/falcon/include.am
 include certs/rsapss/include.am
 include certs/dilithium/include.am
 include certs/sphincs/include.am
+include certs/rpk/include.am
 

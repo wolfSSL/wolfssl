@@ -1064,8 +1064,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(
 #define WOLFSSL_LOAD_FLAG_IGNORE_ERR    0x00000001
 #define WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY 0x00000002
 #define WOLFSSL_LOAD_FLAG_PEM_CA_ONLY   0x00000004
-#if defined(WOLFSSL_QT)
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
 #define WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR 0x00000008
+#endif
+#if defined(WOLFSSL_QT)
 #define WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE     0x00000010
 #endif
 
@@ -5137,6 +5139,29 @@ WOLFSSL_API int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
 WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 #endif
+
+#ifdef HAVE_RPK
+/* cert type for client_certificate_type/server_certificate_type extensions */
+enum {
+    WOLFSSL_CERT_TYPE_UNKNOWN = -1,
+    WOLFSSL_CERT_TYPE_X509 = 0,
+    WOLFSSL_CERT_TYPE_RPK  = 2,
+};
+#define MAX_CLIENT_CERT_TYPE_CNT 2
+#define MAX_SERVER_CERT_TYPE_CNT 2
+
+WOLFSSL_API int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx,
+                                          const char* buf, int len);
+WOLFSSL_API int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx,
+                                          const char* buf, int len);
+WOLFSSL_API int wolfSSL_set_client_cert_type(WOLFSSL* ssl,
+                                          const char* buf, int len);
+WOLFSSL_API int wolfSSL_set_server_cert_type(WOLFSSL* ssl,
+                                          const char* buf, int len);
+WOLFSSL_API int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
+WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp);
+#endif /* HAVE_RPK */
+
 
 #if defined(OPENSSL_EXTRA)
 #ifndef WOLFCRYPT_ONLY

@@ -726,7 +726,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FUNC_ARG when cm or buff is NULL ot sz is negative or zero.
+ * @return  BAD_FUNC_ARG when cm or buff is NULL or sz is negative or zero.
  * @return  WOLFSSL_BAD_FILETYPE when format is invalid.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when converting from PEM to DER is not a feature of
@@ -768,7 +768,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
  * @return  WOLFSSL_SUCCESS on success.
- * @return  BAD_FUNC_ARG when cm or buff is NULL ot sz is negative.
+ * @return  BAD_FUNC_ARG when cm or buff is NULL or sz is negative.
  * @return  WOLFSSL_BAD_FILETYPE when format is invalid.
  * @return  WOLFSSL_BAD_FILE when reading the certificate file fails.
  * @return  MEMORY_E when dynamic memory allocation fails.
@@ -2332,7 +2332,7 @@ int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
  * @param [in] cm          Certificate manager.
  * @param [in] ioCb        OCSP callback.
  * @param [in] respFreeCb  Callback to free OCSP response buffer.
- * @param [in] ioCbCtx     Context daa to pass to OCSP callbacks.
+ * @param [in] ioCbCtx     Context data to pass to OCSP callbacks.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when cm is NULL.
  */

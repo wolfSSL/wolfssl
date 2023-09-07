@@ -1417,7 +1417,7 @@ enum SignatureState {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
     defined(HAVE_PK_CALLBACKS)
 typedef struct tagCertAttribute {
         byte   verifyByTSIP_SCE;
@@ -1490,7 +1490,7 @@ struct SignatureCtx {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 #ifndef NO_RSA
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
     defined(HAVE_PK_CALLBACKS)
     CertAttribute  CertAtt;
 #endif
@@ -1864,7 +1864,7 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     byte*  sce_tsip_encRsaKeyIdx;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_TLS
@@ -1925,6 +1925,9 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_REQ
     byte isCSR : 1;                /* Do we intend on parsing a CSR? */
 #endif
+#ifdef HAVE_RPK
+    byte isRPK : 1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
+#endif
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
@@ -1975,7 +1978,7 @@ struct Signer {
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     word32 cm_idx;
 #endif
     Signer* next;
@@ -2106,6 +2109,7 @@ WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 #ifdef WOLFSSL_ASN_TEMPLATE
 WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
 #endif
+WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);

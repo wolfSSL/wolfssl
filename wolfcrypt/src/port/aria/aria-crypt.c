@@ -36,8 +36,10 @@ size and a key size of 128, 192, or 256 bits.
 #ifdef HAVE_ARIA
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/port/aria/aria-crypt.h>
+#include <wolfssl/error-ssl.h>
+#include <wolfssl/ssl.h>
 
 /* return 0 on success or WC_INIT_E on failure */
 int wc_AriaInitCrypt(wc_Aria* aria, MC_ALGID algo)

@@ -23,6 +23,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
@@ -30,6 +31,7 @@
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifdef WOLFSSL_ARMASM_INLINE
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifdef WOLFSSL_SHA3
@@ -183,3 +185,4 @@ void BlockSha3(unsigned long* state)
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM_INLINE */

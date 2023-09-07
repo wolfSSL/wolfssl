@@ -27,12 +27,12 @@
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
 defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
- #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+ #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
 #if defined(TLS_MULTITHREAD_TEST)
- User_SCEPKCbInfo guser_PKCbInfo_taskA;
- User_SCEPKCbInfo guser_PKCbInfo_taskB;
+ FSPSM_ST guser_PKCbInfo_taskA;
+ FSPSM_ST guser_PKCbInfo_taskB;
 #else
- User_SCEPKCbInfo guser_PKCbInfo;
+ FSPSM_ST guser_PKCbInfo;
 #endif
 #endif
 
@@ -128,35 +128,39 @@ static void my_Logging_cb(const int logLevel, const char *const logMessage)
 }
 #endif
 
-void Clr_CallbackCtx(User_SCEPKCbInfo *g)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+void Clr_CallbackCtx(FSPSM_ST *g)
 {
-    if (g->sce_wrapped_key_aes256 != NULL)
-        XFREE(g->sce_wrapped_key_aes256,
+    (void) g;
+
+    if (g->wrapped_key_aes256 != NULL)
+        XFREE(g->wrapped_key_aes256,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->sce_wrapped_key_aes128 != NULL)
-        XFREE(g->sce_wrapped_key_aes128,
+    if (g->wrapped_key_aes128 != NULL)
+        XFREE(g->wrapped_key_aes128,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             
    #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    if (g->sce_wrapped_key_rsapri2048 != NULL)
-        XFREE(g->sce_wrapped_key_rsapri2048,
+    if (g->wrapped_key_rsapri2048 != NULL)
+        XFREE(g->wrapped_key_rsapri2048,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->sce_wrapped_key_rsapub2048 != NULL)
-        XFREE(g->sce_wrapped_key_rsapub2048,
+    if (g->wrapped_key_rsapub2048 != NULL)
+        XFREE(g->wrapped_key_rsapub2048,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->sce_wrapped_key_rsapri1024 != NULL)
-        XFREE(g->sce_wrapped_key_rsapri1024,
+    if (g->wrapped_key_rsapri1024 != NULL)
+        XFREE(g->wrapped_key_rsapri1024,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->sce_wrapped_key_rsapub2048 != NULL)
-        XFREE(g->sce_wrapped_key_rsapub1024,
+    if (g->wrapped_key_rsapub2048 != NULL)
+        XFREE(g->wrapped_key_rsapub1024,
                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
    #endif
     XMEMSET(g, 0, sizeof(User_SCEPKCbInfo));
 }
+#endif
 
 void sce_test(void)
 {
@@ -236,15 +240,15 @@ void sce_test(void)
         sce_aes_wrapped_key_t *p1 = NULL;
         sce_aes_wrapped_key_t *p2 = NULL;
 
-        guser_PKCbInfo.sce_wrapped_key_aes256 = 
+        guser_PKCbInfo.wrapped_key_aes256 =
             (sce_aes_wrapped_key_t*)XMALLOC(sizeof(sce_aes_wrapped_key_t), 
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        p1 = (sce_aes_wrapped_key_t*)guser_PKCbInfo.sce_wrapped_key_aes256;
+        p1 = (sce_aes_wrapped_key_t*)guser_PKCbInfo.wrapped_key_aes256;
 
-        guser_PKCbInfo.sce_wrapped_key_aes128 = 
+        guser_PKCbInfo.wrapped_key_aes128 =
             (sce_aes_wrapped_key_t*)XMALLOC(sizeof(sce_aes_wrapped_key_t), 
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        p2 = (sce_aes_wrapped_key_t*)guser_PKCbInfo.sce_wrapped_key_aes128;
+        p2 = (sce_aes_wrapped_key_t*)guser_PKCbInfo.wrapped_key_aes128;
 
         if ( p1 == NULL || p2 == NULL) {
             printf("failed to alloc memory!");
@@ -276,6 +280,16 @@ void sce_test(void)
     #include "hal_data.h"
     #include "r_sce.h"
     
+#if defined(WOLFSSL_TLS13)
+    /* TLS1.3 needs RSA_PSS enabled.
+     * SCE doesn't support RSA PSS Padding
+     */
+    const char* cipherlist[] = {
+        NULL
+    };
+    const int cipherlist_sz = 1;
+    TestInfo info[cipherlist_sz];
+#else
     #if defined(USE_CERT_BUFFERS_256)
         #if !defined(TLS_MULTITHREAD_TEST)
         const char* cipherlist[] = {
@@ -317,6 +331,7 @@ void sce_test(void)
         TestInfo info[cipherlist_sz];
        #endif
     #endif
+#endif
 
     #ifdef TLS_MULTITHREAD_TEST
     BaseType_t xReturned;
@@ -381,22 +396,26 @@ void sce_test(void)
 
     #else
 
+    int TCP_connect_retry = 0;
     wolfSSL_TLS_client_init();
 
     do {
 
-          info[i].port = DEFAULT_PORT;
-          info[i].cipher = cipherlist[i];
-          info[i].ctx = client_ctx;
-          info[i].id = i;
+        info[i].port = DEFAULT_PORT;
+        info[i].cipher = cipherlist[i];
+        info[i].ctx = client_ctx;
+        info[i].id = i;
 
-          memset(info[i].name, 0, sizeof(info[i].name));
-          sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
+        XMEMSET(info[i].name, 0, sizeof(info[i].name));
+        XSPRINTF(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
 
-          wolfSSL_TLS_client_do(&info[i]);
-
+        if(wolfSSL_TLS_client_do(&info[i]) == -116) {
+            TCP_connect_retry++;
+            continue;
+        }
+        TCP_connect_retry = 0;
         i++;
-    } while (i < cipherlist_sz);
+    } while (i < cipherlist_sz && TCP_connect_retry < 5);
 
     #endif /* SCE_MULTITHREAD_TEST */
 
