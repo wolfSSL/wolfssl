@@ -378,9 +378,23 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
     register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
 
     __asm__ __volatile__ (
-        "ldm	%[in], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ldr	r2, [%[in]]\n\t"
+        "ldr	r3, [%[in], #4]\n\t"
+        "ldr	r4, [%[in], #8]\n\t"
+        "ldr	r5, [%[in], #12]\n\t"
+        "ldr	r6, [%[in], #16]\n\t"
+        "ldr	r7, [%[in], #20]\n\t"
+        "ldr	r8, [%[in], #24]\n\t"
+        "ldr	r9, [%[in], #28]\n\t"
         "bfc	r9, #31, #1\n\t"
-        "stm	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "str	r2, [%[out]]\n\t"
+        "str	r3, [%[out], #4]\n\t"
+        "str	r4, [%[out], #8]\n\t"
+        "str	r5, [%[out], #12]\n\t"
+        "str	r6, [%[out], #16]\n\t"
+        "str	r7, [%[out], #20]\n\t"
+        "str	r8, [%[out], #24]\n\t"
+        "str	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
@@ -413,7 +427,14 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, #0\n\t"
         "bfc	r9, #31, #1\n\t"
-        "stm	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "str	r2, [%[out]]\n\t"
+        "str	r3, [%[out], #4]\n\t"
+        "str	r4, [%[out], #8]\n\t"
+        "str	r5, [%[out], #12]\n\t"
+        "str	r6, [%[out], #16]\n\t"
+        "str	r7, [%[out], #20]\n\t"
+        "str	r8, [%[out], #24]\n\t"
+        "str	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12"
@@ -428,34 +449,16 @@ void fe_1(fe n_p)
         /* Set one */
         "mov	r2, #1\n\t"
         "mov	r3, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n]]\n\t"
-        "str	r3, [%[n], #4]\n\t"
-#else
-        "strd	r2, r3, [%[n]]\n\t"
-#endif
-        "mov	r2, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #8]\n\t"
-        "str	r3, [%[n], #12]\n\t"
-#else
-        "strd	r2, r3, [%[n], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #16]\n\t"
-        "str	r3, [%[n], #20]\n\t"
-#else
-        "strd	r2, r3, [%[n], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #24]\n\t"
-        "str	r3, [%[n], #28]\n\t"
-#else
-        "strd	r2, r3, [%[n], #24]\n\t"
-#endif
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #0\n\t"
+        "mov	r7, #0\n\t"
+        "mov	r8, #0\n\t"
+        "mov	r9, #0\n\t"
+        "stm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
@@ -467,33 +470,16 @@ void fe_0(fe n_p)
         /* Set zero */
         "mov	r2, #0\n\t"
         "mov	r3, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n]]\n\t"
-        "str	r3, [%[n], #4]\n\t"
-#else
-        "strd	r2, r3, [%[n]]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #8]\n\t"
-        "str	r3, [%[n], #12]\n\t"
-#else
-        "strd	r2, r3, [%[n], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #16]\n\t"
-        "str	r3, [%[n], #20]\n\t"
-#else
-        "strd	r2, r3, [%[n], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r2, [%[n], #24]\n\t"
-        "str	r3, [%[n], #28]\n\t"
-#else
-        "strd	r2, r3, [%[n], #24]\n\t"
-#endif
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #0\n\t"
+        "mov	r7, #0\n\t"
+        "mov	r8, #0\n\t"
+        "mov	r9, #0\n\t"
+        "stm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
@@ -650,6 +636,7 @@ int fe_isnegative(const fe a_p)
     return (uint32_t)(size_t)a;
 }
 
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
@@ -2466,6 +2453,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 void fe_mul_op(void);
 void fe_mul_op()
@@ -2756,6 +2744,7 @@ void fe_sq(fe r_p, const fe a_p)
     );
 }
 
+#ifdef HAVE_CURVE25519
 void fe_mul121666(fe r_p, fe a_p)
 {
     register sword32* r asm ("r0") = (sword32*)r_p;
@@ -2815,89 +2804,20 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "str	%[a], [sp, #168]\n\t"
         "mov	%[n], #0\n\t"
         "str	%[n], [sp, #172]\n\t"
-        /* Set one */
-        "mov	r10, #1\n\t"
-        "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r]]\n\t"
-        "str	r11, [%[r], #4]\n\t"
-#else
-        "strd	r10, r11, [%[r]]\n\t"
-#endif
-        "mov	r10, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #8]\n\t"
-        "str	r11, [%[r], #12]\n\t"
-#else
-        "strd	r10, r11, [%[r], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #16]\n\t"
-        "str	r11, [%[r], #20]\n\t"
-#else
-        "strd	r10, r11, [%[r], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #24]\n\t"
-        "str	r11, [%[r], #28]\n\t"
-#else
-        "strd	r10, r11, [%[r], #24]\n\t"
-#endif
-        /* Set zero */
+        "mov	r4, #1\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #0\n\t"
+        "mov	r7, #0\n\t"
+        "mov	r8, #0\n\t"
+        "mov	r9, #0\n\t"
         "mov	r10, #0\n\t"
         "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp]\n\t"
-        "str	r11, [sp, #4]\n\t"
-#else
-        "strd	r10, r11, [sp]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #8]\n\t"
-        "str	r11, [sp, #12]\n\t"
-#else
-        "strd	r10, r11, [sp, #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #16]\n\t"
-        "str	r11, [sp, #20]\n\t"
-#else
-        "strd	r10, r11, [sp, #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #24]\n\t"
-        "str	r11, [sp, #28]\n\t"
-#else
-        "strd	r10, r11, [sp, #24]\n\t"
-#endif
-        /* Set one */
-        "mov	r10, #1\n\t"
-        "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #32]\n\t"
-        "str	r11, [sp, #36]\n\t"
-#else
-        "strd	r10, r11, [sp, #32]\n\t"
-#endif
-        "mov	r10, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #40]\n\t"
-        "str	r11, [sp, #44]\n\t"
-#else
-        "strd	r10, r11, [sp, #40]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #48]\n\t"
-        "str	r11, [sp, #52]\n\t"
-#else
-        "strd	r10, r11, [sp, #48]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #56]\n\t"
-        "str	r11, [sp, #60]\n\t"
-#else
-        "strd	r10, r11, [sp, #56]\n\t"
-#endif
+        "stm	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "add	r3, sp, #32\n\t"
+        "stm	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r3, sp\n\t"
+        "stm	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "add	r3, sp, #0x40\n\t"
         /* Copy */
         "ldm	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -2922,18 +2842,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "ldr	%[r], [sp, #160]\n\t"
         /* Conditional Swap */
         "rsb	%[n], %[n], #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [%[r]]\n\t"
-        "ldr	r5, [%[r], #4]\n\t"
-#else
-        "ldrd	r4, r5, [%[r]]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #64]\n\t"
-        "ldr	r7, [sp, #68]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #64]\n\t"
-#endif
+        "mov	r3, r0\n\t"
+        "add	r12, sp, #0x40\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -2942,30 +2854,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [%[r]]\n\t"
-        "str	r5, [%[r], #4]\n\t"
-#else
-        "strd	r4, r5, [%[r]]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #64]\n\t"
-        "str	r7, [sp, #68]\n\t"
-#else
-        "strd	r6, r7, [sp, #64]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [%[r], #8]\n\t"
-        "ldr	r5, [%[r], #12]\n\t"
-#else
-        "ldrd	r4, r5, [%[r], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #72]\n\t"
-        "ldr	r7, [sp, #76]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #72]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -2974,30 +2866,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [%[r], #8]\n\t"
-        "str	r5, [%[r], #12]\n\t"
-#else
-        "strd	r4, r5, [%[r], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #72]\n\t"
-        "str	r7, [sp, #76]\n\t"
-#else
-        "strd	r6, r7, [sp, #72]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [%[r], #16]\n\t"
-        "ldr	r5, [%[r], #20]\n\t"
-#else
-        "ldrd	r4, r5, [%[r], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #80]\n\t"
-        "ldr	r7, [sp, #84]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #80]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3006,30 +2878,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [%[r], #16]\n\t"
-        "str	r5, [%[r], #20]\n\t"
-#else
-        "strd	r4, r5, [%[r], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #80]\n\t"
-        "str	r7, [sp, #84]\n\t"
-#else
-        "strd	r6, r7, [sp, #80]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [%[r], #24]\n\t"
-        "ldr	r5, [%[r], #28]\n\t"
-#else
-        "ldrd	r4, r5, [%[r], #24]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #88]\n\t"
-        "ldr	r7, [sp, #92]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #88]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3038,33 +2890,15 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [%[r], #24]\n\t"
-        "str	r5, [%[r], #28]\n\t"
-#else
-        "strd	r4, r5, [%[r], #24]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #88]\n\t"
-        "str	r7, [sp, #92]\n\t"
-#else
-        "strd	r6, r7, [sp, #88]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
         "ldr	%[n], [sp, #172]\n\t"
         /* Conditional Swap */
         "rsb	%[n], %[n], #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [sp]\n\t"
-        "ldr	r5, [sp, #4]\n\t"
-#else
-        "ldrd	r4, r5, [sp]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #32]\n\t"
-        "ldr	r7, [sp, #36]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #32]\n\t"
-#endif
+        "mov	r3, sp\n\t"
+        "add	r12, sp, #32\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3073,30 +2907,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [sp]\n\t"
-        "str	r5, [sp, #4]\n\t"
-#else
-        "strd	r4, r5, [sp]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #32]\n\t"
-        "str	r7, [sp, #36]\n\t"
-#else
-        "strd	r6, r7, [sp, #32]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [sp, #8]\n\t"
-        "ldr	r5, [sp, #12]\n\t"
-#else
-        "ldrd	r4, r5, [sp, #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #40]\n\t"
-        "ldr	r7, [sp, #44]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #40]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3105,30 +2919,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [sp, #8]\n\t"
-        "str	r5, [sp, #12]\n\t"
-#else
-        "strd	r4, r5, [sp, #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #40]\n\t"
-        "str	r7, [sp, #44]\n\t"
-#else
-        "strd	r6, r7, [sp, #40]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [sp, #16]\n\t"
-        "ldr	r5, [sp, #20]\n\t"
-#else
-        "ldrd	r4, r5, [sp, #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #48]\n\t"
-        "ldr	r7, [sp, #52]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #48]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3137,30 +2931,10 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [sp, #16]\n\t"
-        "str	r5, [sp, #20]\n\t"
-#else
-        "strd	r4, r5, [sp, #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #48]\n\t"
-        "str	r7, [sp, #52]\n\t"
-#else
-        "strd	r6, r7, [sp, #48]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r4, [sp, #24]\n\t"
-        "ldr	r5, [sp, #28]\n\t"
-#else
-        "ldrd	r4, r5, [sp, #24]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "ldr	r6, [sp, #56]\n\t"
-        "ldr	r7, [sp, #60]\n\t"
-#else
-        "ldrd	r6, r7, [sp, #56]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
+        "ldm	r3, {r4, r5}\n\t"
+        "ldm	r12, {r6, r7}\n\t"
         "eor	r8, r4, r6\n\t"
         "eor	r9, r5, r7\n\t"
         "and	r8, r8, %[n]\n\t"
@@ -3169,18 +2943,8 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r8\n\t"
         "eor	r7, r7, r9\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r4, [sp, #24]\n\t"
-        "str	r5, [sp, #28]\n\t"
-#else
-        "strd	r4, r5, [sp, #24]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r6, [sp, #56]\n\t"
-        "str	r7, [sp, #60]\n\t"
-#else
-        "strd	r6, r7, [sp, #56]\n\t"
-#endif
+        "stm	r3!, {r4, r5}\n\t"
+        "stm	r12!, {r6, r7}\n\t"
         "ldr	%[n], [sp, #184]\n\t"
         "str	%[n], [sp, #172]\n\t"
         "mov	r3, sp\n\t"
@@ -3435,89 +3199,20 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "str	r4, [sp, #188]\n\t"
         "mov	%[n], #0\n\t"
         "str	%[n], [sp, #164]\n\t"
-        /* Set one */
-        "mov	r10, #1\n\t"
-        "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r]]\n\t"
-        "str	r11, [%[r], #4]\n\t"
-#else
-        "strd	r10, r11, [%[r]]\n\t"
-#endif
-        "mov	r10, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #8]\n\t"
-        "str	r11, [%[r], #12]\n\t"
-#else
-        "strd	r10, r11, [%[r], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #16]\n\t"
-        "str	r11, [%[r], #20]\n\t"
-#else
-        "strd	r10, r11, [%[r], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [%[r], #24]\n\t"
-        "str	r11, [%[r], #28]\n\t"
-#else
-        "strd	r10, r11, [%[r], #24]\n\t"
-#endif
-        /* Set zero */
+        "mov	r4, #1\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #0\n\t"
+        "mov	r7, #0\n\t"
+        "mov	r8, #0\n\t"
+        "mov	r9, #0\n\t"
         "mov	r10, #0\n\t"
         "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp]\n\t"
-        "str	r11, [sp, #4]\n\t"
-#else
-        "strd	r10, r11, [sp]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #8]\n\t"
-        "str	r11, [sp, #12]\n\t"
-#else
-        "strd	r10, r11, [sp, #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #16]\n\t"
-        "str	r11, [sp, #20]\n\t"
-#else
-        "strd	r10, r11, [sp, #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #24]\n\t"
-        "str	r11, [sp, #28]\n\t"
-#else
-        "strd	r10, r11, [sp, #24]\n\t"
-#endif
-        /* Set one */
-        "mov	r10, #1\n\t"
-        "mov	r11, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #32]\n\t"
-        "str	r11, [sp, #36]\n\t"
-#else
-        "strd	r10, r11, [sp, #32]\n\t"
-#endif
-        "mov	r10, #0\n\t"
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #40]\n\t"
-        "str	r11, [sp, #44]\n\t"
-#else
-        "strd	r10, r11, [sp, #40]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #48]\n\t"
-        "str	r11, [sp, #52]\n\t"
-#else
-        "strd	r10, r11, [sp, #48]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-        "str	r10, [sp, #56]\n\t"
-        "str	r11, [sp, #60]\n\t"
-#else
-        "strd	r10, r11, [sp, #56]\n\t"
-#endif
+        "stm	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "add	r3, sp, #32\n\t"
+        "stm	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r3, sp\n\t"
+        "stm	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "add	r3, sp, #0x40\n\t"
         /* Copy */
         "ldm	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -3795,6 +3490,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
 void fe_invert(fe r_p, const fe a_p)
 {
@@ -5157,6 +4853,7 @@ void sc_reduce(byte* s_p)
     );
 }
 
+#ifdef HAVE_ED25519_SIGN
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 {
     register byte* s asm ("r0") = (byte*)s_p;
@@ -5165,7 +4862,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
     register const byte* c asm ("r3") = (const byte*)c_p;
 
     __asm__ __volatile__ (
-        "sub	sp, sp, #0x50\n\t"
+        "sub	sp, sp, #0x70\n\t"
         "add	lr, sp, #0x44\n\t"
         "stm	lr, {%[s], %[a], %[c]}\n\t"
         "mov	lr, %[b]\n\t"
@@ -5267,7 +4964,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "mov	%[c], r12\n\t"
         "add	lr, sp, #32\n\t"
         "stm	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
-        "ldr	%[s], [sp, #68]\n\t"
+        "add	%[s], sp, #0x50\n\t"
         /* Add c to a * b */
         "ldr	lr, [sp, #76]\n\t"
         "ldm	sp!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
@@ -5687,15 +5384,24 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, %[a]\n\t"
         "bfc	r9, #28, #4\n\t"
+        "ldr	%[s], [sp, #68]\n\t"
         /* Store result */
-        "stm	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
-        "add	sp, sp, #0x50\n\t"
+        "str	%[b], [%[s]]\n\t"
+        "str	%[c], [%[s], #4]\n\t"
+        "str	r4, [%[s], #8]\n\t"
+        "str	r5, [%[s], #12]\n\t"
+        "str	r6, [%[s], #16]\n\t"
+        "str	r7, [%[s], #20]\n\t"
+        "str	r8, [%[s], #24]\n\t"
+        "str	r9, [%[s], #28]\n\t"
+        "add	sp, sp, #0x70\n\t"
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
