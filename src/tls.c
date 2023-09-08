@@ -9627,6 +9627,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
     serverKSE->keLen = clientKSE->keLen;
     clientKSE->ke = NULL;
     clientKSE->keLen = 0;
+    ssl->namedGroup = serverKSE->group;
 
     TLSX_KeyShare_FreeAll((KeyShareEntry*)extension->data, ssl->heap);
     extension->data = (void *)serverKSE;

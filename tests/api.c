@@ -65238,6 +65238,45 @@ static int test_revoked_loaded_int_cert(void)
     return EXPECT_RESULT();
 }
 
+static int test_dtls13_frag_ch_pq(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) \
+    && defined(HAVE_LIBOQS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char *test_str = "test";
+    int test_str_size;
+    byte buf[255];
+    int group = WOLFSSL_KYBER_LEVEL5;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    /* Add in a large post-quantum key share to make the CH long. */
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "KYBER_LEVEL5");
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "KYBER_LEVEL5");
+    test_str_size = XSTRLEN("test") + 1;
+    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);
+    ExpectIntEQ(XSTRCMP((char*)buf, test_str), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
     && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG)
 static int test_dtls_frag_ch_count_records(byte* b, int len)
@@ -65256,50 +65295,6 @@ static int test_dtls_frag_ch_count_records(byte* b, int len)
 }
 #endif
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) \
-    && defined(HAVE_LIBOQS)
-static int test_dtls13_frag_ch_pq(void)
-{
-    EXPECT_DECLS;
-    WOLFSSL_CTX *ctx_c = NULL;
-    WOLFSSL_CTX *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL;
-    WOLFSSL *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-    const char *test_str = "test";
-    int test_str_size;
-    byte buf[255];
-    static unsigned int DUMMY_MTU = 256;
-
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-wolfSSL_Debugging_ON();
-    /* Fragment msgs */
-    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, DUMMY_MTU), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, DUMMY_MTU), WOLFSSL_SUCCESS);
-    /* Add in a large post-quantum key share to make the CH long. */
-    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_KYBER_LEVEL5), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    test_str_size = XSTRLEN("test") + 1;
-    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
-    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);
-    ExpectIntEQ(XSTRCMP((char*)buf, test_str), 0);
-    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
-    return EXPECT_RESULT();
-}
-#else
-static int test_dtls13_frag_ch_pq(void)
-{
-    return TEST_SKIPPED;
-}
-#endif
 static int test_dtls_frag_ch(void)
 {
     EXPECT_DECLS;
