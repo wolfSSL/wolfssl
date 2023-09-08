@@ -33810,7 +33810,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz)
 {
     int ret;
-    byte privKey[ED25519_KEY_SIZE], pubKey[ED25519_PUB_KEY_SIZE];
+    byte privKey[ED25519_KEY_SIZE], pubKey[2*ED25519_PUB_KEY_SIZE+1];
     word32 privKeyLen = (word32)sizeof(privKey);
     word32 pubKeyLen = (word32)sizeof(pubKey);
 

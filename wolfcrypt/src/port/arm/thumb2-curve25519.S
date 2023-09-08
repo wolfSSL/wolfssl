@@ -4395,14 +4395,15 @@ ge_sub:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 138
 	.size	ge_sub,.-ge_sub
-#ifndef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_SP_NO_UMAAL
 	.text
 	.align	4
 	.globl	sc_reduce
 	.type	sc_reduce, %function
 sc_reduce:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	SUB	sp, sp, #0x34
+	SUB	sp, sp, #0x38
+	STR	r0, [sp, #52]
 	# Load bits 252-511
 	ADD	r0, r0, #0x1c
 	LDM	r0, {r1, r2, r3, r4, r5, r6, r7, r8, r9}
@@ -4457,34 +4458,37 @@ sc_reduce:
 	SBCS	r8, r8, #0x0
 	SBC	r9, r9, #0x0
 	# Sub product of top 8 words and order
+	MOV	r12, sp
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	r0!, {r10, r11, r12}
+	LDM	r0!, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	r0!, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
 	LDM	r0!, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
@@ -4495,38 +4499,40 @@ sc_reduce:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
+	STM	r12!, {r10, r11, lr}
 	SUB	r0, r0, #0x10
-	SUB	sp, sp, #0x20
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -4535,37 +4541,39 @@ sc_reduce:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -4574,37 +4582,39 @@ sc_reduce:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -4613,24 +4623,26 @@ sc_reduce:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	# Subtract at 4 * 32
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	SUBS	r10, r10, r2
 	SBCS	r11, r11, r3
-	SBCS	r12, r12, r4
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	SBCS	r10, r10, r5
-	SBCS	r11, r11, r6
-	SBCS	r12, r12, r7
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r4
+	SBCS	r11, r11, r5
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r6
+	SBCS	r11, r11, r7
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	SBCS	r10, r10, r8
 	SBC	r11, r11, r9
-	STM	sp!, {r10, r11}
-	SUB	sp, sp, #0x24
+	STM	r12!, {r10, r11}
+	SUB	r12, r12, #0x24
 	ASR	lr, r11, #25
 	# Conditionally subtract order starting at bit 125
 	MOV	r1, #0xa0000000
@@ -4649,26 +4661,30 @@ sc_reduce:
 	AND	r4, r4, lr
 	AND	r5, r5, lr
 	AND	r9, r9, lr
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, r1
 	ADCS	r11, r11, r2
-	ADCS	r12, r12, r3
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	ADCS	r10, r10, r4
-	ADCS	r11, r11, r5
-	ADCS	r12, r12, #0x0
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r3
+	ADCS	r11, r11, r4
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r5
+	ADCS	r11, r11, #0x0
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADCS	r10, r10, #0x0
 	ADCS	r11, r11, #0x0
-	ADC	r12, r12, r9
-	STM	sp!, {r10, r11, r12}
-	SUB	sp, sp, #0x30
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10}
+	ADCS	r10, r10, #0x0
+	STM	r12!, {r10}
 	SUB	r0, r0, #0x10
+	MOV	r12, sp
 	# Load bits 252-376
-	ADD	sp, sp, #0x1c
-	LDM	sp, {r1, r2, r3, r4, r5}
+	ADD	r12, r12, #0x1c
+	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
 	ORR	r5, r5, r4, LSR #28
 	LSL	r4, r4, #4
@@ -4678,13 +4694,14 @@ sc_reduce:
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
 	BFC	r5, #29, #3
-	SUB	sp, sp, #0x1c
-	# Sub product of top 8 words and order
+	SUB	r12, r12, #0x1c
+	# Sub product of top 4 words and order
+	MOV	r0, sp
 	#   * -5cf5d3ed
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, lr, r2, r1
 	ADDS	r7, r7, lr
 	MOV	lr, #0x0
@@ -4698,13 +4715,13 @@ sc_reduce:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r9, lr, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -5812631b
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	r10, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r10, r2, r1
 	ADDS	r7, r7, r10
 	MOV	r10, #0x0
@@ -4718,13 +4735,13 @@ sc_reduce:
 	MOV	r10, #0x0
 	ADC	r10, r10, #0x0
 	UMLAL	r9, r10, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -a2f79cd7
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	r11, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r11, r2, r1
 	ADDS	r7, r7, r11
 	MOV	r11, #0x0
@@ -4738,13 +4755,13 @@ sc_reduce:
 	MOV	r11, #0x0
 	ADC	r11, r11, #0x0
 	UMLAL	r9, r11, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -14def9df
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	r12, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r12, r2, r1
 	ADDS	r7, r7, r12
 	MOV	r12, #0x0
@@ -4758,10 +4775,10 @@ sc_reduce:
 	MOV	r12, #0x0
 	ADC	r12, r12, #0x0
 	UMLAL	r9, r12, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	# Add overflows at 4 * 32
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	BFC	r9, #28, #4
 	ADDS	r6, r6, lr
 	ADCS	r7, r7, r10
@@ -4773,8 +4790,8 @@ sc_reduce:
 	SBCS	r8, r8, r4
 	SBCS	r9, r9, r5
 	SBC	r1, r1, r1
-	SUB	sp, sp, #0x10
-	LDM	sp, {r2, r3, r4, r5}
+	SUB	r0, r0, #0x10
+	LDM	r0, {r2, r3, r4, r5}
 	MOV	r10, #0xd3ed
 	MOVT	r10, #0x5cf5
 	MOV	r11, #0x631a
@@ -4798,10 +4815,11 @@ sc_reduce:
 	ADC	r9, r9, r1
 	BFC	r9, #28, #4
 	# Store result
+	LDR	r0, [sp, #52]
 	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
-	ADD	sp, sp, #0x34
+	ADD	sp, sp, #0x38
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 568
+	# Cycle Count = 588
 	.size	sc_reduce,.-sc_reduce
 #else
 	.text
@@ -4810,7 +4828,8 @@ sc_reduce:
 	.type	sc_reduce, %function
 sc_reduce:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	SUB	sp, sp, #0x34
+	SUB	sp, sp, #0x38
+	STR	r0, [sp, #52]
 	# Load bits 252-511
 	ADD	r0, r0, #0x1c
 	LDM	r0, {r1, r2, r3, r4, r5, r6, r7, r8, r9}
@@ -4856,96 +4875,107 @@ sc_reduce:
 	SBCS	r8, r8, #0x0
 	SBC	r9, r9, #0x0
 	# Sub product of top 8 words and order
+	MOV	r12, sp
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	r0!, {r10, r11, r12}
+	LDM	r0!, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	r0!, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
 	LDM	r0!, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	BFC	r11, #28, #4
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
+	STM	r12!, {r10, r11, lr}
 	SUB	r0, r0, #0x10
-	SUB	sp, sp, #0x20
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	# Subtract at 4 * 32
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	SUBS	r10, r10, r2
 	SBCS	r11, r11, r3
-	SBCS	r12, r12, r4
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	SBCS	r10, r10, r5
-	SBCS	r11, r11, r6
-	SBCS	r12, r12, r7
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r4
+	SBCS	r11, r11, r5
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r6
+	SBCS	r11, r11, r7
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	SBCS	r10, r10, r8
 	SBC	r11, r11, r9
-	STM	sp!, {r10, r11}
-	SUB	sp, sp, #0x24
+	STM	r12!, {r10, r11}
+	SUB	r12, r12, #0x24
 	ASR	lr, r11, #25
 	# Conditionally subtract order starting at bit 125
 	MOV	r1, #0xa0000000
@@ -4964,26 +4994,30 @@ sc_reduce:
 	AND	r4, r4, lr
 	AND	r5, r5, lr
 	AND	r9, r9, lr
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, r1
 	ADCS	r11, r11, r2
-	ADCS	r12, r12, r3
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	ADCS	r10, r10, r4
-	ADCS	r11, r11, r5
-	ADCS	r12, r12, #0x0
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r3
+	ADCS	r11, r11, r4
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r5
+	ADCS	r11, r11, #0x0
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADCS	r10, r10, #0x0
 	ADCS	r11, r11, #0x0
-	ADC	r12, r12, r9
-	STM	sp!, {r10, r11, r12}
-	SUB	sp, sp, #0x30
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10}
+	ADCS	r10, r10, #0x0
+	STM	r12!, {r10}
 	SUB	r0, r0, #0x10
+	MOV	r12, sp
 	# Load bits 252-376
-	ADD	sp, sp, #0x1c
-	LDM	sp, {r1, r2, r3, r4, r5}
+	ADD	r12, r12, #0x1c
+	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
 	ORR	r5, r5, r4, LSR #28
 	LSL	r4, r4, #4
@@ -4993,54 +5027,55 @@ sc_reduce:
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
 	BFC	r5, #29, #3
-	SUB	sp, sp, #0x1c
-	# Sub product of top 8 words and order
+	SUB	r12, r12, #0x1c
+	# Sub product of top 4 words and order
+	MOV	r0, sp
 	#   * -5cf5d3ed
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, lr, r2, r1
 	UMAAL	r7, lr, r3, r1
 	UMAAL	r8, lr, r4, r1
 	UMAAL	r9, lr, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -5812631b
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	r10, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r10, r2, r1
 	UMAAL	r7, r10, r3, r1
 	UMAAL	r8, r10, r4, r1
 	UMAAL	r9, r10, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -a2f79cd7
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	r11, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r11, r2, r1
 	UMAAL	r7, r11, r3, r1
 	UMAAL	r8, r11, r4, r1
 	UMAAL	r9, r11, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -14def9df
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	r12, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r12, r2, r1
 	UMAAL	r7, r12, r3, r1
 	UMAAL	r8, r12, r4, r1
 	UMAAL	r9, r12, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	# Add overflows at 4 * 32
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	BFC	r9, #28, #4
 	ADDS	r6, r6, lr
 	ADCS	r7, r7, r10
@@ -5052,8 +5087,8 @@ sc_reduce:
 	SBCS	r8, r8, r4
 	SBCS	r9, r9, r5
 	SBC	r1, r1, r1
-	SUB	sp, sp, #0x10
-	LDM	sp, {r2, r3, r4, r5}
+	SUB	r0, r0, #0x10
+	LDM	r0, {r2, r3, r4, r5}
 	MOV	r10, #0xd3ed
 	MOVT	r10, #0x5cf5
 	MOV	r11, #0x631a
@@ -5077,14 +5112,15 @@ sc_reduce:
 	ADC	r9, r9, r1
 	BFC	r9, #28, #4
 	# Store result
+	LDR	r0, [sp, #52]
 	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
-	ADD	sp, sp, #0x34
+	ADD	sp, sp, #0x38
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 482
+	# Cycle Count = 502
 	.size	sc_reduce,.-sc_reduce
 #endif /* WOLFSSL_SP_NO_UMAAL */
 #ifdef HAVE_ED25519_SIGN
-#ifndef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_SP_NO_UMAAL
 	.text
 	.align	4
 	.globl	sc_muladd
@@ -5497,34 +5533,37 @@ sc_muladd:
 	SBCS	r8, r8, #0x0
 	SBC	r9, r9, #0x0
 	# Sub product of top 8 words and order
+	MOV	r12, sp
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	r0!, {r10, r11, r12}
+	LDM	r0!, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	r0!, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
 	LDM	r0!, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
@@ -5535,38 +5574,40 @@ sc_muladd:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
+	STM	r12!, {r10, r11, lr}
 	SUB	r0, r0, #0x10
-	SUB	sp, sp, #0x20
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -5575,37 +5616,39 @@ sc_muladd:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -5614,37 +5657,39 @@ sc_muladd:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r3, r1
-	ADDS	r12, r12, lr
-	MOV	lr, #0x0
-	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r10, lr, r5, r1
+	UMLAL	r10, lr, r4, r1
 	ADDS	r11, r11, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r11, lr, r6, r1
-	ADDS	r12, r12, lr
+	UMLAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
-	UMLAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	UMLAL	r10, lr, r6, r1
+	ADDS	r11, r11, lr
+	MOV	lr, #0x0
+	ADC	lr, lr, #0x0
+	UMLAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, lr
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
@@ -5653,24 +5698,26 @@ sc_muladd:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	# Subtract at 4 * 32
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	SUBS	r10, r10, r2
 	SBCS	r11, r11, r3
-	SBCS	r12, r12, r4
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	SBCS	r10, r10, r5
-	SBCS	r11, r11, r6
-	SBCS	r12, r12, r7
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r4
+	SBCS	r11, r11, r5
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r6
+	SBCS	r11, r11, r7
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	SBCS	r10, r10, r8
 	SBC	r11, r11, r9
-	STM	sp!, {r10, r11}
-	SUB	sp, sp, #0x24
+	STM	r12!, {r10, r11}
+	SUB	r12, r12, #0x24
 	ASR	lr, r11, #25
 	# Conditionally subtract order starting at bit 125
 	MOV	r1, #0xa0000000
@@ -5689,26 +5736,30 @@ sc_muladd:
 	AND	r4, r4, lr
 	AND	r5, r5, lr
 	AND	r9, r9, lr
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, r1
 	ADCS	r11, r11, r2
-	ADCS	r12, r12, r3
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	ADCS	r10, r10, r4
-	ADCS	r11, r11, r5
-	ADCS	r12, r12, #0x0
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r3
+	ADCS	r11, r11, r4
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r5
+	ADCS	r11, r11, #0x0
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADCS	r10, r10, #0x0
 	ADCS	r11, r11, #0x0
-	ADC	r12, r12, r9
-	STM	sp!, {r10, r11, r12}
-	SUB	sp, sp, #0x30
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10}
+	ADCS	r10, r10, #0x0
+	STM	r12!, {r10}
 	SUB	r0, r0, #0x10
+	MOV	r12, sp
 	# Load bits 252-376
-	ADD	sp, sp, #0x1c
-	LDM	sp, {r1, r2, r3, r4, r5}
+	ADD	r12, r12, #0x1c
+	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
 	ORR	r5, r5, r4, LSR #28
 	LSL	r4, r4, #4
@@ -5718,13 +5769,14 @@ sc_muladd:
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
 	BFC	r5, #29, #3
-	SUB	sp, sp, #0x1c
-	# Sub product of top 8 words and order
+	SUB	r12, r12, #0x1c
+	# Sub product of top 4 words and order
+	MOV	r0, sp
 	#   * -5cf5d3ed
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, lr, r2, r1
 	ADDS	r7, r7, lr
 	MOV	lr, #0x0
@@ -5738,13 +5790,13 @@ sc_muladd:
 	MOV	lr, #0x0
 	ADC	lr, lr, #0x0
 	UMLAL	r9, lr, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -5812631b
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	r10, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r10, r2, r1
 	ADDS	r7, r7, r10
 	MOV	r10, #0x0
@@ -5758,13 +5810,13 @@ sc_muladd:
 	MOV	r10, #0x0
 	ADC	r10, r10, #0x0
 	UMLAL	r9, r10, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -a2f79cd7
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	r11, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r11, r2, r1
 	ADDS	r7, r7, r11
 	MOV	r11, #0x0
@@ -5778,13 +5830,13 @@ sc_muladd:
 	MOV	r11, #0x0
 	ADC	r11, r11, #0x0
 	UMLAL	r9, r11, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -14def9df
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	r12, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r12, r2, r1
 	ADDS	r7, r7, r12
 	MOV	r12, #0x0
@@ -5798,10 +5850,10 @@ sc_muladd:
 	MOV	r12, #0x0
 	ADC	r12, r12, #0x0
 	UMLAL	r9, r12, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	# Add overflows at 4 * 32
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	BFC	r9, #28, #4
 	ADDS	r6, r6, lr
 	ADCS	r7, r7, r10
@@ -5813,8 +5865,8 @@ sc_muladd:
 	SBCS	r8, r8, r4
 	SBCS	r9, r9, r5
 	SBC	r1, r1, r1
-	SUB	sp, sp, #0x10
-	LDM	sp, {r2, r3, r4, r5}
+	SUB	r0, r0, #0x10
+	LDM	r0, {r2, r3, r4, r5}
 	MOV	r10, #0xd3ed
 	MOVT	r10, #0x5cf5
 	MOV	r11, #0x631a
@@ -5849,7 +5901,7 @@ sc_muladd:
 	STR	r9, [r0, #28]
 	ADD	sp, sp, #0x50
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 978
+	# Cycle Count = 994
 	.size	sc_muladd,.-sc_muladd
 #else
 	.text
@@ -6028,96 +6080,107 @@ sc_muladd:
 	SBCS	r8, r8, #0x0
 	SBC	r9, r9, #0x0
 	# Sub product of top 8 words and order
+	MOV	r12, sp
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	r0!, {r10, r11, r12}
+	LDM	r0!, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	r0!, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r0!, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
 	LDM	r0!, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	BFC	r11, #28, #4
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
+	STM	r12!, {r10, r11, lr}
 	SUB	r0, r0, #0x10
-	SUB	sp, sp, #0x20
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	lr, #0x0
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	UMLAL	r10, lr, r2, r1
 	UMAAL	r11, lr, r3, r1
-	UMAAL	r12, lr, r4, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	UMAAL	r10, lr, r5, r1
-	UMAAL	r11, lr, r6, r1
-	UMAAL	r12, lr, r7, r1
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r4, r1
+	UMAAL	r11, lr, r5, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	UMAAL	r10, lr, r6, r1
+	UMAAL	r11, lr, r7, r1
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	UMAAL	r10, lr, r8, r1
 	UMAAL	r11, lr, r9, r1
-	STM	sp!, {r10, r11, lr}
-	SUB	sp, sp, #0x20
+	STM	r12!, {r10, r11, lr}
+	SUB	r12, r12, #0x20
 	# Subtract at 4 * 32
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	SUBS	r10, r10, r2
 	SBCS	r11, r11, r3
-	SBCS	r12, r12, r4
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	SBCS	r10, r10, r5
-	SBCS	r11, r11, r6
-	SBCS	r12, r12, r7
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r4
+	SBCS	r11, r11, r5
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	SBCS	r10, r10, r6
+	SBCS	r11, r11, r7
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	SBCS	r10, r10, r8
 	SBC	r11, r11, r9
-	STM	sp!, {r10, r11}
-	SUB	sp, sp, #0x24
+	STM	r12!, {r10, r11}
+	SUB	r12, r12, #0x24
 	ASR	lr, r11, #25
 	# Conditionally subtract order starting at bit 125
 	MOV	r1, #0xa0000000
@@ -6136,26 +6199,30 @@ sc_muladd:
 	AND	r4, r4, lr
 	AND	r5, r5, lr
 	AND	r9, r9, lr
-	LDM	sp, {r10, r11, r12}
+	LDM	r12, {r10, r11}
 	ADDS	r10, r10, r1
 	ADCS	r11, r11, r2
-	ADCS	r12, r12, r3
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
-	ADCS	r10, r10, r4
-	ADCS	r11, r11, r5
-	ADCS	r12, r12, #0x0
-	STM	sp!, {r10, r11, r12}
-	LDM	sp, {r10, r11, r12}
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r3
+	ADCS	r11, r11, r4
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
+	ADCS	r10, r10, r5
+	ADCS	r11, r11, #0x0
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10, r11}
 	ADCS	r10, r10, #0x0
 	ADCS	r11, r11, #0x0
-	ADC	r12, r12, r9
-	STM	sp!, {r10, r11, r12}
-	SUB	sp, sp, #0x30
+	STM	r12!, {r10, r11}
+	LDM	r12, {r10}
+	ADCS	r10, r10, #0x0
+	STM	r12!, {r10}
 	SUB	r0, r0, #0x10
+	MOV	r12, sp
 	# Load bits 252-376
-	ADD	sp, sp, #0x1c
-	LDM	sp, {r1, r2, r3, r4, r5}
+	ADD	r12, r12, #0x1c
+	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
 	ORR	r5, r5, r4, LSR #28
 	LSL	r4, r4, #4
@@ -6165,54 +6232,55 @@ sc_muladd:
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
 	BFC	r5, #29, #3
-	SUB	sp, sp, #0x1c
-	# Sub product of top 8 words and order
+	SUB	r12, r12, #0x1c
+	# Sub product of top 4 words and order
+	MOV	r0, sp
 	#   * -5cf5d3ed
 	MOV	r1, #0x2c13
 	MOVT	r1, #0xa30a
 	MOV	lr, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, lr, r2, r1
 	UMAAL	r7, lr, r3, r1
 	UMAAL	r8, lr, r4, r1
 	UMAAL	r9, lr, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -5812631b
 	MOV	r1, #0x9ce5
 	MOVT	r1, #0xa7ed
 	MOV	r10, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r10, r2, r1
 	UMAAL	r7, r10, r3, r1
 	UMAAL	r8, r10, r4, r1
 	UMAAL	r9, r10, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -a2f79cd7
 	MOV	r1, #0x6329
 	MOVT	r1, #0x5d08
 	MOV	r11, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r11, r2, r1
 	UMAAL	r7, r11, r3, r1
 	UMAAL	r8, r11, r4, r1
 	UMAAL	r9, r11, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	#   * -14def9df
 	MOV	r1, #0x621
 	MOVT	r1, #0xeb21
 	MOV	r12, #0x0
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	UMLAL	r6, r12, r2, r1
 	UMAAL	r7, r12, r3, r1
 	UMAAL	r8, r12, r4, r1
 	UMAAL	r9, r12, r5, r1
-	STM	sp, {r6, r7, r8, r9}
-	ADD	sp, sp, #0x4
+	STM	r0, {r6, r7, r8, r9}
+	ADD	r0, r0, #0x4
 	# Add overflows at 4 * 32
-	LDM	sp, {r6, r7, r8, r9}
+	LDM	r0, {r6, r7, r8, r9}
 	BFC	r9, #28, #4
 	ADDS	r6, r6, lr
 	ADCS	r7, r7, r10
@@ -6224,8 +6292,8 @@ sc_muladd:
 	SBCS	r8, r8, r4
 	SBCS	r9, r9, r5
 	SBC	r1, r1, r1
-	SUB	sp, sp, #0x10
-	LDM	sp, {r2, r3, r4, r5}
+	SUB	r0, r0, #0x10
+	LDM	r0, {r2, r3, r4, r5}
 	MOV	r10, #0xd3ed
 	MOVT	r10, #0x5cf5
 	MOV	r11, #0x631a
@@ -6260,7 +6328,7 @@ sc_muladd:
 	STR	r9, [r0, #28]
 	ADD	sp, sp, #0x50
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 736
+	# Cycle Count = 752
 	.size	sc_muladd,.-sc_muladd
 #endif /* WOLFSSL_SP_NO_UMAAL */
 #endif /* HAVE_ED25519_SIGN */
