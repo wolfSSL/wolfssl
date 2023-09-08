@@ -169,7 +169,7 @@ wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void)
 int wolfSSL_Debugging_ON(void)
 {
 #ifdef DEBUG_WOLFSSL
-    loggingEnabled = 0;
+    loggingEnabled = 1;
 #if defined(WOLFSSL_APACHE_MYNEWT)
     log_register("wolfcrypt", &mynewt_log, &log_console_handler, NULL, LOG_SYSLEVEL);
 #endif /* WOLFSSL_APACHE_MYNEWT */
