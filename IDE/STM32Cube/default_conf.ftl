@@ -249,7 +249,6 @@ extern ${variable.value} ${variable.name};
     /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
     /* Enable for SP cache resistance (not usually enabled for embedded micros) */
-    //#define WOLFSSL_SP_CACHE_RESISTANT
 
     #if WOLF_CONF_MATH == 4 || WOLF_CONF_MATH == 5
         #define WOLFSSL_SP_ASM /* required if using the ASM versions */
