@@ -407,7 +407,7 @@ libFuzzer
 XXX-fips-test
 
 # ASYNC
-async
+/wolfAsyncCrypt
 
 # Generated user_settings_asm.h.
 user_settings_asm.h
