@@ -8802,12 +8802,7 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return ret;
         }
 
-#ifdef HAVE_PQC
-        /* For post-quantum groups, do this in TLSX_PopulateExtensions(). */
-        if (!WOLFSSL_NAMED_GROUP_IS_PQC(group))
-#endif
-            ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL, &ssl->extensions);
-
+        ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL, &ssl->extensions);
         if (ret == 0)
             ssl->session->namedGroup = ssl->namedGroup = group;
     }
@@ -12968,19 +12963,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = kse->group;
             }
             if (namedGroup != WOLFSSL_NAMED_GROUP_INVALID) {
-#ifdef HAVE_PQC
-                /* For KEMs, the key share has already been generated, but not
-                 * if we are resuming. */
-                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup)
-#ifdef HAVE_SESSION_TICKET
-                    || ssl->options.resuming
-#endif /* HAVE_SESSION_TICKET */
-                   )
-#endif /* HAVE_PQC */
-                {
-                    ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL,
-                            &ssl->extensions);
-                }
+                ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL,
+                        &ssl->extensions);
                 if (ret != 0)
                     return ret;
             }
