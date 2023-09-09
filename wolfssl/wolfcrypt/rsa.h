@@ -206,6 +206,7 @@ struct RsaKey {
 #endif
 #ifdef WOLF_CRYPTO_CB
     int   devId;
+    int keyId;
 #endif
 #if defined(HAVE_PKCS11)
     byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */
