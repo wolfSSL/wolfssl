@@ -26,6 +26,7 @@
 
 /* wolfSSL  */
 #include <wolfssl/wolfcrypt/settings.h> /* references user_settings.h */
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/types.h>    /* for MATH_INT_T */
 
 /* Espressif */
@@ -33,12 +34,28 @@
 #include <esp_types.h>
 #include <esp_log.h>
 
-/* exit codes to be used in tfm.c, sp_int.c, integer.c, etc. */
-/* TODO what numbers do we really want to use? */
-#define MP_HW_ERROR    (-106) /* hardware error, consider SW fallback  */
-#define MP_HW_BUSY     (-107) /* assigned -7 to match SP_HW_BUSY       */
-#define MP_HW_FALLBACK (-108) /* signal to caller to fall back to SW   */
-#define MP_HW_VALIDATION_ACTIVE (-109) /* optional HW validation active */
+/* exit codes to be used in tfm.c, sp_int.c, integer.c, etc.
+ *
+ * see wolfssl/wolfcrypt/error-crypt.h
+ *
+ * WC_HW_E - generic hardware failure. Consider falling back to SW.
+ * WC_HW_WAIT_E - waited too long for HW, fall back to SW
+ */
+
+/* exit code only used in Espressif port */
+
+/* MP_HW_FALLBACK: signal to caller to fall back to SW for math:
+ *   algorithm not supported in SW
+ *   known state needing only SW, (e.g. ctx copy)
+ *   any other reason to force SW */
+#define MP_HW_FALLBACK (-108)
+
+/* MP_HW_VALIDATION_ACTIVE this is informative only:
+ * typically also means "MP_HW_FALLBACK": fall back to SW.
+ *  optional HW validation active, so compute in SW to compare.
+ *  fall back to SW, typically only used during debugging
+ */
+#define MP_HW_VALIDATION_ACTIVE (-109)
 
 /*
 *******************************************************************************
@@ -228,7 +245,7 @@ extern "C"
     ******************************************************************************
     */
 
-    int esp_ShowExtendedSystemInfo(void);
+    WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo(void);
 
     /* Compare MATH_INT_T A to MATH_INT_T B
      * During debug, the strings name_A and name_B can help
@@ -247,13 +264,13 @@ extern "C"
     WOLFSSL_LOCAL int esp_show_mp(char* name_X, MATH_INT_T* X);
 
     /* To use a Mutex, if must first be initialized */
-    int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex);
+    WOLFSSL_LOCAL int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex);
 
     /* When the HW is in use, the mutex will be locked. */
-    int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time);
+    WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time);
 
     /* Release the mutex to indicate the HW is no longer in use. */
-    int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
+    WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
 #ifndef NO_AES
 
@@ -272,17 +289,17 @@ extern "C"
     } ESP32_AESPROCESS;
 
     struct Aes; /* see aes.h */
-    int wc_esp32AesSupportedKeyLen(struct Aes* aes);
-    int wc_esp32AesCbcEncrypt(struct Aes* aes,
+    WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLen(struct Aes* aes);
+    WOLFSSL_LOCAL int wc_esp32AesCbcEncrypt(struct Aes* aes,
                               byte* out,
                               const byte* in,
                               word32 sz);
-    int wc_esp32AesCbcDecrypt(struct Aes* aes,
+    WOLFSSL_LOCAL int wc_esp32AesCbcDecrypt(struct Aes* aes,
                               byte* out,
                               const byte* in,
                               word32 sz);
-    int wc_esp32AesEncrypt(struct Aes *aes, const byte* in, byte* out);
-    int wc_esp32AesDecrypt(struct Aes *aes, const byte* in, byte* out);
+    WOLFSSL_LOCAL int wc_esp32AesEncrypt(struct Aes *aes, const byte* in, byte* out);
+    WOLFSSL_LOCAL int wc_esp32AesDecrypt(struct Aes *aes, const byte* in, byte* out);
 
 #endif /* ! NO_AES */
 
@@ -370,32 +387,32 @@ extern "C"
         byte isfirstblock : 1; /* 1 bit only for true / false */
     } WC_ESP32SHA;
 
-    int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type);
-    int esp_sha_init_ctx(WC_ESP32SHA* ctx);
-    int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);
-    int esp_sha_hw_unlock(WC_ESP32SHA* ctx);
+    WOLFSSL_LOCAL int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type);
+    WOLFSSL_LOCAL int esp_sha_init_ctx(WC_ESP32SHA* ctx);
+    WOLFSSL_LOCAL int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);
+    WOLFSSL_LOCAL int esp_sha_hw_unlock(WC_ESP32SHA* ctx);
 
     struct wc_Sha;
-    int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst);
-    int esp_sha_digest_process(struct wc_Sha* sha, byte blockprocess);
-    int esp_sha_process(struct wc_Sha* sha, const byte* data);
+    WOLFSSL_LOCAL int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst);
+    WOLFSSL_LOCAL int esp_sha_digest_process(struct wc_Sha* sha, byte blockprocess);
+    WOLFSSL_LOCAL int esp_sha_process(struct wc_Sha* sha, const byte* data);
 
     #ifndef NO_SHA256
     struct wc_Sha256;
-    int esp_sha224_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst);
-    int esp_sha256_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst);
-    int esp_sha256_digest_process(struct wc_Sha256* sha, byte blockprocess);
-    int esp_sha256_process(struct wc_Sha256* sha, const byte* data);
-    int esp32_Transform_Sha256_demo(struct wc_Sha256* sha256, const byte* data);
+    WOLFSSL_LOCAL int esp_sha224_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst);
+    WOLFSSL_LOCAL int esp_sha256_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst);
+    WOLFSSL_LOCAL int esp_sha256_digest_process(struct wc_Sha256* sha, byte blockprocess);
+    WOLFSSL_LOCAL int esp_sha256_process(struct wc_Sha256* sha, const byte* data);
+    WOLFSSL_LOCAL int esp32_Transform_Sha256_demo(struct wc_Sha256* sha256, const byte* data);
 #endif
 
     /* TODO do we really call esp_sha512_process for WOLFSSL_SHA384 ? */
     #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     struct wc_Sha512;
-    int esp_sha384_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst);
-    int esp_sha512_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst);
-    int esp_sha512_process(struct wc_Sha512* sha);
-    int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc);
+    WOLFSSL_LOCAL int esp_sha384_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst);
+    WOLFSSL_LOCAL int esp_sha512_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst);
+    WOLFSSL_LOCAL int esp_sha512_process(struct wc_Sha512* sha);
+    WOLFSSL_LOCAL int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc);
 #endif
 
 #endif /* NO_SHA && etc */
@@ -418,7 +435,7 @@ extern "C"
 
     /* Z = (X ^ Y) mod M   : Espressif generic notation    */
     /* Y = (G ^ X) mod P   : wolfSSL DH reference notation */
-    int esp_mp_exptmod(MATH_INT_T* X,    /* G  */
+    WOLFSSL_LOCAL int esp_mp_exptmod(MATH_INT_T* X,    /* G  */
                        MATH_INT_T* Y,    /* X  */
                        MATH_INT_T* M,    /* P  */
                        MATH_INT_T* Z); /* Y  */
@@ -429,7 +446,7 @@ extern "C"
 
     #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
         /* Z = X * Y */
-    int esp_mp_mul(MATH_INT_T* X,
+    WOLFSSL_LOCAL int esp_mp_mul(MATH_INT_T* X,
                    MATH_INT_T* Y,
                    MATH_INT_T* Z);
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
@@ -439,7 +456,7 @@ extern "C"
 
 #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
     /* Z = X * Y (mod M) */
-    int esp_mp_mulmod(MATH_INT_T* X,
+    WOLFSSL_LOCAL int esp_mp_mulmod(MATH_INT_T* X,
                       MATH_INT_T* Y,
                       MATH_INT_T* M,
                       MATH_INT_T* Z);
@@ -451,7 +468,7 @@ extern "C"
 #endif /* !NO_RSA || HAVE_ECC*/
 
 
-    int esp_hw_validation_active(void);
+    WOLFSSL_LOCAL int esp_hw_validation_active(void);
 
 #ifdef WOLFSSL_HW_METRICS
     int esp_hw_show_mp_metrics(void);

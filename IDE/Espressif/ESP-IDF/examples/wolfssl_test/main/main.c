@@ -185,8 +185,6 @@ void app_main(void)
     #endif
 #endif
 
-
-
 #if defined (WOLFSSL_USE_TIME_HELPER)
     set_time();
 #endif
@@ -224,9 +222,23 @@ void app_main(void)
         /* see wolfssl/wolfcrypt/error-crypt.h */
     }
 
-    /* after the test, we'll just wait */
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+
+        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                                        - (uxTaskGetStackHighWaterMark(NULL) / 4));
+#endif
+
+    ESP_LOGI(TAG, "\n\nDone!\n\n"
+                  "If running from idf.py monitor, press twice: Ctrl+]");
+
+    /* done */
     while (1) {
-        /* nothing */
-    }
+#if defined(SINGLE_THREADED)
+        while (1);
+#else
+        vTaskDelay(60000);
+#endif
+    } /* done whle */
 #endif
 }

@@ -27,11 +27,19 @@ Example build on WSL, assuming `git clone` from `c:\workspace`:
 # switch to test example
 cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_test
 
-# Pick ESP-IDF install directory, this one for v4.4.2 in VisualGDB
-. /mnt/c/SysGCC/esp32/esp-idf/v4.4.2/export.sh
+# Pick ESP-IDF install directory, this one for v5.1 in VisualGDB
+. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
 
-# build and flash, in this example to COM20
-idf.py build flash -p /dev/ttyS20 -b 921600 monitor
+# set target chipset
+idf.py set-target esp32s3
+
+# erase
+idf.py erase-flash -p /dev/ttyS24 -b 115200
+
+# start with a low upload speed, then increase as found operational
+idf.py 
+# build and flash, in this example to COM24
+idf.py build flash -p /dev/ttyS24 -b 115200 monitor
 ```
 
 ## Example Output
