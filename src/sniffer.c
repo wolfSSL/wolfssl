@@ -7559,7 +7559,7 @@ static int addKeyLogSnifferServerHelper(const char* address,
     }
 
     /* Tag the new or existing server as requiring keylog support to
-     * decrypt, otherwise it won't be useable */
+     * decrypt, otherwise it won't be usable */
     sniffer->useKeyLogFile = 1;
 
     return 0;
