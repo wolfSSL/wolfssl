@@ -5495,7 +5495,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         /* TODO: Not implemented */
     #elif defined(HAVE_INTEL_QA)
         /* Implemented in ecc_make_pub_ex for the pub calc */
-    #else
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_MAKE)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
             sw->eccMake.rng = rng;

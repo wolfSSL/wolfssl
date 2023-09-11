@@ -2745,7 +2745,10 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+    (defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA) || \
+     defined(WOLFSSL_ASYNC_CRYPT_SW))
+#define WC_ENABLE_ASYNC_RSA_INTERNAL /* internal marker */
 static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -2767,7 +2770,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT_SW */
 
-    switch(type) {
+    switch (type) {
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     case RSA_PRIVATE_DECRYPT:
     case RSA_PRIVATE_ENCRYPT:
@@ -2789,7 +2792,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
                                 &key->u.raw,
                                 out, outLen);
         #endif
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -2807,7 +2810,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
         ret = IntelQaRsaPublic(&key->asyncDev, in, inLen,
                                &key->e.raw, &key->n.raw,
                                out, outLen);
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -2884,7 +2887,11 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
             key->dataLen = *outSz;
 
             ret = wc_RsaFunction(in, inLen, out, &key->dataLen, type, key, rng);
-            if (ret >= 0 || ret == WC_PENDING_E) {
+            if (ret >= 0
+            #ifdef WC_ENABLE_ASYNC_RSA_INTERNAL
+                || ret == WC_PENDING_E
+            #endif
+            ) {
                 key->state = (type == RSA_PRIVATE_ENCRYPT ||
                     type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_RES:
                                                   RSA_STATE_DECRYPT_RES;
@@ -3112,7 +3119,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
         * !NO_RSA_BOUNDS_CHECK */
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+#ifdef WC_ENABLE_ASYNC_RSA_INTERNAL
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
         ret = wc_RsaFunctionAsync(in, inLen, out, outLen, type, key, rng);
@@ -3299,7 +3306,11 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key,
                              rng);
 
-        if (ret >= 0 || ret == WC_PENDING_E) {
+        if (ret >= 0
+        #ifdef WC_ENABLE_ASYNC_RSA_INTERNAL
+             || ret == WC_PENDING_E
+        #endif
+        ) {
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
@@ -3480,7 +3491,11 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                                               rng, pad_type != WC_RSA_OAEP_PAD);
 #endif
 
-        if (ret >= 0 || ret == WC_PENDING_E) {
+        if (ret >= 0
+        #ifdef WC_ENABLE_ASYNC_RSA_INTERNAL
+            || ret == WC_PENDING_E
+        #endif
+        ) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
         }
         if (ret < 0) {
@@ -4726,7 +4741,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+#if defined(WC_ENABLE_ASYNC_RSA_INTERNAL) && \
     defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
     #ifdef HAVE_CAVIUM
@@ -4734,7 +4749,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #elif defined(HAVE_INTEL_QA)
         err = IntelQaRsaKeyGen(&key->asyncDev, key, size, e, rng);
         goto out;
-    #else
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_RSA_MAKE)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
             sw->rsaMake.rng = rng;
@@ -4744,6 +4759,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             err = WC_PENDING_E;
             goto out;
         }
+    #else
+        #error "Not implemented"
     #endif
     }
 #endif
