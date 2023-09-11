@@ -65242,8 +65242,7 @@ static int test_dtls13_frag_ch_pq(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_MTU) && defined(WOLFSSL_DTLS_CH_FRAG) \
-    && defined(HAVE_LIBOQS)
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(HAVE_LIBOQS)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -65503,6 +65502,45 @@ static int test_dtls_empty_keyshare_with_cookie(void)
 
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_LIBOQS)
+static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    int group = WOLFSSL_KYBER_LEVEL5;
+    AssertIntEQ(wolfSSL_CTX_set_groups(ctx, &group, 1), WOLFSSL_SUCCESS);
+}
+
+static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
+{
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
+}
+#endif
+
+static int test_tls13_pq_groups(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_LIBOQS)
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    func_cb_client.method = wolfTLSv1_3_client_method;
+    func_cb_server.method = wolfTLSv1_3_server_method;
+    func_cb_client.ctx_ready = test_tls13_pq_groups_ctx_ready;
+    func_cb_client.on_result = test_tls13_pq_groups_on_result;
+    func_cb_server.on_result = test_tls13_pq_groups_on_result;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -66779,6 +66817,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_frag_ch),
     TEST_DECL(test_dtls13_frag_ch_pq),
     TEST_DECL(test_dtls_empty_keyshare_with_cookie),
+    TEST_DECL(test_tls13_pq_groups),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
