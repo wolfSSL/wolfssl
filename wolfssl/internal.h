@@ -4730,7 +4730,7 @@ struct Options {
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
 #ifdef WOLFSSL_DTLS_CH_FRAG
-    word16            dtls13ChFrag:1;                                          
+    word16            dtls13ChFrag:1;
 #endif
 #endif
 #ifdef WOLFSSL_TLS13
@@ -5421,13 +5421,13 @@ struct WOLFSSL {
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-    ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
-                                        *  ClientHello that passed basic tests */
-    void*             chGoodCtx;       /*  user ClientHello cb context  */
+    ClientHelloGoodCb chGoodCb;        /* notify user we parsed a verified
+                                        * ClientHello that passed basic tests */
+    void*             chGoodCtx;       /* user ClientHello cb context  */
 #endif
 #ifndef NO_HANDSHAKE_DONE_CB
-    HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
-    void*           hsDoneCtx;         /*  user handshake cb context  */
+    HandShakeDoneCb hsDoneCb;          /* notify user handshake done */
+    void*           hsDoneCtx;         /* user handshake cb context  */
 #endif
 #ifdef WOLFSSL_ASYNC_IO
 #ifdef WOLFSSL_ASYNC_CRYPT

@@ -65388,10 +65388,14 @@ static int test_dtls_frag_ch(void)
     ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, DUMMY_MTU), WOLFSSL_SUCCESS);
 
     /* Add in some key shares to make the CH long */
-    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP384R1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP521R1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP256R1),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP384R1),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP521R1),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_2048),
+            WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
 
@@ -65413,16 +65417,16 @@ static int test_dtls_frag_ch(void)
     ExpectIntEQ(test_ctx.c_len, 0);
 
     /* CH1 */
-    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);    
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
     /* Count records. Expect 1 unfragmented CH */
     ExpectIntEQ(test_dtls_frag_ch_count_records(test_ctx.s_buff,
             test_ctx.s_len), 1);
     /* HRR */
-    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);    
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
     /* CH2 */
-    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);    
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
     /* Count records. Expect fragmented CH */
     ExpectIntGT(test_dtls_frag_ch_count_records(test_ctx.s_buff,

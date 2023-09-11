@@ -3016,7 +3016,8 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13) && \
     !defined(WOLFSSL_DTLS_CH_FRAG)
-#warning "Using DTLS 1.3 + pqc without WOLFSSL_DTLS_CH_FRAG will probably fail. Use --enable-dtls-frag-ch to enable it."
+#warning "Using DTLS 1.3 + pqc without WOLFSSL_DTLS_CH_FRAG will probably" \
+         "fail.Use --enable-dtls-frag-ch to enable it."
 #endif
 #if !defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS_CH_FRAG)
 #error "WOLFSSL_DTLS_CH_FRAG only works with DTLS 1.3"
