@@ -2473,7 +2473,6 @@ extern void uITRON4_free(void *p) ;
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
-        !defined(WOLF_CRYPTO_CB) && !defined(HAVE_PK_CALLBACKS) && \
         !defined(WOLFSSL_ASYNC_CRYPT_SW)
         #error No async backend defined with WOLFSSL_ASYNC_CRYPT!
     #endif

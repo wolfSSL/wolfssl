@@ -1433,7 +1433,7 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 #elif defined(HAVE_CAVIUM)
     /* TODO: Not implemented - use software for now */
 
-#elif defined(WOLFSSL_ASYNC_CRYPT_SW)
+#else /* WOLFSSL_ASYNC_CRYPT_SW */
     if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_DH_GEN)) {
         WC_ASYNC_SW* sw = &key->asyncDev.sw;
         sw->dhGen.key = key;
@@ -2207,7 +2207,7 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
 #elif defined(HAVE_CAVIUM)
     /* TODO: Not implemented - use software for now */
 
-#elif defined(WOLFSSL_ASYNC_CRYPT_SW)
+#else /* WOLFSSL_ASYNC_CRYPT_SW */
     if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_DH_AGREE)) {
         WC_ASYNC_SW* sw = &key->asyncDev.sw;
         sw->dhAgree.key = key;
