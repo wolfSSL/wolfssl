@@ -34625,6 +34625,7 @@ static void keyLog_callback(const WOLFSSL* ssl, const char* line )
     fp = XFOPEN("./MyKeyLog.txt", "a");
     XFWRITE( line, 1, strlen(line),fp);
     XFWRITE( (void*)&lf,1,1,fp);
+    XFFLUSH(fp);
     XFCLOSE(fp);
 
 }
