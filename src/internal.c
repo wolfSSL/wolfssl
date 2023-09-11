@@ -17040,8 +17040,23 @@ static int _DtlsUpdateWindow(WOLFSSL* ssl)
             next_hi, next_lo, window);
 }
 
+static WC_INLINE int DtlsShouldUpdateWindow(int ret)
+{
+    switch (ret) {
+        case 0:
+#ifdef WOLFSSL_ASYNC_CRYPT
+        case WC_PENDING_E:
+#endif
+        case APP_DATA_READY:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 #ifdef WOLFSSL_DTLS13
-static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
+
+static int Dtls13UpdateWindow(WOLFSSL* ssl)
 {
     w64wrapper nextSeq, seq;
     w64wrapper diff64;
@@ -17103,6 +17118,14 @@ static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
     e->nextPeerSeqNumber = seq;
 
     return 0;
+}
+
+static WC_INLINE int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl)
+{
+    int ret = Dtls13UpdateWindow(ssl);
+    if (ret != 0)
+        return ret;
+    return Dtls13RecordRecvd(ssl);
 }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -20805,7 +20828,8 @@ default:
                                 ssl->buffers.inputBuffer.buffer,
                                 &ssl->buffers.inputBuffer.idx,
                                 ssl->buffers.inputBuffer.length);
-                            if (ret == 0 && ssl->options.dtlsStateful) {
+                            if (DtlsShouldUpdateWindow(ret) &&
+                                    ssl->options.dtlsStateful) {
                                 if (IsDtlsNotSctpMode(ssl))
                                     _DtlsUpdateWindow(ssl);
                                 /* Reset timeout as we have received a valid
@@ -20826,16 +20850,13 @@ default:
                                 ssl->buffers.inputBuffer.buffer,
                                 &ssl->buffers.inputBuffer.idx,
                                 ssl->buffers.inputBuffer.length);
-                            if (ret == 0 && ssl->options.dtlsStateful) {
-                                ret = Dtls13UpdateWindow(ssl);
-                                if (ret != 0) {
-                                    WOLFSSL_ERROR(ret);
-                                    return ret;
-                                }
-                                ret = Dtls13RecordRecvd(ssl);
-                                if (ret != 0) {
-                                    WOLFSSL_ERROR(ret);
-                                    return ret;
+                            if (DtlsShouldUpdateWindow(ret) &&
+                                    ssl->options.dtlsStateful) {
+                                int updateRet =
+                                        Dtls13UpdateWindowRecordRecvd(ssl);
+                                if (updateRet != 0) {
+                                    WOLFSSL_ERROR(updateRet);
+                                    return updateRet;
                                 }
                             }
 #ifdef WOLFSSL_EARLY_DATA
@@ -20960,12 +20981,7 @@ default:
                         }
 #ifdef WOLFSSL_DTLS13
                         if (ssl->options.dtls) {
-                            ret = Dtls13UpdateWindow(ssl);
-                            if (ret != 0) {
-                                WOLFSSL_ERROR(ret);
-                                return ret;
-                            }
-                            ret = Dtls13RecordRecvd(ssl);
+                            ret = Dtls13UpdateWindowRecordRecvd(ssl);
                             if (ret != 0) {
                                 WOLFSSL_ERROR(ret);
                                 return ret;
@@ -21126,16 +21142,10 @@ default:
                             ssl->buffers.inputBuffer.buffer,
                             &ssl->buffers.inputBuffer.idx, NO_SNIFF);
 #ifdef WOLFSSL_DTLS
-                    if (ssl->options.dtls &&
-                            (ret == 0 || ret == APP_DATA_READY)) {
+                    if (ssl->options.dtls && DtlsShouldUpdateWindow(ret)) {
 #ifdef WOLFSSL_DTLS13
                         if (IsAtLeastTLSv1_3(ssl->version)) {
-                            int updateRet = Dtls13UpdateWindow(ssl);
-                            if (updateRet != 0) {
-                                WOLFSSL_ERROR(updateRet);
-                                return updateRet;
-                            }
-                            updateRet = Dtls13RecordRecvd(ssl);
+                            int updateRet = Dtls13UpdateWindowRecordRecvd(ssl);
                             if (updateRet != 0) {
                                 WOLFSSL_ERROR(updateRet);
                                 return updateRet;
@@ -21180,12 +21190,7 @@ default:
                     if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS13
                         if (IsAtLeastTLSv1_3(ssl->version)) {
-                            ret = Dtls13UpdateWindow(ssl);
-                            if (ret != 0) {
-                                WOLFSSL_ERROR(ret);
-                                return ret;
-                            }
-                            ret = Dtls13RecordRecvd(ssl);
+                            ret = Dtls13UpdateWindowRecordRecvd(ssl);
                             if (ret != 0) {
                                 WOLFSSL_ERROR(ret);
                                 return ret;
@@ -21211,18 +21216,15 @@ default:
                                              ssl->keys.padSz, &processedSize);
                     ssl->buffers.inputBuffer.idx += processedSize;
                     ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                    if (DtlsShouldUpdateWindow(ret)) {
+                        int updateRet = Dtls13UpdateWindowRecordRecvd(ssl);
+                        if (updateRet != 0) {
+                            WOLFSSL_ERROR(updateRet);
+                            return updateRet;
+                        }
+                    }
                     if (ret != 0)
                         return ret;
-                    ret = Dtls13UpdateWindow(ssl);
-                    if (ret != 0) {
-                        WOLFSSL_ERROR(ret);
-                        return ret;
-                    }
-                    ret = Dtls13RecordRecvd(ssl);
-                    if (ret != 0) {
-                        WOLFSSL_ERROR(ret);
-                        return ret;
-                    }
                     break;
                 }
                 FALL_THROUGH;

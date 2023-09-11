@@ -2404,7 +2404,11 @@ static int Dtls13WriteAckMessage(WOLFSSL* ssl,
     c16toa(msgSz, ackMessage);
     ackMessage += OPAQUE16_LEN;
 
+    WOLFSSL_MSG("write ack records");
+
     while (recordNumberList != NULL) {
+        WOLFSSL_MSG_EX("epoch %d seq %d", recordNumberList->epoch,
+                recordNumberList->seq);
         c64toa(&recordNumberList->epoch, ackMessage);
         ackMessage += OPAQUE64_LEN;
         c64toa(&recordNumberList->seq, ackMessage);
@@ -2596,10 +2600,13 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     if (length % (DTLS13_RN_SIZE) != 0)
         return PARSE_ERROR;
 
+    WOLFSSL_MSG("read ack records");
+
     ackMessage = input + OPAQUE16_LEN;
     for (i = 0; i < length; i += DTLS13_RN_SIZE) {
         ato64(ackMessage + i, &epoch);
         ato64(ackMessage + i + OPAQUE64_LEN, &seq);
+        WOLFSSL_MSG_EX("epoch %d seq %d", epoch, seq);
         Dtls13RtxRemoveRecord(ssl, epoch, seq);
     }
 
@@ -2670,14 +2677,13 @@ int SendDtls13Ack(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
+    ret = Dtls13WriteAckMessage(ssl, ssl->dtls13Rtx.seenRecords, &length);
+    if (ret != 0)
+        return ret;
+
+    output = GetOutputBuffer(ssl);
+
     if (w64IsZero(ssl->dtls13EncryptEpoch->epochNumber)) {
-
-        ret = Dtls13WriteAckMessage(ssl, ssl->dtls13Rtx.seenRecords, &length);
-        if (ret != 0)
-            return ret;
-
-        output = GetOutputBuffer(ssl);
-
         ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, (word16)length);
         if (ret != 0)
             return ret;
@@ -2685,13 +2691,6 @@ int SendDtls13Ack(WOLFSSL* ssl)
         ssl->buffers.outputBuffer.length += length + DTLS_RECORD_HEADER_SZ;
     }
     else {
-
-        ret = Dtls13WriteAckMessage(ssl, ssl->dtls13Rtx.seenRecords, &length);
-        if (ret != 0)
-            return ret;
-
-        output = GetOutputBuffer(ssl);
-
         outputSize = ssl->buffers.outputBuffer.bufferSize -
                      ssl->buffers.outputBuffer.idx -
                      ssl->buffers.outputBuffer.length;
