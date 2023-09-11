@@ -66471,12 +66471,28 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-{
-    struct timeval tv;
-    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+    #if defined(_MSC_VER) && defined(_WIN32)
+    {
+        /* there's no gettimeofday for Windows, so we'll use system time */
+        #define EPOCH_DIFF 11644473600LL
+        FILETIME currentFileTime;
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
 
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
-}
+        ULARGE_INTEGER uli = { 0, 0 };
+        uli.LowPart = currentFileTime.dwLowDateTime;
+        uli.HighPart = currentFileTime.dwHighDateTime;
+
+        /* Convert to seconds since Unix epoch */
+        return (double)((uli.QuadPart - (EPOCH_DIFF * 10000000)) / 10000000.0);
+    }
+    #else
+    {
+        struct timeval tv;
+        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    }
+    #endif
 #endif
 
 int ApiTest(void)
