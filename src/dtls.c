@@ -304,13 +304,13 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch,
         idx += ReadVector16(input + idx, &ch->extension);
         if (idx > helloSz) {
 #ifdef WOLFSSL_DTLS_CH_FRAG
+            idx = helloSz;
             /* Allow incomplete extensions if we are parsing a fragment */
             if (isFirstCHFrag && extStart < helloSz)
                 ch->extension.size = helloSz - extStart;
             else
 #endif
                 return BUFFER_ERROR;
-            idx = helloSz;
         }
     }
     if (idx != helloSz)
