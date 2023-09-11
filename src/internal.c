@@ -14045,8 +14045,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 #endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E)
+                    if (ret == WC_PENDING_E) {
+                        args->lastErr = ret;
                         goto exit_ppc;
+                    }
                 #endif
                     if (ret == 0) {
                         ret = ProcessPeerCertCheckKey(ssl, args);
@@ -14302,8 +14304,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E)
+                if (ret == WC_PENDING_E) {
+                    args->lastErr = ret;
                     goto exit_ppc;
+                }
             #endif
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
@@ -15124,7 +15128,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case TLS_ASYNC_FINALIZE:
         {
             /* load last error */
-            if (args->lastErr != 0 && ret == 0) {
+            if (args->lastErr != 0 && ret == 0
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+                && args->lastErr != WC_PENDING_E &&
+                args->lastErr != OCSP_WANT_READ
+#endif
+            ) {
                 ret = args->lastErr;
             }
 
@@ -15240,8 +15249,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* Reset the session cert chain count in case the session resume failed,
     do not reset if we are resuming after an async wait */
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (((ProcPeerCertArgs*)(ssl->async->args))->lastErr != OCSP_WANT_READ &&
-        ((ProcPeerCertArgs*)(ssl->async->args))->lastErr != WC_PENDING_E)
+    if (ssl->async == NULL || ssl->async->args == NULL ||
+        (((ProcPeerCertArgs*)(ssl->async->args))->lastErr != OCSP_WANT_READ &&
+        ((ProcPeerCertArgs*)(ssl->async->args))->lastErr != WC_PENDING_E))
 #endif
     {
         ssl->session->chain.count = 0;
