@@ -289,6 +289,7 @@ extern "C"
     } ESP32_AESPROCESS;
 
     struct Aes; /* see aes.h */
+    WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLenValue(int keylen);
     WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLen(struct Aes* aes);
     WOLFSSL_LOCAL int wc_esp32AesCbcEncrypt(struct Aes* aes,
                               byte* out,
@@ -436,9 +437,9 @@ extern "C"
     /* Z = (X ^ Y) mod M   : Espressif generic notation    */
     /* Y = (G ^ X) mod P   : wolfSSL DH reference notation */
     WOLFSSL_LOCAL int esp_mp_exptmod(MATH_INT_T* X,    /* G  */
-                       MATH_INT_T* Y,    /* X  */
-                       MATH_INT_T* M,    /* P  */
-                       MATH_INT_T* Z); /* Y  */
+                                     MATH_INT_T* Y,    /* X  */
+                                     MATH_INT_T* M,    /* P  */
+                                     MATH_INT_T* Z);   /* Y  */
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
     #define HW_MATH_ENABLED
@@ -447,8 +448,8 @@ extern "C"
     #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
         /* Z = X * Y */
     WOLFSSL_LOCAL int esp_mp_mul(MATH_INT_T* X,
-                   MATH_INT_T* Y,
-                   MATH_INT_T* Z);
+                                 MATH_INT_T* Y,
+                                 MATH_INT_T* Z);
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
     #define HW_MATH_ENABLED
@@ -457,9 +458,9 @@ extern "C"
 #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
     /* Z = X * Y (mod M) */
     WOLFSSL_LOCAL int esp_mp_mulmod(MATH_INT_T* X,
-                      MATH_INT_T* Y,
-                      MATH_INT_T* M,
-                      MATH_INT_T* Z);
+                                    MATH_INT_T* Y,
+                                    MATH_INT_T* M,
+                                    MATH_INT_T* Z);
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
     #define HW_MATH_ENABLED
