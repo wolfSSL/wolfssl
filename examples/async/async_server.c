@@ -105,12 +105,9 @@ int server_async_test(int argc, char** argv)
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
-#ifdef HAVE_SIGNAL
-    sighandler_t sigRet = 0;
-#endif
 
 #ifdef HAVE_SIGNAL
-    if ((sigRet = signal(SIGINT, sig_handler)) == SIG_ERR) {
+    if ((signal(SIGINT, sig_handler)) == SIG_ERR) {
         fprintf(stderr, "ERROR: failed to listen to SIGINT (errno: %d)\n",errno);
         goto exit;
     }
