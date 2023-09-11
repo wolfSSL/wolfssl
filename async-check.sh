@@ -1,17 +1,7 @@
 #!/bin/bash
 
-# async-check.sh
-
 # This script creates symbolic links to the required asynchronous
 # file for using the asynchronous simulator and make check
-#
-#     $ ./async-check [keep|clean|setup]
-#
-#     - keep: (default off) ./async and links kept around for inspection
-#     - clean: (default off) only cleanup existing ./async and links
-#     - setup: (default off) only setup ./async and links but don't run config
-#                            or make
-#
 
 # Fail on any error in script
 set -e
