@@ -67,7 +67,11 @@ static int mShutdown = 0;
 #ifdef HAVE_SIGNAL
 static void sig_handler(const int sig)
 {
+#ifdef DEBUG_WOLFSSL
     fprintf(stderr, "SIGINT handled = %d.\n", sig);
+#else
+    (void)sig;
+#endif
 
     mShutdown = 1;
     if (mConnd != SOCKET_INVALID) {
@@ -101,9 +105,15 @@ int server_async_test(int argc, char** argv)
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
+#ifdef HAVE_SIGNAL
+    sighandler_t sigRet = 0;
+#endif
 
 #ifdef HAVE_SIGNAL
-    signal(SIGINT, sig_handler);
+    if ((sigRet = signal(SIGINT, sig_handler)) == SIG_ERR) {
+        fprintf(stderr, "ERROR: failed to listen to SIGINT (errno: %d)\n",errno);
+        goto exit;
+    }
 #endif
 
     /* Initialize the server address struct with zeros */
@@ -125,11 +135,17 @@ int server_async_test(int argc, char** argv)
 
     /* make sure server is setup for reuse addr/port */
     on = 1;
-    setsockopt(mSockfd, SOL_SOCKET, SO_REUSEADDR,
-            (char*)&on, (socklen_t)sizeof(on));
+    if (setsockopt(mSockfd, SOL_SOCKET, SO_REUSEADDR,
+            (char*)&on, (socklen_t)sizeof(on)) != 0) {
+        fprintf(stderr, "ERROR: failed to set SO_REUSEADDR (errno: %d)\n",errno);
+        goto exit;
+    }
 #ifdef SO_REUSEPORT
-    setsockopt(mSockfd, SOL_SOCKET, SO_REUSEPORT,
-               (char*)&on, (socklen_t)sizeof(on));
+    if (setsockopt(mSockfd, SOL_SOCKET, SO_REUSEPORT,
+               (char*)&on, (socklen_t)sizeof(on)) != 0) {
+        fprintf(stderr, "ERROR: failed to set SO_REUSEPORT (errno: %d)\n",errno);
+        goto exit;
+    }
 #endif
 
     /* Bind the server socket to our port */
