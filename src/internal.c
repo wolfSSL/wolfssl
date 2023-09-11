@@ -14510,6 +14510,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                     args->dCert, ssl);
                     #ifdef WOLFSSL_NONBLOCK_OCSP
                         if (ret == OCSP_WANT_READ) {
+                            args->lastErr = ret;
                             goto exit_ppc;
                         }
                     #endif
