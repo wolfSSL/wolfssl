@@ -64558,7 +64558,7 @@ static int test_session_ticket_hs_update(void)
     ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
 
     wolfSSL_SetLoggingPrefix("client");
-    /* Exchange intial flights for the second connection */
+    /* Exchange initial flights for the second connection */
     ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);

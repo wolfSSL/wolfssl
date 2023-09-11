@@ -21,7 +21,7 @@
 
 
 /*
- * There are two versions one for 64 (Aarch64)  and one for 32 bit (Aarch32).
+ * There are two versions one for 64 (Aarch64) and one for 32 bit (Aarch32).
  * If changing one check the other.
  */
 

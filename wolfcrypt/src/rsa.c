@@ -4328,7 +4328,7 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
-        mp_memzero_add("Comare PQ d", d);
+        mp_memzero_add("Compare PQ d", d);
 #endif
 
 #if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
