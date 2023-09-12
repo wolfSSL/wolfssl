@@ -27,7 +27,7 @@ jobs:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       CSONAR_HUB_URL: "https://partnerdemo.codesonar.com"
       CSONAR_HUB_USER: "${{ secrets.CSONAR_HUB_USER }}"
-      CSONAR_HUB_PASS: "${{ secrets.CSONAR_HUB_PASS }}"
+      CSONAR_HUB_PASSWORD: "${{ secrets.CSONAR_HUB_PASS }}"
       CSONAR_CSHOME: /opt/codesonar
       CSO_GITHUB: /opt/codesonar-github
       GITHUB_REPO_URL: "http://github.com/markhermeling/nginx"    # the github.repositoryUrl is not an http-link.
