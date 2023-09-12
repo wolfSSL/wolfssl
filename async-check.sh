@@ -75,7 +75,7 @@ function Test() {
 function Remove() {
     UnlinkFiles
 
-    rm -rf ./async
+    rm -rf ${ASYNC_DIR}
 }
 
 if [ "$#" -gt 1 ]; then
