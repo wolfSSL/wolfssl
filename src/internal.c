@@ -15250,7 +15250,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* Reset the session cert chain count in case the session resume failed,
     do not reset if we are resuming after an async wait */
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if (ssl->async == NULL || ssl->async->args == NULL ||
+    if (ssl->async == NULL ||
         (((ProcPeerCertArgs*)(ssl->async->args))->lastErr != OCSP_WANT_READ &&
         ((ProcPeerCertArgs*)(ssl->async->args))->lastErr != WC_PENDING_E))
 #endif
