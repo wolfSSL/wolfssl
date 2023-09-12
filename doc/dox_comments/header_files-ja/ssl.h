@@ -10552,7 +10552,7 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \sa wolfSSL_connect
     \sa wolfSSL_connect_TLSv13
 */
-int  wolfSSL_write_early_data(OLFSSL* ssl, const void* data,
+int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     int sz, int* outSz);
 
 /*!
