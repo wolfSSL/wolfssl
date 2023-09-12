@@ -23,7 +23,7 @@ jobs:
       GITHUB_API_URL: https://api.github.com
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       ROOT_TREE: "OSS-Projects/WolfSSL-GitHub"
-      ROOT_PROJECT_NAME: "wolfssl"
+      PROJECT_NAME: "wolfssl"
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       CSONAR_HUB_URL: "https://partnerdemo.codesonar.com"
       CSONAR_HUB_USER: "${{ secrets.CSONAR_HUB_USER }}"
