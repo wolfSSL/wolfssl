@@ -168,6 +168,7 @@ linuxv5)
     'wolfssl/wolfcrypt/cmac.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/dh.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/ecc.h:WCv5.0-RC12'
+    'wolfssl/wolfcrypt/fips_test.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/hmac.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/kdf.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/random.h:WCv5.0-RC12'
@@ -176,6 +177,48 @@ linuxv5)
     'wolfssl/wolfcrypt/sha256.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha3.h:WCv5.0-RC12'
     'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
+  )
+  ;;
+linuxv5.2.1)
+  FIPS_OPTION='v5'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:v5.2.1-stable'
+    'wolfcrypt/src/fips_test.c:v5.2.1-stable'
+    'wolfcrypt/src/wolfcrypt_first.c:v5.2.1-stable'
+    'wolfcrypt/src/wolfcrypt_last.c:v5.2.1-stable'
+    'wolfssl/wolfcrypt/fips.h:v5.2.1-stable'
+  )
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/aes.c:v5.2.1-stable'
+    'wolfcrypt/src/aes_asm.asm:v5.2.1-stable'
+    'wolfcrypt/src/aes_asm.S:v5.2.1-stable'
+    'wolfcrypt/src/aes_gcm_asm.S:v5.2.1-stable'
+    'wolfcrypt/src/cmac.c:v5.2.1-stable'
+    'wolfcrypt/src/dh.c:v5.2.1-stable'
+    'wolfcrypt/src/ecc.c:v5.2.1-stable'
+    'wolfcrypt/src/hmac.c:v5.2.1-stable'
+    'wolfcrypt/src/kdf.c:v5.2.1-stable'
+    'wolfcrypt/src/random.c:v5.2.1-stable'
+    'wolfcrypt/src/rsa.c:v5.2.1-stable'
+    'wolfcrypt/src/sha.c:v5.2.1-stable'
+    'wolfcrypt/src/sha256.c:v5.2.1-stable'
+    'wolfcrypt/src/sha256_asm.S:v5.2.1-stable'
+    'wolfcrypt/src/sha3.c:v5.2.1-stable'
+    'wolfcrypt/src/sha512.c:v5.2.1-stable'
+    'wolfcrypt/src/sha512_asm.S:v5.2.1-stable'
+    'wolfssl/wolfcrypt/aes.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/cmac.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/dh.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/ecc.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/fips_test.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/hmac.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/kdf.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/random.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/rsa.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/sha.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/sha256.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/sha3.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/sha512.h:v5.2.1-stable'
   )
   ;;
 fips-ready|fips-dev)

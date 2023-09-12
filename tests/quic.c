@@ -1154,7 +1154,7 @@ static int test_quic_server_hello(int verbose) {
     /* we have the app secrets */
     check_secrets(&tclient, wolfssl_encryption_application, 32, 32);
     check_secrets(&tserver, wolfssl_encryption_application, 32, 32);
-    /* verify client and server have the same secrets establishd */
+    /* verify client and server have the same secrets established */
     assert_secrets_EQ(&tclient, &tserver, wolfssl_encryption_handshake);
     assert_secrets_EQ(&tclient, &tserver, wolfssl_encryption_application);
     /* AEAD cipher should be known */

@@ -5603,7 +5603,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
     WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->privKey), key->dp->size);
 
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(key->keyRaw),
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->keyRaw),
                                         2 * key->dp->size);
 
     err = XSecure_EllipticGenerateKey(&(key->xSec.cinst),
@@ -5615,7 +5615,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         err = WC_HW_E;
     }
 
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(key->keyRaw),
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->keyRaw),
                                         2 * key->dp->size);
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
@@ -6326,7 +6326,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->privKey), keysize);
         WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(K), keysize);
 
-        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(out), keysize * 2);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(out), keysize * 2);
 
         err = XSecure_EllipticGenerateSign(&(key->xSec.cinst),
                                            xil_curve_type[key->dp->id],
@@ -6339,7 +6339,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             err = WC_HW_E;
         }
 
-        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(out), keysize * 2);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(out), keysize * 2);
         mp_reverse(&out[0], keysize);
         mp_reverse(&out[keysize], keysize);
 
@@ -13843,7 +13843,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret + pubKeySz,
                                                                      &sharedSz);
     #endif
-    } while (ret == WC_PENDING_E);
+    }
+    while (ret == WC_PENDING_E);
+
     if (ret == 0) {
     #ifdef WOLFSSL_ECIES_ISO18033
         /* KDF data is encoded public key and secret. */
@@ -13855,6 +13857,30 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                            keys, (word32)keysLen);
                 break;
+            case ecHKDF_SHA1 :
+                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                           keys, (word32)keysLen);
+                break;
+#if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
+            case ecKDF_X963_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_X963_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+#endif
+
 
             default:
                 ret = BAD_FUNC_ARG;
@@ -14250,6 +14276,29 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                            keys, (word32)keysLen);
                 break;
+            case ecHKDF_SHA1 :
+                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                           keys, (word32)keysLen);
+                break;
+#if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
+            case ecKDF_X963_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_X963_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfInfo, ctx->kdfInfoSz, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA1 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+            case ecKDF_SHA256 :
+                ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, sharedSecret, sharedSz,
+                           NULL, 0, keys, (word32)keysLen);
+                break;
+#endif
 
             default:
                 ret = BAD_FUNC_ARG;

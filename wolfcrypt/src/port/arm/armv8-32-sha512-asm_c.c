@@ -28,6 +28,7 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__arm__)
@@ -36,64 +37,65 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
 static const uint64_t L_SHA512_transform_len_k[] = {
-    0x428a2f98d728ae22, 0x7137449123ef65cd,
-    0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc,
-    0x3956c25bf348b538, 0x59f111f1b605d019,
-    0x923f82a4af194f9b, 0xab1c5ed5da6d8118,
-    0xd807aa98a3030242, 0x12835b0145706fbe,
-    0x243185be4ee4b28c, 0x550c7dc3d5ffb4e2,
-    0x72be5d74f27b896f, 0x80deb1fe3b1696b1,
-    0x9bdc06a725c71235, 0xc19bf174cf692694,
-    0xe49b69c19ef14ad2, 0xefbe4786384f25e3,
-    0x0fc19dc68b8cd5b5, 0x240ca1cc77ac9c65,
-    0x2de92c6f592b0275, 0x4a7484aa6ea6e483,
-    0x5cb0a9dcbd41fbd4, 0x76f988da831153b5,
-    0x983e5152ee66dfab, 0xa831c66d2db43210,
-    0xb00327c898fb213f, 0xbf597fc7beef0ee4,
-    0xc6e00bf33da88fc2, 0xd5a79147930aa725,
-    0x06ca6351e003826f, 0x142929670a0e6e70,
-    0x27b70a8546d22ffc, 0x2e1b21385c26c926,
-    0x4d2c6dfc5ac42aed, 0x53380d139d95b3df,
-    0x650a73548baf63de, 0x766a0abb3c77b2a8,
-    0x81c2c92e47edaee6, 0x92722c851482353b,
-    0xa2bfe8a14cf10364, 0xa81a664bbc423001,
-    0xc24b8b70d0f89791, 0xc76c51a30654be30,
-    0xd192e819d6ef5218, 0xd69906245565a910,
-    0xf40e35855771202a, 0x106aa07032bbd1b8,
-    0x19a4c116b8d2d0c8, 0x1e376c085141ab53,
-    0x2748774cdf8eeb99, 0x34b0bcb5e19b48a8,
-    0x391c0cb3c5c95a63, 0x4ed8aa4ae3418acb,
-    0x5b9cca4f7763e373, 0x682e6ff3d6b2b8a3,
-    0x748f82ee5defb2fc, 0x78a5636f43172f60,
-    0x84c87814a1f0ab72, 0x8cc702081a6439ec,
-    0x90befffa23631e28, 0xa4506cebde82bde9,
-    0xbef9a3f7b2c67915, 0xc67178f2e372532b,
-    0xca273eceea26619c, 0xd186b8c721c0c207,
-    0xeada7dd6cde0eb1e, 0xf57d4f7fee6ed178,
-    0x06f067aa72176fba, 0x0a637dc5a2c898a6,
-    0x113f9804bef90dae, 0x1b710b35131c471b,
-    0x28db77f523047d84, 0x32caab7b40c72493,
-    0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c,
-    0x4cc5d4becb3e42b6, 0x597f299cfc657e2a,
-    0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
+    0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
+    0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
+    0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
+    0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
+    0xd807aa98a3030242UL, 0x12835b0145706fbeUL,
+    0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
+    0x72be5d74f27b896fUL, 0x80deb1fe3b1696b1UL,
+    0x9bdc06a725c71235UL, 0xc19bf174cf692694UL,
+    0xe49b69c19ef14ad2UL, 0xefbe4786384f25e3UL,
+    0x0fc19dc68b8cd5b5UL, 0x240ca1cc77ac9c65UL,
+    0x2de92c6f592b0275UL, 0x4a7484aa6ea6e483UL,
+    0x5cb0a9dcbd41fbd4UL, 0x76f988da831153b5UL,
+    0x983e5152ee66dfabUL, 0xa831c66d2db43210UL,
+    0xb00327c898fb213fUL, 0xbf597fc7beef0ee4UL,
+    0xc6e00bf33da88fc2UL, 0xd5a79147930aa725UL,
+    0x06ca6351e003826fUL, 0x142929670a0e6e70UL,
+    0x27b70a8546d22ffcUL, 0x2e1b21385c26c926UL,
+    0x4d2c6dfc5ac42aedUL, 0x53380d139d95b3dfUL,
+    0x650a73548baf63deUL, 0x766a0abb3c77b2a8UL,
+    0x81c2c92e47edaee6UL, 0x92722c851482353bUL,
+    0xa2bfe8a14cf10364UL, 0xa81a664bbc423001UL,
+    0xc24b8b70d0f89791UL, 0xc76c51a30654be30UL,
+    0xd192e819d6ef5218UL, 0xd69906245565a910UL,
+    0xf40e35855771202aUL, 0x106aa07032bbd1b8UL,
+    0x19a4c116b8d2d0c8UL, 0x1e376c085141ab53UL,
+    0x2748774cdf8eeb99UL, 0x34b0bcb5e19b48a8UL,
+    0x391c0cb3c5c95a63UL, 0x4ed8aa4ae3418acbUL,
+    0x5b9cca4f7763e373UL, 0x682e6ff3d6b2b8a3UL,
+    0x748f82ee5defb2fcUL, 0x78a5636f43172f60UL,
+    0x84c87814a1f0ab72UL, 0x8cc702081a6439ecUL,
+    0x90befffa23631e28UL, 0xa4506cebde82bde9UL,
+    0xbef9a3f7b2c67915UL, 0xc67178f2e372532bUL,
+    0xca273eceea26619cUL, 0xd186b8c721c0c207UL,
+    0xeada7dd6cde0eb1eUL, 0xf57d4f7fee6ed178UL,
+    0x06f067aa72176fbaUL, 0x0a637dc5a2c898a6UL,
+    0x113f9804bef90daeUL, 0x1b710b35131c471bUL,
+    0x28db77f523047d84UL, 0x32caab7b40c72493UL,
+    0x3c9ebe0a15c9bebcUL, 0x431d67c49c100d4cUL,
+    0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL,
+    0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
 void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
-    register wc_Sha512* sha512 asm ("r0") = sha512_p;
-    register const byte* data asm ("r1") = data_p;
-    register word32 len asm ("r2") = len_p;
+    register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
+    register const byte* data asm ("r1") = (const byte*)data_p;
+    register word32 len asm ("r2") = (word32)len_p;
+    register uint64_t* L_SHA512_transform_len_k_c asm ("r3") = (uint64_t*)&L_SHA512_transform_len_k;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
-        "mov	r3, %[L_SHA512_transform_len_k]\n\t"
         /* Copy digest to add in at end */
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r4, [%[sha512]]\n\t"
@@ -7392,9 +7394,9 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "bne	L_SHA512_transform_len_begin_%=\n\t"
         "eor	r0, r0, r0\n\t"
         "add	sp, sp, #0xc0\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_transform_len_k] "g" (L_SHA512_transform_len_k)
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
+        :
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
@@ -7403,54 +7405,55 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static const uint64_t L_SHA512_transform_neon_len_k[] = {
-    0x428a2f98d728ae22, 0x7137449123ef65cd,
-    0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc,
-    0x3956c25bf348b538, 0x59f111f1b605d019,
-    0x923f82a4af194f9b, 0xab1c5ed5da6d8118,
-    0xd807aa98a3030242, 0x12835b0145706fbe,
-    0x243185be4ee4b28c, 0x550c7dc3d5ffb4e2,
-    0x72be5d74f27b896f, 0x80deb1fe3b1696b1,
-    0x9bdc06a725c71235, 0xc19bf174cf692694,
-    0xe49b69c19ef14ad2, 0xefbe4786384f25e3,
-    0x0fc19dc68b8cd5b5, 0x240ca1cc77ac9c65,
-    0x2de92c6f592b0275, 0x4a7484aa6ea6e483,
-    0x5cb0a9dcbd41fbd4, 0x76f988da831153b5,
-    0x983e5152ee66dfab, 0xa831c66d2db43210,
-    0xb00327c898fb213f, 0xbf597fc7beef0ee4,
-    0xc6e00bf33da88fc2, 0xd5a79147930aa725,
-    0x06ca6351e003826f, 0x142929670a0e6e70,
-    0x27b70a8546d22ffc, 0x2e1b21385c26c926,
-    0x4d2c6dfc5ac42aed, 0x53380d139d95b3df,
-    0x650a73548baf63de, 0x766a0abb3c77b2a8,
-    0x81c2c92e47edaee6, 0x92722c851482353b,
-    0xa2bfe8a14cf10364, 0xa81a664bbc423001,
-    0xc24b8b70d0f89791, 0xc76c51a30654be30,
-    0xd192e819d6ef5218, 0xd69906245565a910,
-    0xf40e35855771202a, 0x106aa07032bbd1b8,
-    0x19a4c116b8d2d0c8, 0x1e376c085141ab53,
-    0x2748774cdf8eeb99, 0x34b0bcb5e19b48a8,
-    0x391c0cb3c5c95a63, 0x4ed8aa4ae3418acb,
-    0x5b9cca4f7763e373, 0x682e6ff3d6b2b8a3,
-    0x748f82ee5defb2fc, 0x78a5636f43172f60,
-    0x84c87814a1f0ab72, 0x8cc702081a6439ec,
-    0x90befffa23631e28, 0xa4506cebde82bde9,
-    0xbef9a3f7b2c67915, 0xc67178f2e372532b,
-    0xca273eceea26619c, 0xd186b8c721c0c207,
-    0xeada7dd6cde0eb1e, 0xf57d4f7fee6ed178,
-    0x06f067aa72176fba, 0x0a637dc5a2c898a6,
-    0x113f9804bef90dae, 0x1b710b35131c471b,
-    0x28db77f523047d84, 0x32caab7b40c72493,
-    0x3c9ebe0a15c9bebc, 0x431d67c49c100d4c,
-    0x4cc5d4becb3e42b6, 0x597f299cfc657e2a,
-    0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
+    0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
+    0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
+    0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
+    0x923f82a4af194f9bUL, 0xab1c5ed5da6d8118UL,
+    0xd807aa98a3030242UL, 0x12835b0145706fbeUL,
+    0x243185be4ee4b28cUL, 0x550c7dc3d5ffb4e2UL,
+    0x72be5d74f27b896fUL, 0x80deb1fe3b1696b1UL,
+    0x9bdc06a725c71235UL, 0xc19bf174cf692694UL,
+    0xe49b69c19ef14ad2UL, 0xefbe4786384f25e3UL,
+    0x0fc19dc68b8cd5b5UL, 0x240ca1cc77ac9c65UL,
+    0x2de92c6f592b0275UL, 0x4a7484aa6ea6e483UL,
+    0x5cb0a9dcbd41fbd4UL, 0x76f988da831153b5UL,
+    0x983e5152ee66dfabUL, 0xa831c66d2db43210UL,
+    0xb00327c898fb213fUL, 0xbf597fc7beef0ee4UL,
+    0xc6e00bf33da88fc2UL, 0xd5a79147930aa725UL,
+    0x06ca6351e003826fUL, 0x142929670a0e6e70UL,
+    0x27b70a8546d22ffcUL, 0x2e1b21385c26c926UL,
+    0x4d2c6dfc5ac42aedUL, 0x53380d139d95b3dfUL,
+    0x650a73548baf63deUL, 0x766a0abb3c77b2a8UL,
+    0x81c2c92e47edaee6UL, 0x92722c851482353bUL,
+    0xa2bfe8a14cf10364UL, 0xa81a664bbc423001UL,
+    0xc24b8b70d0f89791UL, 0xc76c51a30654be30UL,
+    0xd192e819d6ef5218UL, 0xd69906245565a910UL,
+    0xf40e35855771202aUL, 0x106aa07032bbd1b8UL,
+    0x19a4c116b8d2d0c8UL, 0x1e376c085141ab53UL,
+    0x2748774cdf8eeb99UL, 0x34b0bcb5e19b48a8UL,
+    0x391c0cb3c5c95a63UL, 0x4ed8aa4ae3418acbUL,
+    0x5b9cca4f7763e373UL, 0x682e6ff3d6b2b8a3UL,
+    0x748f82ee5defb2fcUL, 0x78a5636f43172f60UL,
+    0x84c87814a1f0ab72UL, 0x8cc702081a6439ecUL,
+    0x90befffa23631e28UL, 0xa4506cebde82bde9UL,
+    0xbef9a3f7b2c67915UL, 0xc67178f2e372532bUL,
+    0xca273eceea26619cUL, 0xd186b8c721c0c207UL,
+    0xeada7dd6cde0eb1eUL, 0xf57d4f7fee6ed178UL,
+    0x06f067aa72176fbaUL, 0x0a637dc5a2c898a6UL,
+    0x113f9804bef90daeUL, 0x1b710b35131c471bUL,
+    0x28db77f523047d84UL, 0x32caab7b40c72493UL,
+    0x3c9ebe0a15c9bebcUL, 0x431d67c49c100d4cUL,
+    0x4cc5d4becb3e42b6UL, 0x597f299cfc657e2aUL,
+    0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
 void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
-    register wc_Sha512* sha512 asm ("r0") = sha512_p;
-    register const byte* data asm ("r1") = data_p;
-    register word32 len asm ("r2") = len_p;
+    register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
+    register const byte* data asm ("r1") = (const byte*)data_p;
+    register word32 len asm ("r2") = (word32)len_p;
+    register uint64_t* L_SHA512_transform_neon_len_k_c asm ("r3") = (uint64_t*)&L_SHA512_transform_neon_len_k;
 
     __asm__ __volatile__ (
         /* Load digest into working vars */
@@ -7490,7 +7493,6 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "vrev64.8	d30, d30\n\t"
         "vrev64.8	d31, d31\n\t"
 #endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
-        "mov	r3, %[L_SHA512_transform_neon_len_k]\n\t"
         "mov	r12, #4\n\t"
         /* Start of 16 rounds */
         "\n"
@@ -8940,10 +8942,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 #endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
         "vstm.64	%[sha512], {d0-d7}\n\t"
         "subs	%[len], %[len], #0x80\n\t"
+        "sub	r3, r3, #0x280\n\t"
         "bne	L_SHA512_transform_neon_len_begin_%=\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_transform_neon_len_k] "g" (L_SHA512_transform_neon_len_k)
-        : "memory", "r3", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_neon_len_k] "+r" (L_SHA512_transform_neon_len_k_c)
+        :
+        : "memory", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
     );
 }
 

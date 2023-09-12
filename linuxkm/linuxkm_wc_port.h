@@ -133,6 +133,10 @@
              * reference to unexported __show_free_areas().
              */
             #define __show_free_areas my__show_free_areas
+            void my__show_free_areas(
+                unsigned int flags,
+                nodemask_t *nodemask,
+                int max_zone_idx);
         #endif
     #endif
     #include <linux/mm.h>

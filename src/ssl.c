@@ -8300,7 +8300,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         /* pass directory read failure to response code */
         if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
-    #if defined(WOLFSSL_QT)
+    #if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
             if (ret == BAD_PATH_ERROR &&
                 flags & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR) {
                /* QSslSocket always loads certs in system folder

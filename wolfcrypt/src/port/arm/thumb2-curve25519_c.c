@@ -48,7 +48,7 @@
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
-void fe_init(void)
+void fe_init()
 {
     __asm__ __volatile__ (
         "\n\t"
@@ -59,7 +59,7 @@ void fe_init(void)
 }
 
 void fe_add_sub_op(void);
-void fe_add_sub_op(void)
+void fe_add_sub_op()
 {
     __asm__ __volatile__ (
         /* Add-Sub */
@@ -156,7 +156,7 @@ void fe_add_sub_op(void)
 }
 
 void fe_sub_op(void);
-void fe_sub_op(void)
+void fe_sub_op()
 {
     __asm__ __volatile__ (
         /* Sub */
@@ -190,18 +190,22 @@ void fe_sub_op(void)
     );
 }
 
-void fe_sub(fe r, const fe a, const fe b)
+void fe_sub(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_sub_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 void fe_add_op(void);
-void fe_add_op(void)
+void fe_add_op()
 {
     __asm__ __volatile__ (
         /* Add */
@@ -235,31 +239,55 @@ void fe_add_op(void)
     );
 }
 
-void fe_add(fe r, const fe a, const fe b)
+void fe_add(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_add_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 #ifdef HAVE_ED25519
-void fe_frombytes(fe out, const unsigned char* in)
+void fe_frombytes(fe out_p, const unsigned char* in_p)
 {
+    register sword32* out asm ("r0") = (sword32*)out_p;
+    register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
+
     __asm__ __volatile__ (
-        "LDM	%[in], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LDR	r2, [%[in]]\n\t"
+        "LDR	r3, [%[in], #4]\n\t"
+        "LDR	r4, [%[in], #8]\n\t"
+        "LDR	r5, [%[in], #12]\n\t"
+        "LDR	r6, [%[in], #16]\n\t"
+        "LDR	r7, [%[in], #20]\n\t"
+        "LDR	r8, [%[in], #24]\n\t"
+        "LDR	r9, [%[in], #28]\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [out] "+l" (out), [in] "+l" (in)
+        "STR	r2, [%[out]]\n\t"
+        "STR	r3, [%[out], #4]\n\t"
+        "STR	r4, [%[out], #8]\n\t"
+        "STR	r5, [%[out], #12]\n\t"
+        "STR	r6, [%[out], #16]\n\t"
+        "STR	r7, [%[out], #20]\n\t"
+        "STR	r8, [%[out], #24]\n\t"
+        "STR	r9, [%[out], #28]\n\t"
+        : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
-void fe_tobytes(unsigned char* out, const fe n)
+void fe_tobytes(unsigned char* out_p, const fe n_p)
 {
+    register unsigned char* out asm ("r0") = (unsigned char*)out_p;
+    register const sword32* n asm ("r1") = (const sword32*)n_p;
+
     __asm__ __volatile__ (
         "LDM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r10, r2, #0x13\n\t"
@@ -281,48 +309,67 @@ void fe_tobytes(unsigned char* out, const fe n)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "BFC	r9, #31, #1\n\t"
-        "STM	%[out], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [out] "+l" (out), [n] "+l" (n)
+        "STR	r2, [%[out]]\n\t"
+        "STR	r3, [%[out], #4]\n\t"
+        "STR	r4, [%[out], #8]\n\t"
+        "STR	r5, [%[out], #12]\n\t"
+        "STR	r6, [%[out], #16]\n\t"
+        "STR	r7, [%[out], #20]\n\t"
+        "STR	r8, [%[out], #24]\n\t"
+        "STR	r9, [%[out], #28]\n\t"
+        : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
 }
 
-void fe_1(fe n)
+void fe_1(fe n_p)
 {
+    register sword32* n asm ("r0") = (sword32*)n_p;
+
     __asm__ __volatile__ (
         /* Set one */
         "MOV	r2, #0x1\n\t"
         "MOV	r3, #0x0\n\t"
-        "STRD	r2, r3, [%[n]]\n\t"
-        "MOV	r2, #0x0\n\t"
-        "STRD	r2, r3, [%[n], #8]\n\t"
-        "STRD	r2, r3, [%[n], #16]\n\t"
-        "STRD	r2, r3, [%[n], #24]\n\t"
-        : [n] "+l" (n)
+        "MOV	r4, #0x0\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
+        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
-void fe_0(fe n)
+void fe_0(fe n_p)
 {
+    register sword32* n asm ("r0") = (sword32*)n_p;
+
     __asm__ __volatile__ (
         /* Set zero */
         "MOV	r2, #0x0\n\t"
         "MOV	r3, #0x0\n\t"
-        "STRD	r2, r3, [%[n]]\n\t"
-        "STRD	r2, r3, [%[n], #8]\n\t"
-        "STRD	r2, r3, [%[n], #16]\n\t"
-        "STRD	r2, r3, [%[n], #24]\n\t"
-        : [n] "+l" (n)
+        "MOV	r4, #0x0\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
+        "STM	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        : [n] "+r" (n)
         :
-        : "memory", "r2", "r3"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 
-void fe_copy(fe r, const fe a)
+void fe_copy(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         /* Copy */
         "LDRD	r2, r3, [%[a]]\n\t"
@@ -333,14 +380,17 @@ void fe_copy(fe r, const fe a)
         "LDRD	r4, r5, [%[a], #24]\n\t"
         "STRD	r2, r3, [%[r], #16]\n\t"
         "STRD	r4, r5, [%[r], #24]\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5"
     );
 }
 
-void fe_neg(fe r, const fe a)
+void fe_neg(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "MVN	r7, #0x0\n\t"
         "MVN	r6, #0x12\n\t"
@@ -357,14 +407,16 @@ void fe_neg(fe r, const fe a)
         "SBCS	r4, r7, r4\n\t"
         "SBC	r5, r6, r5\n\t"
         "STM	%[r]!, {r2, r3, r4, r5}\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7"
     );
 }
 
-int fe_isnonzero(const fe a)
+int fe_isnonzero(const fe a_p)
 {
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         "ADDS	r1, r2, #0x13\n\t"
@@ -393,15 +445,17 @@ int fe_isnonzero(const fe a)
         "ORR	r4, r4, r6\n\t"
         "ORR	r2, r2, r8\n\t"
         "ORR	%[a], r2, r4\n\t"
-        : [a] "+l" (a)
+        : [a] "+r" (a)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (uint32_t)(size_t)a;
 }
 
-int fe_isnegative(const fe a)
+int fe_isnegative(const fe a_p)
 {
+    register const sword32* a asm ("r0") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "LDM	%[a]!, {r2, r3, r4, r5}\n\t"
         "ADDS	r1, r2, #0x13\n\t"
@@ -417,16 +471,21 @@ int fe_isnegative(const fe a)
         "AND	%[a], r2, #0x1\n\t"
         "LSR	r1, r1, #31\n\t"
         "EOR	%[a], %[a], r1\n\t"
-        : [a] "+l" (a)
+        : [a] "+r" (a)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5"
     );
     return (uint32_t)(size_t)a;
 }
 
+#if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
-void fe_cmov_table(fe* r, fe* base, signed char b)
+void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
+
     __asm__ __volatile__ (
         "SXTB	%[b], %[b]\n\t"
         "SBFX	r3, %[b], #7, #1\n\t"
@@ -1391,15 +1450,19 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
         "STRD	r4, r5, [%[r], #24]\n\t"
         "STRD	r6, r7, [%[r], #56]\n\t"
         "STRD	r8, r9, [%[r], #88]\n\t"
-        : [r] "+l" (r), [base] "+l" (base), [b] "+l" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10", "r11", "r12", "lr"
     );
 }
 
 #else
-void fe_cmov_table(fe* r, fe* base, signed char b)
+void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
+    register fe* r asm ("r0") = (fe*)r_p;
+    register fe* base asm ("r1") = (fe*)base_p;
+    register signed char b asm ("r2") = (signed char)b_p;
+
     __asm__ __volatile__ (
         "SXTB	%[b], %[b]\n\t"
         "SBFX	r3, %[b], #7, #1\n\t"
@@ -1493,16 +1556,398 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
         "AND	r7, r7, lr\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "SUB	%[base], %[base], %[b]\n\t"
-        : [r] "+l" (r), [base] "+l" (base), [b] "+l" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
+#ifdef WOLFSSL_SP_NO_UMAAL
 void fe_mul_op(void);
-void fe_mul_op(void)
+void fe_mul_op()
+{
+    __asm__ __volatile__ (
+        "SUB	sp, sp, #0x28\n\t"
+        "STR	r0, [sp, #36]\n\t"
+        "MOV	r0, #0x0\n\t"
+        "LDR	r12, [r1]\n\t"
+        /* A[0] * B[0] */
+        "LDR	lr, [r2]\n\t"
+        "UMULL	r3, r4, r12, lr\n\t"
+        /* A[0] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "UMULL	r5, r6, r12, lr\n\t"
+        /* A[0] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "UMULL	r7, r8, r12, lr\n\t"
+        /* A[0] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "UMULL	r9, r10, r12, lr\n\t"
+        "STR	r3, [sp]\n\t"
+        /* A[0] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "MOV	r11, r0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[0] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[0] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[0] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADC	r3, r0, #0x0\n\t"
+        "UMLAL	r10, r3, r12, lr\n\t"
+        /* A[1] * B[0] */
+        "LDR	r12, [r1, #4]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "STR	r4, [sp, #4]\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[1] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[1] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[1] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[1] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[1] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[1] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[1] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r4, r0, #0x0\n\t"
+        "UMLAL	r3, r4, r12, lr\n\t"
+        /* A[2] * B[0] */
+        "LDR	r12, [r1, #8]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "STR	r5, [sp, #8]\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[2] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[2] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[2] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[2] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[2] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[2] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[2] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r5, r0, #0x0\n\t"
+        "UMLAL	r4, r5, r12, lr\n\t"
+        /* A[3] * B[0] */
+        "LDR	r12, [r1, #12]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "STR	r6, [sp, #12]\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[3] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[3] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[3] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[3] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[3] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[3] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[3] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r6, r0, #0x0\n\t"
+        "UMLAL	r5, r6, r12, lr\n\t"
+        /* A[4] * B[0] */
+        "LDR	r12, [r1, #16]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "STR	r7, [sp, #16]\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[4] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[4] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[4] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[4] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[4] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[4] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[4] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r7, r0, #0x0\n\t"
+        "UMLAL	r6, r7, r12, lr\n\t"
+        /* A[5] * B[0] */
+        "LDR	r12, [r1, #20]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "STR	r8, [sp, #20]\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[5] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[5] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[5] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[5] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[5] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[5] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[5] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r8, r0, #0x0\n\t"
+        "UMLAL	r7, r8, r12, lr\n\t"
+        /* A[6] * B[0] */
+        "LDR	r12, [r1, #24]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "STR	r9, [sp, #24]\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[6] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[6] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[6] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[6] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[6] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[6] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[6] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r9, r0, #0x0\n\t"
+        "UMLAL	r8, r9, r12, lr\n\t"
+        /* A[7] * B[0] */
+        "LDR	r12, [r1, #28]\n\t"
+        "LDR	lr, [r2]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "STR	r10, [sp, #28]\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[7] * B[1] */
+        "LDR	lr, [r2, #4]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[7] * B[2] */
+        "LDR	lr, [r2, #8]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[7] * B[3] */
+        "LDR	lr, [r2, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[7] * B[4] */
+        "LDR	lr, [r2, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[7] * B[5] */
+        "LDR	lr, [r2, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[7] * B[6] */
+        "LDR	lr, [r2, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[7] * B[7] */
+        "LDR	lr, [r2, #28]\n\t"
+        "ADC	r10, r0, #0x0\n\t"
+        "UMLAL	r9, r10, r12, lr\n\t"
+        /* Reduce */
+        "LDR	r2, [sp, #28]\n\t"
+        "MOV	lr, sp\n\t"
+        "MOV	r12, #0x26\n\t"
+        "UMULL	r10, r11, r10, r12\n\t"
+        "ADDS	r10, r10, r2\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "MOV	r12, #0x13\n\t"
+        "LSL	r11, r11, #1\n\t"
+        "ORR	r11, r11, r10, LSR #31\n\t"
+        "MUL	r11, r11, r12\n\t"
+        "LDM	lr!, {r1, r2}\n\t"
+        "MOV	r12, #0x26\n\t"
+        "ADDS	r1, r1, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r1, r11, r3, r12\n\t"
+        "ADDS	r2, r2, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r2, r11, r4, r12\n\t"
+        "LDM	lr!, {r3, r4}\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r5, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r6, r12\n\t"
+        "LDM	lr!, {r5, r6}\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r7, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r8, r12\n\t"
+        "LDM	lr!, {r7, r8}\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r9, r12\n\t"
+        "BFC	r10, #31, #1\n\t"
+        "ADDS	r8, r10, r11\n\t"
+        /* Store */
+        "LDR	r0, [sp, #36]\n\t"
+        "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
+        "ADD	sp, sp, #0x28\n\t"
+        :
+        :
+        : "memory", "lr"
+    );
+}
+
+#else
+void fe_mul_op(void);
+void fe_mul_op()
 {
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
@@ -1634,18 +2079,297 @@ void fe_mul_op(void)
     );
 }
 
-void fe_mul(fe r, const fe a, const fe b)
+#endif /* WOLFSSL_SP_NO_UMAAL */
+void fe_mul(fe r_p, const fe a_p, const fe b_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+    register const sword32* b asm ("r2") = (const sword32*)b_p;
+
     __asm__ __volatile__ (
         "BL	fe_mul_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a), [b] "+l" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
+#ifdef WOLFSSL_SP_NO_UMAAL
 void fe_sq_op(void);
-void fe_sq_op(void)
+void fe_sq_op()
+{
+    __asm__ __volatile__ (
+        "SUB	sp, sp, #0x44\n\t"
+        "STR	r0, [sp, #64]\n\t"
+        /* Square */
+        "MOV	r0, #0x0\n\t"
+        "LDR	r12, [r1]\n\t"
+        /* A[0] * A[1] */
+        "LDR	lr, [r1, #4]\n\t"
+        "UMULL	r4, r5, r12, lr\n\t"
+        /* A[0] * A[3] */
+        "LDR	lr, [r1, #12]\n\t"
+        "UMULL	r6, r7, r12, lr\n\t"
+        /* A[0] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "UMULL	r8, r9, r12, lr\n\t"
+        /* A[0] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "UMULL	r10, r3, r12, lr\n\t"
+        /* A[0] * A[2] */
+        "LDR	lr, [r1, #8]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[0] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[0] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "STR	r4, [sp, #4]\n\t"
+        "STR	r5, [sp, #8]\n\t"
+        /* A[1] * A[2] */
+        "LDR	r12, [r1, #4]\n\t"
+        "LDR	lr, [r1, #8]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "STR	r6, [sp, #12]\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[1] * A[3] */
+        "LDR	lr, [r1, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "STR	r7, [sp, #16]\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[1] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[1] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[1] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[1] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r4, r0, #0x0\n\t"
+        "UMLAL	r3, r4, r12, lr\n\t"
+        /* A[2] * A[3] */
+        "LDR	r12, [r1, #8]\n\t"
+        "LDR	lr, [r1, #12]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "STR	r8, [sp, #20]\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[2] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "STR	r9, [sp, #24]\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[2] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[2] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[2] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r5, r0, #0x0\n\t"
+        "UMLAL	r4, r5, r12, lr\n\t"
+        /* A[3] * A[4] */
+        "LDR	r12, [r1, #12]\n\t"
+        "LDR	lr, [r1, #16]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "STR	r10, [sp, #28]\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[3] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[3] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[3] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r6, r0, #0x0\n\t"
+        "UMLAL	r5, r6, r12, lr\n\t"
+        /* A[4] * A[5] */
+        "LDR	r12, [r1, #16]\n\t"
+        "LDR	lr, [r1, #20]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[4] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[4] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r7, r0, #0x0\n\t"
+        "UMLAL	r6, r7, r12, lr\n\t"
+        /* A[5] * A[6] */
+        "LDR	r12, [r1, #20]\n\t"
+        "LDR	lr, [r1, #24]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[5] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r8, r0, #0x0\n\t"
+        "UMLAL	r7, r8, r12, lr\n\t"
+        /* A[6] * A[7] */
+        "LDR	r12, [r1, #24]\n\t"
+        "LDR	lr, [r1, #28]\n\t"
+        "MOV	r9, #0x0\n\t"
+        "UMLAL	r8, r9, r12, lr\n\t"
+        "ADD	lr, sp, #0x20\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADD	lr, sp, #0x4\n\t"
+        "LDM	lr, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "ADDS	r4, r4, r4\n\t"
+        "ADCS	r5, r5, r5\n\t"
+        "ADCS	r6, r6, r6\n\t"
+        "ADCS	r7, r7, r7\n\t"
+        "ADCS	r8, r8, r8\n\t"
+        "ADCS	r9, r9, r9\n\t"
+        "ADCS	r10, r10, r10\n\t"
+        "STM	lr!, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "LDM	lr, {r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADCS	r3, r3, r3\n\t"
+        "ADCS	r4, r4, r4\n\t"
+        "ADCS	r5, r5, r5\n\t"
+        "ADCS	r6, r6, r6\n\t"
+        "ADCS	r7, r7, r7\n\t"
+        "ADCS	r8, r8, r8\n\t"
+        "ADCS	r9, r9, r9\n\t"
+        "ADC	r10, r0, #0x0\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "ADD	lr, sp, #0x4\n\t"
+        "LDM	lr, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "MOV	lr, sp\n\t"
+        /* A[0] * A[0] */
+        "LDR	r12, [r1]\n\t"
+        "UMULL	r3, r11, r12, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[1] * A[1] */
+        "LDR	r12, [r1, #4]\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[2] * A[2] */
+        "LDR	r12, [r1, #8]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, r12\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[3] * A[3] */
+        "LDR	r12, [r1, #12]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, r12\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        "STM	lr!, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "LDM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        /* A[4] * A[4] */
+        "LDR	r12, [r1, #16]\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[5] * A[5] */
+        "LDR	r12, [r1, #20]\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[6] * A[6] */
+        "LDR	r12, [r1, #24]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, r12\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[7] * A[7] */
+        "LDR	r12, [r1, #28]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r9, r10, r12, r12\n\t"
+        /* Reduce */
+        "LDR	r2, [sp, #28]\n\t"
+        "MOV	lr, sp\n\t"
+        "MOV	r12, #0x26\n\t"
+        "UMULL	r10, r11, r10, r12\n\t"
+        "ADDS	r10, r10, r2\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "MOV	r12, #0x13\n\t"
+        "LSL	r11, r11, #1\n\t"
+        "ORR	r11, r11, r10, LSR #31\n\t"
+        "MUL	r11, r11, r12\n\t"
+        "LDM	lr!, {r1, r2}\n\t"
+        "MOV	r12, #0x26\n\t"
+        "ADDS	r1, r1, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r1, r11, r3, r12\n\t"
+        "ADDS	r2, r2, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r2, r11, r4, r12\n\t"
+        "LDM	lr!, {r3, r4}\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r5, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r6, r12\n\t"
+        "LDM	lr!, {r5, r6}\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r7, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r8, r12\n\t"
+        "LDM	lr!, {r7, r8}\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r9, r12\n\t"
+        "BFC	r10, #31, #1\n\t"
+        "ADDS	r8, r10, r11\n\t"
+        /* Store */
+        "LDR	r0, [sp, #64]\n\t"
+        "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
+        "ADD	sp, sp, #0x44\n\t"
+        :
+        :
+        : "memory", "lr"
+    );
+}
+
+#else
+void fe_sq_op(void);
+void fe_sq_op()
 {
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x20\n\t"
@@ -1763,18 +2487,80 @@ void fe_sq_op(void)
     );
 }
 
-void fe_sq(fe r, const fe a)
+#endif /* WOLFSSL_SP_NO_UMAAL */
+void fe_sq(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "BL	fe_sq_op\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void fe_mul121666(fe r, fe a)
+#ifdef HAVE_CURVE25519
+#ifdef WOLFSSL_SP_NO_UMAAL
+void fe_mul121666(fe r_p, fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register sword32* a asm ("r1") = (sword32*)a_p;
+
+    __asm__ __volatile__ (
+        /* Multiply by 121666 */
+        "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "MOV	r12, #0xdb42\n\t"
+        "MOVT	r12, #0x1\n\t"
+        "UMULL	r2, r10, r2, r12\n\t"
+        "UMULL	r3, r11, r3, r12\n\t"
+        "ADDS	r3, r3, r10\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMULL	r4, r10, r4, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMULL	r5, r11, r5, r12\n\t"
+        "ADDS	r5, r5, r10\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMULL	r6, r10, r6, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMULL	r7, r11, r7, r12\n\t"
+        "ADDS	r7, r7, r10\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMULL	r8, r10, r8, r12\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMULL	r9, r11, r9, r12\n\t"
+        "ADDS	r9, r9, r10\n\t"
+        "MOV	r12, #0x13\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "LSL	r11, r11, #1\n\t"
+        "ORR	r11, r11, r9, LSR #31\n\t"
+        "MUL	r11, r11, r12\n\t"
+        "ADDS	r2, r2, r11\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "BFC	r9, #31, #1\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, #0x0\n\t"
+        "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        : [r] "+r" (r), [a] "+r" (a)
+        :
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+    );
+}
+
+#else
+void fe_mul121666(fe r_p, fe a_p)
+{
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register sword32* a asm ("r1") = (sword32*)a_p;
+
     __asm__ __volatile__ (
         /* Multiply by 121666 */
         "LDM	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -1803,15 +2589,20 @@ void fe_mul121666(fe r, fe a)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
         "STM	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
+#endif /* WOLFSSL_SP_NO_UMAAL */
 #ifndef WC_NO_CACHE_RESISTANT
-int curve25519(byte* r, const byte* n, const byte* a)
+int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xbc\n\t"
         "STR	%[r], [sp, #160]\n\t"
@@ -1819,29 +2610,20 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "STR	%[a], [sp, #168]\n\t"
         "MOV	%[n], #0x0\n\t"
         "STR	%[n], [sp, #172]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [%[r]]\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [%[r], #8]\n\t"
-        "STRD	r10, r11, [%[r], #16]\n\t"
-        "STRD	r10, r11, [%[r], #24]\n\t"
-        /* Set zero */
+        "MOV	r4, #0x1\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp]\n\t"
-        "STRD	r10, r11, [sp, #8]\n\t"
-        "STRD	r10, r11, [sp, #16]\n\t"
-        "STRD	r10, r11, [sp, #24]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp, #32]\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [sp, #40]\n\t"
-        "STRD	r10, r11, [sp, #48]\n\t"
-        "STRD	r10, r11, [sp, #56]\n\t"
+        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADD	r3, sp, #0x20\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r3, sp\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -1866,8 +2648,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "LDR	%[r], [sp, #160]\n\t"
         /* Conditional Swap */
         "RSB	%[n], %[n], #0x0\n\t"
-        "LDRD	r4, r5, [%[r]]\n\t"
-        "LDRD	r6, r7, [sp, #64]\n\t"
+        "MOV	r3, r0\n\t"
+        "ADD	r12, sp, #0x40\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1876,10 +2660,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r]]\n\t"
-        "STRD	r6, r7, [sp, #64]\n\t"
-        "LDRD	r4, r5, [%[r], #8]\n\t"
-        "LDRD	r6, r7, [sp, #72]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1888,10 +2672,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #8]\n\t"
-        "STRD	r6, r7, [sp, #72]\n\t"
-        "LDRD	r4, r5, [%[r], #16]\n\t"
-        "LDRD	r6, r7, [sp, #80]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1900,10 +2684,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #16]\n\t"
-        "STRD	r6, r7, [sp, #80]\n\t"
-        "LDRD	r4, r5, [%[r], #24]\n\t"
-        "LDRD	r6, r7, [sp, #88]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1912,13 +2696,15 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [%[r], #24]\n\t"
-        "STRD	r6, r7, [sp, #88]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
         "LDR	%[n], [sp, #172]\n\t"
         /* Conditional Swap */
         "RSB	%[n], %[n], #0x0\n\t"
-        "LDRD	r4, r5, [sp]\n\t"
-        "LDRD	r6, r7, [sp, #32]\n\t"
+        "MOV	r3, sp\n\t"
+        "ADD	r12, sp, #0x20\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1927,10 +2713,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp]\n\t"
-        "STRD	r6, r7, [sp, #32]\n\t"
-        "LDRD	r4, r5, [sp, #8]\n\t"
-        "LDRD	r6, r7, [sp, #40]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1939,10 +2725,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #8]\n\t"
-        "STRD	r6, r7, [sp, #40]\n\t"
-        "LDRD	r4, r5, [sp, #16]\n\t"
-        "LDRD	r6, r7, [sp, #48]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1951,10 +2737,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #16]\n\t"
-        "STRD	r6, r7, [sp, #48]\n\t"
-        "LDRD	r4, r5, [sp, #24]\n\t"
-        "LDRD	r6, r7, [sp, #56]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
+        "LDM	r3, {r4, r5}\n\t"
+        "LDM	r12, {r6, r7}\n\t"
         "EOR	r8, r4, r6\n\t"
         "EOR	r9, r5, r7\n\t"
         "AND	r8, r8, %[n]\n\t"
@@ -1963,8 +2749,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "EOR	r5, r5, r9\n\t"
         "EOR	r6, r6, r8\n\t"
         "EOR	r7, r7, r9\n\t"
-        "STRD	r4, r5, [sp, #24]\n\t"
-        "STRD	r6, r7, [sp, #56]\n\t"
+        "STM	r3!, {r4, r5}\n\t"
+        "STM	r12!, {r6, r7}\n\t"
         "LDR	%[n], [sp, #184]\n\t"
         "STR	%[n], [sp, #172]\n\t"
         "MOV	r3, sp\n\t"
@@ -2193,7 +2979,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "BL	fe_mul_op\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xbc\n\t"
-        : [r] "+l" (r), [n] "+l" (n), [a] "+l" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
     );
@@ -2201,8 +2987,12 @@ int curve25519(byte* r, const byte* n, const byte* a)
 }
 
 #else
-int curve25519(byte* r, const byte* n, const byte* a)
+int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
+    register byte* r asm ("r0") = (byte*)r_p;
+    register const byte* n asm ("r1") = (const byte*)n_p;
+    register const byte* a asm ("r2") = (const byte*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc0\n\t"
         "STR	%[r], [sp, #176]\n\t"
@@ -2215,29 +3005,20 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "STR	r4, [sp, #188]\n\t"
         "MOV	%[n], #0x0\n\t"
         "STR	%[n], [sp, #164]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [%[r]]\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [%[r], #8]\n\t"
-        "STRD	r10, r11, [%[r], #16]\n\t"
-        "STRD	r10, r11, [%[r], #24]\n\t"
-        /* Set zero */
+        "MOV	r4, #0x1\n\t"
+        "MOV	r5, #0x0\n\t"
+        "MOV	r6, #0x0\n\t"
+        "MOV	r7, #0x0\n\t"
+        "MOV	r8, #0x0\n\t"
+        "MOV	r9, #0x0\n\t"
         "MOV	r10, #0x0\n\t"
         "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp]\n\t"
-        "STRD	r10, r11, [sp, #8]\n\t"
-        "STRD	r10, r11, [sp, #16]\n\t"
-        "STRD	r10, r11, [sp, #24]\n\t"
-        /* Set one */
-        "MOV	r10, #0x1\n\t"
-        "MOV	r11, #0x0\n\t"
-        "STRD	r10, r11, [sp, #32]\n\t"
-        "MOV	r10, #0x0\n\t"
-        "STRD	r10, r11, [sp, #40]\n\t"
-        "STRD	r10, r11, [sp, #48]\n\t"
-        "STRD	r10, r11, [sp, #56]\n\t"
+        "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "ADD	r3, sp, #0x20\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
+        "MOV	r4, #0x0\n\t"
+        "MOV	r3, sp\n\t"
+        "STM	r3, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "ADD	r3, sp, #0x40\n\t"
         /* Copy */
         "LDM	r2, {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
@@ -2508,7 +3289,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "STM	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "MOV	r0, #0x0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
-        : [r] "+l" (r), [n] "+l" (n), [a] "+l" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
     );
@@ -2516,9 +3297,13 @@ int curve25519(byte* r, const byte* n, const byte* a)
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
-void fe_invert(fe r, const fe a)
+void fe_invert(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x88\n\t"
         /* Invert */
@@ -2678,14 +3463,326 @@ void fe_invert(fe r, const fe a)
         "LDR	%[a], [sp, #132]\n\t"
         "LDR	%[r], [sp, #128]\n\t"
         "ADD	sp, sp, #0x88\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
-void fe_sq2(fe r, const fe a)
+#ifdef WOLFSSL_SP_NO_UMAAL
+void fe_sq2(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
+    __asm__ __volatile__ (
+        "SUB	sp, sp, #0x44\n\t"
+        "STR	r0, [sp, #64]\n\t"
+        /* Square * 2 */
+        "MOV	r0, #0x0\n\t"
+        "LDR	r12, [r1]\n\t"
+        /* A[0] * A[1] */
+        "LDR	lr, [r1, #4]\n\t"
+        "UMULL	r4, r5, r12, lr\n\t"
+        /* A[0] * A[3] */
+        "LDR	lr, [r1, #12]\n\t"
+        "UMULL	r6, r7, r12, lr\n\t"
+        /* A[0] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "UMULL	r8, r9, r12, lr\n\t"
+        /* A[0] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "UMULL	r10, r3, r12, lr\n\t"
+        /* A[0] * A[2] */
+        "LDR	lr, [r1, #8]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[0] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[0] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "STR	r4, [sp, #4]\n\t"
+        "STR	r5, [sp, #8]\n\t"
+        /* A[1] * A[2] */
+        "LDR	r12, [r1, #4]\n\t"
+        "LDR	lr, [r1, #8]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "STR	r6, [sp, #12]\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[1] * A[3] */
+        "LDR	lr, [r1, #12]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "STR	r7, [sp, #16]\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[1] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[1] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[1] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[1] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r4, r0, #0x0\n\t"
+        "UMLAL	r3, r4, r12, lr\n\t"
+        /* A[2] * A[3] */
+        "LDR	r12, [r1, #8]\n\t"
+        "LDR	lr, [r1, #12]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "STR	r8, [sp, #20]\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[2] * A[4] */
+        "LDR	lr, [r1, #16]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "STR	r9, [sp, #24]\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[2] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[2] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[2] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r5, r0, #0x0\n\t"
+        "UMLAL	r4, r5, r12, lr\n\t"
+        /* A[3] * A[4] */
+        "LDR	r12, [r1, #12]\n\t"
+        "LDR	lr, [r1, #16]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "STR	r10, [sp, #28]\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        /* A[3] * A[5] */
+        "LDR	lr, [r1, #20]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[3] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[3] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r6, r0, #0x0\n\t"
+        "UMLAL	r5, r6, r12, lr\n\t"
+        /* A[4] * A[5] */
+        "LDR	r12, [r1, #16]\n\t"
+        "LDR	lr, [r1, #20]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[4] * A[6] */
+        "LDR	lr, [r1, #24]\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[4] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r7, r0, #0x0\n\t"
+        "UMLAL	r6, r7, r12, lr\n\t"
+        /* A[5] * A[6] */
+        "LDR	r12, [r1, #20]\n\t"
+        "LDR	lr, [r1, #24]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[5] * A[7] */
+        "LDR	lr, [r1, #28]\n\t"
+        "ADC	r8, r0, #0x0\n\t"
+        "UMLAL	r7, r8, r12, lr\n\t"
+        /* A[6] * A[7] */
+        "LDR	r12, [r1, #24]\n\t"
+        "LDR	lr, [r1, #28]\n\t"
+        "MOV	r9, #0x0\n\t"
+        "UMLAL	r8, r9, r12, lr\n\t"
+        "ADD	lr, sp, #0x20\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADD	lr, sp, #0x4\n\t"
+        "LDM	lr, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "ADDS	r4, r4, r4\n\t"
+        "ADCS	r5, r5, r5\n\t"
+        "ADCS	r6, r6, r6\n\t"
+        "ADCS	r7, r7, r7\n\t"
+        "ADCS	r8, r8, r8\n\t"
+        "ADCS	r9, r9, r9\n\t"
+        "ADCS	r10, r10, r10\n\t"
+        "STM	lr!, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "LDM	lr, {r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADCS	r3, r3, r3\n\t"
+        "ADCS	r4, r4, r4\n\t"
+        "ADCS	r5, r5, r5\n\t"
+        "ADCS	r6, r6, r6\n\t"
+        "ADCS	r7, r7, r7\n\t"
+        "ADCS	r8, r8, r8\n\t"
+        "ADCS	r9, r9, r9\n\t"
+        "ADC	r10, r0, #0x0\n\t"
+        "STM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "ADD	lr, sp, #0x4\n\t"
+        "LDM	lr, {r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "MOV	lr, sp\n\t"
+        /* A[0] * A[0] */
+        "LDR	r12, [r1]\n\t"
+        "UMULL	r3, r11, r12, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[1] * A[1] */
+        "LDR	r12, [r1, #4]\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[2] * A[2] */
+        "LDR	r12, [r1, #8]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, r12\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[3] * A[3] */
+        "LDR	r12, [r1, #12]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r9, r11, r12, r12\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        "STM	lr!, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "LDM	lr, {r3, r4, r5, r6, r7, r8, r9, r10}\n\t"
+        /* A[4] * A[4] */
+        "LDR	r12, [r1, #16]\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r12, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[5] * A[5] */
+        "LDR	r12, [r1, #20]\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r12, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[6] * A[6] */
+        "LDR	r12, [r1, #24]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r12, r12\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[7] * A[7] */
+        "LDR	r12, [r1, #28]\n\t"
+        "ADCS	r9, r9, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r9, r10, r12, r12\n\t"
+        /* Reduce */
+        "LDR	r2, [sp, #28]\n\t"
+        "MOV	lr, sp\n\t"
+        "MOV	r12, #0x26\n\t"
+        "UMULL	r10, r11, r10, r12\n\t"
+        "ADDS	r10, r10, r2\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "MOV	r12, #0x13\n\t"
+        "LSL	r11, r11, #1\n\t"
+        "ORR	r11, r11, r10, LSR #31\n\t"
+        "MUL	r11, r11, r12\n\t"
+        "LDM	lr!, {r1, r2}\n\t"
+        "MOV	r12, #0x26\n\t"
+        "ADDS	r1, r1, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r1, r11, r3, r12\n\t"
+        "ADDS	r2, r2, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r2, r11, r4, r12\n\t"
+        "LDM	lr!, {r3, r4}\n\t"
+        "ADDS	r3, r3, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r3, r11, r5, r12\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r4, r11, r6, r12\n\t"
+        "LDM	lr!, {r5, r6}\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r5, r11, r7, r12\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r6, r11, r8, r12\n\t"
+        "LDM	lr!, {r7, r8}\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        "ADC	r11, r0, #0x0\n\t"
+        "UMLAL	r7, r11, r9, r12\n\t"
+        "BFC	r10, #31, #1\n\t"
+        "ADDS	r8, r10, r11\n\t"
+        /* Reduce if top bit set */
+        "MOV	r12, #0x13\n\t"
+        "AND	r11, r12, r8, ASR #31\n\t"
+        "ADDS	r1, r1, r11\n\t"
+        "ADCS	r2, r2, #0x0\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "BFC	r8, #31, #1\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r8, r8, #0x0\n\t"
+        /* Double */
+        "ADDS	r1, r1, r1\n\t"
+        "ADCS	r2, r2, r2\n\t"
+        "ADCS	r3, r3, r3\n\t"
+        "ADCS	r4, r4, r4\n\t"
+        "ADCS	r5, r5, r5\n\t"
+        "ADCS	r6, r6, r6\n\t"
+        "ADCS	r7, r7, r7\n\t"
+        "ADC	r8, r8, r8\n\t"
+        /* Reduce if top bit set */
+        "MOV	r12, #0x13\n\t"
+        "AND	r11, r12, r8, ASR #31\n\t"
+        "ADDS	r1, r1, r11\n\t"
+        "ADCS	r2, r2, #0x0\n\t"
+        "ADCS	r3, r3, #0x0\n\t"
+        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "BFC	r8, #31, #1\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADC	r8, r8, #0x0\n\t"
+        /* Store */
+        "LDR	r0, [sp, #64]\n\t"
+        "STM	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
+        "ADD	sp, sp, #0x44\n\t"
+        : [r] "+r" (r), [a] "+r" (a)
+        :
+        : "memory", "lr"
+    );
+}
+
+#else
+void fe_sq2(fe r_p, const fe a_p)
+{
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x24\n\t"
         "STRD	r0, r1, [sp, #28]\n\t"
@@ -2831,14 +3928,18 @@ void fe_sq2(fe r, const fe a)
         "STM	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "MOV	r0, r12\n\t"
         "MOV	r1, lr\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr"
     );
 }
 
-void fe_pow22523(fe r, const fe a)
+#endif /* WOLFSSL_SP_NO_UMAAL */
+void fe_pow22523(fe r_p, const fe a_p)
 {
+    register sword32* r asm ("r0") = (sword32*)r_p;
+    register const sword32* a asm ("r1") = (const sword32*)a_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x68\n\t"
         /* pow22523 */
@@ -2998,14 +4099,17 @@ void fe_pow22523(fe r, const fe a)
         "LDR	%[a], [sp, #100]\n\t"
         "LDR	%[r], [sp, #96]\n\t"
         "ADD	sp, sp, #0x68\n\t"
-        : [r] "+l" (r), [a] "+l" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
-void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
+void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
 {
+    register ge_p2 * r asm ("r0") = (ge_p2 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3025,14 +4129,17 @@ void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
-void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
+void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
 {
+    register ge_p3 * r asm ("r0") = (ge_p3 *)r_p;
+    register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3057,14 +4164,17 @@ void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
         "ADD	r0, r0, #0x60\n\t"
         "BL	fe_mul_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "lr", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }
 
-void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
+void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p2 * p asm ("r1") = (const ge_p2 *)p_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3101,14 +4211,18 @@ void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
         "MOV	r1, r0\n\t"
         "BL	fe_sub_op\n\t"
         "ADD	sp, sp, #0x8\n\t"
-        : [r] "+l" (r), [p] "+l" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_madd(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3179,14 +4293,18 @@ void ge_madd(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
         "ADD	r1, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_msub(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3258,14 +4376,18 @@ void ge_msub(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0xc\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_add(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3337,14 +4459,18 @@ void ge_add(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
         "ADD	r0, r0, #0x20\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 {
+    register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
+    register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
+    register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x2c\n\t"
         "STR	%[r], [sp]\n\t"
@@ -3416,16 +4542,448 @@ void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
         "ADD	r0, r0, #0x40\n\t"
         "BL	fe_add_sub_op\n\t"
         "ADD	sp, sp, #0x2c\n\t"
-        : [r] "+l" (r), [p] "+l" (p), [q] "+l" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void sc_reduce(byte* s)
+#ifdef WOLFSSL_SP_NO_UMAAL
+void sc_reduce(byte* s_p)
 {
+    register byte* s asm ("r0") = (byte*)s_p;
+
     __asm__ __volatile__ (
-        "SUB	sp, sp, #0x34\n\t"
+        "SUB	sp, sp, #0x38\n\t"
+        "STR	%[s], [sp, #52]\n\t"
+        /* Load bits 252-511 */
+        "ADD	%[s], %[s], #0x1c\n\t"
+        "LDM	%[s], {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "LSR	lr, r9, #24\n\t"
+        "LSL	r9, r9, #4\n\t"
+        "ORR	r9, r9, r8, LSR #28\n\t"
+        "LSL	r8, r8, #4\n\t"
+        "ORR	r8, r8, r7, LSR #28\n\t"
+        "LSL	r7, r7, #4\n\t"
+        "ORR	r7, r7, r6, LSR #28\n\t"
+        "LSL	r6, r6, #4\n\t"
+        "ORR	r6, r6, r5, LSR #28\n\t"
+        "LSL	r5, r5, #4\n\t"
+        "ORR	r5, r5, r4, LSR #28\n\t"
+        "LSL	r4, r4, #4\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
+        "BFC	r9, #28, #4\n\t"
+        "SUB	%[s], %[s], #0x1c\n\t"
+        /* Add order times bits 504..511 */
+        "MOV	r10, #0x2c13\n\t"
+        "MOVT	r10, #0xa30a\n\t"
+        "MOV	r11, #0x9ce5\n\t"
+        "MOVT	r11, #0xa7ed\n\t"
+        "MOV	r1, #0x0\n\t"
+        "UMLAL	r2, r1, r10, lr\n\t"
+        "ADDS	r3, r3, r1\n\t"
+        "MOV	r1, #0x0\n\t"
+        "ADC	r1, r1, #0x0\n\t"
+        "UMLAL	r3, r1, r11, lr\n\t"
+        "MOV	r10, #0x6329\n\t"
+        "MOVT	r10, #0x5d08\n\t"
+        "MOV	r11, #0x621\n\t"
+        "MOVT	r11, #0xeb21\n\t"
+        "ADDS	r4, r4, r1\n\t"
+        "MOV	r1, #0x0\n\t"
+        "ADC	r1, r1, #0x0\n\t"
+        "UMLAL	r4, r1, r10, lr\n\t"
+        "ADDS	r5, r5, r1\n\t"
+        "MOV	r1, #0x0\n\t"
+        "ADC	r1, r1, #0x0\n\t"
+        "UMLAL	r5, r1, r11, lr\n\t"
+        "ADDS	r6, r6, r1\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, #0x0\n\t"
+        "SUBS	r6, r6, lr\n\t"
+        "SBCS	r7, r7, #0x0\n\t"
+        "SBCS	r8, r8, #0x0\n\t"
+        "SBC	r9, r9, #0x0\n\t"
+        /* Sub product of top 8 words and order */
+        "MOV	r12, sp\n\t"
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
+        "BFC	r11, #28, #4\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, r2, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r3, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, r1\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, r1\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        /* Subtract at 4 * 32 */
+        "LDM	r12, {r10, r11}\n\t"
+        "SUBS	r10, r10, r2\n\t"
+        "SBCS	r11, r11, r3\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r4\n\t"
+        "SBCS	r11, r11, r5\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r6\n\t"
+        "SBCS	r11, r11, r7\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r8\n\t"
+        "SBC	r11, r11, r9\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "SUB	r12, r12, #0x24\n\t"
+        "ASR	lr, r11, #25\n\t"
+        /* Conditionally subtract order starting at bit 125 */
+        "MOV	r1, #0xa0000000\n\t"
+        "MOV	r2, #0xba7d\n\t"
+        "MOVT	r2, #0x4b9e\n\t"
+        "MOV	r3, #0x4c63\n\t"
+        "MOVT	r3, #0xcb02\n\t"
+        "MOV	r4, #0xf39a\n\t"
+        "MOVT	r4, #0xd45e\n\t"
+        "MOV	r5, #0xdf3b\n\t"
+        "MOVT	r5, #0x29b\n\t"
+        "MOV	r9, #0x2000000\n\t"
+        "AND	r1, r1, lr\n\t"
+        "AND	r2, r2, lr\n\t"
+        "AND	r3, r3, lr\n\t"
+        "AND	r4, r4, lr\n\t"
+        "AND	r5, r5, lr\n\t"
+        "AND	r9, r9, lr\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, r1\n\t"
+        "ADCS	r11, r11, r2\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r3\n\t"
+        "ADCS	r11, r11, r4\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r5\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "STM	r12!, {r10}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "MOV	r12, sp\n\t"
+        /* Load bits 252-376 */
+        "ADD	r12, r12, #0x1c\n\t"
+        "LDM	r12, {r1, r2, r3, r4, r5}\n\t"
+        "LSL	r5, r5, #4\n\t"
+        "ORR	r5, r5, r4, LSR #28\n\t"
+        "LSL	r4, r4, #4\n\t"
+        "ORR	r4, r4, r3, LSR #28\n\t"
+        "LSL	r3, r3, #4\n\t"
+        "ORR	r3, r3, r2, LSR #28\n\t"
+        "LSL	r2, r2, #4\n\t"
+        "ORR	r2, r2, r1, LSR #28\n\t"
+        "BFC	r5, #29, #3\n\t"
+        "SUB	r12, r12, #0x1c\n\t"
+        /* Sub product of top 4 words and order */
+        "MOV	%[s], sp\n\t"
+        /*   * -5cf5d3ed */
+        "MOV	r1, #0x2c13\n\t"
+        "MOVT	r1, #0xa30a\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, lr, r2, r1\n\t"
+        "ADDS	r7, r7, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r7, lr, r3, r1\n\t"
+        "ADDS	r8, r8, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r8, lr, r4, r1\n\t"
+        "ADDS	r9, r9, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r9, lr, r5, r1\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -5812631b */
+        "MOV	r1, #0x9ce5\n\t"
+        "MOVT	r1, #0xa7ed\n\t"
+        "MOV	r10, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r10, r2, r1\n\t"
+        "ADDS	r7, r7, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r7, r10, r3, r1\n\t"
+        "ADDS	r8, r8, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r8, r10, r4, r1\n\t"
+        "ADDS	r9, r9, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r9, r10, r5, r1\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -a2f79cd7 */
+        "MOV	r1, #0x6329\n\t"
+        "MOVT	r1, #0x5d08\n\t"
+        "MOV	r11, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r11, r2, r1\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r7, r11, r3, r1\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r8, r11, r4, r1\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r9, r11, r5, r1\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -14def9df */
+        "MOV	r1, #0x621\n\t"
+        "MOVT	r1, #0xeb21\n\t"
+        "MOV	r12, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r12, r2, r1\n\t"
+        "ADDS	r7, r7, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r7, r12, r3, r1\n\t"
+        "ADDS	r8, r8, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r8, r12, r4, r1\n\t"
+        "ADDS	r9, r9, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r9, r12, r5, r1\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /* Add overflows at 4 * 32 */
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "BFC	r9, #28, #4\n\t"
+        "ADDS	r6, r6, lr\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADCS	r8, r8, r11\n\t"
+        "ADC	r9, r9, r12\n\t"
+        /* Subtract top at 4 * 32 */
+        "SUBS	r6, r6, r2\n\t"
+        "SBCS	r7, r7, r3\n\t"
+        "SBCS	r8, r8, r4\n\t"
+        "SBCS	r9, r9, r5\n\t"
+        "SBC	r1, r1, r1\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "LDM	%[s], {r2, r3, r4, r5}\n\t"
+        "MOV	r10, #0xd3ed\n\t"
+        "MOVT	r10, #0x5cf5\n\t"
+        "MOV	r11, #0x631a\n\t"
+        "MOVT	r11, #0x5812\n\t"
+        "MOV	r12, #0x9cd6\n\t"
+        "MOVT	r12, #0xa2f7\n\t"
+        "MOV	lr, #0xf9de\n\t"
+        "MOVT	lr, #0x14de\n\t"
+        "AND	r10, r10, r1\n\t"
+        "AND	r11, r11, r1\n\t"
+        "AND	r12, r12, r1\n\t"
+        "AND	lr, lr, r1\n\t"
+        "ADDS	r2, r2, r10\n\t"
+        "ADCS	r3, r3, r11\n\t"
+        "ADCS	r4, r4, r12\n\t"
+        "ADCS	r5, r5, lr\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "AND	r1, r1, #0x10000000\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, r1\n\t"
+        "BFC	r9, #28, #4\n\t"
+        /* Store result */
+        "LDR	%[s], [sp, #52]\n\t"
+        "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
+        "ADD	sp, sp, #0x38\n\t"
+        : [s] "+r" (s)
+        :
+        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+    );
+}
+
+#else
+void sc_reduce(byte* s_p)
+{
+    register byte* s asm ("r0") = (byte*)s_p;
+
+    __asm__ __volatile__ (
+        "SUB	sp, sp, #0x38\n\t"
+        "STR	%[s], [sp, #52]\n\t"
         /* Load bits 252-511 */
         "ADD	%[s], %[s], #0x1c\n\t"
         "LDM	%[s], {r1, r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -3471,96 +5029,107 @@ void sc_reduce(byte* s)
         "SBCS	r8, r8, #0x0\n\t"
         "SBC	r9, r9, #0x0\n\t"
         /* Sub product of top 8 words and order */
+        "MOV	r12, sp\n\t"
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	%[s]!, {r10, r11, r12}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "UMAAL	r11, lr, r3, r1\n\t"
-        "UMAAL	r12, lr, r4, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	%[s]!, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, r1\n\t"
-        "UMAAL	r11, lr, r6, r1\n\t"
-        "UMAAL	r12, lr, r7, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
         "LDM	%[s]!, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, r1\n\t"
         "BFC	r11, #28, #4\n\t"
         "UMAAL	r11, lr, r9, r1\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	%[s], %[s], #0x10\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "UMAAL	r11, lr, r3, r1\n\t"
-        "UMAAL	r12, lr, r4, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, r1\n\t"
-        "UMAAL	r11, lr, r6, r1\n\t"
-        "UMAAL	r12, lr, r7, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, r1\n\t"
         "UMAAL	r11, lr, r9, r1\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	r1, #0x6329\n\t"
         "MOVT	r1, #0x5d08\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "UMAAL	r11, lr, r3, r1\n\t"
-        "UMAAL	r12, lr, r4, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, r1\n\t"
-        "UMAAL	r11, lr, r6, r1\n\t"
-        "UMAAL	r12, lr, r7, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, r1\n\t"
         "UMAAL	r11, lr, r9, r1\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	r1, #0x621\n\t"
         "MOVT	r1, #0xeb21\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, r2, r1\n\t"
         "UMAAL	r11, lr, r3, r1\n\t"
-        "UMAAL	r12, lr, r4, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, r1\n\t"
-        "UMAAL	r11, lr, r6, r1\n\t"
-        "UMAAL	r12, lr, r7, r1\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, r1\n\t"
+        "UMAAL	r11, lr, r5, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, r1\n\t"
+        "UMAAL	r11, lr, r7, r1\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, r1\n\t"
         "UMAAL	r11, lr, r9, r1\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         /* Subtract at 4 * 32 */
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "SUBS	r10, r10, r2\n\t"
         "SBCS	r11, r11, r3\n\t"
-        "SBCS	r12, r12, r4\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "SBCS	r10, r10, r5\n\t"
-        "SBCS	r11, r11, r6\n\t"
-        "SBCS	r12, r12, r7\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r4\n\t"
+        "SBCS	r11, r11, r5\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r6\n\t"
+        "SBCS	r11, r11, r7\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "SBCS	r10, r10, r8\n\t"
         "SBC	r11, r11, r9\n\t"
-        "STM	sp!, {r10, r11}\n\t"
-        "SUB	sp, sp, #0x24\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "SUB	r12, r12, #0x24\n\t"
         "ASR	lr, r11, #25\n\t"
         /* Conditionally subtract order starting at bit 125 */
         "MOV	r1, #0xa0000000\n\t"
@@ -3579,26 +5148,30 @@ void sc_reduce(byte* s)
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r9, r9, lr\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, r1\n\t"
         "ADCS	r11, r11, r2\n\t"
-        "ADCS	r12, r12, r3\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "ADCS	r10, r10, r4\n\t"
-        "ADCS	r11, r11, r5\n\t"
-        "ADCS	r12, r12, #0x0\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r3\n\t"
+        "ADCS	r11, r11, r4\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r5\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "ADCS	r10, r10, #0x0\n\t"
         "ADCS	r11, r11, #0x0\n\t"
-        "ADCS	r12, r12, r9\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "SUB	sp, sp, #0x30\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "STM	r12!, {r10}\n\t"
         "SUB	%[s], %[s], #0x10\n\t"
+        "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
-        "ADD	sp, sp, #0x1c\n\t"
-        "LDM	sp, {r1, r2, r3, r4, r5}\n\t"
+        "ADD	r12, r12, #0x1c\n\t"
+        "LDM	r12, {r1, r2, r3, r4, r5}\n\t"
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
@@ -3608,54 +5181,55 @@ void sc_reduce(byte* s)
         "LSL	r2, r2, #4\n\t"
         "ORR	r2, r2, r1, LSR #28\n\t"
         "BFC	r5, #29, #3\n\t"
-        "SUB	sp, sp, #0x1c\n\t"
-        /* Sub product of top 8 words and order */
+        "SUB	r12, r12, #0x1c\n\t"
+        /* Sub product of top 4 words and order */
+        "MOV	%[s], sp\n\t"
         /*   * -5cf5d3ed */
         "MOV	r1, #0x2c13\n\t"
         "MOVT	r1, #0xa30a\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, lr, r2, r1\n\t"
         "UMAAL	r7, lr, r3, r1\n\t"
         "UMAAL	r8, lr, r4, r1\n\t"
         "UMAAL	r9, lr, r5, r1\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -5812631b */
         "MOV	r1, #0x9ce5\n\t"
         "MOVT	r1, #0xa7ed\n\t"
         "MOV	r10, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r10, r2, r1\n\t"
         "UMAAL	r7, r10, r3, r1\n\t"
         "UMAAL	r8, r10, r4, r1\n\t"
         "UMAAL	r9, r10, r5, r1\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -a2f79cd7 */
         "MOV	r1, #0x6329\n\t"
         "MOVT	r1, #0x5d08\n\t"
         "MOV	r11, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r11, r2, r1\n\t"
         "UMAAL	r7, r11, r3, r1\n\t"
         "UMAAL	r8, r11, r4, r1\n\t"
         "UMAAL	r9, r11, r5, r1\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -14def9df */
         "MOV	r1, #0x621\n\t"
         "MOVT	r1, #0xeb21\n\t"
         "MOV	r12, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r12, r2, r1\n\t"
         "UMAAL	r7, r12, r3, r1\n\t"
         "UMAAL	r8, r12, r4, r1\n\t"
         "UMAAL	r9, r12, r5, r1\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
@@ -3667,8 +5241,8 @@ void sc_reduce(byte* s)
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
         "SBC	r1, r1, r1\n\t"
-        "SUB	sp, sp, #0x10\n\t"
-        "LDM	sp, {r2, r3, r4, r5}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "LDM	%[s], {r2, r3, r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -3692,16 +5266,813 @@ void sc_reduce(byte* s)
         "ADC	r9, r9, r1\n\t"
         "BFC	r9, #28, #4\n\t"
         /* Store result */
+        "LDR	%[s], [sp, #52]\n\t"
         "STM	%[s], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x34\n\t"
-        : [s] "+l" (s)
+        "ADD	sp, sp, #0x38\n\t"
+        : [s] "+r" (s)
         :
         : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
-void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
+#endif /* WOLFSSL_SP_NO_UMAAL */
+#ifdef HAVE_ED25519_SIGN
+#ifdef WOLFSSL_SP_NO_UMAAL
+void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 {
+    register byte* s asm ("r0") = (byte*)s_p;
+    register const byte* a asm ("r1") = (const byte*)a_p;
+    register const byte* b asm ("r2") = (const byte*)b_p;
+    register const byte* c asm ("r3") = (const byte*)c_p;
+
+    __asm__ __volatile__ (
+        "SUB	sp, sp, #0x50\n\t"
+        "ADD	lr, sp, #0x44\n\t"
+        "STM	lr, {%[s], %[a], %[c]}\n\t"
+        "MOV	%[r], #0x0\n\t"
+        "LDR	r12, [%[a]]\n\t"
+        /* A[0] * B[0] */
+        "LDR	lr, [%[b]]\n\t"
+        "UMULL	%[c], r4, r12, lr\n\t"
+        /* A[0] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "UMULL	r5, r6, r12, lr\n\t"
+        /* A[0] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "UMULL	r7, r8, r12, lr\n\t"
+        /* A[0] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "UMULL	r9, r10, r12, lr\n\t"
+        "STR	%[c], [sp]\n\t"
+        /* A[0] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "MOV	r11, %[r]\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[0] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[0] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[0] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADC	%[c], %[r], #0x0\n\t"
+        "UMLAL	r10, %[c], r12, lr\n\t"
+        /* A[1] * B[0] */
+        "LDR	r12, [%[a], #4]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "STR	r4, [sp, #4]\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[1] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[1] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[1] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[1] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[1] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[1] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[1] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r4, %[r], #0x0\n\t"
+        "UMLAL	%[c], r4, r12, lr\n\t"
+        /* A[2] * B[0] */
+        "LDR	r12, [%[a], #8]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "STR	r5, [sp, #8]\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[2] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[2] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[2] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[2] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[2] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[2] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[2] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r5, %[r], #0x0\n\t"
+        "UMLAL	r4, r5, r12, lr\n\t"
+        /* A[3] * B[0] */
+        "LDR	r12, [%[a], #12]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "STR	r6, [sp, #12]\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[3] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[3] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[3] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[3] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[3] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[3] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[3] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r6, %[r], #0x0\n\t"
+        "UMLAL	r5, r6, r12, lr\n\t"
+        /* A[4] * B[0] */
+        "LDR	r12, [%[a], #16]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "STR	r7, [sp, #16]\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[4] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[4] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[4] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[4] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[4] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[4] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[4] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r7, %[r], #0x0\n\t"
+        "UMLAL	r6, r7, r12, lr\n\t"
+        /* A[5] * B[0] */
+        "LDR	r12, [%[a], #20]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "STR	r8, [sp, #20]\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[5] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[5] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[5] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[5] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[5] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[5] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[5] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r8, %[r], #0x0\n\t"
+        "UMLAL	r7, r8, r12, lr\n\t"
+        /* A[6] * B[0] */
+        "LDR	r12, [%[a], #24]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r9, r11, r12, lr\n\t"
+        "STR	r9, [sp, #24]\n\t"
+        "ADDS	r10, r10, r11\n\t"
+        /* A[6] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[6] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[6] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[6] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[6] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[6] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[6] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r9, %[r], #0x0\n\t"
+        "UMLAL	r8, r9, r12, lr\n\t"
+        /* A[7] * B[0] */
+        "LDR	r12, [%[a], #28]\n\t"
+        "LDR	lr, [%[b]]\n\t"
+        "MOV	r11, #0x0\n\t"
+        "UMLAL	r10, r11, r12, lr\n\t"
+        "STR	r10, [sp, #28]\n\t"
+        "ADDS	%[c], %[c], r11\n\t"
+        /* A[7] * B[1] */
+        "LDR	lr, [%[b], #4]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	%[c], r11, r12, lr\n\t"
+        "ADDS	r4, r4, r11\n\t"
+        /* A[7] * B[2] */
+        "LDR	lr, [%[b], #8]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r4, r11, r12, lr\n\t"
+        "ADDS	r5, r5, r11\n\t"
+        /* A[7] * B[3] */
+        "LDR	lr, [%[b], #12]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r5, r11, r12, lr\n\t"
+        "ADDS	r6, r6, r11\n\t"
+        /* A[7] * B[4] */
+        "LDR	lr, [%[b], #16]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r6, r11, r12, lr\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        /* A[7] * B[5] */
+        "LDR	lr, [%[b], #20]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r7, r11, r12, lr\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        /* A[7] * B[6] */
+        "LDR	lr, [%[b], #24]\n\t"
+        "ADC	r11, %[r], #0x0\n\t"
+        "UMLAL	r8, r11, r12, lr\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        /* A[7] * B[7] */
+        "LDR	lr, [%[b], #28]\n\t"
+        "ADC	r10, %[r], #0x0\n\t"
+        "UMLAL	r9, r10, r12, lr\n\t"
+        "ADD	lr, sp, #0x20\n\t"
+        "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
+        "MOV	%[s], sp\n\t"
+        /* Add c to a * b */
+        "LDR	lr, [sp, #76]\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	lr!, {%[a], r10, r11, r12}\n\t"
+        "ADDS	%[b], %[b], %[a]\n\t"
+        "ADCS	%[c], %[c], r10\n\t"
+        "ADCS	r4, r4, r11\n\t"
+        "ADCS	r5, r5, r12\n\t"
+        "LDM	lr!, {%[a], r10, r11, r12}\n\t"
+        "ADCS	r6, r6, %[a]\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADCS	r8, r8, r11\n\t"
+        "ADCS	r9, r9, r12\n\t"
+        "MOV	%[a], r9\n\t"
+        "STM	%[s]!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "ADCS	%[b], %[b], #0x0\n\t"
+        "ADCS	%[c], %[c], #0x0\n\t"
+        "ADCS	r4, r4, #0x0\n\t"
+        "ADCS	r5, r5, #0x0\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, #0x0\n\t"
+        "SUB	%[s], %[s], #0x20\n\t"
+        /* Get 252..503 and 504..507 */
+        "LSR	lr, r9, #24\n\t"
+        "LSL	r9, r9, #4\n\t"
+        "ORR	r9, r9, r8, LSR #28\n\t"
+        "LSL	r8, r8, #4\n\t"
+        "ORR	r8, r8, r7, LSR #28\n\t"
+        "LSL	r7, r7, #4\n\t"
+        "ORR	r7, r7, r6, LSR #28\n\t"
+        "LSL	r6, r6, #4\n\t"
+        "ORR	r6, r6, r5, LSR #28\n\t"
+        "LSL	r5, r5, #4\n\t"
+        "ORR	r5, r5, r4, LSR #28\n\t"
+        "LSL	r4, r4, #4\n\t"
+        "ORR	r4, r4, %[c], LSR #28\n\t"
+        "LSL	%[c], %[c], #4\n\t"
+        "ORR	%[c], %[c], %[b], LSR #28\n\t"
+        "LSL	%[b], %[b], #4\n\t"
+        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "BFC	r9, #28, #4\n\t"
+        /* Add order times bits 504..507 */
+        "MOV	r10, #0x2c13\n\t"
+        "MOVT	r10, #0xa30a\n\t"
+        "MOV	r11, #0x9ce5\n\t"
+        "MOVT	r11, #0xa7ed\n\t"
+        "MOV	%[a], #0x0\n\t"
+        "UMLAL	%[b], %[a], r10, lr\n\t"
+        "ADDS	%[c], %[c], %[a]\n\t"
+        "MOV	%[a], #0x0\n\t"
+        "ADC	%[a], %[a], #0x0\n\t"
+        "UMLAL	%[c], %[a], r11, lr\n\t"
+        "MOV	r10, #0x6329\n\t"
+        "MOVT	r10, #0x5d08\n\t"
+        "MOV	r11, #0x621\n\t"
+        "MOVT	r11, #0xeb21\n\t"
+        "ADDS	r4, r4, %[a]\n\t"
+        "MOV	%[a], #0x0\n\t"
+        "ADC	%[a], %[a], #0x0\n\t"
+        "UMLAL	r4, %[a], r10, lr\n\t"
+        "ADDS	r5, r5, %[a]\n\t"
+        "MOV	%[a], #0x0\n\t"
+        "ADC	%[a], %[a], #0x0\n\t"
+        "UMLAL	r5, %[a], r11, lr\n\t"
+        "ADDS	r6, r6, %[a]\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, #0x0\n\t"
+        "SUBS	r6, r6, lr\n\t"
+        "SBCS	r7, r7, #0x0\n\t"
+        "SBCS	r8, r8, #0x0\n\t"
+        "SBC	r9, r9, #0x0\n\t"
+        /* Sub product of top 8 words and order */
+        "MOV	r12, sp\n\t"
+        "MOV	%[a], #0x2c13\n\t"
+        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "BFC	r11, #28, #4\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	%[a], #0x9ce5\n\t"
+        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	%[a], #0x6329\n\t"
+        "MOVT	%[a], #0x5d08\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        "MOV	%[a], #0x621\n\t"
+        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMLAL	r10, lr, %[b], %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, %[c], %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r4, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r6, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r10, lr, r8, %[a]\n\t"
+        "ADDS	r11, r11, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r11, lr, r9, %[a]\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
+        /* Subtract at 4 * 32 */
+        "LDM	r12, {r10, r11}\n\t"
+        "SUBS	r10, r10, %[b]\n\t"
+        "SBCS	r11, r11, %[c]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r4\n\t"
+        "SBCS	r11, r11, r5\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r6\n\t"
+        "SBCS	r11, r11, r7\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r8\n\t"
+        "SBC	r11, r11, r9\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "SUB	r12, r12, #0x24\n\t"
+        "ASR	lr, r11, #25\n\t"
+        /* Conditionally subtract order starting at bit 125 */
+        "MOV	%[a], #0xa0000000\n\t"
+        "MOV	%[b], #0xba7d\n\t"
+        "MOVT	%[b], #0x4b9e\n\t"
+        "MOV	%[c], #0x4c63\n\t"
+        "MOVT	%[c], #0xcb02\n\t"
+        "MOV	r4, #0xf39a\n\t"
+        "MOVT	r4, #0xd45e\n\t"
+        "MOV	r5, #0xdf3b\n\t"
+        "MOVT	r5, #0x29b\n\t"
+        "MOV	r9, #0x2000000\n\t"
+        "AND	%[a], %[a], lr\n\t"
+        "AND	%[b], %[b], lr\n\t"
+        "AND	%[c], %[c], lr\n\t"
+        "AND	r4, r4, lr\n\t"
+        "AND	r5, r5, lr\n\t"
+        "AND	r9, r9, lr\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADDS	r10, r10, %[a]\n\t"
+        "ADCS	r11, r11, %[b]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, %[c]\n\t"
+        "ADCS	r11, r11, r4\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r5\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "STM	r12!, {r10}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "MOV	r12, sp\n\t"
+        /* Load bits 252-376 */
+        "ADD	r12, r12, #0x1c\n\t"
+        "LDM	r12, {%[a], %[b], %[c], r4, r5}\n\t"
+        "LSL	r5, r5, #4\n\t"
+        "ORR	r5, r5, r4, LSR #28\n\t"
+        "LSL	r4, r4, #4\n\t"
+        "ORR	r4, r4, %[c], LSR #28\n\t"
+        "LSL	%[c], %[c], #4\n\t"
+        "ORR	%[c], %[c], %[b], LSR #28\n\t"
+        "LSL	%[b], %[b], #4\n\t"
+        "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "BFC	r5, #29, #3\n\t"
+        "SUB	r12, r12, #0x1c\n\t"
+        /* Sub product of top 4 words and order */
+        "MOV	%[s], sp\n\t"
+        /*   * -5cf5d3ed */
+        "MOV	%[a], #0x2c13\n\t"
+        "MOVT	%[a], #0xa30a\n\t"
+        "MOV	lr, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, lr, %[b], %[a]\n\t"
+        "ADDS	r7, r7, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r7, lr, %[c], %[a]\n\t"
+        "ADDS	r8, r8, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r8, lr, r4, %[a]\n\t"
+        "ADDS	r9, r9, lr\n\t"
+        "MOV	lr, #0x0\n\t"
+        "ADC	lr, lr, #0x0\n\t"
+        "UMLAL	r9, lr, r5, %[a]\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -5812631b */
+        "MOV	%[a], #0x9ce5\n\t"
+        "MOVT	%[a], #0xa7ed\n\t"
+        "MOV	r10, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r10, %[b], %[a]\n\t"
+        "ADDS	r7, r7, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r7, r10, %[c], %[a]\n\t"
+        "ADDS	r8, r8, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r8, r10, r4, %[a]\n\t"
+        "ADDS	r9, r9, r10\n\t"
+        "MOV	r10, #0x0\n\t"
+        "ADC	r10, r10, #0x0\n\t"
+        "UMLAL	r9, r10, r5, %[a]\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -a2f79cd7 */
+        "MOV	%[a], #0x6329\n\t"
+        "MOVT	%[a], #0x5d08\n\t"
+        "MOV	r11, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r11, %[b], %[a]\n\t"
+        "ADDS	r7, r7, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r7, r11, %[c], %[a]\n\t"
+        "ADDS	r8, r8, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r8, r11, r4, %[a]\n\t"
+        "ADDS	r9, r9, r11\n\t"
+        "MOV	r11, #0x0\n\t"
+        "ADC	r11, r11, #0x0\n\t"
+        "UMLAL	r9, r11, r5, %[a]\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /*   * -14def9df */
+        "MOV	%[a], #0x621\n\t"
+        "MOVT	%[a], #0xeb21\n\t"
+        "MOV	r12, #0x0\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "UMLAL	r6, r12, %[b], %[a]\n\t"
+        "ADDS	r7, r7, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r7, r12, %[c], %[a]\n\t"
+        "ADDS	r8, r8, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r8, r12, r4, %[a]\n\t"
+        "ADDS	r9, r9, r12\n\t"
+        "MOV	r12, #0x0\n\t"
+        "ADC	r12, r12, #0x0\n\t"
+        "UMLAL	r9, r12, r5, %[a]\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
+        /* Add overflows at 4 * 32 */
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
+        "BFC	r9, #28, #4\n\t"
+        "ADDS	r6, r6, lr\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADCS	r8, r8, r11\n\t"
+        "ADC	r9, r9, r12\n\t"
+        /* Subtract top at 4 * 32 */
+        "SUBS	r6, r6, %[b]\n\t"
+        "SBCS	r7, r7, %[c]\n\t"
+        "SBCS	r8, r8, r4\n\t"
+        "SBCS	r9, r9, r5\n\t"
+        "SBC	%[a], %[a], %[a]\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5}\n\t"
+        "MOV	r10, #0xd3ed\n\t"
+        "MOVT	r10, #0x5cf5\n\t"
+        "MOV	r11, #0x631a\n\t"
+        "MOVT	r11, #0x5812\n\t"
+        "MOV	r12, #0x9cd6\n\t"
+        "MOVT	r12, #0xa2f7\n\t"
+        "MOV	lr, #0xf9de\n\t"
+        "MOVT	lr, #0x14de\n\t"
+        "AND	r10, r10, %[a]\n\t"
+        "AND	r11, r11, %[a]\n\t"
+        "AND	r12, r12, %[a]\n\t"
+        "AND	lr, lr, %[a]\n\t"
+        "ADDS	%[b], %[b], r10\n\t"
+        "ADCS	%[c], %[c], r11\n\t"
+        "ADCS	r4, r4, r12\n\t"
+        "ADCS	r5, r5, lr\n\t"
+        "ADCS	r6, r6, #0x0\n\t"
+        "ADCS	r7, r7, #0x0\n\t"
+        "AND	%[a], %[a], #0x10000000\n\t"
+        "ADCS	r8, r8, #0x0\n\t"
+        "ADC	r9, r9, %[a]\n\t"
+        "BFC	r9, #28, #4\n\t"
+        "LDR	%[s], [sp, #68]\n\t"
+        /* Store result */
+        "STR	%[b], [%[s]]\n\t"
+        "STR	%[c], [%[s], #4]\n\t"
+        "STR	r4, [%[s], #8]\n\t"
+        "STR	r5, [%[s], #12]\n\t"
+        "STR	r6, [%[s], #16]\n\t"
+        "STR	r7, [%[s], #20]\n\t"
+        "STR	r8, [%[s], #24]\n\t"
+        "STR	r9, [%[s], #28]\n\t"
+        "ADD	sp, sp, #0x50\n\t"
+        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
+        :
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+    );
+}
+
+#else
+void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
+{
+    register byte* s asm ("r0") = (byte*)s_p;
+    register const byte* a asm ("r1") = (const byte*)a_p;
+    register const byte* b asm ("r2") = (const byte*)b_p;
+    register const byte* c asm ("r3") = (const byte*)c_p;
+
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x50\n\t"
         "ADD	lr, sp, #0x44\n\t"
@@ -3805,10 +6176,10 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "MOV	%[c], r12\n\t"
         "ADD	lr, sp, #0x20\n\t"
         "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
-        "LDR	%[s], [sp, #68]\n\t"
+        "MOV	%[s], sp\n\t"
         /* Add c to a * b */
         "LDR	lr, [sp, #76]\n\t"
-        "LDM	sp!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
         "LDM	lr!, {%[a], r10, r11, r12}\n\t"
         "ADDS	%[b], %[b], %[a]\n\t"
         "ADCS	%[c], %[c], r10\n\t"
@@ -3820,8 +6191,8 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "ADCS	r8, r8, r11\n\t"
         "ADCS	r9, r9, r12\n\t"
         "MOV	%[a], r9\n\t"
-        "STM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
-        "LDM	sp, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "STM	%[s]!, {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
         "ADCS	%[b], %[b], #0x0\n\t"
         "ADCS	%[c], %[c], #0x0\n\t"
         "ADCS	r4, r4, #0x0\n\t"
@@ -3830,10 +6201,9 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "ADCS	r7, r7, #0x0\n\t"
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, #0x0\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "SUB	%[s], %[s], #0x20\n\t"
         /* Get 252..503 and 504..507 */
         "LSR	lr, r9, #24\n\t"
-        "BFC	r9, #24, #8\n\t"
         "LSL	r9, r9, #4\n\t"
         "ORR	r9, r9, r8, LSR #28\n\t"
         "LSL	r8, r8, #4\n\t"
@@ -3850,6 +6220,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "ORR	%[c], %[c], %[b], LSR #28\n\t"
         "LSL	%[b], %[b], #4\n\t"
         "ORR	%[b], %[b], %[a], LSR #28\n\t"
+        "BFC	r9, #28, #4\n\t"
         /* Add order times bits 504..507 */
         "MOV	r10, #0x2c13\n\t"
         "MOVT	r10, #0xa30a\n\t"
@@ -3873,96 +6244,107 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "SBCS	r8, r8, #0x0\n\t"
         "SBC	r9, r9, #0x0\n\t"
         /* Sub product of top 8 words and order */
+        "MOV	r12, sp\n\t"
         "MOV	%[a], #0x2c13\n\t"
         "MOVT	%[a], #0xa30a\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	%[s]!, {r10, r11, r12}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
         "UMLAL	r10, lr, %[b], %[a]\n\t"
         "UMAAL	r11, lr, %[c], %[a]\n\t"
-        "UMAAL	r12, lr, r4, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	%[s]!, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, %[a]\n\t"
-        "UMAAL	r11, lr, r6, %[a]\n\t"
-        "UMAAL	r12, lr, r7, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, %[a]\n\t"
+        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	%[s]!, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, %[a]\n\t"
+        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
         "LDM	%[s]!, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, %[a]\n\t"
         "BFC	r11, #28, #4\n\t"
         "UMAAL	r11, lr, r9, %[a]\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
         "SUB	%[s], %[s], #0x10\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	%[a], #0x9ce5\n\t"
         "MOVT	%[a], #0xa7ed\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, %[b], %[a]\n\t"
         "UMAAL	r11, lr, %[c], %[a]\n\t"
-        "UMAAL	r12, lr, r4, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, %[a]\n\t"
-        "UMAAL	r11, lr, r6, %[a]\n\t"
-        "UMAAL	r12, lr, r7, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, %[a]\n\t"
+        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, %[a]\n\t"
+        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, %[a]\n\t"
         "UMAAL	r11, lr, r9, %[a]\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	%[a], #0x6329\n\t"
         "MOVT	%[a], #0x5d08\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, %[b], %[a]\n\t"
         "UMAAL	r11, lr, %[c], %[a]\n\t"
-        "UMAAL	r12, lr, r4, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, %[a]\n\t"
-        "UMAAL	r11, lr, r6, %[a]\n\t"
-        "UMAAL	r12, lr, r7, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, %[a]\n\t"
+        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, %[a]\n\t"
+        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, %[a]\n\t"
         "UMAAL	r11, lr, r9, %[a]\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         "MOV	%[a], #0x621\n\t"
         "MOVT	%[a], #0xeb21\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMLAL	r10, lr, %[b], %[a]\n\t"
         "UMAAL	r11, lr, %[c], %[a]\n\t"
-        "UMAAL	r12, lr, r4, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "UMAAL	r10, lr, r5, %[a]\n\t"
-        "UMAAL	r11, lr, r6, %[a]\n\t"
-        "UMAAL	r12, lr, r7, %[a]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r4, %[a]\n\t"
+        "UMAAL	r11, lr, r5, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "UMAAL	r10, lr, r6, %[a]\n\t"
+        "UMAAL	r11, lr, r7, %[a]\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "UMAAL	r10, lr, r8, %[a]\n\t"
         "UMAAL	r11, lr, r9, %[a]\n\t"
-        "STM	sp!, {r10, r11, lr}\n\t"
-        "SUB	sp, sp, #0x20\n\t"
+        "STM	r12!, {r10, r11, lr}\n\t"
+        "SUB	r12, r12, #0x20\n\t"
         /* Subtract at 4 * 32 */
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "SUBS	r10, r10, %[b]\n\t"
         "SBCS	r11, r11, %[c]\n\t"
-        "SBCS	r12, r12, r4\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "SBCS	r10, r10, r5\n\t"
-        "SBCS	r11, r11, r6\n\t"
-        "SBCS	r12, r12, r7\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r4\n\t"
+        "SBCS	r11, r11, r5\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "SBCS	r10, r10, r6\n\t"
+        "SBCS	r11, r11, r7\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "SBCS	r10, r10, r8\n\t"
         "SBC	r11, r11, r9\n\t"
-        "STM	sp!, {r10, r11}\n\t"
-        "SUB	sp, sp, #0x24\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "SUB	r12, r12, #0x24\n\t"
         "ASR	lr, r11, #25\n\t"
         /* Conditionally subtract order starting at bit 125 */
         "MOV	%[a], #0xa0000000\n\t"
@@ -3981,26 +6363,30 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "AND	r4, r4, lr\n\t"
         "AND	r5, r5, lr\n\t"
         "AND	r9, r9, lr\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "ADDS	r10, r10, %[a]\n\t"
         "ADCS	r11, r11, %[b]\n\t"
-        "ADCS	r12, r12, %[c]\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
-        "ADCS	r10, r10, r4\n\t"
-        "ADCS	r11, r11, r5\n\t"
-        "ADCS	r12, r12, #0x0\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "LDM	sp, {r10, r11, r12}\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, %[c]\n\t"
+        "ADCS	r11, r11, r4\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
+        "ADCS	r10, r10, r5\n\t"
+        "ADCS	r11, r11, #0x0\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10, r11}\n\t"
         "ADCS	r10, r10, #0x0\n\t"
         "ADCS	r11, r11, #0x0\n\t"
-        "ADCS	r12, r12, r9\n\t"
-        "STM	sp!, {r10, r11, r12}\n\t"
-        "SUB	sp, sp, #0x30\n\t"
+        "STM	r12!, {r10, r11}\n\t"
+        "LDM	r12, {r10}\n\t"
+        "ADCS	r10, r10, #0x0\n\t"
+        "STM	r12!, {r10}\n\t"
         "SUB	%[s], %[s], #0x10\n\t"
+        "MOV	r12, sp\n\t"
         /* Load bits 252-376 */
-        "ADD	sp, sp, #0x1c\n\t"
-        "LDM	sp, {%[a], %[b], %[c], r4, r5}\n\t"
+        "ADD	r12, r12, #0x1c\n\t"
+        "LDM	r12, {%[a], %[b], %[c], r4, r5}\n\t"
         "LSL	r5, r5, #4\n\t"
         "ORR	r5, r5, r4, LSR #28\n\t"
         "LSL	r4, r4, #4\n\t"
@@ -4010,54 +6396,55 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "LSL	%[b], %[b], #4\n\t"
         "ORR	%[b], %[b], %[a], LSR #28\n\t"
         "BFC	r5, #29, #3\n\t"
-        "SUB	sp, sp, #0x1c\n\t"
-        /* Sub product of top 8 words and order */
+        "SUB	r12, r12, #0x1c\n\t"
+        /* Sub product of top 4 words and order */
+        "MOV	%[s], sp\n\t"
         /*   * -5cf5d3ed */
         "MOV	%[a], #0x2c13\n\t"
         "MOVT	%[a], #0xa30a\n\t"
         "MOV	lr, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, lr, %[b], %[a]\n\t"
         "UMAAL	r7, lr, %[c], %[a]\n\t"
         "UMAAL	r8, lr, r4, %[a]\n\t"
         "UMAAL	r9, lr, r5, %[a]\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -5812631b */
         "MOV	%[a], #0x9ce5\n\t"
         "MOVT	%[a], #0xa7ed\n\t"
         "MOV	r10, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r10, %[b], %[a]\n\t"
         "UMAAL	r7, r10, %[c], %[a]\n\t"
         "UMAAL	r8, r10, r4, %[a]\n\t"
         "UMAAL	r9, r10, r5, %[a]\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -a2f79cd7 */
         "MOV	%[a], #0x6329\n\t"
         "MOVT	%[a], #0x5d08\n\t"
         "MOV	r11, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r11, %[b], %[a]\n\t"
         "UMAAL	r7, r11, %[c], %[a]\n\t"
         "UMAAL	r8, r11, r4, %[a]\n\t"
         "UMAAL	r9, r11, r5, %[a]\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /*   * -14def9df */
         "MOV	%[a], #0x621\n\t"
         "MOVT	%[a], #0xeb21\n\t"
         "MOV	r12, #0x0\n\t"
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "UMLAL	r6, r12, %[b], %[a]\n\t"
         "UMAAL	r7, r12, %[c], %[a]\n\t"
         "UMAAL	r8, r12, r4, %[a]\n\t"
         "UMAAL	r9, r12, r5, %[a]\n\t"
-        "STM	sp, {r6, r7, r8, r9}\n\t"
-        "ADD	sp, sp, #0x4\n\t"
+        "STM	%[s], {r6, r7, r8, r9}\n\t"
+        "ADD	%[s], %[s], #0x4\n\t"
         /* Add overflows at 4 * 32 */
-        "LDM	sp, {r6, r7, r8, r9}\n\t"
+        "LDM	%[s], {r6, r7, r8, r9}\n\t"
         "BFC	r9, #28, #4\n\t"
         "ADDS	r6, r6, lr\n\t"
         "ADCS	r7, r7, r10\n\t"
@@ -4069,8 +6456,8 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "SBCS	r8, r8, r4\n\t"
         "SBCS	r9, r9, r5\n\t"
         "SBC	%[a], %[a], %[a]\n\t"
-        "SUB	sp, sp, #0x10\n\t"
-        "LDM	sp, {%[b], %[c], r4, r5}\n\t"
+        "SUB	%[s], %[s], #0x10\n\t"
+        "LDM	%[s], {%[b], %[c], r4, r5}\n\t"
         "MOV	r10, #0xd3ed\n\t"
         "MOVT	r10, #0x5cf5\n\t"
         "MOV	r11, #0x631a\n\t"
@@ -4093,15 +6480,25 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "ADCS	r8, r8, #0x0\n\t"
         "ADC	r9, r9, %[a]\n\t"
         "BFC	r9, #28, #4\n\t"
+        "LDR	%[s], [sp, #68]\n\t"
         /* Store result */
-        "STM	%[s], {%[b], %[c], r4, r5, r6, r7, r8, r9}\n\t"
+        "STR	%[b], [%[s]]\n\t"
+        "STR	%[c], [%[s], #4]\n\t"
+        "STR	r4, [%[s], #8]\n\t"
+        "STR	r5, [%[s], #12]\n\t"
+        "STR	r6, [%[s], #16]\n\t"
+        "STR	r7, [%[s], #20]\n\t"
+        "STR	r8, [%[s], #24]\n\t"
+        "STR	r9, [%[s], #28]\n\t"
         "ADD	sp, sp, #0x50\n\t"
-        : [s] "+l" (s), [a] "+l" (a), [b] "+l" (b), [c] "+l" (c)
+        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
     );
 }
 
+#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */

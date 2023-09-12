@@ -56,7 +56,7 @@ typedef struct Gcm {
 } Gcm;
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#ifdef WOLFSSL_ARMASM
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
@@ -415,6 +415,9 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #ifdef WOLFSSL_AES_COUNTER
  WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
+ WOLFSSL_API int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+                                        const byte* iv, int dir);
+
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
