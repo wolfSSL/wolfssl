@@ -14045,10 +14045,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 #endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E) {
-                        args->lastErr = ret;
+                    if (ret == WC_PENDING_E)
                         goto exit_ppc;
-                    }
                 #endif
                     if (ret == 0) {
                         ret = ProcessPeerCertCheckKey(ssl, args);
@@ -14304,10 +14302,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 #endif
             #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E) {
-                    args->lastErr = ret;
+                if (ret == WC_PENDING_E)
                     goto exit_ppc;
-                }
             #endif
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
@@ -14510,7 +14506,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                     args->dCert, ssl);
                     #ifdef WOLFSSL_NONBLOCK_OCSP
                         if (ret == OCSP_WANT_READ) {
-                            args->lastErr = ret;
                             goto exit_ppc;
                         }
                     #endif
@@ -15129,12 +15124,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case TLS_ASYNC_FINALIZE:
         {
             /* load last error */
-            if (args->lastErr != 0 && ret == 0
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-                && args->lastErr != WC_PENDING_E &&
-                args->lastErr != OCSP_WANT_READ
-#endif
-            ) {
+            if (args->lastErr != 0 && ret == 0) {
                 ret = args->lastErr;
             }
 
@@ -15248,9 +15238,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef SESSION_CERTS
     /* Reset the session cert chain count in case the session resume failed,
-    do not reset if we are resuming after an async wait */
+     * do not reset if we are resuming after an async wait */
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-    if ((ssl->error != OCSP_WANT_READ && ssl->error != WC_PENDING_E))
+    if (ssl->error != OCSP_WANT_READ && ssl->error != WC_PENDING_E)
 #endif
     {
         ssl->session->chain.count = 0;
