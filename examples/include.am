@@ -1,6 +1,7 @@
 # vim:ft=automake
 # All paths should be given relative to the root
 
+include examples/async/include.am
 include examples/benchmark/include.am
 include examples/client/include.am
 include examples/echoclient/include.am
