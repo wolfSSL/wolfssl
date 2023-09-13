@@ -1,0 +1,54 @@
+name: Multiple architectures
+
+on:
+  workflow_call:
+
+jobs:
+  my_matrix:
+    name: Multi-arch test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - HOST: aarch64-linux-gnu
+            CC: aarch64-linux-gnu-gcc
+            ARCH: arm64
+            EXTRA_OPTS: --enable-sp-asm --enable-armasm
+          - HOST: arm-linux-gnueabihf
+            CC: arm-linux-gnueabihf-gcc
+            ARCH: armhf
+            EXTRA_OPTS: --enable-sp-asm
+          - HOST: riscv64-linux-gnu
+            CC: riscv64-linux-gnu-gcc
+            ARCH: riscv64
+          # Config to ensure CPUs without Thumb instructions compiles
+          - HOST: arm-linux-gnueabi
+            CC: arm-linux-gnueabi-gcc
+            CFLAGS: -marm -DWOLFSSL_SP_ARM_ARCH=6
+            ARCH: armel
+            EXTRA_OPTS: --enable-sp-asm
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Install Compiler
+        run: |
+          sudo apt update
+          sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
+      - uses: actions/checkout@v3
+      - name: Build
+        env:
+            CC: ${{ matrix.CC }}
+            CFLAGS: ${{ matrix.CFLAGS }}
+            QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
+        run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples ${{ matrix.EXTRA_OPTS }} && make
+      - name: Print errors 
+        if: ${{ failure() }}
+        run: |
+          if [ -f config.log ] ; then
+            cat config.log
+          fi
+      - name: Run WolfCrypt Tests
+        env:
+            QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
+        run: ./wolfcrypt/test/testwolfcrypt
