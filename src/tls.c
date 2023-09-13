@@ -8991,6 +8991,10 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = (word32)(ecc_kse->pubKeyLen + ctSz);
         ciphertext = NULL;
+
+        /* Set namedGroup so wolfSSL_get_curve_name() can function properly on
+         * the server side. */
+        ssl->namedGroup = keyShareEntry->group;
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
