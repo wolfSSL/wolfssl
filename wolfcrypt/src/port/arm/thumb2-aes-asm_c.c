@@ -37,6 +37,18 @@
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
+
+#ifdef WOLFSSL_ARMASM
+#if !defined(__aarch64__) && defined(__arm__)
+
+#ifdef __IAR_SYSTEMS_ICC__
+#define __asm__        asm
+#define __volatile__   volatile
+#endif /* __IAR_SYSTEMS_ICC__ */
+#ifdef __KEIL__
+#define __asm__        __asm
+#define __volatile__   volatile
+#endif /* __KEIL__ */
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
@@ -206,7 +218,11 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
         "STM	%[ks]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r11, r11, #0x2\n\t"
         "SUB	r10, r10, #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_invert_key_loop_%=\n\t"
+#else
+        "BNE.N	L_AES_invert_key_loop_%=\n\t"
+#endif
         "SUB	%[ks], %[ks], %[rounds], LSL #3\n\t"
         "ADD	%[ks], %[ks], #0x10\n\t"
         "SUB	r11, %[rounds], #0x1\n\t"
@@ -278,7 +294,11 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
         "EOR	r8, r8, r9, ROR #24\n\t"
         "STR	r8, [%[ks]], #4\n\t"
         "SUBS	r11, r11, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_invert_key_mix_loop_%=\n\t"
+#else
+        "BNE.N	L_AES_invert_key_mix_loop_%=\n\t"
+#endif
         : [ks] "+r" (ks), [rounds] "+r" (rounds), [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c), [L_AES_Thumb2_td] "+r" (L_AES_Thumb2_td_c)
         :
         : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
@@ -306,9 +326,17 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
         "MOV	r8, %[L_AES_Thumb2_te]\n\t"
         "MOV	lr, %[L_AES_Thumb2_rcon]\n\t"
         "CMP	%[len], #0x80\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_set_encrypt_key_start_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_set_encrypt_key_start_128_%=\n\t"
+#endif
         "CMP	%[len], #0xc0\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_set_encrypt_key_start_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_set_encrypt_key_start_192_%=\n\t"
+#endif
         "LDRD	r4, r5, [%[key]]\n\t"
         "LDRD	r6, r7, [%[key], #8]\n\t"
         "REV	r4, r4\n\t"
@@ -369,7 +397,11 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
         "SUB	%[ks], %[ks], #0x10\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_set_encrypt_key_loop_256_%=\n\t"
+#else
+        "BNE.N	L_AES_set_encrypt_key_loop_256_%=\n\t"
+#endif
         "UBFX	r4, r7, #0, #8\n\t"
         "UBFX	r5, r7, #8, #8\n\t"
         "UBFX	r6, r7, #16, #8\n\t"
@@ -431,7 +463,11 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
         "EOR	r7, r7, r6\n\t"
         "STM	%[ks], {r0, r1, r4, r5, r6, r7}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_set_encrypt_key_loop_192_%=\n\t"
+#else
+        "BNE.N	L_AES_set_encrypt_key_loop_192_%=\n\t"
+#endif
         "UBFX	r0, r7, #0, #8\n\t"
         "UBFX	r1, r7, #8, #8\n\t"
         "UBFX	r4, r7, #16, #8\n\t"
@@ -484,7 +520,11 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
         "EOR	r7, r7, r6\n\t"
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_set_encrypt_key_loop_128_%=\n\t"
+#else
+        "BNE.N	L_AES_set_encrypt_key_loop_128_%=\n\t"
+#endif
         "\n"
     "L_AES_set_encrypt_key_end_%=:\n\t"
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks), [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c), [L_AES_Thumb2_rcon] "+r" (L_AES_Thumb2_rcon_c)
@@ -605,7 +645,11 @@ void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "SUBS	%[nr], %[nr], #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_encrypt_block_nr_%=\n\t"
+#else
+        "BNE.N	L_AES_encrypt_block_nr_%=\n\t"
+#endif
         "UBFX	r8, r5, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
         "UBFX	lr, r6, #8, #8\n\t"
@@ -733,9 +777,17 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "MOV	r12, r4\n\t"
         "PUSH	{%[ks]}\n\t"
         "CMP	r12, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_ECB_encrypt_start_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_ECB_encrypt_start_block_128_%=\n\t"
+#endif
         "CMP	r12, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_ECB_encrypt_start_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_ECB_encrypt_start_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_ECB_encrypt_loop_block_256_%=:\n\t"
         "LDR	r4, [lr]\n\t"
@@ -768,7 +820,11 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_encrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_encrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_ECB_encrypt_end_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_start_block_192_%=:\n\t"
@@ -804,7 +860,11 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_encrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_encrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_ECB_encrypt_end_%=\n\t"
         "\n"
     "L_AES_ECB_encrypt_start_block_128_%=:\n\t"
@@ -840,7 +900,11 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_encrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_encrypt_loop_block_128_%=\n\t"
+#endif
         "\n"
     "L_AES_ECB_encrypt_end_%=:\n\t"
         "POP	{%[ks]}\n\t"
@@ -848,7 +912,6 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         :
         : "memory", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
 }
 
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
@@ -873,9 +936,17 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "LDM	r9, {r4, r5, r6, r7}\n\t"
         "PUSH	{%[ks], r9}\n\t"
         "CMP	r8, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_encrypt_start_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_encrypt_start_block_128_%=\n\t"
+#endif
         "CMP	r8, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_encrypt_start_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_encrypt_start_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_CBC_encrypt_loop_block_256_%=:\n\t"
         "LDR	r8, [lr]\n\t"
@@ -912,7 +983,11 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_encrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_encrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_CBC_encrypt_end_%=\n\t"
         "\n"
     "L_AES_CBC_encrypt_start_block_192_%=:\n\t"
@@ -952,7 +1027,11 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_encrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_encrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_CBC_encrypt_end_%=\n\t"
         "\n"
     "L_AES_CBC_encrypt_start_block_128_%=:\n\t"
@@ -992,7 +1071,11 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_encrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_encrypt_loop_block_128_%=\n\t"
+#endif
         "\n"
     "L_AES_CBC_encrypt_end_%=:\n\t"
         "POP	{%[ks], r9}\n\t"
@@ -1001,8 +1084,6 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         :
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
-    (void)iv;
 }
 
 #endif /* HAVE_AES_CBC */
@@ -1032,9 +1113,17 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "STM	r8, {r4, r5, r6, r7}\n\t"
         "PUSH	{%[ks], r8}\n\t"
         "CMP	r12, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CTR_encrypt_start_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_CTR_encrypt_start_block_128_%=\n\t"
+#endif
         "CMP	r12, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CTR_encrypt_start_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_CTR_encrypt_start_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_CTR_encrypt_loop_block_256_%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
@@ -1075,7 +1164,11 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CTR_encrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_CTR_encrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_CTR_encrypt_end_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_start_block_192_%=:\n\t"
@@ -1119,7 +1212,11 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CTR_encrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_CTR_encrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_CTR_encrypt_end_%=\n\t"
         "\n"
     "L_AES_CTR_encrypt_start_block_128_%=:\n\t"
@@ -1163,7 +1260,11 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CTR_encrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_CTR_encrypt_loop_block_128_%=\n\t"
+#endif
         "\n"
     "L_AES_CTR_encrypt_end_%=:\n\t"
         "POP	{%[ks], r8}\n\t"
@@ -1176,8 +1277,6 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         :
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
-    (void)ctr;
 }
 
 #endif /* WOLFSSL_AES_COUNTER */
@@ -1294,7 +1393,11 @@ void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
         "EOR	r6, r6, r10\n\t"
         "EOR	r7, r7, r11\n\t"
         "SUBS	%[nr], %[nr], #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_decrypt_block_nr_%=\n\t"
+#else
+        "BNE.N	L_AES_decrypt_block_nr_%=\n\t"
+#endif
         "UBFX	r8, r7, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
         "UBFX	r12, r6, #8, #8\n\t"
@@ -1457,9 +1560,17 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "MOV	r12, %[len]\n\t"
         "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
         "CMP	r8, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_ECB_decrypt_start_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_ECB_decrypt_start_block_128_%=\n\t"
+#endif
         "CMP	r8, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_ECB_decrypt_start_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_ECB_decrypt_start_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_ECB_decrypt_loop_block_256_%=:\n\t"
         "LDR	r4, [lr]\n\t"
@@ -1491,7 +1602,11 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_decrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_decrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_ECB_decrypt_end_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_start_block_192_%=:\n\t"
@@ -1526,7 +1641,11 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_decrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_decrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_ECB_decrypt_end_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_start_block_128_%=:\n\t"
@@ -1561,14 +1680,17 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
+#endif
         "\n"
     "L_AES_ECB_decrypt_end_%=:\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c), [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
 }
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
@@ -1595,9 +1717,17 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
         "PUSH	{%[ks], r4}\n\t"
         "CMP	r8, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
+#endif
         "CMP	r8, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_CBC_decrypt_loop_block_256_%=:\n\t"
         "PUSH	{r1, r12, lr}\n\t"
@@ -1639,7 +1769,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -1680,7 +1814,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_decrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_decrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_loop_block_192_%=:\n\t"
@@ -1723,7 +1861,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -1764,7 +1906,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_decrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_loop_block_128_%=:\n\t"
@@ -1807,7 +1953,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#else
+        "BEQ.N	L_AES_CBC_decrypt_end_odd_%=\n\t"
+#endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -1848,7 +1998,11 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	r12, r12, #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
+#endif
         "B	L_AES_CBC_decrypt_end_%=\n\t"
         "\n"
     "L_AES_CBC_decrypt_end_odd_%=:\n\t"
@@ -1864,8 +2018,6 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         :
         : "memory", "r12", "lr", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
-    (void)iv;
 }
 
 #endif /* HAVE_AES_CBC */
@@ -2437,7 +2589,11 @@ void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned
         "POP	{r3}\n\t"
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	%[data], %[data], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_GCM_gmult_len_start_block_%=\n\t"
+#else
+        "BNE.N	L_GCM_gmult_len_start_block_%=\n\t"
+#endif
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len), [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
         : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
@@ -2470,9 +2626,17 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "STM	r8, {r4, r5, r6, r7}\n\t"
         "PUSH	{%[ks], r8}\n\t"
         "CMP	r12, #0xa\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_GCM_encrypt_start_block_128_%=\n\t"
+#else
+        "BEQ.N	L_AES_GCM_encrypt_start_block_128_%=\n\t"
+#endif
         "CMP	r12, #0xc\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BEQ	L_AES_GCM_encrypt_start_block_192_%=\n\t"
+#else
+        "BEQ.N	L_AES_GCM_encrypt_start_block_192_%=\n\t"
+#endif
         "\n"
     "L_AES_GCM_encrypt_loop_block_256_%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
@@ -2510,7 +2674,11 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_GCM_encrypt_loop_block_256_%=\n\t"
+#else
+        "BNE.N	L_AES_GCM_encrypt_loop_block_256_%=\n\t"
+#endif
         "B	L_AES_GCM_encrypt_end_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_start_block_192_%=:\n\t"
@@ -2551,7 +2719,11 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_GCM_encrypt_loop_block_192_%=\n\t"
+#else
+        "BNE.N	L_AES_GCM_encrypt_loop_block_192_%=\n\t"
+#endif
         "B	L_AES_GCM_encrypt_end_%=\n\t"
         "\n"
     "L_AES_GCM_encrypt_start_block_128_%=:\n\t"
@@ -2592,7 +2764,11 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_AES_GCM_encrypt_loop_block_128_%=\n\t"
+#else
+        "BNE.N	L_AES_GCM_encrypt_loop_block_128_%=\n\t"
+#endif
         "\n"
     "L_AES_GCM_encrypt_end_%=:\n\t"
         "POP	{%[ks], r8}\n\t"
@@ -2605,12 +2781,13 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         :
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
-    (void)nr;
-    (void)ctr;
 }
 
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

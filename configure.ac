@@ -2607,6 +2607,22 @@ then
             ENABLED_ARMASM_NEON=no
             AC_MSG_NOTICE([32bit ARMv7-m found])
             ;;
+        armv6*)
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=no
+            AC_MSG_NOTICE([32bit ARMv6 found])
+            ;;
+        armv4*)
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=4"
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=no
+            AC_MSG_NOTICE([32bit ARMv4 found])
+            ;;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
@@ -7500,21 +7516,47 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
     ENABLED_SP_ARM64_ASM=yes
     ;;
+  *armv7a*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7 -marm"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
+  *cortex* | *armv7m*)
+    if test "$ENABLED_ARMASM" = "no"; then
+        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -DWOLFSSL_ARM_ARCH=7"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
+    ENABLED_SP_ARM_CORTEX_ASM=yes
+    ;;
+  *armv6*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -DWOLFSSL_ARM_ARCH=6"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
+  *armv4*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -DWOLFSSL_ARM_ARCH=4"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
   *arm*)
     if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
-      if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        ENABLED_SP_ARM_CORTEX_ASM=yes
-      else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        ENABLED_SP_ARM32_ASM=yes
-      fi
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+      AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+      ENABLED_SP_ARM32_ASM=yes
     fi
     ;;
   *x86_64* | *amd64*)

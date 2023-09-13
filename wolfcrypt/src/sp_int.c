@@ -1245,7 +1245,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : [a] "r" (va), [b] "r" (vb), [c] "r" (vc)       \
         : "cc"                                           \
     )
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH >= 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 7)
 /* Count leading zeros - instruction only available on ARMv7 and newer. */
 #define SP_ASM_LZCNT(va, vn)                             \
     __asm__ __volatile__ (                               \
@@ -1272,7 +1272,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
     sp_int_digit r = 0;
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
     static const char debruijn32[32] = {
         0, 31, 9, 30, 3, 8, 13, 29, 2, 5, 7, 21, 12, 24, 28, 19,
         1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18
@@ -1282,7 +1282,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
     __asm__ __volatile__ (
         /* Shift d so that top bit is set. */
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, %[m]\n\t"
         "mov	r5, %[d]\n\t"
         "orr	r5, r5, r5, lsr #1\n\t"
@@ -1291,8 +1291,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "orr	r5, r5, r5, lsr #8\n\t"
         "orr	r5, r5, r5, lsr #16\n\t"
         "add	r5, r5, #1\n\t"
-        "mul	r5, r5, r4\n\t"
-        "lsr	r5, r5, #27\n\t"
+        "mul	r6, r5, r4\n\t"
+        "lsr	r5, r6, #27\n\t"
         "ldrb	r5, [%[t], r5]\n\t"
 #else
         "clz	r5, %[d]\n\t"
@@ -1352,7 +1352,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "sbc	r8, r8, r8\n\t"
         "sub	%[r], %[r], r8\n\t"
         : [r] "+r" (r), [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         : [t] "r" (debruijn32), [m] "m" (debruijn32_mul)
 #else
         :

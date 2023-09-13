@@ -37,6 +37,18 @@
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
+
+#ifdef WOLFSSL_ARMASM
+#if !defined(__aarch64__) && defined(__arm__)
+
+#ifdef __IAR_SYSTEMS_ICC__
+#define __asm__        asm
+#define __volatile__   volatile
+#endif /* __IAR_SYSTEMS_ICC__ */
+#ifdef __KEIL__
+#define __asm__        __asm
+#define __volatile__   volatile
+#endif /* __KEIL__ */
 /* Based on work by: Emil Lenngren
  * https://github.com/pornin/X25519-Cortex-M4
  */
@@ -2815,12 +2827,20 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "LDR	%[n], [sp, #180]\n\t"
         "SUBS	%[n], %[n], #0x1\n\t"
         "STR	%[n], [sp, #180]\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGE	L_curve25519_bits_%=\n\t"
+#else
+        "BGE.N	L_curve25519_bits_%=\n\t"
+#endif
         "MOV	%[n], #0x1f\n\t"
         "STR	%[n], [sp, #180]\n\t"
         "SUBS	%[a], %[a], #0x4\n\t"
         "STR	%[a], [sp, #176]\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGE	L_curve25519_words_%=\n\t"
+#else
+        "BGE.N	L_curve25519_words_%=\n\t"
+#endif
         /* Invert */
         "ADD	r1, sp, #0x0\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -2858,7 +2878,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_1_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_1_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -2875,7 +2899,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_2_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_2_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -2892,7 +2920,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_3_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_3_%=\n\t"
+#endif
         "ADD	r2, sp, #0x60\n\t"
         "ADD	r1, sp, #0x80\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -2906,7 +2938,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_4_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_4_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -2923,7 +2959,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_5_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_5_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -2940,7 +2980,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_6_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_6_%=\n\t"
+#endif
         "ADD	r2, sp, #0x60\n\t"
         "ADD	r1, sp, #0x80\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -2954,7 +2998,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_7_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_7_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -2968,7 +3016,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_8_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_8_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x0\n\t"
@@ -3110,7 +3162,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_mul_op\n\t"
         "LDR	%[a], [sp, #168]\n\t"
         "SUBS	%[a], %[a], #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGE	L_curve25519_bits_%=\n\t"
+#else
+        "BGE.N	L_curve25519_bits_%=\n\t"
+#endif
         /*   Cycle Count: 171 */
         "LDR	%[n], [sp, #184]\n\t"
         /* Copy */
@@ -3153,7 +3209,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_1_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_1_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3170,7 +3230,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_2_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_2_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -3187,7 +3251,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_3_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_3_%=\n\t"
+#endif
         "ADD	r2, sp, #0x60\n\t"
         "ADD	r1, sp, #0x80\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -3201,7 +3269,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_4_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_4_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3218,7 +3290,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_5_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_5_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -3235,7 +3311,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_6_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_6_%=\n\t"
+#endif
         "ADD	r2, sp, #0x60\n\t"
         "ADD	r1, sp, #0x80\n\t"
         "ADD	r0, sp, #0x60\n\t"
@@ -3249,7 +3329,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_7_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_7_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3263,7 +3347,11 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_curve25519_inv_8_%=\n\t"
+#else
+        "BNE.N	L_curve25519_inv_8_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x0\n\t"
@@ -3345,7 +3433,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert1_%=\n\t"
+#else
+        "BNE.N	L_fe_invert1_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -3362,7 +3454,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert2_%=\n\t"
+#else
+        "BNE.N	L_fe_invert2_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3379,7 +3475,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert3_%=\n\t"
+#else
+        "BNE.N	L_fe_invert3_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3393,7 +3493,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert4_%=\n\t"
+#else
+        "BNE.N	L_fe_invert4_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -3410,7 +3514,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert5_%=\n\t"
+#else
+        "BNE.N	L_fe_invert5_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3427,7 +3535,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert6_%=\n\t"
+#else
+        "BNE.N	L_fe_invert6_%=\n\t"
+#endif
         "ADD	r2, sp, #0x40\n\t"
         "ADD	r1, sp, #0x60\n\t"
         "ADD	r0, sp, #0x40\n\t"
@@ -3441,7 +3553,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert7_%=\n\t"
+#else
+        "BNE.N	L_fe_invert7_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -3455,7 +3571,11 @@ void fe_invert(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_invert8_%=\n\t"
+#else
+        "BNE.N	L_fe_invert8_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "LDR	r0, [sp, #128]\n\t"
@@ -3981,7 +4101,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_1_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_1_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "MOV	r0, sp\n\t"
@@ -3998,7 +4122,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_2_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_2_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -4015,7 +4143,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_3_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_3_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -4029,7 +4161,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_4_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_4_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "MOV	r0, sp\n\t"
@@ -4046,7 +4182,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_5_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_5_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -4063,7 +4203,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_6_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_6_%=\n\t"
+#endif
         "ADD	r2, sp, #0x20\n\t"
         "ADD	r1, sp, #0x40\n\t"
         "ADD	r0, sp, #0x20\n\t"
@@ -4077,7 +4221,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_7_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_7_%=\n\t"
+#endif
         "MOV	r2, sp\n\t"
         "ADD	r1, sp, #0x20\n\t"
         "MOV	r0, sp\n\t"
@@ -4091,7 +4239,11 @@ void fe_pow22523(fe r_p, const fe a_p)
         "BL	fe_sq_op\n\t"
         "POP	{r12}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_fe_pow22523_8_%=\n\t"
+#else
+        "BNE.N	L_fe_pow22523_8_%=\n\t"
+#endif
         "LDR	r2, [sp, #100]\n\t"
         "MOV	r1, sp\n\t"
         "LDR	r0, [sp, #96]\n\t"
@@ -5289,7 +5441,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "SUB	sp, sp, #0x50\n\t"
         "ADD	lr, sp, #0x44\n\t"
         "STM	lr, {%[s], %[a], %[c]}\n\t"
-        "MOV	%[r], #0x0\n\t"
+        "MOV	%[s], #0x0\n\t"
         "LDR	r12, [%[a]]\n\t"
         /* A[0] * B[0] */
         "LDR	lr, [%[b]]\n\t"
@@ -5306,25 +5458,25 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "STR	%[c], [sp]\n\t"
         /* A[0] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "MOV	r11, %[r]\n\t"
+        "MOV	r11, %[s]\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[0] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
         "ADCS	r6, r6, #0x0\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[0] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
         "ADCS	r8, r8, #0x0\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[0] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
         "ADCS	r10, r10, #0x0\n\t"
-        "ADC	%[c], %[r], #0x0\n\t"
+        "ADC	%[c], %[s], #0x0\n\t"
         "UMLAL	r10, %[c], r12, lr\n\t"
         /* A[1] * B[0] */
         "LDR	r12, [%[a], #4]\n\t"
@@ -5335,37 +5487,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r5, r5, r11\n\t"
         /* A[1] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[1] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[1] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[1] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[1] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[1] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[1] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r4, %[r], #0x0\n\t"
+        "ADC	r4, %[s], #0x0\n\t"
         "UMLAL	%[c], r4, r12, lr\n\t"
         /* A[2] * B[0] */
         "LDR	r12, [%[a], #8]\n\t"
@@ -5376,37 +5528,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r6, r6, r11\n\t"
         /* A[2] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[2] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[2] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[2] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[2] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[2] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[2] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r5, %[r], #0x0\n\t"
+        "ADC	r5, %[s], #0x0\n\t"
         "UMLAL	r4, r5, r12, lr\n\t"
         /* A[3] * B[0] */
         "LDR	r12, [%[a], #12]\n\t"
@@ -5417,37 +5569,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r7, r7, r11\n\t"
         /* A[3] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[3] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[3] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[3] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[3] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[3] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[3] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r6, %[r], #0x0\n\t"
+        "ADC	r6, %[s], #0x0\n\t"
         "UMLAL	r5, r6, r12, lr\n\t"
         /* A[4] * B[0] */
         "LDR	r12, [%[a], #16]\n\t"
@@ -5458,37 +5610,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r8, r8, r11\n\t"
         /* A[4] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[4] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[4] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[4] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[4] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[4] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[4] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r7, %[r], #0x0\n\t"
+        "ADC	r7, %[s], #0x0\n\t"
         "UMLAL	r6, r7, r12, lr\n\t"
         /* A[5] * B[0] */
         "LDR	r12, [%[a], #20]\n\t"
@@ -5499,37 +5651,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r9, r9, r11\n\t"
         /* A[5] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r9, r11, r12, lr\n\t"
         "ADDS	r10, r10, r11\n\t"
         /* A[5] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[5] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[5] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[5] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[5] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[5] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r8, %[r], #0x0\n\t"
+        "ADC	r8, %[s], #0x0\n\t"
         "UMLAL	r7, r8, r12, lr\n\t"
         /* A[6] * B[0] */
         "LDR	r12, [%[a], #24]\n\t"
@@ -5540,37 +5692,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	r10, r10, r11\n\t"
         /* A[6] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r10, r11, r12, lr\n\t"
         "ADDS	%[c], %[c], r11\n\t"
         /* A[6] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[6] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[6] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[6] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[6] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[6] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r9, %[r], #0x0\n\t"
+        "ADC	r9, %[s], #0x0\n\t"
         "UMLAL	r8, r9, r12, lr\n\t"
         /* A[7] * B[0] */
         "LDR	r12, [%[a], #28]\n\t"
@@ -5581,37 +5733,37 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "ADDS	%[c], %[c], r11\n\t"
         /* A[7] * B[1] */
         "LDR	lr, [%[b], #4]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	%[c], r11, r12, lr\n\t"
         "ADDS	r4, r4, r11\n\t"
         /* A[7] * B[2] */
         "LDR	lr, [%[b], #8]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r4, r11, r12, lr\n\t"
         "ADDS	r5, r5, r11\n\t"
         /* A[7] * B[3] */
         "LDR	lr, [%[b], #12]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r5, r11, r12, lr\n\t"
         "ADDS	r6, r6, r11\n\t"
         /* A[7] * B[4] */
         "LDR	lr, [%[b], #16]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r6, r11, r12, lr\n\t"
         "ADDS	r7, r7, r11\n\t"
         /* A[7] * B[5] */
         "LDR	lr, [%[b], #20]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r7, r11, r12, lr\n\t"
         "ADDS	r8, r8, r11\n\t"
         /* A[7] * B[6] */
         "LDR	lr, [%[b], #24]\n\t"
-        "ADC	r11, %[r], #0x0\n\t"
+        "ADC	r11, %[s], #0x0\n\t"
         "UMLAL	r8, r11, r12, lr\n\t"
         "ADDS	r9, r9, r11\n\t"
         /* A[7] * B[7] */
         "LDR	lr, [%[b], #28]\n\t"
-        "ADC	r10, %[r], #0x0\n\t"
+        "ADC	r10, %[s], #0x0\n\t"
         "UMLAL	r9, r10, r12, lr\n\t"
         "ADD	lr, sp, #0x20\n\t"
         "STM	lr, {%[c], r4, r5, r6, r7, r8, r9, r10}\n\t"
@@ -6505,4 +6657,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */
