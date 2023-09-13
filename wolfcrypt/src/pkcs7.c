@@ -12052,7 +12052,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 encodedAttribs = pkiMsg + idx;
                 idx++;
 
-                if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) <= 0)
                     ret = ASN_PARSE_E;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->expected = length;
