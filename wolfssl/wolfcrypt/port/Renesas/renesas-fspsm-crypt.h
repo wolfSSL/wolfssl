@@ -104,7 +104,7 @@ typedef struct tagPKCbInfo {
     uint32_t    num_session;
 } FSPSM_ST_PKC;
 
-#ifdef WOLFSSL_RENSAS_FSPSM_TLS
+#ifdef WOLFSSL_RENESAS_FSPSM_TLS
 typedef struct
 {
     uint8_t                          *encrypted_provisioning_key;
@@ -127,8 +127,11 @@ WOLFSSL_LOCAL int     wc_fspsm_usable(const struct WOLFSSL *ssl,
                                     uint8_t session_key_generated);
 
 typedef struct {
-    FSPSM_AES_WKEY   wrapped_key;
+    FSPSM_AES_PWKEY   wrapped_key;
     word32           keySize;
+#ifdef WOLFSSL_RENESAS_FSPSM_TLS
+    byte             setup;
+#endif
 } FSPSM_AES_CTX;
 
 struct Aes;

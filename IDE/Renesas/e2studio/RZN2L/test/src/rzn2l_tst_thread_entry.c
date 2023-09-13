@@ -267,15 +267,15 @@ void rzn2l_tst_thread_entry(void *pvParameters)
 
     #if defined(WOLFSSL_AES_128)
         uint8_t        wrapped_key1[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_128];
-        FSPSM_AES_WKEY user_aes128_key_index =
-                            (FSPSM_AES_WKEY)wrapped_key1;
+        FSPSM_AES_PWKEY user_aes128_key_index =
+                            (FSPSM_AES_PWKEY)wrapped_key1;
         guser_PKCbInfo.wrapped_key_aes128 = user_aes128_key_index;
     #endif
 
     #if defined(WOLFSSL_AES_256)
         uint8_t        wrapped_key2[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_256];
-        FSPSM_AES_WKEY user_aes256_key_index =
-                            (FSPSM_AES_WKEY)wrapped_key2;
+        FSPSM_AES_PWKEY user_aes256_key_index =
+                            (FSPSM_AES_PWKEY)wrapped_key2;
         guser_PKCbInfo.wrapped_key_aes256 = user_aes256_key_index;
     #endif
     /* Generate Wrapped aes key */
@@ -311,15 +311,15 @@ void rzn2l_tst_thread_entry(void *pvParameters)
 
     #if defined(WOLFSSL_AES_128)
         uint8_t        wrapped_key1[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_128];
-        FSPSM_AES_WKEY user_aes128_key_index =
-                            (FSPSM_AES_WKEY)wrapped_key1;
+        FSPSM_AES_PWKEY user_aes128_key_index =
+                            (FSPSM_AES_PWKEY)wrapped_key1;
         guser_PKCbInfo.wrapped_key_aes128 = user_aes128_key_index;
     #endif
 
     #if defined(WOLFSSL_AES_256)
         uint8_t        wrapped_key2[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_256];
-        FSPSM_AES_WKEY user_aes256_key_index =
-                            (FSPSM_AES_WKEY)wrapped_key2;
+        FSPSM_AES_PWKEY user_aes256_key_index =
+                            (FSPSM_AES_PWKEY)wrapped_key2;
         guser_PKCbInfo.wrapped_key_aes256 = user_aes256_key_index;
     #endif
     /* Generate Wrapped aes key */

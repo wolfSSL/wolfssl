@@ -79,6 +79,7 @@
 
     /* aes */
     #define FSPSM_AES_WKEY          sce_aes_wrapped_key_t
+    #define FSPSM_AES_PWKEY         sce_aes_wrapped_key_t*
     #define FSPSM_AESGCM_HANDLE     sce_gcm_handle_t
     #define FSPSM_AES_HANDLE        sce_aes_handle_t
     /* aes 128 cbc */
@@ -217,7 +218,8 @@
     #define FSPSM_SHA512_256_Up     _R_RSIP_SHA_GenerateUpdate
     #define FSPSM_SHA512_256_Final  _R_RSIP_SHA_GenerateFinal
     /* aes */
-    #define FSPSM_AES_WKEY          rsip_wrapped_key_t*
+    #define FSPSM_AES_WKEY          rsip_wrapped_key_t
+    #define FSPSM_AES_PWKEY         rsip_wrapped_key_t*
     #define FSPSM_AESGCM_HANDLE     rsip_instance_ctrl_t*
     #define FSPSM_AES_HANDLE        rsip_instance_ctrl_t*
     #define FSPSM_AES_KEYGEN_FUNC   _R_RSIP_KeyGenerate

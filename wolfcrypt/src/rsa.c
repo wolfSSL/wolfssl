@@ -597,8 +597,7 @@ int wc_FreeRsaKey(RsaKey* key)
     wc_MemZero_Check(key, sizeof(RsaKey));
 #endif
 
-#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+#if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     wc_fspsm_RsaKeyFree(key);
 #endif
 

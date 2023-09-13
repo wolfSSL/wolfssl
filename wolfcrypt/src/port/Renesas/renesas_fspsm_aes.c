@@ -57,14 +57,14 @@ extern FSPSM_INSTANCE   gFSPSM_ctrl;
 #endif
 
 typedef fsp_err_t (*aesGcmEncInitFn)
-        (FSPSM_AESGCM_HANDLE*, FSPSM_AES_WKEY*, uint8_t*, uint32_t);
+        (FSPSM_AESGCM_HANDLE*, FSPSM_AES_PWKEY, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmEncUpdateFn)
         (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmEncFinalFn)
         (FSPSM_AESGCM_HANDLE*, uint8_t*, uint32_t*, uint8_t*);
 
 typedef fsp_err_t (*aesGcmDecInitFn)
-        (FSPSM_AESGCM_HANDLE*, FSPSM_AES_WKEY*, uint8_t*, uint32_t);
+        (FSPSM_AESGCM_HANDLE*, FSPSM_AES_PWKEY, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmDecUpdateFn)
         (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmDecFinalFn)
@@ -73,11 +73,11 @@ typedef fsp_err_t (*aesGcmDecFinalFn)
 #if defined(WOLFSSL_RENESAS_RSIP)
 /* wrapper for Gcm enrypt init */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptInit(FSPSM_AESGCM_HANDLE* h, 
-                                        FSPSM_AES_WKEY* k, uint8_t* iv, 
+                                        FSPSM_AES_PWKEY k, uint8_t* iv,
                                         uint32_t iv_l)
 {
     (void) h;
-    return R_RSIP_AES_GCM_EncryptInit(&gFSPSM_ctrl, (FSPSM_AES_WKEY const)*k, 
+    return R_RSIP_AES_GCM_EncryptInit(&gFSPSM_ctrl, (FSPSM_AES_PWKEY const)k,
                                             (uint8_t* const)iv, iv_l);
 }
 /* wrapper for Gcm enrypt update */
@@ -104,10 +104,10 @@ static fsp_err_t _R_RSIP_AES_GCM_EncryptFinal(FSPSM_AESGCM_HANDLE* h,
 }
 /* wrapper for Gcm decrypt init */
 static fsp_err_t _R_RSIP_AES_GCM_DecryptInit(FSPSM_AESGCM_HANDLE* h, 
-                                FSPSM_AES_WKEY* k, uint8_t* iv, uint32_t iv_l)
+                                FSPSM_AES_PWKEY k, uint8_t* iv, uint32_t iv_l)
 {
     (void) h;
-    return R_RSIP_AES_GCM_DecryptInit(&gFSPSM_ctrl, (FSPSM_AES_WKEY const)*k, 
+    return R_RSIP_AES_GCM_DecryptInit(&gFSPSM_ctrl, (FSPSM_AES_PWKEY const)k,
                                                     (uint8_t* const)iv, iv_l);
 }
 /* wrapper for Gcm decrypt update */
@@ -135,7 +135,7 @@ static fsp_err_t _R_RSIP_AES_GCM_DecryptFinal(FSPSM_AESGCM_HANDLE* h,
 }
 /* wrapper for aes cbc encrypt init */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptInit(FSPSM_AES_HANDLE* h,
-                                      FSPSM_AES_WKEY k,
+                                      FSPSM_AES_PWKEY k,
                                       uint8_t* iv)
 {
     (void) h;
@@ -167,7 +167,7 @@ static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptFinal(FSPSM_AES_HANDLE* h,
 }
 /* wrapper for aes cbc decrypt init */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptInit(FSPSM_AES_HANDLE* h,
-                                      FSPSM_AES_WKEY k,
+                                      FSPSM_AES_PWKEY k,
                                       uint8_t* iv)
 {
     (void) h;
@@ -238,8 +238,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     FSPSM_HMAC_WKEY key_client_mac;
     FSPSM_HMAC_WKEY key_server_mac;
 #endif
-    FSPSM_AES_WKEY      key_client_aes;
-    FSPSM_AES_WKEY      key_server_aes;
+    FSPSM_AES_PWKEY      key_client_aes = NULL;
+    FSPSM_AES_PWKEY      key_server_aes = NULL;
     (void) key_server_aes;
     
     /* sanity check */
@@ -272,7 +272,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     /* check if AES GCM can be used by FSP SM */
     if ((ret = wc_fspsm_hw_lock()) == 0) {
 
-        /* allocate buffers for plaintext, ciphertext and authTag to make sure
+        /* allocate buffers for plain text, cipher text and authTag to make sure
          * those buffers 32bit aligned as SCE requests.
          */
          delta = ((sz % AES_BLOCK_SIZE) == 0) ? 0 :
@@ -300,6 +300,17 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
+            key_client_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
+                                            aes->heap, DYNAMIC_TYPE_AE);
+            key_server_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
+                                            aes->heap, DYNAMIC_TYPE_AE);
+            if (key_client_aes == NULL || key_server_aes == NULL) {
+                XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
+                return MEMORY_E;
+            }
+            
             ret = FSPSM_SESSIONKEY_GEN_FUNC(
                     info->cipher,
                     (uint32_t*)info->masterSecret,
@@ -308,8 +319,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                     &iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     &key_client_mac,
                     &key_server_mac,
-                    &key_client_aes,
-                    &key_server_aes,
+                    key_client_aes,
+                    key_server_aes,
                     NULL, NULL);
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_MSG("R_XXX_TLS_SessionKeyGenerate failed");
@@ -323,24 +334,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
        #endif
             if (info->keyflgs_crypt.bits.aes256_installedkey_set == 1 ||
                 info->keyflgs_crypt.bits.aes128_installedkey_set == 1) {
-                if (aes->ctx.keySize == 32) {
-                #if defined(WOLFSSL_RENESAS_RSIP)
-                    key_client_aes = aes->ctx.wrapped_key;
-                #else
-                    XMEMCPY(&key_client_aes, 
-                        (FSPSM_AES_WKEY*)info->wrapped_key_aes256,
-                        sizeof(FSPSM_AES_WKEY));
-                #endif
-                }
-                else {
-                #if defined(WOLFSSL_RENESAS_RSIP)
-                    key_client_aes = aes->ctx.wrapped_key;
-                #else
-                    XMEMCPY(&key_client_aes, 
-                        (FSPSM_AES_WKEY*)info->wrapped_key_aes128,
-                        sizeof(FSPSM_AES_WKEY));
-                #endif
-                }
+                key_client_aes = aes->ctx.wrapped_key;
                 iv_l = iv;
                 ivSz_l = ivSz;
             }
@@ -355,7 +349,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             /* since generated session key is coupled to iv, no need to pass
              * them init func.
              */
-            ret = initFn(&_handle, &key_client_aes, (uint8_t*)iv_l, ivSz_l);
+            ret = initFn(&_handle, key_client_aes, (uint8_t*)iv_l, ivSz_l);
 
             if (ret == FSP_SUCCESS) {
                 ret = updateFn(&_handle, NULL, NULL, 0UL, (uint8_t*)authIn,
@@ -403,9 +397,13 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
-
+        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+            key_client_aes != NULL)
+            XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
+        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+            key_server_aes != NULL)
+            XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
         wc_fspsm_hw_unlock();
-
     }
 
     return ret;
@@ -446,12 +444,12 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
 
-#ifdef WOLFSSL_RENESAS_TLS
+#ifdef WOLFSSL_RENESAS_FSPSM_TLS
     FSPSM_HMAC_WKEY key_client_mac;
     FSPSM_HMAC_WKEY key_server_mac;
 #endif
-    FSPSM_AES_WKEY      key_client_aes;
-    FSPSM_AES_WKEY      key_server_aes;
+    FSPSM_AES_PWKEY      key_client_aes = NULL;
+    FSPSM_AES_PWKEY      key_server_aes = NULL;
     (void) key_client_aes;
     /* sanity check */
     if (aes == NULL || authTagSz > AES_BLOCK_SIZE || ivSz == 0 || ctx == NULL) {
@@ -506,6 +504,17 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
+            key_client_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
+                                            aes->heap, DYNAMIC_TYPE_AE);
+            key_server_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
+                                            aes->heap, DYNAMIC_TYPE_AE);
+            if (key_client_aes == NULL || key_server_aes == NULL) {
+                XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
+                XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
+                return MEMORY_E;
+            }
+            
             ret = FSPSM_SESSIONKEY_GEN_FUNC(
                     info->cipher,
                     (uint32_t*)info->masterSecret,
@@ -514,8 +523,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                     (uint8_t*)&iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     &key_client_mac,
                     &key_server_mac,
-                    &key_client_aes,
-                    &key_server_aes,
+                    key_client_aes,
+                    key_server_aes,
                     NULL, NULL);
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_MSG("R_XXXX_TLS_SessionKeyGenerate failed");
@@ -528,24 +537,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
        #endif
             if (info->keyflgs_crypt.bits.aes256_installedkey_set == 1 ||
                 info->keyflgs_crypt.bits.aes128_installedkey_set == 1) {
-                if (aes->ctx.keySize == 32) {
-                #if defined(WOLFSSL_RENESAS_RSIP)
-                    key_server_aes = aes->ctx.wrapped_key;
-                #else
-                    XMEMCPY(&key_server_aes, 
-                        (FSPSM_AES_WKEY*)info->wrapped_key_aes256,
-                        sizeof(FSPSM_AES_WKEY));
-                #endif
-                }
-                else {
-                #if defined(WOLFSSL_RENESAS_RSIP)
-                    key_server_aes = aes->ctx.wrapped_key;
-                #else
-                    XMEMCPY(&key_server_aes, 
-                        (FSPSM_AES_WKEY*)info->wrapped_key_aes128,
-                        sizeof(FSPSM_AES_WKEY));
-                #endif
-                }
+
+                key_server_aes = aes->ctx.wrapped_key;
                 iv_l = iv;
                 ivSz_l = ivSz;
             }
@@ -559,7 +552,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
             /* since key_index has iv and ivSz in it, no need to pass them init
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.
              */
-             ret = initFn(&_handle, &key_server_aes, (uint8_t*)iv_l, ivSz_l);
+             ret = initFn(&_handle, key_server_aes, (uint8_t*)iv_l, ivSz_l);
 
 
             if (ret == FSP_SUCCESS) {
@@ -603,7 +596,12 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
-
+        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+            key_client_aes != NULL)
+            XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
+        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+            key_server_aes != NULL)
+            XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
         wc_fspsm_hw_unlock();
     }
 
@@ -640,20 +638,12 @@ WOLFSSL_LOCAL int wc_fspsm_AesCbcEncrypt(struct Aes* aes, byte* out,
 
     if (aes->ctx.keySize == 16) {
         ret = FSPSM_AES128CBCEnc_Init(&_handle,
-        #ifdef WOLFSSL_RENESAS_RSIP
             aes->ctx.wrapped_key,
-        #else
-            &aes->ctx.wrapped_key,
-        #endif
             iv);
     }
     else if (aes->ctx.keySize == 32) {
         ret = FSPSM_AES256CBCEnc_Init(&_handle,
-        #ifdef WOLFSSL_RENESAS_RSIP
             aes->ctx.wrapped_key,
-        #else
-            &aes->ctx.wrapped_key,
-        #endif
             iv);
     }
     else {
@@ -720,20 +710,12 @@ WOLFSSL_LOCAL int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
 
     if (aes->ctx.keySize == 16) {
         ret = FSPSM_AES128CBCDec_Init(&_handle,
-        #ifdef WOLFSSL_RENESAS_RSIP
             aes->ctx.wrapped_key,
-        #else
-            &aes->ctx.wrapped_key,
-        #endif
             iv);
     }
     else if (aes->ctx.keySize == 32) {
         ret = FSPSM_AES256CBCDec_Init(&_handle,
-        #ifdef WOLFSSL_RENESAS_RSIP
             aes->ctx.wrapped_key,
-        #else
-            &aes->ctx.wrapped_key,
-        #endif
             iv);
     }
     else {
@@ -777,17 +759,27 @@ WOLFSSL_LOCAL int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
  */
 WOLFSSL_LOCAL void wc_fspsm_Aesfree(Aes* aes)
 {
-#if defined(WOLFSSL_RENESAS_RSIP)
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS)
+    /* In the case of session key, memory is allocated
+     * therefore, it should be freed here
+     */
+    if (aes->ctx.setup == 1 && aes->ctx.wrapped_key) {
+        XFREE(aes->ctx.wrapped_key, aes->heap, DYNAMIC_TYPE_AES);
+        aes->ctx.setup = 0;
+    }
+#else
     if (aes->ctx.wrapped_key) {
-        /* aes ctx just points user created wrapped key.
+        /* aes ctx just points user created wrapped key 
+         * in the case of CryptOnly Mode
          * therefore, it just sets pointing to NULL.
-         * user key should be freed by owenr(user)
+         * user key should be freed by owner(user)
          */
         aes->ctx.wrapped_key = NULL;
     }
 #endif
 }
 
+#if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     const byte* iv, int dir)
 {
@@ -810,14 +802,14 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     /* if there is previous key, free */
     if(aes->ctx.wrapped_key)
         wc_fspsm_Aesfree(aes);
-        
-    /* generate aes key beased on length */
-    aes->ctx.wrapped_key = (FSPSM_AES_WKEY)userKey;
+    /* Generate aes key based on length */
+    aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)userKey;
     aes->keylen = (int)keylen;
     aes->ctx.keySize = keylen;
     
     return wc_AesSetIV(aes, iv);
 }
+#endif
 #endif /* WOLFSSL_RENESAS_FSPSM_TLS
           WOLFSSL_RENESAS_FSPSM_CRYPTONLY
           NO_WOLFSSL_RENESAS_FSPSM_AES */
