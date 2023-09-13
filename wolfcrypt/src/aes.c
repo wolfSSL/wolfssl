@@ -5129,6 +5129,34 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
     xorbuf(Z, m[x[0]], AES_BLOCK_SIZE);
 
     XMEMCPY(x, Z, AES_BLOCK_SIZE);
+#elif defined(WC_32BIT_CPU)
+    byte Z[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
+    byte a;
+    word32* pZ;
+    word32* pm;
+    int i;
+
+    pZ = (word32*)(Z + 15 + 1);
+    pm = (word32*)(m[x[15]]);
+    pZ[0] = pm[0];
+    pZ[1] = pm[1];
+    pZ[2] = pm[2];
+    pZ[3] = pm[3];
+    a = Z[16 + 15];
+    Z[15]  = R[a][0];
+    Z[16] ^= R[a][1];
+    for (i = 14; i > 0; i--) {
+        pZ = (word32*)(Z + i + 1);
+        pm = (word32*)(m[x[i]]);
+        pZ[0] ^= pm[0];
+        pZ[1] ^= pm[1];
+        pZ[2] ^= pm[2];
+        pZ[3] ^= pm[3];
+        a = Z[16 + i];
+        Z[i]    = R[a][0];
+        Z[i+1] ^= R[a][1];
+    }
+    xorbufout(x, Z+1, m[x[0]], AES_BLOCK_SIZE);
 #else
     byte Z[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
     byte a;
