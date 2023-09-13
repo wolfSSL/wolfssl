@@ -54,7 +54,6 @@ else()
 
         message(STATUS "Confirmed ${ARIA_INCLUDE_DIR} is not in local wolfSSL root.")
     endif()
-    # set(ARIA_LIBRARY "$ENV{ARIA_INCLUDE_DIR}/lib")
 endif()
 
 # Check that the appropriate files exist
@@ -71,10 +70,6 @@ endif()
 if(NOT EXISTS "${ARIA_INCLUDE_DIR}/mcapi_type.h")
     message(FATAL_ERROR "File does not exist at $ARIA_INCLUDE_DIR/mcapi_type.h")
 endif()
-
-# find_library(ARIA_LIBRARY
-#             NAMES "libMagicCrypto.so" # this is not the library name, nor is it "MagicCrypto"
-#             HINTS "$ENV{ARIA_DIR}/lib/libMagicCrypto.so")
 
 if(EXISTS "$ENV{ARIA_DIR}/lib/libMagicCrypto.so")
     # Found ARIA binary via environment variable
