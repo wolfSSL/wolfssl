@@ -8672,7 +8672,6 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                         sigLen = args->length;
                     args->sigData = (byte*)XMALLOC(sigLen, ssl->heap,
                                                             DYNAMIC_TYPE_SIGNATURE);
-                    args->sigDataSz = sigLen;
                 }
                 else {
                     args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
