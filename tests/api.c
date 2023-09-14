@@ -1434,6 +1434,11 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
         WS_RETURN_CODE(BAD_PATH_ERROR,WOLFSSL_FAILURE));
 #endif
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
+    /* test ignoring the invalid path */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, bogusFile,
+        WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR), WOLFSSL_SUCCESS);
+#endif
 
     /* load ca cert */
 #ifdef NO_RSA
