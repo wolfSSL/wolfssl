@@ -2424,7 +2424,7 @@ static void* benchmarks_do(void* args)
         !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
-        #ifndef NO_SW_BENCH
+    #ifndef NO_SW_BENCH
         bench_gmac(0);
     #endif
     #if defined(BENCH_DEVID)

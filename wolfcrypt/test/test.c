@@ -11332,7 +11332,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
 #ifdef HAVE_RENESAS_SYNC
     byte *key =
                 (byte*)guser_PKCbInfo.wrapped_key_aes256;
-    int kyeSz = (256/8);
+    int keySz = (256/8);
 #else
     WOLFSSL_SMALL_STACK_STATIC byte key[] = {
         0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
@@ -11340,7 +11340,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
         0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
         0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
     };
-    int kyeSz = (int)sizeof(key);
+    int keySz = (int)sizeof(key);
 #endif
     WOLFSSL_SMALL_STACK_STATIC byte iv[]  = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
@@ -11365,11 +11365,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
-    ret = wc_AesSetKey(enc, key, kyeSz, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #ifdef HAVE_AES_DECRYPT
-    ret = wc_AesSetKey(dec, key, kyeSz, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(dec, key, keySz, iv, AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif

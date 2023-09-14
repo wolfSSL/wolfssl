@@ -9,7 +9,7 @@ They also include benchmark and cryptography tests for the wolfCrypt library.
 
 The example project contains both the wolfSSL and wolfCrypt libraries.
 It is built as a `Renesas RZ/N C/C++ FSP Project` and contains the Renesas RZ
-configuration. The wolfssl project uses `Renesas Secure IP on RZ` 
+configuration. The wolfssl project uses `Renesas Secure IP on RZ`
 as hardware acceleration for cyptography.
 
 **Limitation**
@@ -34,9 +34,9 @@ The example project summary is listed below and is relevant for every project.
 |Board Support Package Common Files|v1.20||
 |I/O Port|v1.2.0||
 |Arm CMSIS Version 5 - Core (M)|v5.7.0+renesas.1||
-|Board support package for R9A07G084M04GBG|v1.2.0|| 
+|Board support package for R9A07G084M04GBG|v1.2.0||
 |Board support package for RZN2L|v1.2.0||
-|Board support package for RZN2L - FSP Data|v1.2.0|| 
+|Board support package for RZN2L - FSP Data|v1.2.0||
 |RSK+RZN2L Board Support Files (RAM execution without flash memory)|v1.2.0||
 |FreeRTOS - Buffer Allocation 2|v1.2.0||
 |FreeRTOS - Memory Management - Heap 4|v1.2.0||
@@ -60,7 +60,7 @@ The example project summary is listed below and is relevant for every project.
 2.) Create a `dummy_application` Renesas RZ/N C/C++ FSP Project.
 
 + Click File->New->`RZ/N C/C++ FSP Project`.
-+ Enter project name `dummu_application`.
++ Enter project name `dummy_application`.
 + Select Board: to `RSK+RZN2L (RAM execution without flash memory)`.
 + Select Device: to `R9A07G084M04GBG`. Click Next.
 + Check to `Executable`
@@ -84,7 +84,7 @@ The example project summary is listed below and is relevant for every project.
 + Add `Heap 4` stack to rzn2l_tst_thread from `New Stack` -> `FreeRTOS` -> `FreeRTOS Heap 4`
 + Add `UART Driver` stack to rzn2l_tst_thread from `New Stack` -> `Connectivity` -> `UART Driver`
 + Add `FreeRTOS + TCP` stack to rzn2l_tst_thread from `New Stack` -> -> `FreeRTOS` -> `Libraries` -> `FreeRTOS+TCP` and set properties
-  
+
 + Save `dummy_application` FSP configuration
 + Copy <u>configuration.xml</u> under `dummy_application` to `test_RZN2L`
 + Open FSP configuration by clicking copied configuration.xml at `test_RZN2L`
@@ -104,13 +104,15 @@ The example project summary is listed below and is relevant for every project.
       + um_serial_io_api.h
       + um_serial_io_internal.h
 + Open um_serial_io_task_writer.c and re-name printf to uart_printf
-  
+
 3.) Build `test_RZN2L` project
 
 ## Run `test_RZN2L`
 
-1). Right click the project and Select menu Debug -> Renesas GDB Hardware debugging
+1). Right click the project and Select menu `Debug` -> `Renesas GDB Hardware debugging`
+
 2). Select J-Link ARM and R9A07G084M04
+
 3). Break at Entory point. Change `cpsr` register value from 0xXXXXX1yy to 0xXXXXX1da
 
 ## Run TLS 1.3 Client
@@ -148,9 +150,9 @@ $ make
 $./examples/server/server -b -d -i -v 4
 ```
 
-+ For ECDSA sign and verify use, 
-Enable the `USE_CRT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CRT_BUFFER_2048` macro in `wolfssl_demo.h`
++ For ECDSA sign and verify use,
+Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
+Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server with the following option.
 ```
@@ -210,9 +212,9 @@ $ make
 $./examples/server/server -b -d -i -v 3
 ```
 
-+ For ECDSA sign and verify use, 
-Enable the `USE_CRT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CRT_BUFFER_2048` macro in `wolfssl_demo.h`
++ For ECDSA sign and verify use,
+Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
+Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server with the following option.
 ```
@@ -277,9 +279,9 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 
 3.) Build test_RZN2L project
 
-+ For ECDSA sign and verify use, 
-Enable the `USE_CRT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CRT_BUFFER_2048` macro in `wolfssl_demo.h`
++ For ECDSA sign and verify use,
+Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
+Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server from e2studio
 
@@ -355,9 +357,9 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 
 3.) Build test_RZN2L project
 
-+ For ECDSA sign and verify use, 
-Enable the `USE_CRT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CRT_BUFFER_2048` macro in `wolfssl_demo.h`
++ For ECDSA sign and verify use,
+Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
+Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server from e2studio
 
@@ -417,12 +419,12 @@ SSL cipher suite is TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
 SSL curve name is SECP256R1
 I hear ya fa s
 ```
-## Run Crypt test 
+## Run Crypt test
 1.) Enable `CRYPT_TEST` macro in `wolfssl_demo.h`
 
 2.) Run `test_RZN2L` from e2studio
 
-Sample Output 
+Sample Output
 
 ```
 ------------------------------------------------------------------------------
@@ -470,7 +472,7 @@ Test complete
 ```
 
 **Note**
-`SHA1/224/256/384/512` and `Randome generation` of RSIP driver are enabled at the sampele output above while running wolfCrypt test.
+`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sampele output above while running wolfCrypt test.
 
 ## Run Benchmark
 
@@ -478,7 +480,7 @@ Test complete
 
 2.) Run `test_RZN2L` from e2studio
 
-Sample Output 
+Sample Output
 ```
 Started Serial I/O interface. Start wolfCrypt Benchmark
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
@@ -530,7 +532,7 @@ Benchmark complete
  End wolfCrypt Benchmark
 ```
 **Note**
-`SHA1/224/256/384/512` and `Randome generation` of RSIP driver are enabled at the sampele output above.
+`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sampele output above.
 ## Support
 
 For support inquiries and questions, please email support@wolfssl.com. Feel free to reach out to info@wolfssl.jp as well.
