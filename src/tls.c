@@ -516,6 +516,21 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int ret;
 
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If this is called from a sniffer session with keylog file support, obtain
+     * the master secret from the callback */
+    if (ssl->snifferSecretCb != NULL) {
+        ret = ssl->snifferSecretCb(ssl->arrays->clientRandom,
+                                   SNIFFER_SECRET_TLS12_MASTER_SECRET,
+                                   ssl->arrays->masterSecret);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = DeriveTlsKeys(ssl);
+        return ret;
+    }
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
+
 #ifdef HAVE_EXTENDED_MASTER
     if (ssl->options.haveEMS) {
         word32 hashSz = HSHASH_SZ;
@@ -6664,7 +6679,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         ato16(input, &extLen);
         idx += OPAQUE16_LEN;
 
-        if (extLen > length)
+        if (idx + extLen > length)
             ret = BUFFER_ERROR;
 
         if (ret == 0) {
@@ -8976,6 +8991,10 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = (word32)(ecc_kse->pubKeyLen + ctSz);
         ciphertext = NULL;
+
+        /* Set namedGroup so wolfSSL_get_curve_name() can function properly on
+         * the server side. */
+        ssl->namedGroup = keyShareEntry->group;
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
@@ -10729,6 +10748,497 @@ static int TLSX_QuicTP_Parse(WOLFSSL *ssl, const byte *input, size_t len, int ex
 #define CID_FREE(a, b) 0
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
+#if defined(HAVE_RPK)
+/******************************************************************************/
+/* Client_Certificate_Type extension                                          */
+/******************************************************************************/
+/* return 1 if specified type is included in the given list, otherwise 0 */
+static int IsCertTypeListed(byte type, byte cnt, const byte* list)
+{
+    int ret = 0;
+    int i;
+
+    if (cnt == 0 || list == NULL)
+        return ret;
+
+    if (cnt > 0 && cnt <= MAX_CLIENT_CERT_TYPE_CNT) {
+        for (i = 0; i < cnt; i++) {
+            if (list[i] == type)
+                return 1;
+        }
+    }
+    return 0;
+}
+
+/* Search both arrays from above to find a common value between the two given
+ * arrays(a and b). return 1 if it finds a common value, otherwise return 0.
+ */
+static int GetCommonItem(const byte* a, byte aLen, const byte* b, byte bLen,
+                                                                    byte* type)
+{
+    int i, j;
+
+    if (a == NULL || b == NULL)
+        return 0;
+
+    for (i = 0; i < aLen; i++) {
+        for (j = 0; j < bLen; j++) {
+            if (a[i] == b[j]) {
+                *type = a[i];
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Creates a "client certificate type" extension if necessary.
+ * Returns 0 if no error occurred, negative value otherwise.
+ * A return of 0, it does not indicae that the extension was created.
+ */
+static int TLSX_ClientCertificateType_Use(WOLFSSL* ssl, byte isServer)
+{
+    int ret = 0;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (isServer) {
+        /* [in server side]
+         */
+
+        if (IsCertTypeListed(WOLFSSL_CERT_TYPE_RPK,
+                        ssl->options.rpkConfig.preferred_ClientCertTypeCnt,
+                        ssl->options.rpkConfig.preferred_ClientCertTypes)) {
+
+            WOLFSSL_MSG("Adding Client Certificate Type extension");
+            ret = TLSX_Push(&ssl->extensions, TLSX_CLIENT_CERTIFICATE_TYPE, ssl,
+                                                                    ssl->heap);
+            if (ret == 0) {
+                TLSX_SetResponse(ssl, TLSX_CLIENT_CERTIFICATE_TYPE);
+            }
+        }
+    }
+    else {
+        /* [in client side]
+         * This extension MUST be omitted from the ClientHello unless the RPK
+         * certificate is preferred by the user and actually loaded.
+         */
+
+        if (IsCertTypeListed(WOLFSSL_CERT_TYPE_RPK,
+                        ssl->options.rpkConfig.preferred_ClientCertTypeCnt,
+                        ssl->options.rpkConfig.preferred_ClientCertTypes)) {
+
+            if (ssl->options.rpkState.isRPKLoaded) {
+
+                ssl->options.rpkState.sending_ClientCertTypeCnt = 1;
+                ssl->options.rpkState.sending_ClientCertTypes[0] =
+                                                        WOLFSSL_CERT_TYPE_RPK;
+
+                /* Push new client_certificate_type extension. */
+                WOLFSSL_MSG("Adding Client Certificate Type extension");
+                ret = TLSX_Push(&ssl->extensions, TLSX_CLIENT_CERTIFICATE_TYPE,
+                                                                ssl, ssl->heap);
+            }
+            else {
+                WOLFSSL_MSG("Willing to use RPK cert but not loaded it");
+            }
+        }
+        else {
+            WOLFSSL_MSG("No will to use RPK cert");
+        }
+    }
+    return ret;
+}
+
+/* Parse a "client certificate type" extension received from peer.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_ClientCertificateType_Parse(WOLFSSL* ssl, const byte* input,
+                                                word16 length, byte msgType)
+{
+    byte typeCnt;
+    int idx = 0;
+    int ret = 0;
+    int i;
+    int populate = 0;
+    byte  cmnType;
+
+
+    if (msgType == client_hello) {
+        /* [parse ClientHello in server end]
+         * case 1) if peer verify is disabled, this extension must be omitted
+         *         from ServerHello.
+         * case 2) if user have not set his preference, find X509 in parsed
+         *         result, then populate "Client Certificate Type" extension.
+         * case 3) if user have not set his preference and X509 isn't included
+         *         in parsed result, send "unsupported certificate" alert.
+         * case 4) if user have set his preference, find a common cert type
+         *         in users preference and received cert types.
+         * case 5) if user have set his preference, but no common cert type
+         *         found.
+         */
+
+        /* case 1 */
+        if (ssl->options.verifyNone) {
+            return ret;
+        }
+
+        /* parse extension */
+        if (length < OPAQUE8_LEN)
+            return BUFFER_E;
+
+        typeCnt = input[idx];
+
+        if (typeCnt > MAX_CLIENT_CERT_TYPE_CNT)
+            return BUFFER_E;
+
+        if ((typeCnt + 1) * OPAQUE8_LEN != length){
+            return BUFFER_E;
+        }
+
+        ssl->options.rpkState.received_ClientCertTypeCnt = input[idx];
+        idx += OPAQUE8_LEN;
+
+        for (i = 0; i < typeCnt; i++) {
+            ssl->options.rpkState.received_ClientCertTypes[i] = input[idx];
+            idx += OPAQUE8_LEN;
+        }
+
+        if (ssl->options.rpkConfig.preferred_ClientCertTypeCnt == 0) {
+            /* case 2 */
+            if (IsCertTypeListed(WOLFSSL_CERT_TYPE_X509,
+                            ssl->options.rpkState.received_ClientCertTypeCnt,
+                            ssl->options.rpkState.received_ClientCertTypes)) {
+
+                ssl->options.rpkState.sending_ClientCertTypeCnt = 1;
+                ssl->options.rpkState.sending_ClientCertTypes[0] =
+                                                        WOLFSSL_CERT_TYPE_X509;
+                populate = 1;
+            }
+            /* case 3 */
+            else {
+                WOLFSSL_MSG("No common cert type found in client_certificate_type ext");
+                SendAlert(ssl, alert_fatal, unsupported_certificate);
+                return UNSUPPORTED_CERTIFICATE;
+            }
+        }
+        else if (ssl->options.rpkConfig.preferred_ClientCertTypeCnt > 0) {
+            /* case 4 */
+            if (GetCommonItem(
+                            ssl->options.rpkConfig.preferred_ClientCertTypes,
+                            ssl->options.rpkConfig.preferred_ClientCertTypeCnt,
+                            ssl->options.rpkState.received_ClientCertTypes,
+                            ssl->options.rpkState.received_ClientCertTypeCnt,
+                            &cmnType)) {
+                ssl->options.rpkState.sending_ClientCertTypeCnt  = 1;
+                ssl->options.rpkState.sending_ClientCertTypes[0] = cmnType;
+                populate = 1;
+            }
+            /* case 5 */
+            else {
+                WOLFSSL_MSG("No common cert type found in client_certificate_type ext");
+                SendAlert(ssl, alert_fatal, unsupported_certificate);
+                return UNSUPPORTED_CERTIFICATE;
+            }
+        }
+
+        /* populate client_certificate_type extension */
+        if (populate) {
+            WOLFSSL_MSG("Adding Client Certificate Type extension");
+            ret = TLSX_Push(&ssl->extensions, TLSX_CLIENT_CERTIFICATE_TYPE, ssl,
+                                                                    ssl->heap);
+            if (ret == 0) {
+                TLSX_SetResponse(ssl, TLSX_CLIENT_CERTIFICATE_TYPE);
+            }
+        }
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* parse it in client side */
+        if (length == 1) {
+            ssl->options.rpkState.received_ClientCertTypeCnt  = 1;
+            ssl->options.rpkState.received_ClientCertTypes[0] = *input;
+        }
+        else {
+            return BUFFER_E;
+        }
+    }
+
+    return ret;
+}
+
+/* Write out the "client certificate type" extension data into the given buffer.
+ * return the size wrote in the buffer on success, negative value on error.
+ */
+static word16 TLSX_ClientCertificateType_Write(void* data, byte* output,
+                                              byte msgType)
+{
+    WOLFSSL* ssl = (WOLFSSL*)data;
+    word16 idx = 0;
+    byte cnt = 0;
+    int i;
+
+    /* skip to write extension if count is zero */
+    cnt = ssl->options.rpkState.sending_ClientCertTypeCnt;
+
+    if (cnt == 0)
+        return 0;
+
+    if (msgType == client_hello) {
+        /* client side */
+
+        *(output + idx) = cnt;
+        idx += OPAQUE8_LEN;
+
+        for (i = 0; i < cnt; i++) {
+            *(output + idx) = ssl->options.rpkState.sending_ClientCertTypes[i];
+            idx += OPAQUE8_LEN;
+        }
+        return idx;
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* sever side */
+        if (cnt == 1) {
+            *(output + idx) = ssl->options.rpkState.sending_ClientCertTypes[0];
+            idx += OPAQUE8_LEN;
+        }
+    }
+    return idx;
+}
+
+/* Calculate then return the size of the "client certificate type" extension
+ * data.
+ * return the extension data size on success, negative value on error.
+*/
+static int TLSX_ClientCertificateType_GetSize(WOLFSSL* ssl, byte msgType)
+{
+    int ret = 0;
+    byte cnt;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (msgType == client_hello) {
+        /* client side */
+        cnt = ssl->options.rpkState.sending_ClientCertTypeCnt;
+        ret = (int)(OPAQUE8_LEN + cnt * OPAQUE8_LEN);
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* sever side */
+        cnt = ssl->options.rpkState.sending_ClientCertTypeCnt;/* must be one */
+        ret = OPAQUE8_LEN;
+    }
+    else {
+        return SANITY_MSG_E;
+    }
+    return ret;
+}
+
+    #define CCT_GET_SIZE  TLSX_ClientCertificateType_GetSize
+    #define CCT_WRITE     TLSX_ClientCertificateType_Write
+    #define CCT_PARSE     TLSX_ClientCertificateType_Parse
+#else
+    #define CCT_GET_SIZE(a)  0
+    #define CCT_WRITE(a, b)  0
+    #define CCT_PARSE(a, b, c, d) 0
+#endif /* HAVE_RPK */
+
+#if defined(HAVE_RPK)
+/******************************************************************************/
+/* Server_Certificate_Type extension                                          */
+/******************************************************************************/
+/* Creates a "server certificate type" extension if necessary.
+ * Returns 0 if no error occurred, negative value otherwise.
+ * A return of 0, it does not indicae that the extension was created.
+ */
+static int TLSX_ServerCertificateType_Use(WOLFSSL* ssl, byte isServer)
+{
+    int ret = 0;
+    byte ctype;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (isServer) {
+        /* [in server side] */
+        /* find common cert type to both end */
+        if (GetCommonItem(
+                ssl->options.rpkConfig.preferred_ServerCertTypes,
+                ssl->options.rpkConfig.preferred_ServerCertTypeCnt,
+                ssl->options.rpkState.received_ServerCertTypes,
+                ssl->options.rpkState.received_ServerCertTypeCnt,
+                &ctype)) {
+            ssl->options.rpkState.sending_ServerCertTypeCnt = 1;
+            ssl->options.rpkState.sending_ServerCertTypes[0] = ctype;
+
+            /* Push new server_certificate_type extension. */
+            WOLFSSL_MSG("Adding Server Certificate Type extension");
+            ret = TLSX_Push(&ssl->extensions, TLSX_SERVER_CERTIFICATE_TYPE, ssl,
+                                                                    ssl->heap);
+            if (ret == 0) {
+                TLSX_SetResponse(ssl, TLSX_SERVER_CERTIFICATE_TYPE);
+            }
+        }
+        else {
+            /* no common cert type found */
+            WOLFSSL_MSG("No common cert type found in server_certificate_type ext");
+            SendAlert(ssl, alert_fatal, unsupported_certificate);
+            ret = UNSUPPORTED_CERTIFICATE;
+        }
+    }
+    else {
+        /* [in client side] */
+        if (IsCertTypeListed(WOLFSSL_CERT_TYPE_RPK,
+                            ssl->options.rpkConfig.preferred_ServerCertTypeCnt,
+                            ssl->options.rpkConfig.preferred_ServerCertTypes)) {
+
+            ssl->options.rpkState.sending_ServerCertTypeCnt =
+                        ssl->options.rpkConfig.preferred_ServerCertTypeCnt;
+            XMEMCPY(ssl->options.rpkState.sending_ServerCertTypes,
+                    ssl->options.rpkConfig.preferred_ServerCertTypes,
+                    ssl->options.rpkConfig.preferred_ServerCertTypeCnt);
+
+            /* Push new server_certificate_type extension. */
+            WOLFSSL_MSG("Adding Server Certificate Type extension");
+            ret = TLSX_Push(&ssl->extensions, TLSX_SERVER_CERTIFICATE_TYPE, ssl,
+                                                                    ssl->heap);
+        }
+        else {
+            WOLFSSL_MSG("No will to accept RPK cert");
+        }
+    }
+
+    return ret;
+}
+
+/* Parse a "server certificate type" extension received from peer.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_ServerCertificateType_Parse(WOLFSSL* ssl, const byte* input,
+                                                word16 length, byte msgType)
+{
+    byte typeCnt;
+    int idx = 0;
+    int ret = 0;
+    int i;
+
+    if (msgType == client_hello) {
+        /* in server side */
+
+        if (length < OPAQUE8_LEN)
+            return BUFFER_E;
+
+        typeCnt = input[idx];
+
+        if (typeCnt > MAX_SERVER_CERT_TYPE_CNT)
+            return BUFFER_E;
+
+        if ((typeCnt + 1) * OPAQUE8_LEN != length){
+            return BUFFER_E;
+        }
+        ssl->options.rpkState.received_ServerCertTypeCnt = input[idx];
+        idx += OPAQUE8_LEN;
+
+        for (i = 0; i < typeCnt; i++) {
+            ssl->options.rpkState.received_ServerCertTypes[i] = input[idx];
+            idx += OPAQUE8_LEN;
+        }
+
+        ret = TLSX_ServerCertificateType_Use(ssl, 1);
+        if (ret == 0) {
+            TLSX_SetResponse(ssl, TLSX_SERVER_CERTIFICATE_TYPE);
+        }
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* in client side */
+        if (length != 1)                     /* length slould be 1 */
+            return BUFFER_E;
+
+        ssl->options.rpkState.received_ServerCertTypeCnt  = 1;
+        ssl->options.rpkState.received_ServerCertTypes[0] = *input;
+    }
+
+    return 0;
+}
+
+/* Write out the "server certificate type" extension data into the given buffer.
+ * return the size wrote in the buffer on success, negative value on error.
+ */
+static word16 TLSX_ServerCertificateType_Write(void* data, byte* output,
+                                                                byte msgType)
+{
+    WOLFSSL* ssl = (WOLFSSL*)data;
+    word16 idx = 0;
+    int cnt = 0;
+    int i;
+
+    /* skip to write extension if count is zero */
+    cnt = ssl->options.rpkState.sending_ServerCertTypeCnt;
+
+    if (cnt == 0)
+        return 0;
+
+    if (msgType == client_hello) {
+        /* in client side */
+
+        *(output + idx) = cnt;
+        idx += OPAQUE8_LEN;
+
+        for (i = 0; i < cnt; i++) {
+            *(output + idx) = ssl->options.rpkState.sending_ServerCertTypes[i];
+            idx += OPAQUE8_LEN;
+        }
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* in server side */
+        /* ensure cnt is one */
+        if (cnt != 1)
+            return 0;
+
+        *(output + idx) =  ssl->options.rpkState.sending_ServerCertTypes[0];
+        idx += OPAQUE8_LEN;
+    }
+    return idx;
+}
+
+/* Calculate then return the size of the "server certificate type" extension
+ * data.
+ * return the extension data size on success, negative value on error.
+*/
+static int TLSX_ServerCertificateType_GetSize(WOLFSSL* ssl, byte msgType)
+{
+    int ret = 0;
+    int cnt;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (msgType == client_hello) {
+        /* in clent side */
+        cnt = ssl->options.rpkState.sending_ServerCertTypeCnt;
+        if (cnt > 0) {
+            ret = (int)(OPAQUE8_LEN + cnt * OPAQUE8_LEN);
+        }
+    }
+    else if (msgType == server_hello || msgType == encrypted_extensions) {
+        /* in server side */
+        ret = (int)OPAQUE8_LEN;
+    }
+    else {
+        return SANITY_MSG_E;
+    }
+    return ret;
+}
+
+    #define SCT_GET_SIZE  TLSX_ServerCertificateType_GetSize
+    #define SCT_WRITE     TLSX_ServerCertificateType_Write
+    #define SCT_PARSE     TLSX_ServerCertificateType_Parse
+#else
+    #define SCT_GET_SIZE(a)  0
+    #define SCT_WRITE(a, b)  0
+    #define SCT_PARSE(a, b, c, d) 0
+#endif /* HAVE_RPK */
+
 /******************************************************************************/
 /* TLS Extensions Framework                                                   */
 /******************************************************************************/
@@ -11468,6 +11978,13 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
         switch (extension->type) {
 
+#if defined(HAVE_RPK)
+            case TLSX_CLIENT_CERTIFICATE_TYPE:
+            case TLSX_SERVER_CERTIFICATE_TYPE:
+                /* nothing to do */
+                break;
+#endif
+
 #ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 SNI_FREE_ALL((SNI*)extension->data, heap);
@@ -11751,6 +12268,16 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
 #endif
 
+#ifdef HAVE_RPK
+            case TLSX_CLIENT_CERTIFICATE_TYPE:
+                length += CCT_GET_SIZE((WOLFSSL*)extension->data, msgType);
+                break;
+
+            case TLSX_SERVER_CERTIFICATE_TYPE:
+                length += SCT_GET_SIZE((WOLFSSL*)extension->data, msgType);
+                break;
+#endif /* HAVE_RPK */
+
 #ifdef WOLFSSL_QUIC
             case TLSX_KEY_QUIC_TP_PARAMS:
                 FALL_THROUGH; /* followed by */
@@ -11962,6 +12489,19 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 offset += SRTP_WRITE((TlsxSrtp*)extension->data, output+offset);
                 break;
 #endif
+
+#ifdef HAVE_RPK
+            case TLSX_CLIENT_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Client Certificate Type extension to write");
+                offset += CCT_WRITE(extension->data, output + offset, msgType);
+                break;
+
+            case TLSX_SERVER_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Server Certificate Type extension to write");
+                offset += SCT_WRITE(extension->data, output + offset, msgType);
+                break;
+#endif /* HAVE_RPK */
+
 #ifdef WOLFSSL_QUIC
             case TLSX_KEY_QUIC_TP_PARAMS:
                 FALL_THROUGH;
@@ -12258,6 +12798,16 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
     /* server will add extension depending on what is parsed from client */
     if (!isServer) {
+#if defined(HAVE_RPK)
+        ret = TLSX_ClientCertificateType_Use(ssl, isServer);
+        if (ret != 0)
+            return ret;
+
+        ret = TLSX_ServerCertificateType_Use(ssl, isServer);
+        if (ret != 0)
+            return ret;
+#endif /* HAVE_RPK */
+
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (!ssl->options.disallowEncThenMac) {
             ret = TLSX_EncryptThenMac_Use(ssl);
@@ -14080,6 +14630,17 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 break;
 
 #endif /* defined(WOLFSSL_DTLS_CID) */
+#if defined(HAVE_RPK)
+            case TLSX_CLIENT_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Client Certificate Type extension received");
+                ret = CCT_PARSE(ssl, input + offset, size, msgType);
+                break;
+
+            case TLSX_SERVER_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Server Certificate Type extension received");
+                ret = SCT_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif /* HAVE_RPK */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 ret = ECH_PARSE(ssl, input + offset, size, msgType);
@@ -14672,4 +15233,5 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* NO_TLS */
+
 #endif /* WOLFCRYPT_ONLY */

@@ -41,10 +41,14 @@ static const byte ucDNSServerAddress[4]   = { 192, 168, 11, 1 };
 
 #ifdef TLS_MULTITHREAD_TEST
      xSemaphoreHandle exit_semaph;
-     extern User_SCEPKCbInfo guser_PKCbInfo_taskA;
-     extern User_SCEPKCbInfo guser_PKCbInfo_taskB;
+#   ifdef WOLFSSL_RENESAS_SCEPROTECT
+     extern FSPSM_ST guser_PKCbInfo_taskA;
+     extern FSPSM_ST guser_PKCbInfo_taskB;
+#   endif
 #else
-     extern User_SCEPKCbInfo guser_PKCbInfo;
+#   ifdef WOLFSSL_RENESAS_SCEPROTECT
+     extern FSPSM_ST guser_PKCbInfo;
+#   endif
 #endif
 
 int SEGGER_RTT_vprintf(unsigned BufferIndex, const char * sFormat, va_list * pParamList);
@@ -125,7 +129,7 @@ void wolfSSL_TLS_client_init()
     #endif
 }
 
-void wolfSSL_TLS_client_do(void *pvParam)
+int wolfSSL_TLS_client_do(void *pvParam)
 {
 
     int ret;
@@ -192,17 +196,17 @@ void wolfSSL_TLS_client_do(void *pvParam)
        /* Set callback CTX */
         #if !defined(TLS_MULTITHREAD_TEST)
         
-        memset(&guser_PKCbInfo, 0, sizeof(User_SCEPKCbInfo));
+        XMEMSET(&guser_PKCbInfo, 0, sizeof(FSPSM_ST));
         guser_PKCbInfo.devId = 0;
         wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
         
         #else
         if (p->port - DEFAULT_PORT == 0) {
-           memset(&guser_PKCbInfo_taskA, 0, sizeof(User_SCEPKCbInfo));
+           XMEMSET(&guser_PKCbInfo_taskA, 0, sizeof(FSPSM_ST));
            wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskA);
         }
         else {
-           memset(&guser_PKCbInfo_taskB, 0, sizeof(User_SCEPKCbInfo));
+           XMEMSET(&guser_PKCbInfo_taskB, 0, sizeof(FSPSM_ST));
            wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskB);
         }
         #endif
@@ -257,7 +261,9 @@ void wolfSSL_TLS_client_do(void *pvParam)
         wolfSSL_free(ssl);
         ssl = NULL;
         /* need to reset callback */
+#ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_set_callbacks(client_ctx);
+#endif
     }
     /* clean up socket */
     if (xClientSocket) {
@@ -270,7 +276,7 @@ void wolfSSL_TLS_client_do(void *pvParam)
     xSemaphoreGive(exit_semaph);
     vTaskDelete(NULL);
 #endif
-
+    return ret;
 }
 
 void wolfSSL_TLS_cleanup()

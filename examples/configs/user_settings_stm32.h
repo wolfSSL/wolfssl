@@ -243,7 +243,6 @@
     #define SP_WORD_SIZE 32
 
     //#define WOLFSSL_SP_NO_MALLOC
-    //#define WOLFSSL_SP_CACHE_RESISTANT
 
     /* single precision Cortex-M only */
     #if WOLF_CONF_MATH == 4

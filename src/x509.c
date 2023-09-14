@@ -9691,7 +9691,8 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             }
             if (req->keyUsageSet)
                 cert->keyUsage = req->keyUsage;
-            /* Extended Key Usage not supported. */
+
+            cert->extKeyUsage = req->extKeyUsage;
     #endif
 
             XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
@@ -10722,6 +10723,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
                 case MBSTRING_UTF8:
                     type = CTC_UTF8;
                     break;
+                case MBSTRING_ASC:
                 case V_ASN1_PRINTABLESTRING:
                     type = CTC_PRINTABLE;
                     break;
@@ -12610,6 +12612,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "ST";
             len = 2;
             break;
+        case NID_streetAddress:
+            str = "street";
+            len = 6;
+            break;
         case NID_organizationName:
             str = "O";
             len = 1;
@@ -12617,6 +12623,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_organizationalUnitName:
             str = "OU";
             len = 2;
+            break;
+        case NID_postalCode:
+            str = "postalCode";
+            len = 10;
             break;
         case NID_emailAddress:
             str = "emailAddress";
@@ -12649,6 +12659,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_pkcs9_contentType:
             str = "contentType";
             len = 11;
+            break;
+        case NID_userId:
+            str = "UID";
+            len = 3;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");

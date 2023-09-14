@@ -41,7 +41,7 @@ int w64wrapper_test(void)
 
     a = w64From32(0x01020304, 0x05060708);
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_W64_WRAPPER_TEST)
-    if (a.n != 0x0102030405060708)
+    if (a.n != 0x0102030405060708LL)
         return -1;
 #else
     if (a.n[0] != 0x01020304 || a.n[1] != 0x05060708)

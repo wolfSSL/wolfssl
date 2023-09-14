@@ -1,34 +1,23 @@
 #!/bin/bash
 
-# async-check.sh
-
 # This script creates symbolic links to the required asynchronous
 # file for using the asynchronous simulator and make check
-#
-#     $ ./async-check [keep|clean|setup]
-#
-#     - keep: (default off) ./async and links kept around for inspection
-#     - clean: (default off) only cleanup existing ./async and links
-#     - setup: (default off) only setup ./async and links but don't run config
-#                            or make
-#
+
+# Fail on any error in script
+set -e
 
 ASYNC_REPO=https://github.com/wolfSSL/wolfAsyncCrypt.git
+ASYNC_DIR=${ASYNC_DIR:-wolfAsyncCrypt}
 
 function Usage() {
-    printf '\n%s\n\n' "Usage: $0 [keep|clean|setup]"
-    printf '%s\n' "Where \"keep\" means keep (default off) async files around for inspection"
-    printf '%s\n' "Where \"clean\" means only clean (default off) the async files"
-    printf '%s\n\n' "Where \"setup\" means only setup (default off) the async files"
-    printf '%s\n' "EXAMPLE:"
-    printf '%s\n' "---------------------------------"
-    printf '%s\n' "./async-check.sh keep"
-    printf '%s\n' "./async-check.sh clean"
-    printf '%s\n' "./async-check.sh setup"
-    printf '%s\n\n' "---------------------------------"
+    printf "Usage: $0 [install|uninstall|test|remove]\n"
+    printf "\tinstall   - get and set up links to wolfAsyncCrypt files\n"
+    printf "\tuninstall - remove the links to wolfAsyncCrypt\n"
+    printf "\ttest      - install and run 'make check'\n"
+    printf "\tremove    - uninstall and remove wolfAsyncCrypt\n"
 }
 
-function CleanUp() {
+function UnlinkFiles() {
     unlink ./wolfcrypt/src/async.c
     unlink ./wolfssl/wolfcrypt/async.h
     unlink ./wolfcrypt/src/port/intel/quickassist.c
@@ -40,8 +29,6 @@ function CleanUp() {
     unlink ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
     unlink ./wolfcrypt/src/port/cavium/README.md
 
-    rm -rf ./async
-
     # restore original README.md files
     git checkout -- wolfcrypt/src/port/cavium/README.md
     git checkout -- wolfcrypt/src/port/intel/README.md
@@ -49,16 +36,46 @@ function CleanUp() {
 
 function LinkFiles() {
     # link files
-    ln -s -f ../../async/wolfcrypt/src/async.c ./wolfcrypt/src/async.c
-    ln -s -f ../../async/wolfssl/wolfcrypt/async.h ./wolfssl/wolfcrypt/async.h
-    ln -s -f ../../../../async/wolfcrypt/src/port/intel/quickassist.c ./wolfcrypt/src/port/intel/quickassist.c
-    ln -s -f ../../../../async/wolfcrypt/src/port/intel/quickassist_mem.c ./wolfcrypt/src/port/intel/quickassist_mem.c
-    ln -s -f ../../../../async/wolfcrypt/src/port/intel/README.md ./wolfcrypt/src/port/intel/README.md
-    ln -s -f ../../../../async/wolfssl/wolfcrypt/port/intel/quickassist.h ./wolfssl/wolfcrypt/port/intel/quickassist.h
-    ln -s -f ../../../../async/wolfssl/wolfcrypt/port/intel/quickassist_mem.h ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
-    ln -s -f ../../../../async/wolfcrypt/src/port/cavium/cavium_nitrox.c ./wolfcrypt/src/port/cavium/cavium_nitrox.c
-    ln -s -f ../../../../async/wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
-    ln -s -f ../../../../async/wolfcrypt/src/port/cavium/README.md ./wolfcrypt/src/port/cavium/README.md
+    ln -s -f ../../${ASYNC_DIR}/wolfcrypt/src/async.c ./wolfcrypt/src/async.c
+    ln -s -f ../../${ASYNC_DIR}/wolfssl/wolfcrypt/async.h ./wolfssl/wolfcrypt/async.h
+    ln -s -f ../../../../${ASYNC_DIR}/wolfcrypt/src/port/intel/quickassist.c ./wolfcrypt/src/port/intel/quickassist.c
+    ln -s -f ../../../../${ASYNC_DIR}/wolfcrypt/src/port/intel/quickassist_mem.c ./wolfcrypt/src/port/intel/quickassist_mem.c
+    ln -s -f ../../../../${ASYNC_DIR}/wolfcrypt/src/port/intel/README.md ./wolfcrypt/src/port/intel/README.md
+    ln -s -f ../../../../${ASYNC_DIR}/wolfssl/wolfcrypt/port/intel/quickassist.h ./wolfssl/wolfcrypt/port/intel/quickassist.h
+    ln -s -f ../../../../${ASYNC_DIR}/wolfssl/wolfcrypt/port/intel/quickassist_mem.h ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+    ln -s -f ../../../../${ASYNC_DIR}/wolfcrypt/src/port/cavium/cavium_nitrox.c ./wolfcrypt/src/port/cavium/cavium_nitrox.c
+    ln -s -f ../../../../${ASYNC_DIR}/wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+    ln -s -f ../../../../${ASYNC_DIR}/wolfcrypt/src/port/cavium/README.md ./wolfcrypt/src/port/cavium/README.md
+}
+
+function Install() {
+    if [ -d $ASYNC_DIR ];
+    then
+        echo "Using existing async repo"
+    else
+        # make a clone of the wolfAsyncCrypt repository
+        git clone --depth 1 $ASYNC_REPO $ASYNC_DIR
+    fi
+
+# setup auto-conf
+    ./autogen.sh
+    LinkFiles
+}
+
+function Uninstall() {
+    UnlinkFiles
+}
+
+function Test() {
+    Install
+    ./configure --enable-asynccrypt --enable-all
+    make check
+}
+
+function Remove() {
+    UnlinkFiles
+
+    rm -rf ${ASYNC_DIR}
 }
 
 if [ "$#" -gt 1 ]; then
@@ -66,48 +83,22 @@ if [ "$#" -gt 1 ]; then
     exit 1
 fi
 
-KEEP=no
-ONLY_SETUP=no
-
 case "x$1" in
-    "xkeep")
-        KEEP=yes
+    "xinstall")
+        Install
         ;;
-    "xclean")
-        CleanUp
-        exit 0
+    "xuninstall")
+        Uninstall
         ;;
-    "xsetup")
-        ONLY_SETUP=yes
+    "xremove")
+        Remove
+        ;;
+    "xtest")
+        Test
         ;;
     *)
         Usage
         exit 1
         ;;
 esac
-
-# Fail on any error in script from now on
-set -e
-
-if [ -d ./async ];
-then
-    echo "\n\nUsing existing async repo\n\n"
-else
-    # make a clone of the wolfAsyncCrypt repository
-    git clone --depth 1 $ASYNC_REPO async
-fi
-
-# setup auto-conf
-./autogen.sh
-LinkFiles
-if [ "x$ONLY_SETUP" == "xno" ];
-then
-    ./configure --enable-asynccrypt --enable-all
-    make check
-    # Clean up
-    if [ "x$KEEP" == "xno" ];
-    then
-        CleanUp
-    fi
-fi
 

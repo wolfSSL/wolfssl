@@ -1,0 +1,217 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: wolfssl
+Upstream-Contact: David Garske <david@wolfssl.com>
+Source: https://github.com/wolfssl/wolfssl/releases
+
+Files:
+ *
+Copyright:
+ 2006-2023 wolfSSL Inc.
+License: GPL-2+
+
+Files:
+ zephyr/Kconfig
+Copyright:
+ 2016 Intel Corporation
+License: Apache-2.0
+
+Files:
+ zephyr/Kconfig.tls-generic
+Copyright:
+ 2018 Intel Corporation
+ 2018 Nordic Semiconductor ASA
+License: Apache-2.0
+
+Files:
+ wolfcrypt/src/camellia.c
+ wolfssl/wolfcrypt/camellia.h
+Copyright:
+ 2006-2007 NTT (Nippon Telegraph and Telephone Corporation)
+ 2006-2016 wolfSSL Inc.
+License: GPL-2+
+
+Files:
+ m4/ax_append_link_flags.m4
+Copyright:
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_pthread.m4
+Copyright:
+ 2008 Steven G. Johnson <stevenj@alum.mit.edu>
+ 2011 Daniel Richard G. <skunk@iSKUNK.ORG>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_check_library.m4
+Copyright:
+ 2012 Brian Aker <brian@tangent.org>
+ 2010 Diego Elio Petteno` <flameeyes@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_append_flag.m4
+ m4/ax_check_compile_flag.m4
+ m4/ax_check_link_flag.m4
+Copyright:
+ 2008 Guido U. Draheim <guidod@gmx.de>
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_append_compile_flags.m4
+Copyright:
+ 2011 Maarten Bosmans <mkbosmans@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_tls.m4
+Copyright:
+ 2008 Alan Woodland <ajw05@aber.ac.uk>
+ 2010 Diego Elio Petteno` <flameeyes@gmail.com>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_create_generic_config.m4
+Copyright:
+ 2008 Guido U. Draheim <guidod@gmx.de>
+License: GPL-3+-with-autoconf
+
+Files:
+ m4/ax_compiler_version.m4
+ m4/ax_debug.m4
+ m4/ax_harden_compiler_flags.m4
+ m4/ax_vcs_checkout.m4
+Copyright:
+ 2012 Brian Aker
+License: BSD-3-clause
+
+Files:
+ m4/ax_append_to_file.m4
+ m4/ax_file_escapes.m4
+ m4/ax_print_to_file.m4
+Copyright:
+ 2008 Tom Howard <tomhoward@users.sf.net
+License: FSFAP
+
+Files:
+ m4/ax_add_am_macro.m4
+Copyright:
+ 2009 Tom Howard <tomhoward@users.sf.net
+License: FSFAP
+
+Files:
+ m4/ax_am_jobserver.m4
+Copyright:
+ 2008 Michael Paul Bailey <jinxidoru@byu.net>
+License: FSFAP
+
+Files:
+ m4/ax_am_macros.m4
+Copyright:
+ 2009 Tom Howard <tomhoward@users.sf.net
+License: FSFAP
+
+Files:
+ m4/ax_count_cpus.m4
+Copyright:
+ 2012 Brian Aker <brian@tangent.org>
+ 2008 Michael Paul Bailey <jinxidoru@byu.net>
+ 2008 Christophe Tournayre <turn3r@users.sourceforge.net>
+License: FSFAP
+
+Files:
+ debian/*
+Copyright:
+ 2014-2022 Felix Lechner <felix.lechner@lease-up.com>
+License: GPL-2+
+
+
+License: FSFAP
+ Copying and distribution of this file, with or without modification, are
+ permitted in any medium without royalty provided the copyright notice
+ and this notice are preserved. This file is offered as-is, without any
+ warranty.
+
+
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <http://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+
+
+License: GPL-3+-with-autoconf
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 3 of the License, or (at your
+ option) any later version.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program. If not, see <http://www.gnu.org/licenses/>.
+ .
+ As a special exception, the respective Autoconf Macro's copyright owner
+ gives unlimited permission to copy, distribute and modify the configure
+ scripts that are the output of Autoconf when processing the Macro. You
+ need not follow the terms of the GNU General Public License when using
+ or distributing such scripts, even though portions of the text of the
+ Macro appear in them. The GNU General Public License (GPL) does govern
+ all other use of the material that constitutes the Autoconf Macro.
+ .
+ This special exception to the GPL applies to versions of the Autoconf
+ Macro released by the Autoconf Archive. When you make and distribute a
+ modified version of the Autoconf Macro, you may extend this special
+ exception to the GPL to apply to your modified version as well.
+
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+     * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ .
+     * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+ .
+     * The names of its contributors may not be used to endorse or
+ promote products derived from this software without specific prior
+ written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+License: Apache-2.0
+ On modern Debian systems, the text of this license can be found
+ at:  /usr/share/common-licenses/Apache-2.0
+

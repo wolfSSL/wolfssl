@@ -298,9 +298,8 @@ struct Aes {
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     TSIP_AES_CTX ctx;
 #endif
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) ||\
-    defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    SCE_AES_CTX ctx;
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    FSPSM_AES_CTX ctx;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
@@ -416,6 +415,9 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #ifdef WOLFSSL_AES_COUNTER
  WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
+ WOLFSSL_API int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+                                        const byte* iv, int dir);
+
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)

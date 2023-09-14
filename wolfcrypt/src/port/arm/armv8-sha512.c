@@ -146,23 +146,6 @@ static int InitSha512_256(wc_Sha512* sha512)
 
 #ifdef WOLFSSL_SHA512
 
-#ifdef WOLFSSL_ARMASM
-#ifdef __aarch64__
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
-    extern void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data,
-        word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_neon
-#else
-    extern void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
-        word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_crypto
-#endif
-#else
-extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
-    word32 len);
-#endif
-#endif
-
 static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
                                                     enum wc_HashType type)
 {

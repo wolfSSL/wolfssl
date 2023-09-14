@@ -21,7 +21,7 @@
 
 
 /*
- * There are two versions one for 64 (Aarch64)  and one for 32 bit (Aarch32).
+ * There are two versions one for 64 (Aarch64) and one for 32 bit (Aarch32).
  * If changing one check the other.
  */
 
@@ -31,6 +31,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
@@ -41,7 +42,6 @@
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -1450,6 +1450,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     }
     return 0;
+}
+
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+        const byte* iv, int dir)
+{
+    (void)dir;
+    return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 }
 
 #endif /* WOLFSSL_AES_COUNTER */
@@ -4212,6 +4219,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return 0;
 }
 
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+        const byte* iv, int dir)
+{
+    (void)dir;
+    return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+}
+
 #endif /* WOLFSSL_AES_COUNTER */
 
 #ifdef HAVE_AESGCM
@@ -4687,7 +4701,7 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
 
     if (aes->cOver > 0) {
         /* Cipher text block incomplete. */
-        over = aes->cOver; 
+        over = aes->cOver;
     }
     if (over > 0) {
         /* Zeroize the unused part of the block. */
@@ -5467,7 +5481,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -5623,6 +5636,13 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz == 0) {
         return 0;
     }
+    if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+#else
+        return BAD_FUNC_ARG;
+#endif
+    }
 
     AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,
         (unsigned char*)aes->reg);
@@ -5644,6 +5664,13 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (sz == 0) {
         return 0;
+    }
+    if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+#else
+        return BAD_FUNC_ARG;
+#endif
     }
 
     AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,
@@ -5705,6 +5732,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
     }
     return 0;
+}
+
+int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+        const byte* iv, int dir)
+{
+    (void)dir;
+    return wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 }
 #endif /* WOLFSSL_AES_COUNTER */
 
@@ -6038,7 +6072,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
-    
+
     if (ret == 0) {
         AES_ECB_encrypt(iv, aes->gcm.H, AES_BLOCK_SIZE,
             (const unsigned char*)aes->key, aes->rounds);
