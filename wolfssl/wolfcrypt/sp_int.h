@@ -37,6 +37,10 @@ This library provides single precision (SP) integer math functions.
 extern "C" {
 #endif
 
+#if defined(WOLFSSL_SP_ARM_ARCH) && !defined(WOLFSSL_ARM_ARCH)
+    #define WOLFSSL_ARM_ARCH    WOLFSSL_SP_ARM_ARCH
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && \
     !defined(WOLFSSL_SP_INT_NEGATIVE)
     #define WOLFSSL_SP_INT_NEGATIVE
