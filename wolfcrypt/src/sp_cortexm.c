@@ -67460,10 +67460,10 @@ static void sp_1024_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit 
         "STR	r9, [%[a], #12]\n\t"
         "STR	r10, [%[a], #16]\n\t"
         "LDR	r12, [%[m], #124]\n\t"
-        "SUBS	r11, r12, r11\n\t"
+        "SUBS	r3, r12, r3\n\t"
         "neg	r5, r5\n\t"
-        "SBC	r11, r11, r11\n\t"
-        "ORR	r5, r5, r11\n\t"
+        "SBC	r3, r3, r3\n\t"
+        "ORR	r5, r5, r3\n\t"
         "MOV	%[mp], r5\n\t"
         : [a] "+r" (a), [m] "+r" (m), [mp] "+r" (mp)
         :
