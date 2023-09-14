@@ -8665,19 +8665,21 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
             EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo, args->verify);
 
-            if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                int sigLen = MAX_SIG_DATA_SZ;
-                if (args->length > MAX_SIG_DATA_SZ)
-                    sigLen = args->length;
-                args->sigData = (byte*)XMALLOC(sigLen, ssl->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-            }
-            else {
-                args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-            }
             if (args->sigData == NULL) {
-                ERROR_OUT(MEMORY_E, exit_scv);
+                if (ssl->hsType == DYNAMIC_TYPE_RSA) {
+                    int sigLen = MAX_SIG_DATA_SZ;
+                    if (args->length > MAX_SIG_DATA_SZ)
+                        sigLen = args->length;
+                    args->sigData = (byte*)XMALLOC(sigLen, ssl->heap,
+                                                            DYNAMIC_TYPE_SIGNATURE);
+                }
+                else {
+                    args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
+                                                            DYNAMIC_TYPE_SIGNATURE);
+                }
+                if (args->sigData == NULL) {
+                    ERROR_OUT(MEMORY_E, exit_scv);
+                }
             }
 
             /* Create the data to be signed. */
