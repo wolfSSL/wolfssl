@@ -9669,7 +9669,7 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, NULL);
     /* Check for error */
-    if (ret != WC_NOT_PENDING_E && ret < 0) {
+    if (ret != WC_NO_PENDING_E && ret < 0) {
         return ret;
     }
 #endif

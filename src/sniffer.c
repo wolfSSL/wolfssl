@@ -2474,7 +2474,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     args = (SetupKeysArgs*)ssl->async->args;
 
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* Check for error */
         if (ret < 0)
             goto exit_sk;
@@ -4877,7 +4877,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->decrypt.state != CIPHER_STATE_BEGIN) {
         ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
-        if (ret != WC_NOT_PENDING_E) {
+        if (ret != WC_NO_PENDING_E) {
             /* check for still pending */
             if (ret == WC_PENDING_E)
                 return ret;

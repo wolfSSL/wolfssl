@@ -63,7 +63,7 @@ const char* wc_GetErrorString(int error)
     case WC_PENDING_E:
         return "wolfCrypt Operation Pending (would block / eagain) error";
 
-    case WC_NOT_PENDING_E:
+    case WC_NO_PENDING_E:
         return "wolfCrypt operation not pending error";
 
     case MP_INIT_E :
