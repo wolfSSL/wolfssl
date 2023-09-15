@@ -41,9 +41,17 @@ copy_wolfssl_source() {
   mkdir -p "$dst"
 
   if find "$src"/"$dst" -type f -name "$file_type" -print -quit | grep -q '^'; then
+      # this gives a shellcheck warning:
+      # cp -u "$src"/"$dst"/$file_type "./$dst/"
+      #
+      # this does not work: (gives cp: cannot stat .. No such file or directory)
+      # cp -u "$src"/"$dst"/""$file_type" "./$dst/"
+      #
+      # so we'll assemble a local command var:
+      local cp_command="cp -u $src/$dst/$file_type ./$dst/"
       # uncomment for verbose output:
-      # echo "cp -u $src/$dst/$file_type ./$dst/"
-              cp -u "$src"/"$dst"/$file_type "./$dst/"
+      echo "Executing command: $cp_command"
+      eval "$cp_command"
       echo "Copied $dst/$file_type"
   else
     echo "ERROR: Not Found: $dst"
@@ -75,7 +83,7 @@ if [ ! -e "$IDF_PATH/export.sh" ]; then
 fi
 
 # check if IDF_COMPONENT_API_TOKEN is set
-if [ -z "IDF_COMPONENT_API_TOKEN" ]; then
+if [ -z "$IDF_COMPONENT_API_TOKEN" ]; then
     echo "Please follow the instructions and set IDF_COMPONENT_API_TOKEN."
     exit 1
 fi
@@ -106,7 +114,7 @@ if [ -z "$FOUND_LOCAL_DIST" ]; then
 else
     OK_TO_OVERWRITE_DIST=
     until [ "${OK_TO_OVERWRITE_DIST^}" == "Y" ] || [ "${OK_TO_OVERWRITE_DIST^}" == "N" ]; do
-        read -n1 -p "Proceed? (Y/N) " OK_TO_OVERWRITE_DIST
+        read -r -n1 -p "Proceed? (Y/N) " OK_TO_OVERWRITE_DIST
         OK_TO_OVERWRITE_DIST=${OK_TO_OVERWRITE_DIST^};
         echo;
     done
@@ -146,20 +154,25 @@ THIS_WOLFSSL=$(dirname "$(dirname "$(dirname "$PWD")")")
 
 # Optionally specify an alternative source of wolfSSL to publish:
 
-# TODO REMOVE
+# TODO REMOVE this line if not using /test/wolfssl-master
+
 THIS_WOLFSSL=/mnt/c/test/wolfssl-master
 
 # END TODO REMOVE
 
 # copy_wolfssl_source $THIS_WOLFSSL
 echo "Copying source from $THIS_WOLFSSL"
-echo $(cd /mnt/c/test/wolfssl-master && git status)
+
+pushd "$THIS_WOLFSSL" || exit 1
+git status
+popd || exit 1
+
 #**************************************************************************************************
 # Confirm we actually want to proceed to copy.
 #**************************************************************************************************
 OK_TO_COPY=
 until [ "${OK_TO_COPY^}" == "Y" ] || [ "${OK_TO_COPY^}" == "N" ]; do
-    read -n1 -p "Proceed? (Y/N) " OK_TO_COPY
+    read -r -n1 -p "Proceed? (Y/N) " OK_TO_COPY
     OK_TO_COPY=${OK_TO_COPY^};
     echo;
 done
@@ -171,6 +184,9 @@ else
     exit 1
 fi
 
+#**************************************************************************************************
+# Copy root README.md file, clean it, and prepend README_REGISTRY_PREPEND.md text
+#**************************************************************************************************
 cp                  $THIS_WOLFSSL/README.md   ./README.md
 
 # strip any HTML anchor tags, that are irrelevant and don't look pretty
@@ -231,15 +247,17 @@ fi
 
 
 # Copy C source files
-copy_wolfssl_source  $THIS_WOLFSSL  "src"                                "*.c"
-copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/src"                      "*.c"
-copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/benchmark"                "*.c"
+echo "Copying C Source files... $THIS_WOLFSSL"
+copy_wolfssl_source  $THIS_WOLFSSL  "src"                                '*.c'
+copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/src"                      '*.c'
+copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/benchmark"                '*.c'
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/src/port/atmel"           "*.c"
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/src/port/Espressif"       "*.c"
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/test"                     "*.c"
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/user-crypto/src"          "*.c"
 
 # Copy C header files
+echo "Copying C Header files..."
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/benchmark"                "*.h"  APPEND
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/test"                     "*.h"  APPEND
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/user-crypto/include"      "*.h"
@@ -249,8 +267,8 @@ copy_wolfssl_source  $THIS_WOLFSSL  "wolfssl/wolfcrypt"                  "*.h"
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfssl/wolfcrypt/port/atmel"       "*.h"
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfssl/wolfcrypt/port/Espressif"   "*.h"
 
-# Note that for examples, the ESP Registry will append the these README files to
-# the main README.md at publish time, and generate achor text hyperlinks.
+# Note that for example apps, the ESP Registry will append the these README files to
+# the main README.md at publish time, and generate anchor text hyperlinks.
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/benchmark"                "README.md"  APPEND
 copy_wolfssl_source  $THIS_WOLFSSL  "wolfcrypt/test"                     "README.md"  APPEND
 
@@ -264,7 +282,8 @@ if [ -e "./wolfssl/version.h" ]; then
     if [ $THIS_ERROR_CODE -ne 0 ]; then
         echo ""
         echo "Version text in idf_component.yml does not match ./wolfssl/version.h ($WOLFSSL_VERSION). Please edit and try again."
-        # optionally exit
+        # optionally exit TODO?
+
         # exit 1
     else
         echo ""
@@ -278,40 +297,86 @@ fi
 
 #**************************************************************************************************
 # All files from the wolfssl/IDE/Espressif/ESP-IDF/examples
-# directory that contain the text: __ESP_COMPONENT_SOURCE__
 # will be copied to the local ESP Registry ./examples/ directory
-echo "Copying __ESP_COMPONENT_SOURCE__ tagged files..."
 
-# go to the root of the Espressif examples
-export PUB_CURRENT_PATH=$(pwd)
-echo Current Path saved: $PUB_CURRENT_PATH
 
-cd ../../Espressif/ESP-IDF/examples
 
-echo "Copying example sample files tagged with __ESP_COMPONENT_SOURCE__ from:"
-echo ""
-pwd
-echo ""
 
-echo "Found example [source] files to copy to [destination]:"
-echo ""
-find ./ -type f -not -path "*/build/*" -exec grep -l "__ESP_COMPONENT_SOURCE__" {} + | xargs -I {} echo {}   ../../component-manager/examples/{}
+# Define the source directory and destination directory.
+# We start in           IDE/Espressif/component-manager
+# We want examples from IDE/Espressif/ESP-IDF/examples
+source_dir="../ESP-IDF/examples"
 
-# The cp command seems to not like creating a directory struture, even with --parents
-# so we create the directory in advance:
-echo "Creating directories in destination..."
-find ./ -type f -not -path "*/build/*" -exec grep -l "__ESP_COMPONENT_SOURCE__" {} + | xargs -I {} sh -c 'mkdir --parents ../../component-manager/examples/"$(dirname {})"'
-find ../../component-manager/examples/ -type d
+# We'll copy examples to publish into our local examples
+# We start in           IDE/Espressif/component-manager
+# Copy example files to IDE/Espressif/component-manager/examples
+destination_dir="examples"
 
-# This is the same as the "Found example [source]" above, but copying instead just displaying:
-echo Copying files...
-find ./ -type f -not -path "*/build/*" -exec grep -l "__ESP_COMPONENT_SOURCE__" {} + | xargs -I {} cp   {}   ../../component-manager/examples/{}
-#
+# Check if the destination directory exists, and create it if it doesn't
+if [ ! -d "$destination_dir" ]; then
+    mkdir -p "$destination_dir"
+fi
+
+MISSING_FILES=N
+# Read the list of files from component_manifest.txt and copy them
+while IFS= read -r file_path; do
+
+    if [[ "$file_path" == "#"* ]]; then
+        echo "$file_path"
+    else
+        # Remove leading and trailing whitespace from the file path
+        file_path=$(echo "$file_path" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+        # Check if the file path is empty (blank line)
+        if [ -z "$file_path" ]; then
+            continue
+        fi
+
+        # Construct the full source and destination paths
+        full_source_path="$source_dir/$file_path"
+        full_destination_path="$destination_dir/$file_path"
+
+        # Create the directory structure in the destination if it doesn't exist
+        mkdir -p "$(dirname "$full_destination_path")"
+
+        # Copy the file to the destination
+        cp "$full_source_path" "$full_destination_path"
+        THIS_ERROR_CODE=$?
+    if [ $THIS_ERROR_CODE -eq 0 ]; then
+        echo "Copied: $full_source_path -> $full_destination_path"
+    else
+        MISSING_FILES=Y
+        # echo "WARNING: File not copied:  $full_source_path"
+    fi
+
+
+    fi
+done < "component_manifest.txt"
+
 #**************************************************************************************************
+# Check if we detected any missing example files that did not successfully copy.
+#**************************************************************************************************
+if [ "${MISSING_FILES^}" == "Y" ]; then
+    echo "Some example files not copied. Continue?"
+    #**************************************************************************************************
+    # Confirm we actually want to proceed to publish if there were missing example source files.
+    #**************************************************************************************************
+    COMPONENT_MANAGER_CONTINUE=
+    until [ "${COMPONENT_MANAGER_CONTINUE^}" == "Y" ] || [ "${COMPONENT_MANAGER_CONTINUE^}" == "N" ]; do
+        read -r -n1 -p "Proceed? (Y/N) " COMPONENT_MANAGER_CONTINUE
+        COMPONENT_MANAGER_CONTINUE=${COMPONENT_MANAGER_CONTINUE^};
+        echo;
+    done
 
-cd "$PUB_CURRENT_PATH"
-echo "Returned to path:"
-pwd
+    if [ "${COMPONENT_MANAGER_CONTINUE}" == "Y" ]; then
+        echo "Continuing with missing files"
+    else
+        echo "Exiting..."
+        exit 1
+    fi
+fi
+
+echo "Copy operation completed for examples."
 
 # Check to see if we failed to previously build:
 if [ -e "./build_failed.txt" ]; then
@@ -321,9 +386,13 @@ fi
 
 # TODO remove
 # Files known to need attention
+# The current examples expect user_settings in the root include directory
+# this can be removed once subsequent PR updates are accepted for examples
 cp ./lib/user_settings.h ./include/user_settings.h
-cp ./lib/esp32-crypt.h   ./wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
 
+# The component registry needs a newer version of esp32-crypt.h
+cp ./lib/esp32-crypt.h   ./wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
+# End TODO
 
 
 #**************************************************************************************************
@@ -335,8 +404,15 @@ cp ./lib/esp32-crypt.h   ./wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
 # Reminder that there may be a delay of several minutes or more between the time of publish, and the time
 # when the files are actually available.
 
-# TODO this build is for the *prior* version
+# TODO this build is for the *prior* version of ESP Component (the one *already* published)
 # find  ./examples/ -maxdepth 1 -mindepth 1 -type d | xargs -I {} sh -c 'cd {} && echo "\n\nBuilding {} for minimum component version: " && grep "wolfssl/wolfssl:" main/idf_component.yml && echo "\n\n" && idf.py build || touch ../../build_failed.txt'
+
+# we'll do a test build of the current to-be-published version of wolfSSL
+find  ./examples/ -maxdepth 1 -mindepth 1 -type d | xargs -I {} sh -c 'echo "\n\nBuilding {} " && ./wolfssl_build_example.sh {} || touch ../../build_failed.txt'
+
+echo ""
+echo "Warning: build check for examples not yet in place."
+echo ""
 
 # Check to see if we failed on this build:
 if [ -e "./build_failed.txt" ]; then
@@ -348,14 +424,14 @@ fi
 # Delete any managed components and build directories before uploading.
 # The files *should* be excluded by default, so this is just local housekeeping.
 # if not excluded, the upload will typically be 10x larger. Expected size = 10MB.
-echo "Removing managed_components and build directories:"
-find  ./examples/ -maxdepth 1 -mindepth 1 -type d | xargs -I {} rm -r {}/managed_components/
-find  ./examples/ -maxdepth 1 -mindepth 1 -type d | xargs -I {} rm -r {}/build/
+echo "Removing managed_components and build directories: (errors ok here)"
+find  ./examples/ -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 -I {} rm -r {}/managed_components/
+find  ./examples/ -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 -I {} rm -r {}/build/
 
 echo ""
 echo "Samples file to publish:"
 echo ""
-find ./examples/
+find ./examples/ -print
 echo ""
 
 echo "Ready to publish..."
@@ -379,7 +455,7 @@ echo ""
 #**************************************************************************************************
 COMPONENT_MANAGER_PUBLISH=
 until [ "${COMPONENT_MANAGER_PUBLISH^}" == "Y" ] || [ "${COMPONENT_MANAGER_PUBLISH^}" == "N" ]; do
-    read -n1 -p "Proceed? (Y/N) " COMPONENT_MANAGER_PUBLISH
+    read -r -n1 -p "Proceed? (Y/N) " COMPONENT_MANAGER_PUBLISH
     COMPONENT_MANAGER_PUBLISH=${COMPONENT_MANAGER_PUBLISH^};
     echo;
 done
@@ -397,7 +473,9 @@ if [ "${COMPONENT_MANAGER_PUBLISH}" == "Y" ]; then
     # by the component manager. It's always `namespace__component`.
     #
     echo "compote component upload --namespace wolfssl --name wolfssl"
-          compote component upload --namespace wolfssl --name wolfssl
+
+    # upload command is currently disabled during testing:
+## disabled          compote component upload --namespace wolfssl --name wolfssl
 
     echo ""
     echo "View the new component at https://components.espressif.com/components/wolfssl/wolfssl"

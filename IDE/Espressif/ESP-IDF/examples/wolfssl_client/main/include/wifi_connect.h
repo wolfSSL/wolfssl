@@ -32,6 +32,10 @@
 
 #define DEFAULT_PORT                     11111
 
+#ifndef CONFIG_TARGET_HOST
+    #define CONFIG_TARGET_HOST 192.168.1.42
+#endif
+
 #define TLS_SMP_CLIENT_TASK_NAME         "tls_client_example"
 #define TLS_SMP_CLIENT_TASK_WORDS        10240
 #define TLS_SMP_CLIENT_TASK_PRIORITY     8

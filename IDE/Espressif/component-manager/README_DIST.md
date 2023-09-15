@@ -32,7 +32,7 @@ A working Internet connection is required to build the samples.
 
 Any new examples should have a manifest file in the `[project]/main` directory:
 
-```
+```bash
 ## IDF Component Manager Manifest File
 dependencies:
   wolfssl/wolfssl: "^5.6.0-stable"
@@ -50,4 +50,12 @@ dependencies:
   #   # `public` flag doesn't have an effect dependencies of the `main` component.
   #   # All dependencies of `main` are public by default.
   #   public: true
-  ```
+```
+
+  To publish, the ESP-IDF needs to be installed.
+
+```bash
+cd /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/component-manager
+. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+
+```
