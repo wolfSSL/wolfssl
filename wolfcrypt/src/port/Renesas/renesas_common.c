@@ -52,7 +52,14 @@ static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
 /* store callback ctx by devId */
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
+#elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+	    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#define MAX_FSPSM_CBINDEX 5
+TsipUserCtx *gCbCtx[MAX_FSPSM_CBINDEX];
+#endif
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
