@@ -3488,6 +3488,7 @@ static WC_INLINE int myVerifyDecryptCb(WOLFSSL* ssl,
 
 static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
+#if !defined(NO_HMAC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     AtomicEncCtx* encCtx;
     AtomicDecCtx* decCtx;
 
@@ -3503,7 +3504,6 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     }
     XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
 
-#if !defined(NO_HMAC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     wolfSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
     wolfSSL_SetMacEncryptCtx(ssl, encCtx);
 
@@ -3539,7 +3539,7 @@ static WC_INLINE void FreeAtomicUser(WOLFSSL* ssl)
     if (decCtx != NULL) {
         if (decCtx->keySetup  == 1)
             wc_AesFree(&decCtx->aes);
-    free(decCtx);
+        free(decCtx);
     }
 }
 
