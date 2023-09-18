@@ -154,6 +154,8 @@ void app_main(void)
     /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
     /* not available for C3 at this time */
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    /* not available for C6 at this time */
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ

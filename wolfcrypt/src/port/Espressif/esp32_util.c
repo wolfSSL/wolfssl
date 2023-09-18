@@ -18,11 +18,31 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+/*
+** Version / Platform info.
+**
+** This could evolve into a wolfSSL-wide feature. For now, here only. See:
+** https://github.com/wolfSSL/wolfssl/pull/6149
+*/
+
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
 #include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
 
+#if defined(WOLFSSL_ESPIDF)
+    #include <esp_log.h>
+    #include "sdkconfig.h"
+    #define WOLFSSL_VERSION_PRINTF(...) ESP_LOGI(TAG, __VA_ARGS__)
+#else
+    #include <stdio.h>
+    #define WOLFSSL_VERSION_PRINTF(...) { printf(__VA_ARGS__); printf("\n"); }
+#endif
+
+static const char* TAG = "esp32_util";
+
+/* some functions are only applicable when hardware encryption is enabled */
 #if defined(WOLFSSL_ESP32_CRYPT) && \
   (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_SHA256) ||\
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
@@ -42,7 +62,7 @@
  *   other value from wc_InitMutex()
  *
  */
-int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
+WOLFSSL_LOCAL int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
     if (mutex == NULL) {
         return BAD_MUTEX_E;
     }
@@ -54,7 +74,7 @@ int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
  * call the ESP-IDF mutex lock; xSemaphoreTake
  *
  */
-int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
+WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
@@ -71,7 +91,7 @@ int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
  * call the ESP-IDF mutex UNlock; xSemaphoreGive
  *
  */
-int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
@@ -84,27 +104,13 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
     return 0;
 #endif
 }
-#endif
+#endif /* WOLFSSL_ESP32_CRYPT, etc. */
 
-/* esp_ShowExtendedSystemInfo
+
+/* esp_ShowExtendedSystemInfo and supporting info.
+**
 ** available regardless if HW acceleration is turned on or not.
 */
-
-/*
-** Version / Platform info.
-**
-** This could evolve into a wolfSSL-wide feature. For now, here only. See:
-** https://github.com/wolfSSL/wolfssl/pull/6149
-*/
-#if defined(WOLFSSL_ESPIDF)
-    #include <esp_log.h>
-    #include "sdkconfig.h"
-    static const char* TAG = "esp32_util";
-    #define WOLFSSL_VERSION_PRINTF(...) ESP_LOGI(TAG, __VA_ARGS__)
-#else
-    #include <stdio.h>
-    #define WOLFSSL_VERSION_PRINTF(...) { printf(__VA_ARGS__); printf("\n"); }
-#endif
 
 /*
 *******************************************************************************
@@ -190,8 +196,15 @@ static int ShowExtendedSystemInfo_platform_espressif()
     WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S2.");
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S3.");
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C3.");
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C6.");
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-H2.");
 #else
-#error "ESP32_CRYPT not yet supported on this IDF TARGET"
+    /* this should have been detected & disabled in user_settins.h */
+    #error "ESP32_CRYPT not yet supported on this IDF TARGET"
 #endif
 
     /* Even though enabled, some specifics may be disabled */
@@ -209,7 +222,8 @@ static int ShowExtendedSystemInfo_platform_espressif()
     WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_RSA_PRI defined!"
                            "(disabled HW RSA)");
 #endif
-#endif
+
+#endif /* ! NO_ESP32_CRYPT */
 
     return 0;
 }
@@ -311,10 +325,9 @@ static int ShowExtendedSystemInfo_platform()
 
 /*
 *******************************************************************************
-** The public ShowExtendedSystemInfo()
+** The internal, portable, but currently private ShowExtendedSystemInfo()
 *******************************************************************************
 */
-
 int ShowExtendedSystemInfo(void)
     {
         WOLFSSL_VERSION_PRINTF("Extended Version and Platform Information.");
@@ -343,7 +356,7 @@ int ShowExtendedSystemInfo(void)
         return 0;
     }
 
-int esp_ShowExtendedSystemInfo()
+WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo()
 {
     return ShowExtendedSystemInfo();
 }
@@ -353,7 +366,7 @@ int esp_ShowExtendedSystemInfo()
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-int esp_show_mp_attributes(char* c, MATH_INT_T* X)
+WOLFSSL_LOCAL int esp_show_mp_attributes(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
     int ret = 0;
@@ -376,11 +389,12 @@ int esp_show_mp_attributes(char* c, MATH_INT_T* X)
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-int esp_show_mp(char* c, MATH_INT_T* X)
+WOLFSSL_LOCAL int esp_show_mp(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
     int ret = MP_OKAY;
     int words_to_show = 0;
+    size_t i;
 
     if (X == NULL) {
         ret = -1;
@@ -406,7 +420,7 @@ int esp_show_mp(char* c, MATH_INT_T* X)
     #endif
         ESP_LOGI(MP_TAG, "%s:",c);
         esp_show_mp_attributes(c, X);
-        for (size_t i = 0; i < words_to_show; i++) {
+        for (i = 0; i < words_to_show; i++) {
             ESP_LOGI(MP_TAG, "%s.dp[%2d] = 0x%08x;  /* %2d */ ",
                                    c, /* the supplied variable name      */
                                    i, /* the index, i for dp[%d]         */
@@ -421,10 +435,12 @@ int esp_show_mp(char* c, MATH_INT_T* X)
 
 /* Perform a full mp_cmp and binary compare.
  * (typically only used during debugging) */
-int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
+WOLFSSL_LOCAL int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
 {
     int ret = MP_OKAY;
-    int e = memcmp(A, B, sizeof(mp_int));
+    int e;
+
+    e = memcmp(A, B, sizeof(mp_int));
     if (mp_cmp(A, B) == MP_EQ) {
         if (e == 0) {
             /* we always want to be here: both esp_show_mp and binary equal! */
@@ -470,11 +486,10 @@ int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
                        name_A, name_B);
     }
     else {
-      //  esp_show_mp(name_A, A);
-      //  esp_show_mp(name_B, B);
+#ifdef DEBUG_WOLFSSL
+        esp_show_mp(name_A, A);
+        esp_show_mp(name_B, B);
+#endif
     }
     return ret;
 }
-
-
-

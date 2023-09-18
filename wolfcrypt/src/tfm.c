@@ -2252,16 +2252,6 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
    XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_ESPIDF)
-    /* TODO consider moving / removing this */
-    /* a value of 1 is interesting in HW; check for padding */
-    if (Y->used > 1 && (Y->dp[0] == 1 || (Y->dp[1] == 0))) {
-        ESP_LOGW("TFM Y", "Y=1 length mismatch; Y = %d", (int)Y->dp[0]);
-    }
-    else {
-        ESP_LOGV("TFM Y", "Y=1 ok");
-    }
-#endif
    return err;
 }
 

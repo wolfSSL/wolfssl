@@ -50,7 +50,6 @@ set(COMPONENT_SRCDIRS "${WOLFSSL_ROOT}/src/"
                         "${WOLFSSL_ROOT}/wolfcrypt/src/"
                         "${WOLFSSL_ROOT}/wolfcrypt/src/port/Espressif/"
                         "${WOLFSSL_ROOT}/wolfcrypt/src/port/atmel/"
-                        "${WOLFSSL_ROOT}/wolfcrypt/benchmark/"
                         "${WOLFSSL_ROOT}/wolfcrypt/test/"
                         )
 

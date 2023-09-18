@@ -429,6 +429,7 @@ static int esp_clean_result(MATH_INT_T* Z, int used_padding)
 {
     int ret = MP_OKAY;
     uint16_t this_extra;
+    size_t i;
 
 /* TODO remove this section if MP_SIZE accepted into sp_int.h
 ** See https://github.com/wolfSSL/wolfssl/pull/6565 */
@@ -460,7 +461,7 @@ static int esp_clean_result(MATH_INT_T* Z, int used_padding)
     /* trim any trailing zeros and adjust z.used size */
     if (Z->used > 1) {
         ESP_LOGV(TAG, "ZTrim: Z->used = %d", Z->used);
-        for (size_t i = Z->used; i > 1; i--) {
+        for (i = Z->used; i > 1; i--) {
             if (Z->dp[i - 1] == 0) {
                 /* last element in zero based array */
                 Z->used = i - 1;
@@ -542,13 +543,15 @@ static int esp_memblock_to_mpint(const uint32_t mem_address,
                                  word32 numwords)
 {
     int ret = MP_OKAY;
+    uint32_t i;
+
 #ifdef USE_ESP_DPORT_ACCESS_READ_BUFFER
     esp_dport_access_read_buffer((uint32_t*)mp->dp, mem_address, numwords);
 #else
     ESP_EM__PRE_DPORT_READ;
     DPORT_INTERRUPT_DISABLE();
     ESP_EM__READ_NON_FIFO_REG;
-    for (volatile uint32_t i = 0;  i < numwords; ++i) {
+    for (i = 0;  i < numwords; ++i) {
         ESP_EM__3_16;
         mp->dp[i] = DPORT_SEQUENCE_REG_READ((uint32_t)(mem_address + i * 4));
     }
@@ -569,7 +572,8 @@ static int esp_memblock_to_mpint(const uint32_t mem_address,
         ESP_LOGI(TAG, "Trying again... ");
         esp_dport_access_read_buffer((uint32_t*)mp->dp, mem_address, numwords);
         mp->used = numwords;
-        if (0 != XMEMCMP((const void *)mem_address, (const void *)&mp->dp, numwords * sizeof(word32))) {
+        if (0 != XMEMCMP((const void *)mem_address,
+                         (const void *)&mp->dp, numwords * sizeof(word32))) {
             ESP_LOGE(TAG, "Validation Failure esp_memblock_to_mpint "
                            "a second time. Giving up.");
             ret = MP_VAL;
@@ -590,10 +594,11 @@ static int esp_memblock_to_mpint(const uint32_t mem_address,
 static int esp_zero_memblock(u_int32_t mem_address, int wordSz)
 {
     int ret = MP_OKAY;
+    int i;
 
     ESP_EM__PRE_DPORT_WRITE;
     DPORT_INTERRUPT_DISABLE();
-    for (int i=0; i < wordSz; i++) {
+    for (i = 0; i < wordSz; i++) {
         DPORT_REG_WRITE(
             (volatile u_int32_t *)(mem_address + (i * sizeof(word32))),
             (u_int32_t)(0) /* zero memory blocks [wordSz] words long */
@@ -623,7 +628,7 @@ static int esp_mpint_to_memblock(u_int32_t mem_address,
     /* write */
     ESP_EM__PRE_DPORT_WRITE;
     DPORT_INTERRUPT_DISABLE();
-    for (i=0; i < hwords; i++) {
+    for (i = 0; i < hwords; i++) {
         if (i < len) {
             /* write our data */
             ESP_LOGV(TAG, "Write i = %d value.", i);
@@ -697,13 +702,15 @@ static int esp_get_rinv(MATH_INT_T *rinv, MATH_INT_T *M, word32 exp)
 #ifdef DEBUG_WOLFSSL
     MATH_INT_T rinv2[1];
     MATH_INT_T M2[1];
-    mp_copy(M, M2); /* copy (src = M) to (dst = M2) */
-    mp_copy(rinv, rinv2); /* copy (src = M) to (dst = M2) */
     int reti = MP_OKAY;
 #endif
-
     int ret = MP_OKAY;
+
     ESP_LOGV(TAG, "\nBegin esp_get_rinv \n");
+#ifdef DEBUG_WOLFSSL
+    mp_copy(M, M2); /* copy (src = M) to (dst = M2) */
+    mp_copy(rinv, rinv2); /* copy (src = M) to (dst = M2) */
+#endif
 
     /* 2^(exp)
      *
@@ -909,7 +916,8 @@ int esp_mp_montgomery_init(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M,
 #ifdef DEBUG_WOLFSSL
     if (ret == MP_OKAY) {
         if (mph->mp == mph->mp2) {
-            ESP_LOGV(TAG, "M' match esp_calc_Mdash vs mp_montgomery_setup = %ul  !", mph->mp);
+            ESP_LOGV(TAG, "M' match esp_calc_Mdash vs mp_montgomery_setup "
+                          "= %ul  !", mph->mp);
         }
         else {
             ESP_LOGW(TAG,
@@ -974,6 +982,10 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     word32 maxWords_sz;
     word32 hwWords_sz;
     word32 resultWords_sz;
+
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    word32 left_pad_offset = 0;
+#endif
 
 /* if we are supporting negative numbers, check that first since operands
  * may be later modified (e.g. Z = Z * X) */
@@ -1092,7 +1104,7 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     /* Y (left-extend)
      * Accelerator supports large-number multiplication with only
      * four operand lengths of N ∈ {512, 1024, 1536, 2048} */
-    int left_pad_offset = maxWords_sz << 2;
+    left_pad_offset = maxWords_sz << 2;
     if (left_pad_offset <= 512 >> 3) {
         left_pad_offset = 512 >> 3; /* 64 bytes (16 words) */
     }
@@ -1110,7 +1122,8 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
                 }
                 else {
                     ret = MP_VAL;
-                    ESP_LOGE(TAG, "Unsupported operand length: %d", hwWords_sz);
+                    ESP_LOGE(TAG, "Unsupported operand length: %d",
+                                   hwWords_sz);
                 }
             }
         }
@@ -1398,7 +1411,7 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 #ifdef DEBUG_WOLFSSL
     /* we're only validating HW when in debug mode */
     if (esp_hw_validation_active()) {
-        ESP_LOGW(TAG, "MP_HW_VALIDATION_ACTIVE");
+        ESP_LOGV(TAG, "MP_HW_VALIDATION_ACTIVE");
         return MP_HW_VALIDATION_ACTIVE;
     }
 #endif
@@ -1511,15 +1524,17 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
          *  512 bits => 16 words */
         DPORT_REG_WRITE(RSA_MULT_MODE_REG, (mph->hwWords_sz >> 4) - 1);
 #if defined(DEBUG_WOLFSSL)
-        ESP_LOGI(TAG, "RSA_MULT_MODE_REG = %d", (mph->hwWords_sz >> 4) - 1);
+        ESP_LOGV(TAG, "RSA_MULT_MODE_REG = %d", (mph->hwWords_sz >> 4) - 1);
 #endif /* WOLFSSL_DEBUG */
 
         /* step.2 write X, M, and r_inv into memory.
          * The capacity of each memory block is 128 words.
          * The memory blocks use the little endian format for storage,
          * i.e. the least significant digit of each number is in lowest address.*/
-        esp_mpint_to_memblock(RSA_MEM_X_BLOCK_BASE, X, mph->Xs, mph->hwWords_sz);
-        esp_mpint_to_memblock(RSA_MEM_M_BLOCK_BASE, M, mph->Ms, mph->hwWords_sz);
+        esp_mpint_to_memblock(RSA_MEM_X_BLOCK_BASE,
+                              X, mph->Xs, mph->hwWords_sz);
+        esp_mpint_to_memblock(RSA_MEM_M_BLOCK_BASE,
+                              M, mph->Ms, mph->hwWords_sz);
         esp_mpint_to_memblock(RSA_MEM_Z_BLOCK_BASE,
                               &(mph->r_inv), mph->Rs, mph->hwWords_sz);
 
@@ -1595,7 +1610,7 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
             return MP_VAL; /*  Error: value is not able to be used. */
         }
         WordsForOperand = bits2words(OperandBits);
-        DPORT_REG_WRITE(RSA_LENGTH_REG, WordsForOperand - 1); /*  (mph->hwWords_sz >> 4) - 1) */
+        DPORT_REG_WRITE(RSA_LENGTH_REG, WordsForOperand - 1);
 
         /* 4. Write M' value into RSA_M_PRIME_REG (now called RSA_M_DASH_REG) */
         DPORT_REG_WRITE(RSA_M_DASH_REG, mph->mp);
@@ -1702,14 +1717,18 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
             ESP_LOGI(TAG, "hwWords_sz    = %d", mph->hwWords_sz);
             ESP_LOGI(TAG, "maxWords_sz   = %d", mph->maxWords_sz);
             ESP_LOGI(TAG, "hwWords_sz<<2   = %d", mph->hwWords_sz << 2);
-            esp_show_mp("X", X2); /* show the copy in X2, as X may have been clobbered */
-            esp_show_mp("Y", Y2); /* show the copy in Y2, as Y may have been clobbered */
-            esp_show_mp("M", M2); /* show the copy in M2, as M may have been clobbered */
+
+            /* parameters may have been collbered; Show cpied values */
+            esp_show_mp("X", X2);
+            esp_show_mp("Y", Y2);
+            esp_show_mp("M", M2);
+
             esp_show_mp("r_inv", &(mph->r_inv)); /*show r_inv  */
             ESP_LOGI(TAG, "mp            = 0x%08x = %u", mph->mp, mph->mp);
 
             if (mph->mp == mph->mp2) {
-                ESP_LOGI(TAG, "M' match esp_calc_Mdash vs mp_montgomery_setup = %d  !", mph->mp);
+                ESP_LOGI(TAG, "M' match esp_calc_Mdash vs mp_montgomery_setup"
+                              " = %d  !", mph->mp);
             }
             else {
                 ESP_LOGW(TAG,
@@ -1726,8 +1745,10 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 
             esp_show_mp("HW Z", Z); /* this is the HW result */
             esp_show_mp("SW Z2", Z2); /* this is the SW result */
-            ESP_LOGI(TAG, "esp_mp_mulmod_usage_ct = %lu tries", esp_mp_mulmod_usage_ct);
-            ESP_LOGI(TAG, "esp_mp_mulmod_error_ct = %lu failures", esp_mp_mulmod_error_ct);
+            ESP_LOGI(TAG, "esp_mp_mulmod_usage_ct = %lu tries",
+                           esp_mp_mulmod_usage_ct);
+            ESP_LOGI(TAG, "esp_mp_mulmod_error_ct = %lu failures",
+                           esp_mp_mulmod_error_ct);
             ESP_LOGI(TAG, "");
 
 
