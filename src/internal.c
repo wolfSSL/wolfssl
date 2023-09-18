@@ -38749,7 +38749,6 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
              * the completion is not detected in the poll like Intel QAT or
              * Nitrox */
             ret = wolfEventQueue_Remove(&ssl->ctx->event_queue, event);
-            printf("Queue_Remove: %d",ret);
         }
     #endif
     }
