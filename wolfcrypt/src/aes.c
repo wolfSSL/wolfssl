@@ -5039,7 +5039,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 /* end GCM_SMALL */
 #elif defined(GCM_TABLE)
 
-static const byte R[256][2] = {
+ALIGN16 static const byte R[256][2] = {
     {0x00, 0x00}, {0x01, 0xc2}, {0x03, 0x84}, {0x02, 0x46},
     {0x07, 0x08}, {0x06, 0xca}, {0x04, 0x8c}, {0x05, 0x4e},
     {0x0e, 0x10}, {0x0f, 0xd2}, {0x0d, 0x94}, {0x0c, 0x56},
@@ -5134,6 +5134,7 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
     byte a;
     word32* pZ;
     word32* pm;
+    word32* px = (word32*)(x);
     int i;
 
     pZ = (word32*)(Z + 15 + 1);
@@ -5156,7 +5157,10 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
         Z[i]    = R[a][0];
         Z[i+1] ^= R[a][1];
     }
-    xorbufout(x, Z+1, m[x[0]], AES_BLOCK_SIZE);
+    pZ = (word32*)(Z + 1);
+    pm = (word32*)(m[x[0]]);
+    px[0] = pZ[0] ^ pm[0]; px[1] = pZ[1] ^ pm[1];
+    px[2] = pZ[2] ^ pm[2]; px[3] = pZ[3] ^ pm[3];
 #else
     byte Z[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
     byte a;
