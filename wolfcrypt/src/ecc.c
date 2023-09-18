@@ -5006,11 +5006,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
             if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
                 err = wc_ecc_shared_secret_gen_async(private_key, point,
                     out, outlen);
-                if (err == 0) {
-                    /* exit early */
-                    RESTORE_VECTOR_REGISTERS();
-                    return err;
-                }
             }
             else
         #endif
