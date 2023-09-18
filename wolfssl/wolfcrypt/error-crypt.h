@@ -50,6 +50,7 @@ enum {
     WC_TIMEOUT_E       = -107,  /* timeout error */
     WC_PENDING_E       = -108,  /* wolfCrypt operation pending (would block) */
     WC_NOT_PENDING_E   = -109,  /* wolfCrypt operation not pending */
+    WC_NO_PENDING_E    = -109,  /* no asynchronous operation not pending */
 
     MP_INIT_E          = -110,  /* mp_init error state */
     MP_READ_E          = -111,  /* mp_read error state */
