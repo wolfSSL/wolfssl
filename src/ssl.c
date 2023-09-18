@@ -1563,6 +1563,13 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     ssl->dupWrite->dupCount = 2;    /* both sides have a count to start */
     dup->dupWrite = ssl->dupWrite; /* each side uses */
 
+    if (dup->options.weOwnRng) {
+        wc_FreeRng(dup->rng);
+        XFREE(dup->rng, dup->heap, DYNAMIC_TYPE_RNG);
+        dup->rng = NULL;
+        dup->options.weOwnRng = 0;
+    }
+
     /* copy write parts over to dup writer */
     XMEMCPY(&dup->specs,   &ssl->specs,   sizeof(CipherSpecs));
     XMEMCPY(&dup->options, &ssl->options, sizeof(Options));

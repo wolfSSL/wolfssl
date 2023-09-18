@@ -7934,6 +7934,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->options.weOwnRng) {
         wc_FreeRng(ssl->rng);
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+        ssl->rng = NULL;
+        ssl->options.weOwnRng = 0;
     }
     FreeSuites(ssl);
     FreeHandshakeHashes(ssl);
