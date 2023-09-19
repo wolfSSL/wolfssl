@@ -115,8 +115,6 @@
     # create a root directory for wolfssl repo
     git clone https://github.com/wolfSSL/wolfssl.git
     cd wolfssl
-    ./autogen.sh
-    ./configure --enable-all
 
 
     # From the root of the wolfSSL repo:
