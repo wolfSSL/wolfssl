@@ -7,14 +7,20 @@ ARG DEPS_WOLFSSL="build-essential autoconf libtool clang clang-tools zlib1g-dev 
 ARG DEPS_LIBOQS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind git"
 ARG DEPS_UDP_PROXY="wget libevent-dev"
 ARG DEPS_TESTS="abi-dumper libcurl4-openssl-dev tcpdump"
+ARG DEPS_TOOLS="ccache"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
-                    && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} ${DEPS_UDP_PROXY} ${DEPS_TESTS} \
+                    && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} ${DEPS_UDP_PROXY} ${DEPS_TESTS} ${DEPS_TOOLS} \
                     && apt clean -y && rm -rf /var/lib/apt/lists/*
 
+# Add 'docker' user
 ARG USER=docker
 ARG UID=1000
 ARG GID=1000
 RUN groupadd -f -g ${GID} docker && ( getent passwd ${UID} || useradd -ms /bin/bash ${USER} -u ${UID} -g ${GID} )
+
+# install ccache
+RUN mkdir -p /opt/ccache/bin && for prog in gcc g++ cc c++ cpp arm-none-eabi-c++ arm-none-eabi-cpp arm-none-eabi-gcc arm-none-eabi-g++; do ln -s /usr/bin/ccache /opt/ccache/bin/$(basename $prog); done
+ENV PATH /opt/ccache/bin:$PATH
 
 # install liboqs
 RUN git clone --single-branch https://github.com/open-quantum-safe/liboqs.git && cd liboqs && git checkout db08f12b5a96aa6582a82aac7f65cf8a4d8b231f \
