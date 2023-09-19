@@ -427,6 +427,10 @@ user_settings_asm.h
 # MagicCrypto (ARIA Cipher)
 MagicCrypto
 
+# CMake  build directory
+/out
+/out_temp
+
 # debian packaging
 debian/changelog
 debian/control
