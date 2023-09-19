@@ -1433,7 +1433,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #else
     int    doCliCertCheck = 0;
 #endif
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     int    disableCRL = 0;
 #endif
     int    useAnyAddr = 0;
@@ -1545,7 +1545,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int useDtlsCID = 0;
     char dtlsCID[DTLS_CID_BUFFER_SIZE] = { 0 };
 #endif /* WOLFSSL_DTLS_CID */
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     char* crlDir = NULL;
 #endif
 
@@ -1710,7 +1710,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'V' :
-                #ifdef HAVE_CRL
+                #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
                     disableCRL = 1;
                 #endif
                 break;
@@ -2299,7 +2299,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
             break;
         case 265:
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
             crlDir = myoptarg;
 #endif
             break;
