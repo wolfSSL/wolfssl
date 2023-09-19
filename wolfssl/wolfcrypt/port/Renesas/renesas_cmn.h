@@ -44,7 +44,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaEnc(WOLFSSL* ssl, const unsigned char* in,
 WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message, 
                     word32 messageSz, word32 macSz, word32 content, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
-		unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
+        unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
         const unsigned char* key, unsigned int keySz, int* result, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl,
                                 unsigned char* sig, unsigned int sigSz,
@@ -68,6 +68,7 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig, unsigne
        int* result, void* ctx);
 
 /* Common Methods */
+WOLFSSL_LOCAL void* Renesas_cmn_GetCbCtxBydevId(int devId);
 int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx);
 void wc_CryptoCb_CleanupRenesasCmn(int* id);
 int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, 

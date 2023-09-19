@@ -119,6 +119,10 @@ enum {
 
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h"
+
 #else
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"

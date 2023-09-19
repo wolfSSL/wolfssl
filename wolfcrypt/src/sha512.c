@@ -136,6 +136,10 @@
 #elif defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     int wc_InitSha512(wc_Sha512* sha512)
     {
@@ -896,6 +900,9 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+   !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/renesas/renesas_fspsm_sha.c */
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
 #else
@@ -1033,6 +1040,10 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
 #else
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
@@ -1137,7 +1148,9 @@ void wc_Sha512Free(wc_Sha512* sha512)
     KcapiHashFree(&sha512->kcapi);
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP)
+#if defined(WOLFSSL_HASH_KEEP) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && \
+    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH))
     if (sha512->msg != NULL) {
         ForceZero(sha512->msg, sha512->len);
         XFREE(sha512->msg, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1254,6 +1267,10 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #elif defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #else
 
@@ -1462,7 +1479,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
     KcapiHashFree(&sha384->kcapi);
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP)
+#if defined(WOLFSSL_HASH_KEEP) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && !defined(NO_WOLFSSL_RENESAS_HASH))
     if (sha384->msg != NULL) {
         ForceZero(sha384->msg, sha384->len);
         XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1494,6 +1512,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #else
 
@@ -1618,6 +1640,10 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
 #else
@@ -1642,6 +1668,9 @@ void wc_Sha512_224Free(wc_Sha512* sha)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #else
 int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
@@ -1690,6 +1719,10 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
 #else
@@ -1712,6 +1745,9 @@ void wc_Sha512_256Free(wc_Sha512* sha)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #else
 int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash)
@@ -1751,7 +1787,9 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
-
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+    /* functions defined in wolfcrypt/src/port/renesas/renesas_fspsm_sha.c */
 #else
 
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)

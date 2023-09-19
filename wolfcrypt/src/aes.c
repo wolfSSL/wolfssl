@@ -2871,6 +2871,11 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
+#elif ((defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_AES))
+    /* implemented in wolfcrypt/src/port/renesas/renesas_fspsm_aes.c */
+
 #else
     #define NEED_SOFTWARE_AES_SETKEY
 #endif
@@ -4960,6 +4965,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
+
     if (aes == NULL) {
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
@@ -4976,7 +4982,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #ifdef WOLFSSL_AESGCM_STREAM
     aes->gcmKeySet = 1;
 #endif
-
     #ifdef WOLFSSL_AESNI
         /* AES-NI code generates its own H value. */
         if (haveAESNI)
@@ -4987,6 +4992,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             return ret;
         }
     #endif /* WOLFSSL_SECO_CAAM */
+
+    #if ((defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+        defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
+        !defined(NO_WOLFSSL_RENESAS_FSPSM_AES))
+        return ret;
+    #endif /* WOLFSSL_RENESAS_RSIP && WOLFSSL_RENESAS_FSPSM_CRYPTONLY*/
 
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0)
@@ -9823,6 +9834,9 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     ret = wc_psa_aes_init(aes);
 #endif
 
+#if defined(WOLFSSL_RENESAS_FSPSM)
+    XMEMSET(&aes->ctx, 0, sizeof(aes->ctx));
+#endif
     return ret;
 }
 
@@ -9935,6 +9949,12 @@ void wc_AesFree(Aes* aes)
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(aes, sizeof(Aes));
+#endif
+
+#if ((defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
+    !defined(NO_WOLFSSL_RENESAS_FSPSM_AES))
+    wc_fspsm_Aesfree(aes);
 #endif
 }
 
