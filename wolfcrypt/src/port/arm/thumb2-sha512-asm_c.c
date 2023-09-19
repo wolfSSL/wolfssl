@@ -37,6 +37,18 @@
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
+
+#ifdef WOLFSSL_ARMASM
+#if !defined(__aarch64__) && defined(__arm__)
+
+#ifdef __IAR_SYSTEMS_ICC__
+#define __asm__        asm
+#define __volatile__   volatile
+#endif /* __IAR_SYSTEMS_ICC__ */
+#ifdef __KEIL__
+#define __asm__        __asm
+#define __volatile__   volatile
+#endif /* __KEIL__ */
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
 
@@ -2207,7 +2219,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "STRD	r4, r5, [sp, #120]\n\t"
         "ADD	r3, r3, #0x80\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_SHA512_transform_len_start_%=\n\t"
+#else
+        "BNE.N	L_SHA512_transform_len_start_%=\n\t"
+#endif
         /* Round 0 */
         "LDRD	r4, r5, [%[sha512], #32]\n\t"
         "LSRS	r6, r4, #14\n\t"
@@ -3540,7 +3556,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "SUBS	%[len], %[len], #0x80\n\t"
         "SUB	r3, r3, #0x200\n\t"
         "ADD	%[data], %[data], #0x80\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_SHA512_transform_len_begin_%=\n\t"
+#else
+        "BNE.N	L_SHA512_transform_len_begin_%=\n\t"
+#endif
         "EOR	r0, r0, r0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
@@ -3553,4 +3573,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 #endif /* WOLFSSL_SHA512 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

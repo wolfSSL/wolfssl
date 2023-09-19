@@ -3755,7 +3755,12 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     int ret = 0;
     Pkcs11Token* token = (Pkcs11Token*)ctx;
     Pkcs11Session session;
+
+#ifdef WOLFSSL_PKCS11_RW_TOKENS
+    int readWrite = 1;
+#else
     int readWrite = 0;
+#endif
 
     if (devId <= INVALID_DEVID || info == NULL || ctx == NULL)
         ret = BAD_FUNC_ARG;

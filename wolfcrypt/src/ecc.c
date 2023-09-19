@@ -5603,7 +5603,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
     WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->privKey), key->dp->size);
 
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(key->keyRaw),
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->keyRaw),
                                         2 * key->dp->size);
 
     err = XSecure_EllipticGenerateKey(&(key->xSec.cinst),
@@ -5615,7 +5615,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         err = WC_HW_E;
     }
 
-    WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(key->keyRaw),
+    WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->keyRaw),
                                         2 * key->dp->size);
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
@@ -6326,7 +6326,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(key->privKey), keysize);
         WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(K), keysize);
 
-        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(out), keysize * 2);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(out), keysize * 2);
 
         err = XSecure_EllipticGenerateSign(&(key->xSec.cinst),
                                            xil_curve_type[key->dp->id],
@@ -6339,7 +6339,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             err = WC_HW_E;
         }
 
-        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE(XIL_CAST_U64(out), keysize * 2);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE(XIL_CAST_U64(out), keysize * 2);
         mp_reverse(&out[0], keysize);
         mp_reverse(&out[keysize], keysize);
 

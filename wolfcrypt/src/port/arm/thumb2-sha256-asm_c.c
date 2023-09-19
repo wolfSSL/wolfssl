@@ -37,6 +37,18 @@
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
+
+#ifdef WOLFSSL_ARMASM
+#if !defined(__aarch64__) && defined(__arm__)
+
+#ifdef __IAR_SYSTEMS_ICC__
+#define __asm__        asm
+#define __volatile__   volatile
+#endif /* __IAR_SYSTEMS_ICC__ */
+#ifdef __KEIL__
+#define __asm__        __asm
+#define __volatile__   volatile
+#endif /* __KEIL__ */
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
@@ -84,10 +96,14 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "\n"
     "L_SHA256_transform_len_begin_%=:\n\t"
         /* Load, Reverse and Store W - 64 bytes */
-        "LDRD	r4, r5, [%[data]]\n\t"
-        "LDRD	r6, r7, [%[data], #8]\n\t"
-        "LDRD	r8, r9, [%[data], #16]\n\t"
-        "LDRD	r10, r11, [%[data], #24]\n\t"
+        "LDR	r4, [%[data]]\n\t"
+        "LDR	r5, [%[data], #4]\n\t"
+        "LDR	r6, [%[data], #8]\n\t"
+        "LDR	r7, [%[data], #12]\n\t"
+        "LDR	r8, [%[data], #16]\n\t"
+        "LDR	r9, [%[data], #20]\n\t"
+        "LDR	r10, [%[data], #24]\n\t"
+        "LDR	r11, [%[data], #28]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -100,10 +116,14 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "STRD	r6, r7, [sp, #8]\n\t"
         "STRD	r8, r9, [sp, #16]\n\t"
         "STRD	r10, r11, [sp, #24]\n\t"
-        "LDRD	r4, r5, [%[data], #32]\n\t"
-        "LDRD	r6, r7, [%[data], #40]\n\t"
-        "LDRD	r8, r9, [%[data], #48]\n\t"
-        "LDRD	r10, r11, [%[data], #56]\n\t"
+        "LDR	r4, [%[data], #32]\n\t"
+        "LDR	r5, [%[data], #36]\n\t"
+        "LDR	r6, [%[data], #40]\n\t"
+        "LDR	r7, [%[data], #44]\n\t"
+        "LDR	r8, [%[data], #48]\n\t"
+        "LDR	r9, [%[data], #52]\n\t"
+        "LDR	r10, [%[data], #56]\n\t"
+        "LDR	r11, [%[data], #60]\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
         "REV	r6, r6\n\t"
@@ -877,7 +897,11 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "STR	r9, [sp, #60]\n\t"
         "ADD	r3, r3, #0x40\n\t"
         "SUBS	r12, r12, #0x1\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_SHA256_transform_len_start_%=\n\t"
+#else
+        "BNE.N	L_SHA256_transform_len_start_%=\n\t"
+#endif
         /* Round 0 */
         "LDR	r5, [%[sha256], #16]\n\t"
         "LDR	r6, [%[sha256], #20]\n\t"
@@ -1418,7 +1442,11 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "SUBS	%[len], %[len], #0x40\n\t"
         "SUB	r3, r3, #0xc0\n\t"
         "ADD	%[data], %[data], #0x40\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BNE	L_SHA256_transform_len_begin_%=\n\t"
+#else
+        "BNE.N	L_SHA256_transform_len_begin_%=\n\t"
+#endif
         "ADD	sp, sp, #0xc0\n\t"
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len), [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
@@ -1430,4 +1458,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 #endif /* !NO_SHA256 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

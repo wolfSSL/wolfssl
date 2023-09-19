@@ -1434,6 +1434,11 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
         WS_RETURN_CODE(BAD_PATH_ERROR,WOLFSSL_FAILURE));
 #endif
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
+    /* test ignoring the invalid path */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, bogusFile,
+        WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR), WOLFSSL_SUCCESS);
+#endif
 
     /* load ca cert */
 #ifdef NO_RSA
@@ -12494,6 +12499,7 @@ static int test_wc_Sha256Update(void)
 #ifndef NO_SHA256
     wc_Sha256 sha256;
     byte hash[WC_SHA256_DIGEST_SIZE];
+    byte hash_unaligned[WC_SHA256_DIGEST_SIZE+1];
     testVector a, b, c;
 
     ExpectIntEQ(wc_InitSha256(&sha256), 0);
@@ -12516,6 +12522,11 @@ static int test_wc_Sha256Update(void)
     ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen), 0);
     ExpectIntEQ(wc_Sha256Final(&sha256, hash), 0);
     ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA256_DIGEST_SIZE), 0);
+
+    /* Unaligned check. */
+    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input+1, (word32)a.inLen-1),
+        0);
+    ExpectIntEQ(wc_Sha256Final(&sha256, hash_unaligned + 1), 0);
 
     /* Try passing in bad values */
     b.input = NULL;
@@ -12721,6 +12732,7 @@ static int test_wc_Sha512Update(void)
 #ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
     byte hash[WC_SHA512_DIGEST_SIZE];
+    byte hash_unaligned[WC_SHA512_DIGEST_SIZE + 1];
     testVector a, b, c;
 
     ExpectIntEQ(wc_InitSha512(&sha512), 0);
@@ -12746,6 +12758,11 @@ static int test_wc_Sha512Update(void)
     ExpectIntEQ(wc_Sha512Final(&sha512, hash), 0);
 
     ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA512_DIGEST_SIZE), 0);
+
+    /* Unaligned check. */
+    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)a.input+1, (word32)a.inLen-1),
+        0);
+    ExpectIntEQ(wc_Sha512Final(&sha512, hash_unaligned+1), 0);
 
     /* Try passing in bad values */
     b.input = NULL;
@@ -20091,7 +20108,8 @@ static int test_wc_ed25519_make_key(void)
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
     ed25519_key   key;
     WC_RNG        rng;
-    unsigned char pubkey[ED25519_PUB_KEY_SIZE];
+    unsigned char pubkey[ED25519_PUB_KEY_SIZE+1];
+    int           pubkey_sz = ED25519_PUB_KEY_SIZE;
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -20099,7 +20117,9 @@ static int test_wc_ed25519_make_key(void)
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, sizeof(pubkey)),
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, pubkey_sz),
+        ECC_PRIV_KEY_E);
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey+1, pubkey_sz),
         ECC_PRIV_KEY_E);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
@@ -20149,10 +20169,10 @@ static int test_wc_ed25519_sign_msg(void)
     WC_RNG      rng;
     ed25519_key key;
     byte        msg[] = "Everybody gets Friday off.\n";
-    byte        sig[ED25519_SIG_SIZE];
+    byte        sig[ED25519_SIG_SIZE+1];
     word32      msglen = sizeof(msg);
-    word32      siglen = sizeof(sig);
-    word32      badSigLen = sizeof(sig) - 1;
+    word32      siglen = ED25519_SIG_SIZE;
+    word32      badSigLen = ED25519_SIG_SIZE - 1;
 #ifdef HAVE_ED25519_VERIFY
     int         verify_ok = 0; /*1 = Verify success.*/
 #endif
@@ -20160,7 +20180,7 @@ static int test_wc_ed25519_sign_msg(void)
     /* Initialize stack variables. */
     XMEMSET(&key, 0, sizeof(ed25519_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
-    XMEMSET(sig, 0, siglen);
+    XMEMSET(sig, 0, sizeof(sig));
 
     /* Initialize key. */
     ExpectIntEQ(wc_ed25519_init(&key), 0);
@@ -20168,6 +20188,8 @@ static int test_wc_ed25519_sign_msg(void)
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
     ExpectIntEQ(wc_ed25519_sign_msg(msg, msglen, sig, &siglen, &key), 0);
+    ExpectIntEQ(siglen, ED25519_SIG_SIZE);
+    ExpectIntEQ(wc_ed25519_sign_msg(msg, msglen, sig+1, &siglen, &key), 0);
     ExpectIntEQ(siglen, ED25519_SIG_SIZE);
 
     /* Test bad args. */
@@ -20185,24 +20207,24 @@ static int test_wc_ed25519_sign_msg(void)
     badSigLen -= 1;
 
 #ifdef HAVE_ED25519_VERIFY
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, &verify_ok,
         &key), 0);
     ExpectIntEQ(verify_ok, 1);
 
     /* Test bad args. */
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen - 1, msg, msglen, &verify_ok,
-        &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen + 1, msg, msglen, &verify_ok,
-        &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen - 1, msg, msglen,
+        &verify_ok, &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen + 1, msg, msglen,
+        &verify_ok, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, NULL, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, NULL, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, NULL, &key),
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, NULL, &key),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, siglen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, siglen, msg, msglen, &verify_ok,
         NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ed25519_verify_msg(sig, badSigLen, msg, msglen, &verify_ok,
+    ExpectIntEQ(wc_ed25519_verify_msg(sig+1, badSigLen, msg, msglen, &verify_ok,
         &key), BAD_FUNC_ARG);
 #endif /* Verify. */
 
@@ -64541,7 +64563,7 @@ static int test_session_ticket_hs_update(void)
     ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
 
     wolfSSL_SetLoggingPrefix("client");
-    /* Exchange intial flights for the second connection */
+    /* Exchange initial flights for the second connection */
     ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
@@ -66454,12 +66476,28 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-{
-    struct timeval tv;
-    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+    #if defined(_MSC_VER) && defined(_WIN32)
+    {
+        /* there's no gettimeofday for Windows, so we'll use system time */
+        #define EPOCH_DIFF 11644473600LL
+        FILETIME currentFileTime;
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
 
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
-}
+        ULARGE_INTEGER uli = { 0, 0 };
+        uli.LowPart = currentFileTime.dwLowDateTime;
+        uli.HighPart = currentFileTime.dwHighDateTime;
+
+        /* Convert to seconds since Unix epoch */
+        return (double)((uli.QuadPart - (EPOCH_DIFF * 10000000)) / 10000000.0);
+    }
+    #else
+    {
+        struct timeval tv;
+        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    }
+    #endif
 #endif
 
 int ApiTest(void)

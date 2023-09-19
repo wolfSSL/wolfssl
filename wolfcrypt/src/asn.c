@@ -2548,7 +2548,6 @@ int GetOctetString(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
     return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
 }
 
-#ifndef WOLFSSL_ASN_TEMPLATE
 /* Get the DER/BER encoding of an ASN.1 INTEGER header.
  *
  * Removes the leading zero byte when found.
@@ -2562,7 +2561,7 @@ int GetOctetString(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
  *         or invalid use of or missing leading zero.
  *         Otherwise, 0 to indicate success.
  */
-static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
+int GetASNInt(const byte* input, word32* inOutIdx, int* len,
                      word32 maxIdx)
 {
     int    ret;
@@ -2598,6 +2597,7 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
+#ifndef WOLFSSL_ASN_TEMPLATE
 #ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 7 bits.
@@ -15071,7 +15071,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 /* Assumes the target is a Raw-Public-Key certificate and parsed up to the
  * public key. Returns CRYPTOCB_UNAVAILABLE if it determines that the cert is
  * different from the Paw-Public-Key cert. In that case, cert->srcIdx is not
- * consumed so as successing parse function can take over.
+ * consumed so as succeeding parse function can take over.
  * In case that the target is Raw-Public-Key cert and contains a public key,
  * returns 0  and consumes cert->srcIdx so as a public key retrieval function
  * can follow.
@@ -18584,10 +18584,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
+#ifndef ASN_TEMPLATE_SKIP_ISCA_CHECK
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
+#endif
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
@@ -20885,7 +20887,7 @@ static const ASNItem x509CertASN[] = {
                                                    /* Version ::= INTEGER { v1(0), v2(1), v3(2) */
 /* TBS_VER_INT                   */                { 3, ASN_INTEGER, 0, 0, 0 },
                                                    /* serialNumber         CertificateSerialNumber */
-                                                   /* CetificateSerialNumber ::= INTEGER */
+                                                   /* CertificateSerialNumber ::= INTEGER */
 /* TBS_SERIAL                    */            { 2, ASN_INTEGER, 0, 0, 0 },
                                                    /* signature            AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
@@ -33810,7 +33812,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz)
 {
     int ret;
-    byte privKey[ED25519_KEY_SIZE], pubKey[ED25519_PUB_KEY_SIZE];
+    byte privKey[ED25519_KEY_SIZE], pubKey[2*ED25519_PUB_KEY_SIZE+1];
     word32 privKeyLen = (word32)sizeof(privKey);
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
@@ -33836,7 +33838,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                               ed25519_key* key, word32 inSz)
 {
     int ret;
-    byte pubKey[ED25519_PUB_KEY_SIZE];
+    byte pubKey[2*ED25519_PUB_KEY_SIZE+1];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -34127,7 +34129,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz)
 {
     int ret;
-    byte pubKey[ED448_PUB_KEY_SIZE];
+    byte pubKey[2 * ED448_PUB_KEY_SIZE + 1];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -37387,7 +37389,7 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
         GetASN_Int8Bit(&dataASN[PIVCERTASN_IDX_INFO], &info);
         /* Start parsing from start of buffer. */
         idx = 0;
-        /* Parse PIV cetificate data. */
+        /* Parse PIV certificate data. */
         ret = GetASN_Items(pivCertASN, dataASN, pivCertASN_Length, 1, buf, &idx,
                 totalSz);
         if (ret == 0) {

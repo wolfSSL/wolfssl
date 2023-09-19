@@ -490,9 +490,9 @@ void fe_mul(fe r, const fe a, const fe b)
         "adds	x7, x7, x3\n\t"
         "umulh	x4, x15, x19\n\t"
         "adcs	x8, x8, x4\n\t"
-        "adc	x9, x9, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x11, x15, x22\n\t"
+        "adc	x9, x9, xzr\n\t"
         "mul	x10, x15, x22\n\t"
         /* A[0] * B[1] */
         "mul	x3, x14, x20\n\t"
@@ -1711,9 +1711,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x20, x20, x3\n\t"
         "umulh	x4, x15, x6\n\t"
         "adcs	x21, x21, x4\n\t"
-        "adc	x22, x22, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x26, x15, x9\n\t"
+        "adc	x22, x22, xzr\n\t"
         "mul	x25, x15, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x14, x7\n\t"
@@ -1827,9 +1827,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x20, x20, x3\n\t"
         "umulh	x4, x11, x25\n\t"
         "adcs	x21, x21, x4\n\t"
-        "adc	x22, x22, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x15, x11, x28\n\t"
+        "adc	x22, x22, xzr\n\t"
         "mul	x14, x11, x28\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x26\n\t"
@@ -2098,9 +2098,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x7, x7, x3\n\t"
         "umulh	x4, x15, x10\n\t"
         "adcs	x8, x8, x4\n\t"
-        "adc	x9, x9, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x26, x15, x13\n\t"
+        "adc	x9, x9, xzr\n\t"
         "mul	x25, x15, x13\n\t"
         /* A[0] * B[1] */
         "mul	x3, x14, x11\n\t"
@@ -2269,9 +2269,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x7, x7, x3\n\t"
         "umulh	x4, x15, x10\n\t"
         "adcs	x8, x8, x4\n\t"
-        "adc	x9, x9, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x26, x15, x13\n\t"
+        "adc	x9, x9, xzr\n\t"
         "mul	x25, x15, x13\n\t"
         /* A[0] * B[1] */
         "mul	x3, x14, x11\n\t"
@@ -2577,9 +2577,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x11, x11, x3\n\t"
         "umulh	x4, x20, x14\n\t"
         "adcs	x12, x12, x4\n\t"
-        "adc	x13, x13, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x26, x20, x17\n\t"
+        "adc	x13, x13, xzr\n\t"
         "mul	x25, x20, x17\n\t"
         /* A[0] * B[1] */
         "mul	x3, x19, x15\n\t"
@@ -3556,9 +3556,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x7, x10\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x7, x13\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x7, x13\n\t"
         /* A[0] * B[1] */
         "mul	x3, x6, x11\n\t"
@@ -4520,9 +4520,9 @@ void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x11, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x11, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x11, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x7\n\t"
@@ -4638,9 +4638,9 @@ void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x11, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x11, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x11, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x7\n\t"
@@ -4756,9 +4756,9 @@ void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x11, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x11, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x11, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x7\n\t"
@@ -4890,9 +4890,9 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x11, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x11, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x11, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x7\n\t"
@@ -5008,9 +5008,9 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x24, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x24, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x24, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x23, x7\n\t"
@@ -5126,9 +5126,9 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x24, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x24, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x24, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x23, x7\n\t"
@@ -5242,9 +5242,9 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "adds	x15, x15, x3\n\t"
         "umulh	x4, x11, x6\n\t"
         "adcs	x16, x16, x4\n\t"
-        "adc	x17, x17, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x20, x11, x9\n\t"
+        "adc	x17, x17, xzr\n\t"
         "mul	x19, x11, x9\n\t"
         /* A[0] * B[1] */
         "mul	x3, x10, x7\n\t"
@@ -5873,9 +5873,9 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x22, x22, x25\n\t"
         "umulh	x26, x17, x8\n\t"
         "adcs	x23, x23, x26\n\t"
-        "adc	x24, x24, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x5, x17, x11\n\t"
+        "adc	x24, x24, xzr\n\t"
         "mul	x4, x17, x11\n\t"
         /* A[0] * B[1] */
         "mul	x25, x16, x9\n\t"
@@ -5989,9 +5989,9 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x5, x5, x25\n\t"
         "umulh	x26, x13, x16\n\t"
         "adcs	x6, x6, x26\n\t"
-        "adc	x7, x7, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x13, x20\n\t"
+        "adc	x7, x7, xzr\n\t"
         "mul	x8, x13, x20\n\t"
         /* A[0] * B[1] */
         "mul	x25, x12, x17\n\t"
@@ -6146,9 +6146,9 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x17, x17, x25\n\t"
         "umulh	x26, x22, x4\n\t"
         "adcs	x19, x19, x26\n\t"
-        "adc	x20, x20, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x22, x7\n\t"
+        "adc	x20, x20, xzr\n\t"
         "mul	x8, x22, x7\n\t"
         /* A[0] * B[1] */
         "mul	x25, x21, x5\n\t"
@@ -6370,9 +6370,9 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x22, x22, x25\n\t"
         "umulh	x26, x17, x8\n\t"
         "adcs	x23, x23, x26\n\t"
-        "adc	x24, x24, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x5, x17, x11\n\t"
+        "adc	x24, x24, xzr\n\t"
         "mul	x4, x17, x11\n\t"
         /* A[0] * B[1] */
         "mul	x25, x16, x9\n\t"
@@ -6486,9 +6486,9 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x5, x5, x25\n\t"
         "umulh	x26, x13, x16\n\t"
         "adcs	x6, x6, x26\n\t"
-        "adc	x7, x7, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x13, x20\n\t"
+        "adc	x7, x7, xzr\n\t"
         "mul	x8, x13, x20\n\t"
         /* A[0] * B[1] */
         "mul	x25, x12, x17\n\t"
@@ -6643,9 +6643,9 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "adds	x17, x17, x25\n\t"
         "umulh	x26, x22, x4\n\t"
         "adcs	x19, x19, x26\n\t"
-        "adc	x20, x20, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x22, x7\n\t"
+        "adc	x20, x20, xzr\n\t"
         "mul	x8, x22, x7\n\t"
         /* A[0] * B[1] */
         "mul	x25, x21, x5\n\t"
@@ -6865,9 +6865,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x22, x22, x25\n\t"
         "umulh	x26, x17, x8\n\t"
         "adcs	x23, x23, x26\n\t"
-        "adc	x24, x24, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x5, x17, x11\n\t"
+        "adc	x24, x24, xzr\n\t"
         "mul	x4, x17, x11\n\t"
         /* A[0] * B[1] */
         "mul	x25, x16, x9\n\t"
@@ -6984,9 +6984,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x5, x5, x25\n\t"
         "umulh	x26, x13, x16\n\t"
         "adcs	x6, x6, x26\n\t"
-        "adc	x7, x7, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x13, x20\n\t"
+        "adc	x7, x7, xzr\n\t"
         "mul	x8, x13, x20\n\t"
         /* A[0] * B[1] */
         "mul	x25, x12, x17\n\t"
@@ -7144,9 +7144,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x17, x17, x25\n\t"
         "umulh	x26, x22, x4\n\t"
         "adcs	x19, x19, x26\n\t"
-        "adc	x20, x20, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x22, x7\n\t"
+        "adc	x20, x20, xzr\n\t"
         "mul	x8, x22, x7\n\t"
         /* A[0] * B[1] */
         "mul	x25, x21, x5\n\t"
@@ -7265,9 +7265,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x9, x9, x25\n\t"
         "umulh	x26, x5, x12\n\t"
         "adcs	x10, x10, x26\n\t"
-        "adc	x11, x11, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x17, x5, x15\n\t"
+        "adc	x11, x11, xzr\n\t"
         "mul	x16, x5, x15\n\t"
         /* A[0] * B[1] */
         "mul	x25, x4, x13\n\t"
@@ -7488,9 +7488,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x22, x22, x25\n\t"
         "umulh	x26, x17, x8\n\t"
         "adcs	x23, x23, x26\n\t"
-        "adc	x24, x24, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x5, x17, x11\n\t"
+        "adc	x24, x24, xzr\n\t"
         "mul	x4, x17, x11\n\t"
         /* A[0] * B[1] */
         "mul	x25, x16, x9\n\t"
@@ -7615,9 +7615,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x5, x5, x25\n\t"
         "umulh	x26, x13, x16\n\t"
         "adcs	x6, x6, x26\n\t"
-        "adc	x7, x7, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x13, x20\n\t"
+        "adc	x7, x7, xzr\n\t"
         "mul	x8, x13, x20\n\t"
         /* A[0] * B[1] */
         "mul	x25, x12, x17\n\t"
@@ -7775,9 +7775,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x17, x17, x25\n\t"
         "umulh	x26, x22, x4\n\t"
         "adcs	x19, x19, x26\n\t"
-        "adc	x20, x20, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x22, x7\n\t"
+        "adc	x20, x20, xzr\n\t"
         "mul	x8, x22, x7\n\t"
         /* A[0] * B[1] */
         "mul	x25, x21, x5\n\t"
@@ -7904,9 +7904,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "adds	x9, x9, x25\n\t"
         "umulh	x26, x5, x12\n\t"
         "adcs	x10, x10, x26\n\t"
-        "adc	x11, x11, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x17, x5, x15\n\t"
+        "adc	x11, x11, xzr\n\t"
         "mul	x16, x5, x15\n\t"
         /* A[0] * B[1] */
         "mul	x25, x4, x13\n\t"
@@ -8265,9 +8265,9 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "adds	x5, x5, x21\n\t"
         "umulh	x22, x13, x16\n\t"
         "adcs	x6, x6, x22\n\t"
-        "adc	x7, x7, xzr\n\t"
         /* A[1] * B[3] */
         "umulh	x9, x13, x20\n\t"
+        "adc	x7, x7, xzr\n\t"
         "mul	x8, x13, x20\n\t"
         /* A[0] * B[1] */
         "mul	x21, x12, x17\n\t"

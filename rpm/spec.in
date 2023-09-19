@@ -67,10 +67,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog.md COPYING README README.md
 %{_docdir}/wolfssl/taoCert.txt
-%{_docdir}/wolfssl/example/echoserver.c
+%{_docdir}/wolfssl/example/async_client.c
+%{_docdir}/wolfssl/example/async_server.c
+%{_docdir}/wolfssl/example/client.c
 %{_docdir}/wolfssl/example/server.c
 %{_docdir}/wolfssl/example/echoclient.c
-%{_docdir}/wolfssl/example/client.c
+%{_docdir}/wolfssl/example/echoserver.c
 %{_docdir}/wolfssl/example/sctp-client.c
 %{_docdir}/wolfssl/example/sctp-server.c
 %{_docdir}/wolfssl/example/sctp-client-dtls.c

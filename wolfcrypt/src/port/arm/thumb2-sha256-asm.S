@@ -125,10 +125,14 @@ Transform_Sha256_Len:
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load, Reverse and Store W - 64 bytes
-	LDRD	r4, r5, [r1]
-	LDRD	r6, r7, [r1, #8]
-	LDRD	r8, r9, [r1, #16]
-	LDRD	r10, r11, [r1, #24]
+	LDR	r4, [r1]
+	LDR	r5, [r1, #4]
+	LDR	r6, [r1, #8]
+	LDR	r7, [r1, #12]
+	LDR	r8, [r1, #16]
+	LDR	r9, [r1, #20]
+	LDR	r10, [r1, #24]
+	LDR	r11, [r1, #28]
 	REV	r4, r4
 	REV	r5, r5
 	REV	r6, r6
@@ -141,10 +145,14 @@ L_SHA256_transform_len_begin:
 	STRD	r6, r7, [sp, #8]
 	STRD	r8, r9, [sp, #16]
 	STRD	r10, r11, [sp, #24]
-	LDRD	r4, r5, [r1, #32]
-	LDRD	r6, r7, [r1, #40]
-	LDRD	r8, r9, [r1, #48]
-	LDRD	r10, r11, [r1, #56]
+	LDR	r4, [r1, #32]
+	LDR	r5, [r1, #36]
+	LDR	r6, [r1, #40]
+	LDR	r7, [r1, #44]
+	LDR	r8, [r1, #48]
+	LDR	r9, [r1, #52]
+	LDR	r10, [r1, #56]
+	LDR	r11, [r1, #60]
 	REV	r4, r4
 	REV	r5, r5
 	REV	r6, r6
@@ -917,7 +925,11 @@ L_SHA256_transform_len_start:
 	STR	r9, [sp, #60]
 	ADD	r3, r3, #0x40
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_start
+#else
+	BNE.N	L_SHA256_transform_len_start
+#endif
 	# Round 0
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
@@ -1458,10 +1470,14 @@ L_SHA256_transform_len_start:
 	SUBS	r2, r2, #0x40
 	SUB	r3, r3, #0xc0
 	ADD	r1, r1, #0x40
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_begin
+#else
+	BNE.N	L_SHA256_transform_len_begin
+#endif
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 1866
+	# Cycle Count = 1874
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */

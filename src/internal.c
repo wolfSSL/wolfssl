@@ -15237,11 +15237,17 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_ENTER("DoCertificate");
 
 #ifdef SESSION_CERTS
-    /* Reset the session cert chain count in case the session resume failed. */
-    ssl->session->chain.count = 0;
-    #ifdef WOLFSSL_ALT_CERT_CHAINS
+    /* Reset the session cert chain count in case the session resume failed,
+     * do not reset if we are resuming after an async wait */
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+    if (ssl->error != OCSP_WANT_READ && ssl->error != WC_PENDING_E)
+#endif
+    {
+        ssl->session->chain.count = 0;
+#ifdef WOLFSSL_ALT_CERT_CHAINS
         ssl->session->altChain.count = 0;
-    #endif
+#endif
+    }
 #endif /* SESSION_CERTS */
 
     ret = ProcessPeerCerts(ssl, input, inOutIdx, size);

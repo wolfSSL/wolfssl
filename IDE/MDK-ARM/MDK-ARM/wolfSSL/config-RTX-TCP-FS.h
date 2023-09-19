@@ -292,7 +292,6 @@
 
     #define WOLFSSL_SP_SMALL /* use smaller version of code */
     //#define WOLFSSL_SP_NO_MALLOC /* do not use heap */
-    //#define WOLFSSL_SP_CACHE_RESISTANT
     //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
 
     #if MDK_CONF_MATH == 4

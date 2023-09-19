@@ -920,13 +920,13 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
 int ge_compress_key(byte* out, const byte* xIn, const byte* yIn, word32 keySz)
 {
     ge_p2  g;
-    byte   bArray[ED25519_KEY_SIZE];
-    byte   x[ED25519_KEY_SIZE];
-    byte   y[ED25519_KEY_SIZE];
+    ALIGN16 byte bArray[ED25519_KEY_SIZE];
+    ALIGN16 byte x[ED25519_PUB_KEY_SIZE];
+    ALIGN16 byte y[ED25519_PUB_KEY_SIZE];
     word32 i;
 
-    XMEMCPY(x, xIn, ED25519_KEY_SIZE);
-    XMEMCPY(y, yIn, ED25519_KEY_SIZE);
+    XMEMCPY(x, xIn, ED25519_PUB_KEY_SIZE);
+    XMEMCPY(y, yIn, ED25519_PUB_KEY_SIZE);
     fe_frombytes(g.X, x);
     fe_frombytes(g.Y, y);
     fe_1(g.Z);
