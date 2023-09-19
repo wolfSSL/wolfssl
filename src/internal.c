@@ -13698,7 +13698,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     args = (ProcPeerCertArgs*)ssl->async->args;
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* Check for error */
         if (ret < 0)
             goto exit_ppc;
@@ -13710,7 +13710,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* Re-entry after non-blocking OCSP */
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* if async operationg not pending, reset error code */
-        if (ret == WC_NOT_PENDING_E)
+        if (ret == WC_NO_PENDING_E)
             ret = 0;
     #endif
     }
@@ -18711,7 +18711,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* check for still pending */
         if (ret == WC_PENDING_E)
             return ret;
@@ -21658,7 +21658,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = WC_NOT_PENDING_E;
+    ret = WC_NO_PENDING_E;
     if (asyncOkay) {
         if (ssl->async == NULL) {
             return BAD_FUNC_ARG;
@@ -21666,7 +21666,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         args = &ssl->async->buildArgs;
 
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.buildMsgState);
-        if (ret != WC_NOT_PENDING_E) {
+        if (ret != WC_NO_PENDING_E) {
             /* Check for error */
             if (ret < 0)
                 goto exit_buildmsg;
@@ -21680,7 +21680,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
     /* Reset state */
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_NOT_PENDING_E)
+    if (ret == WC_NO_PENDING_E)
 #endif
     {
         ret = 0;
@@ -29019,7 +29019,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     args = (DskeArgs*)ssl->async->args;
 
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* Check for error */
         if (ret < 0)
             goto exit_dske;
@@ -30102,7 +30102,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* Check for error */
         if (ret < 0)
             goto exit_scke;
@@ -31371,7 +31371,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
     if (ssl->error != WC_PENDING_E ||
             ssl->options.asyncState != TLS_ASYNC_END)
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-    if (ret != WC_NOT_PENDING_E) {
+    if (ret != WC_NO_PENDING_E) {
         /* Check for error */
         if (ret < 0)
             goto exit_scv;
@@ -32462,7 +32462,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         args = (SskeArgs*)ssl->async->args;
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-        if (ret != WC_NOT_PENDING_E) {
+        if (ret != WC_NO_PENDING_E) {
             /* Check for error */
             if (ret < 0)
                 goto exit_sske;
@@ -35314,7 +35314,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         args = (DcvArgs*)ssl->async->args;
 
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-        if (ret != WC_NOT_PENDING_E) {
+        if (ret != WC_NO_PENDING_E) {
             /* Check for error */
             if (ret < 0)
                 goto exit_dcv;
@@ -37466,7 +37466,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         args = (DckeArgs*)ssl->async->args;
 
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
-        if (ret != WC_NOT_PENDING_E) {
+        if (ret != WC_NO_PENDING_E) {
             /* Check for error */
             if (ret < 0)
                 goto exit_dcke;
@@ -38732,7 +38732,7 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
         event = &asyncDev->event;
 
         ret = wolfAsync_EventPop(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL);
-        if (ret != WC_NOT_PENDING_E && ret != WC_PENDING_E) {
+        if (ret != WC_NO_PENDING_E && ret != WC_PENDING_E) {
 
             /* advance key share state if doesn't need called again */
             if (state && (asyncDev->event.flags & WC_ASYNC_FLAG_CALL_AGAIN) == 0) {
@@ -38747,7 +38747,7 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
         }
     }
     else {
-        ret = WC_NOT_PENDING_E;
+        ret = WC_NO_PENDING_E;
     }
 
     WOLFSSL_LEAVE("wolfSSL_AsyncPop", ret);
