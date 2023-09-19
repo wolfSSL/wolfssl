@@ -1021,6 +1021,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
     #endif
 
+
     return 0;
 }
 
@@ -1275,7 +1276,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
 
-#if  defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     /* HW needs to be carefully initialized, taking into account soft copy.
     ** If already in use; copy may revert to SW as needed. */
     esp_sha_init(&(sha384->ctx), WC_HASH_TYPE_SHA384);

@@ -6,6 +6,7 @@ and have not yet been upgraded to the master branch V5.
 See the latest [migration guides](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/migration-guides/index.html).
 
 ## Overview
+
  ESP-IDF development framework with wolfSSL by setting *WOLFSSL_ESPIDF* definition
 
 Including the following examples:
@@ -17,29 +18,57 @@ Including the following examples:
  The *user_settings.h* file enables some of the hardened settings.
 
 ## Requirements
+
  1. [ESP-IDF development framework](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/)
 
 ## Setup for Linux
+
  1. Run `setup.sh` at _/path/to_`/wolfssl/IDE/Espressif/ESP-IDF/` to deploy files into ESP-IDF tree  
  2. Find Wolfssl files at _/path/to/esp_`/esp-idf/components/wolfssl/`
- 3. Find [Example programs](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples) under _/path/to/esp_`/esp-idf/examples/protocols/wolfssl_xxx` (where xxx is the project name)
+ 3. Find [Example Programs](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples) under _/path/to/esp_`/esp-idf/examples/protocols/wolfssl_xxx` (where xxx is the project name)
 
 ## Setup for Windows
+
  1. Run ESP-IDF Command Prompt (cmd.exe) or Run ESP-IDF PowerShell Environment
  2. Run `setup_win.bat` at `.\IDE\Espressif\ESP-IDF\`
  3. Find Wolfssl files at _/path/to/esp_`/esp-idf/components/wolfssl/`
  4. Find [Example programs](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples) under _/path/to/esp_`/esp-idf/examples/protocols/wolfssl_xxx` (where xxx is the project name)
 
+## Setup for VisualGDB
+
+### Clone a specific version:
+
+```
+C:\SysGCC\esp32\esp-idf>git clone -b v5.0.2 --recursive https://github.com/espressif/esp-idf.git v5.0.2
+```
+
 ## Configuration
+
  1. The `user_settings.h` can be found in _/path/to/esp_`/esp-idf/components/wolfssl/include/user_settings.h`
 
 ## Build examples
+
  1. See README in each example folder
 
 ## Support
+
  For question please email [support@wolfssl.com]
 
  Note: This is tested with :  
-   - OS: Ubuntu 20.04.3 LTS and Microsoft Windows 10 Pro 10.0.19041 and well as WSL Ubuntu
+   - OS: Ubuntu 20.04.3 LTS
+   - Microsoft Windows 10 Pro 10.0.19041 
+   - WSL Ubuntu
+
    - ESP-IDF: ESP-IDF v4.3.2
    - Module : ESP32-WROOM-32
+
+## JTAG Debugging
+
+All of the examples are configured to use either the on-board JTAG (when available) or
+the open source [Tigard multi-protocol tool for hardware hacking](https://github.com/tigard-tools/tigard).
+
+VisualGDB users should find the configuration file in the `interface\ftdi` directory:
+
+```
+C:\Users\%USERNAME%\AppData\Local\VisualGDB\EmbeddedDebugPackages\com.sysprogs.esp32.core\share\openocd\scripts\interface\ftdi
+```

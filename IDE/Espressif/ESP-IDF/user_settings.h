@@ -18,11 +18,23 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 #undef WOLFSSL_ESPIDF
 #undef WOLFSSL_ESP32
 #undef WOLFSSL_ESPWROOM32SE
 #undef WOLFSSL_ESP32
 #undef WOLFSSL_ESP8266
+
+/* The Espressif sdkconfig will have chipset info.
+**
+** Possible values:
+**
+**   CONFIG_IDF_TARGET_ESP32
+**   CONFIG_IDF_TARGET_ESP32S3
+**   CONFIG_IDF_TARGET_ESP32C3
+**   CONFIG_IDF_TARGET_ESP32C6
+*/
+#include <sdkconfig.h>
 
 #define WOLFSSL_ESPIDF
 
@@ -85,11 +97,11 @@
     /* #define CUSTOM_SLOT_ALLOCATION                              */
 #endif
 
-/* rsa primitive specific definition */
+/* RSA primitive specific definition */
 #if defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
     /* Define USE_FAST_MATH and SMALL_STACK                        */
     #define ESP32_USE_RSA_PRIMITIVE
-    /* threshold for performance adjustment for hw primitive use   */
+    /* threshold for performance adjustment for HW primitive use   */
     /* X bits of G^X mod P greater than                            */
     #define EPS_RSA_EXPT_XBTIS           36
     /* X and Y of X * Y mod P greater than                         */
@@ -107,11 +119,50 @@
 /* #define NO_ASN_TIME */
 /* #define XTIME time */
 
-/* when you want not to use HW acceleration */
-/* #define NO_ESP32_CRYPT */
-/* #define NO_WOLFSSL_ESP32_CRYPT_HASH*/
-/* #define NO_WOLFSSL_ESP32_CRYPT_AES */
-/* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
 
-/* adjust wait-timeout count if you see timeout in rsa hw acceleration */
+/* adjust wait-timeout count if you see timeout in RSA HW acceleration */
 #define ESP_RSA_TIMEOUT_CNT    0x249F00
+
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    /* when you want not to use HW acceleration on ESP32 (below for S3, etc */
+    /* #define NO_ESP32_CRYPT                 */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_AES     */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    /* ESP32-S2 disabled by default; not implemented */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    /* when you want not to use HW acceleration on ESP32-S3 */
+    /* #define NO_ESP32_CRYPT                 */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_AES     */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* ESP32-C3 disabled by default, not implemented */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    /* ESP32-C6 disabled by default, not implemented */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+    /* ESP32-H2 disabled by default, not implemented */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#else
+    /* anything else unknown will have HW disabled by default */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#endif

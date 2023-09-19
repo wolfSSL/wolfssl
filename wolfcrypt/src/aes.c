@@ -469,24 +469,57 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #elif defined(WOLFSSL_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+    #include <esp_log.h>
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+    const char* TAG = "aes";
 
-    #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
+    /* We'll use SW for fallback:
+     *   unsupported key lengths. (e.g. ESP32-S3)
+     *   chipsets not ikmplemented.
+     *   hardware busy. */
+    #define NEED_AES_TABLES
+    #define NEED_AES_HW_FALLBACK
+    #define NEED_SOFTWARE_AES_SETKEY
+    #undef  WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
 
-    #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+    /* If we choose to never have a fallback to SW: */
+    #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
+    static WARN_UNUSED_RESULT int wc_AesEncrypt( /* calling this one when NO_AES_192 is defined */
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
+        int ret;
         /* Thread mutex protection handled in esp_aes_hw_InUse */
-        return wc_esp32AesEncrypt(aes, inBlock, outBlock);
+    #ifdef NEED_AES_HW_FALLBACK
+        if (wc_esp32AesSupportedKeyLen(aes)) {
+            ret = wc_esp32AesEncrypt(aes, inBlock, outBlock);
+        }
+    #else
+        ret = wc_esp32AesEncrypt(aes, inBlock, outBlock);
+    #endif
+        return ret;
     }
     #endif
 
-    #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
+    /* If we choose to never have a fallback to SW */
+    #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT))
     static WARN_UNUSED_RESULT int wc_AesDecrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
+        int ret = 0;
         /* Thread mutex protection handled in esp_aes_hw_InUse */
-       return wc_esp32AesDecrypt(aes, inBlock, outBlock);
+    #ifdef NEED_AES_HW_FALLBACK
+        if (wc_esp32AesSupportedKeyLen(aes)) {
+            ret = wc_esp32AesDecrypt(aes, inBlock, outBlock);
+        }
+        else {
+            ret = wc_AesDecrypt_SW(aes, inBlock, outBlock);
+        }
+    #else
+        /* if we don't need fallback, always use HW */
+        ret = wc_esp32AesDecrypt(aes, inBlock, outBlock);
+    #endif
+        return ret;
     }
     #endif
 
@@ -848,7 +881,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifdef NEED_AES_TABLES
 
-#if !defined(WOLFSSL_SILABS_SE_ACCEL)
+#if (!defined(WOLFSSL_SILABS_SE_ACCEL) &&  \
+     !defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) \
+    ) || \
+    (defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && defined(NEED_AES_HW_FALLBACK))
 static const FLASH_QUALIFIER word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
@@ -1775,14 +1811,21 @@ static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
      ((word32)(t)[o2] <<  8) | ((word32)(t)[o3] <<  0))
 #endif
 
-/* Software AES - ECB Encrypt */
-static WARN_UNUSED_RESULT int wc_AesEncrypt(
+      /* this section disabled with NO_AES_192 */
+static WARN_UNUSED_RESULT int wc_AesEncrypt( /* calling this one when missing NO_AES_192  */
     Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
-    word32 r = aes->rounds >> 1;
-    const word32* rk = aes->key;
+    word32 r;
+    const word32* rk;
+
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    r = aes->rounds >> 1;
+    rk = aes->key;
 
     if (r > 7 || r == 0) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
@@ -1851,6 +1894,21 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     if (aes->useSWCrypt == 0) {
         return se050_aes_crypt(aes, inBlock, outBlock, AES_BLOCK_SIZE,
                                AES_ENCRYPTION, kAlgorithm_SSS_AES_ECB);
+    }
+#endif
+
+#if defined(WOLFSSL_ESPIDF) && defined(NEED_AES_HW_FALLBACK)
+    ESP_LOGV(TAG, "wc_AesEncrypt fallback check");
+    if (wc_esp32AesSupportedKeyLen(aes)) {
+        return wc_esp32AesEncrypt(aes, inBlock, outBlock);
+    }
+    else {
+        /* For example, the ESP32-S3 does not support HW for len = 24,
+         * so fall back to SW */
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGW(TAG, "wc_AesEncrypt HW Falling back, unsupported keylen = %d",
+                      aes->keylen);
+    #endif
     }
 #endif
 
@@ -2114,7 +2172,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
 
     return 0;
-}
+} /* wc_AesEncrypt */
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
@@ -2163,8 +2221,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
-    word32 r = aes->rounds >> 1;
-    const word32* rk = aes->key;
+    word32 r;
+    const word32* rk;
+
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    r = aes->rounds >> 1;
+    rk = aes->key;
 
     if (r > 7 || r == 0) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
@@ -2209,6 +2274,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return se050_aes_crypt(aes, inBlock, outBlock, AES_BLOCK_SIZE,
                                AES_DECRYPTION, kAlgorithm_SSS_AES_ECB);
     }
+#endif
+#if defined(WOLFSSL_ESPIDF) && defined(NEED_AES_HW_FALLBACK)
+    if (wc_esp32AesSupportedKeyLen(aes)) {
+        return wc_esp32AesDecrypt(aes, inBlock, outBlock);
+    }
+    else {
+        /* For example, the ESP32-S3 does not support HW for len = 24,
+         * so fall back to SW */
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGW(TAG, "wc_AesDecrypt HW Falling back, "
+                        "unsupported keylen = %d", aes->keylen);
+    #endif
+    } /* else !wc_esp32AesSupportedKeyLen for ESP32 */
 #endif
 
     /*
@@ -2422,7 +2500,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
 
     return 0;
-}
+} /* wc_AesDecrypt[_SW]() */
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
 #endif /* HAVE_AES_DECRYPT */
 
@@ -2661,15 +2739,16 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
-#elif defined(WOLFSSL_ESP32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
-
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+#elif defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+    /* This is the only definition for HW only.
+     * but needs to be renamed when fallback needed.
+     * See call in wc_AesSetKey() */
+    int wc_AesSetKey_for_ESP32(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
         (void)dir;
         (void)iv;
-
+        ESP_LOGV(TAG, "wc_AesSetKey_for_ESP32");
         if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
@@ -2700,13 +2779,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             aes->left = 0;
         #endif
         return wc_AesSetIV(aes, iv);
-    }
+    } /* wc_AesSetKey */
 
-    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
-    {
-        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-    }
+    /* end #elif ESP32 */
 #elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
@@ -2797,7 +2872,13 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
 #else
+    #define NEED_SOFTWARE_AES_SETKEY
+#endif
 
+/* Either we fell though with no HW support at all,
+ * or perhaps there's HW support for *some* keylengths
+ * and we need both HW and SW. */
+#ifdef NEED_SOFTWARE_AES_SETKEY
     /* Software AES - SetKey */
     static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
@@ -2971,10 +3052,26 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
         rk = aes->key;
         XMEMCPY(rk, userKey, keylen);
+
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         (!defined(WOLFSSL_ESP32_CRYPT) || \
           defined(NO_WOLFSSL_ESP32_CRYPT_AES))
-        ByteReverseWords(rk, rk, keylen);
+            /* software */
+            ByteReverseWords(rk, rk, keylen);
+    #elif defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+        if (wc_esp32AesSupportedKeyLen(aes)) {
+            /* supported lengths don't get reversed */
+            ESP_LOGV(TAG, "wc_AesSetKeyLocal (no ByteReverseWords)");
+        }
+        else {
+            /* For example, the ESP32-S3 does not support HW for len = 24,
+             * so fall back to SW */
+        #ifdef DEBUG_WOLFSSL
+            ESP_LOGW(TAG, "wc_AesSetKeyLocal ByteReverseWords");
+        #endif
+            /* When not ESP32 HW, we need to reverse endianess */
+            ByteReverseWords(rk, rk, keylen);
+        }
     #endif
 
     #ifdef WOLFSSL_IMXRT_DCP
@@ -3179,10 +3276,10 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         wc_MemZero_Check(&temp, sizeof(temp));
     #endif
         return ret;
-    }
+    } /* wc_AesSetKeyLocal */
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
-        const byte* iv, int dir)
+            const byte* iv, int dir)
     {
         if (aes == NULL) {
             return BAD_FUNC_ARG;
@@ -3191,24 +3288,38 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             return BAD_FUNC_ARG;
         }
 
+    /* sometimes hardware may not support all keylengths (e.g. ESP32-S3) */
+    #if defined(WOLFSSL_ESPIDF) && defined(NEED_AES_HW_FALLBACK)
+        ESP_LOGV(TAG, "wc_AesSetKey fallback check %d", keylen);
+        if (wc_esp32AesSupportedKeyLenValue(keylen)) {
+            ESP_LOGV(TAG, "wc_AesSetKey calling wc_AesSetKey_for_ESP32");
+            return wc_AesSetKey_for_ESP32(aes, userKey, keylen, iv, dir);
+        }
+        else {
+        #ifdef DEBUG_WOLFSSL
+            ESP_LOGW(TAG, "wc_AesSetKey HW Fallback, unsupported keylen = %d",
+                           keylen);
+        #endif
+        }
+    #endif
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
-    }
+    } /* wc_AesSetKey() */
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
         /* This function allows key sizes that are not 128/192/256 bits */
-        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                            const byte* iv, int dir)
-        {
-            if (aes == NULL) {
-                return BAD_FUNC_ARG;
-            }
-            if (keylen > sizeof(aes->key)) {
-                return BAD_FUNC_ARG;
-            }
-
-            return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 0);
+    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                           const byte* iv, int dir)
+    {
+        if (aes == NULL) {
+            return BAD_FUNC_ARG;
         }
+        if (keylen > sizeof(aes->key)) {
+            return BAD_FUNC_ARG;
+        }
+
+        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 0);
+    }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #endif /* wc_AesSetKey block */
 
@@ -3951,14 +4062,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_ESP32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
 
-    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
-        return wc_esp32AesCbcEncrypt(aes, out, in, sz);
-    }
-    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
-        return wc_esp32AesCbcDecrypt(aes, out, in, sz);
-    }
+    /* We'll use SW for fall back:
+     *   unsupported key lengths
+     *   hardware busy */
+    #define NEED_SW_AESCBC
+    #define NEED_AESCBC_HW_FALLBACK
+
 #elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
@@ -3988,9 +4097,15 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
 #else
+    /* Reminder: Some HW implementations may also define this as needed.
+     * (e.g. for unsupported key length fallback)  */
+    #define NEED_SW_AESCBC
+#endif
 
+#ifdef NEED_SW_AESCBC
     /* Software AES - CBC Encrypt */
-    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+
+int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
 
@@ -4108,6 +4223,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
     #endif
 
+    #if defined(WOLFSSL_ESPIDF) && defined(NEED_AESCBC_HW_FALLBACK)
+        if (wc_esp32AesSupportedKeyLen(aes)) {
+            ESP_LOGV(TAG, "wc_AesCbcEncrypt calling wc_esp32AesCbcEncrypt");
+            return wc_esp32AesCbcEncrypt(aes, out, in, sz);
+        }
+        else {
+            /* For example, the ESP32-S3 does not support HW for len = 24,
+             * so fall back to SW */
+        #ifdef DEBUG_WOLFSSL
+            ESP_LOGW(TAG, "wc_AesCbcEncrypt HW Falling back, "
+                          "unsupported keylen = %d", aes->keylen);
+        #endif
+        }
+    #endif
+
         while (blocks--) {
             int ret;
             xorbuf((byte*)aes->reg, in, AES_BLOCK_SIZE);
@@ -4121,14 +4251,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
 
         return 0;
-    }
+    } /* wc_AesCbcEncrypt */
 
-    #ifdef HAVE_AES_DECRYPT
+#ifdef HAVE_AES_DECRYPT
     /* Software AES - CBC Decrypt */
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
-
         if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
         }
@@ -4136,6 +4265,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
+
+    #if defined(WOLFSSL_ESPIDF) && defined(NEED_AESCBC_HW_FALLBACK)
+        if (wc_esp32AesSupportedKeyLen(aes)) {
+            ESP_LOGV(TAG, "wc_AesCbcDecrypt calling wc_esp32AesCbcDecrypt");
+            return wc_esp32AesCbcDecrypt(aes, out, in, sz);
+        }
+        else {
+            /* For example, the ESP32-S3 does not support HW for len = 24,
+             * so fall back to SW */
+        #ifdef DEBUG_WOLFSSL
+            ESP_LOGW(TAG, "wc_AesCbcDecrypt HW Falling back, "
+                          "unsupported keylen = %d", aes->keylen);
+        #endif
+        }
+    #endif
 
         blocks = sz / AES_BLOCK_SIZE;
         if (sz % AES_BLOCK_SIZE) {
@@ -4242,7 +4386,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         return 0;
     }
-    #endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT */
 
 #endif /* AES-CBC block */
 #endif /* HAVE_AES_CBC */
