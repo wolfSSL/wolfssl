@@ -8936,7 +8936,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     if (ret == 0) {
         sharedSecret = (byte*)XMALLOC(ecc_kse->keyLen + ssSz, ssl->heap,
-            DYNAMIC_TYPE_TLSX);
+            DYNAMIC_TYPE_SECRET);
         ciphertext = (byte*)XMALLOC(ecc_kse->pubKeyLen + ctSz, ssl->heap,
             DYNAMIC_TYPE_TLSX);
 
@@ -9010,7 +9010,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     if (sharedSecret != NULL)
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
     if (ciphertext != NULL)
         XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_ecc_free(&eccpubkey);
