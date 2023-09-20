@@ -38733,18 +38733,24 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
 
         ret = wolfAsync_EventPop(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL);
         if (ret != WC_NO_PENDING_E && ret != WC_PENDING_E) {
-
             /* advance key share state if doesn't need called again */
             if (state && (asyncDev->event.flags & WC_ASYNC_FLAG_CALL_AGAIN) == 0) {
                 (*state)++;
             }
-
-            /* clear event */
+            /* clear event and async device */
             XMEMSET(&asyncDev->event, 0, sizeof(WOLF_EVENT));
-
-            /* clear async dev */
             ssl->asyncDev = NULL;
         }
+    #if !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+        (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS))
+        else if (ret == WC_PENDING_E) {
+            /* Allow the underlying crypto API to be called again to trigger the
+             * crypto or PK callback. The actual callback must be called, since
+             * the completion is not detected in the poll like Intel QAT or
+             * Nitrox */
+            ret = wolfEventQueue_Remove(&ssl->ctx->event_queue, event);
+        }
+    #endif
     }
     else {
         ret = WC_NO_PENDING_E;

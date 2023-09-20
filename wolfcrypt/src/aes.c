@@ -4156,7 +4156,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return IntelQaSymAesCbcEncrypt(&aes->asyncDev, out, in, sz,
                 (const byte*)aes->devKey, aes->keylen,
                 (byte*)aes->reg, AES_BLOCK_SIZE);
-        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+        #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
             if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_CBC_ENCRYPT)) {
                 WC_ASYNC_SW* sw = &aes->asyncDev.sw;
                 sw->aes.aes = aes;
@@ -4321,7 +4321,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return IntelQaSymAesCbcDecrypt(&aes->asyncDev, out, in, sz,
                 (const byte*)aes->devKey, aes->keylen,
                 (byte*)aes->reg, AES_BLOCK_SIZE);
-        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+        #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
             if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_CBC_DECRYPT)) {
                 WC_ASYNC_SW* sw = &aes->asyncDev.sw;
                 sw->aes.aes = aes;
@@ -6896,7 +6896,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_GCM_ENCRYPT)) {
             WC_ASYNC_SW* sw = &aes->asyncDev.sw;
             sw->aes.aes = aes;
@@ -7456,7 +7456,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_GCM_DECRYPT)) {
             WC_ASYNC_SW* sw = &aes->asyncDev.sw;
             sw->aes.aes = aes;

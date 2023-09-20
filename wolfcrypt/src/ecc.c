@@ -5006,11 +5006,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
             if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
                 err = wc_ecc_shared_secret_gen_async(private_key, point,
                     out, outlen);
-                if (err == 0) {
-                    /* exit early */
-                    RESTORE_VECTOR_REGISTERS();
-                    return err;
-                }
             }
             else
         #endif
@@ -5495,7 +5490,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         /* TODO: Not implemented */
     #elif defined(HAVE_INTEL_QA)
         /* Implemented in ecc_make_pub_ex for the pub calc */
-    #else
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_MAKE)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
             sw->eccMake.rng = rng;

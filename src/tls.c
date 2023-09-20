@@ -7392,7 +7392,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     word16 curveId = (word16) ECC_CURVE_INVALID;
     ecc_key* eccKey = (ecc_key*)kse->key;
 
-    /* TODO: [TLS13] The key sizes should come from wolfcrypt. */
+    /* TODO: [TLS13] Get key sizes using wc_ecc_get_curve_size_from_id. */
     /* Translate named group to a curve id. */
     switch (kse->group) {
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
@@ -7431,9 +7431,6 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     if (kse->key == NULL) {
-        kse->keyLen = keySize;
-        kse->pubKeyLen = keySize * 2 + 1;
-
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenEccKeyPair(ssl, kse);
         if (ret != CRYPTOCB_UNAVAILABLE) {
@@ -7447,9 +7444,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             return MEMORY_E;
         }
 
-        /* Make an ECC key */
+        /* Initialize an ECC key struct for the ephemeral key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
+
         if (ret == 0) {
+            kse->keyLen = keySize;
+            kse->pubKeyLen = keySize * 2 + 1;
+
             /* setting eccKey means okay to call wc_ecc_free */
             eccKey = (ecc_key*)kse->key;
 
@@ -7461,11 +7462,21 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 /* set curve info for EccMakeKey "peer" info */
                 ret = wc_ecc_set_curve(eccKey, kse->keyLen, curveId);
                 if (ret == 0) {
-                    /* Generate ephemeral ECC key */
-                    /* For async this is called once and when event is done, the
-                    *   provided buffers in key be populated.
-                    * Final processing is x963 key export below. */
-                    ret = EccMakeKey(ssl, eccKey, eccKey);
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* Detect when private key generation is done */
+                    if (ssl->error == WC_PENDING_E &&
+                            eccKey->type == ECC_PRIVATEKEY) {
+                        ret = 0; /* ECC Key Generation is done */
+                    }
+                    else
+            #endif
+                    {
+                        /* Generate ephemeral ECC key */
+                        /* For async this is called once and when event is done, the
+                        *   provided buffers in key be populated.
+                        * Final processing is x963 key export below. */
+                        ret = EccMakeKey(ssl, eccKey, eccKey);
+                    }
                 }
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E)
