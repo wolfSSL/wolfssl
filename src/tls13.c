@@ -4700,37 +4700,30 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
     byte acceptConfirmation[ECH_ACCEPT_CONFIRMATION_SZ];
-
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
-
     /* swap hsHashes to acceptHashes */
     tmpHashes = ssl->hsHashes;
     ssl->hsHashes = acceptHashes;
-
     /* hash up to the last 8 bytes */
     if (ret == 0)
         ret = HashRaw(ssl, input, serverRandomOffset + RAN_LEN -
             ECH_ACCEPT_CONFIRMATION_SZ);
-
     /* hash 8 zeros */
     if (ret == 0)
         ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
-
     /* hash the rest of the hello */
-    if (ret == 0)
+    if (ret == 0) {
         ret = HashRaw(ssl, input + serverRandomOffset + RAN_LEN,
             helloSz + HANDSHAKE_HEADER_SZ - (serverRandomOffset + RAN_LEN));
-
+    }
     /* get the modified transcript hash */
     if (ret == 0)
         ret = GetMsgHash(ssl, transcriptEchConf);
-
     if (ret > 0)
         ret = 0;
-
     /* pick the right type and size based on mac_algorithm */
-    if (ret == 0)
+    if (ret == 0) {
         switch (ssl->specs.mac_algorithm) {
 #ifndef NO_SHA256
             case sha256_mac:
@@ -4760,12 +4753,11 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
                 ret = -1;
                 break;
         }
-
+    }
     /* extract clientRandomInner with a key of all zeros */
     if (ret == 0)
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk);
-
     /* tls expand with the confirmation label */
     if (ret == 0)
         ret = wc_Tls13_HKDF_Expand_Label(acceptConfirmation,
@@ -4774,52 +4766,39 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
             TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
             ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
             digestType);
-
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
         ret = XMEMCMP(acceptConfirmation,
             ssl->arrays->serverRandom + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
             ECH_ACCEPT_CONFIRMATION_SZ);
-
         /* ech accepted */
         if (ret == 0) {
             /* use the inner random for client random */
             XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
               RAN_LEN);
-
-            /* switch back to original hsHashes */
+            /* switch back to original hsHashes to free */
             ssl->hsHashes = tmpHashes;
-
-            /* free hsHashes */
-            FreeHandshakeHashes(ssl);
-
             /* set the final hsHashes to the ech hashes */
             tmpHashes = ssl->hsHashesEch;
-
-            /* set hsHashesEch to NULL to avoid double free */
-            ssl->hsHashesEch = NULL;
         }
         /* ech rejected */
         else {
-            /* switch to hsHashesEch */
+            /* switch to hsHashesEch to free */
             ssl->hsHashes = ssl->hsHashesEch;
-
-            /* free ech hashes */
-            FreeHandshakeHashes(ssl);
         }
-
+        /* free hsHashes */
+        FreeHandshakeHashes(ssl);
+        /* set hsHashesEch to NULL to avoid double free */
+        ssl->hsHashesEch = NULL;
         /* continue with outer if we failed to verify ech was accepted */
         ret = 0;
     }
-
     /* switch to acceptHashes */
     ssl->hsHashes = acceptHashes;
-
     /* free acceptHashes */
     FreeHandshakeHashes(ssl);
-
+    /* swap to tmp, will ech if accepted, hsHashes if rejected */
     ssl->hsHashes = tmpHashes;
-
     return ret;
 }
 
