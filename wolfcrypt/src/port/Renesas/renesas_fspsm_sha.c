@@ -30,9 +30,9 @@
 
 #include <wolfssl/wolfcrypt/logging.h>
 
-#if defined(WOLFSSL_RENESAS_RSIP) || \
-    defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+#if (defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+     defined(WOLFSSL_RENESAS_RSIP)) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>

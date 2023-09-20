@@ -1300,7 +1300,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
    !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
-   !defined(WOLFSSL_RENESAS_FSPSM)
+   !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     if ( (ret = gmac_test()) != 0)
         TEST_FAIL("GMAC     test failed!\n", ret);
     else
@@ -1377,7 +1377,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("AES      test passed!\n");
 
 #if defined(WOLFSSL_AES_192)  && \
-   !defined(WOLFSSL_RENESAS_FSPSM)
+   !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     if ( (ret = aes192_test()) != 0)
         TEST_FAIL("AES192   test failed!\n", ret);
     else
@@ -1404,7 +1404,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("AES-GCM  test failed!\n", ret);
     #endif
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
-        !defined(WOLFSSL_RENESAS_FSPSM) && \
+        !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
         !defined(WOLFSSL_KCAPI_AES) && !(defined(WOLF_CRYPTO_CB) && \
             (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
     if ((ret = aesgcm_default_test()) != 0) {

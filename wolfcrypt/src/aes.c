@@ -2871,9 +2871,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
-#elif ((defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
-     !defined(NO_WOLFSSL_RENESAS_FSPSM_AES))
+#elif defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)
     /* implemented in wolfcrypt/src/port/renesas/renesas_fspsm_aes.c */
 
 #else
@@ -4993,9 +4992,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
     #endif /* WOLFSSL_SECO_CAAM */
 
-    #if ((defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-        defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
-        !defined(NO_WOLFSSL_RENESAS_FSPSM_AES))
+    #if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
+        !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)
         return ret;
     #endif /* WOLFSSL_RENESAS_RSIP && WOLFSSL_RENESAS_FSPSM_CRYPTONLY*/
 

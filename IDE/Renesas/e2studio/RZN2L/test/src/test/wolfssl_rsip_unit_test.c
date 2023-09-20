@@ -90,19 +90,19 @@ FSPSM_ST gCbInfo_a; /* for multi testing */
 #if defined(WOLFSSL_AES_128)
     uint8_t        wrapped_key1[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_128];
     uint8_t        wrapped_key2[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_128];
-    FSPSM_AES_WKEY g_user_aes128_key_index1 =
-                        (FSPSM_AES_WKEY)wrapped_key1;
-    FSPSM_AES_WKEY g_user_aes128_key_index2 =
-                        (FSPSM_AES_WKEY)wrapped_key2;
+    FSPSM_AES_PWKEY g_user_aes128_key_index1 =
+                        (FSPSM_AES_PWKEY)wrapped_key1;
+    FSPSM_AES_PWKEY g_user_aes128_key_index2 =
+                        (FSPSM_AES_PWKEY)wrapped_key2;
 #endif
 
 #if defined(WOLFSSL_AES_256)
     uint8_t        wrapped_key3[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_256];
     uint8_t        wrapped_key4[RSIP_BYTE_SIZE_WRAPPED_KEY_AES_256];
-    FSPSM_AES_WKEY g_user_aes256_key_index1 =
-                        (FSPSM_AES_WKEY)wrapped_key3;
-    FSPSM_AES_WKEY g_user_aes256_key_index2 =
-                        (FSPSM_AES_WKEY)wrapped_key4;
+    FSPSM_AES_PWKEY g_user_aes256_key_index1 =
+                        (FSPSM_AES_PWKEY)wrapped_key3;
+    FSPSM_AES_PWKEY g_user_aes256_key_index2 =
+                        (FSPSM_AES_PWKEY)wrapped_key4;
 #endif
 
 #endif
@@ -124,12 +124,12 @@ FSPSM_ST gCbInfo_a; /* for multi testing */
 #endif
 typedef struct tagInfo
 {
-    FSPSM_AES_WKEY aes_key;
+    FSPSM_AES_PWKEY aes_key;
 } Info;
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
-static int rsip_aes128_cbc_test(int prnt, FSPSM_AES_WKEY aes_key)
+static int rsip_aes128_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
 {
 
     Aes  aes[1];
@@ -214,7 +214,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
 #endif
 
 #ifdef WOLFSSL_AES_256
-static int rsip_aes256_cbc_test(int prnt, FSPSM_AES_WKEY aes_key)
+static int rsip_aes256_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
 {
     Aes enc[1];
     byte cipher[AES_BLOCK_SIZE];
@@ -313,7 +313,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
 #endif /* WOLFSSL_AES_256 */
 
 #if defined(WOLFSSL_AES_256)
-static int rsip_aesgcm256_test(int prnt, FSPSM_AES_WKEY aes256_key)
+static int rsip_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
 {
     Aes enc[1];
     Aes dec[1];
@@ -493,7 +493,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 
 #if defined(WOLFSSL_AES_128)
 
-static int rsip_aesgcm128_test(int prnt, FSPSM_AES_WKEY aes128_key)
+static int rsip_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key)
 {
     Aes enc[1];
     Aes dec[1];
@@ -942,13 +942,13 @@ int rsip_crypt_AesCbc_multitest()
     
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
-                                            sizeof(FSPSM_AES_WKEY));
+                                            sizeof(FSPSM_AES_PWKEY));
     xRet = xTaskCreate(tskAes128_Cbc_Test, "aes_cbc_tes1t",
                                     STACK_SIZE, &info_aes1, 3, NULL);
 #endif
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes2.aes_key, &g_user_aes128_key_index2,
-                                            sizeof(FSPSM_AES_WKEY));
+                                            sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes128_Cbc_Test, "aes_cbc_test2",
                                     STACK_SIZE, &info_aes2, 3, NULL);
@@ -956,14 +956,14 @@ int rsip_crypt_AesCbc_multitest()
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256_1.aes_key, &g_user_aes256_key_index1,
-                                            sizeof(FSPSM_AES_WKEY));
+                                            sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Cbc_Test, "aes256_cbc_test1",
                                     STACK_SIZE, &info_aes256_1, 3, NULL);
 #endif
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256_2.aes_key, &g_user_aes256_key_index2,
-                                            sizeof(FSPSM_AES_WKEY));
+                                            sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Cbc_Test, "aes256_cbc_test2",
                                     STACK_SIZE, &info_aes256_2, 3, NULL);
@@ -1024,14 +1024,14 @@ int rsip_crypt_AesGcm_multitest()
     
 #if defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
-                                    sizeof(FSPSM_AES_WKEY));
+                                    sizeof(FSPSM_AES_PWKEY));
     xTaskCreate(tskAes128_Gcm_Test, "aes128_gcm_test1",
                                     STACK_SIZE, &info_aes1, 3, NULL);
 #endif
 
 #if defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes2.aes_key, &g_user_aes128_key_index2,
-                                        sizeof(FSPSM_AES_WKEY));
+                                        sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes128_Gcm_Test, "aes128_gcm_test2",
                                         STACK_SIZE, &info_aes2, 3, NULL);
@@ -1039,7 +1039,7 @@ int rsip_crypt_AesGcm_multitest()
 
 #if defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256_1.aes_key, &g_user_aes256_key_index1,
-                                        sizeof(FSPSM_AES_WKEY));
+                                        sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Gcm_Test, "aes256_gcm_test1",
                                     STACK_SIZE, &info_aes256_1, 3, NULL);
@@ -1047,7 +1047,7 @@ int rsip_crypt_AesGcm_multitest()
 
 #if defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256_2.aes_key, &g_user_aes256_key_index2,
-                                        sizeof(FSPSM_AES_WKEY));
+                                        sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Gcm_Test, "aes256_gcm_test2",
                                     STACK_SIZE, &info_aes256_2, 3, NULL);
@@ -1124,7 +1124,7 @@ int rsip_crypt_Sha_AesCbcGcm_multitest()
 
 #if defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes128cbc.aes_key, &g_user_aes128_key_index1, 
-                                                sizeof(FSPSM_AES_WKEY));
+                                                sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes128_Cbc_Test, "aes128_cbc_test1", 
                                     STACK_SIZE, &info_aes128cbc, 3, NULL);
@@ -1132,7 +1132,7 @@ int rsip_crypt_Sha_AesCbcGcm_multitest()
 
 #if defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes128gcm.aes_key, &g_user_aes128_key_index2, 
-                                                sizeof(FSPSM_AES_WKEY));
+                                                sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes128_Gcm_Test, "aes128_gcm_test2", 
                                     STACK_SIZE, &info_aes128gcm, 3, NULL);
@@ -1140,7 +1140,7 @@ int rsip_crypt_Sha_AesCbcGcm_multitest()
 
 #if defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256cbc.aes_key, &g_user_aes256_key_index1, 
-                                                sizeof(FSPSM_AES_WKEY));
+                                                sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Cbc_Test, "aes256_cbc_test1", 
                                     STACK_SIZE, &info_aes256cbc, 3, NULL);
@@ -1148,7 +1148,7 @@ int rsip_crypt_Sha_AesCbcGcm_multitest()
 
 #if defined(WOLFSSL_AES_256)
     XMEMCPY(&info_aes256gcm.aes_key, &g_user_aes256_key_index2, 
-                                                sizeof(FSPSM_AES_WKEY));
+                                                sizeof(FSPSM_AES_PWKEY));
     if (xRet == pdPASS)
         xRet = xTaskCreate(tskAes256_Gcm_Test, "aes256_gcm_test2", 
                                     STACK_SIZE, &info_aes256gcm, 3, NULL);
