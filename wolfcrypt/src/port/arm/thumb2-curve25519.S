@@ -2741,12 +2741,20 @@ L_curve25519_bits:
 	LDR	r1, [sp, #180]
 	SUBS	r1, r1, #0x1
 	STR	r1, [sp, #180]
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_bits
+#else
+	BGE.N	L_curve25519_bits
+#endif
 	MOV	r1, #0x1f
 	STR	r1, [sp, #180]
 	SUBS	r2, r2, #0x4
 	STR	r2, [sp, #176]
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_words
+#else
+	BGE.N	L_curve25519_words
+#endif
 	# Invert
 	ADD	r1, sp, #0x0
 	ADD	r0, sp, #0x20
@@ -2783,7 +2791,11 @@ L_curve25519_inv_1:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_1
+#else
+	BNE.N	L_curve25519_inv_1
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -2799,7 +2811,11 @@ L_curve25519_inv_2:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_2
+#else
+	BNE.N	L_curve25519_inv_2
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -2815,7 +2831,11 @@ L_curve25519_inv_3:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_3
+#else
+	BNE.N	L_curve25519_inv_3
+#endif
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x60
@@ -2828,7 +2848,11 @@ L_curve25519_inv_4:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_4
+#else
+	BNE.N	L_curve25519_inv_4
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -2844,7 +2868,11 @@ L_curve25519_inv_5:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_5
+#else
+	BNE.N	L_curve25519_inv_5
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -2860,7 +2888,11 @@ L_curve25519_inv_6:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_6
+#else
+	BNE.N	L_curve25519_inv_6
+#endif
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x60
@@ -2873,7 +2905,11 @@ L_curve25519_inv_7:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_7
+#else
+	BNE.N	L_curve25519_inv_7
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -2886,7 +2922,11 @@ L_curve25519_inv_8:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_8
+#else
+	BNE.N	L_curve25519_inv_8
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x0
@@ -3022,7 +3062,11 @@ L_curve25519_bits:
 	BL	fe_mul_op
 	LDR	r2, [sp, #168]
 	SUBS	r2, r2, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_bits
+#else
+	BGE.N	L_curve25519_bits
+#endif
 	#   Cycle Count: 171
 	LDR	r1, [sp, #184]
 	# Copy
@@ -3064,7 +3108,11 @@ L_curve25519_inv_1:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_1
+#else
+	BNE.N	L_curve25519_inv_1
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -3080,7 +3128,11 @@ L_curve25519_inv_2:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_2
+#else
+	BNE.N	L_curve25519_inv_2
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -3096,7 +3148,11 @@ L_curve25519_inv_3:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_3
+#else
+	BNE.N	L_curve25519_inv_3
+#endif
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x60
@@ -3109,7 +3165,11 @@ L_curve25519_inv_4:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_4
+#else
+	BNE.N	L_curve25519_inv_4
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -3125,7 +3185,11 @@ L_curve25519_inv_5:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_5
+#else
+	BNE.N	L_curve25519_inv_5
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x60
@@ -3141,7 +3205,11 @@ L_curve25519_inv_6:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_6
+#else
+	BNE.N	L_curve25519_inv_6
+#endif
 	ADD	r2, sp, #0x60
 	ADD	r1, sp, #0x80
 	ADD	r0, sp, #0x60
@@ -3154,7 +3222,11 @@ L_curve25519_inv_7:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_7
+#else
+	BNE.N	L_curve25519_inv_7
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -3167,7 +3239,11 @@ L_curve25519_inv_8:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_curve25519_inv_8
+#else
+	BNE.N	L_curve25519_inv_8
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x0
@@ -3244,7 +3320,11 @@ L_fe_invert1:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert1
+#else
+	BNE.N	L_fe_invert1
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x20
@@ -3260,7 +3340,11 @@ L_fe_invert2:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert2
+#else
+	BNE.N	L_fe_invert2
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x40
@@ -3276,7 +3360,11 @@ L_fe_invert3:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert3
+#else
+	BNE.N	L_fe_invert3
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -3289,7 +3377,11 @@ L_fe_invert4:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert4
+#else
+	BNE.N	L_fe_invert4
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x20
@@ -3305,7 +3397,11 @@ L_fe_invert5:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert5
+#else
+	BNE.N	L_fe_invert5
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x40
@@ -3321,7 +3417,11 @@ L_fe_invert6:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert6
+#else
+	BNE.N	L_fe_invert6
+#endif
 	ADD	r2, sp, #0x40
 	ADD	r1, sp, #0x60
 	ADD	r0, sp, #0x40
@@ -3334,7 +3434,11 @@ L_fe_invert7:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert7
+#else
+	BNE.N	L_fe_invert7
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x20
@@ -3347,7 +3451,11 @@ L_fe_invert8:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_invert8
+#else
+	BNE.N	L_fe_invert8
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	LDR	r0, [sp, #128]
@@ -3863,7 +3971,11 @@ L_fe_pow22523_1:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_1
+#else
+	BNE.N	L_fe_pow22523_1
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	MOV	r0, sp
@@ -3879,7 +3991,11 @@ L_fe_pow22523_2:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_2
+#else
+	BNE.N	L_fe_pow22523_2
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	ADD	r0, sp, #0x20
@@ -3895,7 +4011,11 @@ L_fe_pow22523_3:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_3
+#else
+	BNE.N	L_fe_pow22523_3
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x20
@@ -3908,7 +4028,11 @@ L_fe_pow22523_4:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_4
+#else
+	BNE.N	L_fe_pow22523_4
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	MOV	r0, sp
@@ -3924,7 +4048,11 @@ L_fe_pow22523_5:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_5
+#else
+	BNE.N	L_fe_pow22523_5
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	ADD	r0, sp, #0x20
@@ -3940,7 +4068,11 @@ L_fe_pow22523_6:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_6
+#else
+	BNE.N	L_fe_pow22523_6
+#endif
 	ADD	r2, sp, #0x20
 	ADD	r1, sp, #0x40
 	ADD	r0, sp, #0x20
@@ -3953,7 +4085,11 @@ L_fe_pow22523_7:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_7
+#else
+	BNE.N	L_fe_pow22523_7
+#endif
 	MOV	r2, sp
 	ADD	r1, sp, #0x20
 	MOV	r0, sp
@@ -3966,7 +4102,11 @@ L_fe_pow22523_8:
 	BL	fe_sq_op
 	POP	{r12}
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_fe_pow22523_8
+#else
+	BNE.N	L_fe_pow22523_8
+#endif
 	LDR	r2, [sp, #100]
 	MOV	r1, sp
 	LDR	r0, [sp, #96]

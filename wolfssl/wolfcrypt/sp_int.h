@@ -37,6 +37,10 @@ This library provides single precision (SP) integer math functions.
 extern "C" {
 #endif
 
+#if defined(WOLFSSL_SP_ARM_ARCH) && !defined(WOLFSSL_ARM_ARCH)
+    #define WOLFSSL_ARM_ARCH    WOLFSSL_SP_ARM_ARCH
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && \
     !defined(WOLFSSL_SP_INT_NEGATIVE)
     #define WOLFSSL_SP_INT_NEGATIVE
@@ -173,6 +177,13 @@ extern "C" {
 #ifdef WOLFSSL_SP_DIV_32
 #define WOLFSSL_SP_DIV_WORD_HALF
 #endif
+
+/* Detect Cortex M3 (no UMAAL) */
+#if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(__ARM_ARCH_7M__)
+    #undef  WOLFSSL_SP_NO_UMAAL
+    #define WOLFSSL_SP_NO_UMAAL
+#endif
+
 
 /* Make sure WOLFSSL_SP_ASM build option defined when requested */
 #if !defined(WOLFSSL_SP_ASM) && ( \

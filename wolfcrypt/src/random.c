@@ -3476,7 +3476,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 #elif defined(WOLFSSL_RENESAS_FSPSM) || \
           defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     #include "r_sce.h"
+    #define R_RANDOM_GEN(b) R_SCE_RandomNumberGenerate(b)
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    #include "r_rsip.h"
+
+    extern rsip_ctrl_t rsip_ctrl;
+    #define R_RANDOM_GEN(b) R_RSIP_RandomNumberGenerate(&rsip_ctrl,b)
+#endif
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
@@ -3490,7 +3499,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 len = sz;
             }
             /* return 4 words random number*/
-            ret = R_SCE_RandomNumberGenerate(buffer);
+            ret = R_RANDOM_GEN(buffer);
             if(ret == FSP_SUCCESS) {
                 XMEMCPY(output, &buffer, len);
                 output += len;

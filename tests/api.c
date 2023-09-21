@@ -1010,7 +1010,7 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
     const char* testCertFile;
     const char* testKeyFile;
     WOLFSSL_CTX* ctx = NULL;
@@ -1433,6 +1433,11 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     /* invalid path */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
         WS_RETURN_CODE(BAD_PATH_ERROR,WOLFSSL_FAILURE));
+#endif
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
+    /* test ignoring the invalid path */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, bogusFile,
+        WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR), WOLFSSL_SUCCESS);
 #endif
 
     /* load ca cert */
@@ -23883,7 +23888,7 @@ static int test_ToTraditional(void)
     EXPECT_DECLS;
 #if !defined(NO_ASN) && (defined(HAVE_PKCS8) || defined(HAVE_PKCS12)) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL))
+     defined(OPENSSL_EXTRA_X509_SMALL)) && !defined(NO_FILESYSTEM)
     XFILE  f = XBADFILE;
     byte   input[TWOK_BUF];
     word32 sz;
@@ -64558,7 +64563,7 @@ static int test_session_ticket_hs_update(void)
     ExpectIntEQ(wolfSSL_set_session(ssl_c3, sess), WOLFSSL_SUCCESS);
 
     wolfSSL_SetLoggingPrefix("client");
-    /* Exchange intial flights for the second connection */
+    /* Exchange initial flights for the second connection */
     ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
@@ -66295,11 +66300,13 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_dtls_stateless),
     TEST_DECL(test_generate_cookie),
 
+#ifndef NO_BIO
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_BIO_connect),
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+#endif
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(WOLFSSL_NO_TLS12)
     TEST_DECL(test_DhCallbacks),
@@ -66471,12 +66478,28 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-{
-    struct timeval tv;
-    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+    #if defined(_MSC_VER) && defined(_WIN32)
+    {
+        /* there's no gettimeofday for Windows, so we'll use system time */
+        #define EPOCH_DIFF 11644473600LL
+        FILETIME currentFileTime;
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
 
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
-}
+        ULARGE_INTEGER uli = { 0, 0 };
+        uli.LowPart = currentFileTime.dwLowDateTime;
+        uli.HighPart = currentFileTime.dwHighDateTime;
+
+        /* Convert to seconds since Unix epoch */
+        return (double)((uli.QuadPart - (EPOCH_DIFF * 10000000)) / 10000000.0);
+    }
+    #else
+    {
+        struct timeval tv;
+        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    }
+    #endif
 #endif
 
 int ApiTest(void)

@@ -110,6 +110,53 @@
 
        To build with debugging use: `cmake .. -DCMAKE_BUILD_TYPE=Debug`.
 
+    In the simplest form:
+
+    # create a root directory for wolfssl repo
+    git clone https://github.com/wolfSSL/wolfssl.git
+    cd wolfssl
+
+
+    # From the root of the wolfSSL repo:
+
+    mkdir -p out
+    pushd out
+    cmake ..
+    cmake --build .
+
+    # View the available ciphers with:
+    ./examples/client/client -e
+    popd
+
+
+    ARIA Ciper Suite.
+
+    The ARIA cipher needs a 3rd party source binary, typically called
+    `MagicCrypto.tar.gz`.
+
+    The MagicCrypto files can be either copied to the local `wolfssl` directory,
+    or an environment variable `ARIA_DIR` can be set to point to the location.
+
+    Simply having the environment variable or local `MagicCrypto` directory
+    will not automatically enable the ARIA Ciphers.
+
+    To enable ARIA Ciphers in wolfSSL for `CMake`:
+
+    # From the root of the wolfSSL repo:
+
+    # set to your path
+    export ARIA_DIR=~/workspace/MagicCrypto
+
+    mkdir -p out
+    pushd out
+    cmake .. -DWOLFSSL_ARIA=yes
+    cmake --build .
+
+    # View the available ciphers with:
+    ./examples/client/client -e
+    popd
+
+
     Windows (Visual Studio)
     ---
     1) Go to this page, download the appropriate Windows installer, and install
@@ -132,7 +179,7 @@
     Windows (command line)
     ---
     1) Open Command Prompt
-    2) Run the Visual Studio batch to setup command line variables, e.g. C:\Program Files (x86)\Microsoft Visual   
+    2) Run the Visual Studio batch to setup command line variables, e.g. C:\Program Files (x86)\Microsoft Visual
        Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
     3) Follow steps in "Unix-based Platforms" above.
 

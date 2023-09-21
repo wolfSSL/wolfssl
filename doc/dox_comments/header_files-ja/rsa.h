@@ -408,7 +408,7 @@ int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                                         RsaKey* key);
 /*!
     \ingroup RSA
-    \brief  RSA-PSSで署名されたメッセージを確認してください。塩の長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
+    \brief  RSA-PSSで署名されたメッセージを確認してください。ソルトの長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
     \return the  PSSデータの長さが成功し、負に障害が発生します。
     \return MEMORY_E  メモリ例外
     \param in  復号化されるバイト配列。
@@ -481,7 +481,7 @@ int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
     \param digestLen  ハッシュの長さ
     \param hash  ハッシュアルゴリズム
     \param mgf  マスク生成機能
-    \param saltLen  使用される塩の長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）塩の長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、塩の長さがデータから決定されます。
+    \param saltLen  使用されるソルトの長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）ソルトの長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、ソルトの長さがデータから決定されます。
     _Example_
     \code
     ret = wc_InitRsaKey(&key, NULL);
@@ -533,7 +533,7 @@ int  wc_RsaPSS_VerifyCheck_ex(byte* in, word32 inLen,
 
 /*!
     \ingroup RSA
-    \brief  RSA-PSSで署名されたメッセージを確認してください。入力バッファは出力バッファに再利用されます。塩の長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
+    \brief  RSA-PSSで署名されたメッセージを確認してください。入力バッファは出力バッファに再利用されます。ソルトの長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
     \return the  PSSデータの長さが成功し、負に障害が発生します。
     \param in  復号化されるバイト配列。
     \param inLen  の長さ
@@ -600,7 +600,7 @@ int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
     \param digestLen  ハッシュの長さ
     \param hash  メッセージに入るハッシュ型
     \param mgf  マスク生成機能識別子
-    \param saltLen  使用される塩の長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）塩の長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、塩の長さがデータから決定されます。
+    \param saltLen  使用されるソルトの長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）ソルトの長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、ソルトの長さがデータから決定されます。
     _Example_
     \code
     ret = wc_InitRsaKey(&key, NULL);
@@ -651,7 +651,7 @@ int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** out,
 
 /*!
     \ingroup RSA
-    \brief  PSSデータを確認して、署名が一致するようにします。塩の長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
+    \brief  PSSデータを確認して、署名が一致するようにします。ソルトの長さはハッシュ長に等しい。WC_RSA_BLINDINGが有効な場合、キーはWC_RSASETRNGによってRNGに関連付けられなければなりません。
     \return BAD_PADDING_E  PSSデータが無効な場合、NULLがINまたはSIGまたはINSZに渡されると、BAD_FUNC_ARGはハッシュアルゴリズムの長さと同じではありません。
     \return MEMORY_E  メモリ例外
     \param in  検証中のデータのハッシュ。
@@ -704,7 +704,7 @@ int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
                                         enum wc_HashType hashType);
 /*!
     \ingroup RSA
-    \brief  PSSデータを確認して、署名が一致するようにします。塩の長さはハッシュ長に等しい。
+    \brief  PSSデータを確認して、署名が一致するようにします。ソルトの長さはハッシュ長に等しい。
     \return BAD_PADDING_E  PSSデータが無効な場合、NULLがINまたはSIGまたはINSZに渡されると、BAD_FUNC_ARGはハッシュアルゴリズムの長さと同じではありません。
     \return MEMORY_E  メモリ例外
     \param in  検証中のデータのハッシュ。
@@ -712,7 +712,7 @@ int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
     \param sig  PSSデータを保持するバッファ。
     \param sigSz  PSSデータのサイズ。
     \param hashType  ハッシュアルゴリズム
-    \param saltLen  使用される塩の長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）塩の長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、塩の長さがデータから決定されます。
+    \param saltLen  使用されるソルトの長さ。RSA_PSSS_SALT_LEN_DEFAULT（-1）ソルトの長さはハッシュ長と同じです。RSA_PSS_SALT_LEN_DISCOVERは、ソルトの長さがデータから決定されます。
     _Example_
     \code
     ret = wc_InitRsaKey(&key, NULL);

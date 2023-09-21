@@ -30,7 +30,7 @@ jobs:
       CSONAR_HUB_PASSWORD: "${{ secrets.CSONAR_HUB_PASS }}"
       CSONAR_CSHOME: /opt/codesonar
       CSO_GITHUB: /opt/codesonar-github
-      GITHUB_REPO_URL: "http://github.com/markhermeling/nginx"    # the github.repositoryUrl is not an http-link.
+      GITHUB_REPO_URL: "http://github.com/markhermeling/wolfssl"    # the github.repositoryUrl is not an http-link.
       TARGET: ${{ github.base_ref }}
       IS_PR: ${{ github.event_name }}
     steps:

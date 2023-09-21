@@ -15071,7 +15071,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 /* Assumes the target is a Raw-Public-Key certificate and parsed up to the
  * public key. Returns CRYPTOCB_UNAVAILABLE if it determines that the cert is
  * different from the Paw-Public-Key cert. In that case, cert->srcIdx is not
- * consumed so as successing parse function can take over.
+ * consumed so as succeeding parse function can take over.
  * In case that the target is Raw-Public-Key cert and contains a public key,
  * returns 0  and consumes cert->srcIdx so as a public key retrieval function
  * can follow.
@@ -18584,10 +18584,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
+#ifndef ASN_TEMPLATE_SKIP_ISCA_CHECK
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
+#endif
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
@@ -20885,7 +20887,7 @@ static const ASNItem x509CertASN[] = {
                                                    /* Version ::= INTEGER { v1(0), v2(1), v3(2) */
 /* TBS_VER_INT                   */                { 3, ASN_INTEGER, 0, 0, 0 },
                                                    /* serialNumber         CertificateSerialNumber */
-                                                   /* CetificateSerialNumber ::= INTEGER */
+                                                   /* CertificateSerialNumber ::= INTEGER */
 /* TBS_SERIAL                    */            { 2, ASN_INTEGER, 0, 0, 0 },
                                                    /* signature            AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
@@ -37387,7 +37389,7 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
         GetASN_Int8Bit(&dataASN[PIVCERTASN_IDX_INFO], &info);
         /* Start parsing from start of buffer. */
         idx = 0;
-        /* Parse PIV cetificate data. */
+        /* Parse PIV certificate data. */
         ret = GetASN_Items(pivCertASN, dataASN, pivCertASN_Length, 1, buf, &idx,
                 totalSz);
         if (ret == 0) {

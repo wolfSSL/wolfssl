@@ -33,7 +33,7 @@
     /* XXX_CRYPTONLY definition enables FSP SM module for Crypto only use.
     *  Therefore, it disables TLS related API use
     */
-/* #   define WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
+/* #define WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #undef  WOLFSSL_RENESAS_FSPSM_TLS
@@ -51,6 +51,7 @@
 #define NO_MAIN_DRIVER
 #define BENCH_EMBEDDED
 #define NO_WRITEV
+#define WOLFSSL_NO_FLOAT_FMT
 
 #define NO_DEV_RANDOM
 #define SIZEOF_LONG_LONG 8
@@ -102,10 +103,11 @@
 #endif
 
 #define WOLF_CRYPTO_CB
-/* Enable SCEKEY_INSTALLED if keys are installed */
-#define SCEKEY_INSTALLED
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #define HAVE_RENESAS_SYNC
+    #define WC_USE_DEVID 7890
+    #define NO_AES_192
+    #define NO_SW_BENCH
 #endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)

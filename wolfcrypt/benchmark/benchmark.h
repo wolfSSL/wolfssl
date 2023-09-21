@@ -51,7 +51,7 @@ void bench_chacha(void);
 void bench_chacha20_poly1305_aead(void);
 void bench_aescbc(int useDeviceID);
 void bench_aesgcm(int useDeviceID);
-void bench_gmac(void);
+void bench_gmac(int useDeviceID);
 void bench_aesccm(int useDeviceID);
 void bench_aesecb(int useDeviceID);
 void bench_aesxts(void);
