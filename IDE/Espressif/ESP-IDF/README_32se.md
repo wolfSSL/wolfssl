@@ -15,7 +15,7 @@ Including the following examples:
 2. Microchip CryptoAuthentication Library: https://github.com/MicrochipTech/cryptoauthlib
 
 ## Setup
-1. Comment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`\
+1. Comment out `#define WOLFSSL_ESP32` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`\
    Uncomment out `#define WOLFSSL_ESPWROOM32SE` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`
     * **Note:** crypt test will fail if enabled `WOLFSSL_ESPWROOM32SE`
 3. wolfSSL under ESP-IDF. Please see [README.md](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md)

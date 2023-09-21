@@ -1,5 +1,5 @@
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  使用方法のためにSRP構造体を初期化します。
     \return 0  成功しています。
     \return BAD_FUNC_ARG  SRPなどの引数がNULLまたはSRPSIDEの問題がある場合は、SRP_CLIENT_SIESまたはSRP_SERVER_SIEDでは問題がある場合に返します。
@@ -25,7 +25,7 @@
 int wc_SrpInit(Srp* srp, SrpType type, SrpSide side);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  使用後にSRP構造リソースを解放します。
     \return none  いいえ返します。
     _Example_
@@ -40,7 +40,7 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side);
 void wc_SrpTerm(Srp* srp);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  ユーザー名を設定します。この関数は、wc_srpinitの後に呼び出す必要があります。
     \return 0  ユーザー名は正常に設定されました。
     \return BAD_FUNC_ARG:  srpまたはusernameがnullの場合に返します。
@@ -68,7 +68,7 @@ void wc_SrpTerm(Srp* srp);
 int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  ユーザー名に基づいてSRPパラメータを設定します.. wc_srpsetuserNameの後に呼び出す必要があります。
     \return 0  成功
     \return BAD_FUNC_ARG  SRP、N、G、またはSALTがNULLの場合、またはNSZ <GSZの場合は返します。
@@ -79,7 +79,7 @@ int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
     \param nSz  nサイズをバイト単位で。
     \param g  ジェネレータモジュロN.
     \param gSz  バイト数のGサイズ
-    \param salt  小さいランダムな塩。各ユーザー名に特有のものです。
+    \param salt  小さいランダムなソルト。各ユーザー名に特有のものです。
     _Example_
     \code
     Srp srp;
@@ -109,7 +109,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
                                           const byte* salt, word32 saltSz);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  パスワードを設定します。パスワードを設定しても、SRP構造内のパスワードデータが消去されません。クライアントは、x = h（salt + h（user：pswd））を計算し、それを認証フィールドに格納します。この関数は、wc_srpsetparamsの後に呼び出されなければならず、クライアント側のみです。
     \return 0  成功
     \return BAD_FUNC_ARG  srpまたはpasswordがnullの場合、またはsrp-> sideがsrp_client_sideに設定されていない場合。
@@ -147,7 +147,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
 int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  検証者を設定します。この関数は、wc_srpsetparamsの後に呼び出され、サーバー側のみです。
     \return 0  成功
     \return BAD_FUNC_ARG  SRPまたはVerifierがNULLまたはSRP-> ISの場合、SRP_SERVER_SIEDではなく返されます。
@@ -182,7 +182,7 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
 int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  検証者を取得します。クライアントはV = g ^ x％Nで検証者を計算します。この関数は、wc_srpsetpasswordの後に呼び出され、クライアント側のみです。
     \return 0  成功
     \return BAD_FUNC_ARG  SRP、Verifier、またはSizeがNULLの場合、またはSRP-> SIDEがSRP_CLIENT_SIEDではない場合に返されます。
@@ -222,7 +222,7 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
 int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  プライベートのエフェラル値を設定します。プライベートの一時的な値は、クライアント側のAとして知られています。サーバー側のand random（）b。b = random（）この関数は、ユニットテストケース、または開発者が外部ランダムソースを使用してエフェメラル値を設定したい場合は便利です。この関数は、WC_SRPGetPublicの前に呼び出されることがあります。
     \return 0  成功
     \return BAD_FUNC_ARG  SRP、Private、またはSizeがNULLの場合に返されます。
@@ -258,7 +258,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  公共の一時的な値を取得します。公共の一時的な値は、クライアント側のAとして知られています。サーバ側のA = g ^ A％n b。B =（k * v +（g b％n））％n wc_srpsetpasswordまたはwc_srpsetverifierの後に呼び出す必要があります。関数WC_SRPSetPrivateは、WC_SRPGetPublicの前に呼び出されることがあります。
     \return 0  成功
     \return BAD_FUNC_ARG  srp、pub、またはsizeがnullの場合に返されます。
@@ -300,7 +300,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
 int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  セッションキーを計算します。成功後にSRP->キーでキーをアクセスできます。
     \return 0  成功
     \return BAD_FUNC_ARG  SRP、ClientPubKey、またはServerPubKeyの場合、またはClientPubkeyszまたはServerPubKeyszが0の場合に返されます。
@@ -344,7 +344,7 @@ int wc_SrpComputeKey(Srp* srp,
                                  byte* serverPubKey, word32 serverPubKeySz);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  証明を取得します。この関数は、wc_srpcomputekeyの後に呼び出す必要があります。
     \return 0  成功
     \return BAD_FUNC_ARG  SRP、PROV、またはSIZEがNULLの場合に返します。
@@ -370,7 +370,7 @@ int wc_SrpComputeKey(Srp* srp,
 int wc_SrpGetProof(Srp* srp, byte* proof, word32* size);
 
 /*!
-    \ingroup SRP 
+    \ingroup SRP
     \brief  ピアプルーフを確認します。この関数は、WC_SRPGetSessionKeyの前に呼び出す必要があります。
     \return 0  成功
     \return <0  エラー

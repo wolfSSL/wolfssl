@@ -103,7 +103,8 @@ EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
                scripts/benchmark.test \
                scripts/memtest.sh \
                scripts/makedistsmall.sh \
-               scripts/openssl_srtp.test
+               scripts/openssl_srtp.test \
+               scripts/aria-cmake-build-test.sh
 
 
 # leave openssl.test as extra until non bash works

@@ -925,7 +925,11 @@ L_SHA256_transform_len_start:
 	STR	r9, [sp, #60]
 	ADD	r3, r3, #0x40
 	SUBS	r12, r12, #0x1
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_start
+#else
+	BNE.N	L_SHA256_transform_len_start
+#endif
 	# Round 0
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
@@ -1466,7 +1470,11 @@ L_SHA256_transform_len_start:
 	SUBS	r2, r2, #0x40
 	SUB	r3, r3, #0xc0
 	ADD	r1, r1, #0x40
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_begin
+#else
+	BNE.N	L_SHA256_transform_len_begin
+#endif
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	# Cycle Count = 1874

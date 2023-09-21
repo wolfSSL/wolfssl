@@ -2607,6 +2607,22 @@ then
             ENABLED_ARMASM_NEON=no
             AC_MSG_NOTICE([32bit ARMv7-m found])
             ;;
+        armv6*)
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=no
+            AC_MSG_NOTICE([32bit ARMv6 found])
+            ;;
+        armv4*)
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=4"
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_ARMASM_NEON=no
+            AC_MSG_NOTICE([32bit ARMv4 found])
+            ;;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
@@ -6988,7 +7004,7 @@ AC_ARG_WITH([cavium-v],
         ENABLED_CAVIUM_V=yes
     ],
     [
-        ENABLED_CAVIUM_=no
+        ENABLED_CAVIUM=no
         ENABLED_CAVIUM_V=no
     ]
 )
@@ -7500,21 +7516,47 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
     ENABLED_SP_ARM64_ASM=yes
     ;;
+  *armv7a*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7 -marm"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
+  *cortex* | *armv7m*)
+    if test "$ENABLED_ARMASM" = "no"; then
+        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -DWOLFSSL_ARM_ARCH=7"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
+    ENABLED_SP_ARM_CORTEX_ASM=yes
+    ;;
+  *armv6*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -DWOLFSSL_ARM_ARCH=6"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
+  *armv4*)
+    if test "$ENABLED_ARMASM" = "no"; then
+      AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -DWOLFSSL_ARM_ARCH=4"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+    ENABLED_SP_ARM32_ASM=yes
+    ;;
   *arm*)
     if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
-      if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        ENABLED_SP_ARM_CORTEX_ASM=yes
-      else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        ENABLED_SP_ARM32_ASM=yes
-      fi
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+      AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+      ENABLED_SP_ARM32_ASM=yes
     fi
     ;;
   *x86_64* | *amd64*)
@@ -7762,6 +7804,30 @@ then
     AC_MSG_ERROR([please use --with-libz if enabling mcapi.])
 fi
 
+
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
+    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
+
+# Support for crypto callbacks
+AC_ARG_ENABLE([cryptocb],
+    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
+    [ ENABLED_CRYPTOCB=$enableval ],
+    [ ENABLED_CRYPTOCB=no ]
+    )
+
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
+then
+    ENABLED_CRYPTOCB=yes
+fi
+if test "$ENABLED_CRYPTOCB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
+fi
+
+
+
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
     [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
@@ -7784,6 +7850,7 @@ fi
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
+    AC_MSG_NOTICE([Enabling asynchronous support])
     if ! test -f ${srcdir}/wolfcrypt/src/async.c || ! test -f ${srcdir}/wolfssl/wolfcrypt/async.h
     then
         AC_MSG_ERROR([--enable-asynccrypt requested, but WOLFSSL_ASYNC_CRYPT source files are missing.])
@@ -7793,14 +7860,13 @@ then
 
     # If no async backend (hardware or software) has been explicitly enabled,
     # use the software backend for testing.
-    if test "x$ENABLED_CAVIUM" = "xno" && test "x$ENABLED_INTEL_QA" = "xno" &&
-       test "x$ENABLED_ASYNCCRYPT_SW" = "xno"
+    if test "x$ENABLED_CAVIUM" != "xyes" && test "x$ENABLED_INTEL_QA" != "xyes" && test "x$ENABLED_CRYPTOCB" != "xyes" && test "x$ENABLED_PKCALLBACKS" != "xyes" && test "x$ENABLED_ASYNCCRYPT_SW" != "xyes"
     then
-        # Async threading is Linux specific
+        AC_MSG_NOTICE([Enabling asynchronous software simulator])
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_SW"
+        ENABLED_ASYNCCRYPT_SW=yes
     fi
 fi
-
 
 # check for async if using Intel QuckAssist or Cavium
 if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
@@ -7809,8 +7875,7 @@ if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
     fi
 fi
 
-
-# Asynchronous threading
+# Asynchronous threading (Linux specific)
 AC_ARG_ENABLE([asyncthreads],
     [AS_HELP_STRING([--enable-asyncthreads],[Enable Asynchronous Threading (default: enabled)])],
     [ ENABLED_ASYNCTHREADS=$enableval ],
@@ -7830,28 +7895,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -D_GNU_SOURCE"
 else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_ASYNC_THREADING"
-fi
-
-
-# cryptodev is old name, replaced with cryptocb
-AC_ARG_ENABLE([cryptodev],
-    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
-    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
-
-# Support for crypto callbacks
-AC_ARG_ENABLE([cryptocb],
-    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
-    [ ENABLED_CRYPTOCB=$enableval ],
-    [ ENABLED_CRYPTOCB=no ]
-    )
-
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
-then
-    ENABLED_CRYPTOCB=yes
-fi
-if test "$ENABLED_CRYPTOCB" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
 
 
@@ -9473,7 +9516,8 @@ echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
-echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * Asynchronous Crypto:        $ENABLED_ASYNCCRYPT"
+echo "   * Asynchronous Crypto (sim):  $ENABLED_ASYNCCRYPT_SW"
 echo "   * PKCS#8:                     $ENABLED_PKCS8"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
@@ -9494,6 +9538,7 @@ echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
+echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"

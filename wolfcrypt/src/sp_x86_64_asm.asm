@@ -54329,11 +54329,12 @@ sp_256_mul_avx2_4 PROC
         mov	rbp, r8
         mov	rax, rdx
         mov	rdx, QWORD PTR [rax]
+        mov	r14, QWORD PTR [rbp+8]
         ; A[0] * B[0]
         mulx	r9, r8, QWORD PTR [rbp]
         xor	rbx, rbx
         ; A[0] * B[1]
-        mulx	r10, rdi, QWORD PTR [rbp+8]
+        mulx	r10, rdi, r14
         adcx	r9, rdi
         ; A[0] * B[2]
         mulx	r11, rdi, QWORD PTR [rbp+16]
@@ -54348,7 +54349,7 @@ sp_256_mul_avx2_4 PROC
         xor	rbx, rbx
         adcx	r9, rdi
         ; A[1] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r10, rsi
         adcx	r10, rdi
         ; A[1] * B[2]
@@ -54367,7 +54368,7 @@ sp_256_mul_avx2_4 PROC
         xor	rbx, rbx
         adcx	r10, rdi
         ; A[2] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r11, rsi
         adcx	r11, rdi
         ; A[2] * B[2]
@@ -54884,11 +54885,10 @@ sp_256_mont_mul_4 PROC
         adc	rbx, 0
         sbb	r11, 0
         mov	r10, 18446744069414584321
-        mov	rax, r11
         ; mask m and sub from result if overflow
         ;  m[0] = -1 & mask = mask
-        shr	rax, 32
         ;  m[2] =  0 & mask = 0
+        mov	eax, r11d
         and	r10, r11
         sub	r15, r11
         sbb	rdi, rax
@@ -55060,11 +55060,10 @@ sp_256_mont_sqr_4 PROC
         adc	rsi, 0
         sbb	r10, 0
         mov	r8, 18446744069414584321
-        mov	rax, r10
         ; mask m and sub from result if overflow
         ;  m[0] = -1 & mask = mask
-        shr	rax, 32
         ;  m[2] =  0 & mask = 0
+        mov	eax, r10d
         and	r8, r10
         sub	r14, r10
         sbb	r15, rax
@@ -55263,11 +55262,10 @@ sp_256_mont_reduce_4 PROC
         adc	rdi, 0
         sbb	r9, 0
         mov	rbx, 18446744069414584321
-        mov	rax, r9
         ; mask m and sub from result if overflow
         ;  m[0] = -1 & mask = mask
-        shr	rax, 32
         ;  m[2] =  0 & mask = 0
+        mov	eax, r9d
         and	rbx, r9
         sub	r13, r9
         sbb	r14, rax
@@ -55404,13 +55402,12 @@ sp_256_mont_add_4 PROC
         mov	r10, QWORD PTR [rdx+16]
         mov	r11, QWORD PTR [rdx+24]
         add	rax, QWORD PTR [r8]
-        mov	r12, 4294967295
         adc	r9, QWORD PTR [r8+8]
         mov	r13, 18446744069414584321
         adc	r10, QWORD PTR [r8+16]
         adc	r11, QWORD PTR [r8+24]
         sbb	rdx, rdx
-        and	r12, rdx
+        mov	r12d, edx
         and	r13, rdx
         sub	rax, rdx
         sbb	r9, r12
@@ -55447,13 +55444,13 @@ sp_256_mont_dbl_4 PROC
         mov	r9, QWORD PTR [rdx+16]
         mov	r10, QWORD PTR [rdx+24]
         add	rax, rax
-        mov	r11, 4294967295
         adc	r8, r8
         mov	r12, 18446744069414584321
         adc	r9, r9
+        mov	r13, r10
         adc	r10, r10
-        sbb	r13, r13
-        and	r11, r13
+        sar	r13, 63
+        mov	r11d, r13d
         and	r12, r13
         sub	rax, r13
         sbb	r8, r11
@@ -55490,13 +55487,12 @@ sp_256_mont_tpl_4 PROC
         mov	r9, QWORD PTR [rdx+16]
         mov	r10, QWORD PTR [rdx+24]
         add	rax, rax
-        mov	r11, 4294967295
         adc	r8, r8
         mov	r12, 18446744069414584321
         adc	r9, r9
         adc	r10, r10
         sbb	r13, r13
-        and	r11, r13
+        mov	r11d, r13d
         and	r12, r13
         sub	rax, r13
         sbb	r8, r11
@@ -55510,13 +55506,12 @@ sp_256_mont_tpl_4 PROC
         sbb	r9, 0
         sbb	r10, r12
         add	rax, QWORD PTR [rdx]
-        mov	r11, 4294967295
         adc	r8, QWORD PTR [rdx+8]
         mov	r12, 18446744069414584321
         adc	r9, QWORD PTR [rdx+16]
         adc	r10, QWORD PTR [rdx+24]
-        sbb	r13, r13
-        and	r11, r13
+        sbb	r13, 0
+        mov	r11d, r13d
         and	r12, r13
         sub	rax, r13
         sbb	r8, r11
@@ -55554,13 +55549,12 @@ sp_256_mont_sub_4 PROC
         mov	r10, QWORD PTR [rdx+16]
         mov	r11, QWORD PTR [rdx+24]
         sub	rax, QWORD PTR [r8]
-        mov	r12, 4294967295
         sbb	r9, QWORD PTR [r8+8]
         mov	r13, 18446744069414584321
         sbb	r10, QWORD PTR [r8+16]
         sbb	r11, QWORD PTR [r8+24]
         sbb	rdx, rdx
-        and	r12, rdx
+        mov	r12d, edx
         and	r13, rdx
         add	rax, rdx
         adc	r9, r12
@@ -55581,45 +55575,6 @@ sp_256_mont_sub_4 PROC
         pop	r12
         ret
 sp_256_mont_sub_4 ENDP
-_text ENDS
-; /* Subtract two Montgomery form numbers (r = a - b % m).
-;  *
-;  * b is less than the modulus.
-;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to subtract with in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_256_mont_sub_lower_4 PROC
-        push	r12
-        push	r13
-        mov	rax, QWORD PTR [rdx]
-        mov	r9, QWORD PTR [rdx+8]
-        mov	r10, QWORD PTR [rdx+16]
-        mov	r11, QWORD PTR [rdx+24]
-        sub	rax, QWORD PTR [r8]
-        mov	r12, 4294967295
-        sbb	r9, QWORD PTR [r8+8]
-        mov	r13, 18446744069414584321
-        sbb	r10, QWORD PTR [r8+16]
-        sbb	r11, QWORD PTR [r8+24]
-        sbb	rdx, rdx
-        and	r12, rdx
-        and	r13, rdx
-        add	rax, rdx
-        adc	r9, r12
-        mov	QWORD PTR [rcx], rax
-        adc	r10, 0
-        mov	QWORD PTR [rcx+8], r9
-        adc	r11, r13
-        mov	QWORD PTR [rcx+16], r10
-        mov	QWORD PTR [rcx+24], r11
-        pop	r13
-        pop	r12
-        ret
-sp_256_mont_sub_lower_4 ENDP
 _text ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
@@ -55661,64 +55616,6 @@ sp_256_div2_4 PROC
         ret
 sp_256_div2_4 ENDP
 _text ENDS
-; /* Triple a Montgomery form number (r = a + a + a % m).
-;  *
-;  * a is less than m.
-;  *
-;  * r   Result of Tripling.
-;  * a   Number to triple in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_256_mont_tpl_lower_4 PROC
-        push	r12
-        push	r13
-        mov	rax, QWORD PTR [rdx]
-        mov	r8, QWORD PTR [rdx+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	r10, QWORD PTR [rdx+24]
-        add	rax, rax
-        mov	r11, 4294967295
-        adc	r8, r8
-        mov	r12, 18446744069414584321
-        adc	r9, r9
-        adc	r10, r10
-        sbb	r13, r13
-        and	r11, r13
-        and	r12, r13
-        sub	rax, r13
-        sbb	r8, r11
-        sbb	r9, 0
-        sbb	r10, r12
-        add	rax, QWORD PTR [rdx]
-        mov	r11, 4294967295
-        adc	r8, QWORD PTR [rdx+8]
-        mov	r12, 18446744069414584321
-        adc	r9, QWORD PTR [rdx+16]
-        adc	r10, QWORD PTR [rdx+24]
-        sbb	r13, r13
-        and	r11, r13
-        and	r12, r13
-        sub	rax, r13
-        sbb	r8, r11
-        sbb	r9, 0
-        sbb	r10, r12
-        adc	r13, 0
-        and	r11, r13
-        and	r12, r13
-        sub	rax, r13
-        sbb	r8, r11
-        mov	QWORD PTR [rcx], rax
-        sbb	r9, 0
-        mov	QWORD PTR [rcx+8], r8
-        sbb	r10, r12
-        mov	QWORD PTR [rcx+16], r9
-        mov	QWORD PTR [rcx+24], r10
-        pop	r13
-        pop	r12
-        ret
-sp_256_mont_tpl_lower_4 ENDP
-_text ENDS
 ; /* Two Montgomery numbers, subtract double second from first (r = a - 2.b % m).
 ;  *
 ;  * r   Result of subtration.
@@ -55727,7 +55624,7 @@ _text ENDS
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_mont_sub_dbl_4 PROC
+sp_256_mont_rsb_sub_dbl_4 PROC
         push	r12
         push	r13
         push	r14
@@ -55743,42 +55640,40 @@ sp_256_mont_sub_dbl_4 PROC
         mov	r14, QWORD PTR [r8+16]
         mov	r15, QWORD PTR [r8+24]
         add	r12, r12
-        mov	rdi, 4294967295
         adc	r13, r13
         mov	rsi, 18446744069414584321
         adc	r14, r14
         adc	r15, r15
-        sbb	r8, r8
-        and	rdi, r8
-        and	rsi, r8
-        sub	r12, r8
+        sbb	rdx, rdx
+        mov	edi, edx
+        and	rsi, rdx
+        sub	r12, rdx
         sbb	r13, rdi
         sbb	r14, 0
         sbb	r15, rsi
-        adc	r8, 0
-        and	rdi, r8
-        and	rsi, r8
-        sub	r12, r8
+        adc	rdx, 0
+        and	rdi, rdx
+        and	rsi, rdx
+        sub	r12, rdx
         sbb	r13, rdi
         sbb	r14, 0
         sbb	r15, rsi
         sub	rax, r12
-        mov	rdi, 4294967295
         sbb	r9, r13
         mov	rsi, 18446744069414584321
         sbb	r10, r14
         sbb	r11, r15
-        sbb	r8, r8
-        and	rdi, r8
-        and	rsi, r8
-        add	rax, r8
+        sbb	rdx, 0
+        mov	edi, edx
+        and	rsi, rdx
+        add	rax, rdx
         adc	r9, rdi
         adc	r10, 0
         adc	r11, rsi
-        adc	r8, 0
-        and	rdi, r8
-        and	rsi, r8
-        add	rax, r8
+        adc	rdx, 0
+        and	rdi, rdx
+        and	rsi, rdx
+        add	rax, rdx
         adc	r9, rdi
         mov	QWORD PTR [rcx], rax
         adc	r10, 0
@@ -55786,6 +55681,33 @@ sp_256_mont_sub_dbl_4 PROC
         adc	r11, rsi
         mov	QWORD PTR [rcx+16], r10
         mov	QWORD PTR [rcx+24], r11
+        mov	r12, QWORD PTR [r8]
+        mov	r13, QWORD PTR [r8+8]
+        mov	r14, QWORD PTR [r8+16]
+        mov	r15, QWORD PTR [r8+24]
+        sub	r12, rax
+        sbb	r13, r9
+        mov	rsi, 18446744069414584321
+        sbb	r14, r10
+        sbb	r15, r11
+        sbb	rdx, rdx
+        mov	edi, edx
+        and	rsi, rdx
+        add	r12, rdx
+        adc	r13, rdi
+        adc	r14, 0
+        adc	r15, rsi
+        adc	rdx, 0
+        and	rdi, rdx
+        and	rsi, rdx
+        add	r12, rdx
+        adc	r13, rdi
+        mov	QWORD PTR [r8], r12
+        adc	r14, 0
+        mov	QWORD PTR [r8+8], r13
+        adc	r15, rsi
+        mov	QWORD PTR [r8+16], r14
+        mov	QWORD PTR [r8+24], r15
         pop	rsi
         pop	rdi
         pop	r15
@@ -55793,60 +55715,7 @@ sp_256_mont_sub_dbl_4 PROC
         pop	r13
         pop	r12
         ret
-sp_256_mont_sub_dbl_4 ENDP
-_text ENDS
-; /* Two Montgomery numbers, subtract second from first and double.
-;  * (r = 2.(a - b) % m).
-;  *
-;  * b must have came from a mont_sub operation.
-;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to subtract with in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_256_mont_dbl_sub_4 PROC
-        push	r12
-        push	r13
-        mov	rax, QWORD PTR [rdx]
-        mov	r9, QWORD PTR [rdx+8]
-        mov	r10, QWORD PTR [rdx+16]
-        mov	r11, QWORD PTR [rdx+24]
-        sub	rax, QWORD PTR [r8]
-        mov	r12, 4294967295
-        sbb	r9, QWORD PTR [r8+8]
-        mov	r13, 18446744069414584321
-        sbb	r10, QWORD PTR [r8+16]
-        sbb	r11, QWORD PTR [r8+24]
-        sbb	r8, r8
-        and	r12, r8
-        and	r13, r8
-        add	rax, r8
-        adc	r9, r12
-        adc	r10, 0
-        adc	r11, r13
-        add	rax, rax
-        mov	r12, 4294967295
-        adc	r9, r9
-        mov	r13, 18446744069414584321
-        adc	r10, r10
-        adc	r11, r11
-        sbb	r8, r8
-        and	r12, r8
-        and	r13, r8
-        sub	rax, r8
-        sbb	r9, r12
-        mov	QWORD PTR [rcx], rax
-        sbb	r10, 0
-        mov	QWORD PTR [rcx+8], r9
-        sbb	r11, r13
-        mov	QWORD PTR [rcx+16], r10
-        mov	QWORD PTR [rcx+24], r11
-        pop	r13
-        pop	r12
-        ret
-sp_256_mont_dbl_sub_4 ENDP
+sp_256_mont_rsb_sub_dbl_4 ENDP
 _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
@@ -56005,11 +55874,12 @@ sp_256_mont_mul_avx2_4 PROC
         mov	rbp, r8
         mov	rax, rdx
         mov	rdx, QWORD PTR [rax]
+        mov	r14, QWORD PTR [rbp+8]
         ; A[0] * B[0]
         mulx	r9, r8, QWORD PTR [rbp]
         xor	rbx, rbx
         ; A[0] * B[1]
-        mulx	r10, rdi, QWORD PTR [rbp+8]
+        mulx	r10, rdi, r14
         adcx	r9, rdi
         ; A[0] * B[2]
         mulx	r11, rdi, QWORD PTR [rbp+16]
@@ -56024,7 +55894,7 @@ sp_256_mont_mul_avx2_4 PROC
         xor	rbx, rbx
         adcx	r9, rdi
         ; A[1] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r10, rsi
         adcx	r10, rdi
         ; A[1] * B[2]
@@ -56043,7 +55913,7 @@ sp_256_mont_mul_avx2_4 PROC
         xor	rbx, rbx
         adcx	r10, rdi
         ; A[2] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r11, rsi
         adcx	r11, rdi
         ; A[2] * B[2]
@@ -56133,11 +56003,10 @@ sp_256_mont_mul_avx2_4 PROC
         adc	r15, 0
         sbb	r8, 0
         mov	rax, 18446744069414584321
-        mov	rdi, r8
         ; mask m and sub from result if overflow
         ;  m[0] = -1 & mask = mask
-        shr	rdi, 32
         ;  m[2] =  0 & mask = 0
+        mov	edi, r8d
         and	rax, r8
         sub	r12, r8
         sbb	r13, rdi
@@ -56292,11 +56161,10 @@ sp_256_mont_sqr_avx2_4 PROC
         adc	r15, 0
         sbb	r8, 0
         mov	rax, 18446744069414584321
-        mov	rdi, r8
         ; mask m and sub from result if overflow
         ;  m[0] = -1 & mask = mask
-        shr	rdi, 32
         ;  m[2] =  0 & mask = 0
+        mov	edi, r8d
         and	rax, r8
         sub	r12, r8
         sbb	r13, rdi
@@ -57150,11 +57018,12 @@ sp_256_mont_mul_order_avx2_4 PROC
         mov	rbp, r8
         mov	rax, rdx
         mov	rdx, QWORD PTR [rax]
+        mov	r14, QWORD PTR [rbp+8]
         ; A[0] * B[0]
         mulx	r9, r8, QWORD PTR [rbp]
         xor	rbx, rbx
         ; A[0] * B[1]
-        mulx	r10, rdi, QWORD PTR [rbp+8]
+        mulx	r10, rdi, r14
         adcx	r9, rdi
         ; A[0] * B[2]
         mulx	r11, rdi, QWORD PTR [rbp+16]
@@ -57169,7 +57038,7 @@ sp_256_mont_mul_order_avx2_4 PROC
         xor	rbx, rbx
         adcx	r9, rdi
         ; A[1] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r10, rsi
         adcx	r10, rdi
         ; A[1] * B[2]
@@ -57188,7 +57057,7 @@ sp_256_mont_mul_order_avx2_4 PROC
         xor	rbx, rbx
         adcx	r10, rdi
         ; A[2] * B[1]
-        mulx	r15, rdi, QWORD PTR [rbp+8]
+        mulx	r15, rdi, r14
         adox	r11, rsi
         adcx	r11, rdi
         ; A[2] * B[2]
@@ -59310,11 +59179,10 @@ sp_384_mont_reduce_6 PROC
         ; Subtract mod if carry
         neg	r11
         mov	r10, 18446744073709551614
-        mov	r8, r11
+        mov	r8d, r11d
         mov	r9, r11
-        shr	r8, 32
-        shl	r9, 32
         and	r10, r11
+        shl	r9, 32
         sub	rbx, r8
         sbb	rbp, r9
         sbb	r12, r10
@@ -59533,7 +59401,6 @@ sp_384_mont_add_6 PROC
         mov	r12, QWORD PTR [rdx+32]
         mov	r13, QWORD PTR [rdx+40]
         add	rax, QWORD PTR [r8]
-        mov	r14, 4294967295
         adc	r9, QWORD PTR [r8+8]
         mov	r15, 18446744069414584320
         adc	r10, QWORD PTR [r8+16]
@@ -59542,7 +59409,7 @@ sp_384_mont_add_6 PROC
         adc	r12, QWORD PTR [r8+32]
         adc	r13, QWORD PTR [r8+40]
         sbb	rdx, rdx
-        and	r14, rdx
+        mov	r14d, edx
         and	r15, rdx
         and	rdi, rdx
         sub	rax, r14
@@ -59595,16 +59462,16 @@ sp_384_mont_dbl_6 PROC
         mov	r11, QWORD PTR [rdx+32]
         mov	r12, QWORD PTR [rdx+40]
         add	rax, rax
-        mov	r13, 4294967295
         adc	r8, r8
         mov	r14, 18446744069414584320
         adc	r9, r9
         mov	r15, 18446744073709551614
         adc	r10, r10
         adc	r11, r11
+        mov	rdi, r12
         adc	r12, r12
-        sbb	rdi, rdi
-        and	r13, rdi
+        sar	rdi, 63
+        mov	r13d, edi
         and	r14, rdi
         and	r15, rdi
         sub	rax, r13
@@ -59657,7 +59524,6 @@ sp_384_mont_tpl_6 PROC
         mov	r11, QWORD PTR [rdx+32]
         mov	r12, QWORD PTR [rdx+40]
         add	rax, rax
-        mov	r13, 4294967295
         adc	r8, r8
         mov	r14, 18446744069414584320
         adc	r9, r9
@@ -59666,7 +59532,7 @@ sp_384_mont_tpl_6 PROC
         adc	r11, r11
         adc	r12, r12
         sbb	rdi, rdi
-        and	r13, rdi
+        mov	r13d, edi
         and	r14, rdi
         and	r15, rdi
         sub	rax, r13
@@ -59687,7 +59553,6 @@ sp_384_mont_tpl_6 PROC
         sbb	r11, rdi
         sbb	r12, rdi
         add	rax, QWORD PTR [rdx]
-        mov	r13, 4294967295
         adc	r8, QWORD PTR [rdx+8]
         mov	r14, 18446744069414584320
         adc	r9, QWORD PTR [rdx+16]
@@ -59696,7 +59561,7 @@ sp_384_mont_tpl_6 PROC
         adc	r11, QWORD PTR [rdx+32]
         adc	r12, QWORD PTR [rdx+40]
         sbb	rdi, rdi
-        and	r13, rdi
+        mov	r13d, edi
         and	r14, rdi
         and	r15, rdi
         sub	rax, r13
@@ -59750,7 +59615,6 @@ sp_384_mont_sub_6 PROC
         mov	r12, QWORD PTR [rdx+32]
         mov	r13, QWORD PTR [rdx+40]
         sub	rax, QWORD PTR [r8]
-        mov	r14, 4294967295
         sbb	r9, QWORD PTR [r8+8]
         mov	r15, 18446744069414584320
         sbb	r10, QWORD PTR [r8+16]
@@ -59759,7 +59623,7 @@ sp_384_mont_sub_6 PROC
         sbb	r12, QWORD PTR [r8+32]
         sbb	r13, QWORD PTR [r8+40]
         sbb	rdx, rdx
-        and	r14, rdx
+        mov	r14d, edx
         and	r15, rdx
         and	rdi, rdx
         add	rax, r14
@@ -59791,61 +59655,6 @@ sp_384_mont_sub_6 PROC
         pop	r12
         ret
 sp_384_mont_sub_6 ENDP
-_text ENDS
-; /* Subtract two Montgomery form numbers (r = a - b % m).
-;  *
-;  * b is less than the modulus.
-;  *
-;  * r   Result of subtration.
-;  * a   Number to subtract from in Montgomery form.
-;  * b   Number to subtract with in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_384_mont_sub_lower_6 PROC
-        push	r12
-        push	r13
-        push	r14
-        push	r15
-        push	rdi
-        mov	rax, QWORD PTR [rdx]
-        mov	r9, QWORD PTR [rdx+8]
-        mov	r10, QWORD PTR [rdx+16]
-        mov	r11, QWORD PTR [rdx+24]
-        mov	r12, QWORD PTR [rdx+32]
-        mov	r13, QWORD PTR [rdx+40]
-        sub	rax, QWORD PTR [r8]
-        mov	r14, 4294967295
-        sbb	r9, QWORD PTR [r8+8]
-        mov	r15, 18446744069414584320
-        sbb	r10, QWORD PTR [r8+16]
-        mov	rdi, 18446744073709551614
-        sbb	r11, QWORD PTR [r8+24]
-        sbb	r12, QWORD PTR [r8+32]
-        sbb	r13, QWORD PTR [r8+40]
-        sbb	rdx, rdx
-        and	r14, rdx
-        and	r15, rdx
-        and	rdi, rdx
-        add	rax, r14
-        adc	r9, r15
-        mov	QWORD PTR [rcx], rax
-        adc	r10, rdi
-        mov	QWORD PTR [rcx+8], r9
-        adc	r11, rdx
-        mov	QWORD PTR [rcx+16], r10
-        adc	r12, rdx
-        mov	QWORD PTR [rcx+24], r11
-        adc	r13, rdx
-        mov	QWORD PTR [rcx+32], r12
-        mov	QWORD PTR [rcx+40], r13
-        pop	rdi
-        pop	r15
-        pop	r14
-        pop	r13
-        pop	r12
-        ret
-sp_384_mont_sub_lower_6 ENDP
 _text ENDS
 ; /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
 ;  *
@@ -59916,144 +59725,6 @@ sp_384_div2_6 PROC
         pop	r12
         ret
 sp_384_div2_6 ENDP
-_text ENDS
-; /* Double a Montgomery form number (r = a + a % m).
-;  *
-;  * a is less than m.
-;  *
-;  * r   Result of doubling.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_384_mont_dbl_lower_6 PROC
-        push	r12
-        push	r13
-        push	r14
-        push	r15
-        push	rdi
-        mov	rax, QWORD PTR [rdx]
-        mov	r8, QWORD PTR [rdx+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	r11, QWORD PTR [rdx+32]
-        mov	r12, QWORD PTR [rdx+40]
-        add	rax, rax
-        mov	r13, 4294967295
-        adc	r8, r8
-        mov	r14, 18446744069414584320
-        adc	r9, r9
-        mov	r15, 18446744073709551614
-        adc	r10, r10
-        adc	r11, r11
-        adc	r12, r12
-        sbb	rdi, rdi
-        and	r13, rdi
-        and	r14, rdi
-        and	r15, rdi
-        sub	rax, r13
-        sbb	r8, r14
-        mov	QWORD PTR [rcx], rax
-        sbb	r9, r15
-        mov	QWORD PTR [rcx+8], r8
-        sbb	r10, rdi
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r11, rdi
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r12, rdi
-        mov	QWORD PTR [rcx+32], r11
-        mov	QWORD PTR [rcx+40], r12
-        pop	rdi
-        pop	r15
-        pop	r14
-        pop	r13
-        pop	r12
-        ret
-sp_384_mont_dbl_lower_6 ENDP
-_text ENDS
-; /* Double a Montgomery form number (r = a + a % m).
-;  *
-;  * a is less than m.
-;  *
-;  * r   Result of doubling.
-;  * a   Number to double in Montgomery form.
-;  * m   Modulus (prime).
-;  */
-_text SEGMENT READONLY PARA
-sp_384_mont_tpl_lower_6 PROC
-        push	r12
-        push	r13
-        push	r14
-        push	r15
-        push	rdi
-        mov	rax, QWORD PTR [rdx]
-        mov	r8, QWORD PTR [rdx+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	r11, QWORD PTR [rdx+32]
-        mov	r12, QWORD PTR [rdx+40]
-        add	rax, rax
-        mov	r13, 4294967295
-        adc	r8, r8
-        mov	r14, 18446744069414584320
-        adc	r9, r9
-        mov	r15, 18446744073709551614
-        adc	r10, r10
-        adc	r11, r11
-        adc	r12, r12
-        sbb	rdi, rdi
-        and	r13, rdi
-        and	r14, rdi
-        and	r15, rdi
-        sub	rax, r13
-        sbb	r8, r14
-        mov	QWORD PTR [rcx], rax
-        sbb	r9, r15
-        sbb	r10, rdi
-        sbb	r11, rdi
-        sbb	r12, rdi
-        add	rax, QWORD PTR [rdx]
-        mov	r13, 4294967295
-        adc	r8, QWORD PTR [rdx+8]
-        mov	r14, 18446744069414584320
-        adc	r9, QWORD PTR [rdx+16]
-        mov	r15, 18446744073709551614
-        adc	r10, QWORD PTR [rdx+24]
-        adc	r11, QWORD PTR [rdx+32]
-        adc	r12, QWORD PTR [rdx+40]
-        sbb	rdi, rdi
-        and	r13, rdi
-        and	r14, rdi
-        and	r15, rdi
-        sub	rax, r13
-        sbb	r8, r14
-        sbb	r9, r15
-        sbb	r10, rdi
-        sbb	r11, rdi
-        sbb	r12, rdi
-        adc	rdi, 0
-        and	r13, rdi
-        and	r14, rdi
-        and	r15, rdi
-        sub	rax, r13
-        sbb	r8, r14
-        mov	QWORD PTR [rcx], rax
-        sbb	r9, r15
-        mov	QWORD PTR [rcx+8], r8
-        sbb	r10, rdi
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r11, rdi
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r12, rdi
-        mov	QWORD PTR [rcx+32], r11
-        mov	QWORD PTR [rcx+40], r12
-        pop	rdi
-        pop	r15
-        pop	r14
-        pop	r13
-        pop	r12
-        ret
-sp_384_mont_tpl_lower_6 ENDP
 _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.

@@ -593,9 +593,9 @@ _fe_mul:
 	adds	x7, x7, x3
 	umulh	x4, x15, x19
 	adcs	x8, x8, x4
-	adc	x9, x9, xzr
 	# A[1] * B[3]
 	umulh	x11, x15, x22
+	adc	x9, x9, xzr
 	mul	x10, x15, x22
 	# A[0] * B[1]
 	mul	x3, x14, x20
@@ -1842,9 +1842,9 @@ L_curve25519_bits:
 	adds	x20, x20, x3
 	umulh	x4, x15, x6
 	adcs	x21, x21, x4
-	adc	x22, x22, xzr
 	# A[1] * B[3]
 	umulh	x26, x15, x9
+	adc	x22, x22, xzr
 	mul	x25, x15, x9
 	# A[0] * B[1]
 	mul	x3, x14, x7
@@ -1958,9 +1958,9 @@ L_curve25519_bits:
 	adds	x20, x20, x3
 	umulh	x4, x11, x25
 	adcs	x21, x21, x4
-	adc	x22, x22, xzr
 	# A[1] * B[3]
 	umulh	x15, x11, x28
+	adc	x22, x22, xzr
 	mul	x14, x11, x28
 	# A[0] * B[1]
 	mul	x3, x10, x26
@@ -2229,9 +2229,9 @@ L_curve25519_bits:
 	adds	x7, x7, x3
 	umulh	x4, x15, x10
 	adcs	x8, x8, x4
-	adc	x9, x9, xzr
 	# A[1] * B[3]
 	umulh	x26, x15, x13
+	adc	x9, x9, xzr
 	mul	x25, x15, x13
 	# A[0] * B[1]
 	mul	x3, x14, x11
@@ -2400,9 +2400,9 @@ L_curve25519_bits:
 	adds	x7, x7, x3
 	umulh	x4, x15, x10
 	adcs	x8, x8, x4
-	adc	x9, x9, xzr
 	# A[1] * B[3]
 	umulh	x26, x15, x13
+	adc	x9, x9, xzr
 	mul	x25, x15, x13
 	# A[0] * B[1]
 	mul	x3, x14, x11
@@ -2708,9 +2708,9 @@ L_curve25519_bits:
 	adds	x11, x11, x3
 	umulh	x4, x20, x14
 	adcs	x12, x12, x4
-	adc	x13, x13, xzr
 	# A[1] * B[3]
 	umulh	x26, x20, x17
+	adc	x13, x13, xzr
 	mul	x25, x20, x17
 	# A[0] * B[1]
 	mul	x3, x19, x15
@@ -3679,9 +3679,9 @@ L_curve25519_inv_8:
 	adds	x15, x15, x3
 	umulh	x4, x7, x10
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x7, x13
+	adc	x17, x17, xzr
 	mul	x19, x7, x13
 	# A[0] * B[1]
 	mul	x3, x6, x11
@@ -4664,9 +4664,9 @@ _ge_p1p1_to_p2:
 	adds	x15, x15, x3
 	umulh	x4, x11, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x11, x9
+	adc	x17, x17, xzr
 	mul	x19, x11, x9
 	# A[0] * B[1]
 	mul	x3, x10, x7
@@ -4782,9 +4782,9 @@ _ge_p1p1_to_p2:
 	adds	x15, x15, x3
 	umulh	x4, x11, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x11, x9
+	adc	x17, x17, xzr
 	mul	x19, x11, x9
 	# A[0] * B[1]
 	mul	x3, x10, x7
@@ -4900,9 +4900,9 @@ _ge_p1p1_to_p2:
 	adds	x15, x15, x3
 	umulh	x4, x11, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x11, x9
+	adc	x17, x17, xzr
 	mul	x19, x11, x9
 	# A[0] * B[1]
 	mul	x3, x10, x7
@@ -5051,9 +5051,9 @@ _ge_p1p1_to_p3:
 	adds	x15, x15, x3
 	umulh	x4, x11, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x11, x9
+	adc	x17, x17, xzr
 	mul	x19, x11, x9
 	# A[0] * B[1]
 	mul	x3, x10, x7
@@ -5169,9 +5169,9 @@ _ge_p1p1_to_p3:
 	adds	x15, x15, x3
 	umulh	x4, x24, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x24, x9
+	adc	x17, x17, xzr
 	mul	x19, x24, x9
 	# A[0] * B[1]
 	mul	x3, x23, x7
@@ -5287,9 +5287,9 @@ _ge_p1p1_to_p3:
 	adds	x15, x15, x3
 	umulh	x4, x24, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x24, x9
+	adc	x17, x17, xzr
 	mul	x19, x24, x9
 	# A[0] * B[1]
 	mul	x3, x23, x7
@@ -5403,9 +5403,9 @@ _ge_p1p1_to_p3:
 	adds	x15, x15, x3
 	umulh	x4, x11, x6
 	adcs	x16, x16, x4
-	adc	x17, x17, xzr
 	# A[1] * B[3]
 	umulh	x20, x11, x9
+	adc	x17, x17, xzr
 	mul	x19, x11, x9
 	# A[0] * B[1]
 	mul	x3, x10, x7
@@ -6075,9 +6075,9 @@ _ge_madd:
 	adds	x22, x22, x25
 	umulh	x26, x17, x8
 	adcs	x23, x23, x26
-	adc	x24, x24, xzr
 	# A[1] * B[3]
 	umulh	x5, x17, x11
+	adc	x24, x24, xzr
 	mul	x4, x17, x11
 	# A[0] * B[1]
 	mul	x25, x16, x9
@@ -6191,9 +6191,9 @@ _ge_madd:
 	adds	x5, x5, x25
 	umulh	x26, x13, x16
 	adcs	x6, x6, x26
-	adc	x7, x7, xzr
 	# A[1] * B[3]
 	umulh	x9, x13, x20
+	adc	x7, x7, xzr
 	mul	x8, x13, x20
 	# A[0] * B[1]
 	mul	x25, x12, x17
@@ -6348,9 +6348,9 @@ _ge_madd:
 	adds	x17, x17, x25
 	umulh	x26, x22, x4
 	adcs	x19, x19, x26
-	adc	x20, x20, xzr
 	# A[1] * B[3]
 	umulh	x9, x22, x7
+	adc	x20, x20, xzr
 	mul	x8, x22, x7
 	# A[0] * B[1]
 	mul	x25, x21, x5
@@ -6593,9 +6593,9 @@ _ge_msub:
 	adds	x22, x22, x25
 	umulh	x26, x17, x8
 	adcs	x23, x23, x26
-	adc	x24, x24, xzr
 	# A[1] * B[3]
 	umulh	x5, x17, x11
+	adc	x24, x24, xzr
 	mul	x4, x17, x11
 	# A[0] * B[1]
 	mul	x25, x16, x9
@@ -6709,9 +6709,9 @@ _ge_msub:
 	adds	x5, x5, x25
 	umulh	x26, x13, x16
 	adcs	x6, x6, x26
-	adc	x7, x7, xzr
 	# A[1] * B[3]
 	umulh	x9, x13, x20
+	adc	x7, x7, xzr
 	mul	x8, x13, x20
 	# A[0] * B[1]
 	mul	x25, x12, x17
@@ -6866,9 +6866,9 @@ _ge_msub:
 	adds	x17, x17, x25
 	umulh	x26, x22, x4
 	adcs	x19, x19, x26
-	adc	x20, x20, xzr
 	# A[1] * B[3]
 	umulh	x9, x22, x7
+	adc	x20, x20, xzr
 	mul	x8, x22, x7
 	# A[0] * B[1]
 	mul	x25, x21, x5
@@ -7109,9 +7109,9 @@ _ge_add:
 	adds	x22, x22, x25
 	umulh	x26, x17, x8
 	adcs	x23, x23, x26
-	adc	x24, x24, xzr
 	# A[1] * B[3]
 	umulh	x5, x17, x11
+	adc	x24, x24, xzr
 	mul	x4, x17, x11
 	# A[0] * B[1]
 	mul	x25, x16, x9
@@ -7228,9 +7228,9 @@ _ge_add:
 	adds	x5, x5, x25
 	umulh	x26, x13, x16
 	adcs	x6, x6, x26
-	adc	x7, x7, xzr
 	# A[1] * B[3]
 	umulh	x9, x13, x20
+	adc	x7, x7, xzr
 	mul	x8, x13, x20
 	# A[0] * B[1]
 	mul	x25, x12, x17
@@ -7388,9 +7388,9 @@ _ge_add:
 	adds	x17, x17, x25
 	umulh	x26, x22, x4
 	adcs	x19, x19, x26
-	adc	x20, x20, xzr
 	# A[1] * B[3]
 	umulh	x9, x22, x7
+	adc	x20, x20, xzr
 	mul	x8, x22, x7
 	# A[0] * B[1]
 	mul	x25, x21, x5
@@ -7509,9 +7509,9 @@ _ge_add:
 	adds	x9, x9, x25
 	umulh	x26, x5, x12
 	adcs	x10, x10, x26
-	adc	x11, x11, xzr
 	# A[1] * B[3]
 	umulh	x17, x5, x15
+	adc	x11, x11, xzr
 	mul	x16, x5, x15
 	# A[0] * B[1]
 	mul	x25, x4, x13
@@ -7753,9 +7753,9 @@ _ge_sub:
 	adds	x22, x22, x25
 	umulh	x26, x17, x8
 	adcs	x23, x23, x26
-	adc	x24, x24, xzr
 	# A[1] * B[3]
 	umulh	x5, x17, x11
+	adc	x24, x24, xzr
 	mul	x4, x17, x11
 	# A[0] * B[1]
 	mul	x25, x16, x9
@@ -7880,9 +7880,9 @@ _ge_sub:
 	adds	x5, x5, x25
 	umulh	x26, x13, x16
 	adcs	x6, x6, x26
-	adc	x7, x7, xzr
 	# A[1] * B[3]
 	umulh	x9, x13, x20
+	adc	x7, x7, xzr
 	mul	x8, x13, x20
 	# A[0] * B[1]
 	mul	x25, x12, x17
@@ -8040,9 +8040,9 @@ _ge_sub:
 	adds	x17, x17, x25
 	umulh	x26, x22, x4
 	adcs	x19, x19, x26
-	adc	x20, x20, xzr
 	# A[1] * B[3]
 	umulh	x9, x22, x7
+	adc	x20, x20, xzr
 	mul	x8, x22, x7
 	# A[0] * B[1]
 	mul	x25, x21, x5
@@ -8169,9 +8169,9 @@ _ge_sub:
 	adds	x9, x9, x25
 	umulh	x26, x5, x12
 	adcs	x10, x10, x26
-	adc	x11, x11, xzr
 	# A[1] * B[3]
 	umulh	x17, x5, x15
+	adc	x11, x11, xzr
 	mul	x16, x5, x15
 	# A[0] * B[1]
 	mul	x25, x4, x13
@@ -8570,9 +8570,9 @@ _sc_muladd:
 	adds	x5, x5, x21
 	umulh	x22, x13, x16
 	adcs	x6, x6, x22
-	adc	x7, x7, xzr
 	# A[1] * B[3]
 	umulh	x9, x13, x20
+	adc	x7, x7, xzr
 	mul	x8, x13, x20
 	# A[0] * B[1]
 	mul	x21, x12, x17

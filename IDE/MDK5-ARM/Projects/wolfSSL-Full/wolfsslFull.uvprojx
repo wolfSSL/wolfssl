@@ -446,7 +446,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Dcumentation</GroupName>
+          <GroupName>Documentation</GroupName>
           <Files>
             <File>
               <FileName>Abstract.txt</FileName>

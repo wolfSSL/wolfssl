@@ -11,25 +11,30 @@ For detail about ESP32 HW Acceleration, you can find in [Technical Reference Man
 To enable hw acceleration :
 
 * Uncomment out `#define WOLFSSL_ESPIDF` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
-* Uncomment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
+* Uncomment out `#define WOLFSSL_ESP32` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
 
 To disable portions of the hardware acceleration you can optionally define:
 
 ```c
 /* Disabled SHA, AES and RSA acceleration */
-#define NO_ESP32WROOM32_CRYPT
+#define NO_ESP32_CRYPT
 /* Disabled AES acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES
+#define NO_WOLFSSL_ESP32_CRYPT_AES
 /* Disabled SHA acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH
+#define NO_WOLFSSL_ESP32_CRYPT_HASH
 /* Disabled RSA Primitive acceleration */
-#define NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
+#define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 ```
 
 ### Coding
 
 In your application you must include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h` file. You can find a good reference for this in `IDE/GCC-ARM/Header/user_settings.h`.
 
+To view disassembly, add `__attribute__((section(".iram1")))` decorator. Foe example:
+
+```
+static int __attribute__((section(".iram1"))) memblock_peek(volatile u_int32_t mem_address)
+```
 
 ### Benchmarks
 
