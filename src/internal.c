@@ -8210,7 +8210,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         if (FreeFixedIO(ctx_heap, &(ssl_hint->inBuf)) != 1) {
             WOLFSSL_MSG("Error freeing fixed output buffer");
         }
-        if (ssl_hint->haFlag) { /* check if handshake count has been decreased*/
+        if (ssl_hint->haFlag && ctx_heap->curHa > 0) { /* check if handshake count has been decreased*/
             ctx_heap->curHa--;
         }
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
@@ -8464,7 +8464,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
-        ctx_heap->curHa--;
+        if (ctx_heap->curHa > 0) {
+            ctx_heap->curHa--;
+        }
         ssl_hint->haFlag = 0; /* set to zero since handshake has been dec */
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
     #ifdef WOLFSSL_HEAP_TEST
