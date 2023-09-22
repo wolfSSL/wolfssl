@@ -8,11 +8,4 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
                     && apt install -y ${DEPS_TESTING} \
                     && apt clean -y && rm -rf /var/lib/apt/lists/*
 
-ARG JENKINS_UID=1009
-ARG JENKINS_GID=1010
-RUN groupadd -f -g ${JENKINS_GID} jenkins && ( getent passwd ${JENKINS_UID} || useradd -ms /bin/bash jenkins -u ${JENKINS_UID} -g ${JENKINS_GID} )
-
-# Add github.com as an SSH known host
-RUN ssh -o StrictHostKeyChecking=no -T git@github.com; cat ~/.ssh/known_hosts >> /etc/ssh/ssh_known_hosts
-
 USER docker
