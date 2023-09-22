@@ -71,7 +71,7 @@ typedef fsp_err_t (*aesGcmDecFinalFn)
         (FSPSM_AESGCM_HANDLE*, uint8_t*, uint32_t*, uint8_t*, uint32_t);
 
 #if defined(WOLFSSL_RENESAS_RSIP)
-/* wrapper for Gcm enrypt init */
+/* wrapper for Gcm encrypt init */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptInit(FSPSM_AESGCM_HANDLE* h, 
                                         FSPSM_AES_PWKEY k, uint8_t* iv,
                                         uint32_t iv_l)
@@ -80,7 +80,7 @@ static fsp_err_t _R_RSIP_AES_GCM_EncryptInit(FSPSM_AESGCM_HANDLE* h,
     return R_RSIP_AES_GCM_EncryptInit(&gFSPSM_ctrl, (FSPSM_AES_PWKEY const)k,
                                             (uint8_t* const)iv, iv_l);
 }
-/* wrapper for Gcm enrypt update */
+/* wrapper for Gcm encrypt update */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptUpdate(FSPSM_AESGCM_HANDLE* h, 
         uint8_t* p_plain, uint8_t* p_cipher, uint32_t plain_length, 
         uint8_t* p_add, uint32_t add_len)
@@ -92,7 +92,7 @@ static fsp_err_t _R_RSIP_AES_GCM_EncryptUpdate(FSPSM_AESGCM_HANDLE* h,
                                       (uint8_t* const) p_add,
                                       (uint32_t const) add_len);
 }
-/* wrapper for Gcm enrypt final */
+/* wrapper for Gcm encrypt final */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptFinal(FSPSM_AESGCM_HANDLE* h, 
                                         uint8_t* p_cipher, uint32_t* c_len, 
                                         uint8_t* p_atag)
