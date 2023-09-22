@@ -1759,7 +1759,9 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     {
         for (i = 0; i < maskLen - 1 - saltLen; i++) {
             if (tmp[i] != pkcsBlock[i]) {
+                #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
                 XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+                #endif
                 WOLFSSL_MSG("RsaUnPad_PSS: Padding Error Match");
                 return PSS_SALTLEN_E;
             }
