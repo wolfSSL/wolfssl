@@ -25309,6 +25309,106 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
     return ret;
 }
 
+static wc_test_ret_t hpke_test_multi(Hpke* hpke)
+{
+    wc_test_ret_t ret = 0;
+    int rngRet = 0;
+    WC_RNG rng[1];
+    const char* start_text = "this is a test";
+    const char* info_text = "info";
+    const char* aad_text = "aad";
+    byte ciphertexts[2][MAX_HPKE_LABEL_SZ];
+    byte plaintext[MAX_HPKE_LABEL_SZ];
+    void* receiverKey = NULL;
+    void* ephemeralKey = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    HpkeBaseContext* context = NULL;
+    byte *pubKey = NULL; /* public key */
+    word16 pubKeySz = (word16)HPKE_Npk_MAX;
+#else
+    HpkeBaseContext context[1];
+    byte pubKey[HPKE_Npk_MAX]; /* public key */
+    word16 pubKeySz = (word16)sizeof(pubKey);
+#endif
+    rngRet = ret = wc_InitRng(rng);
+    if (ret != 0)
+        return ret;
+#ifdef WOLFSSL_SMALL_STACK
+    pubKey = (byte *)XMALLOC(pubKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubKey == NULL)
+        ret = MEMORY_E;
+    if (ret == 0) {
+        context = (HpkeBaseContext*)XMALLOC(sizeof(HpkeBaseContext), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (context == NULL)
+        ret = MEMORY_E;
+#endif
+    /* generate the keys */
+    if (ret == 0)
+        ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
+    if (ret == 0)
+        ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
+    /* setup seal context */
+    if (ret == 0) {
+        ret = wc_HpkeInitSealContext(hpke, context, ephemeralKey, receiverKey,
+            (byte*)info_text, (word32)XSTRLEN(info_text));
+    }
+    /* seal message 0 */
+    if (ret == 0) {
+        ret = wc_HpkeContextSealBase(hpke, context,
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertexts[context->seq]);
+    }
+    /* seal message 1 */
+    if (ret == 0) {
+        ret = wc_HpkeContextSealBase(hpke, context,
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertexts[context->seq]);
+    }
+    /* export ephemeral key */
+    if (ret == 0)
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, &pubKeySz);
+    /* setup open context */
+    if (ret == 0) {
+        ret = wc_HpkeInitOpenContext(hpke, context, receiverKey, pubKey,
+            pubKeySz, (byte*)info_text, (word32)XSTRLEN(info_text));
+    }
+    /* open message 0 */
+    if (ret == 0) {
+        ret = wc_HpkeContextOpenBase(hpke, context, (byte*)aad_text,
+            (word32)XSTRLEN(aad_text), ciphertexts[context->seq],
+            (word32)XSTRLEN(start_text), plaintext);
+    }
+    /* check message 0 */
+    if (ret == 0)
+        ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
+    /* open message 1 */
+    if (ret == 0) {
+        ret = wc_HpkeContextOpenBase(hpke, context, (byte*)aad_text,
+            (word32)XSTRLEN(aad_text), ciphertexts[context->seq],
+            (word32)XSTRLEN(start_text), plaintext);
+    }
+    /* check message 1 */
+    if (ret == 0)
+        ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
+    if (ephemeralKey != NULL)
+        wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
+    if (receiverKey != NULL)
+        wc_HpkeFreeKey(hpke, hpke->kem, receiverKey, hpke->heap);
+#ifdef WOLFSSL_SMALL_STACK
+    if (pubKey != NULL)
+        XFREE(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (context != NULL)
+        XFREE(context, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    if (rngRet == 0)
+        wc_FreeRng(rng);
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -25319,14 +25419,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     /* p256 */
     ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
         HPKE_AES_128_GCM, NULL);
-
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-
     ret = hpke_test_single(hpke);
-
     if (ret != 0)
         return ret;
+    ret = hpke_test_multi(hpke);
+    if (ret != 0)
+        return ret;
+
     #endif
 
     #if defined(WOLFSSL_SHA384) && \
@@ -25334,12 +25435,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     /* p384 */
     ret = wc_HpkeInit(hpke, DHKEM_P384_HKDF_SHA384, HKDF_SHA384,
         HPKE_AES_128_GCM, NULL);
-
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-
     ret = hpke_test_single(hpke);
-
+    if (ret != 0)
+        return ret;
+    ret = hpke_test_multi(hpke);
     if (ret != 0)
         return ret;
     #endif
@@ -25349,12 +25450,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     /* p521 */
     ret = wc_HpkeInit(hpke, DHKEM_P521_HKDF_SHA512, HKDF_SHA512,
         HPKE_AES_128_GCM, NULL);
-
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-
     ret = hpke_test_single(hpke);
-
+    if (ret != 0)
+        return ret;
+    ret = hpke_test_multi(hpke);
     if (ret != 0)
         return ret;
     #endif
@@ -25364,12 +25465,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     /* test with curve25519 and aes256 */
     ret = wc_HpkeInit(hpke, DHKEM_X25519_HKDF_SHA256, HKDF_SHA256,
         HPKE_AES_256_GCM, NULL);
-
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-
     ret = hpke_test_single(hpke);
-
+    if (ret != 0)
+        return ret;
+    ret = hpke_test_multi(hpke);
     if (ret != 0)
         return ret;
 #endif
