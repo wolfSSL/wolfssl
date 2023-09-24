@@ -2920,6 +2920,7 @@ typedef struct WOLFSSL_EchConfig {
 
 typedef struct WOLFSSL_ECH {
     Hpke* hpke;
+    HpkeBaseContext* hpkeContext;
     const byte* aad;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
