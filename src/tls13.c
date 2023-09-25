@@ -170,11 +170,14 @@ static const byte dtls13ProtocolLabel[DTLS13_PROTOCOL_LABEL_SZ + 1] = "dtls13";
 #endif /* WOLFSSL_DTLS13 */
 
 #if defined(HAVE_ECH)
-#define ECH_ACCEPT_CONFIRMATION_SZ 8
 #define ECH_ACCEPT_CONFIRMATION_LABEL_SZ 23
+#define ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ 27
 static const byte
     echAcceptConfirmationLabel[ECH_ACCEPT_CONFIRMATION_LABEL_SZ + 1] =
     "ech accept confirmation";
+static const byte
+    echHrrAcceptConfirmationLabel[ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ + 1] =
+    "hrr ech accept confirmation";
 #endif
 
 #ifndef NO_CERTS
@@ -4719,8 +4722,8 @@ static int Dtls13DoDowngrade(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
 /* check if the server accepted ech or not */
-static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
-    int serverRandomOffset, int helloSz)
+static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
+    const byte* input, int acceptOffset, int helloSz)
 {
     int ret = 0;
     int digestType;
@@ -4742,15 +4745,15 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     ssl->hsHashes = acceptHashes;
     /* hash up to the last 8 bytes */
     if (ret == 0)
-        ret = HashRaw(ssl, input, serverRandomOffset + RAN_LEN -
-            ECH_ACCEPT_CONFIRMATION_SZ);
+        ret = HashRaw(ssl, input, acceptOffset);
     /* hash 8 zeros */
     if (ret == 0)
         ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
     /* hash the rest of the hello */
     if (ret == 0) {
-        ret = HashRaw(ssl, input + serverRandomOffset + RAN_LEN,
-            helloSz + HANDSHAKE_HEADER_SZ - (serverRandomOffset + RAN_LEN));
+        ret = HashRaw(ssl, input + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
+            helloSz + HANDSHAKE_HEADER_SZ -
+            (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
     }
     /* get the modified transcript hash */
     if (ret == 0)
@@ -4816,14 +4819,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     }
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
-        ret = XMEMCMP(acceptConfirmation,
-            ssl->arrays->serverRandom + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
+        ret = XMEMCMP(acceptConfirmation, input + acceptOffset,
             ECH_ACCEPT_CONFIRMATION_SZ);
         /* ech accepted */
         if (ret == 0) {
-            /* use the inner random for client random */
-            XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
-              RAN_LEN);
             /* switch back to original hsHashes to free */
             ssl->hsHashes = tmpHashes;
             /* set the final hsHashes to the ech hashes */
@@ -4850,10 +4849,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     return ret;
 }
 
-/* replace the last 8 bytes of the server random with the ech acceptance
- * parameter, return status */
-static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
-  int serverRandomOffset, int helloSz)
+/* replace the last acceptance field for either sever hello or hrr with the ech
+ * acceptance parameter, return status */
+static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
+    byte* output, int acceptOffset, int helloSz)
 {
     int ret = 0;
     int digestType;
@@ -4866,37 +4865,30 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     XMEMSET(zeros, 0, sizeof(zeros));
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
-
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &acceptHashes);
-
-    /* swap hsHashes to acceptHashes */
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = acceptHashes;
-
-    /* hash up to the last 8 bytes */
-    if (ret == 0)
-        ret = HashRaw(ssl, output, serverRandomOffset + RAN_LEN -
-            ECH_ACCEPT_CONFIRMATION_SZ);
-
+    if (ret == 0) {
+        /* swap hsHashes to acceptHashes */
+        tmpHashes = ssl->hsHashes;
+        ssl->hsHashes = acceptHashes;
+        /* hash up to the acceptOffset */
+        ret = HashRaw(ssl, output, acceptOffset);
+    }
     /* hash 8 zeros */
     if (ret == 0)
-        ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
-
+       ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
     /* hash the rest of the hello */
-    if (ret == 0)
-        ret = HashRaw(ssl, output + serverRandomOffset + RAN_LEN,
-            helloSz - (serverRandomOffset + RAN_LEN));
-
+    if (ret == 0) {
+        ret = HashRaw(ssl, output + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
+            helloSz - (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
+    }
     /* get the modified transcript hash */
     if (ret == 0)
         ret = GetMsgHash(ssl, transcriptEchConf);
-
     if (ret > 0)
         ret = 0;
-
     /* pick the right type and size based on mac_algorithm */
-    if (ret == 0)
+    if (ret == 0) {
         switch (ssl->specs.mac_algorithm) {
 #ifndef NO_SHA256
             case sha256_mac:
@@ -4926,7 +4918,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
                 ret = -1;
                 break;
         }
-
+    }
     /* extract clientRandom with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
@@ -4941,7 +4933,6 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     #endif
         PRIVATE_KEY_LOCK();
     }
-
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
@@ -4954,16 +4945,9 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
             transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
-
-    if (ret == 0)
-        XMEMCPY(ssl->arrays->serverRandom, output + serverRandomOffset,
-            RAN_LEN);
-
     /* free acceptHashes */
     FreeHandshakeHashes(ssl);
-
     ssl->hsHashes = tmpHashes;
-
     return ret;
 }
 #endif
@@ -4989,7 +4973,9 @@ typedef struct Dsh13Args {
     byte            sessIdSz;
     byte            extMsgType;
 #if defined(HAVE_ECH)
-    int             serverRandomOffset;
+    byte* acceptLabel;
+    word32 acceptOffset;
+    word16 acceptLabelSz;
 #endif
 } Dsh13Args;
 
@@ -5146,7 +5132,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Server random - keep for debugging. */
     XMEMCPY(ssl->arrays->serverRandom, input + args->idx, RAN_LEN);
 #if defined(HAVE_ECH)
-    args->serverRandomOffset = args->idx;
+    /* last 8 bytes of server random */
+    args->acceptOffset = args->idx + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ;
 #endif
     args->idx += RAN_LEN;
 
@@ -5432,11 +5419,30 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
 
 #if defined(HAVE_ECH)
+    TLSX* echX = NULL;
     /* check for acceptConfirmation and HashInput with 8 0 bytes */
     if (ssl->options.useEch == 1) {
-        ret = EchCheckAcceptance(ssl, input, args->serverRandomOffset, helloSz);
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        /* account for hrr */
+        if (args->extMsgType == hello_retry_request) {
+            args->acceptOffset = ((WOLFSSL_ECH*)echX->data)->confBuf - input;
+            args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
+            args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+        }
+        else {
+            args->acceptLabel = (byte*)echAcceptConfirmationLabel;
+            args->acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
+        }
+        /* check acceptance */
+        ret = EchCheckAcceptance(ssl, args->acceptLabel, args->acceptLabelSz,
+            input, args->acceptOffset, helloSz);
         if (ret != 0)
             return ret;
+        /* use the inner random for client random */
+        if (args->extMsgType != hello_retry_request) {
+            XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
+                RAN_LEN);
+        }
     }
 #endif
 
@@ -7236,7 +7242,9 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     int    sendSz;
 #if defined(HAVE_ECH)
     TLSX* echX = NULL;
-    word32 serverRandomOffset;
+    byte* acceptLabel = (byte*)echAcceptConfirmationLabel;
+    word32 acceptOffset;
+    word16 acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
 #endif
 
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
@@ -7295,7 +7303,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     }
 
 #if defined(HAVE_ECH)
-    serverRandomOffset = idx;
+    /* last 8 bytes of server random */
+    acceptOffset = idx + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ;
 #endif
 
     /* Store in SSL for debugging. */
@@ -7359,18 +7368,30 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 #if defined(HAVE_ECH)
             if (ssl->ctx->echConfigs != NULL) {
                 echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-
                 if (echX == NULL)
                     return -1;
-
+                /* use normal offset instead of hrr offset */
+                if (extMsgType == hello_retry_request) {
+                    acceptOffset = ((WOLFSSL_ECH*)echX->data)->confBuf - output;
+                    acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
+                    acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+                }
                 /* replace the last 8 bytes of server random with the accept */
                 if (((WOLFSSL_ECH*)echX->data)->state == ECH_PARSED_INTERNAL) {
-                    ret = EchWriteAcceptance(ssl, output + RECORD_HEADER_SZ,
-                        serverRandomOffset - RECORD_HEADER_SZ,
+                    ret = EchWriteAcceptance(ssl, acceptLabel, acceptLabelSz,
+                        output + RECORD_HEADER_SZ,
+                        acceptOffset - RECORD_HEADER_SZ,
                         sendSz - RECORD_HEADER_SZ);
-
-                    /* remove ech so we don't keep sending it in write */
-                    TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
+                    if (extMsgType != hello_retry_request) {
+                        if (ret == 0) {
+                            /* update serverRandom on success */
+                            XMEMCPY(ssl->arrays->serverRandom,
+                                output + acceptOffset -
+                                (RAN_LEN -ECH_ACCEPT_CONFIRMATION_SZ), RAN_LEN);
+                        }
+                        /* remove ech so we don't keep sending it in write */
+                        TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
+                    }
                 }
             }
 #endif

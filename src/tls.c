@@ -11451,8 +11451,9 @@ static int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
     return ret;
 }
 
-/* return length after writing the ech */
-static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
+/* return status after writing the ech and updating offset */
+static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
+    word16* offset)
 {
     int ret = 0;
     int rngRet = -1;
@@ -11467,6 +11468,13 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
     WC_RNG rng[1];
 #endif
     WOLFSSL_MSG("TLSX_ECH_Write");
+    if (msgType == hello_retry_request) {
+        /* reserve space to write the confirmation to */
+        *offset += ECH_ACCEPT_CONFIRMATION_SZ;
+        /* set confBuf */
+        ech->confBuf = writeBuf;
+        return 0;
+    }
     if (ech->state == ECH_WRITE_NONE || ech->state == ECH_PARSED_INTERNAL)
         return 0;
     if (ech->state == ECH_WRITE_RETRY_CONFIGS) {
@@ -11543,9 +11551,15 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
 #endif
         }
         else {
-            /* write enc to writeBuf_p */
-            ret = wc_HpkeSerializePublicKey(ech->hpke, ech->ephemeralKey,
-                writeBuf_p, &ech->encLen);
+            /* set to emptry string on hrr */
+            if (msgType == hello_retry_request) {
+                XMEMSET(writeBuf_p, 0, ech->encLen);
+            }
+            else {
+                /* write enc to writeBuf_p */
+                ret = wc_HpkeSerializePublicKey(ech->hpke, ech->ephemeralKey,
+                    writeBuf_p, &ech->encLen);
+            }
             writeBuf_p += ech->encLen;
             /* innerClientHelloLen */
             c16toa(ech->innerClientHelloLen, writeBuf_p);
@@ -11722,89 +11736,85 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     WOLFSSL_EchConfig* echConfig;
     byte* aadCopy;
     byte* readBuf_p = (byte*)readBuf;
-
     WOLFSSL_MSG("TLSX_ECH_Parse");
-
     if (size == 0)
         return BAD_FUNC_ARG;
-
+    /* retry configs */
     if (msgType == encrypted_extensions) {
         ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
 
         if (ret == WOLFSSL_SUCCESS)
             ret = 0;
     }
-    else if (msgType == client_hello && ssl->ctx->echConfigs != NULL) {
+    /* HRR with special confirmation */
+    else if (msgType == hello_retry_request && ssl->options.useEch) {
+        /* length must be 8 */
+        if (size != ECH_ACCEPT_CONFIRMATION_SZ)
+            return BAD_FUNC_ARG;
+        /* get extension */
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-
         if (echX == NULL)
             return BAD_FUNC_ARG;
-
         ech = (WOLFSSL_ECH*)echX->data;
-
+        ech->confBuf = (byte*)readBuf;
+    }
+    else if (msgType == client_hello && ssl->ctx->echConfigs != NULL) {
+        /* get extension */
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        if (echX == NULL)
+            return BAD_FUNC_ARG;
+        ech = (WOLFSSL_ECH*)echX->data;
         /* read the ech parameters before the payload */
         ech->type = *readBuf_p;
         readBuf_p++;
-
         if (ech->type == ECH_TYPE_INNER) {
             ech->state = ECH_PARSED_INTERNAL;
             return 0;
         }
-
         /* technically the payload would only be 1 byte at this length */
         if (size < 11 + ech->encLen)
             return BAD_FUNC_ARG;
-
+        /* read kdfId */
         ato16(readBuf_p, &ech->cipherSuite.kdfId);
         readBuf_p += 2;
-
+        /* read aeadId */
         ato16(readBuf_p, &ech->cipherSuite.aeadId);
         readBuf_p += 2;
-
+        /* read configId */
         ech->configId = *readBuf_p;
         readBuf_p++;
-
+        /* read encLen */
         ato16(readBuf_p, &ech->encLen);
         readBuf_p += 2;
-
         if (ech->encLen > HPKE_Npk_MAX)
             return BAD_FUNC_ARG;
-
+        /* read enc */
         XMEMCPY(ech->enc, readBuf_p, ech->encLen);
         readBuf_p += ech->encLen;
-
+        /* read hello inner len */
         ato16(readBuf_p, &ech->innerClientHelloLen);
         ech->innerClientHelloLen -= AES_BLOCK_SIZE;
         readBuf_p += 2;
-
         ech->outerClientPayload = readBuf_p;
-
         /* make a copy of the aad */
         aadCopy = (byte*)XMALLOC(ech->aadLen, ssl->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
-
         if (aadCopy == NULL)
             return MEMORY_E;
-
         XMEMCPY(aadCopy, ech->aad, ech->aadLen);
-
         /* set the ech payload of the copy to zeros */
         XMEMSET(aadCopy + (readBuf_p - ech->aad), 0,
             ech->innerClientHelloLen + AES_BLOCK_SIZE);
-
         /* allocate the inner payload buffer */
         ech->innerClientHello =
             (byte*)XMALLOC(ech->innerClientHelloLen + HANDSHAKE_HEADER_SZ,
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
         if (ech->innerClientHello == NULL) {
             XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
-
         /* first check if the config id matches */
         echConfig = ssl->ctx->echConfigs;
-
         while (echConfig != NULL) {
             /* decrypt with this config */
             if (echConfig->configId == ech->configId) {
@@ -11812,25 +11822,19 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
                     ssl->heap);
                 break;
             }
-
             echConfig = echConfig->next;
         }
-
         /* try to decrypt with all configs */
         if (echConfig == NULL || ret != 0) {
             echConfig = ssl->ctx->echConfigs;
-
             while (echConfig != NULL) {
                 ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
                     ssl->heap);
-
                 if (ret== 0)
                     break;
-
                 echConfig = echConfig->next;
             }
         }
-
         /* if we failed to extract, set state to retry configs */
         if (ret != 0) {
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11839,19 +11843,15 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         }
         else {
             i = 0;
-
             /* decrement until before the padding */
             while (ech->innerClientHello[ech->innerClientHelloLen +
                 HANDSHAKE_HEADER_SZ - i - 1] != ECH_TYPE_INNER) {
                 i++;
             }
-
             /* subtract the length of the padding from the length */
             ech->innerClientHelloLen -= i;
         }
-
         XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
         return 0;
     }
 
@@ -11868,6 +11868,8 @@ static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
             ech->hpke->heap);
     if (ech->hpke != NULL)
         XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ech->hpkeContext != NULL)
+        XFREE(ech->hpkeContext, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
@@ -12536,7 +12538,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
                 WOLFSSL_MSG("ECH extension to write");
-                ret = ECH_WRITE((WOLFSSL_ECH*)extension->data,
+                ret = ECH_WRITE((WOLFSSL_ECH*)extension->data, msgType,
                     output + offset, &offset);
                 break;
 #endif

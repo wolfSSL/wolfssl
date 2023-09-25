@@ -2886,6 +2886,7 @@ typedef struct RpkState {
 #endif /* HAVE_RPK */
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#define ECH_ACCEPT_CONFIRMATION_SZ 8
 
 typedef enum {
     ECH_TYPE_OUTER = 0,
@@ -2926,6 +2927,7 @@ typedef struct WOLFSSL_ECH {
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
     byte* outerClientPayload;
+    byte* confBuf;
     EchCipherSuite cipherSuite;
     word16 aadLen;
     word16 paddingLen;
