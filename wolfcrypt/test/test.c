@@ -674,6 +674,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void);
 #endif
 
+#if defined(WOLFSSL_AES_EAX)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
+#endif /* WOLFSSL_AES_EAX */
+
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
@@ -1435,6 +1439,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #endif
 
+#if defined(WOLFSSL_AES_EAX)
+    if ( (ret = aes_eax_test()) != 0)
+        TEST_FAIL("AES-EAX  test failed!\n", ret);
+    else
+        TEST_PASS("AES-EAX  test passed!\n");
+#endif /* WOLFSSL_AES_EAX */
+
 #ifdef HAVE_ARIA
     if ( (ret = ariagcm_test(MC_ALGID_ARIA_128BITKEY)) != 0)
         TEST_FAIL("ARIA128  test failed!\n", ret);
@@ -2052,9 +2063,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -122, -123, -124,             -128, -129, -159,
-                      -163, -164, -165, -166, -167, -168, -169, -233,
-                      0 };
+    int missing[] = { -123, -124, -128, -129, -159, -163, -164,
+                      -165, -166, -167, -168, -169, -233,   0 };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
@@ -12971,6 +12981,161 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesccm_test(void)
     return ret;
 }
 #endif /* HAVE_AESCCM */
+
+
+#if defined(WOLFSSL_AES_EAX)
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
+{
+    typedef struct {
+        byte key[AES_256_KEY_SIZE];
+        int key_length;
+        byte iv[AES_BLOCK_SIZE];
+        int iv_length;
+        byte aad[AES_BLOCK_SIZE * 2];
+        int aad_length;
+        byte msg[AES_BLOCK_SIZE * 2];
+        int msg_length;
+        byte ct[AES_BLOCK_SIZE * 2];
+        int ct_length;
+        byte tag[AES_BLOCK_SIZE];
+        int tag_length;
+        int valid;
+    } AadVector;
+
+    /*  A small selection of Google wycheproof vectors that use vectors
+     *  from the original paper: eprint.iacr.org/2003/069
+     *  https://github.com/google/wycheproof/blob/master/testvectors/aes_eax_test.json
+     */
+    WOLFSSL_SMALL_STACK_STATIC const AadVector vectors[] = {
+        /* Vector from paper - empty message with auth data */
+        {
+            /* key, key length  */
+            {0x23, 0x39, 0x52, 0xde, 0xe4, 0xd5, 0xed, 0x5f,
+             0x9b, 0x9c, 0x6d, 0x6f, 0xf8, 0x0f, 0xf4, 0x78}, 16,
+            /* iv, iv length  */
+            {0x62, 0xec, 0x67, 0xf9, 0xc3, 0xa4, 0xa4, 0x07,
+             0xfc, 0xb2, 0xa8, 0xc4, 0x90, 0x31, 0xa8, 0xb3}, 16,
+            /* aad, aad length */
+            {0x6b, 0xfb, 0x91, 0x4f, 0xd0, 0x7e, 0xae, 0x6b}, 8,
+            /* msg, msg length */
+            {0}, 0,
+            /* ct, ct length */
+            {0}, 0,
+            /* tag, tag length */
+            {0xe0, 0x37, 0x83, 0x0e, 0x83, 0x89, 0xf2,
+             0x7b, 0x02, 0x5a, 0x2d, 0x65, 0x27, 0xe7, 0x9d, 0x01}, 16,
+            /* valid */
+            1,
+        },
+        /*  Vector from paper - no auth data, valid auth tag */
+        {
+            /* key, key length */
+            {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}, 16,
+            /* iv , iv length */
+            {0x3c, 0x8c, 0xc2, 0x97, 0x0a, 0x00, 0x8f, 0x75,
+             0xcc, 0x5b, 0xea, 0xe2, 0x84, 0x72, 0x58, 0xc2}, 16,
+            /* aad, aad length */
+            {0}, 0,
+            /* msg, msg length */
+            {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+             0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 32,
+            /* ct, ct length */
+            {0x3c, 0x44, 0x1f, 0x32, 0xce, 0x07, 0x82, 0x23,
+             0x64, 0xd7, 0xa2, 0x99, 0x0e, 0x50, 0xbb, 0x13,
+             0xd7, 0xb0, 0x2a, 0x26, 0x96, 0x9e, 0x4a, 0x93,
+             0x7e, 0x5e, 0x90, 0x73, 0xb0, 0xd9, 0xc9, 0x68}, 32,
+            /* tag, tag length */
+            {0xdb, 0x90, 0xbd, 0xb3, 0xda, 0x3d, 0x00, 0xaf,
+             0xd0, 0xfc, 0x6a, 0x83, 0x55, 0x1d, 0xa9, 0x5e}, 16,
+            /* valid */
+            1,
+        },
+        /* Vector from paper - no auth data with invalid auth tag */
+        {
+            /* key, key length */
+            {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}, 16,
+            /* iv, iv length */
+            {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+             0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}, 16,
+            /* aad, aad length */
+            {0}, 0,
+            /* msg, msg length */
+            {0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+             0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f}, 16,
+            /* ct , ct length */
+            {0x29, 0xa0, 0x91, 0x4f, 0xec, 0x4b, 0xef, 0x54,
+             0xba, 0xbf, 0x66, 0x13, 0xa9, 0xf9, 0xcd, 0x70}, 16,
+            /* tag, tag length */
+            {0xe7, 0x0e, 0x7c, 0x50, 0x13, 0xa6, 0xdb, 0xf2,
+             0x52, 0x98, 0xb1, 0x92, 0x9b, 0xc3, 0x56, 0xa7}, 16,
+            /* valid */
+            0,
+        },
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC byte ciphertext[sizeof(vectors[0].ct)];
+    WOLFSSL_SMALL_STACK_STATIC byte authtag[sizeof(vectors[0].tag)];
+    wc_test_ret_t ret;
+    int i;
+    int len;
+
+    for (i = 0; i < (int)(sizeof(vectors)/sizeof(vectors[0])); i++) {
+
+        XMEMSET(ciphertext, 0, sizeof(ciphertext));
+
+        len = sizeof(authtag);
+        ret = wc_AesEaxEncryptAuth(vectors[i].key, vectors[i].key_length,
+                                   ciphertext,
+                                   vectors[i].msg, vectors[i].msg_length,
+                                   vectors[i].iv, vectors[i].iv_length,
+                                   authtag, len,
+                                   vectors[i].aad, vectors[i].aad_length);
+        if (ret != 0) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        /* check ciphertext matches vector */
+        if (XMEMCMP(ciphertext, vectors[i].ct, vectors[i].ct_length)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        /* check that tag matches vector only for vectors marked as valid */
+        ret = XMEMCMP(authtag, vectors[i].tag, len);
+        if (vectors[i].valid == 1 && ret != 0 ) {
+            return WC_TEST_RET_ENC_NC;
+        }
+        else if (vectors[i].valid == 0 && ret == 0) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        XMEMSET(ciphertext, 0, sizeof(ciphertext));
+
+        ret = wc_AesEaxDecryptAuth(vectors[i].key, vectors[i].key_length,
+                                   ciphertext,
+                                   vectors[i].ct, vectors[i].ct_length,
+                                   vectors[i].iv, vectors[i].iv_length,
+                                   authtag, len,
+                                   vectors[i].aad, vectors[i].aad_length);
+        if (ret != 0) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        /* check decrypted ciphertext matches vector plaintext */
+        if (XMEMCMP(ciphertext, vectors[i].msg, vectors[i].msg_length)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+    }
+    return 0;
+}
+
+#endif  /* WOLFSSL_AES_EAX */
+
 
 
 #ifdef HAVE_AES_KEYWRAP

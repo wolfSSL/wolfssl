@@ -64,6 +64,8 @@ enum {
     MP_CMP_E           = -120,  /* mp_cmp error state */
     MP_ZERO_E          = -121,  /* got a mp zero result, not expected */
 
+    AES_EAX_AUTH_E     = -122, /* AES-EAX Authentication check failure */
+
     MEMORY_E           = -125,  /* out of memory error */
     VAR_STATE_CHANGE_E = -126,  /* var state modified by different thread */
     FIPS_DEGRADED_E    = -127,  /* FIPS Module in degraded mode */

@@ -76,9 +76,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
-#ifdef WOLFSSL_AES_SIV
+#if defined(WOLFSSL_AES_SIV) || defined(WOLFSSL_AES_EAX)
     #include <wolfssl/wolfcrypt/cmac.h>
-#endif
+#endif /* WOLFSSL_AES_SIV || WOLFSSL_AES_EAX */
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
@@ -11681,5 +11681,504 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
 }
 
 #endif /* WOLFSSL_AES_SIV */
+
+#if defined(WOLFSSL_AES_EAX)
+
+struct AesEax {
+    Aes  aes;
+    Cmac nonceCmac;
+    Cmac aadCmac;
+    Cmac ciphertextCmac;
+    byte nonceCmacFinal[AES_BLOCK_SIZE];
+    byte aadCmacFinal[AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[AES_BLOCK_SIZE];
+    byte prefixBuf[AES_BLOCK_SIZE];
+};
+
+/*
+ * AES EAX one-shot API
+ * Encrypts input data and computes an auth tag over the input
+ * auth data and ciphertext
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
+                          const byte* in, word32 inSz,
+                          const byte* nonce, word32 nonceSz,
+                          /* output computed auth tag */
+                          byte* authTag, word32 authTagSz,
+                          /* input data to authenticate */
+                          const byte* authIn, word32 authInSz)
+{
+#if defined(WOLFSSL_SMALL_STACK)
+    AesEax *eax;
+#else
+    AesEax eax_mem;
+    AesEax *eax = &eax_mem;
+#endif
+    int ret;
+
+    if (key == NULL || out == NULL || in == NULL || nonce == NULL
+                              || authTag == NULL || authIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
+    if ((eax = (AesEax *)XMALLOC(sizeof(AesEax),
+                                 NULL,
+                                 DYNAMIC_TYPE_AES_EAX)) == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    if ((ret = wc_AesEaxInit(eax,
+                             key, keySz,
+                             nonce, nonceSz,
+                             authIn, authInSz)) != 0) {
+        goto cleanup;
+    }
+
+    if ((ret = wc_AesEaxEncryptUpdate(eax, out, in, inSz, NULL, 0)) != 0) {
+        goto cleanup;
+    }
+
+    if ((ret = wc_AesEaxEncryptFinal(eax, authTag, authTagSz)) != 0) {
+        goto cleanup;
+    }
+
+cleanup:
+    wc_AesEaxFree(eax);
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(eax, NULL, DYNAMIC_TYPE_AES_EAX);
+#endif
+    return ret;
+}
+
+
+/*
+ * AES EAX one-shot API
+ * Decrypts and authenticates data against a supplied auth tag
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
+                          const byte* in, word32 inSz,
+                          const byte* nonce, word32 nonceSz,
+                          /* auth tag to verify against */
+                          const byte* authTag, word32 authTagSz,
+                          /* input data to authenticate */
+                          const byte* authIn, word32 authInSz)
+{
+#if defined(WOLFSSL_SMALL_STACK)
+    AesEax *eax;
+#else
+    AesEax eax_mem;
+    AesEax *eax = &eax_mem;
+#endif
+    int ret;
+
+    if (key == NULL || out == NULL || in == NULL || nonce == NULL
+                              || authTag == NULL || authIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
+    if ((eax = (AesEax *)XMALLOC(sizeof(AesEax),
+                                 NULL,
+                                 DYNAMIC_TYPE_AES_EAX)) == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    if ((ret = wc_AesEaxInit(eax,
+                             key, keySz,
+                             nonce, nonceSz,
+                             authIn, authInSz)) != 0) {
+
+        goto cleanup;
+    }
+
+    if ((ret = wc_AesEaxDecryptUpdate(eax, out, in, inSz, NULL, 0)) != 0) {
+        goto cleanup;
+    }
+
+    if ((ret = wc_AesEaxDecryptFinal(eax, authTag, authTagSz)) != 0) {
+        goto cleanup;
+    }
+
+cleanup:
+    wc_AesEaxFree(eax);
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(eax, NULL, DYNAMIC_TYPE_AES_EAX);
+#endif
+    return ret;
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Initializes an AES EAX encryption or decryption operation. This must be
+ * called before any other EAX APIs are used on the AesEax struct
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int  wc_AesEaxInit(AesEax* eax,
+                   const byte* key, word32 keySz,
+                   const byte* nonce, word32 nonceSz,
+                   const byte* authIn, word32 authInSz)
+{
+    int ret = 0;
+    word32 cmacSize;
+
+    if (eax == NULL || key == NULL ||  nonce == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(eax->prefixBuf, 0, sizeof(eax->prefixBuf));
+
+    if ((ret = wc_AesInit(&eax->aes, NULL, INVALID_DEVID)) != 0) {
+        return ret;
+    }
+    if ((ret = wc_AesSetKey(&eax->aes,
+                            key,
+                            keySz,
+                            NULL,
+                            AES_ENCRYPTION)) != 0) {
+        return ret;
+    }
+
+    /*
+    * OMAC the nonce to use as the IV for CTR encryption and auth tag chunk
+    *   N' = OMAC^0_K(N)
+    */
+    if ((ret = wc_InitCmac(&eax->nonceCmac,
+                           key,
+                           keySz,
+                           WC_CMAC_AES,
+                           NULL)) != 0) {
+        return ret;
+    }
+
+    if ((ret = wc_CmacUpdate(&eax->nonceCmac,
+                             eax->prefixBuf,
+                             sizeof(eax->prefixBuf))) != 0) {
+        return ret;
+    }
+
+    if ((ret = wc_CmacUpdate(&eax->nonceCmac, nonce, nonceSz)) != 0) {
+        return ret;
+    }
+
+    cmacSize = AES_BLOCK_SIZE;
+    if ((ret = wc_CmacFinal(&eax->nonceCmac,
+                            eax->nonceCmacFinal,
+                            &cmacSize)) != 0) {
+        return ret;
+    }
+
+    if ((ret = wc_AesSetIV(&eax->aes, eax->nonceCmacFinal)) != 0) {
+        return ret;
+    }
+
+    /*
+     * start the OMAC used to build the auth tag chunk for the AD .
+     * This CMAC is continued in subsequent update calls when more auth data is
+     * provided
+     *   H' = OMAC^1_K(H)
+     */
+    eax->prefixBuf[AES_BLOCK_SIZE-1] = 1;
+    if ((ret = wc_InitCmac(&eax->aadCmac,
+                           key,
+                           keySz,
+                           WC_CMAC_AES,
+                           NULL)) != 0) {
+        return ret;
+    }
+
+    if ((ret = wc_CmacUpdate(&eax->aadCmac,
+                             eax->prefixBuf,
+                             sizeof(eax->prefixBuf))) != 0) {
+        return ret;
+    }
+
+    if (authIn != NULL) {
+        if ((ret = wc_CmacUpdate(&eax->aadCmac, authIn, authInSz)) != 0) {
+            return ret;
+        }
+    }
+
+    /*
+     * start the OMAC to create auth tag chunk for ciphertext. This MAC will be
+     * updated in subsequent calls to encrypt/decrypt
+     *  C' = OMAC^2_K(C)
+     */
+    eax->prefixBuf[AES_BLOCK_SIZE-1] = 2;
+    if ((ret = wc_InitCmac(&eax->ciphertextCmac,
+                           key,
+                           keySz,
+                           WC_CMAC_AES,
+                           NULL)) != 0) {
+        return ret;
+    }
+
+    if ((ret = wc_CmacUpdate(&eax->ciphertextCmac,
+                             eax->prefixBuf,
+                             sizeof(eax->prefixBuf))) != 0) {
+        return ret;
+    }
+
+    return ret;
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Encrypts input plaintext using AES EAX mode, adding optional auth data to
+ * the authentication stream
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int  wc_AesEaxEncryptUpdate(AesEax* eax, byte* out,
+                            const byte* in, word32 inSz,
+                            const byte* authIn, word32 authInSz)
+{
+    int ret;
+
+    if (eax == NULL || out == NULL ||  in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /*
+     * Encrypt the plaintext using AES CTR
+     *  C = CTR(M)
+     */
+    if ((ret = wc_AesCtrEncrypt(&eax->aes, out, in, inSz)) != 0) {
+        return ret;
+    }
+
+    /*
+     * update OMAC with new ciphertext
+     *  C' = OMAC^2_K(C)
+     */
+    if ((ret = wc_CmacUpdate(&eax->ciphertextCmac, out, inSz)) != 0) {
+        return ret;
+    }
+
+    /* If there exists new auth data, update the OMAC for that as well */
+    if (authIn != NULL) {
+        if ((ret = wc_CmacUpdate(&eax->aadCmac, authIn, authInSz)) != 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Decrypts input ciphertext using AES EAX mode, adding optional auth data to
+ * the authentication stream
+ *
+ * Returns 0 on sucess
+ * Returns error code on failure
+ */
+int  wc_AesEaxDecryptUpdate(AesEax* eax, byte* out,
+                            const byte* in, word32 inSz,
+                            const byte* authIn, word32 authInSz)
+{
+    int ret;
+
+    if (eax == NULL || out == NULL ||  in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /*
+     * Decrypt the plaintext using AES CTR
+     *  C = CTR(M)
+     */
+    if ((ret = wc_AesCtrEncrypt(&eax->aes, out, in, inSz)) != 0) {
+        return ret;
+    }
+
+    /*
+     * update OMAC with new ciphertext
+     *  C' = OMAC^2_K(C)
+     */
+    if ((ret = wc_CmacUpdate(&eax->ciphertextCmac, in, inSz)) != 0) {
+        return ret;
+    }
+
+    /* If there exists new auth data, update the OMAC for that as well */
+    if (authIn != NULL) {
+        if ((ret = wc_CmacUpdate(&eax->aadCmac, authIn, authInSz)) != 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Provides additional auth data information to the authentication
+ * stream for an authenticated encryption or decryption operation
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int  wc_AesEaxAuthDataUpdate(AesEax* eax, const byte* authIn, word32 authInSz)
+{
+    return wc_CmacUpdate(&eax->aadCmac, authIn, authInSz);
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Finalizes the authenticated encryption operation, computing the auth tag
+ * over previously supplied auth data and computed ciphertext
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int wc_AesEaxEncryptFinal(AesEax* eax, byte* authTag, word32 authTagSz)
+{
+    word32 cmacSize;
+    int ret;
+    word32 i;
+
+    if (eax == NULL || authTag == NULL || authTagSz > AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Complete the OMAC for the ciphertext */
+    cmacSize = AES_BLOCK_SIZE;
+    if ((ret = wc_CmacFinal(&eax->ciphertextCmac,
+                            eax->ciphertextCmacFinal,
+                            &cmacSize)) != 0) {
+        return ret;
+    }
+
+    /* Complete the OMAC for auth data */
+    cmacSize = AES_BLOCK_SIZE;
+    if ((ret = wc_CmacFinal(&eax->aadCmac,
+                            eax->aadCmacFinal,
+                            &cmacSize)) != 0) {
+        return ret;
+    }
+
+    /*
+     * Concatenate all three auth tag chunks into the final tag, truncating
+     * at the specified tag length
+     *   T = Tag [first authTagSz bytes]
+     */
+    for (i = 0; i < authTagSz; i++) {
+        authTag[i] = eax->nonceCmacFinal[i]
+                    ^ eax->aadCmacFinal[i]
+                    ^ eax->ciphertextCmacFinal[i];
+    }
+
+    return 0;
+}
+
+
+/*
+ * AES EAX Incremental API:
+ * Finalizes the authenticated decryption operation, computing the auth tag
+ * for the previously supplied auth data and cipher text and validating it
+ * against a provided auth tag
+ *
+ * Returns 0 on success
+ * Return error code for failure
+ */
+int wc_AesEaxDecryptFinal(AesEax* eax,
+                          const byte* authIn, word32 authInSz)
+{
+    int ret;
+    word32 i;
+    word32 cmacSize;
+
+#if defined(WOLFSSL_SMALL_STACK)
+    byte *authTag;
+#else
+    byte authTag[AES_BLOCK_SIZE];
+#endif
+
+    if (eax == NULL || authIn == NULL || authInSz > AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Complete the OMAC for the ciphertext */
+    cmacSize = AES_BLOCK_SIZE;
+    if ((ret = wc_CmacFinal(&eax->ciphertextCmac,
+                            eax->ciphertextCmacFinal,
+                            &cmacSize)) != 0) {
+        return ret;
+    }
+
+    /* Complete the OMAC for auth data */
+    cmacSize = AES_BLOCK_SIZE;
+    if ((ret = wc_CmacFinal(&eax->aadCmac,
+                            eax->aadCmacFinal,
+                            &cmacSize)) != 0) {
+        return ret;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
+    authTag = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (authTag == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    /*
+     * Concatenate all three auth tag chunks into the final tag, truncating
+     * at the specified tag length
+     *   T = Tag [first authInSz bytes]
+     */
+    for (i = 0; i < authInSz; i++) {
+        authTag[i] = eax->nonceCmacFinal[i]
+                    ^ eax->aadCmacFinal[i]
+                    ^ eax->ciphertextCmacFinal[i];
+    }
+
+    if (ConstantCompare((const byte*)authTag, authIn, authInSz) != 0) {
+        ret = AES_EAX_AUTH_E;
+    }
+    else {
+        ret = 0;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(authTag, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+/*
+ * Frees the underlying AES context. Must be called when done using the AES EAX
+ * context structure
+ *
+ * Returns 0 on success
+ * Returns error code on failure
+ */
+int wc_AesEaxFree(AesEax* eax)
+{
+    if (eax == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    wc_AesFree(&eax->aes);
+
+    return 0;
+}
+
+#endif /* WOLFSSL_AES_EAX */
 
 #endif /* !NO_AES */
