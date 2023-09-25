@@ -4975,6 +4975,7 @@ typedef struct Dsh13Args {
     byte            sessIdSz;
     byte            extMsgType;
 #if defined(HAVE_ECH)
+    TLSX* echX;
     byte* acceptLabel;
     word32 acceptOffset;
     word16 acceptLabelSz;
@@ -5421,14 +5422,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
 
 #if defined(HAVE_ECH)
-    TLSX* echX = NULL;
     /* check for acceptConfirmation and HashInput with 8 0 bytes */
     if (ssl->options.useEch == 1) {
-        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        args->echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         /* account for hrr */
         if (args->extMsgType == hello_retry_request) {
             args->acceptOffset =
-                (word32)(((WOLFSSL_ECH*)echX->data)->confBuf - input);
+                (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
             args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
             args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
         }
