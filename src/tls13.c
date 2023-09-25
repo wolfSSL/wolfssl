@@ -4946,8 +4946,10 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
         PRIVATE_KEY_LOCK();
     }
     /* free acceptHashes */
-    FreeHandshakeHashes(ssl);
-    ssl->hsHashes = tmpHashes;
+    if (ret == 0) {
+        FreeHandshakeHashes(ssl);
+        ssl->hsHashes = tmpHashes;
+    }
     return ret;
 }
 #endif
