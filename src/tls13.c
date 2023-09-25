@@ -5427,7 +5427,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         /* account for hrr */
         if (args->extMsgType == hello_retry_request) {
-            args->acceptOffset = ((WOLFSSL_ECH*)echX->data)->confBuf - input;
+            args->acceptOffset =
+                (word32)(((WOLFSSL_ECH*)echX->data)->confBuf - input);
             args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
             args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
         }
@@ -7374,7 +7375,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                     return -1;
                 /* use normal offset instead of hrr offset */
                 if (extMsgType == hello_retry_request) {
-                    acceptOffset = ((WOLFSSL_ECH*)echX->data)->confBuf - output;
+                    acceptOffset =
+                        (word32)(((WOLFSSL_ECH*)echX->data)->confBuf - output);
                     acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
                     acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
                 }
