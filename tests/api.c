@@ -23770,8 +23770,8 @@ static int test_wc_ecc_sm2_sign_hash_ex(void)
         mp_int smallR[1];
         sp_init_size(smallR, 1);
         /* Force failure in _ecc_sm2_calc_r_s by r being too small. */
-        ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key,
-            smallR, s), MP_VAL);
+        ExpectIntLT(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key,
+            smallR, s), 0);
     }
 #endif
 

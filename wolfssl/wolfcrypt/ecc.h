@@ -107,7 +107,7 @@
     #define MAX_ECC_BITS_NEEDED    384
 #elif defined(HAVE_ECC320)
     #define MAX_ECC_BITS_NEEDED    320
-#elif !defined(NO_ECC256)
+#elif !defined(NO_ECC256) || defined(WOLFSSL_SM2)
     #define MAX_ECC_BITS_NEEDED    256
 #elif defined(HAVE_ECC239)
     #define MAX_ECC_BITS_NEEDED    239
