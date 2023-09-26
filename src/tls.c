@@ -11359,9 +11359,14 @@ static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
 {
     int ret = 0;
     int suiteIndex;
+    TLSX* echX;
     WOLFSSL_ECH* ech;
     if (extensions == NULL)
         return BAD_FUNC_ARG;
+    /* skip if we already have an ech extension, we will for hrr */
+    echX = TLSX_Find(*extensions, TLSX_ECH);
+    if (echX != NULL)
+        return 0;
     /* find a supported cipher suite */
     suiteIndex = EchConfigGetSupportedCipherSuite(echConfig);
     if (suiteIndex < 0)
