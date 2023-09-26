@@ -516,7 +516,7 @@ run_renewcerts(){
     echo "Updating server-ecc.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\\nWashington\\nSeattle\\nEliptic\\nECC\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
+    echo -e "US\\nWashington\\nSeattle\\nElliptic\\nECC\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions server_ecc -CA ca-ecc-cert.pem -CAkey ca-ecc-key.pem -set_serial 03 -out server-ecc.pem
