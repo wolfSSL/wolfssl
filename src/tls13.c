@@ -7256,7 +7256,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
 #ifdef HAVE_ECH
     /* copy the hsHashes to hsHashesEch since they will get blown away by hrr */
-    if (ssl->hsHashesEch == NULL)
+    if (ssl->ctx->echConfigs != NULL && ssl->hsHashesEch == NULL)
         InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &ssl->hsHashesEch);
 #endif
 
