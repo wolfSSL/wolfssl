@@ -11551,8 +11551,8 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
 #endif
         }
         else {
-            /* set to emptry string on hrr */
-            if (msgType == hello_retry_request) {
+            /* write empty string for enc if this isn't our first ech */
+            if (ech->hpkeContext != NULL) {
                 XMEMSET(writeBuf_p, 0, ech->encLen);
             }
             else {
@@ -11577,7 +11577,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
 }
 
 /* return the size needed for the ech extension */
-static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech)
+static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
 {
     int ret;
     word32 size;
@@ -11588,6 +11588,9 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech)
             sizeof(word16);
 
         size += GREASE_ECH_SIZE + (size % 32);
+    }
+    else if (msgType == hello_retry_request) {
+        size = ECH_ACCEPT_CONFIRMATION_SZ;
     }
     else if (ech->state == ECH_WRITE_NONE ||
         ech->state == ECH_PARSED_INTERNAL) {
@@ -12308,7 +12311,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
-                length += ECH_GET_SIZE((WOLFSSL_ECH*)extension->data);
+                length += ECH_GET_SIZE((WOLFSSL_ECH*)extension->data, msgType);
                 break;
 #endif
             default:
@@ -13767,6 +13770,10 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #ifdef WOLFSSL_SEND_HRR_COOKIE
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
         #endif
+#ifdef HAVE_ECH
+            /* send the special confirmation */
+            TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_ECH));
+#endif
             break;
     #endif
 
@@ -13908,6 +13915,10 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
                 }
         #endif
+#ifdef HAVE_ECH
+                /* send the special confirmation */
+                TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_ECH));
+#endif
                 /* Cookie is written below as last extension. */
                 break;
     #endif

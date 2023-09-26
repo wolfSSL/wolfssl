@@ -4740,12 +4740,13 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     XMEMSET(acceptConfirmation, 0, sizeof(acceptConfirmation));
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
-    /* swap hsHashes to acceptHashes */
-    tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = acceptHashes;
-    /* hash up to the last 8 bytes */
-    if (ret == 0)
+    if (ret == 0) {
+        /* swap hsHashes to acceptHashes */
+        tmpHashes = ssl->hsHashes;
+        ssl->hsHashes = acceptHashes;
+        /* hash up to the last 8 bytes */
         ret = HashRaw(ssl, input, acceptOffset);
+    }
     /* hash 8 zeros */
     if (ret == 0)
         ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
@@ -4866,7 +4867,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
     /* copy ech hashes to accept */
-    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &acceptHashes);
+    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
     if (ret == 0) {
         /* swap hsHashes to acceptHashes */
         tmpHashes = ssl->hsHashes;
@@ -7252,6 +7253,12 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ServerHello");
+
+#ifdef HAVE_ECH
+    /* copy the hsHashes to hsHashesEch since they will get blown away by hrr */
+    if (ssl->hsHashesEch == NULL)
+        InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &ssl->hsHashesEch);
+#endif
 
     /* When ssl->options.dtlsStateful is not set then cookie is calculated in
      * dtls.c */
