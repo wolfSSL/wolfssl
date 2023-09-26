@@ -4540,6 +4540,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
 
+        /* innerClientHello may already exist from hrr, free if it does */
+        if (args->ech->innerClientHello != NULL) {
+            XFREE(args->ech->innerClientHello, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        }
         /* allocate the inner */
         args->ech->innerClientHello =
             (byte*)XMALLOC(args->ech->innerClientHelloLen - args->ech->hpke->Nt,
