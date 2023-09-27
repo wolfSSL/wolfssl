@@ -652,7 +652,7 @@ int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
 /* set the ech config from a raw buffer, this is the format ech configs are
  * sent using retry_configs from the ech server */
 int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
-  word32 echConfigsLen)
+    word32 echConfigsLen)
 {
     int ret = 0;
     int i;
@@ -779,16 +779,17 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
                 &workingConfig->cipherSuites[j].aeadId);
         }
         echConfig += cipherSuitesLen;
+        /* ignore the maximum name length */
+        echConfig++;
         /* publicNameLen */
-        ato16(echConfig, &publicNameLen);
+        publicNameLen = *(echConfig);
         workingConfig->publicName = (char*)XMALLOC(publicNameLen + 1,
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (workingConfig->publicName == NULL) {
             ret = MEMORY_E;
             break;
         }
-
-        echConfig += 2;
+        echConfig++;
         /* publicName */
         XMEMCPY(workingConfig->publicName, echConfig, publicNameLen);
         /* null terminated */
@@ -965,9 +966,13 @@ int GetEchConfig(WOLFSSL_EchConfig* config, byte* output, word32* outputLen)
         output += 2;
     }
 
+    /* set maximum name length to 0 */
+    *output = 0;
+    output++;
+
     /* publicName len */
-    c16toa(XSTRLEN(config->publicName), output);
-    output += 2;
+    *output = XSTRLEN(config->publicName);
+    output++;
 
     /* publicName */
     XMEMCPY(output, config->publicName,
