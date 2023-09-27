@@ -14725,8 +14725,18 @@ static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     done = 1;
   }
 
+
   /* NOW: TonelliShanks algorithm */
   if (res == MP_OKAY && done == 0) {
+
+    /* Ensure n and prime are relatively prime. */
+    if ((res = mp_gcd(n, prime, t1)) != MP_OKAY) {
+      goto out;
+    }
+    if (!mp_isone(t1)) {
+      res = MP_VAL;
+      goto out;
+    }
 
     /* factor out powers of 2 from prime-1, defining Q and S
     *                                      as: prime-1 = Q*2^S */

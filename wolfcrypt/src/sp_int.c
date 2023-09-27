@@ -19016,7 +19016,7 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_PRIME_GEN */
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_COMP_KEY) || (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *

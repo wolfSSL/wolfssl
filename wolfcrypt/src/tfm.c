@@ -5621,17 +5621,94 @@ int mp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m)
     return fp_cond_swap_ct(a, b, c, m);
 }
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
 static int  fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-static int  fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
     return fp_gcd(a, b, c);
 }
 
+
+/* c = (a, b) */
+int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
+{
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int u[1], v[1], r[1];
+#else
+   fp_int *u, *v, *r;
+#endif
+
+   /* GCD of 0 and 0 is undefined as all integers divide 0. */
+   if (fp_iszero(a) == FP_YES && fp_iszero(b) == FP_YES) {
+       return FP_VAL;
+   }
+
+   /* either zero than gcd is the largest */
+   if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
+     fp_abs (b, c);
+     return FP_OKAY;
+   }
+   if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
+     fp_abs (a, c);
+     return FP_OKAY;
+   }
+
+   /* optimized.  At this point if a == 0 then
+    * b must equal zero too
+    */
+   if (fp_iszero (a) == FP_YES) {
+     fp_zero(c);
+     return FP_OKAY;
+   }
+
+#ifdef WOLFSSL_SMALL_STACK
+   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
+   if (u == NULL) {
+       return FP_MEM;
+   }
+   v = &u[1]; r = &u[2];
+#endif
+
+   /* sort inputs */
+   if (fp_cmp_mag(a, b) != FP_LT) {
+      fp_init_copy(u, a);
+      fp_init_copy(v, b);
+   } else {
+      fp_init_copy(u, b);
+      fp_init_copy(v, a);
+   }
+
+   u->sign = FP_ZPOS;
+   v->sign = FP_ZPOS;
+
+   fp_init(r);
+   while (fp_iszero(v) == FP_NO) {
+      int err = fp_mod(u, v, r);
+      if (err != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+          XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+        return err;
+      }
+      fp_copy(v, u);
+      fp_copy(r, v);
+   }
+   fp_copy(u, c);
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+   return FP_OKAY;
+}
+
+#endif /* WOLFSSL_KEY_GEN || HAVE_COMP_KEY */
+
+#ifdef WOLFSSL_KEY_GEN
+
+static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap);
 
 int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 {
@@ -5772,80 +5849,6 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return err;
-}
-
-
-
-/* c = (a, b) */
-int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
-{
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int u[1], v[1], r[1];
-#else
-   fp_int *u, *v, *r;
-#endif
-
-   /* GCD of 0 and 0 is undefined as all integers divide 0. */
-   if (fp_iszero(a) == FP_YES && fp_iszero(b) == FP_YES) {
-       return FP_VAL;
-   }
-
-   /* either zero than gcd is the largest */
-   if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
-     fp_abs (b, c);
-     return FP_OKAY;
-   }
-   if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
-     fp_abs (a, c);
-     return FP_OKAY;
-   }
-
-   /* optimized.  At this point if a == 0 then
-    * b must equal zero too
-    */
-   if (fp_iszero (a) == FP_YES) {
-     fp_zero(c);
-     return FP_OKAY;
-   }
-
-#ifdef WOLFSSL_SMALL_STACK
-   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
-   if (u == NULL) {
-       return FP_MEM;
-   }
-   v = &u[1]; r = &u[2];
-#endif
-
-   /* sort inputs */
-   if (fp_cmp_mag(a, b) != FP_LT) {
-      fp_init_copy(u, a);
-      fp_init_copy(v, b);
-   } else {
-      fp_init_copy(u, b);
-      fp_init_copy(v, a);
-   }
-
-   u->sign = FP_ZPOS;
-   v->sign = FP_ZPOS;
-
-   fp_init(r);
-   while (fp_iszero(v) == FP_NO) {
-      int err = fp_mod(u, v, r);
-      if (err != MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-          XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
-        return err;
-      }
-      fp_copy(v, u);
-      fp_copy(r, v);
-   }
-   fp_copy(u, c);
-
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
-   return FP_OKAY;
 }
 
 #endif /* WOLFSSL_KEY_GEN */
