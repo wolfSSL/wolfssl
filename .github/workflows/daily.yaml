@@ -1,4 +1,4 @@
-name: CodeSonar
+name: Merge from master
 on:
   push:
     branches:
