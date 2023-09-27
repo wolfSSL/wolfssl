@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - 'upstream/master'
+      - 'release/daily'
 
 
 jobs:
