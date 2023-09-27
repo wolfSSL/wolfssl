@@ -1,0 +1,19 @@
+name: CodeSonar
+on:
+  push:
+    branches:
+      - 'upstream/master'
+
+
+jobs:
+  CodeSonar_Analyze:
+    permissions: write-all
+    runs-on: self-hosted
+    container:
+      image: canuckmh/wolfssl-cso-builder:7.4p0
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+steps:
+    - name: Checkout
+    uses: actions/checkout@v3
