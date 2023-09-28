@@ -24,12 +24,9 @@ else
 fi
 
 echo "Building wolfssl/wolfCLU:${CUR_DATE}"
-docker build --pull --build-arg DUMMY=${CUR_DATE} -t wolfssl/wolfclu:${CUR_DATE} "${WOLFSSL_DIR}/Docker/wolfCLU" && \
-    docker tag wolfssl/wolfclu:${CUR_DATE} wolfssl/wolfclu:latest
-if [ $? -eq 0 ]; then
-    echo "Pushing containers to DockerHub"
-    docker push wolfssl/wolfclu:${CUR_DATE} && docker push wolfssl/wolfclu:latest
-else
+docker buildx build --pull --push --build-arg DUMMY=${CUR_DATE} -t wolfssl/wolfclu:${CUR_DATE} --platform=linux/amd64,linux/arm64,linux/arm/v7 "${WOLFSSL_DIR}/Docker/wolfCLU" && \
+docker buildx build --pull --push --build-arg DUMMY=${CUR_DATE} -t wolfssl/wolfclu:latest      --platform=linux/amd64,linux/arm64,linux/arm/v7 "${WOLFSSL_DIR}/Docker/wolfCLU"
+if [ $? -ne 0 ]; then
     echo "Warning: Build wolfssl/wolfclu failed. Continuing"
     ((NUM_FAILURES++))
 fi
