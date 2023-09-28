@@ -1,4 +1,4 @@
-name: CodeSonar
+name: Daily Merge and CodeSonar run
 on:
   schedule:
     - cron: '0 0 * * *'
