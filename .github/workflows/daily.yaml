@@ -36,6 +36,8 @@ jobs:
           echo "PARALLEL=`nproc`" >> $GITHUB_ENV
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+            ref: release/daily
       - name: Merge from upstream
         run: |
            git fetch upstream
