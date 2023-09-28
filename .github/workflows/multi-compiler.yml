@@ -22,6 +22,12 @@ jobs:
           - CC: gcc-12
             CXX: g++-12
             OS: ubuntu-latest
+          - CC: clang-10
+            CXX: clang++-10
+            OS: ubuntu-20.04
+          - CC: clang-11
+            CXX: clang++-11
+            OS: ubuntu-20.04
           - CC: clang-12
             CXX: clang++-12
             OS: ubuntu-20.04
