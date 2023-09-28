@@ -34,3 +34,7 @@ jobs:
             CC: ${{ matrix.CC }}
             CXX: ${{ matrix.CXX }}
         run: ./autogen.sh && ./configure && make && make dist
+      - name: Show log on errors
+        if: ${{ failure() }}
+        run: |
+            cat config.log
