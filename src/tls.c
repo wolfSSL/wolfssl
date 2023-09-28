@@ -4183,7 +4183,7 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 
 #endif /* !NO_WOLFSSL_SERVER */
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 
 static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
 {
@@ -4213,7 +4213,7 @@ static word16 TLSX_PointFormat_GetSize(PointFormat* list)
     return length;
 }
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 
 static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
 {
@@ -5108,7 +5108,10 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 #define EC_FREE_ALL         TLSX_SupportedCurve_FreeAll
 #define EC_VALIDATE_REQUEST TLSX_SupportedCurve_ValidateRequest
 
-#ifndef NO_WOLFSSL_CLIENT
+/* In TLS 1.2 the server never sends supported curve extension, but in TLS 1.3
+ * the server can send supported groups extension to indicate what it will
+ * support for later connections. */
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 #define EC_GET_SIZE TLSX_SupportedCurve_GetSize
 #define EC_WRITE    TLSX_SupportedCurve_Write
 #else
