@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Assume we're in wolfssl/Docker
+WOLFSSL_DIR=$(builtin cd ${BASH_SOURCE%/*}/..; pwd)
+
 DOCKER_BUILD_OPTIONS="$1"
 if [ "${DOCKER_BASE_IMAGE}" != "" ]; then
     DOCKER_BUILD_OPTIONS+=" --build-arg DOCKER_BASE_IMAGE=${DOCKER_BASE_IMAGE}"
