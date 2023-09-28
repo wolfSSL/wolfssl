@@ -3,6 +3,9 @@ This is a Docker environment for compiling, testing and running WolfSSL. Use `ru
 
 When the compilation and tests succeed, you will be dropped in to a shell environment within the container. This can be useful to build other things within the environment. Additional tests can be run as well as debugging of code.
 
+# Docker Hub
+These images are also uploaded to the wolfSSL's [Docker Hub page](https://hub.docker.com/orgs/wolfssl/repositories). There is a convenience script here `buildAndPush.sh` that will create the appropriate containers and push them to the repo.
+
 # FAQ
 ## permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock
 You need to be added to the `docker` group to run Docker containers. Run `sudo usermod -aG docker $USER`. You may need to restart the Docker daemon.
