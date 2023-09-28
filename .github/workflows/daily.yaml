@@ -6,7 +6,7 @@ on:
 
 
 jobs:
-  CodeSonar_Analyze:
+  Daily_Merge_and_CodeSonar_Analyze:
     permissions: write-all
     runs-on: self-hosted
     container:
