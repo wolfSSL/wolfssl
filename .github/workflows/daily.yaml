@@ -1,7 +1,7 @@
 name: Daily Merge and CodeSonar run
 on:
   schedule:
-    - cron: '25 * * * *'
+    - cron: '30 * * * *'
 
 
 
