@@ -12,19 +12,32 @@ jobs:
         include:
           - CC: gcc-9
             CXX: g++-9
+            OS: ubuntu-latest
           - CC: gcc-10
             CXX: g++-10
+            OS: ubuntu-latest
           - CC: gcc-11
             CXX: g++-11
+            OS: ubuntu-latest
           - CC: gcc-12
             CXX: g++-12
+            OS: ubuntu-latest
+          - CC: clang-10
+            CXX: clang++-10
+            OS: ubuntu-20.04
+          - CC: clang-11
+            CXX: clang++-11
+            OS: ubuntu-20.04
           - CC: clang-12
             CXX: clang++-12
+            OS: ubuntu-20.04
           - CC: clang-13
             CXX: clang++-13
+            OS: ubuntu-latest
           - CC: clang-14
             CXX: clang++-14
-    runs-on: ubuntu-latest
+            OS: ubuntu-latest
+    runs-on: ${{ matrix.OS }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -34,3 +47,7 @@ jobs:
             CC: ${{ matrix.CC }}
             CXX: ${{ matrix.CXX }}
         run: ./autogen.sh && ./configure && make && make dist
+      - name: Show log on errors
+        if: ${{ failure() }}
+        run: |
+            cat config.log
