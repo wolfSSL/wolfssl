@@ -262,6 +262,10 @@ echo "Assemble test chains - peer first, then intermediate2, then intermediate"
 openssl x509 -in ./certs/intermediate/server-int-cert.pem  > ./certs/intermediate/server-chain.pem
 openssl x509 -in ./certs/intermediate/ca-int2-cert.pem    >> ./certs/intermediate/server-chain.pem
 openssl x509 -in ./certs/intermediate/ca-int-cert.pem     >> ./certs/intermediate/server-chain.pem
+
+openssl x509 -in ./certs/intermediate/server-int-cert.pem  > ./certs/intermediate/server-chain-short.pem
+openssl x509 -in ./certs/intermediate/ca-int2-cert.pem    >> ./certs/intermediate/server-chain-short.pem
+
 cat ./certs/intermediate/server-int-cert.der ./certs/intermediate/ca-int2-cert.der ./certs/intermediate/ca-int-cert.der > ./certs/intermediate/server-chain.der
 
 openssl x509 -in ./certs/intermediate/client-int-cert.pem  > ./certs/intermediate/client-chain.pem

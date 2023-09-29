@@ -5875,12 +5875,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         if (!signer)
             ret = MEMORY_ERROR;
     }
+#if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
+    if (ret == 0 && signer != NULL)
+        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
+#endif
     if (ret == 0 && signer != NULL) {
     #ifdef WOLFSSL_SIGNER_DER_CERT
         ret = AllocDer(&signer->derCert, der->length, der->type, NULL);
-    }
-    if (ret == 0 && signer != NULL) {
-        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
     }
     if (ret == 0 && signer != NULL) {
         XMEMCPY(signer->derCert->buffer, der->buffer, der->length);
@@ -5906,9 +5907,11 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif
         XMEMCPY(signer->subjectNameHash, cert->subjectHash,
                 SIGNER_DIGEST_SIZE);
-    #ifdef HAVE_OCSP
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         XMEMCPY(signer->issuerNameHash, cert->issuerHash,
                 SIGNER_DIGEST_SIZE);
+    #endif
+    #ifdef HAVE_OCSP
         XMEMCPY(signer->subjectKeyHash, cert->subjectKeyHash,
                 KEYID_SIZE);
     #endif
@@ -8631,7 +8634,7 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 
 int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 {
-    WOLFSSL_ENTER("wolfSSL_LoadCRL");
+    WOLFSSL_ENTER("wolfSSL_LoadCRLFile");
     SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerLoadCRLFile(SSL_CM(ssl), file, type);

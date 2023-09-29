@@ -426,6 +426,8 @@ typedef struct w64wrapper {
 
     #define XSTR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
 
+    #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
+
     /* idea to add global alloc override by Moises Guimaraes  */
     /* default to libc stuff */
     /* XREALLOC is used once in normal math lib, not in fast math lib */

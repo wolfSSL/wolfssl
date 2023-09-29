@@ -107,17 +107,25 @@ check_result $?
 # remove revoked so next time through the normal CA won't have server revoked
 cp blank.index.txt demoCA/index.txt
 
+echo "Step 12"
+# revoke an intermediate cert
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../intermediate/ca-int-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out extra-crls/ca-int-cert-revoked.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+
+# remove revoked so next time through the normal CA won't have server revoked
+cp blank.index.txt demoCA/index.txt
+
 # caEccCrl
-echo "Step 10"
+echo "Step 13"
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
-echo "Step 11"
+echo "Step 14"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
 # metadata
-echo "Step 13"
+echo "Step 15"
 openssl crl -in caEccCrl.pem -text > tmp
 check_result $?
 mv tmp caEccCrl.pem
@@ -128,12 +136,12 @@ mv tmp caEccCrl.pem
 # server-revoked-cert.pem is already revoked in Step 10
 #openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 
-echo "Step 14"
+echo "Step 16"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
 # metadata
-echo "Step 15"
+echo "Step 17"
 openssl crl -in caEcc384Crl.pem -text > tmp
 check_result $?
 mv tmp caEcc384Crl.pem
@@ -141,12 +149,12 @@ mv tmp caEcc384Crl.pem
 #cp caEcc384Crl.pem ~/wolfssl/certs/crl/caEcc384Crl.pem
 
 # cliCrl
-echo "Step 16"
+echo "Step 18"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out cliCrl.pem -keyfile ../client-key.pem -cert ../client-cert.pem
 check_result $?
 
 # metadata
-echo "Step 17"
+echo "Step 19"
 openssl crl -in cliCrl.pem -text > tmp
 check_result $?
 mv tmp cliCrl.pem
@@ -154,12 +162,12 @@ mv tmp cliCrl.pem
 #cp cliCrl.pem ~/wolfssl/certs/crl/cliCrl.pem
 
 # eccCliCRL
-echo "Step 18"
+echo "Step 20"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccCliCRL.pem -keyfile ../ecc-client-key.pem -cert ../client-ecc-cert.pem
 check_result $?
 
 # metadata
-echo "Step 19"
+echo "Step 21"
 openssl crl -in eccCliCRL.pem -text > tmp
 check_result $?
 mv tmp eccCliCRL.pem
@@ -167,12 +175,12 @@ mv tmp eccCliCRL.pem
 #cp eccCliCRL.pem ~/wolfssl/certs/crl/eccCliCRL.pem
 
 # eccSrvCRL
-echo "Step 20"
+echo "Step 22"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccSrvCRL.pem -keyfile ../ecc-key.pem -cert ../server-ecc.pem
 check_result $?
 
 # metadata
-echo "Step 21"
+echo "Step 23"
 openssl crl -in eccSrvCRL.pem -text > tmp
 check_result $?
 mv tmp eccSrvCRL.pem
@@ -180,17 +188,17 @@ mv tmp eccSrvCRL.pem
 #cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
 
 # caEccCrl
-echo "Step 22"
+echo "Step 24"
 openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
 # ca-ecc384-cert
-echo "Step 23"
+echo "Step 25"
 openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
 # create crl and crl2 der files for unit test
-echo "Step 24"
+echo "Step 26"
 openssl crl -in crl.pem -inform PEM -out crl.der -outform DER
 openssl crl -in crl2.pem -inform PEM -out crl2.der -outform DER
 
