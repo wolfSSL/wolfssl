@@ -1,5 +1,5 @@
-/* aes_gcm_asm
- *
+/* aes_gcm_asm.S */
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.

@@ -1,5 +1,5 @@
-/* sha256_asm
- *
+/* sha256_asm.S */
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
