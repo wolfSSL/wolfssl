@@ -405,7 +405,6 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || \
     defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
     defined(WOLFSSL_SECO_CAAM)
     #define HASH_SIZE_LIMIT
@@ -2709,7 +2708,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || defined(HASH_SIZE_LIMIT)
+    defined(HASH_SIZE_LIMIT)
     const char* large_digest =
             "\x1d\x6a\x5a\xf6\xe5\x7c\x86\xce\x7f\x7c\xaf\xd5\xdb\x08\xcd\x59"
             "\x15\x8c\x6d\xb6";
@@ -2722,7 +2721,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
         large_input[i] = (byte)(i & 0xFF);
     }
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || defined(HASH_SIZE_LIMIT)
+    defined(HASH_SIZE_LIMIT)
     times = 20;
 #else
     times = 100;
