@@ -32840,7 +32840,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* p, unsigned int p_len)
 {
     WOLFSSL_BIO* bio;
-    char* pt;
+    char* pt = NULL;
 
     unsigned int sz;
     unsigned int idx = 0;

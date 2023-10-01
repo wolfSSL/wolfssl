@@ -432,7 +432,7 @@ int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
  * Get Callback ctx by devId
  *
  * devId   : devId to get its CTX
- * return  asocciated CTX when the method is succesfully called.
+ * return  asocciated CTX when the method is successfully called.
  *         otherwise, NULL
  */
 WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)

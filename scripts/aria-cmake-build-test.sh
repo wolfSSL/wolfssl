@@ -2,7 +2,7 @@
 #
 # aria_cmake_build_test.sh
 #
-# This is a test script for building wolfSSL exaples with various settings
+# This is a test script for building wolfSSL examples with various settings
 # for the ARIA Magic Crypto ciphers.
 #
 # See https://github.com/wolfSSL/wolfssl/pull/6400 and

@@ -604,7 +604,7 @@ int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf,
     _Example_
     \code
     int send_session(WOLFSSL* ssl, byte* buf, word32 sz, void* userCtx);
-    // body of send session (wc_dtls_export) that passses
+    // body of send session (wc_dtls_export) that passes
     // buf (serialized session) to destination
     WOLFSSL_CTX* ctx;
     int ret;
@@ -636,7 +636,7 @@ int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx, wc_dtls_export func);
     _Example_
     \code
     int send_session(WOLFSSL* ssl, byte* buf, word32 sz, void* userCtx);
-    // body of send session (wc_dtls_export) that passses
+    // body of send session (wc_dtls_export) that passes
     // buf (serialized session) to destination
     WOLFSSL* ssl;
     int ret;
