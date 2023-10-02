@@ -36837,6 +36837,7 @@ static int test_wolfSSL_Tls13_ECH_ex(int hrr)
     /* connect like normal */
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.echAccepted, 1);
     ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
         privateNameLen);
     ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);

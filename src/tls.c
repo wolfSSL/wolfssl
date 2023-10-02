@@ -11508,7 +11508,13 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
         *writeBuf_p = ech->configId;
         writeBuf_p += sizeof(ech->configId);
         /* encLen */
-        c16toa(ech->encLen, writeBuf_p);
+        if (ech->hpkeContext == NULL) {
+            c16toa(ech->encLen, writeBuf_p);
+        }
+        else {
+            /* set to 0 if this is clientInner 2 */
+            c16toa(0, writeBuf_p);
+        }
         writeBuf_p += 2;
         if (ech->state == ECH_WRITE_GREASE) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -11556,16 +11562,13 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
 #endif
         }
         else {
-            /* write empty string for enc if this isn't our first ech */
-            if (ech->hpkeContext != NULL) {
-                XMEMSET(writeBuf_p, 0, ech->encLen);
-            }
-            else {
+            /* only write enc if this is our first ech, no hpke context */
+            if (ech->hpkeContext == NULL) {
                 /* write enc to writeBuf_p */
                 ret = wc_HpkeSerializePublicKey(ech->hpke, ech->ephemeralKey,
                     writeBuf_p, &ech->encLen);
+                writeBuf_p += ech->encLen;
             }
-            writeBuf_p += ech->encLen;
             /* innerClientHelloLen */
             c16toa(ech->innerClientHelloLen, writeBuf_p);
             writeBuf_p += 2;
@@ -11615,8 +11618,11 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
     else
     {
         size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
-            sizeof(ech->configId) + sizeof(word16) + ech->encLen +
-            sizeof(word16) + ech->innerClientHelloLen;
+            sizeof(ech->configId) + sizeof(word16) + sizeof(word16) +
+            ech->innerClientHelloLen;
+        /* only set encLen if this is inner hello 1 */
+        if (ech->hpkeContext == NULL)
+            size += ech->encLen;
     }
 
     return (int)size;
@@ -11791,14 +11797,20 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         /* read configId */
         ech->configId = *readBuf_p;
         readBuf_p++;
-        /* read encLen */
-        ato16(readBuf_p, &ech->encLen);
-        readBuf_p += 2;
-        if (ech->encLen > HPKE_Npk_MAX)
-            return BAD_FUNC_ARG;
-        /* read enc */
-        XMEMCPY(ech->enc, readBuf_p, ech->encLen);
-        readBuf_p += ech->encLen;
+        /* only get enc if we don't already have the hpke context */
+        if (ech->hpkeContext == NULL) {
+            /* read encLen */
+            ato16(readBuf_p, &ech->encLen);
+            readBuf_p += 2;
+            if (ech->encLen > HPKE_Npk_MAX)
+                return BAD_FUNC_ARG;
+            /* read enc */
+            XMEMCPY(ech->enc, readBuf_p, ech->encLen);
+            readBuf_p += ech->encLen;
+        }
+        else {
+            readBuf_p += 2;
+        }
         /* read hello inner len */
         ato16(readBuf_p, &ech->innerClientHelloLen);
         ech->innerClientHelloLen -= AES_BLOCK_SIZE;

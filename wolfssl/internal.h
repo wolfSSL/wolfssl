@@ -2938,6 +2938,7 @@ typedef struct WOLFSSL_ECH {
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];
+    byte innerCount;
 } WOLFSSL_ECH;
 
 WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
@@ -4756,6 +4757,7 @@ struct Options {
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            useEch:1;
+    word16            echAccepted:1;
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;
@@ -5413,6 +5415,7 @@ struct WOLFSSL {
     HS_Hashes*      hsHashes;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     HS_Hashes*      hsHashesEch;
+    HS_Hashes*      hsHashesEchInner;
 #endif
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
