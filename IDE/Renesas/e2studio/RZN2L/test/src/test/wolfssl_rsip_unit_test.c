@@ -1305,6 +1305,12 @@ int rsip_crypt_test()
             printf(" multi Aes Gcm thread test\n");
             ret = rsip_crypt_AesGcm_multitest();
         }
+        
+        if (ret == 0) {
+            printf("rsip_crypt_Sha_AesCbcGcm_multitest\n");
+            ret = rsip_crypt_Sha_AesCbcGcm_multitest();
+        }
+        
     #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
         Clr_CallbackCtx(&gCbInfo);
         Clr_CallbackCtx(&gCbInfo_a);

@@ -99,10 +99,33 @@ static void FSPSM_HashFree(wolfssl_FSPSM_Hash* hash)
     if (hash == NULL)
         return;
 
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (hash->msg != NULL) {
         XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
         hash->msg = NULL;
     }
+#endif
+
+}
+/* copy hash result from src to dst */
+static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
+{
+    if (src == NULL || dst == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(dst, src, sizeof(wolfssl_FSPSM_Hash));
+
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    if (src->len > 0 && src->msg != NULL) {
+        dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dst->msg == NULL) {
+            return MEMORY_E;
+        }
+        XMEMCPY(dst->msg, src->msg, src->len);
+    }
+#endif
+    return 0;
 }
 /* Initialize Hash object
  *
@@ -114,18 +137,56 @@ static void FSPSM_HashFree(wolfssl_FSPSM_Hash* hash)
 static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     word32 sha_type)
 {
+#if defined(WOLFSSL_RENESAS_RSIP)
+    int ret;
+    fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
+#endif
     if (hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
     (void)devId;
     XMEMSET(hash, 0, sizeof(wolfssl_FSPSM_Hash));
-
+    hash->sha_type = sha_type;
     hash->heap = heap;
+    
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;
-    hash->sha_type = sha_type;
+    
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    
+    switch(hash->sha_type) {
+    case FSPSM_SHA1:
+        Init = FSPSM_SHA1_Init;
+        break;
+    case FSPSM_SHA256:
+        Init = FSPSM_SHA256_Init;
+        break;
+    case FSPSM_SHA224:
+        Init = FSPSM_SHA224_Init;
+        break;
+    case FSPSM_SHA384:
+        Init = FSPSM_SHA384_Init;
+        break;
+    case FSPSM_SHA512:
+        Init = FSPSM_SHA512_Init;
+        break;
+    case FSPSM_SHA512_224:
+        Init = FSPSM_SHA512_224_Init;
+        break;
+    case FSPSM_SHA512_256:
+        Init = FSPSM_SHA512_256_Init;
+        break;
+    default:
+        return BAD_FUNC_ARG;
+    }
+    wc_fspsm_hw_lock();
+    ret = Init(&hash->handle);
+    wc_fspsm_hw_unlock();
+    return ret;
+#endif
 
     return 0;
 }
@@ -140,10 +201,16 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
 static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
                                                 const byte* data, word32 sz)
 {
+#if defined(WOLFSSL_RENESAS_RSIP)
+    int ret;
+    fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
+#endif
+
     if (hash == NULL || (sz > 0 && data == NULL)) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (hash->len < hash->used + sz) {
         if (hash->msg == NULL) {
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
@@ -176,7 +243,38 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
     }
     XMEMCPY(hash->msg + hash->used, data , sz);
     hash->used += sz;
-
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    
+    switch(hash->sha_type) {
+    case FSPSM_SHA1:
+        Update = FSPSM_SHA1_Up;
+        break;
+    case FSPSM_SHA256:
+        Update = FSPSM_SHA256_Up;
+        break;
+    case FSPSM_SHA224:
+        Update = FSPSM_SHA224_Up;
+        break;
+    case FSPSM_SHA384:
+        Update = FSPSM_SHA384_Up;
+        break;
+    case FSPSM_SHA512:
+        Update = FSPSM_SHA512_Up;
+        break;
+    case FSPSM_SHA512_224:
+        Update = FSPSM_SHA512_224_Up;
+        break;
+    case FSPSM_SHA512_256:
+        Update = FSPSM_SHA512_256_Up;
+        break;
+    default:
+        return BAD_FUNC_ARG;
+    }
+    wc_fspsm_hw_lock();
+    ret = Update(&hash->handle, data, sz);
+    wc_fspsm_hw_unlock();
+    return ret;
+#endif
     return 0;
 }
 
@@ -191,15 +289,15 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
 static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
 {
     int ret = FSP_SUCCESS;
-    void* heap;
-    FSPSM_SHA_HANDLE handle;
+    fsp_err_t (*Final )(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t*);
     uint32_t sz;
-
+    void* heap;
     (void) outSz;
 
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    FSPSM_SHA_HANDLE handle;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
     fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
-    fsp_err_t (*Final )(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t*);
 
     if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
@@ -209,37 +307,9 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         Init = FSPSM_SHA256_Init;
         Update = FSPSM_SHA256_Up;
         Final = FSPSM_SHA256_Final;
-#if defined(WOLFSSL_RENESAS_RSIP)
-    } else if (hash->sha_type == FSPSM_SHA1) {
-        Init = FSPSM_SHA1_Init;
-        Update = FSPSM_SHA1_Up;
-        Final = FSPSM_SHA1_Final;
-    } else if (hash->sha_type == FSPSM_SHA224) {
-        Init = FSPSM_SHA224_Init;
-        Update = FSPSM_SHA224_Up;
-        Final = FSPSM_SHA224_Final;
-    } else if (hash->sha_type == FSPSM_SHA384) {
-        Init = FSPSM_SHA384_Init;
-        Update = FSPSM_SHA384_Up;
-        Final = FSPSM_SHA384_Final;
-    } else if (hash->sha_type == FSPSM_SHA512) {
-        Init = FSPSM_SHA512_Init;
-        Update = FSPSM_SHA512_Up;
-        Final = FSPSM_SHA512_Final;
-    } else if (hash->sha_type == FSPSM_SHA512_224) {
-        Init = FSPSM_SHA512_224_Init;
-        Update = FSPSM_SHA512_224_Up;
-        Final = FSPSM_SHA512_224_Final;
-    } else if (hash->sha_type == FSPSM_SHA512_256) {
-        Init = FSPSM_SHA512_256_Init;
-        Update = FSPSM_SHA512_256_Up;
-        Final = FSPSM_SHA512_256_Final;
-#endif
     } else
         return BAD_FUNC_ARG;
-
-    heap = hash->heap;
-
+    
     wc_fspsm_hw_lock();
 
     if (Init(&handle) == FSP_SUCCESS) {
@@ -258,6 +328,45 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         }
     }
     wc_fspsm_hw_unlock();
+    
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    switch(hash->sha_type) {
+    case FSPSM_SHA1:
+        Final = FSPSM_SHA1_Final;
+        break;
+    case FSPSM_SHA256:
+        Final = FSPSM_SHA256_Final;
+        break;
+    case FSPSM_SHA224:
+        Final = FSPSM_SHA224_Final;
+        break;
+    case FSPSM_SHA384:
+        Final = FSPSM_SHA384_Final;
+        break;
+    case FSPSM_SHA512:
+        Final = FSPSM_SHA512_Final;
+        break;
+    case FSPSM_SHA512_224:
+        Final = FSPSM_SHA512_224_Final;
+        break;
+    case FSPSM_SHA512_256:
+        Final = FSPSM_SHA512_256_Final;
+        break;
+    default:
+        return BAD_FUNC_ARG;
+    }
+    
+    wc_fspsm_hw_lock();
+    ret = Final(&hash->handle, out, (uint32_t*)&sz);
+    if (ret != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    wc_fspsm_hw_unlock();
+#endif
+
+    heap = hash->heap;
 
     FSPSM_HashFree(hash);
     FSPSM_HashInit(hash, heap, 0, hash->sha_type);
@@ -268,54 +377,32 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
 static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
 {
     int ret = FSP_SUCCESS;
-    FSPSM_SHA_HANDLE handle;
+    fsp_err_t (*Final )(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t*);
     uint32_t sz = 0;
-
     (void) outSz;
-
+    
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    FSPSM_SHA_HANDLE handle;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
     fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
-    fsp_err_t (*Final )(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t*);
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    wolfssl_FSPSM_Hash hashCopy;
+#endif
+
 
     if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (hash->sha_type == FSPSM_SHA256) {
         Init = FSPSM_SHA256_Init;
         Update = FSPSM_SHA256_Up;
         Final = FSPSM_SHA256_Final;
-#if defined(WOLFSSL_RENESAS_RSIP)
-    } else if (hash->sha_type == FSPSM_SHA1) {
-        Init = FSPSM_SHA1_Init;
-        Update = FSPSM_SHA1_Up;
-        Final = FSPSM_SHA1_Final;
-    } else if (hash->sha_type == FSPSM_SHA224) {
-        Init = FSPSM_SHA224_Init;
-        Update = FSPSM_SHA224_Up;
-        Final = FSPSM_SHA224_Final;
-    } else if (hash->sha_type == FSPSM_SHA384) {
-        Init = FSPSM_SHA384_Init;
-        Update = FSPSM_SHA384_Up;
-        Final = FSPSM_SHA384_Final;
-    } else if (hash->sha_type == FSPSM_SHA512) {
-        Init = FSPSM_SHA512_Init;
-        Update = FSPSM_SHA512_Up;
-        Final = FSPSM_SHA512_Final;
-    } else if (hash->sha_type == FSPSM_SHA512_224) {
-        Init = FSPSM_SHA512_224_Init;
-        Update = FSPSM_SHA512_224_Up;
-        Final = FSPSM_SHA512_224_Final;
-    } else if (hash->sha_type == FSPSM_SHA512_256) {
-        Init = FSPSM_SHA512_256_Init;
-        Update = FSPSM_SHA512_256_Up;
-        Final = FSPSM_SHA512_256_Final;
-#endif
     } else
         return BAD_FUNC_ARG;
-
+    
     wc_fspsm_hw_lock();
-
     if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == FSP_SUCCESS) {
@@ -331,30 +418,56 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
             }
         }
     }
-
     wc_fspsm_hw_unlock();
+    
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    switch(hash->sha_type) {
+    case FSPSM_SHA1:
+        Final = FSPSM_SHA1_Final;
+        break;
+    case FSPSM_SHA256:
+        Final = FSPSM_SHA256_Final;
+        break;
+    case FSPSM_SHA224:
+        Final = FSPSM_SHA224_Final;
+        break;
+    case FSPSM_SHA384:
+        Final = FSPSM_SHA384_Final;
+        break;
+    case FSPSM_SHA512:
+        Final = FSPSM_SHA512_Final;
+        break;
+    case FSPSM_SHA512_224:
+        Final = FSPSM_SHA512_224_Final;
+        break;
+    case FSPSM_SHA512_256:
+        Final = FSPSM_SHA512_256_Final;
+        break;
+    default:
+        return BAD_FUNC_ARG;
+    }
+    
+    
+    if(FSPSM_HashCopy(hash, &hashCopy) != 0) {
+        WOLFSSL_MSG("ShaCopy operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    wc_fspsm_hw_lock();
+    ret = Final(&hashCopy.handle, out, (uint32_t*)&sz);
+    if (ret != FSP_SUCCESS) {
+        WOLFSSL_MSG("Sha operation failed");
+        WOLFSSL_ERROR(WC_HW_E);
+        ret = WC_HW_E;
+    }
+    wc_fspsm_hw_unlock();
+    
+#endif
 
     return ret;
 }
-/* copy hash result from src to dst */
-static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
-{
-    if (src == NULL || dst == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
-    XMEMCPY(dst, src, sizeof(wolfssl_FSPSM_Hash));
 
-    if (src->len > 0 && src->msg != NULL) {
-        dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (dst->msg == NULL) {
-            return MEMORY_E;
-        }
-        XMEMCPY(dst->msg, src->msg, src->len);
-    }
-
-    return 0;
-}
 
 #if !defined(NO_SHA) && defined(WOLFSSL_RENESAS_RSIP) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
