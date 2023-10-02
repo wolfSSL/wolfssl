@@ -9500,7 +9500,9 @@ static wc_test_ret_t aes_xts_128_test(void)
 
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) &&     \
+    !defined(WOLFSSL_AFALG)
     {
     #define LARGE_XTS_SZ        1024
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -9553,7 +9555,10 @@ static wc_test_ret_t aes_xts_128_test(void)
         XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
-#endif
+#endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
+        * (!HAVE_FIPS || FIPS_VERSION_GE(5,3)) &&
+        * !WOLFSSL_AFALG
+        */
 
   out:
 
