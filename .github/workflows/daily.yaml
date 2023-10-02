@@ -43,14 +43,12 @@ jobs:
             ref: release/daily
       - name: Merge from upstream
         run: |
-          git config --global --add safe.directory /__w/wolfssl/wolfssl
+          git config --global --add safe.directory 'pwd'
           git config --global user.email "mark@hermeling.org"
           git config --global user.name "Mark Hermeling"
           git remote add upstream https://github.com/wolfssl/wolfssl.git
           git fetch upstream nightly-snapshot
           git merge upstream/nightly-snapshot --allow-unrelated-histories
-      - name: Safe directory
-        run: git config --global --add safe.directory `pwd`
       - name : configure
         run: ./autogen.sh ; ./configure --enable-all
       - name: Checkout CodeSonar CI-Script
