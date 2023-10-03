@@ -1,6 +1,11 @@
-This is the Espressif Component Version of wolfSSL 5.6, Release #1 (version ^5.6.0-stable-PRtest)
+This is the Espressif Component Version of wolfSSL v5.6.3-Staging01-237d10a.3, Staging Release #11 (version ^5.6.3-Staging01-237d10a.3)
 
 For questions or beta test of this library, please send a message to support@wolfssl.com
+
+For details on how wolfSSL is published to the ESP Component Registry, see the
+[INSTALL.md](https://github.com/wolfssl/wolfssl/tree/master/IDE/Espressif/component-manager/INSTALL.md) file.
+
+See the [wolfSSL Manual](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 The [wolfSSL embedded TLS library](https://www.wolfssl.com/products/wolfssl/) is a lightweight, portable, 
 C-language-based SSL/TLS library targeted at IoT, embedded, and RTOS environments primarily because of its size, 
@@ -56,7 +61,7 @@ python -m idf_component_manager -h
 ```
 
 The Component Manager should have been installed during the [installation of the ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/#installation). 
-If your version of ESP-IDF doesn’t come with the IDF Component Manager, 
+If your version of ESP-IDF doesn't come with the IDF Component Manager, 
 you can [install it](https://docs.espressif.com/projects/idf-component-manager/en/latest/guides/updating_component_manager.html#installing-and-updating-the-idf-component-manager):
 
 ```
@@ -67,7 +72,7 @@ For further details on the Espressif Component Manager, see the [idf-component-m
 
 #### Contact
 
-Have a specific request or questions? We’d love to hear from you! Please contact us at 
+Have a specific request or questions? We'd love to hear from you! Please contact us at 
 [support@wolfssl.com](mailto:support@wolfssl.com?subject=Espressif%20Component%20Question) or 
 [open an issue on GitHub](https://github.com/wolfSSL/wolfssl/issues/new/choose).
 

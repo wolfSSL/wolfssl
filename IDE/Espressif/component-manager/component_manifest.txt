@@ -1,5 +1,12 @@
 # component_manifest.txt
 #
+# wolfSSL examples included in Espressif Component Manager
+#
+# Edit with caution. See wolfssl_component_publish.sh
+#
+# Files are copied to {$WOLFSSL_ROOT}\IDE\Espressif\component-manager\examples
+# before being published to the Espressif site.
+#
 # Copy Template project
 #
 
@@ -17,7 +24,6 @@ wolfssl_benchmark/README.md
 wolfssl_benchmark/CMakeLists.txt
 wolfssl_benchmark/sdkconfig.defaults
 wolfssl_benchmark/main/CMakeLists.txt
-wolfssl_benchmark/main/component.mk
 wolfssl_benchmark/main/Kconfig.projbuild
 wolfssl_benchmark/main/main.c
 wolfssl_benchmark/main/main.h
@@ -34,6 +40,7 @@ wolfssl_client/main/CMakeLists.txt
 wolfssl_client/main/client-tls.c
 wolfssl_client/main/time_helper.c
 wolfssl_client/main/wifi_connect.c
+wolfssl_client/main/Kconfig.projbuild
 wolfssl_client/main/include/wifi_connect.h
 wolfssl_client/main/include/time_helper.h
 
@@ -49,6 +56,7 @@ wolfssl_server/main/CMakeLists.txt
 wolfssl_server/main/server-tls.c
 wolfssl_server/main/time_helper.c
 wolfssl_server/main/wifi_connect.c
+wolfssl_client/main/Kconfig.projbuild
 wolfssl_server/main/include/time_helper.h
 wolfssl_server/main/include/wifi_connect.h
 
@@ -61,7 +69,6 @@ wolfssl_test/CMakeLists.txt
 wolfssl_test/sdkconfig.defaults
 wolfssl_test/partitions_singleapp_large.csv
 wolfssl_test/main/CMakeLists.txt
-wolfssl_test/main/component.mk
 wolfssl_test/main/Kconfig.projbuild
 wolfssl_test/main/main.c
 wolfssl_test/main/time_helper.c

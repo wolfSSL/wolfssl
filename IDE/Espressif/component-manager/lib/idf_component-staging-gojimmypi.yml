@@ -1,6 +1,6 @@
-## IDF Component Manager Manifest File
+## STAGING SITE: IDF Component Manager Manifest File for Examples (component author user=gojimmypi)
 dependencies:
-  wolfssl/wolfssl: "^5.6.0-stable"
+  gojimmypi/mywolfssl: "^5.6.3-Staging01-237d10a.3"
   ## Required IDF version
   idf:
     version: ">=4.1.0"

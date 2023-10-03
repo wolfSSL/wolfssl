@@ -22,7 +22,7 @@
 #include <sdkconfig.h> /* essential to chip set detection */
 
 #undef WOLFSSL_ESPIDF
-#undef WOLFSSL_ESPWROOM32
+#undef WOLFSSL_ESP32
 #undef WOLFSSL_ESPWROOM32SE
 #undef WOLFSSL_ESP32
 #undef WOLFSSL_ESP8266
@@ -37,7 +37,6 @@
 **   CONFIG_IDF_TARGET_ESP32C3
 **   CONFIG_IDF_TARGET_ESP32C6
 */
-#include "sdkconfig.h"
 
 #define WOLFSSL_ESPIDF
 
@@ -55,8 +54,6 @@
 /* #define WOLFSSL_NOSHA512_224 */
 /* #define WOLFSSL_NOSHA512_256 */
 
-/* #define DEBUG_WOLFSSL_VERBOSE */
-
 #define BENCH_EMBEDDED
 #define USE_CERT_BUFFERS_2048
 
@@ -71,18 +68,21 @@
 #define WOLFSSL_BENCHMARK_FIXED_UNITS_KB
 
 /* when you want to use SINGLE THREAD */
-/* #define SINGLE_THREADED */
+#define SINGLE_THREADED
+
 #define NO_FILESYSTEM
 
 #define HAVE_AESGCM
 
+#define WOLFSSL_RIPEMD
 /* when you want to use SHA224 */
-/* #define WOLFSSL_SHA224 */
-
+// #define WOLFSSL_SHA224
+#define NO_OLD_TLS
 /* when you want to use SHA384 */
-/* #define WOLFSSL_SHA3 */
-
-/* #define WOLFSSL_SHA384 */
+//#define WOLFSSL_SHA3
+//
+//#define WOLFSSL_SHA384
+//#define NO_SHA256
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519
@@ -118,12 +118,11 @@
     #define ESP32_USE_RSA_PRIMITIVE
     /* threshold for performance adjustment for HW primitive use   */
     /* X bits of G^X mod P greater than                            */
-    #define EPS_RSA_EXPT_XBTIS           32 /* NOTE HW unreliable for small values! */
+    #define EPS_RSA_EXPT_XBTIS           32
     /* X and Y of X * Y mod P greater than                         */
     #define ESP_RSA_MULM_BITS            9
 #endif
-/* optional RSA low memory */
-/* #define RSA_LOW_MEM */
+#define RSA_LOW_MEM
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */
@@ -136,43 +135,23 @@
 /* #define NO_ASN_TIME */
 /* #define XTIME time */
 
-/* when you want not to use HW acceleration */
-/* #define NO_ESP32WROOM32_CRYPT */
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH*/
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES */
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI */
-
 /* adjust wait-timeout count if you see timeout in RSA HW acceleration */
 #define ESP_RSA_TIMEOUT_CNT    0x249F00
 
 #define HASH_SIZE_LIMIT /* for test.c */
 
-/* only FAST_MATH has HW acceleration at this time */
 #define USE_FAST_MATH
-
-/* only valid on RISC-V chips such as ESP32-C3: */
-/* #define WOLFSSL_SP_RISCV32 */
 
 /* optionally use SP_MATH */
 /* #define SP_MATH */
 
-/* #define WOLFSSL_SMALL_STACK */
+#define WOLFSSL_SMALL_STACK
 
 #define HAVE_VERSION_EXTENDED_INFO
 #define HAVE_WC_INTROSPECTION
 
-/* allows for all version info, even that supporessed with intospection */
+/* allows for all version info, even that suppressed with introspection */
 #define ALLOW_BINARY_MISMATCH_INTROSPECTION
-
-#define HAVE_SESSION_TICKET
-
-
-/* #define WOLFSSL_HAVE_SP_RSA */
-
-/* #define HAVE_HASHDRBG */
-
-/* Shared configuration in same directory */
-/* #include "Wolf_Features.h" */
 
 /* Default is HW enabled unless turned off.
 ** Uncomment these lines for SW: */
@@ -217,71 +196,8 @@
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 #endif
-
-/* debug options */
-/* #define ESP_VERIFY_MEMBLOCK */
-#define WOLFSSL_HW_METRICS
-/* #define DEBUG_WOLFSSL_VERBOSE            */
-/* #define DEBUG_WOLFSSL                    */
-/* #define WOLFSSL_ESP32_CRYPT_DEBUG */
-#define NO_RECOVER_SOFTWARE_CALC
-
-/* optionally turn off individual math HW acceleration features */
-
-/* Turn off Large Number Multiplication:
-** [Z = X * Y] in esp_mp_mul()                                  */
-/* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL         */
-
-/* Turn off Large Number Modular Exponentiation:
-** [Z = X^Y mod M] in esp_mp_exptmod()                          */
-/* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD        */
-
-/* Turn off Large Number Modular Multiplication
-** [Z = X × Y mod M] in esp_mp_mulmod()                         */
-/* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD         */
-
-
-/* this is known to fail in TFM: */
-/* #define HONOR_MATH_USED_LENGTH */
-
-/* this is known to fail in TFM */
-/* #define CHECK_MP_READ_UNSIGNED_BIN */
-
-#define WOLFSSL_PUBLIC_MP /* used by benchmark */
-#define USE_CERT_BUFFERS_2048
-
-/* Optionally include alternate HW test library: alt_hw_test.h */
-/* When enabling, the ./components/wolfssl/CMakeLists.txt file
- * will need the name of the library in the idf_component_register
- * for the PRIV_REQUIRES list. */
-/* #define INCLUDE_ALT_HW_TEST */
-
-/* #define NO_HW_MATH_TEST */
-
-
-/* when turning on ECC508 / ECC608 support
-#define WOLFSSL_ESPWROOM32SE
-#define HAVE_PK_CALLBACKS
-#define WOLFSSL_ATECC508A
-#define ATCA_WOLFSSL
-*/
-
-/* USE_FAST_MATH is default */
-
-/* use SP_MATH */
-/*
-#undef USE_FAST_MATH
-#define WOLFSSL_SP_MATH_ALL
-*/
-
-/* use integer heap math */
-/*
-#undef USE_FAST_MATH
-#define USE_INTEGER_HEAP_MATH
-*/
-
-/* optionally use DPORT_ACCESS_READ_BUFFER */
-/*
-#define USE_ESP_DPORT_ACCESS_READ_BUFFER
-*/
-
+//#define WOLFSSL_SHA384
+/* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm */
+//#define WOLFSSL_SM2
+//#define WOLFSSL_SM3
+//#define WOLFSSL_SM4

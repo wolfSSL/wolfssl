@@ -1,6 +1,6 @@
-## IDF Component Manager Manifest File
+## IDF Component Manager Manifest File For Examples
 dependencies:
-  wolfssl/wolfssl: "^5.6.0-stable"
+  wolfssl/wolfssl: "^5.6.3-Staging01-237d10a.3"
   ## Required IDF version
   idf:
     version: ">=4.1.0"

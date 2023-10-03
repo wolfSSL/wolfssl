@@ -5,7 +5,7 @@
 #   https://components.espressif.com/components/wolfssl/wolfssl
 #
 #
-# This project assumes the ESP-IDF envoironment is already installed. See:
+# This project assumes the ESP-IDF environment is already installed. See:
 #
 # See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
 #
@@ -36,7 +36,7 @@ if [ ! -e "$IDF_PATH/export.sh" ]; then
     exit 1
 fi
 
-# Delete files not in GitHub to refresh a prevously-built project
+# Delete files not in GitHub to refresh a previously-built project
 if [ -d "./build" ]; then
     echo "Initializing local project..."
     echo "Removing ./build/ directory..."

@@ -1,23 +1,43 @@
-version: "5.6.0-stable"
+version: "5.6.3-Staging01-237d10a.3"
 description: wolfSSL Embedded SSL/TLS Library
 url: https://www.wolfssl.com
 repository: https://github.com/wolfSSL/wolfssl.git
-documentation: https://www.wolfssl.com/docs
+documentation: https://www.wolfssl.com/documentation/manuals/wolfssl/index.html
 issues: https://github.com/wolfSSL/wolfssl/issues
 discussion: https://www.wolfssl.com/forums
 files:
   exclude:
+  - '**/*'  # exclude everything, so next lines are redundant / reminder only:
+  - 'INSTALL.md'
   - '*.py'
   - '**/*.list'
   - '**/.vs/**/*'
   - '**/build/**/*'
   - '**/dist/**/*'
+  - '**/dist.bak/**/*'
   - '**/out/**/*'
   - '*.sh'
-  - 'README_REGISTRY_PREPEND.md'
+  - '*.bak'
+  - 'sdkconfig'
   - 'README_DIST.md'
-  include:
-  - ./include/
-  - ./src/
-  - ./wolfcrypt/
-  - ./wolfss/
+  - 'README_REGISTRY_PREPEND.md'
+  - 'README_STAGING_PREPEND.md'
+  - 'README_STAGING.md'
+  - ./src/sp_arm64.c # exclude some large source files not used in Espressif targets
+  - ./src/sp_armthumb.c
+  - ./src/sp_x86_64.c
+  - ./src/sp_arm32.c
+  - ./src/sp_c32.c
+  - ./src/sp_cortexm.c
+  include: # only explicitly include things we actually want to publish:
+  - './README.md'
+  - './LICENSE.txt'
+  - './idf_component.yml'
+  - './CMakeLists.txt'
+  - './Kconfig'
+  - './install_log.txt'
+  - './src/**/*'
+  - './include/**/*'
+  - './wolfssl/**/*'
+  - './wolfcrypt/**/*'
+  - './examples/**/*'
