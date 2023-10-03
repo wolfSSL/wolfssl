@@ -505,6 +505,7 @@ struct ecc_key {
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
 #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    void* devCtx;
     int devId;
 #endif
 #if defined(HAVE_PKCS11)
