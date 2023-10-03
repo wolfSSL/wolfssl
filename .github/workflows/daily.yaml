@@ -28,7 +28,7 @@ jobs:
       ROOT_TREE: "OSS-Projects/WolfSSL-GitHub"
       PROJECT_NAME: "wolfssl"
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-      COMMIT_HASH: $GITHUB_SHA$
+      COMMIT_HASH: $GITHUB_SHA
       CSONAR_HUB_URL: "https://partnerdemo.codesonar.com"
       CSONAR_HUB_USER: "${{ secrets.CSONAR_HUB_USER }}"
       CSONAR_HUB_PASSWORD: "${{ secrets.CSONAR_HUB_PASS }}"
