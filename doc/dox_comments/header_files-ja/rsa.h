@@ -859,7 +859,7 @@ int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 /*!
     \ingroup RSA
     \brief  この機能はRSAKEYキーをDERフォーマットに変換します。結果は出力に書き込まれ、書き込まれたバイト数を返します。
-    \return 0  成功
+    \return >0  成功、書かれたバイト数。
     \return BAD_FUNC_ARG  キーまたは出力がNULLの場合、またはキー - >タイプがRSA_PRIVATEでない場合、またはINLENが出力バッファに十分な大きさでない場合は返されます。
     \return MEMORY_E  メモリの割り当て中にエラーが発生した場合に返されます。
     \param key  初期化されたRsaKey構造体

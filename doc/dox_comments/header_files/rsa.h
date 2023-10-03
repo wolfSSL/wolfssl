@@ -1104,7 +1104,7 @@ int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     \brief This function converts an RsaKey key to DER format.  The result is
     written to output and it returns the number of bytes written.
 
-    \return 0 Success
+    \return >0 Success, number of bytes written.
     \return BAD_FUNC_ARG Returned if key or output is null, or if key->type
     is not RSA_PRIVATE, or if inLen isn't large enough for output buffer.
     \return MEMORY_E Returned if there is an error allocating memory.
