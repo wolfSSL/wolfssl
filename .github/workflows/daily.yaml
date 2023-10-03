@@ -24,7 +24,7 @@ jobs:
       CAFILE: ".github/github.cert.pem"
       TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       API_URL: https://api.github.com
-      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       ROOT_TREE: "OSS-Projects/WolfSSL-GitHub"
       PROJECT_NAME: "wolfssl"
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
