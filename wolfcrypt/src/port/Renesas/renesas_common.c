@@ -36,6 +36,9 @@
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
   #define cmn_hw_lock    tsip_hw_lock
   #define cmn_hw_unlock  tsip_hw_unlock
+
+  #define FSPSM_ST       TsipUserCtx;
+  #define MAX_FSPSM_CBINDEX 5
 #endif
 
 #include <wolfssl/wolfcrypt/wc_port.h>
@@ -57,6 +60,7 @@ static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
 FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
 	    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#define FSPSM_ST       TsipUserCtx;
 #define MAX_FSPSM_CBINDEX 5
 TsipUserCtx *gCbCtx[MAX_FSPSM_CBINDEX];
 #endif
@@ -69,7 +73,7 @@ WOLFSSL_LOCAL int Renesas_cmn_Cleanup(WOLFSSL* ssl)
     int ret = 0;
     WOLFSSL_ENTER("Renesas_cmn_Cleanup");
     (void) ssl;
-    
+
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_TlsCleanup(ssl);
 #endif
@@ -505,7 +509,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
     }
 
     gCbCtx[cbInfo->devId - 7890] = (void*)cbInfo;
-    
+
     return cbInfo->devId;
 }
 
