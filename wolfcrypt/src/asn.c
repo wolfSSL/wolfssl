@@ -18584,10 +18584,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
+#ifndef ASN_TEMPLATE_SKIP_ISCA_CHECK
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
+#endif
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);

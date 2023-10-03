@@ -4183,7 +4183,7 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 
 #endif /* !NO_WOLFSSL_SERVER */
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 
 static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
 {
@@ -4213,7 +4213,7 @@ static word16 TLSX_PointFormat_GetSize(PointFormat* list)
     return length;
 }
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 
 static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
 {
@@ -5108,7 +5108,10 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 #define EC_FREE_ALL         TLSX_SupportedCurve_FreeAll
 #define EC_VALIDATE_REQUEST TLSX_SupportedCurve_ValidateRequest
 
-#ifndef NO_WOLFSSL_CLIENT
+/* In TLS 1.2 the server never sends supported curve extension, but in TLS 1.3
+ * the server can send supported groups extension to indicate what it will
+ * support for later connections. */
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 #define EC_GET_SIZE TLSX_SupportedCurve_GetSize
 #define EC_WRITE    TLSX_SupportedCurve_Write
 #else
@@ -7392,7 +7395,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     word16 curveId = (word16) ECC_CURVE_INVALID;
     ecc_key* eccKey = (ecc_key*)kse->key;
 
-    /* TODO: [TLS13] The key sizes should come from wolfcrypt. */
+    /* TODO: [TLS13] Get key sizes using wc_ecc_get_curve_size_from_id. */
     /* Translate named group to a curve id. */
     switch (kse->group) {
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
@@ -7431,9 +7434,6 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     if (kse->key == NULL) {
-        kse->keyLen = keySize;
-        kse->pubKeyLen = keySize * 2 + 1;
-
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenEccKeyPair(ssl, kse);
         if (ret != CRYPTOCB_UNAVAILABLE) {
@@ -7447,9 +7447,13 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             return MEMORY_E;
         }
 
-        /* Make an ECC key */
+        /* Initialize an ECC key struct for the ephemeral key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
+
         if (ret == 0) {
+            kse->keyLen = keySize;
+            kse->pubKeyLen = keySize * 2 + 1;
+
             /* setting eccKey means okay to call wc_ecc_free */
             eccKey = (ecc_key*)kse->key;
 
@@ -7461,11 +7465,21 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 /* set curve info for EccMakeKey "peer" info */
                 ret = wc_ecc_set_curve(eccKey, kse->keyLen, curveId);
                 if (ret == 0) {
-                    /* Generate ephemeral ECC key */
-                    /* For async this is called once and when event is done, the
-                    *   provided buffers in key be populated.
-                    * Final processing is x963 key export below. */
-                    ret = EccMakeKey(ssl, eccKey, eccKey);
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* Detect when private key generation is done */
+                    if (ssl->error == WC_PENDING_E &&
+                            eccKey->type == ECC_PRIVATEKEY) {
+                        ret = 0; /* ECC Key Generation is done */
+                    }
+                    else
+            #endif
+                    {
+                        /* Generate ephemeral ECC key */
+                        /* For async this is called once and when event is done, the
+                        *   provided buffers in key be populated.
+                        * Final processing is x963 key export below. */
+                        ret = EccMakeKey(ssl, eccKey, eccKey);
+                    }
                 }
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E)
@@ -8925,7 +8939,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     if (ret == 0) {
         sharedSecret = (byte*)XMALLOC(ecc_kse->keyLen + ssSz, ssl->heap,
-            DYNAMIC_TYPE_TLSX);
+            DYNAMIC_TYPE_SECRET);
         ciphertext = (byte*)XMALLOC(ecc_kse->pubKeyLen + ctSz, ssl->heap,
             DYNAMIC_TYPE_TLSX);
 
@@ -8999,7 +9013,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     if (sharedSecret != NULL)
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
     if (ciphertext != NULL)
         XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_ecc_free(&eccpubkey);
@@ -9669,7 +9683,7 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, NULL);
     /* Check for error */
-    if (ret != WC_NOT_PENDING_E && ret < 0) {
+    if (ret != WC_NO_PENDING_E && ret < 0) {
         return ret;
     }
 #endif

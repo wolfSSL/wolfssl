@@ -199,6 +199,11 @@ function(generate_build_flags)
         set(BUILD_DILITHIUM "yes" PARENT_SCOPE)
         set(BUILD_EXT_KYBER "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_ARIA OR WOLFSSL_USER_SETTINGS)
+        message(STATUS "ARIA functions.cmake found WOLFSSL_ARIA")
+        # we cannot actually build, as we only have pre-compiled bin
+        set(BUILD_ARIA "yes" PARENT_SCOPE)
+    endif()
     set(BUILD_INLINE ${WOLFSSL_INLINE} PARENT_SCOPE)
     if(WOLFSSL_OCSP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_OCSP "yes" PARENT_SCOPE)
@@ -581,12 +586,17 @@ function(generate_lib_src_list LIB_SOURCES)
          wolfcrypt/src/wc_port.c
          wolfcrypt/src/error.c)
 
+    if(BUILD_ARIA)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/aria/aria-crypt.c
+            wolfcrypt/src/port/aria/aria-cryptocb.c)
+    endif()
 
     if(NOT BUILD_FIPS_RAND)
-         list(APPEND LIB_SOURCES
-              wolfcrypt/src/wc_encrypt.c
-              wolfcrypt/src/signature.c
-              wolfcrypt/src/wolfmath.c)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/wc_encrypt.c
+            wolfcrypt/src/signature.c
+            wolfcrypt/src/wolfmath.c)
     endif()
 
     if(BUILD_MEMORY)

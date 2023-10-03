@@ -298,7 +298,7 @@ struct Aes {
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     TSIP_AES_CTX ctx;
 #endif
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_FSPSM)
     FSPSM_AES_CTX ctx;
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)

@@ -125,7 +125,7 @@ static int esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
     word32 i;
     word32 mode_ = 0;
 
-    ESP_LOGV(TAG, "  enter esp_aes_hw_Set_KeyMode");
+    ESP_LOGV(TAG, "  enter esp_aes_hw_Set_KeyMode %d", mode);
 
     /* check mode */
     if (mode == ESP32_AES_UPDATEKEY_ENCRYPT) {
@@ -141,36 +141,38 @@ static int esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         }
     } /* if mode */
 
-    if (ret == 0) {
+    /*
+    ** ESP32: see table 22-1 in ESP32 Technical Reference
+    ** ESP32S3: see table 19-2 in ESP32S3 Technical Reference
+    ** mode     Algorithm             ESP32   ESP32S3
+    **   0       AES-128 Encryption     y        y
+    **   1       AES-192 Encryption     y        n
+    **   2       AES-256 Encryption     y        y
+    **   4       AES-128 Decryption     y        y
+    **   5       AES-192 Decryption     y        n
+    **   6       AES-256 Decryption     y        y
+    */
+    switch(ctx->keylen){
+        case 24: mode_ += 1; break;
+        case 32: mode_ += 2; break;
+        default: break;
+    }
 
+#if CONFIG_IDF_TARGET_ESP32S3
+    if (mode_ == 1 || mode_ == 5 || mode_ == 7) {
+        /* this should have been detected in aes.c and fall back to SW */
+        ESP_LOGE(TAG, "esp_aes_hw_Set_KeyMode unsupported mode: %i", mode_);
+        ret = BAD_FUNC_ARG;
+    }
+#endif
+
+    if (ret == 0) {
         /* update key */
         for (i = 0; i < (ctx->keylen) / sizeof(word32); i++) {
-            DPORT_REG_WRITE(AES_KEY_BASE + (i * 4), *(((word32*)ctx->key) + i));
+            DPORT_REG_WRITE((volatile uint32_t*)(AES_KEY_BASE + (i * 4)),
+                            *(((word32*)ctx->key) + i)
+                           );
         }
-
-        /*
-        ** ESP32: see table 22-1 in ESP32 Technical Reference
-        ** ESP32S3: see table 19-2 in ESP32S3 Technical Reference
-        ** mode     Algorithm             ESP32   ESP32S3
-        **   0       AES-128 Encryption     y        y
-        **   1       AES-192 Encryption     y        n
-        **   2       AES-256 Encryption     y        y
-        **   4       AES-128 Decryption     y        y
-        **   5       AES-192 Decryption     y        n
-        **   6       AES-256 Decryption     y        y
-        */
-        switch(ctx->keylen){
-            case 24: mode_ += 1; break;
-            case 32: mode_ += 2; break;
-            default: break;
-        }
-
-    #if CONFIG_IDF_TARGET_ESP32S3
-        if (mode_ == 1 || mode_ == 5 || mode_ == 7) {
-            ESP_LOGE(TAG, "esp_aes_hw_Set_KeyMode unsupported mode: %i", mode_);
-            ret = BAD_FUNC_ARG;
-        }
-    #endif
 
         if (ret == 0) {
             DPORT_REG_WRITE(AES_MODE_REG, mode_);
@@ -244,6 +246,60 @@ static void esp_aes_bk(const byte* in, byte* out)
 } /* esp_aes_bk */
 
 /*
+* wc_esp32AesSupportedKeyLen
+* @brief: returns 1 if AES key length supported in HW, 0 if not
+* @param aes:a value of a ley length */
+WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLenValue(int keylen)
+{
+    int ret = 0;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    if (keylen == 16 || keylen == 24 || keylen == 32) {
+        ret = 1;
+    }
+    else {
+        ret = 0; /* keylen 24 (192 bit) not supported */
+    }
+
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    ret = 0; /* not supported */
+
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    if (keylen == 16 || keylen == 32) {
+        ret = 1;
+    }
+    else {
+        ret = 0; /* keylen 24 (192 bit) not supported */
+    }
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    ret = 0; /* not supported */
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    ret = 0; /* not supported */
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+    ret = 0; /* not supported */
+#else
+    ret = 0; /* if we don't know, then it is not supported */
+#endif
+    return ret;
+}
+
+/*
+* wc_esp32AesSupportedKeyLen
+* @brief: returns 1 if AES key length supported in HW, 0 if not
+* @param aes: a pointer of the AES object used to encrypt data */
+WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLen(struct Aes* aes)
+{
+    int ret;
+    if (aes == NULL) {
+        ret = 0; /* we need a valid aes object to get its keylength */
+    }
+    else {
+        ret = wc_esp32AesSupportedKeyLenValue(aes->keylen);
+    }
+    return ret;
+}
+
+/*
 * wc_esp32AesEncrypt
 * @brief: a one block encrypt of the input block, into the output block
 * @param aes: a pointer of the AES object used to encrypt data
@@ -252,7 +308,7 @@ static void esp_aes_bk(const byte* in, byte* out)
 *             the encrypted message
 * @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
-int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
+WOLFSSL_LOCAL int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
 {
     int ret = 0;
 
@@ -287,7 +343,7 @@ int wc_esp32AesEncrypt(Aes *aes, const byte* in, byte* out)
 *             the decrypted message
 * @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
-int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
+WOLFSSL_LOCAL int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 {
     int ret;
 
@@ -325,7 +381,7 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 * @param sz : size of input message
 * @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
-int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+WOLFSSL_LOCAL int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret;
     int i;
@@ -343,7 +399,7 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (ret == 0) {
         ret = esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_ENCRYPT);
         if (ret != 0) {
-            ESP_LOGE(TAG, "wc_esp32AesCbcEncrypt failed HW Set KeyMode");
+            ESP_LOGW(TAG, "wc_esp32AesCbcEncrypt failed HW Set KeyMode");
         }
     } /* if set esp_aes_hw_InUse successful */
 
@@ -367,7 +423,7 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     esp_aes_hw_Leave();
     ESP_LOGV(TAG, "leave wc_esp32AesCbcEncrypt");
-    return 0;
+    return ret;
 } /* wc_esp32AesCbcEncrypt */
 
 /*
@@ -382,7 +438,7 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 * @param sz : size of input message
 * @return: 0 on success, BAD_FUNC_ARG if the AES algorithm isn't supported.
 */
-int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+WOLFSSL_LOCAL int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret;
 
@@ -401,7 +457,7 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (ret == 0) {
         ret = esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
         if (ret != 0) {
-            ESP_LOGE(TAG, "wc_esp32AesCbcDecrypt failed HW Set KeyMode");
+            ESP_LOGW(TAG, "wc_esp32AesCbcDecrypt failed HW Set KeyMode");
         }
     }
 
@@ -425,7 +481,7 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     esp_aes_hw_Leave();
     ESP_LOGV(TAG, "leave wc_esp32AesCbcDecrypt");
-    return 0;
+    return ret;
 } /* wc_esp32AesCbcDecrypt */
 
 #endif /* WOLFSSL_ESP32_CRYPT */

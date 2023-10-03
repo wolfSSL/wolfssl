@@ -973,6 +973,7 @@ XFILE z_fs_open(const char* filename, const char* mode)
 
     file = (XFILE)XMALLOC(sizeof(*file), NULL, DYNAMIC_TYPE_FILE);
     if (file != NULL) {
+        fs_file_t_init(file);
         if (fs_open(file, filename, flags) != 0) {
             XFREE(file, NULL, DYNAMIC_TYPE_FILE);
             file = NULL;

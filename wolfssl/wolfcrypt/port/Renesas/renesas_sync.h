@@ -25,8 +25,8 @@
 #ifdef HAVE_RENESAS_SYNC
 
 struct WOLFSSL;
-struct User_SCEPKCbInfo;
-extern User_SCEPKCbInfo guser_PKCbInfo;
+struct FSPSM_ST;
+extern FSPSM_ST guser_PKCbInfo;
 
 WOLFSSL_API int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
 WOLFSSL_API void wc_CryptoCb_CleanupRenesasCmn(int* id);

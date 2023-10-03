@@ -26,15 +26,18 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_RENESAS_SCEPROTECT
+#ifdef WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
 
 #include "FreeRTOS.h"
+
+static const int devId = 7890;
 
 #ifndef NO_SHA
  int sha_test();
@@ -65,8 +68,14 @@ int sce_crypt_AesGcm_multitest();
 int sce_crypt_Sha_AesCbcGcm_multitest();
 int sce_crypt_sha_multitest();
 int sce_crypt_test();
+int sce_crypt_sha256_multitest();
+void tskSha256_Test1(void *pvParam);
+ 
+void Clr_CallbackCtx(FSPSM_ST *g);
+void SCE_KeyGeneration(FSPSM_ST *g);
 
-extern FSPSM_ST guser_PKCbInfo;
+FSPSM_ST gCbInfo;
+FSPSM_ST gCbInfo_a; /* for multi testing */
 
 #if defined(HAVE_AES_CBC)
 
@@ -83,7 +92,8 @@ extern FSPSM_ST guser_PKCbInfo;
 #endif
 
 #if !defined(NO_RSA)
-    sce_rsa2048_wrapped_pair_key_t g_wrapped_pair_key;
+    sce_rsa1024_wrapped_pair_key_t    g_wrapped_pair_1024key;
+    sce_rsa2048_wrapped_pair_key_t    g_wrapped_pair_2048key;
 #endif
 typedef struct tagInfo
 {
@@ -92,7 +102,7 @@ typedef struct tagInfo
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
-static int sce_aes_cbc_test(int prnt, sce_aes_wrapped_key_t* aes_key)
+static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
 {
 
     Aes  aes[1];
@@ -107,7 +117,6 @@ static int sce_aes_cbc_test(int prnt, sce_aes_wrapped_key_t* aes_key)
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
     };
-    byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
     XMEMSET(cipher, 0, AES_BLOCK_SIZE);
@@ -117,15 +126,12 @@ static int sce_aes_cbc_test(int prnt, sce_aes_wrapped_key_t* aes_key)
         printf(" sce_aes_cbc_test() ");
     }
     
-    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, devId);
     if (ret == 0) {
-        ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        XMEMCPY(&aes->ctx.wrapped_key, aes_key,
-                        sizeof(sce_aes_wrapped_key_t));
-
-        aes->ctx.keySize = (word32)aes->keylen;
+        ret = wc_AesSetKey(aes, (byte*)aes_key, 
+        		AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret == 0) {
-            ret = wc_fspsm_AesCbcEncrypt(aes, cipher, msg, AES_BLOCK_SIZE);
+            ret = wc_AesCbcEncrypt(aes, cipher, msg, AES_BLOCK_SIZE);
         }
 
         wc_AesFree(aes);
@@ -135,14 +141,12 @@ static int sce_aes_cbc_test(int prnt, sce_aes_wrapped_key_t* aes_key)
         ret = -1;
 
 #ifdef HAVE_AES_DECRYPT
-    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, devId);
     if (ret == 0) {
-        ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
-        XMEMCPY(&aes->ctx.wrapped_key, aes_key,
-                sizeof(sce_aes_wrapped_key_t));
-        aes->ctx.keySize = (word32)aes->keylen;
+        ret = wc_AesSetKey(aes, (byte*)aes_key, 
+        		AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret == 0)
-            ret = wc_fspsm_AesCbcDecrypt(aes, plain, cipher, AES_BLOCK_SIZE);
+            ret = wc_AesCbcDecrypt(aes, plain, cipher, AES_BLOCK_SIZE);
 
         wc_AesFree(aes);
     }
@@ -182,7 +186,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
 #endif
 
 #ifdef WOLFSSL_AES_256
-static int sce_aes256_test(int prnt, sce_aes_wrapped_key_t* aes_key)
+static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key)
 {
     Aes enc[1];
     byte cipher[AES_BLOCK_SIZE];
@@ -196,14 +200,6 @@ static int sce_aes256_test(int prnt, sce_aes_wrapped_key_t* aes_key)
         0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
         0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
     };
-
-
-    WOLFSSL_SMALL_STACK_STATIC byte key[] = {
-        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
-        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
-        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
-    };
     WOLFSSL_SMALL_STACK_STATIC byte iv[]  = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
@@ -212,38 +208,32 @@ static int sce_aes256_test(int prnt, sce_aes_wrapped_key_t* aes_key)
     if (prnt)
         printf(" sce_aes256_test() ");
     
-    if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
+    if (wc_AesInit(enc, NULL, devId) != 0) {
         ret = -1;
         goto out;
     }
 
-    if (wc_AesInit(dec, NULL, INVALID_DEVID) != 0){
+    if (wc_AesInit(dec, NULL, devId) != 0){
         ret = -2;
         goto out;
     }
 
-    ret = wc_AesSetKey(enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(enc, (byte*)aes_key,
+    		AES_BLOCK_SIZE*2, iv, AES_ENCRYPTION);
     if (ret != 0){
         ret = -3;
         goto out;
-    } else {
-        XMEMCPY(&enc->ctx.wrapped_key, aes_key,
-                                sizeof(sce_aes_wrapped_key_t));
-        enc->ctx.keySize = (word32)enc->keylen;
     }
 
-    ret = wc_AesSetKey(dec, key, (int) sizeof(key), iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(dec, (byte*)aes_key,
+    		AES_BLOCK_SIZE*2, iv, AES_DECRYPTION);
     if (ret != 0) {
         ret = -4;
         goto out;
-    } else {
-        XMEMCPY(&dec->ctx.wrapped_key, aes_key,
-                                sizeof(sce_aes_wrapped_key_t));
-        dec->ctx.keySize = (word32)dec->keylen;
     }
 
     XMEMSET(cipher, 0, AES_BLOCK_SIZE);
-    ret = wc_fspsm_AesCbcEncrypt(enc, cipher, msg, (int) sizeof(msg));
+    ret = wc_AesCbcEncrypt(enc, cipher, msg, (int) sizeof(msg));
 
     if (ret != 0) {
         ret = -5;
@@ -251,7 +241,7 @@ static int sce_aes256_test(int prnt, sce_aes_wrapped_key_t* aes_key)
     }
 
     XMEMSET(plain, 0, AES_BLOCK_SIZE);
-    ret = wc_fspsm_AesCbcDecrypt(dec, plain, cipher, (int) sizeof(cipher));
+    ret = wc_AesCbcDecrypt(dec, plain, cipher, (int) sizeof(cipher));
 
     if (ret != 0){
         ret = -6;
@@ -294,7 +284,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
 #endif /* WOLFSSL_AES_256 */
 
 #if defined(WOLFSSL_AES_256)
-static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
+static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
 {
     Aes enc[1];
     Aes dec[1];
@@ -323,14 +313,6 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
-    };
-
-    WOLFSSL_SMALL_STACK_STATIC const byte k1[] =
-    {
-        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
-        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
-        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
-        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08
     };
 
     WOLFSSL_SMALL_STACK_STATIC const byte iv1[] =
@@ -374,37 +356,34 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
     XMEMSET(resultP, 0, sizeof(resultP));
     XMEMSET(&userContext, 0, sizeof(FSPSM_ST));
 
-    if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
+    if (wc_AesInit(enc, NULL, devId) != 0) {
         ret = -1;
         goto out;
     }
-    if (wc_AesInit(dec, NULL, INVALID_DEVID) != 0) {
+    if (wc_AesInit(dec, NULL, devId) != 0) {
         ret = -2;
         goto out;
     }
 
-    result = wc_AesGcmSetKey(enc, k1, sizeof(k1));
+    result = wc_AesGcmSetKey(enc, 
+        (byte*)aes256_key, AES_BLOCK_SIZE*2);
     if (result != 0) {
         ret = -3;
         goto out;
-    } else {
-        userContext.wrapped_key_aes256 = (void*)aes256_key;
-        userContext.keyflgs_crypt.bits.aes256_installedkey_set = 1;
-        enc->ctx.keySize = (word32)enc->keylen;
     }
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_fspsm_AesGcmEncrypt(enc, resultC, p, sizeof(p),
+    result = wc_AesGcmEncrypt(enc, resultC, p, sizeof(p),
                                 (byte*)iv1, sizeof(iv1), 
-                                resultT, sizeof(resultT),
-                                 a, sizeof(a), &userContext);
+                                resultT, sizeof(resultT), a, sizeof(a));
 
     if (result != 0) {
         ret = -4;
         goto out;
     }
 
-    result = wc_AesGcmSetKey(dec, k1, sizeof(k1));
+    result = wc_AesGcmSetKey(dec, 
+            (byte*)aes256_key, AES_BLOCK_SIZE*2);
     if (result != 0) {
         ret = -7;
         goto out;
@@ -412,9 +391,9 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
         dec->ctx.keySize = (word32)enc->keylen;
     }
 
-    result = wc_fspsm_AesGcmDecrypt(dec, resultP, resultC, sizeof(c1),
+    result = wc_AesGcmDecrypt(dec, resultP, resultC, sizeof(c1),
                 iv1, sizeof(iv1), resultT, sizeof(resultT),
-                 a, sizeof(a), &userContext);
+                 a, sizeof(a));
     if (result != 0){
         ret = -8;
         goto out;
@@ -428,20 +407,21 @@ static int sce_aesgcm256_test(int prnt, sce_aes_wrapped_key_t* aes256_key)
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
 
-    wc_AesGcmSetKey(enc, k1, sizeof(k1));
+    wc_AesGcmSetKey(enc, 
+        (byte*)aes256_key, AES_BLOCK_SIZE*2);
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_fspsm_AesGcmEncrypt(enc, resultC, p, sizeof(p),
+    result = wc_AesGcmEncrypt(enc, resultC, p, sizeof(p),
                                 (byte*)iv1, sizeof(iv1),
                                 resultT + 1, sizeof(resultT) - 1,
-                                a, sizeof(a), &userContext);
+                                a, sizeof(a));
     if (result != 0) {
         ret = -10;
         goto out;
     }
 
-    result = wc_fspsm_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
+    result = wc_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
               iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, 
-              a, sizeof(a), &userContext);
+              a, sizeof(a));
 
     if (result != 0) {
         ret = -11;
@@ -486,7 +466,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 
 #if defined(WOLFSSL_AES_128)
 
-static int sce_aesgcm128_test(int prnt, sce_aes_wrapped_key_t* aes128_key)
+static int sce_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key)
 {
     Aes enc[1];
     Aes dec[1];
@@ -521,12 +501,6 @@ static int sce_aesgcm128_test(int prnt, sce_aes_wrapped_key_t* aes128_key)
     {
         0x57, 0xce, 0x45, 0x1f, 0xa5, 0xe2, 0x35, 0xa5,
         0x8e, 0x1a, 0xa2, 0x3b, 0x77, 0xcb, 0xaf, 0xe2
-    };
-
-    WOLFSSL_SMALL_STACK_STATIC const byte k3[] =
-    {
-        0xbb, 0x01, 0xd7, 0x03, 0x81, 0x1c, 0x10, 0x1a,
-        0x35, 0xe0, 0xff, 0xd2, 0x91, 0xba, 0xf2, 0x4b
     };
 
     WOLFSSL_SMALL_STACK_STATIC const byte iv3[] =
@@ -569,24 +543,20 @@ static int sce_aesgcm128_test(int prnt, sce_aes_wrapped_key_t* aes128_key)
     XMEMSET(resultP, 0, sizeof(resultP));
     XMEMSET(&userContext, 0, sizeof(FSPSM_ST));
 
-    if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
+    if (wc_AesInit(enc, NULL, devId) != 0) {
         ret = -1;
         goto out;
     }
 
-    if (wc_AesInit(dec, NULL, INVALID_DEVID) != 0) {
+    if (wc_AesInit(dec, NULL, devId) != 0) {
         ret = -2;
         goto out;
     }
 
-    wc_AesGcmSetKey(enc, k3, sizeof(k3));
+    wc_AesGcmSetKey(enc, (byte*)aes128_key, AES_BLOCK_SIZE);
     if (result != 0) {
         ret = -3;
         goto out;
-    } else {
-        userContext.wrapped_key_aes128 = aes128_key;
-        userContext.keyflgs_crypt.bits.aes128_installedkey_set = 1;
-        enc->ctx.keySize = (word32)enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesGcmEncrypt(enc, resultC, p3, sizeof(p3), iv3, sizeof(iv3),
@@ -668,7 +638,9 @@ static int sce_rsa_test(int prnt, int keySize)
     in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
+    
+    (void) prnt;
+    
     if (key == NULL || in == NULL || out == NULL ||
         in2 == NULL || out2 == NULL) {
         ret = -1;
@@ -703,7 +675,7 @@ static int sce_rsa_test(int prnt, int keySize)
         goto out;
     }
 
-    ret = wc_RsaPrivateDecrypt(out, keySize/8, out2, outSz, key);
+    ret = wc_RsaPrivateDecrypt(out, (word32)(keySize/8), out2, outSz, key);
     if (ret < 0) {
         ret = -1;
         goto out;
@@ -782,20 +754,20 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
         goto out;
     }
     
-    guser_PKCbInfo.keyflgs_crypt.bits.message_type = 0;
+    gCbInfo.keyflgs_crypt.bits.message_type = 0;
     ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, &rng);
     if (ret < 0) {
         goto out;
     }
 
     /* this should fail */
-    ret = wc_RsaSSL_Verify(in2, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(in2, inLen, out, (word32)(keySize/8), key);
     if (ret != FSP_ERR_CRYPTO_SCE_AUTHENTICATION) {
         ret = -1;
         goto out;
     }
     /* this should succeed */
-    ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(in, inLen, out, (word32)(keySize/8), key);
     if (ret < 0) {
         ret = -1;
         goto out;
@@ -823,105 +795,121 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
 int sce_crypt_test()
 {
     int ret = 0;
-    fsp_err_t sce_error_code;
-
-    /* Generate AES sce Key */
-    sce_error_code = R_SCE_AES128_WrappedKeyGenerate(&g_user_aes128_key_index1);
-
-    if (sce_error_code == FSP_SUCCESS)
-        sce_error_code = R_SCE_AES128_WrappedKeyGenerate(
-                                                &g_user_aes128_key_index2);
-
-    if (sce_error_code == FSP_SUCCESS)
-        sce_error_code = R_SCE_AES256_WrappedKeyGenerate(
-                                                &g_user_aes256_key_index1);
-
-    if (sce_error_code == FSP_SUCCESS)
-        sce_error_code = R_SCE_AES256_WrappedKeyGenerate(
-                                                &g_user_aes256_key_index2);
-   
-   if (sce_error_code == FSP_SUCCESS) {
-       #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-        /* set up Crypt Call back */
-       
-        Clr_CallbackCtx(&guser_PKCbInfo);
-
-        ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &guser_PKCbInfo);
-
-        if ( ret > 0)
-            ret = 0;
-
-        if (ret == 0) {
-            printf(" sce_rsa_test(512)(this will be done"
-            " by SW because SCE doesn't support 512 bits key size.)");
-            ret = sce_rsa_test(1, 512);
-            RESULT_STR(ret)
-        }
-        
-        if (ret == 0) {
-            printf(" sce_rsa_test(1024)");
-            ret = sce_rsa_test(1, 1024);
-            RESULT_STR(ret)
-        }
-        
-        if (ret == 0) {
-            printf(" sce_rsa_SignVerify_test(512)(this will be done"
-            " by SW because SCE doesn't support 512 bits key size.)");
-            ret = sce_rsa_SignVerify_test(1, 512);
-            RESULT_STR(ret)
-        }
-        
-        if (ret == 0) {
-            printf(" sce_rsa_SignVerify_test(1024)");
-            ret = sce_rsa_SignVerify_test(1, 1024);
-            RESULT_STR(ret)
-        }
-        
-        Clr_CallbackCtx(&guser_PKCbInfo);
-        
-        if (ret == 0) {
-            printf(" sce_rsa_test(2048)");
-            ret = sce_rsa_test(1, 2048);
-            RESULT_STR(ret)
-        }
-        
-        if (ret == 0 && sce_error_code == FSP_SUCCESS) {
-            printf(" sce_rsa_SignVerify_test(2048)");
-            ret = sce_rsa_SignVerify_test(1, 2048);
-            RESULT_STR(ret)
-        }
-
-       #endif /* WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */
-
-   #ifndef NO_SHA256
-        printf(" sha256_test()");
-        ret = sha256_test();
-        RESULT_STR(ret)
-   #endif
-
-        ret = sce_aes_cbc_test(1, &g_user_aes128_key_index1);
-
-        if (ret == 0) {
-
-            ret = sce_aes256_test(1, &g_user_aes256_key_index1);
-
-        }
-
-        if (ret == 0) {
-
-            ret = sce_aesgcm128_test(1, &g_user_aes128_key_index1);
-
-        }
-
-        if (ret == 0) {
-
-            ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1);
-
-        }
+    fsp_err_t err;
+    
+    Clr_CallbackCtx(&gCbInfo);
+    Clr_CallbackCtx(&gCbInfo_a);
+    
+    /* sets wrapped aes key */
+    gCbInfo.wrapped_key_aes128 = &g_user_aes128_key_index1;
+    gCbInfo.wrapped_key_aes256 = &g_user_aes256_key_index1;
+    /* Aes Key Gen */
+    SCE_KeyGeneration(&gCbInfo);
+    
+    /* Rsa Key Gen */
+    err = R_SCE_RSA1024_WrappedKeyPairGenerate(&g_wrapped_pair_1024key);
+    if (err == FSP_SUCCESS) {
+        /* sets wrapped rsa 1024 bits key */
+        gCbInfo.wrapped_key_rsapri1024 = 
+                &g_wrapped_pair_1024key.priv_key;
+        gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
+        gCbInfo.wrapped_key_rsapub1024 = 
+                &g_wrapped_pair_1024key.pub_key;
+        gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
     }
-    else
-        ret = -1;
+    
+    err = R_SCE_RSA2048_WrappedKeyPairGenerate(&g_wrapped_pair_2048key);
+    if (err == FSP_SUCCESS) {
+        /* sets wrapped rsa 1024 bits key */
+        gCbInfo.wrapped_key_rsapri2048 = 
+                &g_wrapped_pair_2048key.priv_key;
+        gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
+        
+        gCbInfo.wrapped_key_rsapub2048 = 
+                &g_wrapped_pair_2048key.pub_key;
+        gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
+    }
+    
+    /* Key generation for multi testing */
+    gCbInfo_a.wrapped_key_aes128 = &g_user_aes128_key_index2;
+    gCbInfo_a.wrapped_key_aes256 = &g_user_aes256_key_index2;
+    SCE_KeyGeneration(&gCbInfo_a);
+    
+    ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &gCbInfo);
+    if ( ret > 0)
+         ret = 0;
 
+    if (ret == 0) {
+         printf(" sce_rsa_test(512)(this will be done"
+              " by SW because SCE doesn't support 512 bits key size.)");
+         ret = sce_rsa_test(1, 512);
+         RESULT_STR(ret)
+    }
+
+    if (ret == 0) {
+        printf(" sce_rsa_test(1024)");
+        ret = sce_rsa_test(1, 1024);
+        RESULT_STR(ret)
+    }
+
+    if (ret == 0) {
+        printf(" sce_rsa_SignVerify_test(1024)");
+        ret = sce_rsa_SignVerify_test(1, 1024);
+        RESULT_STR(ret)
+    }
+
+    if (ret == 0) {
+        printf(" sce_rsa_test(2048)");
+        ret = sce_rsa_test(1, 2048);
+        RESULT_STR(ret)
+    }
+
+    if (ret == 0 && err == FSP_SUCCESS) {
+        printf(" sce_rsa_SignVerify_test(2048)");
+        ret = sce_rsa_SignVerify_test(1, 2048);
+        RESULT_STR(ret)
+    }
+
+#ifndef NO_SHA256
+    printf(" sha256_test()");
+    ret = sha256_test();
+    RESULT_STR(ret)
+#endif
+    ret = sce_aes_cbc_test(1, &g_user_aes128_key_index1);
+    if (ret == 0) {
+        ret = sce_aes256_test(1, &g_user_aes256_key_index1);
+    }
+    if (ret == 0) {
+        ret = sce_aesgcm128_test(1, &g_user_aes128_key_index1);
+    }
+    
+    if (ret == 0) {
+        ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1);
+    }
+    printf(" \n");
+    if (ret == 0) {
+        printf(" multi sha thread test\n");
+        ret = sce_crypt_sha256_multitest();
+    }
+    if (ret == 0) {
+        printf(" multi Aes cbc thread test\n");
+        ret = sce_crypt_AesCbc_multitest();
+    }
+    if (ret == 0) {
+        printf(" multi Aes Gcm thread test\n");
+        ret = sce_crypt_AesGcm_multitest();
+    }
+    if (ret == 0) {
+        printf(" multi sha aescbc aesgcm thread test\n");
+        sce_crypt_Sha_AesCbcGcm_multitest();
+    } else
+        ret = -1;
+    
+    #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+        Clr_CallbackCtx(&gCbInfo);
+        Clr_CallbackCtx(&gCbInfo_a);
+    #endif
+    
     return ret;
 }
 
@@ -1285,4 +1273,4 @@ int sce_crypt_Sha_AesCbcGcm_multitest()
 
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_SCEPROTECT */
+#endif /* WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY */

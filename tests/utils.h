@@ -47,7 +47,7 @@ char* create_tmp_dir(char *tmpDir, int len)
 #ifdef _MSC_VER
     if (_mkdir(tmpDir) != 0)
         return NULL;
-#elif defined(__CYGWIN__) || defined(__MINGW32__)
+#elif defined(__MINGW32__)
     if (mkdir(tmpDir) != 0)
         return NULL;
 #else

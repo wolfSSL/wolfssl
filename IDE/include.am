@@ -35,6 +35,7 @@ include IDE/Renesas/e2studio/RX65N/GR-ROSE/include.am
 include IDE/Renesas/e2studio/RX72N/EnvisionKit/include.am
 include IDE/Renesas/e2studio/RX65N/RSK/include.am
 include IDE/Renesas/e2studio/RA6M4/include.am
+include IDE/Renesas/e2studio/RZN2L/include.am
 include IDE/WICED-STUDIO/include.am
 include IDE/CRYPTOCELL/include.am
 include IDE/M68K/include.am

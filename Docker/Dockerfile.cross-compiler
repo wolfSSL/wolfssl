@@ -1,0 +1,11 @@
+ARG DOCKER_BASE_IMAGE=wolfssl/wolfssl-builder
+FROM $DOCKER_BASE_IMAGE
+
+USER root
+
+ARG DEPS_TESTING="gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu"
+RUN DEBIAN_FRONTEND=noninteractive apt update \
+                    && apt install -y ${DEPS_TESTING} \
+                    && apt clean -y && rm -rf /var/lib/apt/lists/*
+
+USER docker

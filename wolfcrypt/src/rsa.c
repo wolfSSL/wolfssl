@@ -235,6 +235,14 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->handle = NULL;
 #endif
 
+
+#if defined(WOLFSSL_RENESAS_FSPSM)
+    key->ctx.wrapped_pri1024_key = NULL;
+    key->ctx.wrapped_pub1024_key = NULL;
+    key->ctx.wrapped_pri2048_key = NULL;
+    key->ctx.wrapped_pub2048_key = NULL;
+    key->ctx.keySz = 0;
+#endif
     return ret;
 }
 
@@ -587,6 +595,10 @@ int wc_FreeRsaKey(RsaKey* key)
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(key, sizeof(RsaKey));
+#endif
+
+#if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+    wc_fspsm_RsaKeyFree(key);
 #endif
 
     return ret;
@@ -2767,7 +2779,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT_SW */
 
-    switch(type) {
+    switch (type) {
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     case RSA_PRIVATE_DECRYPT:
     case RSA_PRIVATE_ENCRYPT:
@@ -2789,7 +2801,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
                                 &key->u.raw,
                                 out, outLen);
         #endif
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #else
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -2807,7 +2819,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
         ret = IntelQaRsaPublic(&key->asyncDev, in, inLen,
                                &key->e.raw, &key->n.raw,
                                out, outLen);
-    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+    #else
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -4734,7 +4746,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #elif defined(HAVE_INTEL_QA)
         err = IntelQaRsaKeyGen(&key->asyncDev, key, size, e, rng);
         goto out;
-    #else
+    #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_RSA_MAKE)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
             sw->rsaMake.rng = rng;

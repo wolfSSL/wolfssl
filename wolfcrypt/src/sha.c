@@ -72,6 +72,28 @@
     /* Although we have hardware acceleration,
     ** we may need to fall back to software */
     #define USE_SHA_SOFTWARE_IMPL
+
+#elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
+    /* The ESP32C3 is different; HW crypto here. Not yet implemented.
+    ** We'll be using software for RISC-V at this time */
+#else
+    #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
+#endif
+
+#undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
+#if defined(WOLFSSL_ESP32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+    /* define a single keyword for simplicity & readability
+     *
+     * by default the HW acceleration is on for ESP32-WROOM32
+     * but individual components can be turned off.
+     */
+    #define WOLFSSL_USE_ESP32_CRYPT_HASH_HW
+    #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
+
+    /* Although we have hardware acceleration,
+    ** we may need to fall back to software */
+    #define USE_SHA_SOFTWARE_IMPL
     static const char* TAG = "wc_sha";
 #elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
     /* The ESP32C3 is different; HW crypto here. Not yet implemented.
@@ -307,6 +329,11 @@
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+
+#elif defined(WOLFSSL_RENESAS_RSIP) && \
+     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
+
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #elif defined(WOLFSSL_IMXRT_DCP)
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
@@ -775,6 +802,9 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         else {
             ret = esp_sha_process(sha, (const byte*)local);
         }
+    #elif defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
+        /* The ESP32C3 is different; SW crypto here. Not yet implemented  */
+        ret = XTRANSFORM(sha, (const byte*)local);
     #else
         /*
         ** The #if defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW) also falls
@@ -835,6 +865,9 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 
     XMEMCPY(hash, (byte *)&sha->digest[0], WC_SHA_DIGEST_SIZE);
 
+    /* we'll always reset state upon exit and return the error code from above,
+     * which may cause fall back to SW if HW is busy. we do not return result
+     * of initSha here */
     (void)InitSha(sha); /* reset state */
 
     return ret;
@@ -902,9 +935,11 @@ void wc_ShaFree(wc_Sha* sha)
 
 #if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP)
 
-#if (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+#if ((!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
      !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) || \
-    defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+    defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
+    (!defined(WOLFSSL_RENESAS_RSIP) || \
+      defined(NO_WOLFSSL_RENESAS_FSPSM_HASH))
 #if !defined(WOLFSSL_RENESAS_RX64_HASH)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)

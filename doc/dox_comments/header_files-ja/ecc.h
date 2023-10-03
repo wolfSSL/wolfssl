@@ -1,5 +1,5 @@
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は新しいECC_KEYを生成し、それをキーに格納します。
     \return 0  成功に戻りました。
     \return ECC_BAD_ARG_E  RNGまたはキーがNULLに評価された場合に返されます
@@ -33,7 +33,7 @@
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は新しいECC_KEYを生成し、それをキーに格納します。
     \return 0  成功に戻りました。
     \return ECC_BAD_ARG_E  RNGまたはキーがNULLに評価された場合に返されます
@@ -75,7 +75,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ECCキーの有効性を有効にします。
     \return MP_OKAY  成功、キーは大丈夫です。
     \return BAD_FUNC_ARG  キーがNULLの場合は返します。
@@ -105,7 +105,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 int wc_ecc_check_key(ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、使用された後にECC_KEYキーを解放します。
     _Example_
     \code
@@ -120,7 +120,7 @@ int wc_ecc_check_key(ecc_key* key);
 void wc_ecc_key_free(ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ローカル秘密鍵と受信した公開鍵を使用して新しい秘密鍵を生成します。この共有秘密鍵をバッファアウトに格納し、出力バッファに書き込まれたバイト数を保持するためにoutlentenを更新します。
     \return 0  共有秘密鍵の生成に成功したときに返されます
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLに評価された場合に返されます。
@@ -167,7 +167,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  秘密鍵とパブリックポイントの間にECC共有秘密を作成します。
     \return MP_OKAY  成功を示します。
     \return BAD_FUNC_ARG  引数がNULLのときにエラーが返されます。
@@ -204,7 +204,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、信頼性を保証するためにECC_KEYオブジェクトを使用してメッセージダイジェストに署名します。
     \return 0  メッセージダイジェストの署名を正常に生成したときに返されました
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLに評価された場合、または出力バッファが小さすぎて生成された署名を保存する場合は返されます。
@@ -249,7 +249,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                      WC_RNG* rng, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  メッセージダイジェストに署名します。
     \return MP_OKAY  メッセージダイジェストの署名を正常に生成したときに返されました
     \return ECC_BAD_ARG_E  入力キーが秘密鍵ではない場合、またはECC IDXが無効な場合、またはいずれかの入力パラメータがNULLに評価されている場合、または出力バッファが小さすぎて生成された署名を保存するには小さすぎる場合
@@ -299,7 +299,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、真正性を確保するためにハッシュのECCシグネチャを検証します。答えを介して、有効な署名に対応する1、無効な署名に対応する0で答えを返します。
     \return 0  署名検証に正常に実行されたときに返されます。注：これは署名が検証されていることを意味するわけではありません。信頼性情報は代わりにSTATで格納されます
     \return BAD_FUNC_ARG  返された入力パラメータはNULLに評価されます
@@ -344,7 +344,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ECC署名を確認してください。結果はstatに書き込まれます。1が有効で、0が無効です。注：有効なテストに戻り値を使用しないでください。statのみを使用してください。
     \return MP_OKAY  成功した場合（署名が無効であっても）
     \return ECC_BAD_ARG_E  引数がNULLの場合、またはkey-idxが無効な場合は返します。
@@ -374,7 +374,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                           word32 hashlen, int* stat, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、メッセージ検証または鍵交渉で将来の使用のためにECC_KEYオブジェクトを初期化します。
     \return 0  ECC_Keyオブジェクトの初期化に成功したときに返されます
     \return MEMORY_E  メモリの割り当て中にエラーが発生した場合に返されます
@@ -390,7 +390,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 int wc_ecc_init(ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、メッセージ検証または鍵交渉で将来の使用のためにECC_KEYオブジェクトを初期化します。
     \return 0  ECC_Keyオブジェクトの初期化に成功したときに返されます
     \return MEMORY_E  メモリの割り当て中にエラーが発生した場合に返されます
@@ -409,7 +409,7 @@ int wc_ecc_init(ecc_key* key);
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数はユーザー定義ヒープを使用し、キー構造のスペースを割り当てます。
     \return 0  ECC_Keyオブジェクトの初期化に成功したときに返されます
     _Example_
@@ -424,7 +424,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 ecc_key* wc_ecc_key_new(void* heap);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、使用後にECC_KEYオブジェクトを解放します。
     \return int  integerがWolfSSLエラーまたは成功状況を示すことを返しました。
     _Example_
@@ -439,7 +439,7 @@ ecc_key* wc_ecc_key_new(void* heap);
 int wc_ecc_free(ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は固定小数点キャッシュを解放します。これはECCで使用でき、計算時間を高速化します。この機能を使用するには、FP_ECC（固定小数点ECC）を定義する必要があります。
     \return none  いいえ返します。
     _Example_
@@ -456,7 +456,7 @@ int wc_ecc_free(ecc_key* key);
 void wc_ecc_fp_free(void);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ECC IDXが有効かどうかを確認します。
     \return 1  有効な場合は返品してください。
     \return 0  無効な場合は返します。
@@ -484,7 +484,7 @@ void wc_ecc_fp_free(void);
 int wc_ecc_is_valid_idx(int n);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  新しいECCポイントを割り当てます。
     \return p  新しく割り当てられたポイント。
     \return NULL  エラー時にNULLを返します。
@@ -506,7 +506,7 @@ int wc_ecc_is_valid_idx(int n);
 ecc_point* wc_ecc_new_point(void);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  メモリからECCポイントを解放します。
     \return none  いいえ返します。
     _Example_
@@ -528,7 +528,7 @@ ecc_point* wc_ecc_new_point(void);
 void wc_ecc_del_point(ecc_point* p);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  あるポイントの値を別のポイントにコピーします。
     \return ECC_BAD_ARG_E  PまたはRがNULLのときにスローされたエラー。
     \return MP_OKAY  ポイントが正常にコピーされました
@@ -555,7 +555,7 @@ void wc_ecc_del_point(ecc_point* p);
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ポイントの値を別のものと比較してください。
     \return BAD_FUNC_ARG  1つまたは両方の引数はnullです。
     \return MP_EQ  ポイントは同じです。
@@ -591,7 +591,7 @@ int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ポイントが無限大にあるかどうかを確認します。返品1が無限大である場合は0、そうでない場合は0、<0エラー時の0
     \return 1  Pは無限大です。
     \return 0  Pは無限大ではありません。
@@ -625,7 +625,7 @@ int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 int wc_ecc_point_is_at_infinity(ecc_point *p);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  ECC固定点乗算を実行します。
     \return MP_OKAY  成功した操作で返します。
     \return MP_INIT_E  複数のPrecision Integer（MP_INT）ライブラリで使用するための整数を初期化するエラーがある場合に返されます。
@@ -652,7 +652,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数はECCキーをECC_KEY構造体からエクスポートし、結果をOUTに格納します。キーはANSI X9.63フォーマットに保存されます。outlenの出力バッファに書き込まれたバイトを格納します。
     \return 0  ECC_KEYのエクスポートに正常に返されました
     \return LENGTH_ONLY_E  出力バッファがNULLに評価されている場合は返されますが、他の2つの入力パラメータは有効です。関数がキーを保存するのに必要な長さを返すだけであることを示します
@@ -692,7 +692,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数はECCキーをECC_KEY構造体からエクスポートし、結果をOUTに格納します。キーはANSI X9.63フォーマットに保存されます。outlenの出力バッファに書き込まれたバイトを格納します。この関数は、圧縮されたパラメータを介して証明書を圧縮する追加のオプションを使用する。このパラメータがtrueの場合、キーはANSI X9.63圧縮形式で保存されます。
     \return 0  ECC_KEYのエクスポートに正常に返されました
     \return NOT_COMPILED_IN  hand_comp_keyがコンパイル時に有効になっていない場合は返されますが、キーは圧縮形式で要求されました
@@ -733,7 +733,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ANSI X9.63形式で保存されているキーを含むバッファからパブリックECCキーをインポートします。この関数は、圧縮キーがhand_comp_keyオプションを介してコンパイル時に有効になっている限り、圧縮キーと非圧縮キーの両方を処理します。
     \return 0  ECC_KEYのインポートに成功しました
     \return NOT_COMPILED_IN  hand_comp_keyがコンパイル時に有効になっていない場合は返されますが、キーは圧縮形式で保存されます。
@@ -774,7 +774,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compresse
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、生の秘密鍵を含むバッファと、ANSI X9.63フォーマットされた公開鍵を含む2番目のバッファーからパブリック/プライベートECCキーのペアをインポートします。この関数は、圧縮キーがhand_comp_keyオプションを介してコンパイル時に有効になっている限り、圧縮キーと非圧縮キーの両方を処理します。
     \return 0  habe_comp_keyがコンパイル時に有効になっていない場合は、ecc_key not_compiled_inを正常にインポートしましたが、キーは圧縮形式で保存されます。
     \return ECC_BAD_ARG_E  INまたはKEYがNULLに評価された場合、またはInlenが偶数の場合（X9.63規格によれば、キーは奇数でなければなりません）。
@@ -818,7 +818,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ECCシグネチャのR部分とS部分をDER符号化ECDSAシグネチャに変換します。この機能は、outlenでは、出力バッファに書き込まれた長さも記憶されています。
     \return 0  署名の変換に成功したことに戻りました
     \return ECC_BAD_ARG_E  いずれかの入力パラメータがNULLに評価された場合、または入力バッファがDERエンコードされたECDSAシグネチャを保持するのに十分な大きさでない場合に返されます。
@@ -859,7 +859,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ECC署名のRAW成分を持つECC_KEY構造体を埋めます。
     \return 0  ECC_Key構造体に正常にインポートされたときに返されます
     \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
@@ -901,7 +901,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ECC_KEY構造体から秘密鍵のみをエクスポートします。秘密鍵をバッファアウトに格納し、outlenにこのバッファに書き込まれたバイトを設定します。
     \return 0  秘密鍵のエクスポートに成功したときに返されます
     \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
@@ -939,7 +939,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  DERへのエクスポートポイント。
     \return 0  成功に戻りました。
     \return ECC_BAD_ARG_E  curve_idxが0未満または無効である場合は返します。いつ来るのか
@@ -964,7 +964,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  Derフォーマットからのインポートポイント。
     \return ECC_BAD_ARG_E  引数がnullの場合、またはInlenが偶数の場合は返します。
     \return MEMORY_E  エラー初期化がある場合に返します
@@ -988,7 +988,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ecc_key構造体のキーサイズをオクテットで返します。
     \return Given  有効なキー、オクテットのキーサイズを返します
     \return 0  与えられたキーがNULLの場合に返されます
@@ -1008,7 +1008,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 int wc_ecc_size(ecc_key* key);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、次のようにして指定されたECCシグネチャの最悪の場合のサイズを返します。（KEYSZ * 2）+ SIG_HEADER_SZ + ECC_MAX_PAD_SZ。実際のシグネチャサイズは、WC_ECC_SIGN_HASHで計算できます。
     \return returns  最大署名サイズ（オクテット）
     _Example_
@@ -1026,7 +1026,7 @@ int wc_ecc_sig_size_calc(int sz);
 
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、次のようにして指定されたECCシグネチャの最悪の場合のサイズを返します。（KEYSZ * 2）+ SIG_HEADER_SZ + ECC_MAX_PAD_SZ。実際のシグネチャサイズは、WC_ECC_SIGN_HASHで計算できます。
     \return Success  有効なキーを考えると、最大署名サイズをオクテットで返します。
     \return 0  与えられたキーがNULLの場合に返されます
@@ -1049,7 +1049,7 @@ int wc_ecc_sig_size(ecc_key* key);
 
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この機能は、ECCとの安全なメッセージ交換を可能にするために、新しいECCコンテキストオブジェクトのスペースを割り当て、初期化します。
     \return Success  新しいECENCCTXオブジェクトの生成に成功した場合は、そのオブジェクトへのポインタを返します
     \return NULL  関数が新しいECENCCTXオブジェクトを生成できない場合に返されます
@@ -1072,7 +1072,7 @@ int wc_ecc_sig_size(ecc_key* key);
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、メッセージの暗号化と復号化に使用されるECENCCTXオブジェクトを解放します。
     \return none  戻り値。
     _Example_
@@ -1091,11 +1091,11 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 void wc_ecc_ctx_free(ecEncCtx*);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数はECENCCTX構造をリセットして、新しいコンテキストオブジェクトを解放し、新しいコンテキストオブジェクトを割り当てます。
     \return 0  ecencctx構造が正常にリセットされた場合に返されます
     \return BAD_FUNC_ARG  RNGまたはCTXがNULLの場合に返されます
-    \return RNG_FAILURE_E  ECCオブジェクトに新しい塩を生成するエラーがある場合
+    \return RNG_FAILURE_E  ECCオブジェクトに新しいソルトを生成するエラーがある場合
     \param ctx  リセットするECENCCTXオブジェクトへのポインタ
     _Example_
     \code
@@ -1114,7 +1114,7 @@ void wc_ecc_ctx_free(ecEncCtx*);
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、wc_ecc_ctx_newの後にオプションで呼び出されることができます。暗号化、KDF、およびMACアルゴリズムをECENCENCCTXオブジェクトに設定します。
     \return 0  ECENCCTXオブジェクトの情報を正常に設定すると返されます。
     \return BAD_FUNC_ARG  指定されたecencctxオブジェクトがNULLの場合に返されます。
@@ -1136,9 +1136,9 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
 
 /*!
-    \ingroup ECC 
-    \brief  この関数はECENCENCCTXオブジェクトの塩を返します。この関数は、ECENCCTXの状態がECSRV_INITまたはECCLI_INITの場合にのみ呼び出す必要があります。
-    \return Success  成功すると、ECENCENTX塩を返します
+    \ingroup ECC
+    \brief  この関数はECENCENCCTXオブジェクトのソルトを返します。この関数は、ECENCCTXの状態がECSRV_INITまたはECCLI_INITの場合にのみ呼び出す必要があります。
+    \return 成功すると 、ecEncCtx ソルトを返します
     \return NULL  ecencctxオブジェクトがNULLの場合、またはECENCCTXの状態がECSRV_INITまたはECCLI_INITでない場合に返されます。後者の2つのケースでは、この機能はそれぞれECSRV_BAD_STATEまたはECCLI_BAD_STATEにECENCCTXの状態を設定します。
     _Example_
     \code
@@ -1159,12 +1159,12 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、ECENCENCCTXオブジェクトのピアソルトを設定します。
     \return 0  ECENCCTXオブジェクトのピアソルトの設定に成功したときに返されます。
-    \return BAD_FUNC_ARG  指定されたecencctxオブジェクトがnullまたは無効なプロトコルがある場合、または指定された塩がNULLの場合
+    \return BAD_FUNC_ARG  指定されたecencctxオブジェクトがnullまたは無効なプロトコルがある場合、または指定されたソルトがNULLの場合
     \return BAD_ENC_STATE_E  ecencctxの状態がECSRV_SALT_GETまたはECCLI_SALT_GETの場合に返されます。後者の2つのケースでは、この機能はそれぞれECSRV_BAD_STATEまたはECCLI_BAD_STATEにECENCCTXの状態を設定します。
-    \param ctx  塩を設定するためのecencctxへのポインタ
+    \param ctx  ソルトを設定するためのecencctxへのポインタ
     _Example_
     \code
     ecEncCtx* cliCtx, srvCtx;
@@ -1186,7 +1186,7 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
 int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は、wc_ecc_ctx_set_peer_saltの前後にオプションで呼び出されることができます。ECENCCTXオブジェクトのオプションの情報を設定します。
     \return 0  ECENCCTXオブジェクトの情報を正常に設定すると返されます。
     \return BAD_FUNC_ARG  与えられたECENCCTXオブジェクトがNULLの場合、入力情報はNULLまたはサイズが無効です。
@@ -1207,7 +1207,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は指定された入力メッセージをMSGからOUTに暗号化します。この関数はパラメータとしてオプションのCTXオブジェクトを取ります。提供されている場合、ECENCCTXのEncalgo、Kdfalgo、およびMacalgoに基づいて暗号化が進みます。CTXが指定されていない場合、処理はデフォルトのアルゴリズム、ECAES_128_CBC、ECHKDF_SHA256、ECHMAC_SHA256で完了します。この機能は、メッセージがCTXで指定された暗号化タイプに従って埋め込まれている必要があります。
     \return 0  入力メッセージの暗号化に成功したら返されます
     \return BAD_FUNC_ARG  PRIVKEY、PUBKEY、MSG、MSGSZ、OUT、OUTSZがNULLの場合、またはCTXオブジェクトがサポートされていない暗号化タイプを指定します。
@@ -1246,7 +1246,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数は指定された入力メッセージをMSGからOUTに暗号化します。この関数はパラメータとしてオプションのCTXオブジェクトを取ります。提供されている場合、ECENCCTXのEncalgo、Kdfalgo、およびMacalgoに基づいて暗号化が進みます。CTXが指定されていない場合、処理はデフォルトのアルゴリズム、ECAES_128_CBC、ECHKDF_SHA256、ECHMAC_SHA256で完了します。この機能は、メッセージがCTXで指定された暗号化タイプに従って埋め込まれている必要があります。
     \return 0  入力メッセージの暗号化に成功したら返されます
     \return BAD_FUNC_ARG  PRIVKEY、PUBKEY、MSG、MSGSZ、OUT、OUTSZがNULLの場合、またはCTXオブジェクトがサポートされていない暗号化タイプを指定します。
@@ -1287,7 +1287,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  この関数はMSGからOUTへの暗号文を復号化します。この関数はパラメータとしてオプションのCTXオブジェクトを取ります。提供されている場合、ECENCCTXのEncalgo、Kdfalgo、およびMacalgoに基づいて暗号化が進みます。CTXが指定されていない場合、処理はデフォルトのアルゴリズム、ECAES_128_CBC、ECHKDF_SHA256、ECHMAC_SHA256で完了します。この機能は、メッセージがCTXで指定された暗号化タイプに従って埋め込まれている必要があります。
     \return 0  入力メッセージの復号化に成功したときに返されます
     \return BAD_FUNC_ARG  PRIVKEY、PUBKEY、MSG、MSGSZ、OUT、OUTSZがNULLの場合、またはCTXオブジェクトがサポートされていない暗号化タイプを指定します。
@@ -1329,7 +1329,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
 
 /*!
-    \ingroup ECC 
+    \ingroup ECC
     \brief  非ブロック操作のためのECCサポートを有効にします。次のビルドオプションを使用した単精度（SP）数学でサポートされています.WolfSSL_SP_SP_SMALL WOLFSSL_SP_NO_MALLOC WC_ECC_NONBLOCK
     \return 0  コールバックコンテキストを入力メッセージに正常に設定すると返されます。
     \param key  ECC_KEYオブジェクトへのポインタ
@@ -1351,7 +1351,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     &key
                 );
 
-                // TODO: Real-time work can be called here 
+                // TODO: Real-time work can be called here
             } while (ret == FP_WOULDBLOCK);
         }
         wc_ecc_free(&key);
