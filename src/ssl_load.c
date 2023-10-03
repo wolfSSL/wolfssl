@@ -3159,6 +3159,14 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
         ret = WOLFSSL_BAD_PATH;
     }
 
+#ifdef OPENSSL_EXTRA
+    if (ret == WOLFSSL_SUCCESS) {
+        /* if at lease one good CA was found then clear out the error queue
+         * from any attempted loads that failed (i.e bad date after checks) */
+        wolfSSL_ERR_clear_error();
+    }
+#endif
+
     WOLFSSL_LEAVE("wolfSSL_CTX_load_system_CA_certs", ret);
 
     return ret;
