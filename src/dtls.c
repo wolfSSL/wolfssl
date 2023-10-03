@@ -972,8 +972,16 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #endif
                 ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
         }
-        else
+        else {
             ssl->options.dtlsStateful = 1;
+            /* Update the window now that we enter the stateful parsing */
+#ifdef WOLFSSL_DTLS13
+            if (isTls13)
+                ret = Dtls13UpdateWindowRecordRecvd(ssl);
+            else
+#endif
+                DtlsUpdateWindow(ssl);
+        }
     }
 
     return ret;

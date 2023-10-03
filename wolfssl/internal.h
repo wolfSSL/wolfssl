@@ -6479,6 +6479,7 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #ifdef WOLFSSL_DTLS
 WOLFSSL_API int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         word16* next_hi, word32* next_lo, word32 *window);
+WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
@@ -6547,6 +6548,7 @@ WOLFSSL_LOCAL void Dtls13RtxFlushBuffered(WOLFSSL* ssl,
 WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13CheckAEADFailLimit(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl);
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
