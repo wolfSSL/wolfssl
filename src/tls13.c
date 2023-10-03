@@ -4122,7 +4122,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
 }
 
 /* returns status after we hash the ech inner */
-static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech, int server)
+static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 {
     int ret = 0;
     word32 realSz;
@@ -4130,21 +4130,13 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech, int server)
     byte falseHeader[HANDSHAKE_HEADER_SZ];
     if (ssl == NULL || ech == NULL)
         return BAD_FUNC_ARG;
-    if (server)
-        realSz = ech->innerClientHelloLen + HANDSHAKE_HEADER_SZ;
-    else
-        realSz = ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt;
+    realSz = ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt;
     tmpHashes = ssl->hsHashes;
     /* init the ech hashes */
-    if (ssl->hsHashesEch == NULL) {
-        ssl->hsHashes = ssl->hsHashesEch;
-        InitHandshakeHashes(ssl);
-        ssl->hsHashesEch = ssl->hsHashes;
-        ssl->hsHashes = tmpHashes;
-    }
+    InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &ssl->hsHashesEch);
     /* swap hsHashes so the regular hash functions work */
     ssl->hsHashes = ssl->hsHashesEch;
-    if (ret == 0 && server == 0) {
+    if (ret == 0) {
         /* do the handshake header then the body */
         AddTls13HandShakeHeader(falseHeader, realSz, 0, 0, client_hello, ssl);
         ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
@@ -4172,7 +4164,7 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech, int server)
     if (ret == 0)
         ret = HashRaw(ssl, ech->innerClientHello, realSz);
     /* hash with inner */
-    if (ret == 0 && server == 0) {
+    if (ret == 0) {
         ssl->hsHashes = ssl->hsHashesEchInner;
         ret = HashRaw(ssl, ech->innerClientHello, realSz);
     }
@@ -4649,7 +4641,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(HAVE_ECH)
             /* compute the inner hash */
             if (ssl->options.useEch == 1) {
-                ret = EchHashHelloInner(ssl, args->ech, 0);
+                ret = EchHashHelloInner(ssl, args->ech);
             }
 #endif
             /* compute the outer hash */
@@ -7414,7 +7406,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                 }
                 /* replace the last 8 bytes of server random with the accept */
                 if (((WOLFSSL_ECH*)echX->data)->state == ECH_PARSED_INTERNAL) {
-                    ret = EchHashHelloInner(ssl, (WOLFSSL_ECH*)echX->data, 1);
+                    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                        &ssl->hsHashesEch);
                     if (ret == 0) {
                         ret = EchWriteAcceptance(ssl, acceptLabel,
                             acceptLabelSz, output + RECORD_HEADER_SZ,
