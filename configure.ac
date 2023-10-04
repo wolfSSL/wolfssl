@@ -9197,7 +9197,7 @@ else
     AC_MSG_ERROR([Could not find colrm or cut to make options file])
 fi
 
-for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
+for option in $AM_CPPFLAGS $CPPFLAGS $AM_CFLAGS $CFLAGS; do
     opt_type=$(echo $option | $TRIM )
     case "$opt_type" in
     -D)
