@@ -52,7 +52,8 @@ jobs:
           git config --global user.name "Mark Hermeling"
           git remote add upstream https://github.com/wolfssl/wolfssl.git
           git fetch upstream nightly-snapshot
-          git merge upstream/nightly-snapshot --allow-unrelated-histories
+          git merge upstream/nightly-snapshot --allow-unrelated-histories -m "Merge from upstream/nightly"
+          git push
       - name : configure
         run: ./autogen.sh ; ./configure --enable-all
       - name: Checkout CodeSonar CI-Script
