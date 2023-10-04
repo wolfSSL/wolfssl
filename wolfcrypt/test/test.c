@@ -405,7 +405,6 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || \
     defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY) || \
     defined(WOLFSSL_SECO_CAAM)
     #define HASH_SIZE_LIMIT
@@ -2709,7 +2708,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || defined(HASH_SIZE_LIMIT)
+    defined(HASH_SIZE_LIMIT)
     const char* large_digest =
             "\x1d\x6a\x5a\xf6\xe5\x7c\x86\xce\x7f\x7c\xaf\xd5\xdb\x08\xcd\x59"
             "\x15\x8c\x6d\xb6";
@@ -2722,7 +2721,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha_test(void)
         large_input[i] = (byte)(i & 0xFF);
     }
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
-    defined(WOLFSSL_RENESAS_RSIP) || defined(HASH_SIZE_LIMIT)
+    defined(HASH_SIZE_LIMIT)
     times = 20;
 #else
     times = 100;
@@ -9500,6 +9499,66 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
+
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) &&     \
+    !defined(WOLFSSL_AFALG)
+    {
+    #define LARGE_XTS_SZ        1024
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        byte* large_input = (byte *)XMALLOC(LARGE_XTS_SZ, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    #else
+        byte large_input[LARGE_XTS_SZ];
+    #endif
+        int i;
+        int j;
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        if (large_input == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+    #endif
+
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
+                HEAP_HINT, devId);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_DECRYPTION,
+                HEAP_HINT, devId);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    }
+#endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
+        * (!HAVE_FIPS || FIPS_VERSION_GE(5,3)) &&
+        * !WOLFSSL_AFALG
+        */
 
   out:
 

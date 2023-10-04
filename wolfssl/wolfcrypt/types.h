@@ -761,13 +761,6 @@ typedef struct w64wrapper {
            debugging is turned on */
         #ifndef USE_WINDOWS_API
             #ifndef XSNPRINTF
-            #if defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
-                (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-                 defined(WOLFSSL_CERT_EXT) || defined(HAVE_PKCS7))
-                /* case where stdio is not included else where but is needed
-                   for snprintf */
-                #include <stdio.h>
-            #endif
             #if defined(WOLFSSL_ESPIDF) && \
                 (!defined(NO_ASN_TIME) && defined(HAVE_PKCS7))
                     #include<stdarg.h>
@@ -797,8 +790,10 @@ typedef struct w64wrapper {
                     }
                 #define XSNPRINTF _xsnprintf_
             #elif defined(WOLF_C89)
+                #include <stdio.h>
                 #define XSPRINTF sprintf
             #else
+                #include <stdio.h>
                 #define XSNPRINTF snprintf
             #endif
             #endif

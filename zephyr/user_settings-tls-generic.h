@@ -28,9 +28,6 @@
 extern "C" {
 #endif
 
-#undef  WOLFSSL_ZEPHYR
-#define WOLFSSL_ZEPHYR
-
 #if 0
 #undef  SINGLE_THREADED
 #define SINGLE_THREADED
@@ -145,11 +142,6 @@ extern "C" {
 #define WOLFSSL_HAVE_SP_DH
 #undef  WOLFSSL_HAVE_SP_ECC
 #define WOLFSSL_HAVE_SP_ECC
-#endif
-
-#if defined(CONFIG_WOLFSSL_DEBUG)
-#undef  DEBUG_WOLFSSL
-#define DEBUG_WOLFSSL
 #endif
 
 #ifdef __cplusplus

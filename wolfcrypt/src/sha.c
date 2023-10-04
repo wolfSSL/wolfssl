@@ -919,8 +919,6 @@ void wc_ShaFree(wc_Sha* sha)
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) || \
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH) || \
-    (defined(WOLFSSL_RENESAS_RSIP) && \
-    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) || \
     defined(WOLFSSL_RENESAS_RX64_HASH)
     if (sha->msg != NULL) {
         XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);

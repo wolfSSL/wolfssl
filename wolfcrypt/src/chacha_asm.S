@@ -1,5 +1,5 @@
-/* chacha_asm
- *
+/* chacha_asm.S */
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
