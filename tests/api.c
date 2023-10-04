@@ -5701,8 +5701,8 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     if (!c_sharedCtx)
 #endif
     {
-        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx->c_ctx, cliCertFile,
-            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx->c_ctx,
+            cliCertFile), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx->c_ctx, cliKeyFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     }
@@ -5772,8 +5772,8 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     if (!s_sharedCtx)
 #endif
     {
-        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx->s_ctx, certFile,
-            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx->s_ctx,
+            certFile), WOLFSSL_SUCCESS);
     }
     if (ctx->s_cb.keyPemFile != NULL) {
         keyFile = ctx->s_cb.keyPemFile;
@@ -5806,8 +5806,8 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
 #endif
         )
     {
-        ExpectIntEQ(wolfSSL_use_certificate_file(ctx->c_ssl, cliCertFile,
-            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_chain_file(ctx->c_ssl, cliCertFile),
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(ctx->c_ssl, cliKeyFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     }
@@ -5827,8 +5827,8 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
 #endif
         )
     {
-        ExpectIntEQ(wolfSSL_use_certificate_file(ctx->s_ssl, certFile,
-            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_chain_file(ctx->s_ssl, certFile),
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_use_PrivateKey_file(ctx->s_ssl, keyFile,
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     }
@@ -6035,7 +6035,9 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_memio_cleanup(&test_ctx);
 
     client_cb->return_code = test_ctx.c_cb.return_code;
+    client_cb->last_err = test_ctx.c_cb.last_err;
     server_cb->return_code = test_ctx.s_cb.return_code;
+    server_cb->last_err = test_ctx.s_cb.last_err;
 
     return EXPECT_RESULT();
 }
@@ -7841,8 +7843,8 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_2_ctx_ready(
     WOLFSSL_CTX* ctx)
 {
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
-    wolfSSL_CTX_set_verify_depth(ctx, 1);
+    myVerifyAction = VERIFY_OVERRIDE_ERROR;
+    wolfSSL_CTX_set_verify_depth(ctx, 0);
     return TEST_SUCCESS;
 }
 #endif
@@ -7915,10 +7917,12 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_3(void)
      * therefore, handshake becomes failure.
      */
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
-        &server_cbf, NULL), TEST_SUCCESS);
+        &server_cbf, NULL), TEST_FAIL);
 
-    ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
-    ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    ExpectIntEQ(client_cbf.return_code, TEST_FAIL);
+    ExpectIntEQ(server_cbf.return_code, TEST_FAIL);
+    ExpectIntEQ(client_cbf.last_err, MAX_CHAIN_ERROR);
+    ExpectIntEQ(server_cbf.last_err, FATAL_ERROR);
 #endif /* OPENSSL_EXTRA && !WOLFSSL_TIRTOS &&
         * HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
@@ -65112,6 +65116,105 @@ static int test_certreq_sighash_algos(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_CRL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+static int test_revoked_loaded_int_cert_ctx_ready1(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    myVerifyAction = VERIFY_USE_PREVERFIY;
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_revoked_loaded_int_cert_ctx_ready2(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    myVerifyAction = VERIFY_USE_PREVERFIY;
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int2-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int2.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_revoked_loaded_int_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CRL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    struct {
+        const char* certPemFile;
+        const char* keyPemFile;
+        ctx_cb      client_ctx_ready;
+    } test_params[] = {
+        {"./certs/intermediate/ca-int2-cert.pem",
+            "./certs/intermediate/ca-int2-key.pem",
+            test_revoked_loaded_int_cert_ctx_ready1},
+        {"./certs/intermediate/server-chain.pem",
+            "./certs/server-key.pem", test_revoked_loaded_int_cert_ctx_ready2},
+        {"./certs/intermediate/server-chain-short.pem",
+            "./certs/server-key.pem", test_revoked_loaded_int_cert_ctx_ready2},
+    };
+    size_t i;
+
+    printf("\n");
+
+    for (i = 0; i < XELEM_CNT(test_params); i++) {
+        XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+        XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+        printf("\tTesting with %s...\n", test_params[i].certPemFile);
+
+        server_cbf.certPemFile = test_params[i].certPemFile;
+        server_cbf.keyPemFile  = test_params[i].keyPemFile;
+
+        client_cbf.ctx_ready = test_params[i].client_ctx_ready;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_FAIL);
+#ifndef WOLFSSL_HAPROXY
+        ExpectIntEQ(client_cbf.last_err, CRL_CERT_REVOKED);
+#else
+        ExpectIntEQ(client_cbf.last_err, WOLFSSL_X509_V_ERR_CERT_REVOKED);
+#endif
+        ExpectIntEQ(server_cbf.last_err, FATAL_ERROR);
+
+        if (!EXPECT_SUCCESS())
+            break;
+        printf("\t%s passed\n", test_params[i].certPemFile);
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66379,6 +66482,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_client_hello_timeout),
     TEST_DECL(test_dtls_dropped_ccs),
     TEST_DECL(test_certreq_sighash_algos),
+    TEST_DECL(test_revoked_loaded_int_cert),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
