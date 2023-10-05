@@ -1,0 +1,35 @@
+name: Async Tests
+
+on:
+  workflow_call:
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-asynccrypt --enable-all --enable-dtls13',
+          '--enable-asynccrypt-sw --enable-ocspstapling --enable-ocspstapling2',
+          '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS"',
+        ]
+    name: make check
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL async
+        run: |
+          ./async-check.sh install
+          ./configure ${{ matrix.config }}
+          make check
+
+      - name: Print errors 
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi

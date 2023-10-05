@@ -1,0 +1,101 @@
+name: Zephyr tests
+
+on:
+  workflow_call:
+
+jobs:
+  run_test:
+    name: Build and run
+    strategy:
+      matrix:
+        config:
+          - zephyr-ref: v3.4.0
+            zephyr-sdk: 0.16.1
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 15
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          # most of the ci-base zephyr docker image packages
+          sudo apt-get install -y zip bridge-utils uml-utilities \
+            git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget \
+            python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file \
+            make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 \
+            autoconf automake bison build-essential ca-certificates cargo ccache chrpath cmake \
+            cpio device-tree-compiler dfu-util diffstat dos2unix doxygen file flex g++ gawk gcc \
+            gcovr git git-core gnupg gperf gtk-sharp2 help2man iproute2 lcov libcairo2-dev \
+            libglib2.0-dev libgtk2.0-0 liblocale-gettext-perl libncurses5-dev libpcap-dev \
+            libpopt0 libsdl1.2-dev libsdl2-dev libssl-dev libtool libtool-bin locales make \
+            net-tools ninja-build openssh-client parallel pkg-config python3-dev python3-pip \
+            python3-ply python3-setuptools python-is-python3 qemu rsync socat srecord sudo \
+            texinfo unzip wget ovmf xz-utils
+
+      - name: Install west
+        run: sudo pip install west
+
+      - name: Init west workspace
+        run: west init --mr ${{ matrix.config.zephyr-ref }} zephyr
+
+      - name: Update west.yml
+        working-directory: zephyr/zephyr
+        run: |
+          REF=$(echo '${{ github.ref }}' | sed -e 's/\//\\\//g')
+          sed -e 's/remotes:/remotes:\n    \- name: wolfssl\n      url\-base: https:\/\/github.com\/${{ github.repository_owner }}/' -i west.yml
+          sed -e "s/projects:/projects:\n    \- name: wolfssl\n      path: modules\/crypto\/wolfssl\n      remote: wolfssl\n      revision: $REF/" -i west.yml
+
+      - name: Update west workspace
+        working-directory: zephyr
+        run: west update -n -o=--depth=1
+
+      - name: Export zephyr
+        working-directory: zephyr
+        run: west zephyr-export
+
+      - name: Install pip dependencies
+        working-directory: zephyr
+        run: sudo pip install -r zephyr/scripts/requirements.txt
+
+      - name: Install zephyr SDK
+        run: |
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${{ matrix.config.zephyr-sdk }}/zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64.tar.xz
+          tar xf zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64.tar.xz
+          cd zephyr-sdk-${{ matrix.config.zephyr-sdk }}
+          ./setup.sh -h -c
+
+      - name: Run wolfssl test
+        id: wolfssl-test
+        working-directory: zephyr
+        run: |
+          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test -vvv
+          rm -rf zephyr/twister-out
+
+      - name: Run wolfssl TLS sock test
+        id: wolfssl-tls-sock
+        working-directory: zephyr
+        run: |
+          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_sock/sample.crypto.wolfssl_tls_sock -vvv
+          rm -rf zephyr/twister-out
+
+      - name: Run wolfssl TLS thread test
+        id: wolfssl-tls-thread
+        working-directory: zephyr
+        run: |
+          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_thread/sample.crypto.wolfssl_tls_thread -vvv
+          rm -rf zephyr/twister-out
+
+      - name: Zip failure logs
+        if: ${{ failure() && (steps.wolfssl-test.outcome == 'failure' || steps.wolfssl-tls-sock.outcome == 'failure' || steps.wolfssl-tls-thread.outcome == 'failure') }}
+        run: |
+          zip -9 -r logs.zip zephyr/twister-out
+
+      - name: Upload failure logs
+        if: ${{ failure() && (steps.wolfssl-test.outcome == 'failure' || steps.wolfssl-tls-sock.outcome == 'failure' || steps.wolfssl-tls-thread.outcome == 'failure') }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: zephyr-client-test-logs
+          path: logs.zip
+          retention-days: 5
