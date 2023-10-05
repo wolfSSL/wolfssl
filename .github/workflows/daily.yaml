@@ -1,7 +1,13 @@
 name: Daily Merge and CodeSonar run
 on:
+  push:
+    branches:
+      - release/daily
+  pull_request:
+    branches:
+      - 'release/daily'
   schedule:
-    - cron: '30 * * * *'
+    - cron: '17 2 * * *'
 
 
 
@@ -15,19 +21,20 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     env:
-      GITHUB_CAFILE: ".github/github.cert.pem"
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-      GITHUB_API_URL: https://api.github.com
-      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      CAFILE: ".github/github.cert.pem"
+      TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      API_URL: https://api.github.com
+      REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       ROOT_TREE: "OSS-Projects/WolfSSL-GitHub"
       PROJECT_NAME: "wolfssl"
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      COMMIT_HASH: $GITHUB_SHA
       CSONAR_HUB_URL: "https://partnerdemo.codesonar.com"
       CSONAR_HUB_USER: "${{ secrets.CSONAR_HUB_USER }}"
       CSONAR_HUB_PASSWORD: "${{ secrets.CSONAR_HUB_PASS }}"
       CSONAR_CSHOME: /opt/codesonar
       CSO_GITHUB: /opt/codesonar-github
-      GITHUB_REPO_URL: "http://github.com/markhermeling/wolfssl"    # the github.repositoryUrl is not an http-link.
+      REPO_URL: "http://github.com/markhermeling/wolfssl"    # the github.repositoryUrl is not an http-link.
       TARGET: ${{ github.base_ref }}
       IS_PR: ${{ github.event_name }}
     steps:
@@ -40,17 +47,20 @@ jobs:
             ref: release/daily
       - name: Merge from upstream
         run: |
-           git fetch upstream
-           git merge -Xours upstream/master
-      - name: Safe directory
-        run: git config --global --add safe.directory `pwd`
+          git config --global --add safe.directory /__w/wolfssl/wolfssl
+          git config --global user.email "mark@hermeling.org"
+          git config --global user.name "Mark Hermeling"
+          git remote add upstream https://github.com/wolfssl/wolfssl.git
+          git fetch upstream nightly-snapshot
+          git merge upstream/nightly-snapshot --allow-unrelated-histories -m "Merge from upstream/nightly"
+          git push
       - name : configure
         run: ./autogen.sh ; ./configure --enable-all
       - name: Checkout CodeSonar CI-Script
         uses: actions/checkout@v4
         with:
           repository: CodeSecure-SE/codesonar_ci
-          ref: main
+          ref: feature/add-gitlab
           path: codesonar-scripts
       - name: Build and Analyze
         run: python3 codesonar-scripts/build_and_analyze.py codesonar.conf make -j $PARALLEL
@@ -65,4 +75,3 @@ jobs:
         uses: thollander/actions-comment-pull-request@v2
         with:
           filePath: warnings.md
-
