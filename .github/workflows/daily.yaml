@@ -41,8 +41,6 @@ jobs:
           echo "PARALLEL=`nproc`" >> $GITHUB_ENV
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          ref: release/daily
       - name: Fix ownership warning
         run: git config --global --add safe.directory /__w/wolfssl/wolfssl
       - name: Merge Upstream
