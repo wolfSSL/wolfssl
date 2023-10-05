@@ -81,7 +81,10 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/sm4.h \
                          wolfssl/wolfcrypt/lms.h \
                          wolfssl/wolfcrypt/wc_lms.h \
-                         wolfssl/wolfcrypt/ext_lms.h
+                         wolfssl/wolfcrypt/ext_lms.h \
+                         wolfssl/wolfcrypt/xmss.h \
+                         wolfssl/wolfcrypt/wc_xmss.h \
+                         wolfssl/wolfcrypt/ext_xmss.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/aria/aria-crypt.h \

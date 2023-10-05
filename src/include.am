@@ -807,6 +807,18 @@ if BUILD_LIBLMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_lms.c
 endif
 
+if BUILD_LIBXMSS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_xmss.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/params.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/thash.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/hash_address.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/wots.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/xmss.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/xmss_core_fast.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/xmss_commons.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += $(XMSS_ROOT)/utils.c
+endif
+
 if BUILD_LIBZ
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/compress.c
 endif
