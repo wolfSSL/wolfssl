@@ -1,5 +1,5 @@
 <a href="https://repology.org/project/wolfssl/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/wolfssl.svg" alt="Packaging status" align="right">
+    <img src="https://repology.org/badge/vertical-allrepos/wolfssl.svg?exclude_unsupported=1" alt="Packaging status" align="right">
 </a>
 
 # wolfSSL Embedded SSL/TLS Library
