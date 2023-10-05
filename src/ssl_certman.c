@@ -819,7 +819,11 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
         WOLFSSL_MSG("Getting dynamic buffer");
         buff = (byte*)XMALLOC((size_t)sz, cm->heap, DYNAMIC_TYPE_FILE);
         if (buff == NULL) {
-            ret = WOLFSSL_BAD_FILE;
+            /* If some other error has already occurred preserve that code
+             * return WOLFSSL_BAD_FILE if that is the only error condition */
+            if (ret == WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_BAD_FILE;
+            }
         }
     }
     /* Read all the file into buffer. */
