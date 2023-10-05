@@ -1148,9 +1148,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
     KcapiHashFree(&sha512->kcapi);
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP) || \
-    (defined(WOLFSSL_RENESAS_RSIP) && \
-    !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH))
+#if defined(WOLFSSL_HASH_KEEP)
     if (sha512->msg != NULL) {
         ForceZero(sha512->msg, sha512->len);
         XFREE(sha512->msg, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1479,8 +1477,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
     KcapiHashFree(&sha384->kcapi);
 #endif
 
-#if defined(WOLFSSL_HASH_KEEP) || \
-    (defined(WOLFSSL_RENESAS_RSIP) && !defined(NO_WOLFSSL_RENESAS_HASH))
+#if defined(WOLFSSL_HASH_KEEP)
     if (sha384->msg != NULL) {
         ForceZero(sha384->msg, sha384->len);
         XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);

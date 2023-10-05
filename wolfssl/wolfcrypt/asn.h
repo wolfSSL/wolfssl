@@ -1959,7 +1959,7 @@ struct Signer {
 #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
-    #ifdef HAVE_OCSP
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         byte    issuerNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of issuer names in certificate.
                                       * Used in OCSP to check for authorized
@@ -1972,7 +1972,7 @@ struct Signer {
     #ifdef HAVE_OCSP
         byte subjectKeyHash[KEYID_SIZE];
     #endif
-#ifdef WOLFSSL_AKID_NAME
+#if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     byte serialHash[SIGNER_DIGEST_SIZE]; /* serial number hash */
 #endif
 #ifdef WOLFSSL_SIGNER_DER_CERT

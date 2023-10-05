@@ -410,6 +410,7 @@ XXX-fips-test
 
 # ASYNC
 /wolfAsyncCrypt
+/async
 
 # Generated user_settings_asm.h.
 user_settings_asm.h

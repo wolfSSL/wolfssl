@@ -174,11 +174,16 @@ typedef enum {
 } FSPSM_SHA_TYPE;
 
 typedef struct {
-    byte*  msg;
     void*  heap;
+    word32 sha_type;
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
     word32 used;
     word32 len;
-    word32 sha_type;
+    byte*  msg;
+#endif
+#if defined(WOLFSSL_RENESAS_RSIP)
+    FSPSM_SHA_HANDLE handle;
+#endif
 #if defined(WOLF_CRYPTO_CB)
     word32 flags;
     int devId;

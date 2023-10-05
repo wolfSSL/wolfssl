@@ -1,5 +1,5 @@
-/* sha3_asm
- *
+/* sha3_asm.S */
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
