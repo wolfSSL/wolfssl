@@ -48,7 +48,7 @@ jobs:
       - name: Merge Upstream
         uses: exions/merge-upstream@v1
         with:
-          upstream: https://github.com/wolfssl/wolfssl
+          upstream: wolfssl/wolfssl
           upstream-branch: daily-snapshot
           branch: release/daily
       - name : configure
