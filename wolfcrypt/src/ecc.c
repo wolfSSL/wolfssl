@@ -1346,7 +1346,9 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
     !defined(WOLFSSL_CRYPTOCELL)
 
 #ifndef WOLFSSL_SP_MATH
+#if !defined(SQRTMOD_USE_MOD_EXP)
 static int mp_jacobi(mp_int* a, mp_int* n, int* c);
+#endif
 static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
 #endif
 #endif
@@ -14480,6 +14482,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     !defined(WOLFSSL_CRYPTOCELL)
 
 #ifndef WOLFSSL_SP_MATH
+#if !defined(SQRTMOD_USE_MOD_EXP)
 /* computes the jacobi c = (a | n) (or Legendre if n is prime)
  */
 static int mp_jacobi(mp_int* a, mp_int* n, int* c)
@@ -14599,6 +14602,7 @@ done:
 
   return res;
 }
+#endif /* !SQRTMOD_USE_MOD_EXP */
 
 
 /* Solves the modular equation x^2 = n (mod p)
@@ -14608,18 +14612,44 @@ done:
  */
 static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
-#ifdef SQRTMOD_USE_MOD_EXP
+#if defined(SQRTMOD_USE_MOD_EXP)
   int res;
-
+  mp_digit i;
   mp_int e;
+
+  /* first handle the simple cases n = 0 or n = 1 */
+  if (mp_cmp_d(n, 0) == MP_EQ) {
+      mp_zero(ret);
+      return MP_OKAY;
+  }
+  if (mp_cmp_d(n, 1) == MP_EQ) {
+      return mp_set(ret, 1);
+  }
+
+  if (mp_iseven(prime)) {
+      return MP_VAL;
+  }
 
   SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
   res = mp_init(&e);
   if (res == MP_OKAY)
+      res = mp_mod_d(prime, 8, &i);
+  if (res == MP_OKAY && i == 1) {
+      return MP_VAL;
+  }
+  /* prime mod 8 = 5 */
+  else if (res == MP_OKAY && i == 5) {
+      res = mp_sub_d(prime, 1, &e);
+      if (res == MP_OKAY)
+          res = mp_div_2d(&e, 2, &e, NULL);
+  }
+  /* prime mod 4 = 3 */
+  else if (res == MP_OKAY && ((i == 3) || (i == 7))) {
       res = mp_add_d(prime, 1, &e);
-  if (res == MP_OKAY)
-      res = mp_div_2d(&e, 2, &e, NULL);
+      if (res == MP_OKAY)
+          res = mp_div_2d(&e, 2, &e, NULL);
+  }
   if (res == MP_OKAY)
       res = mp_exptmod(n, &e, prime, ret);
 
@@ -14757,6 +14787,15 @@ static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
       res = mp_jacobi(Z, prime, &legendre);
       if (res == MP_OKAY && legendre == -1)
         break;
+
+#if defined(WOLFSSL_CUSTOM_CURVES)
+      /* P224R1 succeeds with a value of 11. */
+      if (mp_cmp_d(Z, 22) == MP_EQ) {
+        /* This is to clamp the loop in case 'prime' is not really prime */
+        res = MP_VAL;
+        break;
+      }
+#endif
 
       /* Z = Z + 1 */
       if (res == MP_OKAY)
