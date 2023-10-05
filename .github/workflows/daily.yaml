@@ -46,9 +46,9 @@ jobs:
       - name: Merge Upstream
         uses: exions/merge-upstream@v1
         with:
-          upstream: wolfssl/wolfssl
-          upstream-branch: daily-snapshot
-          branch: release/daily
+          upstream: 'wolfssl/wolfssl'
+          upstream-branch: 'daily-snapshot'
+          branch: 'release/daily'
       - name : configure
         run: ./autogen.sh ; ./configure --enable-all
       - name: Checkout CodeSonar CI-Script
