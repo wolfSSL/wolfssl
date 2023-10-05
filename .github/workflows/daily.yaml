@@ -9,7 +9,6 @@ on:
   schedule:
     - cron: '17 2 * * *'
 
-
 jobs:
   Daily_Merge_and_CodeSonar_Analyze:
     permissions: write-all
