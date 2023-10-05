@@ -66,5 +66,9 @@ jobs:
         run: python3 codesonar-scripts/build_and_analyze.py codesonar.conf make -j $PARALLEL
       - name: Download results
         run: $CSONAR_CSHOME/codesonar/bin/codesonar dump_warnings.py $PROJECT_NAME --gained-since-previous-analysis --sarif --sarif-detail brief -o diff.sarif
-
+      - name: Upload artefact
+        uses: actions/upload-artifact@v3
+        with:
+          name: SARIF results summary
+          path: diff.sarif
 
