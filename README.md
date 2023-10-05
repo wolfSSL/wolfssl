@@ -1,5 +1,5 @@
 <a href="https://repology.org/project/wolfssl/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/wolfssl.svg" alt="Packaging status" align="right">
+    <img src="https://repology.org/badge/vertical-allrepos/wolfssl.svg?exclude_unsupported=1" alt="Packaging status" align="right">
 </a>
 
 # wolfSSL Embedded SSL/TLS Library
@@ -10,7 +10,7 @@ targeted for embedded, RTOS, and resource-constrained environments - primarily
 because of its small size, speed, and feature set.  It is commonly used in
 standard operating environments as well because of its royalty-free pricing
 and excellent cross platform support. wolfSSL supports industry standards up
-to the current [TLS 1.3](https://www.wolfssl.com/tls13) and DTLS 1.2, is up to
+to the current [TLS 1.3](https://www.wolfssl.com/tls13) and DTLS 1.3, is up to
 20 times smaller than OpenSSL, and offers progressive ciphers such as ChaCha20,
 Curve25519, Blake2b and Post-Quantum TLS 1.3 groups. User benchmarking and
 feedback reports dramatically better performance when using wolfSSL over
@@ -27,8 +27,8 @@ or contact fips@wolfssl.com.
 There are many reasons to choose wolfSSL as your embedded, desktop, mobile, or
 enterprise SSL/TLS solution. Some of the top reasons include size (typical
 footprint sizes range from 20-100 kB), support for the newest standards
-(SSL 3.0, TLS 1.0, TLS 1.1, TLS 1.2, TLS 1.3, DTLS 1.0, and DTLS 1.2), current
-and progressive cipher support (including stream ciphers), multi-platform,
+(SSL 3.0, TLS 1.0, TLS 1.1, TLS 1.2, TLS 1.3, DTLS 1.0, DTLS 1.2, and DTLS 1.3),
+current and progressive cipher support (including stream ciphers), multi-platform,
 royalty free, and an OpenSSL compatibility API to ease porting into existing
 applications which have previously used the OpenSSL package. For a complete
 feature list, see [Chapter 4](https://www.wolfssl.com/docs/wolfssl-manual/ch4/)
