@@ -53,7 +53,10 @@ jobs:
       - name: Build and Analyze
         run: python3 codesonar-scripts/build_and_analyze.py codesonar.conf make -j $PARALLEL
       - name: Download results
-        run: $CSONAR_CSHOME/codesonar/bin/codesonar dump_warnings.py --project-file $PROJECT_NAME.prj --hub $CSONAR_HUB_URL --gained-since-previous-analysis --sarif --sarif-detail brief -o diff.sarif
+        run: |
+          echo $CSONAR_HUB_PASSWORD > hubpwfile
+          $CSONAR_CSHOME/codesonar/bin/codesonar dump_warnings.py --project-file $PROJECT_NAME.prj -auth password -hubuser $CSONAR_HUB_USER -hubpwfile pwfile  --hub $CSONAR_HUB_URL --gained-since-previous-analysis --sarif --sarif-detail brief -o diff.sarif
+          rm hubpwfile
       - name: Upload artefact
         uses: actions/upload-artifact@v3
         with:
