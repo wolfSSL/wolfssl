@@ -1,4 +1,4 @@
-name: Daily Merge and CodeSonar run
+name: CodeSonar run
 on:
   push:
     branches:
