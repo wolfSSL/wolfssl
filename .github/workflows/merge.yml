@@ -1,23 +1,22 @@
 name: Daily Merge from upstream/daily-snapshot
-on:
-  workflow_dispatch:
 
-  schedule:
-    - cron: '47 1 * * *'
+    on:
+      schedule:
+        - cron: '*/5 0 * * *'
 
-jobs:
-    merge-upstream:
+    jobs:
+      merge-upstream:
         runs-on: ubuntu-latest
         steps:
           - name: Checkout
             uses: actions/checkout@v3
             with:
-              ref: release/daily
+              ref: upstream             # set the branch to merge to
               fetch-depth: 0
           - name: Merge Upstream
             uses: exions/merge-upstream@v1
             with:
-              upstream: wolfssl/wolfssl
-              upstream-branch: daily-snapshot
-              branch: release/daily
+              upstream: wolfssl/woflssl      # set the upstream repo
+              upstream-branch: daily-snapshot   # set the upstream branch to merge from
+              branch: release/daily          # set the branch to merge to
 
