@@ -16,7 +16,14 @@ jobs:
       - name: Configure wolfSSL
         run: |
           autoreconf -ivf
-          ./configure --enable-distro --disable-examples --disable-silent-rules
+          ./configure --enable-distro --enable-all \
+            --disable-openssl-compatible-defaults --enable-intelasm \
+            --enable-dtls13 --enable-dtls-mtu \
+            --enable-sp-asm --disable-examples --disable-silent-rules
+
+      - name: Make sure OPENSSL_COMPATIBLE_DEFAULTS is not present in options.h
+        run: |
+          ! grep OPENSSL_COMPATIBLE_DEFAULTS wolfssl/options.h
 
       - name: Build wolfSSL .deb
         run: make deb-docker

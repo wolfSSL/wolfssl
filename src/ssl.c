@@ -3338,22 +3338,6 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
         errno = 0;
 #endif
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        ssl->dtls_expected_rx = max(sz + DTLS_MTU_ADDITIONAL_READ_BUFFER,
-                MAX_MTU);
-#ifdef WOLFSSL_SCTP
-        if (ssl->options.dtlsSctp)
-#endif
-#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-            /* Add some bytes so that we can operate with slight difference
-             * in set MTU size on each peer */
-            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx,
-                    ssl->dtlsMtuSz + (word32)DTLS_MTU_ADDITIONAL_READ_BUFFER);
-#endif
-    }
-#endif
-
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
@@ -5875,12 +5859,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         if (!signer)
             ret = MEMORY_ERROR;
     }
+#if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
+    if (ret == 0 && signer != NULL)
+        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
+#endif
     if (ret == 0 && signer != NULL) {
     #ifdef WOLFSSL_SIGNER_DER_CERT
         ret = AllocDer(&signer->derCert, der->length, der->type, NULL);
-    }
-    if (ret == 0 && signer != NULL) {
-        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
     }
     if (ret == 0 && signer != NULL) {
         XMEMCPY(signer->derCert->buffer, der->buffer, der->length);
@@ -5906,9 +5891,11 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif
         XMEMCPY(signer->subjectNameHash, cert->subjectHash,
                 SIGNER_DIGEST_SIZE);
-    #ifdef HAVE_OCSP
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         XMEMCPY(signer->issuerNameHash, cert->issuerHash,
                 SIGNER_DIGEST_SIZE);
+    #endif
+    #ifdef HAVE_OCSP
         XMEMCPY(signer->subjectKeyHash, cert->subjectKeyHash,
                 KEYID_SIZE);
     #endif
@@ -8631,7 +8618,7 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 
 int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 {
-    WOLFSSL_ENTER("wolfSSL_LoadCRL");
+    WOLFSSL_ENTER("wolfSSL_LoadCRLFile");
     SSL_CM_WARNING(ssl);
     if (ssl)
         return wolfSSL_CertManagerLoadCRLFile(SSL_CM(ssl), file, type);
@@ -30243,12 +30230,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     (void)ret;
 #endif
-    if (ssl->ctx) {
+    if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
-#if defined(WOLFSSL_HAPROXY)
-        wolfSSL_CTX_free(ssl->initial_ctx);
-#endif
-    }
     ssl->ctx = ctx;
 
 #ifndef NO_CERTS
@@ -32840,7 +32823,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* p, unsigned int p_len)
 {
     WOLFSSL_BIO* bio;
-    char* pt;
+    char* pt = NULL;
 
     unsigned int sz;
     unsigned int idx = 0;

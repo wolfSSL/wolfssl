@@ -18,6 +18,9 @@ ARG UID=1000
 ARG GID=1000
 RUN groupadd -f -g ${GID} docker && ( getent passwd ${UID} || useradd -ms /bin/bash ${USER} -u ${UID} -g ${GID} )
 
+# Add github.com as an SSH known host
+RUN ssh -o StrictHostKeyChecking=no -T git@github.com; cat ~/.ssh/known_hosts >> /etc/ssh/ssh_known_hosts
+
 # install ccache
 RUN mkdir -p /opt/ccache/bin && for prog in gcc g++ cc c++ cpp arm-none-eabi-c++ arm-none-eabi-cpp arm-none-eabi-gcc arm-none-eabi-g++; do ln -s /usr/bin/ccache /opt/ccache/bin/$(basename $prog); done
 ENV PATH /opt/ccache/bin:$PATH
@@ -43,5 +46,8 @@ RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main http://
 RUN setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/tcpdump
 # Allow non-root to use gdb on processes (will need SYS_PTRACE capability when running the container)
 RUN setcap 'CAP_SYS_PTRACE+eip' /usr/bin/gdb
+
+# Add in Jenkins userID
+RUN for i in $(seq 1001 1010); do ( getent passwd ${i} || useradd -ms /bin/bash jenkins${i} -u ${i} -g ${GID} ); done
 
 USER ${UID}:${GID}

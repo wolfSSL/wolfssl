@@ -6455,7 +6455,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
    WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
-    int ret;
+    int ret = WOLFSSL_SUCCESS; /* set default ret */
     byte newSSL;
 
     WOLFSSL_ENTER("SetSSL_CTX");
@@ -6475,38 +6475,35 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (!newSSL) {
         WOLFSSL_MSG("freeing old ctx to decrement reference count. Switching ctx.");
         wolfSSL_CTX_free(ssl->ctx);
-#if defined(WOLFSSL_HAPROXY)
-        wolfSSL_CTX_free(ssl->initial_ctx);
-#endif
     }
 
     /* increment CTX reference count */
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    ret = wolfSSL_CTX_up_ref(ctx);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-    if (ret < 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         return ret;
     }
 #else
     (void)ret;
 #endif
-    ret = WOLFSSL_SUCCESS; /* set default ret */
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     /* Don't change version on a SSL object that has already started a
      * handshake */
 #if defined(WOLFSSL_HAPROXY)
-    ret = wolfSSL_CTX_up_ref(ctx);
-    if (ret == WOLFSSL_SUCCESS) {
-        ssl->initial_ctx = ctx; /* Save access to session key materials */
+    if (ssl->initial_ctx == NULL) {
+        ret = wolfSSL_CTX_up_ref(ctx);
+        if (ret == WOLFSSL_SUCCESS) {
+            ssl->initial_ctx = ctx; /* Save access to session key materials */
+        }
+        else {
+        #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+            return ret;
+        #else
+            (void)ret;
+        #endif
+        }
     }
-    else {
-    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-        return ret;
-    #else
-        (void)ret;
-    #endif
-    }
-
 #endif
     if (!ssl->msgsReceived.got_client_hello &&
             !ssl->msgsReceived.got_server_hello)
@@ -7185,13 +7182,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
-        ssl->dtls_expected_rx           = ssl->dtlsMtuSz;
-    #else
-        ssl->dtls_expected_rx = MAX_MTU;
     #endif
-    /* Add some bytes so that we can operate with slight difference
-     * in set MTU size on each peer */
-    ssl->dtls_expected_rx               += DTLS_MTU_ADDITIONAL_READ_BUFFER;
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
@@ -8210,7 +8201,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         if (FreeFixedIO(ctx_heap, &(ssl_hint->inBuf)) != 1) {
             WOLFSSL_MSG("Error freeing fixed output buffer");
         }
-        if (ssl_hint->haFlag) { /* check if handshake count has been decreased*/
+        if (ssl_hint->haFlag && ctx_heap->curHa > 0) { /* check if handshake count has been decreased*/
             ctx_heap->curHa--;
         }
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
@@ -8243,6 +8234,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_QUIC
     wolfSSL_quic_free(ssl);
+#endif
+#if defined(WOLFSSL_HAPROXY)
+    wolfSSL_CTX_free(ssl->initial_ctx);
+    ssl->initial_ctx = NULL;
 #endif
 }
 
@@ -8464,7 +8459,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
-        ctx_heap->curHa--;
+        if (ctx_heap->curHa > 0) {
+            ctx_heap->curHa--;
+        }
         ssl_hint->haFlag = 0; /* set to zero since handshake has been dec */
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
     #ifdef WOLFSSL_HEAP_TEST
@@ -10596,13 +10593,12 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        if (size + ssl->buffers.outputBuffer.length >
 #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-                ssl->dtlsMtuSz
+        word32 mtu = (word32)ssl->dtlsMtuSz;
 #else
-                ssl->dtls_expected_rx
+        word32 mtu = MAX_MTU;
 #endif
-                ) {
+        if ((word32)size + ssl->buffers.outputBuffer.length > mtu) {
             int ret;
             WOLFSSL_MSG("CheckAvailableSize() flushing buffer "
                         "to make room for new message");
@@ -10610,12 +10606,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
                 return ret;
             }
         }
-        if (size > (int)
-#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-                ssl->dtlsMtuSz
-#else
-                ssl->dtls_expected_rx
-#endif
+        if ((word32)size > mtu
 #ifdef WOLFSSL_DTLS13
             /* DTLS1.3 uses the output buffer to store the full message and deal
                with fragmentation later in dtls13HandshakeSend() */
@@ -13670,6 +13661,24 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
     return ret;
 }
 
+#ifdef HAVE_CRL
+static int ProcessPeerCertsChainCRLCheck(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* prev = NULL;
+    int ret = 0;
+    /* End loop if no more issuers found or if we have
+     * found a self signed cert (ca == prev) */
+    for (; ret == 0 && ca != NULL && ca != prev;
+            prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
+        ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
+                ca->serialHash, NULL, 0, NULL);
+        if (ret != 0)
+            break;
+    }
+    return ret;
+}
+#endif
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
@@ -14147,6 +14156,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     WOLFSSL_ERROR_VERBOSE(ret);
                                     WOLFSSL_MSG("\tCRL check not ok");
                                 }
+                                if (ret == 0 &&
+                                        args->certIdx == args->totalCerts-1) {
+                                    ret = ProcessPeerCertsChainCRLCheck(
+                                            SSL_CM(ssl), args->dCert->ca);
+                                    if (ret != 0) {
+                                        WOLFSSL_ERROR_VERBOSE(ret);
+                                        WOLFSSL_MSG("\tCRL chain check not ok");
+                                        args->fatal = 0;
+                                    }
+                                }
                             }
                         }
                 #endif /* HAVE_CRL */
@@ -14550,9 +14569,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->peerVerifyRet =
                                         ret == CRL_CERT_REVOKED
                                             ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                                            : WOLFSSL_X509_V_ERR_CERT_REJECTED;;
+                                            : WOLFSSL_X509_V_ERR_CERT_REJECTED;
                             }
                         #endif
+                        }
+                    }
+                    if (ret == 0 && doLookup && SSL_CM(ssl)->crlEnabled &&
+                            SSL_CM(ssl)->crlCheckAll && args->totalCerts == 1) {
+                        /* Check the entire cert chain */
+                        if (args->dCert->ca != NULL) {
+                            ret = ProcessPeerCertsChainCRLCheck(SSL_CM(ssl),
+                                    args->dCert->ca);
+                            if (ret != 0) {
+                                WOLFSSL_ERROR_VERBOSE(ret);
+                                WOLFSSL_MSG("\tCRL chain check not ok");
+                                args->fatal = 0;
+                            }
+                        }
+                        else {
+                            WOLFSSL_MSG("No CA signer set");
                         }
                     }
                 #endif /* HAVE_CRL */
@@ -19807,10 +19842,16 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     inSz       = (int)(size - usedLength);      /* from last partial read */
 
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (size < ssl->dtls_expected_rx)
-            dtlsExtra = (int)(ssl->dtls_expected_rx - size);
-        inSz = ssl->dtls_expected_rx;
+    if (ssl->options.dtls && IsDtlsNotSctpMode(ssl)) {
+        /* Add DTLS_MTU_ADDITIONAL_READ_BUFFER bytes so that we can operate with
+         * slight difference in set MTU size on each peer */
+#ifdef WOLFSSL_DTLS_MTU
+        inSz = (word32)ssl->dtlsMtuSz + DTLS_MTU_ADDITIONAL_READ_BUFFER;
+#else
+        inSz = MAX_MTU + DTLS_MTU_ADDITIONAL_READ_BUFFER;
+#endif
+        if (size < (word32)inSz)
+            dtlsExtra = (int)(inSz - size);
     }
 #endif
 
@@ -38220,6 +38261,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case rsa_kea:
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
+                        int lenErrMask;
 
                         ret = RsaDec(ssl,
                             input + args->idx,
@@ -38245,7 +38287,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         if (ret == BAD_FUNC_ARG)
                             goto exit_dcke;
 
-                        args->lastErr = ret - (SECRET_LEN - args->sigSz);
+                        lenErrMask = 0 - (SECRET_LEN != args->sigSz);
+                        args->lastErr = (ret & (~lenErrMask)) |
+                            (RSA_PAD_E & lenErrMask);
                         ret = 0;
                         break;
                     } /* rsa_kea */

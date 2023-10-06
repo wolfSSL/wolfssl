@@ -21,6 +21,6 @@ USER root
 COPY --from=BUILDER /usr/local/lib/libwolfssl.so /usr/local/lib/
 COPY --from=BUILDER /usr/local/bin/wolfssl* /usr/local/bin/
 RUN ldconfig
-CMD ["/usr/local/bin/wolfssl"]
+ENTRYPOINT ["/usr/local/bin/wolfssl"]
 LABEL org.opencontainers.image.source=https://github.com/wolfssl/wolfssl
 LABEL org.opencontainers.image.description="Simple wolfCLU in a container"

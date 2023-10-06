@@ -253,7 +253,7 @@
 #elif defined(WOLFSSL_TIRTOS)
     #define WOLFSSL_SOCKET_INVALID  ((SOCKET_T)-1)
 #else
-    #define WOLFSSL_SOCKET_INVALID  (SOCKET_T)(0)
+    #define WOLFSSL_SOCKET_INVALID  (SOCKET_T)(-1)
 #endif
 #endif /* WOLFSSL_SOCKET_INVALID */
 

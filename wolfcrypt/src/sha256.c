@@ -1715,9 +1715,7 @@ static int InitSha256(wc_Sha256* sha256)
     #if defined(WOLFSSL_KCAPI_HASH)
         KcapiHashFree(&sha224->kcapi);
     #endif
-    #if defined(WOLFSSL_RENESAS_RX64_HASH) || \
-        (defined(WOLFSSL_RENESAS_RSIP) && \
-        !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH))
+    #if defined(WOLFSSL_RENESAS_RX64_HASH)
         if (sha224->msg != NULL) {
             ForceZero(sha224->msg, sha224->len);
             XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1780,7 +1778,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     ((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
-    ((defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_RSIP)) && \
+    (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) || \
     defined(WOLFSSL_RENESAS_RX64_HASH) || \
     defined(WOLFSSL_HASH_KEEP)

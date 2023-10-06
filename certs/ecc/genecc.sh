@@ -32,7 +32,7 @@ openssl ca -batch -config ./certs/ecc/wolfssl.cnf -gencrl -crldays 1000 -out ./c
 
 
 # Generate ECC 256-bit server cert
-openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc-key.pem -out ./certs/server-ecc-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc-key.pem -out ./certs/server-ecc-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl x509 -req -in ./certs/server-ecc-req.pem -CA ./certs/ca-ecc-cert.pem -CAkey ./certs/ca-ecc-key.pem -CAcreateserial -out ./certs/server-ecc.pem -sha256
 
 # Sign server certificate
@@ -70,14 +70,14 @@ openssl ca -batch -config ./certs/ecc/wolfssl_384.cnf -gencrl -crldays 1000 -out
 # Generate ECC 384-bit server cert
 if [ -f ./certs/server-ecc384-key.pem ]; then
     openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -key ./certs/server-ecc384-key.pem -out ./certs/server-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 else
     openssl ecparam -out ./certs/server-ecc384-key.par -name secp384r1
     openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -newkey ec:./certs/server-ecc384-key.par -keyout ./certs/server-ecc384-key.pem -out ./certs/server-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 fi
 openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -new -key ./certs/server-ecc384-key.pem -out ./certs/server-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl ec -in ./certs/server-ecc384-key.pem -inform PEM -out ./certs/server-ecc384-key.der -outform DER
 
 # Sign server certificate
@@ -90,14 +90,14 @@ rm ./certs/server-ecc384-key.par
 # Generate ECC 384-bit client cert
 if [ -f ./certs/client-ecc384-key.pem ]; then
     openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -key ./certs/client-ecc384-key.pem -out ./certs/client-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Cli/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Cli/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 else
     openssl ecparam -out ./certs/client-ecc384-key.par -name secp384r1
     openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -newkey ec:./certs/client-ecc384-key.par -keyout ./certs/client-ecc384-key.pem -out ./certs/client-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Cli/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Cli/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 fi
 openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -new -key ./certs/client-ecc384-key.pem -out ./certs/client-ecc384-req.pem \
-        -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Clit/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+        -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC384Clit/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl ec -in ./certs/client-ecc384-key.pem -inform PEM -out ./certs/client-ecc384-key.der -outform DER
 
 # Sign client certificate
@@ -114,12 +114,12 @@ if [ -f ./certs/ecc/secp256k1-key.pem ]; then
         openssl ec -in ./certs/ecc/secp256k1-key.pem -inform PEM -out ./certs/ecc/secp256k1-key.der -outform DER
 fi
 # Create self-signed ECC Kerberos certificates
-openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/secp256k1-key.pem -out ./certs/ecc/server-secp256k1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC256K1-SRV/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/secp256k1-key.pem -out ./certs/ecc/server-secp256k1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC256K1-SRV/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl x509 -req -in ./certs/ecc/server-secp256k1-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions server_cert -signkey ./certs/ecc/secp256k1-key.pem -text -out ./certs/ecc/server-secp256k1-cert.pem
 openssl x509 -inform pem -in ./certs/ecc/server-secp256k1-cert.pem -outform der -out ./certs/ecc/server-secp256k1-cert.der
 rm ./certs/ecc/server-secp256k1-req.pem
 
-openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/secp256k1-key.pem -out ./certs/ecc/client-secp256k1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC256K1-CLI/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/secp256k1-key.pem -out ./certs/ecc/client-secp256k1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC256K1-CLI/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl x509 -req -in ./certs/ecc/client-secp256k1-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions usr_cert -signkey ./certs/ecc/secp256k1-key.pem -text -out ./certs/ecc/client-secp256k1-cert.pem
 openssl x509 -inform pem -in ./certs/ecc/client-secp256k1-cert.pem -outform der -out ./certs/ecc/client-secp256k1-cert.der
 rm ./certs/ecc/client-secp256k1-req.pem
@@ -130,12 +130,12 @@ if [ -f ./certs/ecc/bp256r1-key.pem ]; then
         openssl ec -in ./certs/ecc/bp256r1-key.pem -inform PEM -out ./certs/ecc/bp256r1-key.der -outform DER
 fi
 # Create self-signed ECC Brainpool certificates
-openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/bp256r1-key.pem -out ./certs/ecc/server-bp256r1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC256BPR1-SRV/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/bp256r1-key.pem -out ./certs/ecc/server-bp256r1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC256BPR1-SRV/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl x509 -req -in ./certs/ecc/server-bp256r1-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions server_cert -signkey ./certs/ecc/bp256r1-key.pem -text -out ./certs/ecc/server-bp256r1-cert.pem
 openssl x509 -inform pem -in ./certs/ecc/server-bp256r1-cert.pem -outform der -out ./certs/ecc/server-bp256r1-cert.der
 rm ./certs/ecc/server-bp256r1-req.pem
 
-openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/bp256r1-key.pem -out ./certs/ecc/client-bp256r1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC256BPR1-CLI/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/bp256r1-key.pem -out ./certs/ecc/client-bp256r1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=ECC256BPR1-CLI/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
 openssl x509 -req -in ./certs/ecc/client-bp256r1-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions usr_cert -signkey ./certs/ecc/bp256r1-key.pem -text -out ./certs/ecc/client-bp256r1-cert.pem
 openssl x509 -inform pem -in ./certs/ecc/client-bp256r1-cert.pem -outform der -out ./certs/ecc/client-bp256r1-cert.der
 rm ./certs/ecc/client-bp256r1-req.pem
