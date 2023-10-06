@@ -11041,6 +11041,7 @@ void AES_XTS_decrypt_avx1(const unsigned char *in, unsigned char *out,
 
 #endif /* WOLFSSL_AESNI */
 
+#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #ifdef HAVE_AES_ECB
 /* helper function for encrypting / decrypting full buffer at once */
 static WARN_UNUSED_RESULT int _AesXtsHelper(
@@ -11438,6 +11439,8 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return AesXtsDecrypt_sw(xaes, out, in, sz, i);
     }
 }
+#endif /* !WOLFSSL_ARMASM || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+
 #endif /* WOLFSSL_AES_XTS */
 
 #ifdef WOLFSSL_AES_SIV

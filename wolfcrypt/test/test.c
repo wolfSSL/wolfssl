@@ -9321,6 +9321,12 @@ static wc_test_ret_t aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
+    WOLFSSL_SMALL_STACK_STATIC unsigned char cp2[] = {
+        0x2b, 0xf7, 0x2c, 0xf3, 0xeb, 0x85, 0xef, 0x7b,
+        0x0b, 0x76, 0xa0, 0xaa, 0xf3, 0x3f, 0x25, 0x8b,
+        0x77, 0x8a, 0xe8, 0xb4, 0x3c, 0xb9, 0x8d, 0x5a
+    };
+
 #if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)
 
     WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
@@ -9405,6 +9411,8 @@ static wc_test_ret_t aes_xts_128_test(void)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(cp2, cipher, sizeof(cp2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     wc_AesXtsFree(aes);
 
     /* partial block decrypt test */
