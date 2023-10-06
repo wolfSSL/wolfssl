@@ -1,6 +1,16 @@
 #ifndef _WIN_USER_SETTINGS_H_
 #define _WIN_USER_SETTINGS_H_
 
+/* For FIPS 140-2 3389 build set to "#if 1" */
+#if 0
+#undef HAVE_FIPS
+#define HAVE_FIPS
+#undef HAVE_FIPS_VERSION
+#define HAVE_FIPS_VERSION 2
+#undef HAVE_FIPS_VERSION_MINOR
+#define HAVE_FIPS_VERSION_MINOR 0
+#endif
+
 /* Set the following to 1 for WCv5.0-RC12 build. */
 #if 0
 #undef HAVE_FIPS
@@ -67,8 +77,10 @@
         #define WOLFSSL_VALIDATE_FFC_IMPORT
         #define HAVE_FFDHE_Q
         #define HAVE_PUBLIC_FFDHE
+    #ifdef _WIN64
         #define WOLFSSL_AESNI
         #define HAVE_INTEL_RDSEED
+    #endif
         #define FORCE_FAILURE_RDSEED
     #endif /* FIPS v2 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
