@@ -1547,6 +1547,8 @@ void FreeWriteDup(WOLFSSL* ssl)
 */
 static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 {
+    word16 tmp_weOwnRng;
+
     /* shared dupWrite setup */
     ssl->dupWrite = (WriteDup*)XMALLOC(sizeof(WriteDup), ssl->heap,
                                        DYNAMIC_TYPE_WRITEDUP);
@@ -1563,12 +1565,7 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     ssl->dupWrite->dupCount = 2;    /* both sides have a count to start */
     dup->dupWrite = ssl->dupWrite; /* each side uses */
 
-    if (dup->options.weOwnRng) {
-        wc_FreeRng(dup->rng);
-        XFREE(dup->rng, dup->heap, DYNAMIC_TYPE_RNG);
-        dup->rng = NULL;
-        dup->options.weOwnRng = 0;
-    }
+    tmp_weOwnRng = dup->options.weOwnRng;
 
     /* copy write parts over to dup writer */
     XMEMCPY(&dup->specs,   &ssl->specs,   sizeof(CipherSpecs));
@@ -1594,6 +1591,9 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 #ifdef HAVE_TRUNCATED_HMAC
     dup->truncated_hmac = ssl->truncated_hmac;
 #endif
+
+    /* Restore rng option */
+    dup->options.weOwnRng = tmp_weOwnRng;
 
     /* unique side dup setup */
     dup->dupSide = WRITE_DUP_SIDE;
