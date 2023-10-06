@@ -5476,7 +5476,8 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     word32            disabledCurves;   /* curves disabled by user */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(OPENSSL_ALL)
     unsigned long    peerVerifyRet;
 #endif
 #ifdef OPENSSL_EXTRA
@@ -5791,9 +5792,6 @@ struct WOLFSSL {
     EarlyDataState earlyData;
     word32 earlyDataSz;
     byte earlyDataStatus;
-#endif
-#ifdef OPENSSL_ALL
-    long verifyCallbackResult;
 #endif
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
