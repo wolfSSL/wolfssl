@@ -5478,6 +5478,1343 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
 
+#ifdef WOLFSSL_AES_XTS
+
+#ifdef __aarch64__
+
+#define AES_ENCRYPT_UPDATE_TWEAK(label)                             \
+        "AESE v0.16b, v1.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AND x11, x19, x10, ASR #63\n"                              \
+        "AESE v0.16b, v2.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v3.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "EXTR x10, x10, x9, #63 \n"                                 \
+        "AESE v0.16b, v4.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "AESE v0.16b, v5.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "EOR x9, x11, x9, LSL #1 \n"                                \
+        "AESE v0.16b, v6.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v7.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v8.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "AESE v0.16b, v9.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "SUBS WZR, %w[rounds], #10 \n"                              \
+        "BLE " #label "f      \n"                                   \
+        "AESE v0.16b, v10.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v11.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "SUBS WZR, %w[rounds], #12 \n"                              \
+        "BLE " #label "f      \n"                                   \
+        "AESE v0.16b, v12.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v13.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        #label ": \n"                                               \
+        "AESE v0.16b, v14.16b \n"                                   \
+        "EOR v0.16b, v0.16b, v15.16b \n"
+
+#define AES_ENCRYPT(label)                                          \
+        "AESE v0.16b, v1.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v2.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v3.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v4.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "AESE v0.16b, v5.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v6.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v7.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v8.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "AESE v0.16b, v9.16b  \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "SUBS WZR, %w[rounds], #10 \n"                              \
+        "BLE " #label "f      \n"                                   \
+        "AESE v0.16b, v10.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v11.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        "SUBS WZR, %w[rounds], #12 \n"                              \
+        "BLE " #label "f      \n"                                   \
+        "AESE v0.16b, v12.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+        "AESE v0.16b, v13.16b \n"                                   \
+        "AESMC v0.16b, v0.16b \n"                                   \
+                                                                    \
+        #label ": \n"                                               \
+        "AESE v0.16b, v14.16b \n"                                   \
+        "EOR v0.16b, v0.16b, v15.16b \n"
+
+#define AES_DECRYPT_UPDATE_TWEAK(label)                             \
+        "AESD v0.16b, v1.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AND x11, x19, x10, ASR #63\n"                              \
+        "AESD v0.16b, v2.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v3.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "EXTR x10, x10, x9, #63 \n"                                 \
+        "AESD v0.16b, v4.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "AESD v0.16b, v5.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "EOR x9, x11, x9, LSL #1 \n"                                \
+        "AESD v0.16b, v6.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v7.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v8.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "AESD v0.16b, v9.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "SUBS WZR, %w[rounds], #10 \n"                              \
+        "BLE " #label "f       \n"                                  \
+        "AESD v0.16b, v10.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v11.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "SUBS WZR, %w[rounds], #12 \n"                              \
+        "BLE " #label "f       \n"                                  \
+        "AESD v0.16b, v12.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v13.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        #label ": \n"                                               \
+        "AESD v0.16b, v14.16b  \n"                                  \
+        "EOR v0.16b, v0.16b, v15.16b \n"
+
+#define AES_DECRYPT(label)                                          \
+        "AESD v0.16b, v1.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v2.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v3.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v4.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "AESD v0.16b, v5.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v6.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v7.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v8.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "AESD v0.16b, v9.16b   \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "SUBS WZR, %w[rounds], #10 \n"                              \
+        "BLE " #label "f       \n"                                  \
+        "AESD v0.16b, v10.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v11.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        "SUBS WZR, %w[rounds], #12 \n"                              \
+        "BLE " #label "f       \n"                                  \
+        "AESD v0.16b, v12.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+        "AESD v0.16b, v13.16b  \n"                                  \
+        "AESIMC v0.16b, v0.16b \n"                                  \
+                                                                    \
+        #label ": \n"                                               \
+        "AESD v0.16b, v14.16b  \n"                                  \
+        "EOR v0.16b, v0.16b, v15.16b \n"
+
+/* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold cipher text
+ * in    input plain text buffer to encrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    byte tmp[AES_BLOCK_SIZE];
+
+    if (xaes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks == 0) {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    __asm__ __volatile__ (
+        "MOV x19, 0x87 \n"
+
+        "# Load tweak calculation key\n"
+        "LD1 {v0.16b}, [%[i]] \n"
+        "MOV x10, %[key2] \n"
+        "LD1 {v1.2d-v4.2d}, [x10], #64  \n"
+        "LD1 {v5.2d-v8.2d}, [x10], #64  \n"
+        "LD1 {v9.2d-v12.2d}, [x10], #64  \n"
+        "LD1 {v13.2d-v15.2d}, [x10]  \n"
+
+        "# Put last 2 blocks of keys based on rounds into v14, v15\n"
+        "SUBS WZR, %w[rounds], #14 \n"
+        "BEQ 40f \n"
+        "SUBS WZR, %w[rounds], #12 \n"
+        "MOV v14.16b, v12.16b \n"
+        "MOV v15.16b, v13.16b \n"
+        "BEQ 40f \n"
+        "MOV v14.16b, v10.16b \n"
+        "MOV v15.16b, v11.16b \n"
+        "40: \n"
+
+        AES_ENCRYPT(10)
+
+        "MOV x9, v0.d[0] \n"
+        "MOV x10, v0.d[1] \n"
+        "MOV v20.16b, v0.16b \n"
+
+        "# Load encryption key\n"
+        "MOV x11, %[key] \n"
+        "LD1 {v1.2d-v4.2d}, [x11], #64  \n"
+        "LD1 {v5.2d-v8.2d}, [x11], #64  \n"
+        "LD1 {v9.2d-v12.2d}, [x11], #64  \n"
+        "LD1 {v13.2d-v15.2d}, [x11]  \n"
+
+        "# Put last 2 blocks of keys based on rounds into v14, v15\n"
+        "SUBS WZR, %w[rounds], #14 \n"
+        "BEQ 41f \n"
+        "SUBS WZR, %w[rounds], #10 \n"
+        "MOV v14.16b, v10.16b \n"
+        "MOV v15.16b, v11.16b \n"
+        "BEQ 41f \n"
+        "MOV v14.16b, v12.16b \n"
+        "MOV v15.16b, v13.16b \n"
+        "41: \n"
+
+        "SUBS WZR, %w[blocks], #4 \n"
+        "BLT 1f \n"
+
+        "AND %w[sz], %w[sz], 0x3f \n"
+
+        "AND x17, x19, x10, ASR #63\n"
+        "EXTR x12, x10, x9, #63 \n"
+        "EOR x11, x17, x9, LSL #1 \n"
+
+        "AND x17, x19, x12, ASR #63\n"
+        "EXTR x14, x12, x11, #63 \n"
+        "EOR x13, x17, x11, LSL #1 \n"
+
+        "AND x17, x19, x14, ASR #63\n"
+        "EXTR x16, x14, x13, #63 \n"
+        "EOR x15, x17, x13, LSL #1 \n"
+
+        "SUB %w[blocks], %w[blocks], #4 \n"
+
+        "#Four blocks at a time\n"
+        "20:\n"
+
+        "LD1 {v16.16b-v19.16b}, [%[in]], #64 \n"
+
+        "MOV v21.d[0], x11 \n"
+        "MOV v21.d[1], x12 \n"
+        "MOV v22.d[0], x13 \n"
+        "MOV v22.d[1], x14 \n"
+        "MOV v23.d[0], x15 \n"
+        "MOV v23.d[1], x16 \n"
+
+        "EOR v16.16b, v16.16b, v20.16b \n"
+        "EOR v17.16b, v17.16b, v21.16b \n"
+        "EOR v18.16b, v18.16b, v22.16b \n"
+        "EOR v19.16b, v19.16b, v23.16b \n"
+
+        "AESE v16.16b, v1.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "AND x17, x19, x16, ASR #63\n"
+        "AESE v17.16b, v1.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v1.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "EXTR x10, x16, x15, #63 \n"
+        "AESE v19.16b, v1.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v2.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "EOR x9, x17, x15, LSL #1 \n"
+        "AESE v17.16b, v2.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v2.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "AND x17, x19, x10, ASR #63\n"
+        "AESE v19.16b, v2.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v3.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "EXTR x12, x10, x9, #63 \n"
+        "AESE v17.16b, v3.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v3.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "EOR x11, x17, x9, LSL #1 \n"
+        "AESE v19.16b, v3.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v4.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "AND x17, x19, x12, ASR #63\n"
+        "AESE v17.16b, v4.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v4.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "EXTR x14, x12, x11, #63 \n"
+        "AESE v19.16b, v4.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+
+        "AESE v16.16b, v5.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "EOR x13, x17, x11, LSL #1 \n"
+        "AESE v17.16b, v5.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v5.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "AND x17, x19, x14, ASR #63\n"
+        "AESE v19.16b, v5.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v6.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+          "EXTR x16, x14, x13, #63 \n"
+        "AESE v17.16b, v6.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v6.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+          "EOR x15, x17, x13, LSL #1 \n"
+        "AESE v19.16b, v6.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v7.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v7.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v7.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v7.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v8.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v8.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v8.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v8.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+
+        "AESE v16.16b, v9.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v9.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v9.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v9.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+
+        "SUBS WZR, %w[rounds], #10 \n"
+        "BEQ 21f \n"
+        "AESE v16.16b, v10.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v10.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v10.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v10.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v11.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v11.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v11.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v11.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+
+        "SUBS WZR, %w[rounds], #12 \n"
+        "BEQ 21f \n"
+        "AESE v16.16b, v12.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v12.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v12.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v12.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+        "AESE v16.16b, v13.16b  \n"
+        "AESMC v16.16b, v16.16b \n"
+        "AESE v17.16b, v13.16b  \n"
+        "AESMC v17.16b, v17.16b \n"
+        "AESE v18.16b, v13.16b  \n"
+        "AESMC v18.16b, v18.16b \n"
+        "AESE v19.16b, v13.16b  \n"
+        "AESMC v19.16b, v19.16b \n"
+
+        "21: \n"
+        "AESE v16.16b, v14.16b  \n"
+        "EOR v16.16b, v16.16b, v15.16b   \n"
+        "AESE v17.16b, v14.16b  \n"
+        "EOR v17.16b, v17.16b, v15.16b   \n"
+        "AESE v18.16b, v14.16b  \n"
+        "EOR v18.16b, v18.16b, v15.16b   \n"
+        "AESE v19.16b, v14.16b  \n"
+        "EOR v19.16b, v19.16b, v15.16b   \n"
+
+        "EOR v16.16b, v16.16b, v20.16b \n"
+        "EOR v17.16b, v17.16b, v21.16b \n"
+        "EOR v18.16b, v18.16b, v22.16b \n"
+        "EOR v19.16b, v19.16b, v23.16b \n"
+        "MOV v20.d[0], x9 \n"
+        "MOV v20.d[1], x10 \n"
+
+        "ST1 {v16.16b-v19.16b}, [%[out]], #64 \n"
+
+        "SUBS %w[blocks], %w[blocks], #4 \n"
+        "BGE 20b \n"
+        "ADD %w[blocks], %w[blocks], #4 \n"
+
+        "CBZ %w[sz], 3f \n"
+
+        "CBZ %w[blocks], 30f \n"
+
+        "1: \n"
+        "LD1 {v0.16b}, [%[in]], #16 \n"
+
+        "MOV x9, v20.d[0] \n"
+        "MOV x10, v20.d[1] \n"
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        AES_ENCRYPT_UPDATE_TWEAK(2)
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        "ST1 {v0.16b}, [%[out]], #16 \n"
+
+        "MOV v20.d[0], x9 \n"
+        "MOV v20.d[1], x10 \n"
+
+        "SUBS %w[blocks], %w[blocks], #1 \n"
+        "SUB %w[sz], %w[sz], #16 \n"
+        "BGT 1b \n"
+
+        "CBZ %w[sz], 3f \n"
+
+        "30: \n"
+        "#Partial block \n"
+        "SUB %[out], %[out], #16 \n"
+        "LD1 {v0.16b}, [%[out]], #16 \n"
+        "ST1 {v0.16b}, [%[tmp]] \n"
+
+        "MOV w12, %w[sz] \n"
+        "4: \n"
+        "LDRB w13, [%[tmp]] \n"
+        "LDRB w14, [%[in]], #1 \n"
+        "STRB w13, [%[out]], #1 \n"
+        "STRB w14, [%[tmp]], #1 \n"
+        "SUBS w12, w12, #1 \n"
+        "BGT 4b \n"
+
+        "SUB %[out], %[out], %x[sz] \n"
+        "SUB %[tmp], %[tmp], %x[sz] \n"
+        "SUB %[out], %[out], #16 \n"
+
+        "LD1 {v0.16b}, [%[tmp]] \n"
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        AES_ENCRYPT(5)
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        "STR q0, [%[out]] \n"
+
+        "3: \n"
+
+        : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
+          [sz] "+r" (sz)
+        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+          [key2] "r" (xaes->tweak.key), [i] "r" (i),
+          [tmp] "r" (tmp)
+        : "cc", "memory",
+          "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16",
+          "x17", "x19",
+          "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+          "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+          "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
+    );
+
+    return ret;
+}
+
+/* Same process as encryption but Aes key is AES_DECRYPTION type.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold plain text
+ * in    input cipher text buffer to decrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    byte tmp[AES_BLOCK_SIZE];
+    byte stl = (sz % AES_BLOCK_SIZE);
+
+    if (xaes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks == 0) {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    /* if Stealing then break out of loop one block early to handle special
+     * case */
+    blocks -= (stl > 0);
+
+    __asm__ __volatile__ (
+        "MOV x19, 0x87 \n"
+
+        "LD1 {v0.16b}, [%[i]] \n"
+        "MOV x10, %[key2] \n"
+        "LD1 {v1.2d-v4.2d}, [x10], #64  \n"
+        "LD1 {v5.2d-v8.2d}, [x10], #64  \n"
+        "LD1 {v9.2d-v12.2d}, [x10], #64  \n"
+        "LD1 {v13.2d-v15.2d}, [x10]  \n"
+
+        "SUBS WZR, %w[rounds], #14 \n"
+        "BEQ 40f \n"
+        "SUBS WZR, %w[rounds], #12 \n"
+        "MOV v14.16b, v12.16b \n"
+        "MOV v15.16b, v13.16b \n"
+        "BEQ 40f \n"
+        "MOV v14.16b, v10.16b \n"
+        "MOV v15.16b, v11.16b \n"
+        "40: \n"
+
+        AES_ENCRYPT(10)
+
+        "MOV x9, v0.d[0] \n"
+        "MOV x10, v0.d[1] \n"
+        "MOV v20.16b, v0.16b \n"
+
+        "MOV x11, %[key] \n"
+        "LD1 {v1.2d-v4.2d}, [x11], #64  \n"
+        "LD1 {v5.2d-v8.2d}, [x11], #64  \n"
+        "LD1 {v9.2d-v12.2d}, [x11], #64  \n"
+        "LD1 {v13.2d-v15.2d}, [x11]  \n"
+
+        "SUBS WZR, %w[rounds], #14 \n"
+        "BEQ 41f \n"
+        "SUBS WZR, %w[rounds], #12 \n"
+        "MOV v14.16b, v12.16b \n"
+        "MOV v15.16b, v13.16b \n"
+        "BEQ 41f \n"
+        "MOV v14.16b, v10.16b \n"
+        "MOV v15.16b, v11.16b \n"
+        "41: \n"
+
+        "CBZ %w[blocks], 3f \n"
+
+        "SUBS WZR, %w[blocks], #4 \n"
+        "BLT 1f \n"
+
+        "AND x17, x19, x10, ASR #63\n"
+        "EXTR x12, x10, x9, #63 \n"
+        "EOR x11, x17, x9, LSL #1 \n"
+
+        "AND x17, x19, x12, ASR #63\n"
+        "EXTR x14, x12, x11, #63 \n"
+        "EOR x13, x17, x11, LSL #1 \n"
+
+        "AND x17, x19, x14, ASR #63\n"
+        "EXTR x16, x14, x13, #63 \n"
+        "EOR x15, x17, x13, LSL #1 \n"
+
+        "SUB %w[blocks], %w[blocks], #4 \n"
+
+        "#Four blocks at a time\n"
+        "20:\n"
+
+        "LD1 {v16.16b-v19.16b}, [%[in]], #64 \n"
+
+        "MOV v21.d[0], x11 \n"
+        "MOV v21.d[1], x12 \n"
+        "MOV v22.d[0], x13 \n"
+        "MOV v22.d[1], x14 \n"
+        "MOV v23.d[0], x15 \n"
+        "MOV v23.d[1], x16 \n"
+
+        "EOR v16.16b, v16.16b, v20.16b \n"
+        "EOR v17.16b, v17.16b, v21.16b \n"
+        "EOR v18.16b, v18.16b, v22.16b \n"
+        "EOR v19.16b, v19.16b, v23.16b \n"
+
+        "AESD v16.16b, v1.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "AND x17, x19, x16, ASR #63\n"
+        "AESD v17.16b, v1.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v1.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "EXTR x10, x16, x15, #63 \n"
+        "AESD v19.16b, v1.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v2.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "EOR x9, x17, x15, LSL #1 \n"
+        "AESD v17.16b, v2.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v2.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "AND x17, x19, x10, ASR #63\n"
+        "AESD v19.16b, v2.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v3.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "EXTR x12, x10, x9, #63 \n"
+        "AESD v17.16b, v3.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v3.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "EOR x11, x17, x9, LSL #1 \n"
+        "AESD v19.16b, v3.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v4.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "AND x17, x19, x12, ASR #63\n"
+        "AESD v17.16b, v4.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v4.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "EXTR x14, x12, x11, #63 \n"
+        "AESD v19.16b, v4.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+
+        "AESD v16.16b, v5.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "EOR x13, x17, x11, LSL #1 \n"
+        "AESD v17.16b, v5.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v5.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "AND x17, x19, x14, ASR #63\n"
+        "AESD v19.16b, v5.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v6.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+          "EXTR x16, x14, x13, #63 \n"
+        "AESD v17.16b, v6.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v6.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+          "EOR x15, x17, x13, LSL #1 \n"
+        "AESD v19.16b, v6.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v7.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v7.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v7.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v7.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v8.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v8.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v8.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v8.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+
+        "AESD v16.16b, v9.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v9.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v9.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v9.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+
+        "SUBS WZR, %w[rounds], #10 \n"
+        "BEQ 21f \n"
+        "AESD v16.16b, v10.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v10.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v10.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v10.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v11.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v11.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v11.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v11.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+
+        "SUBS WZR, %w[rounds], #12 \n"
+        "BEQ 21f \n"
+        "AESD v16.16b, v12.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v12.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v12.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v12.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+        "AESD v16.16b, v13.16b  \n"
+        "AESIMC v16.16b, v16.16b \n"
+        "AESD v17.16b, v13.16b  \n"
+        "AESIMC v17.16b, v17.16b \n"
+        "AESD v18.16b, v13.16b  \n"
+        "AESIMC v18.16b, v18.16b \n"
+        "AESD v19.16b, v13.16b  \n"
+        "AESIMC v19.16b, v19.16b \n"
+
+        "21: \n"
+        "AESD v16.16b, v14.16b  \n"
+        "EOR v16.16b, v16.16b, v15.16b   \n"
+        "AESD v17.16b, v14.16b  \n"
+        "EOR v17.16b, v17.16b, v15.16b   \n"
+        "AESD v18.16b, v14.16b  \n"
+        "EOR v18.16b, v18.16b, v15.16b   \n"
+        "AESD v19.16b, v14.16b  \n"
+        "EOR v19.16b, v19.16b, v15.16b   \n"
+
+        "EOR v16.16b, v16.16b, v20.16b \n"
+        "EOR v17.16b, v17.16b, v21.16b \n"
+        "EOR v18.16b, v18.16b, v22.16b \n"
+        "EOR v19.16b, v19.16b, v23.16b \n"
+        "MOV v20.d[0], x9 \n"
+        "MOV v20.d[1], x10 \n"
+
+        "ST1 {v16.16b-v19.16b}, [%[out]], #64 \n"
+
+        "SUBS %w[blocks], %w[blocks], #4 \n"
+        "SUB %w[sz], %w[sz], #64 \n"
+        "BGE 20b \n"
+        "ADD %w[blocks], %w[blocks], #4 \n"
+
+        "CBZ %w[sz], 4f \n"
+
+        "CBZ %w[blocks], 3f \n"
+
+        "1: \n"
+        "LD1 {v0.16b}, [%[in]], #16 \n"
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        AES_DECRYPT_UPDATE_TWEAK(2)
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        "ST1 {v0.16b}, [%[out]], #16 \n"
+
+        "MOV v20.d[0], x9 \n"
+        "MOV v20.d[1], x10 \n"
+
+        "SUBS %w[blocks], %w[blocks], #1 \n"
+        "SUB %w[sz], %w[sz], #16 \n"
+        "BGT 1b \n"
+
+        "CBZ %w[sz], 4f \n"
+
+        "3: \n"
+
+        "AND x11, x19, x10, ASR #63\n"
+        "EXTR x10, x10, x9, #63 \n"
+        "EOR x9, x11, x9, LSL #1 \n"
+        "MOV v21.d[0], x9 \n"
+        "MOV v21.d[1], x10 \n"
+
+        "LD1 {v0.16b}, [%[in]], #16 \n"
+
+        "EOR v0.16b, v0.16b, v21.16b \n"
+
+        AES_DECRYPT(5)
+
+        "EOR v0.16b, v0.16b, v21.16b \n"
+
+        "SUB %w[sz], %w[sz], #16 \n"
+
+        "ST1 {v0.16b}, [%[tmp]] \n"
+        "ADD %[out], %[out], #16 \n"
+        "MOV w12, %w[sz] \n"
+        "6: \n"
+        "LDRB w13, [%[tmp]] \n"
+        "LDRB w14, [%[in]], #1 \n"
+        "STRB w13, [%[out]], #1 \n"
+        "STRB w14, [%[tmp]], #1 \n"
+        "SUBS w12, w12, #1 \n"
+        "BGT 6b \n"
+        "SUB %[out], %[out], %x[sz] \n"
+        "SUB %[tmp], %[tmp], %x[sz] \n"
+        "SUB %[out], %[out], #16 \n"
+
+        "LD1 {v0.16b}, [%[tmp]] \n"
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        AES_DECRYPT(7)
+
+        "EOR v0.16b, v0.16b, v20.16b \n"
+
+        "ST1 {v0.16b}, [%[out]] \n"
+
+        "4: \n"
+
+        : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
+          [sz] "+r" (sz)
+        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+          [key2] "r" (xaes->tweak.key), [i] "r" (i),
+          [tmp] "r" (tmp)
+        : "cc", "memory",
+          "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16",
+          "x17", "x19",
+          "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+          "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+          "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
+    );
+
+    return ret;
+}
+#else
+
+#define AES_ENCRYPT_UPDATE_TWEAK(label)                             \
+        "AESE.8 q0, q1  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AND %[i], r14, r12, ASR #31 \n"                            \
+        "AESE.8 q0, q2  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "LSL r12, r12, #1 \n"                                       \
+        "AESE.8 q0, q3  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "ORR r12, r12, r11, LSR #31 \n"                             \
+        "AESE.8 q0, q4  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "LSL r11, r11, #1 \n"                                       \
+                                                                    \
+        "AESE.8 q0, q5  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "ORR r11, r11, r10, LSR #31 \n"                             \
+        "AESE.8 q0, q6  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "LSL r10, r10, #1 \n"                                       \
+        "AESE.8 q0, q7  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "ORR r10, r10, r9, LSR #31 \n"                              \
+        "AESE.8 q0, q8  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "EOR r9, %[i], r9, LSL #1 \n"                               \
+                                                                    \
+        "AESE.8 q0, q9  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #10 \n"                                     \
+        "BLE " #label "f      \n"                                   \
+        "AESE.8 q0, q10 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q11 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #12 \n"                                     \
+        "BLE " #label "f      \n"                                   \
+        "AESE.8 q0, q10 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q11 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        #label ": \n"                                               \
+        "AESE.8 q0, q10 \n"                                         \
+        "VEOR q0, q0, q11 \n"
+
+#define AES_ENCRYPT(label)                                          \
+        "AESE.8 q0, q1 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q2 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q3 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q4 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+                                                                    \
+        "AESE.8 q0, q5 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q6 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q7 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q8 \n"                                          \
+        "AESMC.8 q0, q0 \n"                                         \
+                                                                    \
+        "AESE.8 q0, q9  \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #10 \n"                                     \
+        "BLE " #label "f      \n"                                   \
+        "AESE.8 q0, q10 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q11 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #12 \n"                                     \
+        "BLE " #label "f      \n"                                   \
+        "AESE.8 q0, q10 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "AESE.8 q0, q11 \n"                                         \
+        "AESMC.8 q0, q0 \n"                                         \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        #label ": \n"                                               \
+        "AESE.8 q0, q10 \n"                                         \
+        "VEOR q0, q0, q11 \n"
+
+#define AES_DECRYPT_UPDATE_TWEAK(label)                             \
+        "AESD.8 q0, q1   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AND %[i], r14, r12, ASR #31 \n"                            \
+        "AESD.8 q0, q2  \n"                                         \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "LSL r12, r12, #1 \n"                                       \
+        "AESD.8 q0, q3   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "ORR r12, r12, r11, LSR #31 \n"                             \
+        "AESD.8 q0, q4   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "LSL r11, r11, #1 \n"                                       \
+                                                                    \
+        "AESD.8 q0, q5   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "ORR r11, r11, r10, LSR #31 \n"                             \
+        "AESD.8 q0, q6   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "LSL r10, r10, #1 \n"                                       \
+        "AESD.8 q0, q7   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "ORR r10, r10, r9, LSR #31 \n"                              \
+        "AESD.8 q0, q8   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "EOR r9, %[i], r9, LSL #1 \n"                               \
+                                                                    \
+        "AESD.8 q0, q9   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #10 \n"                                     \
+        "BLE " #label "f       \n"                                  \
+        "AESD.8 q0, q10  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q11  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #12 \n"                                     \
+        "BLE " #label "f       \n"                                  \
+        "AESD.8 q0, q10  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q11  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        #label ": \n"                                               \
+        "AESD.8 q0, q10  \n"                                        \
+        "VEOR q0, q0, q11 \n"
+
+#define AES_DECRYPT(label)                                          \
+        "AESD.8 q0, q1  \n"                                         \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q2  \n"                                         \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q3   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q4   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+                                                                    \
+        "AESD.8 q0, q5   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q6   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q7   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q8   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+                                                                    \
+        "AESD.8 q0, q9   \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #10 \n"                                     \
+        "BLE " #label "f       \n"                                  \
+        "AESD.8 q0, q10  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q11  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        "CMP %[rounds], #12 \n"                                     \
+        "BLE " #label "f       \n"                                  \
+        "AESD.8 q0, q10  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "AESD.8 q0, q11  \n"                                        \
+        "AESIMC.8 q0, q0 \n"                                        \
+        "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
+                                                                    \
+        #label ": \n"                                               \
+        "AESD.8 q0, q10  \n"                                        \
+        "VEOR q0, q0, q11 \n"
+
+/* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold cipher text
+ * in    input plain text buffer to encrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    byte tmp[AES_BLOCK_SIZE];
+    word32* key2 = xaes->tweak.key;
+
+    if (xaes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks == 0) {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    __asm__ __volatile__ (
+        "MOV r14, #0x87 \n"
+
+        "# Load tweak calculation key\n"
+        "VLD1.32 {q0}, [%[i]] \n"
+        "VLD1.32 {d2, d3, d4, d5}, [%[key2]]!  \n"
+        "VLD1.32 {d6, d7, d8, d9}, [%[key2]]!  \n"
+        "VLD1.32 {d10, d11, d12, d13}, [%[key2]]!  \n"
+        "VLD1.32 {d14, d15, d16, d17}, [%[key2]]!  \n"
+        "VLD1.32 {d18, d19}, [%[key2]]!  \n"
+
+        AES_ENCRYPT(10)
+
+        "VMOV.32 r9, d0[0] \n"
+        "VMOV.32 r10, d0[1] \n"
+        "VMOV.32 r11, d1[0] \n"
+        "VMOV.32 r12, d1[1] \n"
+        "VMOV q14, q0 \n"
+
+        "# Load encryption key\n"
+        "MOV %[key2], %[key] \n"
+        "VLD1.32 {d2, d3, d4, d5}, [%[key2]]!  \n"
+        "VLD1.32 {d6, d7, d8, d9}, [%[key2]]!  \n"
+        "VLD1.32 {d10, d11, d12, d13}, [%[key2]]!  \n"
+        "VLD1.32 {d14, d15, d16, d17}, [%[key2]]!  \n"
+        "VLD1.32 {d18, d19}, [%[key2]]!  \n"
+
+        "1: \n"
+        "VLD1.32 {q0}, [%[in]]! \n"
+        "ADD %[key2], %[key], #144 \n"
+
+        "VMOV.32 r9, d28[0] \n"
+        "VMOV.32 r10, d28[1] \n"
+        "VMOV.32 r11, d29[0] \n"
+        "VMOV.32 r12, d29[1] \n"
+
+        "VEOR q0, q0, q14 \n"
+
+        AES_ENCRYPT_UPDATE_TWEAK(2)
+
+        "VEOR q0, q0, q14 \n"
+
+        "VST1.32 {q0}, [%[out]]! \n"
+
+        "VMOV.32 d28[0], r9 \n"
+        "VMOV.32 d28[1], r10 \n"
+        "VMOV.32 d29[0], r11 \n"
+        "VMOV.32 d29[1], r12 \n"
+
+        "SUBS %[blocks], %[blocks], #1 \n"
+        "SUB %[sz], %[sz], #16 \n"
+        "BGT 1b \n"
+
+        "CMP %[sz], #0 \n"
+        "BEQ 3f \n"
+
+        "30: \n"
+        "#Partial block \n"
+        "SUB %[out], %[out], #16 \n"
+        "VLD1.32 {q0}, [%[out]]! \n"
+        "VST1.32 {q0}, [%[tmp]] \n"
+
+        "MOV r9, %[sz] \n"
+        "4: \n"
+        "LDRB r10, [%[tmp]] \n"
+        "LDRB r11, [%[in]], #1 \n"
+        "STRB r10, [%[out]], #1 \n"
+        "STRB r11, [%[tmp]], #1 \n"
+        "SUBS r9, r9, #1 \n"
+        "BGT 4b \n"
+
+        "SUB %[out], %[out], %[sz] \n"
+        "SUB %[tmp], %[tmp], %[sz] \n"
+        "SUB %[out], %[out], #16 \n"
+
+        "VLD1.32 {q0}, [%[tmp]] \n"
+        "ADD %[key2], %[key], #144 \n"
+
+        "VEOR q0, q0, q14 \n"
+
+        AES_ENCRYPT(5)
+
+        "VEOR q0, q0, q14 \n"
+
+        "VST1.32 {q0}, [%[out]] \n"
+
+        "3: \n"
+
+        : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
+          [sz] "+r" (sz), [i] "+r" (i), [key2] "+r" (key2)
+        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+          [tmp] "r" (tmp)
+        : "cc", "memory",
+          "r9", "r10", "r11", "r12", "r14",
+          "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7",
+          "q8", "q9", "q10", "q11", "q14"
+    );
+
+    return ret;
+}
+
+/* Same process as encryption but Aes key is AES_DECRYPTION type.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold plain text
+ * in    input cipher text buffer to decrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    byte tmp[AES_BLOCK_SIZE];
+    byte stl = (sz % AES_BLOCK_SIZE);
+    word32* key2 = xaes->tweak.key;
+
+    if (xaes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks == 0) {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    /* if Stealing then break out of loop one block early to handle special
+     * case */
+    blocks -= (stl > 0);
+
+    __asm__ __volatile__ (
+        "MOV r14, #0x87 \n"
+
+        "VLD1.32 {q0}, [%[i]] \n"
+        "VLD1.32 {d2, d3, d4, d5}, [%[key2]]!  \n"
+        "VLD1.32 {d6, d7, d8, d9}, [%[key2]]!  \n"
+        "VLD1.32 {d10, d11, d12, d13}, [%[key2]]!  \n"
+        "VLD1.32 {d14, d15, d16, d17}, [%[key2]]!  \n"
+        "VLD1.32 {d18, d19}, [%[key2]]!  \n"
+
+        AES_ENCRYPT(10)
+
+        "VMOV.32 r9, d0[0] \n"
+        "VMOV.32 r10, d0[1] \n"
+        "VMOV.32 r11, d1[0] \n"
+        "VMOV.32 r12, d1[1] \n"
+        "VMOV q14, q0 \n"
+
+        "# Load decryption key\n"
+        "MOV %[key2], %[key] \n"
+        "VLD1.32 {d2, d3, d4, d5}, [%[key2]]!  \n"
+        "VLD1.32 {d6, d7, d8, d9}, [%[key2]]!  \n"
+        "VLD1.32 {d10, d11, d12, d13}, [%[key2]]!  \n"
+        "VLD1.32 {d14, d15, d16, d17}, [%[key2]]!  \n"
+        "VLD1.32 {d18, d19}, [%[key2]]!  \n"
+
+        "CMP %[blocks], #0 \n"
+        "BEQ 3f \n"
+
+        "1: \n"
+        "VLD1.32 {q0}, [%[in]]! \n"
+        "ADD %[key2], %[key], #144 \n"
+
+        "VEOR q0, q0, q14 \n"
+
+        AES_DECRYPT_UPDATE_TWEAK(2)
+
+        "VEOR q0, q0, q14 \n"
+
+        "VST1.32 {q0}, [%[out]]! \n"
+
+        "VMOV.32 d28[0], r9 \n"
+        "VMOV.32 d28[1], r10 \n"
+        "VMOV.32 d29[0], r11 \n"
+        "VMOV.32 d29[1], r12 \n"
+
+        "SUBS %[blocks], %[blocks], #1 \n"
+        "SUB %[sz], %[sz], #16 \n"
+        "BGT 1b \n"
+
+        "CMP %[sz], #0 \n"
+        "BEQ 4f \n"
+
+        "3: \n"
+
+        "AND %[i], r14, r12, ASR #31 \n"
+        "LSL r12, r12, #1 \n"
+        "ORR r12, r12, r11, LSR #31 \n"
+        "LSL r11, r11, #1 \n"
+        "ORR r11, r11, r10, LSR #31 \n"
+        "LSL r10, r10, #1 \n"
+        "ORR r10, r10, r9, LSR #31 \n"\
+        "EOR r9, %[i], r9, LSL #1 \n"
+        "VMOV.32 d30[0], r9 \n"
+        "VMOV.32 d30[1], r10 \n"
+        "VMOV.32 d31[0], r11 \n"
+        "VMOV.32 d31[1], r12 \n"
+
+        "VLD1.32 {q0}, [%[in]]! \n"
+        "ADD %[key2], %[key], #144 \n"
+
+        "VEOR q0, q0, q15 \n"
+
+        AES_DECRYPT(5)
+
+        "VEOR q0, q0, q15 \n"
+
+        "SUB %[sz], %[sz], #16 \n"
+
+        "VST1.32 {q0}, [%[tmp]] \n"
+        "ADD %[out], %[out], #16 \n"
+        "MOV r9, %[sz] \n"
+        "6: \n"
+        "LDRB r10, [%[tmp]] \n"
+        "LDRB r11, [%[in]], #1 \n"
+        "STRB r10, [%[out]], #1 \n"
+        "STRB r11, [%[tmp]], #1 \n"
+        "SUBS r9, r9, #1 \n"
+        "BGT 6b \n"
+        "SUB %[out], %[out], %[sz] \n"
+        "SUB %[tmp], %[tmp], %[sz] \n"
+        "SUB %[out], %[out], #16 \n"
+
+        "VLD1.32 {q0}, [%[tmp]] \n"
+        "ADD %[key2], %[key], #144 \n"
+
+        "VEOR q0, q0, q14 \n"
+
+        AES_DECRYPT(7)
+
+        "VEOR q0, q0, q14 \n"
+
+        "VST1.32 {q0}, [%[out]] \n"
+
+        "4: \n"
+
+        : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
+          [sz] "+r" (sz), [i] "+r" (i), [key2] "+r" (key2)
+        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+          [tmp] "r" (tmp)
+        : "cc", "memory",
+          "r9", "r10", "r11", "r12", "r14",
+          "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7",
+          "q8", "q9", "q10", "q11", "q14", "q15"
+    );
+
+    return ret;
+}
+
+#endif /* __aach64__ */
+#endif /* WOLFSSL_AES_XTS */
+
 #else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -6342,5 +7679,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     return 0;
 }
 #endif /* HAVE_AESGCM */
+
 #endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* !NO_AES && WOLFSSL_ARMASM */
