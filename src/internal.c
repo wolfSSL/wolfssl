@@ -6455,7 +6455,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
    WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
-    int ret;
+    int ret = WOLFSSL_SUCCESS; /* set default ret */
     byte newSSL;
 
     WOLFSSL_ENTER("SetSSL_CTX");
@@ -6475,38 +6475,35 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (!newSSL) {
         WOLFSSL_MSG("freeing old ctx to decrement reference count. Switching ctx.");
         wolfSSL_CTX_free(ssl->ctx);
-#if defined(WOLFSSL_HAPROXY)
-        wolfSSL_CTX_free(ssl->initial_ctx);
-#endif
     }
 
     /* increment CTX reference count */
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    ret = wolfSSL_CTX_up_ref(ctx);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-    if (ret < 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         return ret;
     }
 #else
     (void)ret;
 #endif
-    ret = WOLFSSL_SUCCESS; /* set default ret */
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     /* Don't change version on a SSL object that has already started a
      * handshake */
 #if defined(WOLFSSL_HAPROXY)
-    ret = wolfSSL_CTX_up_ref(ctx);
-    if (ret == WOLFSSL_SUCCESS) {
-        ssl->initial_ctx = ctx; /* Save access to session key materials */
+    if (ssl->initial_ctx == NULL) {
+        ret = wolfSSL_CTX_up_ref(ctx);
+        if (ret == WOLFSSL_SUCCESS) {
+            ssl->initial_ctx = ctx; /* Save access to session key materials */
+        }
+        else {
+        #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+            return ret;
+        #else
+            (void)ret;
+        #endif
+        }
     }
-    else {
-    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
-        return ret;
-    #else
-        (void)ret;
-    #endif
-    }
-
 #endif
     if (!ssl->msgsReceived.got_client_hello &&
             !ssl->msgsReceived.got_server_hello)
@@ -7185,13 +7182,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
-        ssl->dtls_expected_rx           = ssl->dtlsMtuSz;
-    #else
-        ssl->dtls_expected_rx = MAX_MTU;
     #endif
-    /* Add some bytes so that we can operate with slight difference
-     * in set MTU size on each peer */
-    ssl->dtls_expected_rx               += DTLS_MTU_ADDITIONAL_READ_BUFFER;
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
@@ -8243,6 +8234,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_QUIC
     wolfSSL_quic_free(ssl);
+#endif
+#if defined(WOLFSSL_HAPROXY)
+    wolfSSL_CTX_free(ssl->initial_ctx);
+    ssl->initial_ctx = NULL;
 #endif
 }
 
@@ -10598,13 +10593,12 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        if (size + ssl->buffers.outputBuffer.length >
 #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-                ssl->dtlsMtuSz
+        word32 mtu = (word32)ssl->dtlsMtuSz;
 #else
-                ssl->dtls_expected_rx
+        word32 mtu = MAX_MTU;
 #endif
-                ) {
+        if ((word32)size + ssl->buffers.outputBuffer.length > mtu) {
             int ret;
             WOLFSSL_MSG("CheckAvailableSize() flushing buffer "
                         "to make room for new message");
@@ -10612,12 +10606,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
                 return ret;
             }
         }
-        if (size > (int)
-#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-                ssl->dtlsMtuSz
-#else
-                ssl->dtls_expected_rx
-#endif
+        if ((word32)size > mtu
 #ifdef WOLFSSL_DTLS13
             /* DTLS1.3 uses the output buffer to store the full message and deal
                with fragmentation later in dtls13HandshakeSend() */
@@ -19853,10 +19842,16 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     inSz       = (int)(size - usedLength);      /* from last partial read */
 
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (size < ssl->dtls_expected_rx)
-            dtlsExtra = (int)(ssl->dtls_expected_rx - size);
-        inSz = ssl->dtls_expected_rx;
+    if (ssl->options.dtls && IsDtlsNotSctpMode(ssl)) {
+        /* Add DTLS_MTU_ADDITIONAL_READ_BUFFER bytes so that we can operate with
+         * slight difference in set MTU size on each peer */
+#ifdef WOLFSSL_DTLS_MTU
+        inSz = (word32)ssl->dtlsMtuSz + DTLS_MTU_ADDITIONAL_READ_BUFFER;
+#else
+        inSz = MAX_MTU + DTLS_MTU_ADDITIONAL_READ_BUFFER;
+#endif
+        if (size < (word32)inSz)
+            dtlsExtra = (int)(inSz - size);
     }
 #endif
 
