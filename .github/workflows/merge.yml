@@ -1,7 +1,6 @@
 name: Daily Merge from upstream/daily-snapshot
 on:
-    schedule:
-    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
     merge-upstream:
