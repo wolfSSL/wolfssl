@@ -1,0 +1,79 @@
+name: Kerberos 5 Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 5
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-krb CFLAGS='-fsanitize=address'
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-krb5
+          path: build-dir
+          retention-days: 1
+
+  krb5_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 1.21.1 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 8
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-krb5
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout krb5
+        uses: actions/checkout@v3
+        with:
+          repository: krb5/krb5
+          ref: krb5-${{ matrix.ref }}-final
+          path: krb5
+
+      - name: Apply patch
+        working-directory: ./krb5
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/krb5/Patch-for-Kerberos-5-${{ matrix.ref }}.patch
+
+      - name: Build krb5
+        working-directory: ./krb5/src
+        run: |
+          autoreconf -ivf
+          # Using rpath because LD_LIBRARY_PATH is overwritten during testing
+          export WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl  -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
+          export WOLFSSL_LIBS="-lwolfssl -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
+          ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit \
+            CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address'
+          CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address' make -j
+
+      - name: Run tests
+        working-directory: ./krb5/src
+        run: |
+          CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address' make -j check
+

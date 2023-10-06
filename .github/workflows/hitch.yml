@@ -1,0 +1,94 @@
+name: hitch Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-hitch
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-hitch
+          path: build-dir
+          retention-days: 1
+
+  hitch_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        include:
+          - ref: 1.7.3
+            ignore-tests: >-
+              test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-hitch
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y libev-dev libssl-dev automake python3-docutils flex bison pkg-config make
+
+      - name: Checkout hitch
+        uses: actions/checkout@v3
+        with:
+          repository: varnish/hitch
+          ref: 1.7.3
+          path: hitch
+
+      # Do this before configuring so that it only detects the updated list of
+      # tests
+      - if: ${{ matrix.ignore-tests }}
+        name: Remove tests that we want to ignore
+        working-directory: ./hitch/src/tests
+        run: |
+          rm ${{ matrix.ignore-tests }}
+
+      - name: Configure and build hitch
+        run: |
+            cd $GITHUB_WORKSPACE/hitch/
+            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_1.7.3.patch
+            autoreconf -ivf
+            SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl" SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl" ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --enable-silent-rules --enable-documentation --enable-warnings --with-lex --with-yacc --prefix=$GITHUB_WORKSPACE/build-dir
+            make -j$(nproc)
+
+      - name: Confirm hitch built with wolfSSL
+        working-directory: ./hitch
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          ldd src/hitch | grep wolfssl
+
+      - name: Run hitch tests, skipping ignored tests
+        working-directory: ./hitch
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          make check

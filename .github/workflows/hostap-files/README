@@ -1,0 +1,2 @@
+Makefile and directory used in .github/workflows/hostap.yml to
+compile the mac80211_hwsim kernel module.
