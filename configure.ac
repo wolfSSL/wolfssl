@@ -723,6 +723,7 @@ then
     test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
+    test "$enable_aeseax" = "" && enable_aeseax=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
@@ -909,6 +910,7 @@ then
     test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
+    test "$enable_aeseax" = "" && enable_aeseax=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
@@ -2330,6 +2332,18 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESCCM"
 fi
 
+# AES-EAX
+AC_ARG_ENABLE([aeseax],
+    [AS_HELP_STRING([--enable-aeseax],[Enable wolfSSL AES-EAX support (default: disabled)])],
+    [ ENABLED_AESEAX=$enableval ],
+    [ ENABLED_AESEAX=no ]
+    )
+
+if test "$ENABLED_AESEAX" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_EAX"
+fi
+
 # AES-SIV (RFC 5297)
 AC_ARG_ENABLE([aessiv],
     [AS_HELP_STRING([--enable-aessiv],[Enable AES-SIV (RFC 5297) (default: disabled)])],
@@ -2342,13 +2356,13 @@ then
     ENABLED_AESSIV=yes
 fi
 
-# AES-CTRf
+# AES-CTR
 AC_ARG_ENABLE([aesctr],
     [AS_HELP_STRING([--enable-aesctr],[Enable wolfSSL AES-CTR support (default: disabled)])],
     [ ENABLED_AESCTR=$enableval ],
     [ ENABLED_AESCTR=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes"
 then
     ENABLED_AESCTR=yes
 fi
@@ -4646,7 +4660,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes"
 then
     ENABLED_CMAC=yes
 fi
@@ -9379,6 +9393,7 @@ echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * AES-OFB:                    $ENABLED_AESOFB"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
+echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"

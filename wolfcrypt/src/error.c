@@ -598,6 +598,9 @@ const char* wc_GetErrorString(int error)
     case FIPS_DEGRADED_E:
         return "FIPS module in DEGRADED mode";
 
+    case AES_EAX_AUTH_E:
+        return "AES-EAX Authentication check fail";
+
     default:
         return "unknown error number";
 
