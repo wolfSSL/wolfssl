@@ -3474,41 +3474,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return ret;
     }
-#elif defined(WOLFSSL_RENESAS_FSPSM) || \
-          defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
-
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    #include "r_sce.h"
-    #define R_RANDOM_GEN(b) R_SCE_RandomNumberGenerate(b)
-#elif defined(WOLFSSL_RENESAS_RSIP)
-    #include "r_rsip.h"
-
-    extern rsip_ctrl_t rsip_ctrl;
-    #define R_RANDOM_GEN(b) R_RSIP_RandomNumberGenerate(&rsip_ctrl,b)
-#endif
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        int ret = 0;
-        word32 buffer[4];
-
-        while (sz > 0) {
-            word32 len = sizeof(buffer);
-
-            if (sz < len) {
-                len = sz;
-            }
-            /* return 4 words random number*/
-            ret = R_RANDOM_GEN(buffer);
-            if(ret == FSP_SUCCESS) {
-                XMEMCPY(output, &buffer, len);
-                output += len;
-                sz -= len;
-            } else
-                return ret;
-        }
-        return ret;
-    }
 
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
     #include "hal_data.h"

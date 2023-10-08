@@ -341,5 +341,5 @@ WOLFSSL_LOCAL int  wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
                     word32* outLen, struct RsaKey* key, void* ctx);
 WOLFSSL_LOCAL int  wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
                     word32* outLen,struct RsaKey* key, void* ctx);
-
+WOLFSSL_LOCAL int  wc_fspsm_GenerateRandBlock(byte* output, word32 size);
 #endif  /* __RENESAS_FSPSM_CRYPT_H__ */
