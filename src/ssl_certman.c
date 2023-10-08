@@ -782,7 +782,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 #ifndef WOLFSSL_SMALL_STACK
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
-    byte*  buff;
+    byte*  buff = NULL;
     long   sz = 0;
     XFILE  file = XBADFILE;
 
@@ -814,6 +814,9 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
      * small. */
 #ifndef WOLFSSL_SMALL_STACK
     if ((ret == WOLFSSL_SUCCESS) && (sz > (long)sizeof(staticBuffer)))
+#else
+
+    if (ret == WOLFSSL_SUCCESS)
 #endif
     {
         WOLFSSL_MSG("Getting dynamic buffer");
