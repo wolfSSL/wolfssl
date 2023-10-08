@@ -1,7 +1,7 @@
 name: Daily Merge from upstream/daily-snapshot
 on:
     schedule:
-      - cron: "*/5 * * * *"
+      - cron: "*/10 * * * *"
 
 jobs:
     merge-upstream:
