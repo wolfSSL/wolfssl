@@ -10,7 +10,7 @@ on:
     - cron: '17 2 * * *'
 
 jobs:
-  Daily_Merge_and_CodeSonar_Analyze:
+  CodeSonar_Analyze:
     permissions: write-all
     runs-on: self-hosted
     container:
