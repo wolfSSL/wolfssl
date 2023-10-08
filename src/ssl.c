@@ -3338,22 +3338,6 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
         errno = 0;
 #endif
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        ssl->dtls_expected_rx = max(sz + DTLS_MTU_ADDITIONAL_READ_BUFFER,
-                MAX_MTU);
-#ifdef WOLFSSL_SCTP
-        if (ssl->options.dtlsSctp)
-#endif
-#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-            /* Add some bytes so that we can operate with slight difference
-             * in set MTU size on each peer */
-            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx,
-                    ssl->dtlsMtuSz + (word32)DTLS_MTU_ADDITIONAL_READ_BUFFER);
-#endif
-    }
-#endif
-
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
@@ -30246,12 +30230,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #else
     (void)ret;
 #endif
-    if (ssl->ctx) {
+    if (ssl->ctx != NULL)
         wolfSSL_CTX_free(ssl->ctx);
-#if defined(WOLFSSL_HAPROXY)
-        wolfSSL_CTX_free(ssl->initial_ctx);
-#endif
-    }
     ssl->ctx = ctx;
 
 #ifndef NO_CERTS
