@@ -23198,7 +23198,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 #endif
             {
                 WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
-                return ASN_NO_SIGNER_E;
+                ret = ASN_NO_SIGNER_E;
             }
         }
     }
