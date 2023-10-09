@@ -12150,7 +12150,7 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
                     ^ eax->ciphertextCmacFinal[i];
     }
 
-    if (ConstantCompare((const byte*)authTag, authIn, authInSz) != 0) {
+    if (ConstantCompare((const byte*)authTag, authIn, (int)authInSz) != 0) {
         ret = AES_EAX_AUTH_E;
     }
     else {

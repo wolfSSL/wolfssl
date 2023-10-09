@@ -674,7 +674,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void);
 #endif
 
-#if defined(WOLFSSL_AES_EAX)
+#if defined(WOLFSSL_AES_EAX) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
 #endif /* WOLFSSL_AES_EAX */
 
@@ -1439,7 +1440,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #endif
 
-#if defined(WOLFSSL_AES_EAX)
+#if defined(WOLFSSL_AES_EAX) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     if ( (ret = aes_eax_test()) != 0)
         TEST_FAIL("AES-EAX  test failed!\n", ret);
     else
@@ -12996,7 +12998,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesccm_test(void)
 #endif /* HAVE_AESCCM */
 
 
-#if defined(WOLFSSL_AES_EAX)
+#if defined(WOLFSSL_AES_EAX) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void)
 {
