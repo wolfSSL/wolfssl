@@ -17041,6 +17041,11 @@ int DtlsUpdateWindow(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
 
+/* Update DTLS 1.3 window
+ * Return
+ *   0 on successful update
+ *  <0 on error
+ */
 static int Dtls13UpdateWindow(WOLFSSL* ssl)
 {
     w64wrapper nextSeq, seq;
