@@ -7434,12 +7434,6 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     if (kse->key == NULL) {
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-        ret = tsip_Tls13GenEccKeyPair(ssl, kse);
-        if (ret != CRYPTOCB_UNAVAILABLE) {
-            return ret;
-        }
-    #endif
         /* Allocate an ECC key to hold private key. */
         kse->key = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap, DYNAMIC_TYPE_ECC);
         if (kse->key == NULL) {
@@ -7454,6 +7448,12 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             kse->keyLen = keySize;
             kse->pubKeyLen = keySize * 2 + 1;
 
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+            ret = tsip_Tls13GenEccKeyPair(ssl, kse);
+            if (ret != CRYPTOCB_UNAVAILABLE) {
+                return ret;
+            }
+        #endif
             /* setting eccKey means okay to call wc_ecc_free */
             eccKey = (ecc_key*)kse->key;
 
