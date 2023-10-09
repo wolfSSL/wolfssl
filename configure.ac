@@ -1201,10 +1201,32 @@ AC_ARG_WITH([libxmss],
             AC_MSG_ERROR([libxmss isn't found.
             If it's already installed, specify its path using --with-libxmss=/dir/])
         fi
+        if test "$XMSS_VERIFY_ONLY" = "yes"; then
+            if test -e $trylibxmssdir/xmss_verify_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_verify_lib.a"
+                enable_shared=no
+                enable_static=yes
+                libxmss_linked=yes
+            else
+                AC_MSG_ERROR([xmss_verify_lib.a isn't found.
+                If it's already installed, specify its path using --with-libxmss=/dir/])
+            fi
+        elif test -e $trylibxmssdir/xmss_lib.a; then
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_lib.a"
+            enable_shared=no
+            enable_static=yes
+            libxmss_linked=yes
+        else
+            AC_MSG_ERROR([libxmss isn't found.
+            If it's already installed, specify its path using --with-libxmss=/dir/])
+        fi
 
         XMSS_ROOT=$trylibxmssdir
 
         AC_MSG_RESULT([yes])
+        AM_CPPFLAGS="$CPPFLAGS"
 
         AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
         ENABLED_LIBXMSS="yes"
@@ -1212,7 +1234,6 @@ AC_ARG_WITH([libxmss],
     ],
     [XMSS_ROOT=""]
 )
-
 
 # LMS
 AC_ARG_ENABLE([lms],
@@ -9032,6 +9053,7 @@ AM_CONDITIONAL([BUILD_GE448], [test "x$ENABLED_GE448" = "xyes" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

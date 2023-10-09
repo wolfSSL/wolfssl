@@ -144,7 +144,6 @@ WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey * key, const byte * in,
     word32 inLen);
 WOLFSSL_API int  wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigSz,
     const byte * msg, int msgSz);
-WOLFSSL_API const char * wc_XmssKey_RcToStr(enum wc_XmssRc lmsRc);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

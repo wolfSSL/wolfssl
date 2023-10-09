@@ -26,6 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_HAVE_XMSS
 #include <wolfssl/wolfcrypt/ext_xmss.h>
@@ -36,6 +37,63 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#include <xmss_callbacks.h>
+
+#ifndef WOLFSSL_XMSS_VERIFY_ONLY
+static THREAD_LS_T WC_RNG * xmssRng = NULL;
+
+/* RNG callback used by xmss.
+ * */
+static int rng_cb(void * output, size_t length)
+{
+    int ret = 0;
+
+    if (output == NULL || xmssRng == NULL) {
+        return -1;
+    }
+
+    if (length == 0) {
+        return 0;
+    }
+
+    ret = wc_RNG_GenerateBlock(xmssRng, output, (word32) length);
+
+    if (ret) {
+        WOLFSSL_MSG("error: xmss rng_cb failed");
+        return -1;
+    }
+
+    return 0;
+}
+#endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
+
+/* SHA256 callback used by xmss.
+ * */
+static int sha256_cb(const unsigned char *in, unsigned long long inlen,
+                     unsigned char *out)
+{
+    wc_Sha256 sha;
+
+    if (wc_InitSha256_ex(&sha, NULL, INVALID_DEVID) != 0) {
+        WOLFSSL_MSG("SHA256 Init failed");
+        return -1;
+    }
+
+    if (wc_Sha256Update(&sha, in, (word32) inlen) != 0) {
+        WOLFSSL_MSG("SHA256 Update failed");
+        return -1;
+    }
+
+    if (wc_Sha256Final(&sha, out) != 0) {
+        WOLFSSL_MSG("SHA256 Final failed");
+        wc_Sha256Free(&sha);
+        return -1;
+    }
+    wc_Sha256Free(&sha);
+
+    return 0;
+}
 
 /* Init an Xmss key.
  *
@@ -118,6 +176,20 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
         WOLFSSL_MSG("error: unsupported XMSS/XMSS^MT parameter set");
         return -1;
     }
+
+    ret = xmss_set_sha_cb(sha256_cb);
+    if (ret != 0) {
+        WOLFSSL_MSG("error: xmss_set_sha_cb failed");
+        return -1;
+    }
+
+#ifndef WOLFSSL_XMSS_VERIFY_ONLY
+    ret = xmss_set_rng_cb(rng_cb);
+    if (ret != 0) {
+        WOLFSSL_MSG("error: xmss_set_rng_cb failed");
+        return -1;
+    }
+#endif
 
     key->oid = oid;
     key->is_xmssmt = is_xmssmt;
@@ -401,13 +473,15 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG * rng)
         return ret;
     }
 
+    xmssRng = rng;
+
     /* Finally make the secret public key pair. Immediately write it to NV
      * storage and then clear from memory. */
     if (key->is_xmssmt) {
-        ret = xmssmt_keypair(key->pk, key->sk, key->oid, rng);
+        ret = xmssmt_keypair(key->pk, key->sk, key->oid);
     }
     else {
-        ret = xmss_keypair(key->pk, key->sk, key->oid, rng);
+        ret = xmss_keypair(key->pk, key->sk, key->oid);
     }
 
     if (ret == 0) {
