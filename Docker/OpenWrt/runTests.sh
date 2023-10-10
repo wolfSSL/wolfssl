@@ -17,11 +17,11 @@ runCMD "ldd /lib/libustream-ssl.so" 0
 # Remove after fixed upstream.
 runCMD "sed '\/src\/gz openwrt_kmods https:\/\/downloads.openwrt.org\/releases\/21.02-SNAPSHOT\/targets\/x86\/64\/kmods\/5.4.238-1-5a722da41bc36de95a7195be6fce1b45/s//#&/' -i /etc/opkg/distfeeds.conf" 0
 runCMD "opkg update" 0
-runCMD "uclient-fetch -O /dev/null 'https://letsencrypt.org'" 0
+runCMD "uclient-fetch 'https://letsencrypt.org'" 0
 # Negative tests
-runCMD "uclient-fetch --ca-certificate=/dev/null -O /dev/null 'https://letsencrypt.org'" 5
-runCMD "uclient-fetch -O /dev/null 'https://self-signed.badssl.com/'" 5
-runCMD "uclient-fetch -O /dev/null 'https://untrusted-root.badssl.com/'" 5
-runCMD "uclient-fetch -O /dev/null 'https://expired.badssl.com/'" 5
+runCMD "uclient-fetch --ca-certificate=/dev/null 'https://letsencrypt.org'" 5
+runCMD "uclient-fetch 'https://self-signed.badssl.com/'" 5
+runCMD "uclient-fetch 'https://untrusted-root.badssl.com/'" 5
+runCMD "uclient-fetch 'https://expired.badssl.com/'" 5
 
 echo "All tests passed."
