@@ -1,11 +1,12 @@
 #!/bin/sh
 
 runCMD() { # usage: runCMD "<command>" "<retVal>"
-    eval $1 >/dev/null 2>&1
+    TMP_FILE=$(mktemp)
+    eval $1 > $TMP_FILE 2>&1
     RETVAL=$?
     if [ "$RETVAL" != "$2" ]; then
-        echo "Command ($1) returned ${RETVAL}, but expected $2. Rerunning with output to terminal:"
-        eval $1
+        echo "Command ($1) returned ${RETVAL}, but expected $2. Error output:"
+        cat $TMP_FILE
         exit 1
     fi
 }
