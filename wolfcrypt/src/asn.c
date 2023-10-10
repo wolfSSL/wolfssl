@@ -23192,7 +23192,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             /* ret needs to be self-signer error for Qt compat */
             if (cert->selfSigned) {
                 WOLFSSL_ERROR_VERBOSE(ASN_SELF_SIGNED_E);
-                return ASN_SELF_SIGNED_E;
+                ret = ASN_SELF_SIGNED_E;
             }
             else
 #endif
