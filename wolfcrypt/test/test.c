@@ -198,6 +198,23 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <printx.h>
     #undef printf
     #define printf printx
+#elif defined(WOLFSSL_RENESAS_RSIP)
+    #ifndef TEST_SLEEP
+        #define TEST_SLEEP() vTaskDelay(50)
+    #endif
+    #undef vprintf
+    #define vprintf rsip_vprintf
+    #include <stdarg.h> /* for var args */
+    int rsip_vprintf(const char* restrict format, va_list args)
+    {
+        int ret;
+        char tmpBuf[80];
+
+        ret = XSNPRINTF(tmpBuf, sizeof(tmpBuf), format, args);
+        printf(tmpBuf);
+
+    return ret;
+    }
 #else
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */

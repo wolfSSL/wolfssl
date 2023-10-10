@@ -45,6 +45,9 @@
     #define FSPSM_OPEN              R_SCE_Open
     #define FSPSM_CLOSE             R_SCE_Close
 
+    /* rand generation func */
+    #define R_RANDOM_GEN(b)         R_SCE_RandomNumberGenerate(b)
+
     #define FSPSM_ROOTCA_RSA2048    \
                         R_SCE_TLS_RootCertificateRSA2048PublicKeyInstall
     #define FSPSM_TLS_SVRKEYExVfy   R_SCE_TLS_ServerKeyExchangeVerify
@@ -182,6 +185,8 @@
     #define FSPSM_OPEN              R_RSIP_Open
     #define FSPSM_CLOSE             R_RSIP_Close
 
+    /* rnd generation func */
+    #define R_RANDOM_GEN(b)         R_RSIP_RandomNumberGenerate(&gFSPSM_ctrl,b)
     /* sha 1*/
     #define FSPSM_SHA_HANDLE        rsip_sha_handle_t
     #define FSPSM_SHA1_Init         _R_RSIP_SHA1_GenerateInit

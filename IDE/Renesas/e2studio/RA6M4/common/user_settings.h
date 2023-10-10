@@ -113,3 +113,6 @@
 #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
     #define WOLFSSL_KEY_GEN
 #endif
+
+#define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
+
