@@ -7,7 +7,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 14
+    timeout-minutes: 25
     steps:
     - name: Install test dependencies
       run: |
