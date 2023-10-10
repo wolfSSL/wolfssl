@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -22,10 +22,14 @@ jobs:
         configure: --enable-curl
         install: true
 
-    - name: Build and test curl
+    - name: Build curl
       uses: wolfSSL/actions-build-autotools-project@v1
       with:
         repository: curl/curl
         path: curl
         configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir
-        check: true
+        check: false
+
+    - name: Test curl
+      working-directory: curl
+      run: make -j test-ci
