@@ -13,6 +13,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install nghttp2
+        sudo pip install impacket
 
     - name: Build wolfSSL
       uses: wolfSSL/actions-build-autotools-project@v1
