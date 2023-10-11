@@ -26,6 +26,13 @@
  *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
  *     less). On the other hand, if a valid SessionID is collected, forged
  *     clientHello messages will consume resources on the server.
+ * WOLFSSL_DTLS_CH_FRAG
+ *     Allow a server to process a fragmented second/verified (one containing a
+ *     valid cookie response) ClientHello message. The first/unverified (one
+ *     without a cookie extension) ClientHello MUST be unfragmented so that the
+ *     DTLS server can process it statelessly. This is only implemented for
+ *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
+ *     to explicitly enable this during runtime.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -263,9 +270,12 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
     return ret;
 }
 
-static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
+static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch,
+        byte isFirstCHFrag)
 {
     word32 idx = 0;
+
+    (void)isFirstCHFrag;
 
     /* protocol version, random and session id length check */
     if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
@@ -288,9 +298,20 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
     idx += ReadVector8(input + idx, &ch->compression);
     if (idx < helloSz - OPAQUE16_LEN) {
         /* Extensions are optional */
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        word32 extStart = idx + OPAQUE16_LEN;
+#endif
         idx += ReadVector16(input + idx, &ch->extension);
-        if (idx > helloSz)
-            return BUFFER_ERROR;
+        if (idx > helloSz) {
+#ifdef WOLFSSL_DTLS_CH_FRAG
+            idx = helloSz;
+            /* Allow incomplete extensions if we are parsing a fragment */
+            if (isFirstCHFrag && extStart < helloSz)
+                ch->extension.size = helloSz - extStart;
+            else
+#endif
+                return BUFFER_ERROR;
+        }
     }
     if (idx != helloSz)
         return BUFFER_ERROR;
@@ -860,17 +881,30 @@ static int ClientHelloSanityCheck(WolfSSL_CH* ch, byte isTls13)
     return 0;
 }
 
-int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
-                           word32* inOutIdx, word32 helloSz)
+int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
+        byte isFirstCHFrag, byte* tls13)
 {
     int ret;
     WolfSSL_CH ch;
     byte isTls13 = 0;
 
+    WOLFSSL_ENTER("DoClientHelloStateless");
+    if (isFirstCHFrag) {
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        WOLFSSL_MSG("\tProcessing fragmented ClientHello");
+#else
+        WOLFSSL_MSG("\tProcessing fragmented ClientHello but "
+                "WOLFSSL_DTLS_CH_FRAG is not defined. This should not happen.");
+        return BAD_STATE_E;
+#endif
+    }
+    if (tls13 != NULL)
+        *tls13 = 0;
+
     XMEMSET(&ch, 0, sizeof(ch));
 
     ssl->options.dtlsStateful = 0;
-    ret = ParseClientHello(input + *inOutIdx, helloSz, &ch);
+    ret = ParseClientHello(input, helloSz, &ch, isFirstCHFrag);
     if (ret != 0)
         return ret;
 
@@ -879,6 +913,8 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
         ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
         if (ret != 0)
             return ret;
+        if (tls13 != NULL)
+            *tls13 = isTls13;
         if (isTls13) {
             int tlsxFound;
             ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
@@ -894,7 +930,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
         return ret;
 
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-    if (!isTls13) {
+    if (!isTls13 && !isFirstCHFrag) {
         int resume = FALSE;
         ret = TlsResumptionIsValid(ssl, &ch, &resume);
         if (ret != 0)
@@ -907,7 +943,13 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
 #endif
 
     if (ch.cookie.size == 0 && ch.cookieExt.size == 0) {
-        ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+        /* Don't send anything here when processing fragment */
+        if (isFirstCHFrag)
+            ret = COOKIE_ERROR;
+        else
+#endif
+            ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
     }
     else {
         byte cookieGood;
@@ -922,10 +964,24 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
                 ret = INVALID_PARAMETER;
             else
 #endif
+#ifdef WOLFSSL_DTLS_CH_FRAG
+            /* Don't send anything here when processing fragment */
+            if (isFirstCHFrag)
+                ret = COOKIE_ERROR;
+            else
+#endif
                 ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
         }
-        else
+        else {
             ssl->options.dtlsStateful = 1;
+            /* Update the window now that we enter the stateful parsing */
+#ifdef WOLFSSL_DTLS13
+            if (isTls13)
+                ret = Dtls13UpdateWindowRecordRecvd(ssl);
+            else
+#endif
+                DtlsUpdateWindow(ssl);
+        }
     }
 
     return ret;

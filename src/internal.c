@@ -215,7 +215,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 #ifdef WOLFSSL_DTLS
     static int _DtlsCheckWindow(WOLFSSL* ssl);
-    static int _DtlsUpdateWindow(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -16806,6 +16805,8 @@ static WC_INLINE int Dtls13CheckWindow(WOLFSSL* ssl)
     int wordIndex;
     word32 diff;
 
+    WOLFSSL_ENTER("Dtls13CheckWindow");
+
     if (ssl->dtls13DecryptEpoch == NULL) {
         WOLFSSL_MSG("Can't find decrypting epoch");
         return 0;
@@ -16973,7 +16974,7 @@ int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
     return 1;
 }
 
-static int _DtlsUpdateWindow(WOLFSSL* ssl)
+int DtlsUpdateWindow(WOLFSSL* ssl)
 {
     WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
     word16 *next_hi;
@@ -17039,7 +17040,13 @@ static int _DtlsUpdateWindow(WOLFSSL* ssl)
 }
 
 #ifdef WOLFSSL_DTLS13
-static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
+
+/* Update DTLS 1.3 window
+ * Return
+ *   0 on successful update
+ *  <0 on error
+ */
+static int Dtls13UpdateWindow(WOLFSSL* ssl)
 {
     w64wrapper nextSeq, seq;
     w64wrapper diff64;
@@ -17047,14 +17054,26 @@ static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
     int wordOffset;
     int wordIndex;
     word32 diff;
+    Dtls13Epoch* e = ssl->dtls13DecryptEpoch;
+
+    WOLFSSL_ENTER("Dtls13UpdateWindow");
 
     if (ssl->dtls13DecryptEpoch == NULL) {
         WOLFSSL_MSG("Can't find decrypting Epoch");
         return BAD_STATE_E;
     }
 
-    nextSeq = ssl->dtls13DecryptEpoch->nextPeerSeqNumber;
-    window = ssl->dtls13DecryptEpoch->window;
+    if (!w64Equal(ssl->keys.curEpoch64, ssl->dtls13DecryptEpoch->epochNumber)) {
+        /* ssl->dtls13DecryptEpoch has been updated since we received the msg */
+        e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+        if (e == NULL) {
+            WOLFSSL_MSG("Can't find decrypting Epoch");
+            return BAD_STATE_E;
+        }
+    }
+
+    nextSeq = e->nextPeerSeqNumber;
+    window = e->window;
     seq = ssl->keys.curSeq;
 
     /* seq < nextSeq */
@@ -17075,7 +17094,7 @@ static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
         }
 
         window[wordIndex] |= (1 << wordOffset);
-        return 1;
+        return 0;
     }
 
     /* seq >= nextSeq, seq - nextSeq */
@@ -17086,9 +17105,17 @@ static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
     _DtlsUpdateWindowGTSeq(w64GetLow32(diff64), window);
 
     w64Increment(&seq);
-    ssl->dtls13DecryptEpoch->nextPeerSeqNumber = seq;
+    e->nextPeerSeqNumber = seq;
 
-    return 1;
+    return 0;
+}
+
+int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl)
+{
+    int ret = Dtls13UpdateWindow(ssl);
+    if (ret != 0)
+        return ret;
+    return Dtls13RecordRecvd(ssl);
 }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -20714,31 +20741,32 @@ default:
         /* the record layer is here */
         case runProcessingOneRecord:
 #ifdef WOLFSSL_DTLS13
-            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+            if (ssl->options.dtls) {
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (!Dtls13CheckWindow(ssl)) {
+                        /* drop packet */
+                        WOLFSSL_MSG("Dropping DTLS record outside receiving "
+                                    "window");
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.idx += ssl->curSize;
+                        if (ssl->buffers.inputBuffer.idx >
+                                ssl->buffers.inputBuffer.length)
+                            return BUFFER_E;
 
-                if(!Dtls13CheckWindow(ssl)) {
-                    /* drop packet */
-                    WOLFSSL_MSG(
-                            "Dropping DTLS record outside receiving window");
-                    ssl->options.processReply = doProcessInit;
-                    ssl->buffers.inputBuffer.idx += ssl->curSize;
-                    if (ssl->buffers.inputBuffer.idx >
-                            ssl->buffers.inputBuffer.length)
-                        return BUFFER_E;
+                        continue;
+                    }
 
-                    continue;
+                    /* Only update the window once we enter stateful parsing */
+                    if (ssl->options.dtlsStateful) {
+                        ret = Dtls13UpdateWindowRecordRecvd(ssl);
+                        if (ret != 0) {
+                            WOLFSSL_ERROR(ret);
+                            return ret;
+                        }
+                    }
                 }
-
-                ret = Dtls13UpdateWindow(ssl);
-                if (ret != 1) {
-                    WOLFSSL_ERROR(ret);
-                    return ret;
-                }
-
-                ret = Dtls13RecordRecvd(ssl);
-                if (ret != 0) {
-                    WOLFSSL_ERROR(ret);
-                    return ret;
+                else if (IsDtlsNotSctpMode(ssl)) {
+                    DtlsUpdateWindow(ssl);
                 }
             }
 #endif /* WOLFSSL_DTLS13 */
@@ -20773,16 +20801,16 @@ default:
             }
             else
        #endif
-                /* TLS13 plaintext limit is checked earlier before decryption */
-                /* For TLS v1.1 the block size and explicit IV are added to idx,
-                 * so it needs to be included in this limit check */
-                if (!IsAtLeastTLSv1_3(ssl->version)
-                        && ssl->curSize - ssl->keys.padSz -
-                            (ssl->buffers.inputBuffer.idx - startIdx)
-                                > MAX_PLAINTEXT_SZ
+            /* TLS13 plaintext limit is checked earlier before decryption */
+            /* For TLS v1.1 the block size and explicit IV are added to idx,
+             * so it needs to be included in this limit check */
+            if (!IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->curSize - ssl->keys.padSz -
+                        (ssl->buffers.inputBuffer.idx - startIdx)
+                            > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
-                        && ssl->buffers.inputBuffer.length !=
-                                ssl->buffers.inputBuffer.idx
+                    && ssl->buffers.inputBuffer.length !=
+                            ssl->buffers.inputBuffer.idx
 #endif
                                 ) {
                 WOLFSSL_MSG("Plaintext too long");
@@ -20793,17 +20821,6 @@ default:
                 return BUFFER_ERROR;
             }
 
-#ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
-                _DtlsUpdateWindow(ssl);
-            }
-
-            if (ssl->options.dtls) {
-                /* Reset timeout as we have received a valid DTLS message */
-                ssl->dtls_timeout = ssl->dtls_timeout_init;
-            }
-#endif /* WOLFSSL_DTLS */
-
             WOLFSSL_MSG("received record layer msg");
 
             switch (ssl->curRL.type) {
@@ -20813,16 +20830,21 @@ default:
                     if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
                         if (!IsAtLeastTLSv1_3(ssl->version)) {
-                                ret = DoDtlsHandShakeMsg(ssl,
-                                                         ssl->buffers.inputBuffer.buffer,
-                                                         &ssl->buffers.inputBuffer.idx,
-                                                         ssl->buffers.inputBuffer.length);
-                                if (ret != 0) {
-                                    if (SendFatalAlertOnly(ssl, ret)
-                                            == SOCKET_ERROR_E) {
-                                        ret = SOCKET_ERROR_E;
-                                    }
+                            ret = DoDtlsHandShakeMsg(ssl,
+                                ssl->buffers.inputBuffer.buffer,
+                                &ssl->buffers.inputBuffer.idx,
+                                ssl->buffers.inputBuffer.length);
+                            if (ret == 0 || ret == WC_PENDING_E) {
+                                /* Reset timeout as we have received a valid
+                                 * DTLS handshake message */
+                                ssl->dtls_timeout = ssl->dtls_timeout_init;
+                            }
+                            else {
+                                if (SendFatalAlertOnly(ssl, ret)
+                                        == SOCKET_ERROR_E) {
+                                    ret = SOCKET_ERROR_E;
                                 }
+                            }
                         }
 #endif
 #ifdef WOLFSSL_DTLS13
@@ -34214,8 +34236,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             "VerifyServerSuite() with MEMORY_E");
                 return 0;
             }
-            if (cs->clientKSE == NULL && searched)
+            if (cs->clientKSE == NULL && searched) {
+            #ifdef WOLFSSL_SEND_HRR_COOKIE
+                /* If the CH contains a cookie then we need to send an alert to
+                 * start from scratch. */
+                if (TLSX_Find(extensions, TLSX_COOKIE) != NULL)
+                    return INVALID_PARAMETER;
+            #endif
                 cs->doHelloRetry = 1;
+            }
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E)
                 return ret;
@@ -34716,9 +34745,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
         /* Update the ssl->options.dtlsStateful setting `if` statement in
          * wolfSSL_accept when changing this one. */
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
+                !ssl->options.dtlsStateful) {
             DtlsSetSeqNumForReply(ssl);
-            ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
+            ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0,
+                    NULL);
             if (ret != 0 || !ssl->options.dtlsStateful) {
                 int alertType = TranslateErrorToAlert(ret);
                 if (alertType != invalid_alert) {
@@ -34734,6 +34765,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (DtlsIgnoreError(ret))
                     ret = 0;
                 return ret;
+            }
+            if (ssl->chGoodCb != NULL) {
+                int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+                if (cbret < 0) {
+                    ssl->error = cbret;
+                    WOLFSSL_MSG("ClientHello Good Cb don't continue error");
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
         }
         ssl->options.dtlsStateful = 1;

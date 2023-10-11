@@ -12987,17 +12987,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif
 
-#ifdef WOLFSSL_DTLS
-            if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
-                int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
-                if (cbret < 0) {
-                    ssl->error = cbret;
-                    WOLFSSL_MSG("ClientHello Good Cb don't continue error");
-                    return WOLFSSL_FATAL_ERROR;
-                }
-            }
-#endif
-
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
             FALL_THROUGH;
@@ -13274,7 +13263,6 @@ int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx)
 
     ssl->hsDoneCb  = cb;
     ssl->hsDoneCtx = user_ctx;
-
 
     return WOLFSSL_SUCCESS;
 }
@@ -19240,6 +19228,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+    #ifdef WOLFSSL_DTLS
+        ssl->options.dtlsStateful = 0;
+    #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.noPskDheKe = 0;
       #ifdef HAVE_SUPPORTED_CURVES

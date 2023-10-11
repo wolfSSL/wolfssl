@@ -174,7 +174,7 @@
     if (_ret != TEST_FAIL) {                                                   \
         const char* _x = (const char*)(x);                                     \
         const char* _y = (const char*)(y);                                     \
-        int         _z = (_x && _y) ? strcmp(_x, _y) : -1;                     \
+        int         _z = (_x && _y) ? XSTRCMP(_x, _y) : -1;                    \
         Expect(_z op 0, ("%s " #op " %s", #x, #y),                             \
                                             ("\"%s\" " #er " \"%s\"", _x, _y));\
     }                                                                          \

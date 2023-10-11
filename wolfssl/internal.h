@@ -4616,7 +4616,9 @@ struct Options {
     word16            tls1_3:1;           /* using TLSv1.3+ ? */
     word16            seenUnifiedHdr:1;   /* received msg with unified header */
     word16            dtls:1;             /* using datagrams ? */
+#ifdef WOLFSSL_DTLS
     word16            dtlsStateful:1;     /* allow stateful processing ? */
+#endif
     word16            connReset:1;        /* has the peer reset */
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
@@ -4727,6 +4729,9 @@ struct Options {
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    word16            dtls13ChFrag:1;
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
     word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
@@ -5416,13 +5421,13 @@ struct WOLFSSL {
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-    ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
-                                        *  ClientHello */
-    void*             chGoodCtx;       /*  user ClientHello cb context  */
+    ClientHelloGoodCb chGoodCb;        /* notify user we parsed a verified
+                                        * ClientHello that passed basic tests */
+    void*             chGoodCtx;       /* user ClientHello cb context  */
 #endif
 #ifndef NO_HANDSHAKE_DONE_CB
-    HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
-    void*           hsDoneCtx;         /*  user handshake cb context  */
+    HandShakeDoneCb hsDoneCb;          /* notify user handshake done */
+    void*           hsDoneCtx;         /* user handshake cb context  */
 #endif
 #ifdef WOLFSSL_ASYNC_IO
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6268,7 +6273,7 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
-            const byte* input, word32* inOutIdx, word32 helloSz);
+            const byte* input, word32 helloSz, byte isFirstCHFrag, byte* tls13);
 #endif /* !defined(NO_WOLFSSL_SERVER) */
 #endif /* WOLFSSL_DTLS */
 
@@ -6474,6 +6479,7 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #ifdef WOLFSSL_DTLS
 WOLFSSL_API int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         word16* next_hi, word32* next_lo, word32 *window);
+WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
@@ -6542,6 +6548,7 @@ WOLFSSL_LOCAL void Dtls13RtxFlushBuffered(WOLFSSL* ssl,
 WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13CheckAEADFailLimit(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13UpdateWindowRecordRecvd(WOLFSSL* ssl);
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
