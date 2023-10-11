@@ -639,6 +639,7 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx);
 WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, 
                                                 TsipUserCtx* tuc);
 
+WOLFSSL_LOCAL int  wc_tsip_GenerateRandBlock(byte* output, word32 size);
 
 #if defined(WOLFSSL_RENESAS_TSIP_CRYPT_DEBUG)
 byte *ret2err(word32 ret);
