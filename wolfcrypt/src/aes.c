@@ -11445,6 +11445,98 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 }
 #endif /* !WOLFSSL_ARMASM || WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
+/* Same as wc_AesXtsEncryptSector but the sector gets incremented by one every
+ * sectorSz bytes
+ *
+ * xaes     AES keys to use for block encrypt
+ * out      output buffer to hold cipher text
+ * in       input plain text buffer to encrypt
+ * sz       size of both out and in buffers
+ * sector   value to use for tweak
+ * sectorSz size of the sector
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
+        word32 sz, word64 sector, word32 sectorSz)
+{
+    int ret  = 0;
+    int iter = 0;
+    int sectorCount  = sz / sectorSz;
+    int remainder = sz % sectorSz;
+
+    if (aes == NULL || out == NULL || in == NULL || sectorSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz < AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("Cipher text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    while (sectorCount) {
+        ret = wc_AesXtsEncryptSector(aes, out + (iter * sectorSz),
+                in + (iter * sectorSz), sectorSz, sector);
+        if (ret != 0)
+            break;
+
+        sectorCount--;
+        iter++;
+        sector++;
+    }
+
+    if (remainder && ret == 0)
+        ret = wc_AesXtsEncryptSector(aes, out + (iter * sectorSz),
+                in + (iter * sectorSz), remainder, sector);
+
+    return ret;
+}
+
+/* Same as wc_AesXtsEncryptConsecutiveSectors but Aes key is AES_DECRYPTION type
+ *
+ * xaes     AES keys to use for block decrypt
+ * out      output buffer to hold cipher text
+ * in       input plain text buffer to encrypt
+ * sz       size of both out and in buffers
+ * sector   value to use for tweak
+ * sectorSz size of the sector
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
+        word32 sz, word64 sector, word32 sectorSz)
+{
+    int ret  = 0;
+    int iter = 0;
+    int sectorCount  = sz / sectorSz;
+    int remainder = sz % sectorSz;
+
+    if (aes == NULL || out == NULL || in == NULL || sectorSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz < AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("Cipher text input too small for decryption");
+        return BAD_FUNC_ARG;
+    }
+
+    while (sectorCount) {
+        ret = wc_AesXtsDecryptSector(aes, out + (iter * sectorSz),
+                in + (iter * sectorSz), sectorSz, sector);
+        if (ret != 0)
+            break;
+
+        sectorCount--;
+        iter++;
+        sector++;
+    }
+
+    if (remainder && ret == 0)
+        ret = wc_AesXtsDecryptSector(aes, out + (iter * sectorSz),
+                in + (iter * sectorSz), remainder, sector);
+
+    return ret;
+}
 #endif /* WOLFSSL_AES_XTS */
 
 #ifdef WOLFSSL_AES_SIV
