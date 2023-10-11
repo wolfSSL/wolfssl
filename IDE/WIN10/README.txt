@@ -29,8 +29,13 @@ The In Core Memory test calculates a checksum (HMAC-SHA256) of the wolfCrypt
 FIPS library code and constant data and compares it with a known value in
 the code.
 
-The Randomized Base Address setting needs to be disabled on all builds as the 
-feature throws off the in-core memory calculation causing the test to fail.
+The following wolfCrypt FIPS project linker settings are required for the DLL Win32 configuration:
+1) The [Randomized Base Address setting (ASLR)](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170)
+needs to be disabled on all builds as the feature throws off the in-core memory calculation causing the test to fail.
+2) The [Incremental Link](https://learn.microsoft.com/en-us/cpp/build/reference/incremental-link-incrementally?view=msvc-170)
+option need turned off so function pointers go to actual code, not a jump instruction.
+3) The [FixedBaseAddress](https://learn.microsoft.com/en-us/cpp/build/reference/fixed-fixed-base-address?view=msvc-170)
+option to YES, which disables the support for ASLR.
 
 The "verifyCore" check value in the source fips_test.c needs to be updated when
 building the code. The POS performs this check and the default failure callback
@@ -38,7 +43,6 @@ will print out the calculated checksum. When developing your code, copy this
 value and paste it back into your code in the verifyCore initializer then
 rebuild the code. When statically linking, you may have to recalculate your
 check value when changing your application.
-
 
 # Build Options
 

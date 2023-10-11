@@ -3,7 +3,7 @@
 First, if you did not get the FIPS files with your archive, you must contact
 wolfSSL to obtain them.
 
-The IDE/WIN/wolfssl-fips.sln solution is for the original FIPS #2425 certificate. 
+The IDE/WIN/wolfssl-fips.sln solution is for the original FIPS #2425 certificate.
 See IDE/WIN10/wolfssl-fips.sln for the FIPS v2 #3389 or later Visual Studio solution.
 
 # Building the wolfssl-fips project
@@ -30,11 +30,13 @@ The In Core Memory test calculates a checksum (HMAC-SHA256) of the wolfCrypt
 FIPS library code and constant data and compares it with a known value in
 the code.
 
-The Randomized Base Address setting needs to be disabled on the 32-bit builds
-but can be enabled on the 64-bit builds. In the 32-bit mode the addresses
-being different throws off the in-core memory calculation. It looks like in
-64-bit mode the library uses all offsets, so the core hash calculation
-is the same every time.
+The following wolfCrypt FIPS project linker settings are required for the DLL Win32 configuration:
+1) The [Randomized Base Address setting (ASLR)](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170)
+needs to be disabled on all builds as the feature throws off the in-core memory calculation causing the test to fail.
+2) The [Incremental Link](https://learn.microsoft.com/en-us/cpp/build/reference/incremental-link-incrementally?view=msvc-170)
+option need turned off so function pointers go to actual code, not a jump instruction.
+3) The [FixedBaseAddress](https://learn.microsoft.com/en-us/cpp/build/reference/fixed-fixed-base-address?view=msvc-170)
+option to YES, which disables the support for ASLR.
 
 The "verifyCore" check value in the source fips_test.c needs to be updated when
 building the code. The POS performs this check and the default failure callback
@@ -71,13 +73,13 @@ These settings are defined in IDE/WIN/user_settings.h.
 
 # Notes on enabling DTLS including DTLS version 1.3
 
-The file IDE/WIN/user_settings_dtls.h contains the needed build options for 
+The file IDE/WIN/user_settings_dtls.h contains the needed build options for
 enabling DTLS and DTLS version 1.3.
 
 To incorporate the build options:
 
  * Rename IDE/WIN/user_settings.h to IDE/WIN/user_settings.h.bak
  * Rename IDE/WIN/user_settings_dtls.h to IDE/WIN/user_settings.h
- 
+
 Alternatively, copy the DTLS labeled section from IDE/WIN/user_settings_dtls.h
 in to IDE/WIN/user_settings.h.
