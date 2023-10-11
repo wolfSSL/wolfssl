@@ -1010,7 +1010,7 @@ int wc_Shake128_Copy(wc_Shake* shake, wc_Shake* dst);
     }
     else {
         wc_Shake256_Update(shake, data, len);
-        wc_Shake256_Final(shake, hash);
+        wc_Shake256_Final(shake, hash, sizeof(hash));
     }
     \endcode
 
@@ -1043,7 +1043,7 @@ int wc_InitShake256(wc_Shake* shake, void* heap, int devId);
     }
     else {
         wc_Shake256_Update(shake, data, len);
-        wc_Shake256_Final(shake, hash);
+        wc_Shake256_Final(shake, hash, sizeof(hash));
     }
     \endcode
 
@@ -1063,6 +1063,7 @@ int wc_Shake256_Update(wc_Shake* sha, const byte* data, word32 len);
 
     \param shake pointer to the shake structure to use for encryption
     \param hash Byte array to hold hash value.
+    \param hashLen Size of hash in bytes.
 
     _Example_
     \code
@@ -1075,7 +1076,7 @@ int wc_Shake256_Update(wc_Shake* sha, const byte* data, word32 len);
     }
     else {
        wc_Shake256_Update(shake, data, len);
-       wc_Shake256_Final(shake, hash);
+       wc_Shake256_Final(shake, hash, sizeof(hash));
     }
     \endcode
 
@@ -1083,7 +1084,7 @@ int wc_Shake256_Update(wc_Shake* sha, const byte* data, word32 len);
     \sa wc_Shake256_GetHash
     \sa wc_InitShake256
 */
-int wc_Shake256_Final(wc_Shake* shake, byte* hash);
+int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen);
 
 /*!
     \ingroup SHA
@@ -1175,7 +1176,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt);
     }
     else {
         wc_Shake256_Update(&shake, data, len);
-        wc_Shake256_Final(&shake, hash);
+        wc_Shake256_Final(&shake, hash, sizeof(hash));
         wc_Shake256_Free(&shake);
     }
     \endcode
