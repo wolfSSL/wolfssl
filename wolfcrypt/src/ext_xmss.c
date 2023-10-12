@@ -60,7 +60,7 @@ static int rng_cb(void * output, size_t length)
     ret = wc_RNG_GenerateBlock(xmssRng, output, (word32) length);
 
     if (ret) {
-        WOLFSSL_MSG("error: xmss rng_cb failed");
+        WOLFSSL_MSG("error: XMSS rng_cb failed");
         return -1;
     }
 
@@ -68,7 +68,7 @@ static int rng_cb(void * output, size_t length)
 }
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
 
-/* SHA256 callback used by xmss.
+/* SHA256 callback used by XMSS.
  * */
 static int sha256_cb(const unsigned char *in, unsigned long long inlen,
                      unsigned char *out)
@@ -95,11 +95,11 @@ static int sha256_cb(const unsigned char *in, unsigned long long inlen,
     return 0;
 }
 
-/* Init an Xmss key.
+/* Init an XMSS key.
  *
- * Call this before setting the parms of an Xmss key.
+ * Call this before setting the parms of an XMSS key.
  *
- *  key         [in]  The Xmss key to init.
+ *  key         [in]  The XMSS key to init.
  *  heap        [in]  Unused.
  *  devId       [in]  Unused.
  *
@@ -119,6 +119,7 @@ int wc_XmssKey_Init(XmssKey * key, void * heap, int devId)
 
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
     key->sk = NULL;
+    key->sk_len = 0;
     key->write_private_key = NULL;
     key->read_private_key = NULL;
     key->context = NULL;
@@ -128,15 +129,15 @@ int wc_XmssKey_Init(XmssKey * key, void * heap, int devId)
     return 0;
 }
 
-/* Sets the Xmss key parameters, given an oid.
+/* Sets the XMSS key parameters, given an OID.
  *
  * Note: XMSS and XMSS^MT parameter sets do have overlapping
- * oids, therefore is_xmssmt is necessary to toggle.
+ * OIDs, therefore is_xmssmt is necessary to toggle.
  *
- *  key         [in]  The Xmss key to set.
- *  oid         [in]  The Xmss parameter set oid.
- *  is_xmssmt   [in]  1 The oid is assumed to be XMSS^MT.
- *                    0 The oid is assumed to be XMSS.
+ *  key         [in]  The XMSS key to set.
+ *  OID         [in]  The XMSS parameter set OID.
+ *  is_xmssmt   [in]  1 The OID is assumed to be XMSS^MT.
+ *                    0 The OID is assumed to be XMSS.
  *
  *  returns     0 on success.
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
@@ -150,7 +151,7 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
         return BAD_FUNC_ARG;
     }
 
-    /* Parse the oid and load the xmss params structure. */
+    /* Parse the OID and load the XMSS params structure. */
     if (is_xmssmt) {
         ret = xmssmt_parse_oid(&key->params, oid);
     }
@@ -159,7 +160,7 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
     }
 
     if (ret != 0) {
-        WOLFSSL_MSG("error: xmss parse oid failed");
+        WOLFSSL_MSG("error: XMSS parse oid failed");
         return -1;
     }
 
@@ -198,13 +199,13 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
     return 0;
 }
 
-/* Set the Xmss key parameter string.
+/* Set the XMSS key parameter string.
  *
  * The input string must be one of the supported parm set names in
  * the "Name" section from the table in wolfssl/wolfcrypt/xmss.h,
  * e.g. "XMSS-SHA2_10_256" or "XMSSMT-SHA2_20/4_256".
  *
- *  key         [in]  The Xmss key to set.
+ *  key         [in]  The XMSS key to set.
  *  str         [in]  The XMSS/XMSS^MT parameter string.
  *
  *  returns     0 on success.
@@ -222,7 +223,7 @@ int wc_XmssKey_SetParamStr(XmssKey * key, const char * str)
     }
 
     if (key->state != WC_XMSS_STATE_INITED) {
-        WOLFSSL_MSG("error: xmss key needs init");
+        WOLFSSL_MSG("error: XMSS key needs init");
         return BAD_FUNC_ARG;
     }
 
@@ -235,11 +236,11 @@ int wc_XmssKey_SetParamStr(XmssKey * key, const char * str)
         is_xmssmt = 1;
         break;
     default:
-        WOLFSSL_MSG("error: xmss param str invalid length");
+        WOLFSSL_MSG("error: XMSS param str invalid length");
         return BAD_FUNC_ARG;
     }
 
-    /* Convert xmss param string to oid. */
+    /* Convert XMSS param string to OID. */
     if (is_xmssmt) {
         ret = xmssmt_str_to_oid(&oid, str);
     }
@@ -255,13 +256,13 @@ int wc_XmssKey_SetParamStr(XmssKey * key, const char * str)
     return wc_XmssKey_SetOid(key, oid, is_xmssmt);
 }
 
-/* Force zeros and frees the Xmss key from memory.
+/* Force zeros and frees the XMSS key from memory.
  *
  * This does not touch the private key saved to non-volatile storage.
  *
  * This is the only function that frees the key->sk array.
  *
- *  key         [in]  The Xmss key.
+ *  key         [in]  The XMSS key.
  *
  *  returns     void
  * */
@@ -276,6 +277,7 @@ void wc_XmssKey_Free(XmssKey* key)
         ForceZero(key->sk, key->sk_len);
         XFREE(key->sk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         key->sk = NULL;
+        key->sk_len = 0;
     }
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
 
@@ -287,12 +289,12 @@ void wc_XmssKey_Free(XmssKey* key)
 }
 
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
-/* Sets the Xmss write private key callback.
+/* Sets the XMSS write private key callback.
  *
  * The callback must be able to write/update the private key to
  * non-volatile storage.
  *
- *  key         [in]  The Xmss key.
+ *  key         [in]  The XMSS key.
  *  write_cb    [in]  The write private key callback.
  *
  *  returns     0 on success.
@@ -316,12 +318,12 @@ int wc_XmssKey_SetWriteCb(XmssKey * key, write_private_key_cb write_cb)
     return 0;
 }
 
-/* Sets the Xmss read private key callback.
+/* Sets the XMSS read private key callback.
  *
  * The callback must be able to read the private key from
  * non-volatile storage.
  *
- *  key         [in]  The Xmss key.
+ *  key         [in]  The XMSS key.
  *  read_cb     [in]  The read private key callback.
  *
  *  returns     0 on success.
@@ -345,11 +347,11 @@ int wc_XmssKey_SetReadCb(XmssKey * key, read_private_key_cb read_cb)
     return 0;
 }
 
-/* Sets the Xmss context to be used by write and read callbacks.
+/* Sets the XMSS context to be used by write and read callbacks.
  *
  * E.g. this could be a filename if the callbacks write/read to file.
  *
- *  key         [in]  The Xmss key.
+ *  key         [in]  The XMSS key.
  *  context     [in]  The context pointer.
  *
  *  returns     0 on success.
@@ -374,7 +376,7 @@ int wc_XmssKey_SetContext(XmssKey * key, void * context)
 }
 
 
-/* Allocates the Xmss secret key (sk) array.
+/* Allocates the XMSS secret key (sk) array.
  *
  * The XMSS/XMSS^MT secret key length is a function of the
  * parameters, and can't be allocated until the param string
@@ -382,9 +384,9 @@ int wc_XmssKey_SetContext(XmssKey * key, void * context)
  *
  * This is only called by MakeKey() and Reload().
  *
- * Note: the Xmss sk array is force zeroed after every use.
+ * Note: the XMSS sk array is force zeroed after every use.
  *
- *  key         [in]  The Xmss key.
+ *  key         [in]  The XMSS key.
  *
  *  returns     0 on success.
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
@@ -399,7 +401,7 @@ static int wc_XmssKey_AllocSk(XmssKey* key)
     }
 
     if (key->sk != NULL) {
-        WOLFSSL_MSG("error: xmss secret key already exists");
+        WOLFSSL_MSG("error: XMSS secret key already exists");
         return -1;
     }
 
@@ -416,7 +418,7 @@ static int wc_XmssKey_AllocSk(XmssKey* key)
     key->sk = XMALLOC(key->sk_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (key->sk == NULL) {
-        WOLFSSL_MSG("error: malloc Xmss key->sk failed");
+        WOLFSSL_MSG("error: malloc XMSS key->sk failed");
         return -1;
     }
 
@@ -435,7 +437,7 @@ static int wc_XmssKey_AllocSk(XmssKey* key)
  * key->sk array. wc_XmssKey_FreeKey is the only function that
  * deallocates key->sk.
  *
- *  key         [in]  The Xmss key to make.
+ *  key         [in]  The XMSS key to make.
  *  rng         [in]  Initialized WC_RNG pointer.
  *
  *  returns     0 on success.
@@ -491,13 +493,13 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG * rng)
     ForceZero(key->sk, key->sk_len);
 
     if (ret != 0) {
-        WOLFSSL_MSG("error: xmss keypair failed");
+        WOLFSSL_MSG("error: XMSS keypair failed");
         key->state = WC_XMSS_STATE_BAD;
         return -1;
     }
 
     if (cb_rc != WC_XMSS_RC_SAVED_TO_NV_MEMORY) {
-        WOLFSSL_MSG("error: xmss write to NV storage failed");
+        WOLFSSL_MSG("error: XMSS write to NV storage failed");
         key->state = WC_XMSS_STATE_BAD;
         return -1;
     }
@@ -514,7 +516,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG * rng)
  * On success it sets the key state to OK.
  *
  * Use this function to resume signing with an already existing
- * xmss key pair.
+ * XMSS key pair.
  *
  * Write/read callbacks, and context data, must be set prior.
  * Key must have parameters set.
@@ -525,7 +527,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG * rng)
  * key->sk array. wc_XmssKey_FreeKey is the only function that
  * deallocates key->sk.
  *
- *  key         [in]      Xmss key to load.
+ *  key         [in]      XMSS key to load.
  *
  *  returns     0 on success.
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
@@ -569,7 +571,7 @@ int wc_XmssKey_Reload(XmssKey * key)
     ForceZero(key->sk, key->sk_len);
 
     if (cb_rc != WC_XMSS_RC_READ_TO_MEMORY) {
-        WOLFSSL_MSG("error: xmss read from NV storage failed");
+        WOLFSSL_MSG("error: XMSS read from NV storage failed");
         key->state = WC_XMSS_STATE_BAD;
         return -1;
     }
@@ -585,10 +587,10 @@ int wc_XmssKey_Reload(XmssKey * key)
  * is a function of the parameters.
  *
  * Note: the XMSS/XMSS^MT private key format is implementation specific,
- * and not standardized. Interoperability of Xmss private keys should
+ * and not standardized. Interoperability of XMSS private keys should
  * not be expected.
  *
- *  key         [in]      The Xmss key.
+ *  key         [in]      The XMSS key.
  *  len         [out]     The length of the private key in bytes.
  *
  *  returns     0 on success.
@@ -611,7 +613,7 @@ int wc_XmssKey_GetPrivLen(const XmssKey * key, word32 * len)
     return 0;
 }
 
-/* Signs the message using the Xmss secret key, and
+/* Signs the message using the XMSS secret key, and
  * updates the secret key on NV storage.
  *
  * Both operations must succeed to be considered
@@ -661,24 +663,24 @@ static void wc_XmssKey_SignUpdate(XmssKey* key, byte * sig, word32 * sigLen,
                 /* Write to NV storage failed. Erase the signature from
                  * memory. */
                 ForceZero(sig, key->params.sig_bytes);
-                WOLFSSL_MSG("error: xmss write_private_key failed");
+                WOLFSSL_MSG("error: XMSS write_private_key failed");
             }
         }
         else if (ret == -2) {
             /* Signature space exhausted. */
             key->state = WC_XMSS_STATE_NOSIGS;
-            WOLFSSL_MSG("error: no xmss signatures remaining");
+            WOLFSSL_MSG("error: no XMSS signatures remaining");
         }
         else {
             /* Something failed or inconsistent in signature. Erase the
              * signature just to be safe. */
             ForceZero(sig, key->params.sig_bytes);
-            WOLFSSL_MSG("error: xmss sign failed");
+            WOLFSSL_MSG("error: XMSS sign failed");
         }
     }
     else {
         /* Read from NV storage failed. */
-        WOLFSSL_MSG("error: xmss read_private_key failed");
+        WOLFSSL_MSG("error: XMSS read_private_key failed");
     }
 
     /* Force zero the secret key from memory always. */
@@ -687,9 +689,9 @@ static void wc_XmssKey_SignUpdate(XmssKey* key, byte * sig, word32 * sigLen,
     return;
 }
 
-/* Sign the message using the Xmss secret key.
+/* Sign the message using the XMSS secret key.
  *
- *  key         [in]      Xmss key to use to sign.
+ *  key         [in]      XMSS key to use to sign.
  *  sig         [in]      Buffer to write signature into.
  *  sigLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the signature in bytes.
@@ -714,18 +716,18 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
 
     if (*sigLen < key->params.sig_bytes) {
         /* Signature buffer too small. */
-        WOLFSSL_MSG("error: xmss sig buffer too small");
+        WOLFSSL_MSG("error: XMSS sig buffer too small");
         return BUFFER_E;
     }
 
     if (key->state == WC_XMSS_STATE_NOSIGS) {
-        WOLFSSL_MSG("error: xmss signatures exhausted");
+        WOLFSSL_MSG("error: XMSS signatures exhausted");
         return -1;
     }
     else if (key->state != WC_XMSS_STATE_OK) {
        /* The key had an error the last time it was used, and we
         * can't guarantee its state. */
-        WOLFSSL_MSG("error: can't sign, xmss key not in good state");
+        WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
         return -1;
     }
 
@@ -740,7 +742,7 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
  * is static in size and does not depend on parameters,
  * other than the choice of SHA256 as hashing function.
  *
- *  key         [in]      The Xmss key.
+ *  key         [in]      The XMSS key.
  *  len         [out]     The length of the public key.
  *
  *  returns     0 on success.
@@ -790,7 +792,7 @@ int wc_XmssKey_ExportPub(XmssKey * keyDst, const XmssKey * keySrc)
  * The out buffer should be large enough to hold the public key, and
  * outLen should indicate the size of the buffer.
  *
- *  key         [in]      Xmss key.
+ *  key         [in]      XMSS key.
  *  out         [out]     Array holding public key.
  *  outLen      [in/out]  On in, size of buffer.
  *                        On out, the length of the public key.
@@ -831,7 +833,7 @@ int wc_XmssKey_ExportPubRaw(const XmssKey * key, byte * out, word32 * outLen)
  * The XMSS parameters must be set first with wc_XmssKey_SetParamStr,
  * and inLen must match the length returned by wc_XmssKey_GetPubLen.
  *
- *  key         [in]      Xmss key.
+ *  key         [in]      XMSS key.
  *  in          [in]      Array holding public key.
  *  inLen       [in]      Length of array in bytes.
  *
@@ -850,8 +852,8 @@ int wc_XmssKey_ImportPubRaw(XmssKey * key, const byte * in, word32 inLen)
     }
 
     if (key->state != WC_XMSS_STATE_PARMSET) {
-        /* Xmss key not ready for import. Param str must be set first. */
-        WOLFSSL_MSG("error: xmss key not ready for import");
+        /* XMSS key not ready for import. Param str must be set first. */
+        WOLFSSL_MSG("error: XMSS key not ready for import");
         return -1;
     }
 
@@ -883,7 +885,7 @@ int wc_XmssKey_ImportPubRaw(XmssKey * key, const byte * in, word32 inLen)
  * Note: call this before wc_XmssKey_Sign or Verify so you know the
  * length of the required signature buffer.
  *
- *  key         [in]      Xmss key to use to sign.
+ *  key         [in]      XMSS key to use to sign.
  *  len         [out]     The length of the signature in bytes.
  *
  *  returns     0 on success.
@@ -905,16 +907,16 @@ int wc_XmssKey_GetSigLen(const XmssKey * key, word32 * len)
     return 0;
 }
 
-/* Verify the signature using the Xmss public key.
+/* Verify the signature using the XMSS public key.
  *
- * Requires that Xmss parameters have been set with
+ * Requires that XMSS parameters have been set with
  * wc_XmssKey_SetParamStr, and that a public key is available
  * from importing or MakeKey().
  *
  * Call wc_XmssKey_GetSigLen() before this function to determine
  * length of the signature buffer.
  *
- *  key         [in]  Xmss key to use to verify.
+ *  key         [in]  XMSS key to use to verify.
  *  sig         [in]  Signature to verify.
  *  sigLen      [in]  Size of signature in bytes.
  *  msg         [in]  Message to verify.
@@ -944,9 +946,9 @@ int wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigLen,
 
     if (key->state != WC_XMSS_STATE_OK &&
         key->state != WC_XMSS_STATE_VERIFYONLY) {
-        /* Xmss key not ready for verification. Param str must be
+        /* XMSS key not ready for verification. Param str must be
          * set first, and Reload() called. */
-        WOLFSSL_MSG("error: xmss key not ready for verification");
+        WOLFSSL_MSG("error: XMSS key not ready for verification");
         return -1;
     }
 
@@ -958,7 +960,7 @@ int wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigLen,
     }
 
     if (ret != 0 || (int) msg_len != msgLen) {
-        WOLFSSL_MSG("error: xmss verify failed");
+        WOLFSSL_MSG("error: XMSS verify failed");
         return -1;
     }
 

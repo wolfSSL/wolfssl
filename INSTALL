@@ -399,7 +399,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
       $ git apply <path to xmss reference patch>
 
     The patch may be found in the wolfssl-examples repo here:
-      pq/stateful_hash_sig/0001-Patch-to-support-xmss-reference-integration.patch
+      pq/stateful_hash_sig/0001-Patch-to-support-wolfSSL-xmss-reference-integration.patch
 
     To build patched xmss-reference:
       $ make xmss_lib.a
@@ -407,10 +407,11 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     To build verify-only patched xmss-reference:
       $ make xmss_verify_lib.a
 
-    Note that this patch adds wolfCrypt SHA256 hashing to xmss-reference, and
+    Note that this patch changes xmss-reference to use wolfCrypt SHA256 hashing,
+    by registering a SHA callback function in xmss-reference. It
     thus benefits from all the same asm speedups as wolfCrypt SHA hashing.
     Depending on architecture you may build with --enable-intelasm, or
-    and --enable-armasm, and see 30-40% speedups in XMSS/XMSS^MT.
+    --enable-armasm, and see 30-40% speedups in XMSS/XMSS^MT.
 
     For full keygen, signing, verifying, and benchmarking support, build
     wolfSSL with:

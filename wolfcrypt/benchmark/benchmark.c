@@ -8313,7 +8313,7 @@ void bench_xmss(void)
     /* All NIST SP 800-208 approved SHA256 XMSS/XMSS^MT parameter
      * sets.
      *
-     * note: not testing "XMSS-SHA2_16_256", "XMSS-SHA2_20_256",
+     * Note: not testing "XMSS-SHA2_16_256", "XMSS-SHA2_20_256",
      * and "XMSSMT-SHA2_60/3_256", because their keygen can be
      * very slow, their signatures and private keys quite large,
      * and xmss private keys are not portable across different

@@ -63,7 +63,7 @@
  * Winternitz=16, from RFC 8391 and NIST SP 800-208.
  *
  *         ----------------------------------------------------------
- *         | Name                     Oid         n   w  len  h   d  |
+ *         | Name                     OID         n   w  len  h   d  |
  * XMSS:   | "XMSS-SHA2_10_256"       0x00000001  32  16  67  10  1  |
  *         | "XMSS-SHA2_16_256"       0x00000002  32  16  67  16  1  |
  *         | "XMSS-SHA2_20_256"       0x00000003  32  16  67  20  1  |
@@ -78,7 +78,7 @@
  *         | "XMSSMT-SHA2_60/12_256"  0x00000008  32  16  67  60  12 |
  *         ----------------------------------------------------------
  *
- * Note that some XMSS and XMSSMT names do have overlapping Oids.
+ * Note that some XMSS and XMSSMT names do have overlapping OIDs.
  *
  * References:
  *   1. NIST SP 800-208
