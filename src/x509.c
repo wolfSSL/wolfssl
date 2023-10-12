@@ -569,6 +569,10 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
         static const unsigned char upn_oid[] = {
             0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03
         };
+        /* FASCN OID: 2.16.840.1.101.3.6.6 */
+        static const unsigned char fascn_oid[] = {
+            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x06, 0x06
+        };
         const unsigned char* oid;
         word32 oidSz;
 
@@ -577,6 +581,10 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
             if (dns->oidSum == UPN_OID) {
                 oid = upn_oid;
                 oidSz = (word32)sizeof(upn_oid);
+            }
+            else if (dns->oidSum == FASCN_OID) {
+                oid = fascn_oid;
+                oidSz = (word32)sizeof(fascn_oid);
             }
             else {
                 goto err;
