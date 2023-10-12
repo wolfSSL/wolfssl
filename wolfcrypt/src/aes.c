@@ -11461,9 +11461,9 @@ int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
         word32 sz, word64 sector, word32 sectorSz)
 {
     int ret  = 0;
-    int iter = 0;
-    int sectorCount  = sz / sectorSz;
-    int remainder = sz % sectorSz;
+    word32 iter = 0;
+    word32 sectorCount;
+    word32 remainder;
 
     if (aes == NULL || out == NULL || in == NULL || sectorSz == 0) {
         return BAD_FUNC_ARG;
@@ -11473,6 +11473,9 @@ int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
         WOLFSSL_MSG("Cipher text input too small for encryption");
         return BAD_FUNC_ARG;
     }
+
+    sectorCount  = sz / sectorSz;
+    remainder = sz % sectorSz;
 
     while (sectorCount) {
         ret = wc_AesXtsEncryptSector(aes, out + (iter * sectorSz),
@@ -11507,9 +11510,9 @@ int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
         word32 sz, word64 sector, word32 sectorSz)
 {
     int ret  = 0;
-    int iter = 0;
-    int sectorCount  = sz / sectorSz;
-    int remainder = sz % sectorSz;
+    word32 iter = 0;
+    word32 sectorCount;
+    word32 remainder;
 
     if (aes == NULL || out == NULL || in == NULL || sectorSz == 0) {
         return BAD_FUNC_ARG;
@@ -11519,6 +11522,9 @@ int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
         WOLFSSL_MSG("Cipher text input too small for decryption");
         return BAD_FUNC_ARG;
     }
+
+    sectorCount  = sz / sectorSz;
+    remainder = sz % sectorSz;
 
     while (sectorCount) {
         ret = wc_AesXtsDecryptSector(aes, out + (iter * sectorSz),

@@ -9820,10 +9820,6 @@ static wc_test_ret_t aes_xts_sector_test(void)
     int aes_inited = 0;
     wc_test_ret_t ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 2];
-#ifndef BENCH_EMBEDDED
-    /* Sector size for encrypt/decrypt consecutive sectors testcase */
-    word32 sectorSz = 512;
-#endif
 
     /* 128 key tests */
     WOLFSSL_SMALL_STACK_STATIC unsigned char k1[] = {
@@ -9871,7 +9867,11 @@ static wc_test_ret_t aes_xts_sector_test(void)
     };
     word64 s2 = 187;
 
-#ifndef BENCH_EMBEDDED
+#if !defined(BENCH_EMBEDDED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* Sector size for encrypt/decrypt consecutive sectors testcase */
+    word32 sectorSz = 512;
+
     unsigned char data[550];
 
     WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
@@ -10055,7 +10055,8 @@ static wc_test_ret_t aes_xts_sector_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     wc_AesXtsFree(aes);
 
-#ifndef BENCH_EMBEDDED
+#if !defined(BENCH_EMBEDDED) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     /* encrypt consecutive sectors test */
     XMEMSET(data, 0, sizeof(buf));
     ret = wc_AesXtsSetKey(aes, k3, sizeof(k3), AES_ENCRYPTION,
@@ -10090,7 +10091,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     wc_AesXtsFree(aes);
 
-#endif
+#endif /* !BENCH_EMBEDDED && (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) */
 
 out:
 
