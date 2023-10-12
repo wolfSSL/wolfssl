@@ -42479,6 +42479,29 @@ static int test_wolfSSL_verify_depth(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_verify_result(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(OPENSSL_ALL)) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL*     ssl = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    long         result = 0xDEADBEEF;
+
+    ExpectIntEQ(WOLFSSL_FAILURE, wolfSSL_get_verify_result(ssl));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    wolfSSL_set_verify_result(ssl, result);
+    ExpectIntEQ(result, wolfSSL_get_verify_result(ssl));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
 /* helper function for test_wolfSSL_HMAC_CTX, digest size is expected to be a
  * buffer of 64 bytes.
@@ -66039,6 +66062,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_sk_DIST_POINT),
     TEST_DECL(test_wolfSSL_verify_mode),
     TEST_DECL(test_wolfSSL_verify_depth),
+    TEST_DECL(test_wolfSSL_verify_result),
     TEST_DECL(test_wolfSSL_msg_callback),
 
     TEST_DECL(test_wolfSSL_MD4),

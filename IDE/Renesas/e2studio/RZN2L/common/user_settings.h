@@ -110,3 +110,6 @@
 int uart_printf (const char *__restrict format, ...);
 #undef printf
 #define printf uart_printf
+
+#define TEST_SLEEP() vTaskDelay(50)
+#define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock

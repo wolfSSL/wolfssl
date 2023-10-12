@@ -183,6 +183,33 @@ WOLFSSL_LOCAL void wc_fspsm_Close()
     }
 }
 
+#define RANDGEN_WORDS  4
+WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz) 
+{
+    /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
+    int ret = 0;
+    word32 buffer[RANDGEN_WORDS];
+
+    while (sz > 0) {
+        word32 len = sizeof(buffer);
+
+        if (sz < len) {
+            len = sz;
+        }
+        /* return 4 words random number*/
+        ret = R_RANDOM_GEN(buffer);
+        if(ret == FSP_SUCCESS) {
+            XMEMCPY(output, &buffer, len);
+            output += len;
+            sz -= len;
+         } else {
+            WOLFSSL_MSG_EX("FSP SM Rnd Generate() Returned 0x%08x", ret);
+            return WC_HW_E;
+        }
+    }
+    return ret;
+}
+
 #if defined(WOLFSSL_RENESAS_FSPSM) && \
     defined(WOLFSSL_RENESAS_FSPSM_TLS)
 

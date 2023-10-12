@@ -59,7 +59,7 @@ int wc_curve448_shared_secret(curve448_key* private_key,
 
 /*!
     \ingroup Curve448 
-    \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。大きくてリトルエンディアンの両方をサポートします。
+    \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  共有秘密鍵を正常に計算したときに返されました。
     \return BAD_FUNC_ARG  渡された入力パラメータのいずれかがNULLの場合に返されます。
     \param [in]  Private_Key Curve448_Key構造体へのポインタユーザーの秘密鍵で初期化されました。
@@ -152,7 +152,7 @@ int wc_curve448_import_private(const byte* priv, word32 privSz,
 
 /*!
     \ingroup Curve448 
-    \brief  CURVE448秘密鍵のインポートのみ。（大きなエンディアン）。
+    \brief  CURVE448秘密鍵のインポートのみ。（ビッグエンディアン）。
     \return 0  秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  キーまたはPRIVがNULLの場合は返します。
     \return ECC_BAD_ARG_E  PRIVSZがCURUG448_KEY_SIZEと等しくない場合は返します。
@@ -220,7 +220,7 @@ int wc_curve448_import_private_raw(const byte* priv, word32 privSz,
 
 /*!
     \ingroup Curve448 
-    \brief  この関数は、public-秘密鍵のペアをCurve448_Key構造体にインポートします。大きくてリトルエンディアンの両方をサポートします。
+    \brief  この関数は、public-秘密鍵のペアをCurve448_Key構造体にインポートします。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve448_Key構造体へのインポート時に返されます。
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返します。
     \return ECC_BAD_ARG_E  入力キーのキーサイズがPublicキーサイズまたは秘密鍵サイズと一致しない場合に返されます。
@@ -450,7 +450,7 @@ int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup Curve448 
-    \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。大きくてリトルエンディアンの両方をサポートします。
+    \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve448_Key構造体から公開鍵のエクスポートに成功しました。
     \return ECC_BAD_ARG_E  outlenがcurve448_pub_key_sizeより小さい場合に返されます。
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返されます。
@@ -517,8 +517,8 @@ int wc_curve448_export_key_raw(curve448_key* key,
 
 /*!
     \ingroup Curve448 
-    \brief  Curve448キーペアをエクスポートします。大きいまたはリトルエンディアン。
-    \brief  この関数は指定されたキー構造からキーペアをエクスポートし、結果をアウトバッファに格納します。大きいまたはリトルエンディアン。
+    \brief  Curve448キーペアをエクスポートします。ビッグ、またはリトルエンディアン。
+    \brief  この関数は指定されたキー構造からキーペアをエクスポートし、結果をアウトバッファに格納します。ビッグ、またはリトルエンディアン。
     \return 0  成功
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
     \return ECC_BAD_ARG_E  PRIVSZがCURUV448_KEY_SIZEまたはPUBSZよりも小さい場合は、Curge448_PUB_KEY_SIZEよりも小さい場合に返されます。
