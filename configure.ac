@@ -1338,13 +1338,14 @@ fi
 
 # KeyLog file export
 AC_ARG_ENABLE([keylog-export],
-              [AS_HELP_STRING([--enable-keylog-export],[Enable (DANGEROUS INSECURE) exporting TLS secrets to an NSS keylog file (default: disabled)])],
+              [AS_HELP_STRING([--enable-keylog-export],[Enable insecure export of TLS secrets to an NSS keylog file (default: disabled)])],
     [ ENABLED_KEYLOG_EXPORT=$enableval ],
     [ ENABLED_KEYLOG_EXPORT=no ]
     )
 if test "$ENABLED_KEYLOG_EXPORT" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE"
+  AC_MSG_WARN([Keylog export enabled -- Sensitive key data will be stored insecurely.])
+  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE -DWOLFSSL_KEYLOG_EXPORT_WARNED"
 fi
 
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)

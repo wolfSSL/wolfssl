@@ -106,7 +106,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
 /* Warn if secrets logging is enabled */
-#if defined(SHOW_SECRETS) || defined(WOLFSSL_SSLKEYLOGFILE)
+#if (defined(SHOW_SECRETS) || defined(WOLFSSL_SSLKEYLOGFILE)) && \
+    !defined(WOLFSSL_KEYLOG_EXPORT_WARNED)
     #ifndef _MSC_VER
         #warning The SHOW_SECRETS and WOLFSSL_SSLKEYLOGFILE options should only be used for debugging and never in a production environment
     #else
