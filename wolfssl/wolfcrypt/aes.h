@@ -601,6 +601,18 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
 #endif
 
 #ifdef WOLFSSL_AES_EAX
+#include <wolfssl/wolfcrypt/cmac.h>
+
+struct AesEax {
+    Aes  aes;
+    Cmac nonceCmac;
+    Cmac aadCmac;
+    Cmac ciphertextCmac;
+    byte nonceCmacFinal[AES_BLOCK_SIZE];
+    byte aadCmacFinal[AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[AES_BLOCK_SIZE];
+    byte prefixBuf[AES_BLOCK_SIZE];
+};
 
 typedef struct AesEax AesEax;
 
