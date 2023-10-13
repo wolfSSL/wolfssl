@@ -57,7 +57,7 @@ static int rng_cb(void * output, size_t length)
         return 0;
     }
 
-    ret = wc_RNG_GenerateBlock(xmssRng, output, (word32) length);
+    ret = wc_RNG_GenerateBlock(xmssRng, (byte *)output, (word32)length);
 
     if (ret) {
         WOLFSSL_MSG("error: XMSS rng_cb failed");
@@ -415,7 +415,8 @@ static int wc_XmssKey_AllocSk(XmssKey* key)
         return -1;
     }
 
-    key->sk = XMALLOC(key->sk_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key->sk = (unsigned char *)XMALLOC(key->sk_len, NULL,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
 
     if (key->sk == NULL) {
         WOLFSSL_MSG("error: malloc XMSS key->sk failed");
@@ -728,6 +729,16 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
        /* The key had an error the last time it was used, and we
         * can't guarantee its state. */
         WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
+        return -1;
+    }
+
+    if (key->write_private_key == NULL || key->read_private_key == NULL) {
+        WOLFSSL_MSG("error: XmssKey write/read callbacks are not set");
+        return -1;
+    }
+
+    if (key->context == NULL) {
+        WOLFSSL_MSG("error: XmssKey context is not set");
         return -1;
     }
 

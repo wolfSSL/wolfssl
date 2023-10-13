@@ -8100,7 +8100,8 @@ void bench_lms(void)
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 
-static int xmss_write_key_mem(const byte * priv, word32 privSz, void *context)
+static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
+    void *context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! Production applications should
@@ -8109,7 +8110,8 @@ static int xmss_write_key_mem(const byte * priv, word32 privSz, void *context)
     return WC_XMSS_RC_SAVED_TO_NV_MEMORY;
 }
 
-static int xmss_read_key_mem(byte * priv, word32 privSz, void *context)
+static enum wc_XmssRc xmss_read_key_mem(byte * priv, word32 privSz,
+    void *context)
 {
    /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! */
@@ -8179,14 +8181,14 @@ static void bench_xmss_sign_verify(const char * params)
     }
 
     /* Allocate secret keys.*/
-    sk = XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) {
         fprintf(stderr, "error: allocate xmss sk failed\n");
         goto exit_xmss_sign_verify;
     }
 
     /* Allocate signature array. */
-    sig = XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         fprintf(stderr, "error: allocate xmss sig failed\n");
         goto exit_xmss_sign_verify;
@@ -8298,11 +8300,6 @@ exit_xmss_sign_verify:
     if (freeKey) {
         wc_XmssKey_Free(&key);
         freeKey = 0;
-    }
-
-    if (sig != NULL) {
-        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sig = NULL;
     }
 
     return;

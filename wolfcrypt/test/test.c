@@ -35122,7 +35122,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 #endif /* WOLFSSL_HAVE_KYBER */
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
-static int xmss_write_key_mem(const byte * priv, word32 privSz, void *context)
+static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
+    void *context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! Production applications should
@@ -35131,7 +35132,8 @@ static int xmss_write_key_mem(const byte * priv, word32 privSz, void *context)
     return WC_XMSS_RC_SAVED_TO_NV_MEMORY;
 }
 
-static int xmss_read_key_mem(byte * priv, word32 privSz, void *context)
+static enum wc_XmssRc xmss_read_key_mem(byte * priv, word32 privSz,
+    void *context)
 {
    /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! */
@@ -35191,7 +35193,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     /* Allocate signature array. */
-    sig = XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) { return WC_TEST_RET_ENC_ERRNO; }
 
     bufSz = sigSz;
@@ -35204,10 +35206,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
 
     /* Allocate current and old secret keys.*/
-    sk = XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) { return WC_TEST_RET_ENC_ERRNO; }
 
-    old_sk = XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    old_sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (old_sk == NULL) { return WC_TEST_RET_ENC_ERRNO; }
 
     XMEMSET(sk, 0, skSz);

@@ -91,10 +91,6 @@
 
 typedef struct XmssKey XmssKey;
 
-/* Private key write and read callbacks. */
-typedef int (*write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef int (*read_private_key_cb)(byte * priv, word32 privSz, void *context);
-
 /* Return codes returned by private key callbacks. */
 enum wc_XmssRc {
   WC_XMSS_RC_NONE,
@@ -115,6 +111,10 @@ enum wc_XmssState {
     WC_XMSS_STATE_BAD,        /* Can't guarantee key's state. */
     WC_XMSS_STATE_NOSIGS      /* Signatures exhausted. */
 };
+
+/* Private key write and read callbacks. */
+typedef enum wc_XmssRc (*write_private_key_cb)(const byte * priv, word32 privSz, void *context);
+typedef enum wc_XmssRc (*read_private_key_cb)(byte * priv, word32 privSz, void *context);
 
 #ifdef __cplusplus
     extern "C" {
