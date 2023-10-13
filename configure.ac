@@ -3530,10 +3530,6 @@ AC_ARG_ENABLE([sm2],
     [ ENABLED_SM2=no ]
     )
 
-if test "$ENABLED_SP_MATH" = "yes"
-then
-    ENABLED_SM2="no"
-fi
 if test "$ENABLED_SM2" = "yes"
 then
     if test "$ENABLED_ECC" = "no"
@@ -7149,6 +7145,7 @@ ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
 ENABLED_SP_EC_521=no
+ENABLED_SP_SM2=$ENABLED_SM2
 ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
@@ -7239,6 +7236,15 @@ do
   ec1024 | p1024 | 1024)
     ENABLED_SP_ECC=yes
     ENABLED_SP_SAKKE_1024=yes
+    ;;
+  smallsm2)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SM2=yes
+    ;;
+  sm2)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SM2=yes
     ;;
 
   small2048)
@@ -7386,6 +7392,10 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_SAKKE_1024" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_1024"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_1024"
+    fi
+    if test "$ENABLED_SP_SM2" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SM2"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SM2"
     fi
 fi
 if test "$ENABLED_SP_SMALL" = "yes"; then

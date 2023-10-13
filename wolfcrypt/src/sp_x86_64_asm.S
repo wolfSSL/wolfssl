@@ -56743,26 +56743,25 @@ _sp_256_mont_sub_4:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_256_div2_4
-.type	sp_256_div2_4,@function
+.globl	sp_256_mont_div2_4
+.type	sp_256_mont_div2_4,@function
 .align	16
-sp_256_div2_4:
+sp_256_mont_div2_4:
 #else
 .section	__TEXT,__text
-.globl	_sp_256_div2_4
+.globl	_sp_256_mont_div2_4
 .p2align	4
-_sp_256_div2_4:
+_sp_256_mont_div2_4:
 #endif /* __APPLE__ */
         movq	(%rsi), %rdx
         movq	8(%rsi), %rax
         movq	16(%rsi), %rcx
         movq	24(%rsi), %r8
-        movq	$0xffffffff, %r9
         movq	$0xffffffff00000001, %r10
         movq	%rdx, %r11
         andq	$0x01, %r11
         negq	%r11
-        andq	%r11, %r9
+        movl	%r11d, %r9d
         andq	%r11, %r10
         addq	%r11, %rdx
         adcq	%r9, %rax
@@ -56780,7 +56779,7 @@ _sp_256_div2_4:
         movq	%r8, 24(%rdi)
         repz retq
 #ifndef __APPLE__
-.size	sp_256_div2_4,.-sp_256_div2_4
+.size	sp_256_mont_div2_4,.-sp_256_mont_div2_4
 #endif /* __APPLE__ */
 /* Two Montgomery numbers, subtract double second from first (r = a - 2.b % m).
  *
@@ -57424,15 +57423,15 @@ _sp_256_cond_sub_avx2_4:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_256_mont_reduce_avx2_order_4
-.type	sp_256_mont_reduce_avx2_order_4,@function
+.globl	sp_256_mont_reduce_order_avx2_4
+.type	sp_256_mont_reduce_order_avx2_4,@function
 .align	16
-sp_256_mont_reduce_avx2_order_4:
+sp_256_mont_reduce_order_avx2_4:
 #else
 .section	__TEXT,__text
-.globl	_sp_256_mont_reduce_avx2_order_4
+.globl	_sp_256_mont_reduce_order_avx2_4
 .p2align	4
-_sp_256_mont_reduce_avx2_order_4:
+_sp_256_mont_reduce_order_avx2_4:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -57576,7 +57575,7 @@ _sp_256_mont_reduce_avx2_order_4:
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	sp_256_mont_reduce_avx2_order_4,.-sp_256_mont_reduce_avx2_order_4
+.size	sp_256_mont_reduce_order_avx2_4,.-sp_256_mont_reduce_order_avx2_4
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
@@ -57588,26 +57587,25 @@ _sp_256_mont_reduce_avx2_order_4:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_256_div2_avx2_4
-.type	sp_256_div2_avx2_4,@function
+.globl	sp_256_mont_div2_avx2_4
+.type	sp_256_mont_div2_avx2_4,@function
 .align	16
-sp_256_div2_avx2_4:
+sp_256_mont_div2_avx2_4:
 #else
 .section	__TEXT,__text
-.globl	_sp_256_div2_avx2_4
+.globl	_sp_256_mont_div2_avx2_4
 .p2align	4
-_sp_256_div2_avx2_4:
+_sp_256_mont_div2_avx2_4:
 #endif /* __APPLE__ */
         movq	(%rsi), %rdx
         movq	8(%rsi), %rax
         movq	16(%rsi), %rcx
         movq	24(%rsi), %r8
-        movq	$0xffffffff, %r9
         movq	$0xffffffff00000001, %r10
         movq	%rdx, %r11
         andq	$0x01, %r11
         negq	%r11
-        andq	%r11, %r9
+        movl	%r11d, %r9d
         andq	%r11, %r10
         addq	%r11, %rdx
         adcq	%r9, %rax
@@ -57625,7 +57623,7 @@ _sp_256_div2_avx2_4:
         movq	%r8, 24(%rdi)
         repz retq
 #ifndef __APPLE__
-.size	sp_256_div2_avx2_4,.-sp_256_div2_avx2_4
+.size	sp_256_mont_div2_avx2_4,.-sp_256_mont_div2_avx2_4
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifndef WC_NO_CACHE_RESISTANT
@@ -61092,15 +61090,15 @@ _sp_384_mont_sub_6:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_384_div2_6
-.type	sp_384_div2_6,@function
+.globl	sp_384_mont_div2_6
+.type	sp_384_mont_div2_6,@function
 .align	16
-sp_384_div2_6:
+sp_384_mont_div2_6:
 #else
 .section	__TEXT,__text
-.globl	_sp_384_div2_6
+.globl	_sp_384_mont_div2_6
 .p2align	4
-_sp_384_div2_6:
+_sp_384_mont_div2_6:
 #endif /* __APPLE__ */
         subq	$48, %rsp
         movq	(%rsi), %r11
@@ -61159,7 +61157,7 @@ _sp_384_div2_6:
         addq	$48, %rsp
         repz retq
 #ifndef __APPLE__
-.size	sp_384_div2_6,.-sp_384_div2_6
+.size	sp_384_mont_div2_6,.-sp_384_mont_div2_6
 #endif /* __APPLE__ */
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible point that could be being copied.
@@ -61727,15 +61725,15 @@ _sp_384_cond_sub_avx2_6:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_384_div2_avx2_6
-.type	sp_384_div2_avx2_6,@function
+.globl	sp_384_mont_div2_avx2_6
+.type	sp_384_mont_div2_avx2_6,@function
 .align	16
-sp_384_div2_avx2_6:
+sp_384_mont_div2_avx2_6:
 #else
 .section	__TEXT,__text
-.globl	_sp_384_div2_avx2_6
+.globl	_sp_384_mont_div2_avx2_6
 .p2align	4
-_sp_384_div2_avx2_6:
+_sp_384_mont_div2_avx2_6:
 #endif /* __APPLE__ */
         movq	(%rsi), %r11
         xorq	%r10, %r10
@@ -61793,7 +61791,7 @@ _sp_384_div2_avx2_6:
         movq	%r9, 40(%rdi)
         repz retq
 #ifndef __APPLE__
-.size	sp_384_div2_avx2_6,.-sp_384_div2_avx2_6
+.size	sp_384_mont_div2_avx2_6,.-sp_384_mont_div2_avx2_6
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifndef WC_NO_CACHE_RESISTANT
@@ -66645,15 +66643,15 @@ _sp_521_mont_sub_9:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_521_div2_9
-.type	sp_521_div2_9,@function
+.globl	sp_521_mont_div2_9
+.type	sp_521_mont_div2_9,@function
 .align	16
-sp_521_div2_9:
+sp_521_mont_div2_9:
 #else
 .section	__TEXT,__text
-.globl	_sp_521_div2_9
+.globl	_sp_521_mont_div2_9
 .p2align	4
-_sp_521_div2_9:
+_sp_521_mont_div2_9:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -66703,7 +66701,7 @@ _sp_521_div2_9:
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	sp_521_div2_9,.-sp_521_div2_9
+.size	sp_521_mont_div2_9,.-sp_521_mont_div2_9
 #endif /* __APPLE__ */
 #ifndef WC_NO_CACHE_RESISTANT
 /* Touch each possible point that could be being copied.
@@ -68411,15 +68409,15 @@ L_521_mont_reduce_order_avx2_9_loop:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_521_div2_avx2_9
-.type	sp_521_div2_avx2_9,@function
+.globl	sp_521_mont_div2_avx2_9
+.type	sp_521_mont_div2_avx2_9,@function
 .align	16
-sp_521_div2_avx2_9:
+sp_521_mont_div2_avx2_9:
 #else
 .section	__TEXT,__text
-.globl	_sp_521_div2_avx2_9
+.globl	_sp_521_mont_div2_avx2_9
 .p2align	4
-_sp_521_div2_avx2_9:
+_sp_521_mont_div2_avx2_9:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -68469,7 +68467,7 @@ _sp_521_div2_avx2_9:
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	sp_521_div2_avx2_9,.-sp_521_div2_avx2_9
+.size	sp_521_mont_div2_avx2_9,.-sp_521_mont_div2_avx2_9
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifndef WC_NO_CACHE_RESISTANT
@@ -77322,15 +77320,15 @@ _sp_1024_mont_sub_16:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_1024_div2_16
-.type	sp_1024_div2_16,@function
+.globl	sp_1024_mont_div2_16
+.type	sp_1024_mont_div2_16,@function
 .align	16
-sp_1024_div2_16:
+sp_1024_mont_div2_16:
 #else
 .section	__TEXT,__text
-.globl	_sp_1024_div2_16
+.globl	_sp_1024_mont_div2_16
 .p2align	4
-_sp_1024_div2_16:
+_sp_1024_mont_div2_16:
 #endif /* __APPLE__ */
         subq	$0x80, %rsp
         movq	(%rsi), %r11
@@ -77469,78 +77467,7 @@ _sp_1024_div2_16:
         addq	$0x80, %rsp
         repz retq
 #ifndef __APPLE__
-.size	sp_1024_div2_16,.-sp_1024_div2_16
-#endif /* __APPLE__ */
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_1024_sub_16
-.type	sp_1024_sub_16,@function
-.align	16
-sp_1024_sub_16:
-#else
-.section	__TEXT,__text
-.globl	_sp_1024_sub_16
-.p2align	4
-_sp_1024_sub_16:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rcx
-        subq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        sbbq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        sbbq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        sbbq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        sbbq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        sbbq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        sbbq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        sbbq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        sbbq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        sbbq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        sbbq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        sbbq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        sbbq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        sbbq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        sbbq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        sbbq	120(%rdx), %r8
-        movq	%r8, 120(%rdi)
-        sbbq	%rax, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_1024_sub_16,.-sp_1024_sub_16
+.size	sp_1024_mont_div2_16,.-sp_1024_mont_div2_16
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 1024 bits using Montgomery reduction.
@@ -78657,15 +78584,15 @@ _sp_1024_mont_sub_avx2_16:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_1024_div2_avx2_16
-.type	sp_1024_div2_avx2_16,@function
+.globl	sp_1024_mont_div2_avx2_16
+.type	sp_1024_mont_div2_avx2_16,@function
 .align	16
-sp_1024_div2_avx2_16:
+sp_1024_mont_div2_avx2_16:
 #else
 .section	__TEXT,__text
-.globl	_sp_1024_div2_avx2_16
+.globl	_sp_1024_mont_div2_avx2_16
 .p2align	4
-_sp_1024_div2_avx2_16:
+_sp_1024_mont_div2_avx2_16:
 #endif /* __APPLE__ */
         movq	(%rsi), %r11
         xorq	%r10, %r10
@@ -78803,7 +78730,7 @@ _sp_1024_div2_avx2_16:
         movq	%r9, 120(%rdi)
         repz retq
 #ifndef __APPLE__
-.size	sp_1024_div2_avx2_16,.-sp_1024_div2_avx2_16
+.size	sp_1024_mont_div2_avx2_16,.-sp_1024_mont_div2_avx2_16
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Read big endian unsigned byte array into r.

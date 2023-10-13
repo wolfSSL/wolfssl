@@ -55583,19 +55583,18 @@ _text ENDS
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_div2_4 PROC
+sp_256_mont_div2_4 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rdx]
         mov	r8, QWORD PTR [rdx+8]
         mov	r9, QWORD PTR [rdx+16]
         mov	r10, QWORD PTR [rdx+24]
-        mov	r11, 4294967295
         mov	r12, 18446744069414584321
         mov	r13, rax
         and	r13, 1
         neg	r13
-        and	r11, r13
+        mov	r11d, r13d
         and	r12, r13
         add	rax, r13
         adc	r8, r11
@@ -55614,7 +55613,7 @@ sp_256_div2_4 PROC
         pop	r13
         pop	r12
         ret
-sp_256_div2_4 ENDP
+sp_256_mont_div2_4 ENDP
 _text ENDS
 ; /* Two Montgomery numbers, subtract double second from first (r = a - 2.b % m).
 ;  *
@@ -56241,7 +56240,7 @@ IFDEF HAVE_INTEL_AVX2
 ;  * mp  The digit representing the negative inverse of m mod 2^n.
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_mont_reduce_avx2_order_4 PROC
+sp_256_mont_reduce_order_avx2_4 PROC
         push	r12
         push	r13
         push	r14
@@ -56389,7 +56388,7 @@ sp_256_mont_reduce_avx2_order_4 PROC
         pop	r13
         pop	r12
         ret
-sp_256_mont_reduce_avx2_order_4 ENDP
+sp_256_mont_reduce_order_avx2_4 ENDP
 _text ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
@@ -56400,19 +56399,18 @@ IFDEF HAVE_INTEL_AVX2
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_div2_avx2_4 PROC
+sp_256_mont_div2_avx2_4 PROC
         push	r12
         push	r13
         mov	rax, QWORD PTR [rdx]
         mov	r8, QWORD PTR [rdx+8]
         mov	r9, QWORD PTR [rdx+16]
         mov	r10, QWORD PTR [rdx+24]
-        mov	r11, 4294967295
         mov	r12, 18446744069414584321
         mov	r13, rax
         and	r13, 1
         neg	r13
-        and	r11, r13
+        mov	r11d, r13d
         and	r12, r13
         add	rax, r13
         adc	r8, r11
@@ -56431,7 +56429,7 @@ sp_256_div2_avx2_4 PROC
         pop	r13
         pop	r12
         ret
-sp_256_div2_avx2_4 ENDP
+sp_256_mont_div2_avx2_4 ENDP
 _text ENDS
 ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
@@ -59663,7 +59661,7 @@ _text ENDS
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_384_div2_6 PROC
+sp_384_mont_div2_6 PROC
         push	r12
         push	r13
         sub	rsp, 48
@@ -59724,7 +59722,7 @@ sp_384_div2_6 PROC
         pop	r13
         pop	r12
         ret
-sp_384_div2_6 ENDP
+sp_384_mont_div2_6 ENDP
 _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
@@ -60297,7 +60295,7 @@ IFDEF HAVE_INTEL_AVX2
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_384_div2_avx2_6 PROC
+sp_384_mont_div2_avx2_6 PROC
         push	r12
         push	r13
         mov	r13, QWORD PTR [rdx]
@@ -60357,7 +60355,7 @@ sp_384_div2_avx2_6 PROC
         pop	r13
         pop	r12
         ret
-sp_384_div2_avx2_6 ENDP
+sp_384_mont_div2_avx2_6 ENDP
 _text ENDS
 ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
@@ -64989,7 +64987,7 @@ _text ENDS
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_521_div2_9 PROC
+sp_521_mont_div2_9 PROC
         push	r12
         push	r13
         push	r14
@@ -65041,7 +65039,7 @@ sp_521_div2_9 PROC
         pop	r13
         pop	r12
         ret
-sp_521_div2_9 ENDP
+sp_521_mont_div2_9 ENDP
 _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 ; /* Touch each possible point that could be being copied.
@@ -66753,7 +66751,7 @@ IFDEF HAVE_INTEL_AVX2
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_521_div2_avx2_9 PROC
+sp_521_mont_div2_avx2_9 PROC
         push	r12
         push	r13
         push	r14
@@ -66805,7 +66803,7 @@ sp_521_div2_avx2_9 PROC
         pop	r13
         pop	r12
         ret
-sp_521_div2_avx2_9 ENDP
+sp_521_mont_div2_avx2_9 ENDP
 _text ENDS
 ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
@@ -75404,7 +75402,7 @@ _text ENDS
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_1024_div2_16 PROC
+sp_1024_mont_div2_16 PROC
         push	r12
         push	r13
         sub	rsp, 128
@@ -75545,67 +75543,7 @@ sp_1024_div2_16 PROC
         pop	r13
         pop	r12
         ret
-sp_1024_div2_16 ENDP
-_text ENDS
-; /* Sub b from a into r. (r = a - b)
-;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  */
-_text SEGMENT READONLY PARA
-sp_1024_sub_16 PROC
-        mov	r9, QWORD PTR [rdx]
-        sub	r9, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx+8]
-        mov	QWORD PTR [rcx], r9
-        sbb	r10, QWORD PTR [r8+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	QWORD PTR [rcx+8], r10
-        sbb	r9, QWORD PTR [r8+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r10, QWORD PTR [r8+24]
-        mov	r9, QWORD PTR [rdx+32]
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r9, QWORD PTR [r8+32]
-        mov	r10, QWORD PTR [rdx+40]
-        mov	QWORD PTR [rcx+32], r9
-        sbb	r10, QWORD PTR [r8+40]
-        mov	r9, QWORD PTR [rdx+48]
-        mov	QWORD PTR [rcx+40], r10
-        sbb	r9, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+56]
-        mov	QWORD PTR [rcx+48], r9
-        sbb	r10, QWORD PTR [r8+56]
-        mov	r9, QWORD PTR [rdx+64]
-        mov	QWORD PTR [rcx+56], r10
-        sbb	r9, QWORD PTR [r8+64]
-        mov	r10, QWORD PTR [rdx+72]
-        mov	QWORD PTR [rcx+64], r9
-        sbb	r10, QWORD PTR [r8+72]
-        mov	r9, QWORD PTR [rdx+80]
-        mov	QWORD PTR [rcx+72], r10
-        sbb	r9, QWORD PTR [r8+80]
-        mov	r10, QWORD PTR [rdx+88]
-        mov	QWORD PTR [rcx+80], r9
-        sbb	r10, QWORD PTR [r8+88]
-        mov	r9, QWORD PTR [rdx+96]
-        mov	QWORD PTR [rcx+88], r10
-        sbb	r9, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+104]
-        mov	QWORD PTR [rcx+96], r9
-        sbb	r10, QWORD PTR [r8+104]
-        mov	r9, QWORD PTR [rdx+112]
-        mov	QWORD PTR [rcx+104], r10
-        sbb	r9, QWORD PTR [r8+112]
-        mov	r10, QWORD PTR [rdx+120]
-        mov	QWORD PTR [rcx+112], r9
-        sbb	r10, QWORD PTR [r8+120]
-        mov	QWORD PTR [rcx+120], r10
-        sbb	rax, rax
-        ret
-sp_1024_sub_16 ENDP
+sp_1024_mont_div2_16 ENDP
 _text ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 1024 bits using Montgomery reduction.
@@ -76683,7 +76621,7 @@ IFDEF HAVE_INTEL_AVX2
 ;  * m  Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
-sp_1024_div2_avx2_16 PROC
+sp_1024_mont_div2_avx2_16 PROC
         push	r12
         push	r13
         mov	r13, QWORD PTR [rdx]
@@ -76823,7 +76761,7 @@ sp_1024_div2_avx2_16 PROC
         pop	r13
         pop	r12
         ret
-sp_1024_div2_avx2_16 ENDP
+sp_1024_mont_div2_avx2_16 ENDP
 _text ENDS
 ENDIF
 ; /* Read big endian unsigned byte array into r.

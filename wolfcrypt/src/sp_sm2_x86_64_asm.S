@@ -1,4 +1,4 @@
-/* sm3.c
+/* sp_sm2_x86_64_asm.S
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_SM3
+#ifdef WOLFSSL_SM2
 
 #error "See https://github.com/wolfSSL/wolfsm for implementation of this file"
 

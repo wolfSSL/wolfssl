@@ -24780,7 +24780,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 
 /* size to use for ECC key gen tests */
 #ifndef ECC_KEYGEN_SIZE
-    #ifndef NO_ECC256
+    #if !defined(NO_ECC256) || defined(WOLFSSL_SM2)
         #define ECC_KEYGEN_SIZE 32
     #elif defined(HAVE_ECC384)
         #define ECC_KEYGEN_SIZE 48

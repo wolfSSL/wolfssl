@@ -2123,6 +2123,9 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_SP_MATH
         /* for single precision math only make sure the enabled key sizes are
          * included in the ECC curve table */
+        #if defined(WOLFSSL_SP_NO_256) && !defined(NO_ECC256)
+            #define NO_ECC256
+        #endif
         #if defined(WOLFSSL_SP_384) && !defined(HAVE_ECC384)
             #define HAVE_ECC384
         #endif
