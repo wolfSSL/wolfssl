@@ -37,6 +37,9 @@
  * when the output should be in machine-parseable format:
  * GENERATE_MACHINE_PARSEABLE_REPORT
  *
+ * use microseconds as the unit of time:
+ * BENCH_MICROSECOND
+ *
  * Enable tracking of the stats into an allocated linked list:
  * (use -print to display results):
  * WC_BENCH_TRACK_STATS
