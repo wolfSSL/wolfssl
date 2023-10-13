@@ -4,10 +4,36 @@ on:
   workflow_call:
 
 jobs:
-  build-and-test:
+  build_wolfssl:
+    name: Build wolfSSL
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 25
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-curl
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-curl
+          path: build-dir
+          retention-days: 1
+
+  test_curl:
+    name: ${{ matrix.curl_ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 15
+    needs: build_wolfssl
+    strategy:
+      fail-fast: false
+      matrix:
+        curl_ref: [ 'master', 'curl-8_4_0' ]
     steps:
     - name: Install test dependencies
       run: |
@@ -15,18 +41,18 @@ jobs:
         sudo apt-get install nghttp2
         sudo pip install impacket
 
-    - name: Build wolfSSL
-      uses: wolfSSL/actions-build-autotools-project@v1
+    - name: Download lib
+      uses: actions/download-artifact@v3
       with:
-        path: wolfssl
-        configure: --enable-curl
-        install: true
+        name: wolf-install-curl
+        path: build-dir
 
     - name: Build curl
       uses: wolfSSL/actions-build-autotools-project@v1
       with:
         repository: curl/curl
         path: curl
+        ref: ${{ matrix.curl_ref }}
         configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir
         check: false
 
