@@ -1051,7 +1051,12 @@ static const char* bench_Usage_msg1[][22] = {
 #endif
 
 static const char* bench_result_words1[][4] = {
-    { "took", "seconds" , "Cycles per byte", NULL },           /* 0 English  */
+#ifdef BENCH_MICROSECOND
+    { "took", "microseconds" , "Cycles per byte", NULL }, /* 0 English for
+                                                               mircroseconds */
+#else
+    { "took", "seconds" , "Cycles per byte", NULL },    /* 0 English  */
+#endif
 #ifndef NO_MULTIBYTE_PRINT
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
 #endif
@@ -1317,7 +1322,12 @@ static const char* bench_desc_words[][15] = {
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
     defined(WOLFSSL_HAVE_KYBER)
 static const char* bench_result_words2[][5] = {
+#ifdef BENCH_MICROSECOND
+    { "ops took", "μsec"     , "avg" , "ops/μsec", NULL },   /* 0 English
+                                                                for μsec */
+#else
     { "ops took", "sec"     , "avg" , "ops/sec", NULL },   /* 0 English  */
+#endif
 #ifndef NO_MULTIBYTE_PRINT
     { "回処理を", "秒で実施", "平均", "処理/秒", NULL },     /* 1 Japanese */
 #endif
@@ -1834,7 +1844,11 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 static WC_INLINE int bench_stats_check(double start)
 {
-    return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
+    return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC
+#ifdef BENCH_MICROSECOND
+            * 1000000
+#endif
+           );
 }
 
 /* return text for units and scale the value of blocks as needed */
@@ -1931,9 +1945,11 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 {
     double total, persec = 0, blocks = (double)count;
     const char* blockType;
+    const char* timeUnit;
     char msg[WC_BENCH_MAX_LINE_LEN];
     const char** word = bench_result_words1[lng_index];
     static int sym_header_printed = 0;
+    int timeDigits;
 
     XMEMSET(msg, 0, sizeof(msg));
 
@@ -1990,6 +2006,14 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
             sym_header_printed = 1;
         }
     }
+
+#ifdef BENCH_MICROSECOND
+    timeUnit = "μs";
+    timeDigits = 8;
+#else
+    timeUnit = "s";
+    timeDigits = 3;
+#endif
 
     /* determine if we have fixed units, or auto-scale bits or bytes for units.
      * note that the blockType text is assigned AND the blocks param is scaled.
@@ -2070,29 +2094,31 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
                 "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
-                FLT_FMT_PREC2 " %s/s, %lu cycles,",
+                FLT_FMT_PREC2 " %s/%s, %lu cycles,",
                 desc, BENCH_DEVID_GET_NAME(useDeviceID),
                 FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
                 word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
-                FLT_FMT_PREC2_ARGS(8, 3, persec), blockType,
+                FLT_FMT_PREC2_ARGS(8, timeDigits, persec), blockType, timeUnit
                 (unsigned long) total_cycles);
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                  "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
-                 FLT_FMT_PREC2 " %s/s,",
+                 FLT_FMT_PREC2 " %s/%s,",
                  desc, BENCH_DEVID_GET_NAME(useDeviceID),
                  FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
                  word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
-                 FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
+                 FLT_FMT_PREC2_ARGS(8, timeDigits, persec), blockType,
+                 timeUnit);
     #endif /* HAVE_GET_CYCLES */
 #else
         (void)XSNPRINTF(msg, sizeof(msg),
                  "%-24s%s " FLT_FMT_PREC2 " %s %s " FLT_FMT_PREC2 " %s, "
-                 FLT_FMT_PREC2 " %s/s",
+                 FLT_FMT_PREC2 " %s/%s",
                  desc, BENCH_DEVID_GET_NAME(useDeviceID),
                  FLT_FMT_PREC2_ARGS(5, 0, blocks), blockType,
                  word[0], FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
-                 FLT_FMT_PREC2_ARGS(8, 3, persec), blockType);
+                 FLT_FMT_PREC2_ARGS(8, timeDigits, persec), blockType,
+                 timeUnit);
 #endif
 
 #ifdef WOLFSSL_ESPIDF
@@ -2179,7 +2205,12 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
         opsSec = 0;
     }
 
+#ifdef BENCH_MICROSECOND
+    milliEach = each / 1000;   /* milliseconds */
+#else
     milliEach = each * 1000;   /* milliseconds */
+
+#endif
 
     SLEEP_ON_ERROR(ret);
     /* format and print to terminal */
@@ -10350,7 +10381,11 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         QueryPerformanceCounter(&count);
 
+#ifdef BENCH_MICROSECOND
+        return ((double)count.QuadPart * 1000000) / freq.QuadPart;
+#else
         return (double)count.QuadPart / freq.QuadPart;
+#endif
     }
 
 #elif defined MICROCHIP_PIC32
@@ -10612,7 +10647,11 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
 
+    #ifdef BENCH_MICROSECOND
+        return (double)tv.tv_sec * 1000000 + (double)tv.tv_usec;
+    #else
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    #endif
     }
 
 #endif /* _WIN32 */
