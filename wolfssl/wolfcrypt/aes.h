@@ -567,6 +567,14 @@ WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
 WOLFSSL_API int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
         const byte* in, word32 sz, const byte* i, word32 iSz);
 
+WOLFSSL_API int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes,
+        byte* out, const byte* in, word32 sz, word64 sector,
+        word32 sectorSz);
+
+WOLFSSL_API int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes,
+        byte* out, const byte* in, word32 sz, word64 sector,
+        word32 sectorSz);
+
 WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 #endif
 

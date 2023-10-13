@@ -2800,6 +2800,30 @@ WOLFSSL_LOCAL void tsip_Close(void)
     WOLFSSL_LEAVE("tsip_Close", 0);
 }
 
+int wc_tsip_GenerateRandBlock(byte* output, word32 sz)
+{
+    /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
+    int ret = 0;
+    word32 buffer[4];
+
+    while (sz > 0) {
+        word32 len = sizeof(buffer);
+
+        if (sz < len) {
+            len = sz;
+        }
+        /* return 4 words random number*/
+        ret = R_TSIP_GenerateRandomNumber((uint32_t*)buffer);
+        if(ret == TSIP_SUCCESS) {
+            XMEMCPY(output, &buffer, len);
+            output += len;
+            sz -= len;
+         } else
+            return ret;
+    }
+    return ret;
+}
+
 #if (WOLFSSL_RENESAS_TSIP_VER>=109)
 void tsip_inform_user_keys_ex(
     byte*     encrypted_provisioning_key,

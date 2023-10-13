@@ -1338,13 +1338,14 @@ fi
 
 # KeyLog file export
 AC_ARG_ENABLE([keylog-export],
-              [AS_HELP_STRING([--enable-keylog-export],[Enable (DANGEROUS INSECURE) exporting TLS secrets to an NSS keylog file (default: disabled)])],
+              [AS_HELP_STRING([--enable-keylog-export],[Enable insecure export of TLS secrets to an NSS keylog file (default: disabled)])],
     [ ENABLED_KEYLOG_EXPORT=$enableval ],
     [ ENABLED_KEYLOG_EXPORT=no ]
     )
 if test "$ENABLED_KEYLOG_EXPORT" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE"
+  AC_MSG_WARN([Keylog export enabled -- Sensitive key data will be stored insecurely.])
+  AM_CFLAGS="$AM_CFLAGS -DSHOW_SECRETS -DHAVE_SECRET_CALLBACK -DWOLFSSL_SSLKEYLOGFILE -DWOLFSSL_KEYLOG_EXPORT_WARNED"
 fi
 
 # TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
@@ -4514,6 +4515,21 @@ then
                 AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ConnectionID])
         fi
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
+fi
+
+# DTLS 1.3 Fragment Second ClientHello
+AC_ARG_ENABLE([dtls-frag-ch],
+    [AS_HELP_STRING([--enable-dtls-frag-ch],[Enable wolfSSL DTLS 1.3 ClientHello fragmenting (default: disabled)])],
+    [ ENABLED_DTLS_CH_FRAG=$enableval ],
+    [ ENABLED_DTLS_CH_FRAG=no ]
+    )
+if test "x$ENABLED_DTLS_CH_FRAG" = "xyes"
+then
+  if test "x$ENABLED_DTLS13" != "xyes"
+  then
+    AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ClientHello fragmenting])
+  fi
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CH_FRAG"
 fi
 
 # CODING
