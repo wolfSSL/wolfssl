@@ -5955,7 +5955,7 @@ AC_ARG_ENABLE([jni],
     )
 if test "$ENABLED_JNI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI -DHAVE_EX_DATA -DKEEP_PEER_CERT"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
@@ -6037,6 +6037,13 @@ then
         ENABLED_CERTGEN="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
+    # wolfCrypt JNI/JCE uses keygen, enable by default here so
+    # both JCE and JSSE builds can use --enable-jni
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
     if test "x$ENABLED_CERTREQ" = "xno"
     then
         ENABLED_CERTREQ="yes"
@@ -6051,6 +6058,11 @@ then
     then
         ENABLED_ALPN="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ALPN"
+    fi
+    if test "x$ENABLED_ALT_CERT_CHAINS" = "xno"
+    then
+        ENABLED_ALT_CERT_CHAINS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
     fi
 
     # cert gen requires alt names
