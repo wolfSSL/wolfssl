@@ -731,6 +731,10 @@ if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
 endif
 
+if BUILD_WC_XMSS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_xmss.c
+endif
+
 if BUILD_CURVE25519
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
@@ -834,6 +838,10 @@ endif
 
 if BUILD_LIBLMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_lms.c
+endif
+
+if BUILD_LIBXMSS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_xmss.c
 endif
 
 if BUILD_LIBZ

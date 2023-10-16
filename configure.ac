@@ -1143,6 +1143,100 @@ then
 fi
 
 
+# XMSS
+AC_ARG_ENABLE([xmss],
+    [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
+    [ ENABLED_XMSS=$enableval ],
+    [ ENABLED_XMSS=no ]
+    )
+
+ENABLED_WC_XMSS=no
+for v in `echo $ENABLED_XMSS | tr "," " "`
+do
+  case $v in
+  yes)
+    ;;
+  no)
+    ;;
+  verify-only)
+    XMSS_VERIFY_ONLY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XMSS_VERIFY_ONLY -DXMSS_VERIFY_ONLY"
+    ;;
+  wolfssl)
+    ENABLED_WC_XMSS=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for XMSS []: $ENABLED_XMSS.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_XMSS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
+
+    if test "$ENABLED_WC_XMSS" = "no";
+    then
+        # Default is to use hash-sigs XMSS lib. Make sure it's enabled.
+        if test "$ENABLED_LIBXMSS" = "no"; then
+            AC_MSG_ERROR([The default implementation for XMSS is the xmss-reference lib.
+            Please use --with-libxmss.])
+        fi
+    fi
+fi
+
+# libxmss
+# Get the path to xmss-reference.
+ENABLED_LIBXMSS="no"
+trylibxmssdir=""
+AC_ARG_WITH([libxmss],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. EXPERIMENTAL!])],
+    [
+        AC_MSG_CHECKING([for libxmss])
+
+        trylibxmssdir=$withval
+
+        if test -e $trylibxmssdir; then
+            libxmss_linked=yes
+        else
+            AC_MSG_ERROR([libxmss isn't found.
+            If it's already installed, specify its path using --with-libxmss=/dir/])
+        fi
+        if test "$XMSS_VERIFY_ONLY" = "yes"; then
+            if test -e $trylibxmssdir/xmss_verify_lib.a; then
+                CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+                LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_verify_lib.a"
+                enable_shared=no
+                enable_static=yes
+                libxmss_linked=yes
+            else
+                AC_MSG_ERROR([xmss_verify_lib.a isn't found.
+                If it's already installed, specify its path using --with-libxmss=/dir/])
+            fi
+        elif test -e $trylibxmssdir/xmss_lib.a; then
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibxmssdir/xmss_lib.a"
+            enable_shared=no
+            enable_static=yes
+            libxmss_linked=yes
+        else
+            AC_MSG_ERROR([libxmss isn't found.
+            If it's already installed, specify its path using --with-libxmss=/dir/])
+        fi
+
+        XMSS_ROOT=$trylibxmssdir
+
+        AC_MSG_RESULT([yes])
+        AM_CPPFLAGS="$CPPFLAGS"
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBXMSS -I$trylibxmssdir"
+        ENABLED_LIBXMSS="yes"
+        AC_SUBST([XMSS_ROOT])
+    ],
+    [XMSS_ROOT=""]
+)
+
 # LMS
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
@@ -9024,6 +9118,7 @@ AM_CONDITIONAL([BUILD_GE448], [test "x$ENABLED_GE448" = "xyes" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9064,6 +9159,7 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
 AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
 AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBLMS],[test "x$ENABLED_LIBLMS" = "xyes"])
+AM_CONDITIONAL([BUILD_LIBXMSS],[test "x$ENABLED_LIBXMSS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9497,6 +9593,11 @@ echo "   * ED448:                      $ENABLED_ED448"
 echo "   * ED448 streaming:            $ENABLED_ED448_STREAM"
 echo "   * LMS:                        $ENABLED_LMS"
 echo "   * LMS wolfSSL impl:           $ENABLED_WC_LMS"
+echo "   * XMSS:                       $ENABLED_XMSS"
+echo "   * XMSS wolfSSL impl:          $ENABLED_WC_XMSS"
+if test "$ENABLED_LIBXMSS" = "yes"; then
+echo "   * XMSS_ROOT:                  $XMSS_ROOT"
+fi
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
 echo "   * ECCSI                       $ENABLED_ECCSI"
@@ -9552,6 +9653,7 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
+echo "   * libxmss:                    $ENABLED_LIBXMSS"
 echo "   * liblms:                     $ENABLED_LIBLMS"
 echo "   * liboqs:                     $ENABLED_LIBOQS"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
