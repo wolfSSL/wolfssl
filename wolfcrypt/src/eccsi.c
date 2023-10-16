@@ -1376,6 +1376,7 @@ static int eccsi_mulmod_base_add(EccsiKey* key, const mp_int* n,
         err = NOT_COMPILED_IN;
     }
     (void)key;
+    (void)n;
     (void)a;
     (void)res;
     (void)mp;
