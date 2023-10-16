@@ -628,6 +628,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
             type);
         if (ret <= 0) {
             fprintf(stderr, "Could not convert DER to PEM\n");
+            free(pem);
         }
         if (ret > 0) {
             *out = pem;
