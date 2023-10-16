@@ -19556,7 +19556,8 @@ static int test_wc_AesCcmEncryptDecrypt(void)
 } /* END test_wc_AesCcmEncryptDecrypt */
 
 
-#if defined(WOLFSSL_AES_EAX)
+#if defined(WOLFSSL_AES_EAX) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
 /*
  * Testing test_wc_AesEaxVectors()
@@ -21028,7 +21029,9 @@ static int test_wc_AesEaxDecryptAuth(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesEaxDecryptAuth() */
 
-#endif /* defined(WOLFSSL_AES_EAX) */
+#endif /* WOLFSSL_AES_EAX &&
+        * (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) && !HAVE_SELFTEST
+        */
 
 /*
  * Testing wc_InitDsaKey()
@@ -67214,7 +67217,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_GmacUpdate),
     TEST_DECL(test_wc_AesCcmSetKey),
     TEST_DECL(test_wc_AesCcmEncryptDecrypt),
-#if defined(WOLFSSL_AES_EAX)
+#if defined(WOLFSSL_AES_EAX) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     TEST_DECL(test_wc_AesEaxVectors),
     TEST_DECL(test_wc_AesEaxEncryptAuth),
     TEST_DECL(test_wc_AesEaxDecryptAuth),
