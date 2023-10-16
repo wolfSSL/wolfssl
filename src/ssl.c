@@ -7997,8 +7997,8 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl,
                         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_Cb");
-    SSL_CM_WARNING(ssl);
     if (ssl) {
+        SSL_CM_WARNING(ssl);
         ssl->ocspIOCtx = ioCbCtx; /* use SSL specific ioCbCtx */
         return wolfSSL_CertManagerSetOCSP_Cb(SSL_CM(ssl),
                                              ioCb, respFreeCb, NULL);
@@ -8589,9 +8589,10 @@ int wolfSSL_trust_peer_cert(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableCRL(SSL_CM(ssl), options);
+    }
     else
         return BAD_FUNC_ARG;
 }
