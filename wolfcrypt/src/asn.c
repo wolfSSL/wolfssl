@@ -13035,7 +13035,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
             j = 0;
             /* Append each number of dotted form. */
             for (i = 0; i < tmpSize; i++) {
-                if (j > MAX_OID_SZ) {
+                if (j >= MAX_OID_SZ) {
                     return BUFFER_E;
                 }
 
