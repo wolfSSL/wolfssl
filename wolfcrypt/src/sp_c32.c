@@ -87,11 +87,14 @@
 #define SP_PRINT_INT(var, name)                       \
     fprintf(stderr, name "=%d\n", var)
 
-#if (((!defined(WC_NO_CACHE_RESISTANT) && \
-      (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))) || \
-     (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP))) && \
+#if ((defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
+     ((!defined(WC_NO_CACHE_RESISTANT) && \
+       (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))) || \
+      (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP))) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || (defined(WOLFSSL_SP_SMALL) && \
-    defined(WOLFSSL_HAVE_SP_ECC))
+    defined(WOLFSSL_HAVE_SP_ECC) && (!defined(WOLFSSL_SP_NO_256) || \
+    defined(WOLFSSL_SP_384) || defined(WOLFSSL_SP_521) || \
+    defined(WOLFSSL_SP_1024)))
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
@@ -21259,7 +21262,8 @@ SP_NOINLINE static void sp_256_rshift1_9(sp_digit* r, const sp_digit* a)
  * a  Number to divide.
  * m  Modulus (prime).
  */
-static void sp_256_div2_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+static void sp_256_mont_div2_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
 {
     sp_256_cond_add_9(r, a, m, 0 - (a[0] & 1));
     sp_256_norm_9(r);
@@ -21310,7 +21314,7 @@ static void sp_256_proj_point_dbl_9(sp_point_256* r, const sp_point_256* p,
     /* T2 = Y * Y */
     sp_256_mont_sqr_9(t2, y, p256_mod, p256_mp_mod);
     /* T2 = T2/2 */
-    sp_256_div2_9(t2, t2, p256_mod);
+    sp_256_mont_div2_9(t2, t2, p256_mod);
     /* Y = Y * X */
     sp_256_mont_mul_9(y, y, p->x, p256_mod, p256_mp_mod);
     /* X = T1 * T1 */
@@ -21343,7 +21347,8 @@ typedef struct sp_256_proj_point_dbl_9_ctx {
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static int sp_256_proj_point_dbl_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, const sp_point_256* p, sp_digit* t)
+static int sp_256_proj_point_dbl_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+        const sp_point_256* p, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_256_proj_point_dbl_9_ctx* ctx = (sp_256_proj_point_dbl_9_ctx*)sp_ctx->data;
@@ -21417,7 +21422,7 @@ static int sp_256_proj_point_dbl_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, con
         break;
     case 11:
         /* T2 = T2/2 */
-        sp_256_div2_9(ctx->t2, ctx->t2, p256_mod);
+        sp_256_mont_div2_9(ctx->t2, ctx->t2, p256_mod);
         ctx->state = 12;
         break;
     case 12:
@@ -22277,7 +22282,7 @@ static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int i,
     sp_256_mont_sub_9(y, y, t1, p256_mod);
 #endif /* WOLFSSL_SP_SMALL */
     /* Y = Y/2 */
-    sp_256_div2_9(y, y, p256_mod);
+    sp_256_mont_div2_9(y, y, p256_mod);
 }
 
 /* Double the Montgomery form projective point p a number of times.
@@ -22348,7 +22353,7 @@ static void sp_256_proj_point_dbl_n_store_9(sp_point_256* r,
         sp_256_mont_mul_9(y, b, a, p256_mod, p256_mp_mod);
         sp_256_mont_sub_9(y, y, t1, p256_mod);
         /* Y = Y/2 */
-        sp_256_div2_9(r[j].y, y, p256_mod);
+        sp_256_mont_div2_9(r[j].y, y, p256_mod);
         r[j].infinity = 0;
     }
 }
@@ -23191,8 +23196,8 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
-        int map, int ct, void* heap)
+static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g,
+        const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
     return sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
@@ -26116,8 +26121,8 @@ static int sp_256_mod_inv_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
         }
 
         while (ut > 1 && vt > 1) {
-            if (ut > vt || (ut == vt &&
-                                       sp_256_cmp_9(u, v) >= 0)) {
+            if ((ut > vt) || ((ut == vt) &&
+                    (sp_256_cmp_9(u, v) >= 0))) {
                 sp_256_sub_9(u, u, v);
                 sp_256_norm_9(u);
 
@@ -26563,18 +26568,20 @@ static int sp_256_ecc_is_point_9(const sp_point_256* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 9;
 
+        /* y^2 - x^3 - a.x = b */
         sp_256_sqr_9(t1, point->y);
         (void)sp_256_mod_9(t1, t1, p256_mod);
         sp_256_sqr_9(t2, point->x);
         (void)sp_256_mod_9(t2, t2, p256_mod);
         sp_256_mul_9(t2, t2, point->x);
         (void)sp_256_mod_9(t2, t2, p256_mod);
-        (void)sp_256_sub_9(t2, p256_mod, t2);
-        sp_256_mont_add_9(t1, t1, t2, p256_mod);
+        sp_256_mont_sub_9(t1, t1, t2, p256_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
+
 
         if (sp_256_cmp_9(t1, p256_b) != 0) {
             err = MP_VAL;
@@ -28691,7 +28698,8 @@ SP_NOINLINE static void sp_384_rshift1_15(sp_digit* r, const sp_digit* a)
  * a  Number to divide.
  * m  Modulus (prime).
  */
-static void sp_384_div2_15(sp_digit* r, const sp_digit* a, const sp_digit* m)
+static void sp_384_mont_div2_15(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
 {
     sp_384_cond_add_15(r, a, m, 0 - (a[0] & 1));
     sp_384_norm_15(r);
@@ -28742,7 +28750,7 @@ static void sp_384_proj_point_dbl_15(sp_point_384* r, const sp_point_384* p,
     /* T2 = Y * Y */
     sp_384_mont_sqr_15(t2, y, p384_mod, p384_mp_mod);
     /* T2 = T2/2 */
-    sp_384_div2_15(t2, t2, p384_mod);
+    sp_384_mont_div2_15(t2, t2, p384_mod);
     /* Y = Y * X */
     sp_384_mont_mul_15(y, y, p->x, p384_mod, p384_mp_mod);
     /* X = T1 * T1 */
@@ -28775,7 +28783,8 @@ typedef struct sp_384_proj_point_dbl_15_ctx {
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static int sp_384_proj_point_dbl_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, const sp_point_384* p, sp_digit* t)
+static int sp_384_proj_point_dbl_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
+        const sp_point_384* p, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_384_proj_point_dbl_15_ctx* ctx = (sp_384_proj_point_dbl_15_ctx*)sp_ctx->data;
@@ -28849,7 +28858,7 @@ static int sp_384_proj_point_dbl_15_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, co
         break;
     case 11:
         /* T2 = T2/2 */
-        sp_384_div2_15(ctx->t2, ctx->t2, p384_mod);
+        sp_384_mont_div2_15(ctx->t2, ctx->t2, p384_mod);
         ctx->state = 12;
         break;
     case 12:
@@ -29767,7 +29776,7 @@ static void sp_384_proj_point_dbl_n_15(sp_point_384* p, int i,
     sp_384_mont_sub_15(y, y, t1, p384_mod);
 #endif /* WOLFSSL_SP_SMALL */
     /* Y = Y/2 */
-    sp_384_div2_15(y, y, p384_mod);
+    sp_384_mont_div2_15(y, y, p384_mod);
 }
 
 /* Double the Montgomery form projective point p a number of times.
@@ -29838,7 +29847,7 @@ static void sp_384_proj_point_dbl_n_store_15(sp_point_384* r,
         sp_384_mont_mul_15(y, b, a, p384_mod, p384_mp_mod);
         sp_384_mont_sub_15(y, y, t1, p384_mod);
         /* Y = Y/2 */
-        sp_384_div2_15(r[j].y, y, p384_mod);
+        sp_384_mont_div2_15(r[j].y, y, p384_mod);
         r[j].infinity = 0;
     }
 }
@@ -30741,8 +30750,8 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
-        int map, int ct, void* heap)
+static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
+        const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
     return sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
@@ -34187,8 +34196,8 @@ static int sp_384_mod_inv_15(sp_digit* r, const sp_digit* a, const sp_digit* m)
         }
 
         while (ut > 1 && vt > 1) {
-            if (ut > vt || (ut == vt &&
-                                       sp_384_cmp_15(u, v) >= 0)) {
+            if ((ut > vt) || ((ut == vt) &&
+                    (sp_384_cmp_15(u, v) >= 0))) {
                 sp_384_sub_15(u, u, v);
                 sp_384_norm_15(u);
 
@@ -34640,18 +34649,20 @@ static int sp_384_ecc_is_point_15(const sp_point_384* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 15;
 
+        /* y^2 - x^3 - a.x = b */
         sp_384_sqr_15(t1, point->y);
         (void)sp_384_mod_15(t1, t1, p384_mod);
         sp_384_sqr_15(t2, point->x);
         (void)sp_384_mod_15(t2, t2, p384_mod);
         sp_384_mul_15(t2, t2, point->x);
         (void)sp_384_mod_15(t2, t2, p384_mod);
-        (void)sp_384_sub_15(t2, p384_mod, t2);
-        sp_384_mont_add_15(t1, t1, t2, p384_mod);
+        sp_384_mont_sub_15(t1, t1, t2, p384_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
+
 
         if (sp_384_cmp_15(t1, p384_b) != 0) {
             err = MP_VAL;
@@ -36365,7 +36376,8 @@ SP_NOINLINE static void sp_521_rshift1_21(sp_digit* r, const sp_digit* a)
  * a  Number to divide.
  * m  Modulus (prime).
  */
-static void sp_521_div2_21(sp_digit* r, const sp_digit* a, const sp_digit* m)
+static void sp_521_mont_div2_21(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
 {
     sp_521_cond_add_21(r, a, m, 0 - (a[0] & 1));
     sp_521_norm_21(r);
@@ -36416,7 +36428,7 @@ static void sp_521_proj_point_dbl_21(sp_point_521* r, const sp_point_521* p,
     /* T2 = Y * Y */
     sp_521_mont_sqr_21(t2, y, p521_mod, p521_mp_mod);
     /* T2 = T2/2 */
-    sp_521_div2_21(t2, t2, p521_mod);
+    sp_521_mont_div2_21(t2, t2, p521_mod);
     /* Y = Y * X */
     sp_521_mont_mul_21(y, y, p->x, p521_mod, p521_mp_mod);
     /* X = T1 * T1 */
@@ -36449,7 +36461,8 @@ typedef struct sp_521_proj_point_dbl_21_ctx {
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static int sp_521_proj_point_dbl_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r, const sp_point_521* p, sp_digit* t)
+static int sp_521_proj_point_dbl_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
+        const sp_point_521* p, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_521_proj_point_dbl_21_ctx* ctx = (sp_521_proj_point_dbl_21_ctx*)sp_ctx->data;
@@ -36523,7 +36536,7 @@ static int sp_521_proj_point_dbl_21_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r, co
         break;
     case 11:
         /* T2 = T2/2 */
-        sp_521_div2_21(ctx->t2, ctx->t2, p521_mod);
+        sp_521_mont_div2_21(ctx->t2, ctx->t2, p521_mod);
         ctx->state = 12;
         break;
     case 12:
@@ -37306,7 +37319,7 @@ static void sp_521_proj_point_dbl_n_21(sp_point_521* p, int i,
     sp_521_mont_sub_21(y, y, t1, p521_mod);
 #endif /* WOLFSSL_SP_SMALL */
     /* Y = Y/2 */
-    sp_521_div2_21(y, y, p521_mod);
+    sp_521_mont_div2_21(y, y, p521_mod);
 }
 
 /* Double the Montgomery form projective point p a number of times.
@@ -37377,7 +37390,7 @@ static void sp_521_proj_point_dbl_n_store_21(sp_point_521* r,
         sp_521_mont_mul_21(y, b, a, p521_mod, p521_mp_mod);
         sp_521_mont_sub_21(y, y, t1, p521_mod);
         /* Y = Y/2 */
-        sp_521_div2_21(r[j].y, y, p521_mod);
+        sp_521_mont_div2_21(r[j].y, y, p521_mod);
         r[j].infinity = 0;
     }
 }
@@ -38340,8 +38353,8 @@ static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g, const sp_digit* k,
-        int map, int ct, void* heap)
+static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
+        const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
     return sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
@@ -42342,8 +42355,8 @@ static int sp_521_mod_inv_21(sp_digit* r, const sp_digit* a, const sp_digit* m)
         }
 
         while (ut > 1 && vt > 1) {
-            if (ut > vt || (ut == vt &&
-                                       sp_521_cmp_21(u, v) >= 0)) {
+            if ((ut > vt) || ((ut == vt) &&
+                    (sp_521_cmp_21(u, v) >= 0))) {
                 sp_521_sub_21(u, u, v);
                 sp_521_norm_21(u);
 
@@ -42810,18 +42823,20 @@ static int sp_521_ecc_is_point_21(const sp_point_521* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 21;
 
+        /* y^2 - x^3 - a.x = b */
         sp_521_sqr_21(t1, point->y);
         (void)sp_521_mod_21(t1, t1, p521_mod);
         sp_521_sqr_21(t2, point->x);
         (void)sp_521_mod_21(t2, t2, p521_mod);
         sp_521_mul_21(t2, t2, point->x);
         (void)sp_521_mod_21(t2, t2, p521_mod);
-        (void)sp_521_sub_21(t2, p521_mod, t2);
-        sp_521_mont_add_21(t1, t1, t2, p521_mod);
+        sp_521_mont_sub_21(t1, t1, t2, p521_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
+
 
         if (sp_521_cmp_21(t1, p521_b) != 0) {
             err = MP_VAL;
@@ -45161,7 +45176,8 @@ SP_NOINLINE static void sp_1024_rshift1_42(sp_digit* r, const sp_digit* a)
  * a  Number to divide.
  * m  Modulus (prime).
  */
-static void sp_1024_div2_42(sp_digit* r, const sp_digit* a, const sp_digit* m)
+static void sp_1024_mont_div2_42(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
 {
     sp_1024_cond_add_42(r, a, m, 0 - (a[0] & 1));
     sp_1024_norm_42(r);
@@ -45212,7 +45228,7 @@ static void sp_1024_proj_point_dbl_42(sp_point_1024* r, const sp_point_1024* p,
     /* T2 = Y * Y */
     sp_1024_mont_sqr_42(t2, y, p1024_mod, p1024_mp_mod);
     /* T2 = T2/2 */
-    sp_1024_div2_42(t2, t2, p1024_mod);
+    sp_1024_mont_div2_42(t2, t2, p1024_mod);
     /* Y = Y * X */
     sp_1024_mont_mul_42(y, y, p->x, p1024_mod, p1024_mp_mod);
     /* X = T1 * T1 */
@@ -45245,7 +45261,8 @@ typedef struct sp_1024_proj_point_dbl_42_ctx {
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static int sp_1024_proj_point_dbl_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r, const sp_point_1024* p, sp_digit* t)
+static int sp_1024_proj_point_dbl_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
+        const sp_point_1024* p, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_1024_proj_point_dbl_42_ctx* ctx = (sp_1024_proj_point_dbl_42_ctx*)sp_ctx->data;
@@ -45319,7 +45336,7 @@ static int sp_1024_proj_point_dbl_42_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r, 
         break;
     case 11:
         /* T2 = T2/2 */
-        sp_1024_div2_42(ctx->t2, ctx->t2, p1024_mod);
+        sp_1024_mont_div2_42(ctx->t2, ctx->t2, p1024_mod);
         ctx->state = 12;
         break;
     case 12:
@@ -46136,7 +46153,7 @@ static void sp_1024_proj_point_dbl_n_42(sp_point_1024* p, int i,
     sp_1024_mont_sub_42(y, y, t1, p1024_mod);
 #endif /* WOLFSSL_SP_SMALL */
     /* Y = Y/2 */
-    sp_1024_div2_42(y, y, p1024_mod);
+    sp_1024_mont_div2_42(y, y, p1024_mod);
 }
 
 /* Double the Montgomery form projective point p a number of times.
@@ -46207,7 +46224,7 @@ static void sp_1024_proj_point_dbl_n_store_42(sp_point_1024* r,
         sp_1024_mont_mul_42(y, b, a, p1024_mod, p1024_mp_mod);
         sp_1024_mont_sub_42(y, y, t1, p1024_mod);
         /* Y = Y/2 */
-        sp_1024_div2_42(r[j].y, y, p1024_mod);
+        sp_1024_mont_div2_42(r[j].y, y, p1024_mod);
         r[j].infinity = 0;
     }
 }
@@ -46921,8 +46938,8 @@ static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cach
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
-        int map, int ct, void* heap)
+static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g,
+        const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
     return sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
@@ -53383,7 +53400,7 @@ static void sp_1024_accumulate_line_dbl_42(sp_digit* vx, sp_digit* vy,
     /* ty = 4 * p.y ^ 2 */
     sp_1024_mont_sqr_42(ty, ry, p1024_mod, p1024_mp_mod);
     /* t1 = 2 * p.y ^ 2 */
-    sp_1024_div2_42(t1, ty, p1024_mod);
+    sp_1024_mont_div2_42(t1, ty, p1024_mod);
     /* r.x -= 2 * (p.y ^ 2) */
     sp_1024_mont_sub_42(rx, rx, t1, p1024_mod);
     /* p'.z = p.y * 2 * p.z */
@@ -53403,7 +53420,7 @@ static void sp_1024_accumulate_line_dbl_42(sp_digit* vx, sp_digit* vy,
     /* t1 = (4 * p.y^2) ^ 2 = 16 * p.y^4 */
     sp_1024_mont_sqr_42(t1, ty, p1024_mod, p1024_mp_mod);
     /* t1 = 16 * p.y^4 / 2 = 8 * p.y^4 */
-    sp_1024_div2_42(t1, t1, p1024_mod);
+    sp_1024_mont_div2_42(t1, t1, p1024_mod);
     /* p'.y = 4 * p.y^2 * p.x */
     sp_1024_mont_mul_42(p->y, ty, p->x, p1024_mod, p1024_mp_mod);
     /* p'.x = l^2 */
@@ -53821,7 +53838,7 @@ static void sp_1024_accumulate_line_dbl_n_42(sp_digit* vx, sp_digit* vy,
         /* ty = py ^ 2 */
         sp_1024_mont_sqr_42(ty, p->y, p1024_mod, p1024_mp_mod);
         /* t1 = py ^ 2 / 2 */
-        sp_1024_div2_42(t1, ty, p1024_mod);
+        sp_1024_mont_div2_42(t1, ty, p1024_mod);
         /* r.x -= py ^ 2 / 2 */
         sp_1024_mont_sub_42(rx, rx, t1, p1024_mod);
         /* p'.z = py * pz */
@@ -53859,7 +53876,7 @@ static void sp_1024_accumulate_line_dbl_n_42(sp_digit* vx, sp_digit* vy,
     }
 
     /* p'.y = py' / 2 */
-    sp_1024_div2_42(p->y, p->y, p1024_mod);
+    sp_1024_mont_div2_42(p->y, p->y, p1024_mod);
 }
 
 /* Operations to perform based on order - 1.
@@ -54696,18 +54713,20 @@ static int sp_1024_ecc_is_point_42(const sp_point_1024* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 42;
 
+        /* y^2 - x^3 - a.x = b */
         sp_1024_sqr_42(t1, point->y);
         (void)sp_1024_mod_42(t1, t1, p1024_mod);
         sp_1024_sqr_42(t2, point->x);
         (void)sp_1024_mod_42(t2, t2, p1024_mod);
         sp_1024_mul_42(t2, t2, point->x);
         (void)sp_1024_mod_42(t2, t2, p1024_mod);
-        (void)sp_1024_sub_42(t2, p1024_mod, t2);
-        sp_1024_mont_add_42(t1, t1, t2, p1024_mod);
+        sp_1024_mont_sub_42(t1, t1, t2, p1024_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
+
 
         n = sp_1024_cmp_42(t1, p1024_mod);
         sp_1024_cond_sub_42(t1, t1, p1024_mod, ~(n >> 24));

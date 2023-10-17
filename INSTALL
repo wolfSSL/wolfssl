@@ -371,7 +371,7 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     resulting packages are placed in the root directory of the
     project.
 
-18. Building for RHEL, Fedora, CentOS, SUSE, and openSUSE
+19. Building for RHEL, Fedora, CentOS, SUSE, and openSUSE
 
     To generate a .rpm package, configure wolfSSL with the desired
     configuration. Then run `make rpm` to generate a .rpm package
@@ -380,3 +380,51 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
     resulting packages are placed in the root directory of the
     project.
 
+20. Building with xmss-reference lib for XMSS/XMSS^MT support [EXPERIMENTAL]
+
+    Experimental support for XMSS/XMSS^MT has been achieved by integration
+    with the xmss-reference implementation from RFC 8391 (XMSS: eXtended
+    Merkle Signature Scheme). We support a patched version of xmss-reference
+    based on this git commit:
+      171ccbd26f098542a67eb5d2b128281c80bd71a6
+    At the time of writing this, this is the HEAD of the master branch of
+    the xmss-reference project.
+
+    How to get the xmss-reference library:
+      $ mkdir ~/xmss
+      $ cd ~/xmss
+      $ git clone https://github.com/XMSS/xmss-reference.git src
+      $ cd src
+      $ git checkout 171ccbd26f098542a67eb5d2b128281c80bd71a6
+      $ git apply <path to xmss reference patch>
+
+    The patch may be found in the wolfssl-examples repo here:
+      pq/stateful_hash_sig/0001-Patch-to-support-wolfSSL-xmss-reference-integration.patch
+
+    To build patched xmss-reference:
+      $ make xmss_lib.a
+
+    To build verify-only patched xmss-reference:
+      $ make xmss_verify_lib.a
+
+    Note that this patch changes xmss-reference to use wolfCrypt SHA256 hashing,
+    by registering a SHA callback function in xmss-reference. It
+    thus benefits from all the same asm speedups as wolfCrypt SHA hashing.
+    Depending on architecture you may build with --enable-intelasm, or
+    --enable-armasm, and see 30-40% speedups in XMSS/XMSS^MT.
+
+    For full keygen, signing, verifying, and benchmarking support, build
+    wolfSSL with:
+      $ ./configure \
+          --enable-xmss \
+          --with-libxmss=<path to xmss src dir>
+      $ make
+
+    Run the benchmark against XMSS/XMSS^MT with:
+      $ ./wolfcrypt/benchmark/benchmark -xmss_xmssmt
+
+    For a leaner xmss verify-only build, build with
+      $ ./configure \
+          --enable-xmss=verify-only \
+          --with-libxmss=<path to xmss src dir>
+      $ make

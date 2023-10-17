@@ -2110,7 +2110,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
 {
     int ret = 1;
     byte* pem = NULL;
-    int pLen;
+    int pLen = 0;
 
     (void)cb;
     (void)arg;

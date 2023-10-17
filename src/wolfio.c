@@ -1106,7 +1106,11 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     /* use gethostbyname for c99 */
 #if defined(HAVE_GETADDRINFO)
     XMEMSET(&hints, 0, sizeof(hints));
+#ifdef WOLFSSL_IPV6
     hints.ai_family = AF_UNSPEC; /* detect IPv4 or IPv6 */
+#else
+    hints.ai_family = AF_INET;   /* detect only IPv4 */
+#endif
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 

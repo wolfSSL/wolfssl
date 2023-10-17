@@ -5495,8 +5495,8 @@ int sp_cmp(const sp_int* a, const sp_int* b)
  *************************/
 
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)) || \
-    defined(OPENSSL_EXTRA)
+    ((defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_SM2)) && \
+     defined(HAVE_ECC)) || defined(OPENSSL_EXTRA)
 /* Check if a bit is set
  *
  * When a is NULL, result is 0.

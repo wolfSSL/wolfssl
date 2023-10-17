@@ -28,16 +28,17 @@ D. J. Bernstein
 Public domain.
 
 */
-#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
-    /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
-#else
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
+    /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
+
+#else
 #if defined(HAVE_CHACHA)
 
 #include <wolfssl/wolfcrypt/chacha.h>
