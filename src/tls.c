@@ -10138,6 +10138,8 @@ static WC_INLINE byte GetHmacLength(int hmac)
         case sm3_mac:
             return WC_SM3_DIGEST_SIZE;
     #endif
+        default:
+            break;
     }
     return 0;
 }
