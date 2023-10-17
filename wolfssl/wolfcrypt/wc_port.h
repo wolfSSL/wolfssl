@@ -60,7 +60,7 @@
 
 /* THREADING/MUTEX SECTION */
 #ifdef USE_WINDOWS_API
-    #if defined(MINGW32) && !defined(SINGLE_THREADED)
+    #if defined(__MINGW32__) && !defined(SINGLE_THREADED)
         #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
