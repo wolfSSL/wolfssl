@@ -1377,8 +1377,7 @@ typedef struct w64wrapper {
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
-        !defined(__MINGW32__)
+    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD))
         #ifndef __MACH__
             #include <pthread.h>
             typedef struct COND_TYPE {
