@@ -1328,6 +1328,8 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
                 WOLFSSL_MSG("Cert cache file write failed");
                 ret = FWRITE_ERROR;
             }
+        }
+        if (mem != NULL) {
             XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
 

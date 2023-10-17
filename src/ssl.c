@@ -7942,9 +7942,10 @@ int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl, const unsigned char* buff,
 int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSP");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableOCSP(SSL_CM(ssl), options);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7952,9 +7953,10 @@ int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSP");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableOCSP(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7963,9 +7965,10 @@ int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSPStapling");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableOCSPStapling(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7973,9 +7976,10 @@ int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSPStapling");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableOCSPStapling(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7983,9 +7987,10 @@ int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_SetOCSP_OverrideURL(WOLFSSL* ssl, const char* url)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_OverrideURL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetOCSPOverrideURL(SSL_CM(ssl), url);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7995,8 +8000,8 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl,
                         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_Cb");
-    SSL_CM_WARNING(ssl);
     if (ssl) {
+        SSL_CM_WARNING(ssl);
         ssl->ocspIOCtx = ioCbCtx; /* use SSL specific ioCbCtx */
         return wolfSSL_CertManagerSetOCSP_Cb(SSL_CM(ssl),
                                              ioCb, respFreeCb, NULL);
@@ -8587,9 +8592,10 @@ int wolfSSL_trust_peer_cert(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableCRL(SSL_CM(ssl), options);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8598,9 +8604,10 @@ int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 int wolfSSL_DisableCRL(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableCRL(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8609,9 +8616,10 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl)
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerLoadCRL(SSL_CM(ssl), path, type, monitor);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8619,9 +8627,10 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRLFile");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerLoadCRLFile(SSL_CM(ssl), file, type);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8631,9 +8640,10 @@ int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetCRL_Cb(SSL_CM(ssl), cb);
+    }
     else
         return BAD_FUNC_ARG;
 }
