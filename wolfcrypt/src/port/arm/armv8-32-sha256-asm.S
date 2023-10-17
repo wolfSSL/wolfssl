@@ -1897,7 +1897,7 @@ L_SHA256_transform_neon_len_begin:
 	# Start of 16 rounds
 L_SHA256_transform_neon_len_start:
 	# Round 0
-	vmov	r10, d0[0]
+	vmov.32	r10, d0[0]
 	ror	r0, r6, #6
 	eor	r1, r7, r8
 	eor	r0, r0, r6, ror #11
@@ -1920,7 +1920,7 @@ L_SHA256_transform_neon_len_start:
 	add	r9, r9, r0
 	add	r9, r9, r1
 	# Round 1
-	vmov	r10, d0[1]
+	vmov.32	r10, d0[1]
 	# Calc new W[0]-W[1]
 	vext.8	d10, d0, d1, #4
 	ror	r0, r5, #6
@@ -1963,7 +1963,7 @@ L_SHA256_transform_neon_len_start:
 	add	r8, r8, r0
 	add	r8, r8, r1
 	# Round 2
-	vmov	r10, d1[0]
+	vmov.32	r10, d1[0]
 	ror	r0, r4, #6
 	eor	r1, r5, r6
 	eor	r0, r0, r4, ror #11
@@ -1986,7 +1986,7 @@ L_SHA256_transform_neon_len_start:
 	add	r7, r7, r0
 	add	r7, r7, r1
 	# Round 3
-	vmov	r10, d1[1]
+	vmov.32	r10, d1[1]
 	# Calc new W[2]-W[3]
 	vext.8	d10, d1, d2, #4
 	ror	r0, r3, #6
@@ -2029,7 +2029,7 @@ L_SHA256_transform_neon_len_start:
 	add	r6, r6, r0
 	add	r6, r6, r1
 	# Round 4
-	vmov	r10, d2[0]
+	vmov.32	r10, d2[0]
 	ror	r0, r2, #6
 	eor	r1, r3, r4
 	eor	r0, r0, r2, ror #11
@@ -2052,7 +2052,7 @@ L_SHA256_transform_neon_len_start:
 	add	r5, r5, r0
 	add	r5, r5, r1
 	# Round 5
-	vmov	r10, d2[1]
+	vmov.32	r10, d2[1]
 	# Calc new W[4]-W[5]
 	vext.8	d10, d2, d3, #4
 	ror	r0, r9, #6
@@ -2095,7 +2095,7 @@ L_SHA256_transform_neon_len_start:
 	add	r4, r4, r0
 	add	r4, r4, r1
 	# Round 6
-	vmov	r10, d3[0]
+	vmov.32	r10, d3[0]
 	ror	r0, r8, #6
 	eor	r1, r9, r2
 	eor	r0, r0, r8, ror #11
@@ -2118,7 +2118,7 @@ L_SHA256_transform_neon_len_start:
 	add	r3, r3, r0
 	add	r3, r3, r1
 	# Round 7
-	vmov	r10, d3[1]
+	vmov.32	r10, d3[1]
 	# Calc new W[6]-W[7]
 	vext.8	d10, d3, d4, #4
 	ror	r0, r7, #6
@@ -2161,7 +2161,7 @@ L_SHA256_transform_neon_len_start:
 	add	r2, r2, r0
 	add	r2, r2, r1
 	# Round 8
-	vmov	r10, d4[0]
+	vmov.32	r10, d4[0]
 	ror	r0, r6, #6
 	eor	r1, r7, r8
 	eor	r0, r0, r6, ror #11
@@ -2184,7 +2184,7 @@ L_SHA256_transform_neon_len_start:
 	add	r9, r9, r0
 	add	r9, r9, r1
 	# Round 9
-	vmov	r10, d4[1]
+	vmov.32	r10, d4[1]
 	# Calc new W[8]-W[9]
 	vext.8	d10, d4, d5, #4
 	ror	r0, r5, #6
@@ -2227,7 +2227,7 @@ L_SHA256_transform_neon_len_start:
 	add	r8, r8, r0
 	add	r8, r8, r1
 	# Round 10
-	vmov	r10, d5[0]
+	vmov.32	r10, d5[0]
 	ror	r0, r4, #6
 	eor	r1, r5, r6
 	eor	r0, r0, r4, ror #11
@@ -2250,7 +2250,7 @@ L_SHA256_transform_neon_len_start:
 	add	r7, r7, r0
 	add	r7, r7, r1
 	# Round 11
-	vmov	r10, d5[1]
+	vmov.32	r10, d5[1]
 	# Calc new W[10]-W[11]
 	vext.8	d10, d5, d6, #4
 	ror	r0, r3, #6
@@ -2293,7 +2293,7 @@ L_SHA256_transform_neon_len_start:
 	add	r6, r6, r0
 	add	r6, r6, r1
 	# Round 12
-	vmov	r10, d6[0]
+	vmov.32	r10, d6[0]
 	ror	r0, r2, #6
 	eor	r1, r3, r4
 	eor	r0, r0, r2, ror #11
@@ -2316,7 +2316,7 @@ L_SHA256_transform_neon_len_start:
 	add	r5, r5, r0
 	add	r5, r5, r1
 	# Round 13
-	vmov	r10, d6[1]
+	vmov.32	r10, d6[1]
 	# Calc new W[12]-W[13]
 	vext.8	d10, d6, d7, #4
 	ror	r0, r9, #6
@@ -2359,7 +2359,7 @@ L_SHA256_transform_neon_len_start:
 	add	r4, r4, r0
 	add	r4, r4, r1
 	# Round 14
-	vmov	r10, d7[0]
+	vmov.32	r10, d7[0]
 	ror	r0, r8, #6
 	eor	r1, r9, r2
 	eor	r0, r0, r8, ror #11
@@ -2382,7 +2382,7 @@ L_SHA256_transform_neon_len_start:
 	add	r3, r3, r0
 	add	r3, r3, r1
 	# Round 15
-	vmov	r10, d7[1]
+	vmov.32	r10, d7[1]
 	# Calc new W[14]-W[15]
 	vext.8	d10, d7, d0, #4
 	ror	r0, r7, #6
@@ -2428,7 +2428,7 @@ L_SHA256_transform_neon_len_start:
 	subs	lr, lr, #1
 	bne	L_SHA256_transform_neon_len_start
 	# Round 0
-	vmov	r10, d0[0]
+	vmov.32	r10, d0[0]
 	ror	r0, r6, #6
 	eor	r1, r7, r8
 	eor	r0, r0, r6, ror #11
@@ -2451,7 +2451,7 @@ L_SHA256_transform_neon_len_start:
 	add	r9, r9, r0
 	add	r9, r9, r1
 	# Round 1
-	vmov	r10, d0[1]
+	vmov.32	r10, d0[1]
 	ror	r0, r5, #6
 	eor	r1, r6, r7
 	eor	r0, r0, r5, ror #11
@@ -2474,7 +2474,7 @@ L_SHA256_transform_neon_len_start:
 	add	r8, r8, r0
 	add	r8, r8, r1
 	# Round 2
-	vmov	r10, d1[0]
+	vmov.32	r10, d1[0]
 	ror	r0, r4, #6
 	eor	r1, r5, r6
 	eor	r0, r0, r4, ror #11
@@ -2497,7 +2497,7 @@ L_SHA256_transform_neon_len_start:
 	add	r7, r7, r0
 	add	r7, r7, r1
 	# Round 3
-	vmov	r10, d1[1]
+	vmov.32	r10, d1[1]
 	ror	r0, r3, #6
 	eor	r1, r4, r5
 	eor	r0, r0, r3, ror #11
@@ -2520,7 +2520,7 @@ L_SHA256_transform_neon_len_start:
 	add	r6, r6, r0
 	add	r6, r6, r1
 	# Round 4
-	vmov	r10, d2[0]
+	vmov.32	r10, d2[0]
 	ror	r0, r2, #6
 	eor	r1, r3, r4
 	eor	r0, r0, r2, ror #11
@@ -2543,7 +2543,7 @@ L_SHA256_transform_neon_len_start:
 	add	r5, r5, r0
 	add	r5, r5, r1
 	# Round 5
-	vmov	r10, d2[1]
+	vmov.32	r10, d2[1]
 	ror	r0, r9, #6
 	eor	r1, r2, r3
 	eor	r0, r0, r9, ror #11
@@ -2566,7 +2566,7 @@ L_SHA256_transform_neon_len_start:
 	add	r4, r4, r0
 	add	r4, r4, r1
 	# Round 6
-	vmov	r10, d3[0]
+	vmov.32	r10, d3[0]
 	ror	r0, r8, #6
 	eor	r1, r9, r2
 	eor	r0, r0, r8, ror #11
@@ -2589,7 +2589,7 @@ L_SHA256_transform_neon_len_start:
 	add	r3, r3, r0
 	add	r3, r3, r1
 	# Round 7
-	vmov	r10, d3[1]
+	vmov.32	r10, d3[1]
 	ror	r0, r7, #6
 	eor	r1, r8, r9
 	eor	r0, r0, r7, ror #11
@@ -2612,7 +2612,7 @@ L_SHA256_transform_neon_len_start:
 	add	r2, r2, r0
 	add	r2, r2, r1
 	# Round 8
-	vmov	r10, d4[0]
+	vmov.32	r10, d4[0]
 	ror	r0, r6, #6
 	eor	r1, r7, r8
 	eor	r0, r0, r6, ror #11
@@ -2635,7 +2635,7 @@ L_SHA256_transform_neon_len_start:
 	add	r9, r9, r0
 	add	r9, r9, r1
 	# Round 9
-	vmov	r10, d4[1]
+	vmov.32	r10, d4[1]
 	ror	r0, r5, #6
 	eor	r1, r6, r7
 	eor	r0, r0, r5, ror #11
@@ -2658,7 +2658,7 @@ L_SHA256_transform_neon_len_start:
 	add	r8, r8, r0
 	add	r8, r8, r1
 	# Round 10
-	vmov	r10, d5[0]
+	vmov.32	r10, d5[0]
 	ror	r0, r4, #6
 	eor	r1, r5, r6
 	eor	r0, r0, r4, ror #11
@@ -2681,7 +2681,7 @@ L_SHA256_transform_neon_len_start:
 	add	r7, r7, r0
 	add	r7, r7, r1
 	# Round 11
-	vmov	r10, d5[1]
+	vmov.32	r10, d5[1]
 	ror	r0, r3, #6
 	eor	r1, r4, r5
 	eor	r0, r0, r3, ror #11
@@ -2704,7 +2704,7 @@ L_SHA256_transform_neon_len_start:
 	add	r6, r6, r0
 	add	r6, r6, r1
 	# Round 12
-	vmov	r10, d6[0]
+	vmov.32	r10, d6[0]
 	ror	r0, r2, #6
 	eor	r1, r3, r4
 	eor	r0, r0, r2, ror #11
@@ -2727,7 +2727,7 @@ L_SHA256_transform_neon_len_start:
 	add	r5, r5, r0
 	add	r5, r5, r1
 	# Round 13
-	vmov	r10, d6[1]
+	vmov.32	r10, d6[1]
 	ror	r0, r9, #6
 	eor	r1, r2, r3
 	eor	r0, r0, r9, ror #11
@@ -2750,7 +2750,7 @@ L_SHA256_transform_neon_len_start:
 	add	r4, r4, r0
 	add	r4, r4, r1
 	# Round 14
-	vmov	r10, d7[0]
+	vmov.32	r10, d7[0]
 	ror	r0, r8, #6
 	eor	r1, r9, r2
 	eor	r0, r0, r8, ror #11
@@ -2773,7 +2773,7 @@ L_SHA256_transform_neon_len_start:
 	add	r3, r3, r0
 	add	r3, r3, r1
 	# Round 15
-	vmov	r10, d7[1]
+	vmov.32	r10, d7[1]
 	ror	r0, r7, #6
 	eor	r1, r8, r9
 	eor	r0, r0, r7, ror #11
