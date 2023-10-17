@@ -114,12 +114,13 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
 #endif
     XMEMSET(cmac, 0, sizeof(Cmac));
 
+    /* set invalid devId regardless of cryptoCb */
+    cmac->devId = devId;
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (devId != INVALID_DEVID)
     #endif
     {
-        cmac->devId = devId;
         cmac->devCtx = NULL;
 
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, NULL, 0, NULL, NULL,
@@ -128,6 +129,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
             return ret;
         /* fall-through when unavailable */
     }
+
 #else
     (void)devId;
 #endif
