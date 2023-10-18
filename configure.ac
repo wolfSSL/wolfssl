@@ -8351,14 +8351,24 @@ then
 
     case $host_os in
         *darwin*)
-            AC_CHECK_HEADERS([Security/SecTrustSettings.h],
+            # Creates the HAVE_SECURITY_SECXXX_H macros in config.h
+            AC_CHECK_HEADERS([Security/SecTrustSettings.h])
+            AC_CHECK_HEADERS([Security/SecCertificate.h])
+            AC_CHECK_HEADERS([Security/SecTrust.h])
+            AC_CHECK_HEADERS([Security/SecPolicy.h])
+            # Either Security/SecTrustSettings (for MacOS cert loading), or the
+            # trio of Security/SecCertificate.h, Security/SecTrust.h, and
+            # Security/SecPolicy.h (for native trust APIs other apple devices)
+            # must be present
+            AS_IF([test -n "$ac_cv_header_Security_SecTrustSettings_h" \
+                   || (test -n "$ac_cv_header_Security_SecCertificate_h" \
+                       && test -n "$ac_cv_header_Security_SecTrust_h" \
+                       && test -n "$ac_cv_header_Security_SecPolicy_h")],
                 [
-                    # For Mac we need these frameworks to load system CA certs
                     LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
                 ],
                 [
-                    AC_MSG_NOTICE([Can't enable system CA certs without Security/SecTrustSettings.h])
-                    ENABLED_SYS_CA_CERTS="no"
+                    AC_MSG_ERROR([Unable to find Apple Security.framework headers])
                 ]
             )
             ;;

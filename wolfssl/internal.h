@@ -3922,6 +3922,9 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
 #endif
+#if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
+    byte doAppleNativeCertValidationFlag:1;
+#endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 };
 
 WOLFSSL_LOCAL

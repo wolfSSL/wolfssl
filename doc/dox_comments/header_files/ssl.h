@@ -1236,7 +1236,9 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
 
     \brief This function returns a pointer to an array of strings representing
     directories wolfSSL will search for system CA certs when
-    wolfSSL_CTX_load_system_CA_certs is called.
+    wolfSSL_CTX_load_system_CA_certs is called. On systems that don't store
+    certificates in an accessible system directory (such as Apple platforms),
+    this function will always return NULL.
 
     \return Valid pointer on success.
     \return NULL pointer on failure.
@@ -1266,10 +1268,19 @@ const char** wolfSSL_get_system_CA_dirs(word32* num);
 /*!
     \ingroup CertsKeys
 
-    \brief This function attempts to load CA certificates into a WOLFSSL_CTX
-    from an OS-dependent CA certificate store. Loaded certificates will be
-    trusted. The platforms supported and tested are: Linux (Debian, Ubuntu, 
-    Gentoo, Fedora, RHEL), Windows 10/11, Android, Apple OS X and iOS.
+    \brief On most platforms (including Linux and Windows), this function
+    attempts to load CA certificates into a WOLFSSL_CTX from an OS-dependent
+    CA certificate store. Loaded certificates will be trusted.
+
+    On Apple platforms (excluding macOS), certificates can't be obtained from
+    the system, and therefore cannot be loaded into the wolfSSL certificate
+    manager. For these platforms, this function enables TLS connections bound to
+    the WOLFSSL_CTX to use the native system trust APIs to verify authenticity
+    of the peer certificate chain if the authenticity of the peer cannot first
+    be authenticated against certificates loaded by the user.
+
+    The platforms supported and tested are: Linux (Debian, Ubuntu,
+    Gentoo, Fedora, RHEL), Windows 10/11, Android, macOS, and iOS.
 
     \return WOLFSSL_SUCCESS on success.
     \return WOLFSSL_BAD_PATH if no system CA certs were loaded.
