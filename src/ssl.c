@@ -17239,7 +17239,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
  * NOTE: currently wolfSSL_KeepHandshakeResources(WOLFSSL* ssl) must be called
  *       before the ephemeral key is stored.
  * return WOLFSSL_SUCCESS on success */
-int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
+int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 {
     WOLFSSL_EVP_PKEY* ret = NULL;
 
