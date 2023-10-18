@@ -35528,6 +35528,118 @@ static int test_wolfSSL_X509_STORE_CTX(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA)
+static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
+        STACK_OF(X509)* chain)
+{
+    EXPECT_DECLS;
+    XFILE fp = XBADFILE;
+    X509* cert = NULL;
+
+    ExpectTrue((fp = XFOPEN(filename, "rb"))
+            != XBADFILE);
+    ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectIntEQ(sk_X509_push(chain, cert), 1);
+    if (EXPECT_FAIL())
+        X509_free(cert);
+
+    return EXPECT_RESULT();
+}
+
+static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
+        int err, int loadCA)
+{
+    EXPECT_DECLS;
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE* str = NULL;
+    XFILE fp = XBADFILE;
+    X509* cert = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectTrue((fp = XFOPEN("./certs/intermediate/server-int-cert.pem", "rb"))
+            != XBADFILE);
+    ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(str = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(untrusted = sk_X509_new_null());
+
+    ExpectIntEQ(X509_STORE_set_flags(str, 0), 1);
+    if (loadCA) {
+        ExpectIntEQ(X509_STORE_load_locations(str, "./certs/ca-cert.pem", NULL),
+                1);
+    }
+    for (; *filenames; filenames++) {
+        ExpectIntEQ(test_X509_STORE_untrusted_load_cert_to_stack(*filenames,
+                untrusted), TEST_SUCCESS);
+    }
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), ret);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), err);
+
+    X509_free(cert);
+    X509_STORE_free(str);
+    X509_STORE_CTX_free(ctx);
+    sk_X509_pop_free(untrusted, NULL);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_X509_STORE_untrusted(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    const char* untrusted1[] = {
+        "./certs/intermediate/ca-int2-cert.pem",
+        NULL
+    };
+    const char* untrusted2[] = {
+        "./certs/intermediate/ca-int-cert.pem",
+        "./certs/intermediate/ca-int2-cert.pem",
+        NULL
+    };
+    const char* untrusted3[] = {
+        "./certs/intermediate/ca-int-cert.pem",
+        "./certs/intermediate/ca-int2-cert.pem",
+        "./certs/ca-cert.pem",
+        NULL
+    };
+    /* Adding unrelated certs that should be ignored */
+    const char* untrusted4[] = {
+        "./certs/client-ca.pem",
+        "./certs/intermediate/ca-int-cert.pem",
+        "./certs/server-cert.pem",
+        "./certs/intermediate/ca-int2-cert.pem",
+        NULL
+    };
+
+    /* Only immediate issuer in untrusted chaing. Fails since can't build chain
+     * to loaded CA. */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted1, 0,
+            X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 1), TEST_SUCCESS);
+    /* Succeeds because path to loaded CA is available. */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted2, 1, 0, 1),
+            TEST_SUCCESS);
+    /* Fails because root CA is in the untrusted stack */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
+            X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0), TEST_SUCCESS);
+    /* Succeeds because path to loaded CA is available. */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted4, 1, 0, 1),
+            TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_STORE_set_flags(void)
 {
     EXPECT_DECLS;
@@ -51485,7 +51597,8 @@ static int test_X509_LOOKUP_add_dir(void)
 
     /* Now we SHOULD get CRL_MISSING, because we looked for PEM
      * in dir containing only ASN1/DER. */
-    ExpectIntEQ(X509_verify_cert(storeCtx), CRL_MISSING);
+    ExpectIntEQ(X509_verify_cert(storeCtx), WOLFSSL_FAILURE);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), CRL_MISSING);
 
     X509_CRL_free(crl);
     X509_STORE_free(store);
@@ -67663,6 +67776,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_TBS),
 
     TEST_DECL(test_wolfSSL_X509_STORE_CTX),
+    TEST_DECL(test_X509_STORE_untrusted),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_current_issuer),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),

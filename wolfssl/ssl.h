@@ -1526,6 +1526,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
 WOLFSSL_API void wolfSSL_sk_free(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk);
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
