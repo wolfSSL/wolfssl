@@ -1246,7 +1246,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTX_set_tlsext_max_fragment_length \
                             wolfSSL_CTX_set_tlsext_max_fragment_length
 #define SSL_get_server_random           wolfSSL_get_server_random
-#define SSL_get_server_tmp_key          wolfSSL_get_server_tmp_key
+#define SSL_get_server_tmp_key          wolfSSL_get_peer_tmp_key
+#define SSL_get_peer_tmp_key            wolfSSL_get_peer_tmp_key
 
 #define SSL_CTX_set_min_proto_version   wolfSSL_CTX_set_min_proto_version
 #define SSL_CTX_set_max_proto_version   wolfSSL_CTX_set_max_proto_version
