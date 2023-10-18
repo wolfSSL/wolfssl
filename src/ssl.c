@@ -32491,9 +32491,20 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
-    return (curve_id <= WOLFSSL_ECC_MAX &&
-            ssl->disabledCurves &&
-            ssl->disabledCurves & (1 << curve_id));
+    if (curve_id >= WOLFSSL_FFDHE_START) {
+        /* DH parameters are never disabled. */
+        return 0;
+    }
+    if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
+        WOLFSSL_MSG("Curve id out of supported range");
+        /* Disabled if not in valid range. */
+        return 1;
+    }
+    if (curve_id >= 32) {
+        /* 0 is for invalid and 1-14 aren't used otherwise. */
+        return (ssl->disabledCurves & (1 << (curve_id - 32))) != 0;
+    }
+    return (ssl->disabledCurves & (1 << curve_id)) != 0;
 }
 
 #if (defined(HAVE_ECC) || \
@@ -32553,7 +32564,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         else if ((XSTRNCMP(name, "sm2p256v1", len) == 0) ||
                  (XSTRNCMP(name, "SM2", len) == 0))
         {
-            curve = WOLFSSL_ECC_SECP521R1;
+            curve = WOLFSSL_ECC_SM2P256V1;
         }
     #endif
     #ifdef HAVE_CURVE25519
@@ -32592,10 +32603,8 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         #endif
         }
 
-        if (curve >= (sizeof(word32) * WOLFSSL_BIT_SIZE)) {
-            /* shift left more than size of ctx->disabledCurves causes static
-             * analysis report */
-            WOLFSSL_MSG("curve value is too large for upcoming shift");
+        if (curve >= WOLFSSL_ECC_MAX_AVAIL) {
+            WOLFSSL_MSG("curve value is not supported");
             goto leave;
         }
 
@@ -32622,7 +32631,13 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     for (i = 0; i < groups_len; ++i) {
         /* Switch the bit to off and therefore is enabled. */
         curve = (word16)groups[i];
-        disabled &= ~(1U << curve);
+        if (curve >= 32) {
+            /* 0 is for invalid and 1-14 aren't used otherwise. */
+            disabled &= ~(1U << (curve - 32));
+        }
+        else {
+            disabled &= ~(1U << curve);
+        }
     #ifdef HAVE_SUPPORTED_CURVES
     #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate

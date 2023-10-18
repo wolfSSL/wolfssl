@@ -3926,7 +3926,10 @@ enum {
     WOLFSSL_ECC_X448      = 30,
     WOLFSSL_ECC_SM2P256V1 = 41,
     WOLFSSL_ECC_MAX       = 41,
+    WOLFSSL_ECC_MAX_AVAIL = 46,
+    /* Update use of disabled curves when adding value greater than 46. */
 
+    WOLFSSL_FFDHE_START   = 256,
     WOLFSSL_FFDHE_2048    = 256,
     WOLFSSL_FFDHE_3072    = 257,
     WOLFSSL_FFDHE_4096    = 258,

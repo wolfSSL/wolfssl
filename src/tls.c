@@ -4705,8 +4705,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
     #ifdef OPENSSL_EXTRA
         /* skip if name is not in supported ECC range
          * or disabled by user */
-        if (curve->name > WOLFSSL_ECC_MAX ||
-            wolfSSL_curve_is_disabled(ssl, curve->name))
+        if (wolfSSL_curve_is_disabled(ssl, curve->name))
             continue;
     #endif
 
@@ -8651,8 +8650,7 @@ static int TLSX_SupportedGroups_Find(const WOLFSSL* ssl, word16 name,
     TLSX*          extension;
     SupportedCurve* curve = NULL;
 
-    if ((extension = TLSX_Find(extensions,
-                                              TLSX_SUPPORTED_GROUPS)) == NULL) {
+    if ((extension = TLSX_Find(extensions, TLSX_SUPPORTED_GROUPS)) == NULL) {
         if ((extension = TLSX_Find(ssl->ctx->extensions,
                                               TLSX_SUPPORTED_GROUPS)) == NULL) {
             return 0;
