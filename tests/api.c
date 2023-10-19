@@ -35528,7 +35528,7 @@ static int test_wolfSSL_X509_STORE_CTX(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
 static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
         STACK_OF(X509)* chain)
 {
@@ -35598,7 +35598,7 @@ static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
 static int test_X509_STORE_untrusted(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     const char* untrusted1[] = {
         "./certs/intermediate/ca-int2-cert.pem",
         NULL
