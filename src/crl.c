@@ -829,6 +829,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     WOLFSSL_X509_CRL *crl;
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_crl");
     if (store == NULL || newcrl == NULL || store->cm == NULL)
@@ -843,11 +844,10 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             WOLFSSL_MSG("wc_LockRwLock_Rd failed");
             return BAD_MUTEX_E;
         }
-        if (DupX509_CRL(crl, newcrl) != 0) {
-            if (crl != NULL) {
-                wc_UnLockRwLock(&newcrl->crlLock);
-                FreeCRL(crl, 1);
-            }
+        ret = DupX509_CRL(crl, newcrl);
+        wc_UnLockRwLock(&newcrl->crlLock);
+        if (ret != 0) {
+            FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
         wc_UnLockRwLock(&newcrl->crlLock);
