@@ -7460,6 +7460,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 {
     const unsigned char* der;
     int derSz = 0;
+    int advance = 1;
 
     WOLFSSL_ENTER("wolfSSL_i2d_X509");
 
@@ -7480,10 +7481,14 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
             WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
             return MEMORY_E;
         }
+        advance = 0;
     }
 
-    if (out != NULL)
+    if (out != NULL) {
         XMEMCPY(*out, der, derSz);
+        if (advance)
+            *out += derSz;
+    }
 
     WOLFSSL_LEAVE("wolfSSL_i2d_X509", derSz);
     return derSz;
