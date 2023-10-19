@@ -24272,7 +24272,7 @@ WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk)
     WOLFSSL_STACK* ret = NULL;
     WOLFSSL_STACK** prev = &ret;
 
-    WOLFSSL_ENTER("wolfSSL_sk_dup");
+    WOLFSSL_ENTER("wolfSSL_shallow_sk_dup");
 
     for (; sk != NULL; sk = sk->next) {
         WOLFSSL_STACK* cur = wolfSSL_sk_new_node(sk->heap);
