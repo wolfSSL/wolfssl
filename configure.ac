@@ -3547,6 +3547,22 @@ then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
 fi
 
+# SRTP-KDF
+AC_ARG_ENABLE([srtp-kdf],
+    [AS_HELP_STRING([--enable-srtp-kdf],[Enable SRTP-KDF support (default: disabled)])],
+    [ ENABLED_SRTP_KDF=$enableval ],
+    [ ENABLED_SRTP_KDF=no ]
+    )
+if test "$ENABLED_SRTP" = "yes"
+then
+  ENABLED_SRTP_KDF="yes"
+fi
+if test "$ENABLED_SRTP_KDF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DWC_SRTP_KDF -DHAVE_AES_ECB -DWOLFSSL_AES_DIRECT"
+fi
+
+
 # DSA
 AC_ARG_ENABLE([dsa],
     [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
@@ -9579,6 +9595,7 @@ echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
 echo "   * HPKE:                       $ENABLED_HPKE"
 echo "   * X9.63 KDF:                  $ENABLED_X963KDF"
+echo "   * SRTP-KDF:                   $ENABLED_SRTP_KDF"
 echo "   * PSK:                        $ENABLED_PSK"
 echo "   * Poly1305:                   $ENABLED_POLY1305"
 echo "   * LEANPSK:                    $ENABLED_LEANPSK"

@@ -57,6 +57,7 @@
         <li>\ref RSA</li>
         <li>\ref SHA</li>
         <li>\ref SipHash</li>
+        <li>\ref SrtpKdf</li>
         <li>\ref SRP</li>
     </ul>
 */

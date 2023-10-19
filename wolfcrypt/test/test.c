@@ -518,6 +518,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls13_kdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
+#ifdef WC_SRTP_KDF
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rc2_test(void);
@@ -1331,6 +1334,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("HPKE     test failed!\n", ret);
     else
         TEST_PASS("HPKE     test passed!\n");
+#endif
+
+#if defined(WC_SRTP_KDF)
+    if ( (ret = srtpkdf_test()) != 0)
+        TEST_FAIL("SRTP KDF test failed!\n", ret);
+    else
+        TEST_PASS("SRTP KDF test passed!\n");
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
@@ -24805,6 +24815,396 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 /* x448 and chacha20 are unimplemented */
 }
 #endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
+
+#if defined(WC_SRTP_KDF)
+typedef struct Srtp_Kdf_Tv {
+    const unsigned char* key;
+    word32 keySz;
+    const unsigned char* salt;
+    word32 saltSz;
+    int kdfIdx;
+    const unsigned char* index;
+    const unsigned char* ke;
+    const unsigned char* ka;
+    const unsigned char* ks;
+    const unsigned char* index_c;
+    const unsigned char* ke_c;
+    const unsigned char* ka_c;
+    const unsigned char* ks_c;
+    word32 keSz;
+    word32 kaSz;
+    word32 ksSz;
+} Srtp_Kdf_Tv;
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
+{
+    wc_test_ret_t ret = 0;
+    /* 128-bit key, kdrIdx = -1 */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_0[] = {
+        0xc4, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
+        0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt_0[] = {
+        0x0e, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
+        0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_0[] = {
+        0x48, 0x71, 0x65, 0x64, 0x9c, 0xca
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_0[] = {
+        0xdc, 0x38, 0x21, 0x92, 0xab, 0x65, 0x10, 0x8a,
+        0x86, 0xb2, 0x59, 0xb6, 0x1b, 0x3a, 0xf4, 0x6f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_0[] = {
+        0xb8, 0x39, 0x37, 0xfb, 0x32, 0x17, 0x92, 0xee,
+        0x87, 0xb7, 0x88, 0x19, 0x3b, 0xe5, 0xa4, 0xe3,
+        0xbd, 0x32, 0x6e, 0xe4
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_0[] = {
+        0xf1, 0xc0, 0x35, 0xc0, 0x0b, 0x5a, 0x54, 0xa6,
+        0x16, 0x92, 0xc0, 0x16, 0x27, 0x6c
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_c_0[] = {
+        0x56, 0xf3, 0xf1, 0x97
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_c_0[] = {
+        0xab, 0x5b, 0xe0, 0xb4, 0x56, 0x23, 0x5d, 0xcf,
+        0x77, 0xd5, 0x08, 0x69, 0x29, 0xba, 0xfb, 0x38
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_c_0[] = {
+        0xc5, 0x2f, 0xde, 0x0b, 0x80, 0xb0, 0xf0, 0xba,
+        0xd8, 0xd1, 0x56, 0x45, 0xcb, 0x86, 0xe7, 0xc7,
+        0xc3, 0xd8, 0x77, 0x0e
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_c_0[] = {
+        0xde, 0xb5, 0xf8, 0x5f, 0x81, 0x33, 0x6a, 0x96,
+        0x5e, 0xd3, 0x2b, 0xb7, 0xed, 0xe8
+    };
+    /* 192-bit key, kdrIdx = 0 */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_1[] = {
+        0xbb, 0x04, 0x5b, 0x1f, 0x53, 0xc6, 0x93, 0x2c,
+        0x2b, 0xa6, 0x88, 0xf5, 0xe3, 0xf2, 0x24, 0x70,
+        0xe1, 0x7d, 0x7d, 0xec, 0x8a, 0x93, 0x4d, 0xf2
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt_1[] = {
+        0xe7, 0x22, 0xab, 0x92, 0xfc, 0x7c, 0x89, 0xb6,
+        0x53, 0x8a, 0xf9, 0x3c, 0xb9, 0x52
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_1[] = {
+        0xd7, 0x87, 0x8f, 0x33, 0xb1, 0x76
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_1[] = {
+        0x2c, 0xc8, 0x3e, 0x54, 0xb2, 0x33, 0x89, 0xb3,
+        0x71, 0x65, 0x0f, 0x51, 0x61, 0x65, 0xe4, 0x93,
+        0x07, 0x4e, 0xb3, 0x47, 0xba, 0x2d, 0x60, 0x60
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_1[] = {
+        0x2e, 0x80, 0xe4, 0x82, 0x55, 0xa2, 0xbe, 0x6d,
+        0xe0, 0x46, 0xcc, 0xc1, 0x75, 0x78, 0x6e, 0x78,
+        0xd1, 0xd1, 0x47, 0x08
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_1[] = {
+        0xe0, 0xc1, 0xe6, 0xaf, 0x1e, 0x8d, 0x8c, 0xfe,
+        0xe5, 0x60, 0x70, 0xb5, 0xe6, 0xea
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_c_1[] = {
+        0x40, 0xbf, 0xd4, 0xa9
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_c_1[] = {
+        0x94, 0x0f, 0x55, 0xce, 0x58, 0xd8, 0x16, 0x65,
+        0xf0, 0xfa, 0x46, 0x40, 0x0c, 0xda, 0xb1, 0x11,
+        0x9e, 0x69, 0xa0, 0x93, 0x4e, 0xd7, 0xf2, 0x84
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_c_1[] = {
+        0xf5, 0x41, 0x6f, 0xc2, 0x65, 0xc5, 0xb3, 0xef,
+        0xbb, 0x22, 0xc8, 0xfc, 0x6b, 0x00, 0x14, 0xb2,
+        0xf3, 0x3b, 0x8e, 0x29
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_c_1[] = {
+        0x35, 0xb7, 0x42, 0x43, 0xf0, 0x01, 0x01, 0xb4,
+        0x68, 0xa1, 0x28, 0x80, 0x37, 0xf0
+    };
+    /* 256-bit key, kdrIdx = 1 */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_2[] = {
+        0x10, 0x38, 0x0a, 0xcd, 0xd6, 0x47, 0xab, 0xee,
+        0xc0, 0xd4, 0x44, 0xf4, 0x7e, 0x51, 0x36, 0x02,
+        0x79, 0xa8, 0x94, 0x80, 0x35, 0x40, 0xed, 0x50,
+        0xf4, 0x45, 0x30, 0x3d, 0xb5, 0xf0, 0x2b, 0xbb
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt_2[] = {
+        0xc7, 0x31, 0xf2, 0xc8, 0x40, 0x43, 0xb8, 0x74,
+        0x8a, 0x61, 0x84, 0x7a, 0x25, 0x8a
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_2[] = {
+        0x82, 0xf1, 0x84, 0x8c, 0xac, 0x42
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_2[] = {
+        0xb2, 0x26, 0x60, 0xaf, 0x08, 0x23, 0x14, 0x98,
+        0x91, 0xde, 0x5d, 0x87, 0x95, 0x61, 0xca, 0x8f,
+        0x0e, 0xce, 0xfb, 0x68, 0x4d, 0xd6, 0x28, 0xcb,
+        0x28, 0xe2, 0x27, 0x20, 0x2d, 0xff, 0x64, 0xbb
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_2[] = {
+        0x12, 0x6f, 0x52, 0xe8, 0x07, 0x7f, 0x07, 0x84,
+        0xa0, 0x61, 0x96, 0xf8, 0xee, 0x4d, 0x05, 0x57,
+        0x65, 0xc7, 0x50, 0xc1
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_2[] = {
+        0x18, 0x5a, 0x59, 0xe5, 0x91, 0x4d, 0xc9, 0x6c,
+        0xfa, 0x5b, 0x36, 0x06, 0x8c, 0x9a
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_c_2[] = {
+        0x31, 0x2d, 0x58, 0x15
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_c_2[] = {
+        0x14, 0xf2, 0xc8, 0x25, 0x02, 0x79, 0x22, 0xa1,
+        0x96, 0xb6, 0xf7, 0x07, 0x76, 0xa6, 0xa3, 0xc4,
+        0x37, 0xdf, 0xa0, 0xf8, 0x78, 0x93, 0x2c, 0xfa,
+        0xea, 0x35, 0xf0, 0xf3, 0x3f, 0x32, 0x6e, 0xfd
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_c_2[] = {
+        0x6e, 0x3d, 0x4a, 0x99, 0xea, 0x2f, 0x9d, 0x13,
+        0x4a, 0x1e, 0x71, 0x2e, 0x15, 0xc0, 0xca, 0xb6,
+        0x35, 0x78, 0xdf, 0xa4
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_c_2[] = {
+        0xae, 0xe4, 0xec, 0x18, 0x31, 0x70, 0x5d, 0x3f,
+        0xdc, 0x97, 0x89, 0x88, 0xfd, 0xff
+    };
+    /* 128-bit key, kdrIdx = 8 */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_3[] = {
+        0x36, 0xb4, 0xde, 0xcb, 0x2e, 0x51, 0x23, 0x76,
+        0xe0, 0x27, 0x7e, 0x3e, 0xc8, 0xf6, 0x54, 0x04
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt_3[] = {
+        0x73, 0x26, 0xf4, 0x3f, 0xc0, 0xd9, 0xc6, 0xe3,
+        0x2f, 0x92, 0x7d, 0x46, 0x12, 0x76
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_3[] = {
+        0x44, 0x73, 0xb2, 0x2d, 0xb2, 0x60
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_3[] = {
+        0x79, 0x91, 0x3d, 0x7b, 0x20, 0x5d, 0xea, 0xe2,
+        0xeb, 0x46, 0x89, 0x68, 0x5a, 0x06, 0x73, 0x74
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_3[] = {
+        0x2d, 0x2e, 0x97, 0x4e, 0x76, 0x8c, 0x62, 0xa6,
+        0x57, 0x80, 0x13, 0x42, 0x0b, 0x51, 0xa7, 0x66,
+        0xea, 0x31, 0x24, 0xe6
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_3[] = {
+        0xcc, 0xd7, 0x31, 0xf6, 0x3b, 0xf3, 0x89, 0x8a,
+        0x5b, 0x7b, 0xb5, 0x8b, 0x4c, 0x3f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte index_c_3[] = {
+        0x4a, 0x7d, 0xaa, 0x85
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ke_c_3[] = {
+        0x34, 0x99, 0x71, 0xfe, 0x12, 0x93, 0xae, 0x8c,
+        0x4a, 0xe9, 0x84, 0xe4, 0x93, 0x53, 0x63, 0x88
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ka_c_3[] = {
+        0xa4, 0x53, 0x5e, 0x0a, 0x9c, 0xf2, 0xce, 0x13,
+        0xef, 0x7a, 0x13, 0xee, 0x0a, 0xef, 0xba, 0x17,
+        0x05, 0x18, 0xe3, 0xed
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ks_c_3[] = {
+        0xe1, 0x29, 0x4f, 0x61, 0x30, 0x3c, 0x4d, 0x46,
+        0x5f, 0x5c, 0x81, 0x3c, 0x38, 0xb6
+    };
+    #define SRTP_TV_CNT     4
+    Srtp_Kdf_Tv tv[SRTP_TV_CNT] = {
+        { key_0, (word32)sizeof(key_0), salt_0, (word32)sizeof(salt_0), -1,
+          index_0, ke_0, ka_0, ks_0, index_c_0, ke_c_0, ka_c_0, ks_c_0,
+          16, 20, 14 },
+        { key_1, (word32)sizeof(key_1), salt_1, (word32)sizeof(salt_1), 0,
+          index_1, ke_1, ka_1, ks_1, index_c_1, ke_c_1, ka_c_1, ks_c_1,
+          24, 20, 14 },
+        { key_2, (word32)sizeof(key_2), salt_2, (word32)sizeof(salt_2), 1,
+          index_2, ke_2, ka_2, ks_2, index_c_2, ke_c_2, ka_c_2, ks_c_2,
+          32, 20, 14 },
+        { key_3, (word32)sizeof(key_3), salt_3, (word32)sizeof(salt_3), 8,
+          index_3, ke_3, ka_3, ks_3, index_c_3, ke_c_3, ka_c_3, ks_c_3,
+          16, 20, 14 },
+    };
+    int i;
+    int idx;
+    unsigned char keyE[32];
+    unsigned char keyA[20];
+    unsigned char keyS[14];
+
+    for (i = 0; (ret == 0) && (i < SRTP_TV_CNT); i++) {
+    #ifndef WOLFSSL_AES_128
+        if (tv[i].keySz == AES_128_KEY_SIZE) {
+            continue;
+        }
+    #endif
+    #ifndef WOLFSSL_AES_192
+        if (tv[i].keySz == AES_192_KEY_SIZE) {
+            continue;
+        }
+    #endif
+    #ifndef WOLFSSL_AES_256
+        if (tv[i].keySz == AES_256_KEY_SIZE) {
+            continue;
+        }
+    #endif
+
+        ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+            tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+            keyS, tv[i].ksSz);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(keyE, tv[i].ke, 16) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyA, tv[i].ka, 20) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyS, tv[i].ks, 14) != 0)
+            return WC_TEST_RET_ENC_NC;
+
+        ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+            tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+            keyS, tv[i].ksSz);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(keyE, tv[i].ke_c, 16) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyA, tv[i].ka_c, 20) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyS, tv[i].ks_c, 14) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+#ifdef WOLFSSL_AES_128
+    i = 0;
+#elif defined(WOLFSSL_AES_192)
+    i = 1;
+#else
+    i = 2;
+#endif
+    ret = wc_SRTP_KDF(tv[i].key, 33, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, 33, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, 15, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 15,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
+            tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+            keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, NULL, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        25, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        25, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        -2, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        -2, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, NULL, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, NULL, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, NULL, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, NULL, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        NULL, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, tv[i].saltSz,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        NULL, tv[i].ksSz);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    idx = wc_SRTP_KDF_kdr_to_idx(0);
+    if (idx != -1)
+        return WC_TEST_RET_ENC_NC;
+    for (i = 0; i < 32; i++) {
+        word32 kdr = 1 << i;
+        idx = wc_SRTP_KDF_kdr_to_idx(kdr);
+        if (idx != i)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    return 0;
+}
+#endif
 
 #ifdef HAVE_ECC
 
