@@ -851,7 +851,6 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
-        wc_UnLockRwLock(&newcrl->crlLock);
         store->crl = store->cm->crl = crl;
         if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
                 != WOLFSSL_SUCCESS) {
