@@ -14223,7 +14223,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* If we are using native Apple CA validation, it is okay
                      * for a CA cert to fail validation here, as we will verify
                      * the entire chain when we hit the peer (leaf) cert */
-                    if (ssl->ctx->doAppleNativeCertValidationFlag) {
+                    if ((ssl->ctx->doAppleNativeCertValidationFlag)
+                        && (ret == ASN_NO_SIGNER_E)) {
+
                         WOLFSSL_MSG("Bypassing errors to allow for Apple native"
                                     " CA validation");
                         ret = 0; /* clear errors and continue */
