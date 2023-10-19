@@ -838,6 +838,7 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
         if (crl == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_crl_new failed");
             return WOLFSSL_FAILURE;
         }
         if (wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
