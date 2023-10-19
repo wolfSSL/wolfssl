@@ -602,6 +602,22 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
 
 #ifdef WOLFSSL_AES_EAX
 
+/* Because of the circular dependency between AES and CMAC, we need to prevent
+ * inclusion of AES EAX from CMAC to avoid a recursive inclusion */
+#ifndef WOLF_CRYPT_CMAC_H
+#include <wolfssl/wolfcrypt/cmac.h>
+struct AesEax {
+    Aes  aes;
+    Cmac nonceCmac;
+    Cmac aadCmac;
+    Cmac ciphertextCmac;
+    byte nonceCmacFinal[AES_BLOCK_SIZE];
+    byte aadCmacFinal[AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[AES_BLOCK_SIZE];
+    byte prefixBuf[AES_BLOCK_SIZE];
+};
+#endif /* !defined(WOLF_CRYPT_CMAC_H) */
+
 typedef struct AesEax AesEax;
 
 /* One-shot API */
