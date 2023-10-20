@@ -70,6 +70,9 @@ typedef struct {
   ge T;
 } ge_p3;
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 WOLFSSL_LOCAL int  ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
                                                                 word32 keySz);
@@ -120,6 +123,10 @@ void ge_madd(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
 void ge_msub(ge_p1p1 *r, const ge_p3 *p, const ge_precomp *q);
 void ge_add(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
 void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+#endif
+
+#ifdef __cplusplus
+    }    /* extern "C" */
 #endif
 
 #endif /* HAVE_ED25519 */
