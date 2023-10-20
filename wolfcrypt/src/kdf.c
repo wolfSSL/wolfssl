@@ -52,6 +52,9 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/kdf.h>
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+#include <wolfssl/wolfcrypt/aes.h>
+#endif
 
 
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
@@ -870,4 +873,52 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
 
 #endif /* WOLFSSL_WOLFSSH */
 
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+/* kdf function based on the Miyaguchi-Preneel one-way compression function */
+int wc_AesMp(byte* in, word32 inSz, byte* messageZero, word32 blockSz,
+    byte* out)
+{
+    int ret;
+    int i = 0;
+    int j;
+    Aes aes[1];
+    byte paddedInput[AES_MAX_KEY_SIZE];
+    /* check valid inputs */
+    if (in == NULL || inSz == 0 || messageZero == NULL || blockSz == 0 ||
+        out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* do the first block with messageZero as the key */
+    ret = wc_AesSetKeyDirect(aes, messageZero, blockSz, NULL, AES_ENCRYPTION);
+    while (ret == 0 && i < (int)inSz) {
+        /* copy a block and pad it if we're short */
+        if ((int)inSz - i < (int)blockSz) {
+            XMEMCPY(paddedInput, in + i, inSz - i);
+            XMEMSET(paddedInput + inSz - i, 0, blockSz - (inSz - i));
+        }
+        else
+            XMEMCPY(paddedInput, in + i, blockSz);
+        /* encrypt this block */
+        ret = wc_AesEncryptDirect(aes, out, paddedInput);
+        /* xor with the original message and then the previous block */
+        for (j = 0; j < (int)blockSz; j++) {
+            out[j] ^= paddedInput[j];
+            /* use messageZero as our previous output buffer */
+            out[j] ^= messageZero[j];
+        }
+        /* set the key for the next block */
+        if (ret == 0)
+            ret = wc_AesSetKeyDirect(aes, out, blockSz, NULL, AES_ENCRYPTION);
+        if (ret == 0) {
+            /* store previous output in messageZero */
+            XMEMCPY(messageZero, out, blockSz);
+            /* increment to next block */
+            i += blockSz;
+        }
+    }
+    /* free aes for protection */
+    wc_AesFree(aes);
+    return ret;
+}
+#endif /* HAVE_AES_ECB && WOLFSSL_AES_MP */
 #endif /* NO_KDF */

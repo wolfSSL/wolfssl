@@ -2479,6 +2479,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB -DWOLFSSL_AES_DIRECT"
 fi
 
+# AES-MP KDF
+AC_ARG_ENABLE([aesmp],
+    [AS_HELP_STRING([--enable-aesmp],[Enable wolfSSL AES-MP KDF support (default: disabled)])],
+    [ ENABLED_AESMP=$enableval ],
+    [ ENABLED_AESMP=no ]
+    )
+
+if test "$ENABLED_AESMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_MP -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"
+fi
 
 # AES-CFB
 AC_ARG_ENABLE([aescfb],

@@ -543,6 +543,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  gmac_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesccm_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aeskeywrap_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  camellia_test(void);
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes_mp_test(void);
+#endif
 #ifdef WOLFSSL_SM4
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sm4_test(void);
 #endif
@@ -1501,6 +1504,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("CAMELLIA test failed!\n", ret);
     else
         TEST_PASS("CAMELLIA test passed!\n");
+#endif
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+    if ((ret = aes_mp_test()) != 0)
+        TEST_FAIL("AES-MP test failed!\n", ret);
+    else
+        TEST_PASS("AES-MP test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SM4
@@ -48738,6 +48747,50 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
     return 0;
 }
 #endif
+
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_mp_test(void)
+{
+    int ret;
+    int blockSz = AES_BLOCK_SIZE;
+    byte messageZero[AES_BLOCK_SIZE] = {0};
+    /*
+    byte testVectorKey[AES_BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+    */
+    byte testVectorInput[AES_BLOCK_SIZE * 2] = {0x00, 0x01, 0x02, 0x03, 0x04,
+        0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x01,
+        0x01, 0x53, 0x48, 0x45, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0xb0};
+    byte output[AES_BLOCK_SIZE];
+    byte testVectorOutput[AES_BLOCK_SIZE] = {0x11, 0x8a, 0x46, 0x44, 0x7a, 0x77, 0x0d, 0x87, 0x82, 0x8a,
+        0x69, 0xc2, 0x22, 0xe2, 0xd1, 0x7e};
+    /* check bad func args */
+    ret = wc_AesMp(NULL, blockSz * 2, messageZero, blockSz, output);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    ret = wc_AesMp(testVectorInput, 0, messageZero, blockSz, output);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    ret = wc_AesMp(testVectorInput, blockSz * 2, NULL, blockSz, output);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, 0, output);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, blockSz, NULL);
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_NC;
+    /* try the actual test vector */
+    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, blockSz, output);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_NC;
+    /* compare to test vector */
+    if (XMEMCMP(output, testVectorOutput, sizeof(testVectorOutput)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    return ret;
+}
+#endif /* HAVE_AES_ECB && HAVE_AES_MP */
 
 #undef ERROR_OUT
 

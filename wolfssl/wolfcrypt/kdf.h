@@ -105,6 +105,11 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
 
 #endif /* WOLFSSL_WOLFSSH */
 
+#if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
+WOLFSSL_API int wc_AesMp(byte* in, word32 inSz, byte* messageZero,
+    word32 blockSz, byte* out);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
@@ -112,4 +117,3 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
 #endif /* WOLF_CRYPT_KDF_H */
 
 #endif /* NO_KDF */
-
