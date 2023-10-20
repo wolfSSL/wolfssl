@@ -1831,7 +1831,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "\n"
     "L_SHA256_transform_neon_len_start_%=: \n\t"
         /* Round 0 */
-        "vmov	r10, d0[0]\n\t"
+        "vmov.32	r10, d0[0]\n\t"
         "ror	%[sha256], r6, #6\n\t"
         "eor	%[data], r7, r8\n\t"
         "eor	%[sha256], %[sha256], r6, ror #11\n\t"
@@ -1854,7 +1854,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r9, r9, %[sha256]\n\t"
         "add	r9, r9, %[data]\n\t"
         /* Round 1 */
-        "vmov	r10, d0[1]\n\t"
+        "vmov.32	r10, d0[1]\n\t"
         /* Calc new W[0]-W[1] */
         "vext.8	d10, d0, d1, #4\n\t"
         "ror	%[sha256], r5, #6\n\t"
@@ -1897,7 +1897,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r8, r8, %[sha256]\n\t"
         "add	r8, r8, %[data]\n\t"
         /* Round 2 */
-        "vmov	r10, d1[0]\n\t"
+        "vmov.32	r10, d1[0]\n\t"
         "ror	%[sha256], r4, #6\n\t"
         "eor	%[data], r5, r6\n\t"
         "eor	%[sha256], %[sha256], r4, ror #11\n\t"
@@ -1920,7 +1920,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r7, r7, %[sha256]\n\t"
         "add	r7, r7, %[data]\n\t"
         /* Round 3 */
-        "vmov	r10, d1[1]\n\t"
+        "vmov.32	r10, d1[1]\n\t"
         /* Calc new W[2]-W[3] */
         "vext.8	d10, d1, d2, #4\n\t"
         "ror	%[sha256], r3, #6\n\t"
@@ -1963,7 +1963,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r6, r6, %[sha256]\n\t"
         "add	r6, r6, %[data]\n\t"
         /* Round 4 */
-        "vmov	r10, d2[0]\n\t"
+        "vmov.32	r10, d2[0]\n\t"
         "ror	%[sha256], %[len], #6\n\t"
         "eor	%[data], r3, r4\n\t"
         "eor	%[sha256], %[sha256], %[len], ror #11\n\t"
@@ -1986,7 +1986,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r5, r5, %[sha256]\n\t"
         "add	r5, r5, %[data]\n\t"
         /* Round 5 */
-        "vmov	r10, d2[1]\n\t"
+        "vmov.32	r10, d2[1]\n\t"
         /* Calc new W[4]-W[5] */
         "vext.8	d10, d2, d3, #4\n\t"
         "ror	%[sha256], r9, #6\n\t"
@@ -2029,7 +2029,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r4, r4, %[sha256]\n\t"
         "add	r4, r4, %[data]\n\t"
         /* Round 6 */
-        "vmov	r10, d3[0]\n\t"
+        "vmov.32	r10, d3[0]\n\t"
         "ror	%[sha256], r8, #6\n\t"
         "eor	%[data], r9, %[len]\n\t"
         "eor	%[sha256], %[sha256], r8, ror #11\n\t"
@@ -2052,7 +2052,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r3, r3, %[sha256]\n\t"
         "add	r3, r3, %[data]\n\t"
         /* Round 7 */
-        "vmov	r10, d3[1]\n\t"
+        "vmov.32	r10, d3[1]\n\t"
         /* Calc new W[6]-W[7] */
         "vext.8	d10, d3, d4, #4\n\t"
         "ror	%[sha256], r7, #6\n\t"
@@ -2095,7 +2095,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	%[len], %[len], %[sha256]\n\t"
         "add	%[len], %[len], %[data]\n\t"
         /* Round 8 */
-        "vmov	r10, d4[0]\n\t"
+        "vmov.32	r10, d4[0]\n\t"
         "ror	%[sha256], r6, #6\n\t"
         "eor	%[data], r7, r8\n\t"
         "eor	%[sha256], %[sha256], r6, ror #11\n\t"
@@ -2118,7 +2118,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r9, r9, %[sha256]\n\t"
         "add	r9, r9, %[data]\n\t"
         /* Round 9 */
-        "vmov	r10, d4[1]\n\t"
+        "vmov.32	r10, d4[1]\n\t"
         /* Calc new W[8]-W[9] */
         "vext.8	d10, d4, d5, #4\n\t"
         "ror	%[sha256], r5, #6\n\t"
@@ -2161,7 +2161,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r8, r8, %[sha256]\n\t"
         "add	r8, r8, %[data]\n\t"
         /* Round 10 */
-        "vmov	r10, d5[0]\n\t"
+        "vmov.32	r10, d5[0]\n\t"
         "ror	%[sha256], r4, #6\n\t"
         "eor	%[data], r5, r6\n\t"
         "eor	%[sha256], %[sha256], r4, ror #11\n\t"
@@ -2184,7 +2184,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r7, r7, %[sha256]\n\t"
         "add	r7, r7, %[data]\n\t"
         /* Round 11 */
-        "vmov	r10, d5[1]\n\t"
+        "vmov.32	r10, d5[1]\n\t"
         /* Calc new W[10]-W[11] */
         "vext.8	d10, d5, d6, #4\n\t"
         "ror	%[sha256], r3, #6\n\t"
@@ -2227,7 +2227,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r6, r6, %[sha256]\n\t"
         "add	r6, r6, %[data]\n\t"
         /* Round 12 */
-        "vmov	r10, d6[0]\n\t"
+        "vmov.32	r10, d6[0]\n\t"
         "ror	%[sha256], %[len], #6\n\t"
         "eor	%[data], r3, r4\n\t"
         "eor	%[sha256], %[sha256], %[len], ror #11\n\t"
@@ -2250,7 +2250,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r5, r5, %[sha256]\n\t"
         "add	r5, r5, %[data]\n\t"
         /* Round 13 */
-        "vmov	r10, d6[1]\n\t"
+        "vmov.32	r10, d6[1]\n\t"
         /* Calc new W[12]-W[13] */
         "vext.8	d10, d6, d7, #4\n\t"
         "ror	%[sha256], r9, #6\n\t"
@@ -2293,7 +2293,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r4, r4, %[sha256]\n\t"
         "add	r4, r4, %[data]\n\t"
         /* Round 14 */
-        "vmov	r10, d7[0]\n\t"
+        "vmov.32	r10, d7[0]\n\t"
         "ror	%[sha256], r8, #6\n\t"
         "eor	%[data], r9, %[len]\n\t"
         "eor	%[sha256], %[sha256], r8, ror #11\n\t"
@@ -2316,7 +2316,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r3, r3, %[sha256]\n\t"
         "add	r3, r3, %[data]\n\t"
         /* Round 15 */
-        "vmov	r10, d7[1]\n\t"
+        "vmov.32	r10, d7[1]\n\t"
         /* Calc new W[14]-W[15] */
         "vext.8	d10, d7, d0, #4\n\t"
         "ror	%[sha256], r7, #6\n\t"
@@ -2362,7 +2362,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "subs	lr, lr, #1\n\t"
         "bne	L_SHA256_transform_neon_len_start_%=\n\t"
         /* Round 0 */
-        "vmov	r10, d0[0]\n\t"
+        "vmov.32	r10, d0[0]\n\t"
         "ror	%[sha256], r6, #6\n\t"
         "eor	%[data], r7, r8\n\t"
         "eor	%[sha256], %[sha256], r6, ror #11\n\t"
@@ -2385,7 +2385,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r9, r9, %[sha256]\n\t"
         "add	r9, r9, %[data]\n\t"
         /* Round 1 */
-        "vmov	r10, d0[1]\n\t"
+        "vmov.32	r10, d0[1]\n\t"
         "ror	%[sha256], r5, #6\n\t"
         "eor	%[data], r6, r7\n\t"
         "eor	%[sha256], %[sha256], r5, ror #11\n\t"
@@ -2408,7 +2408,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r8, r8, %[sha256]\n\t"
         "add	r8, r8, %[data]\n\t"
         /* Round 2 */
-        "vmov	r10, d1[0]\n\t"
+        "vmov.32	r10, d1[0]\n\t"
         "ror	%[sha256], r4, #6\n\t"
         "eor	%[data], r5, r6\n\t"
         "eor	%[sha256], %[sha256], r4, ror #11\n\t"
@@ -2431,7 +2431,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r7, r7, %[sha256]\n\t"
         "add	r7, r7, %[data]\n\t"
         /* Round 3 */
-        "vmov	r10, d1[1]\n\t"
+        "vmov.32	r10, d1[1]\n\t"
         "ror	%[sha256], r3, #6\n\t"
         "eor	%[data], r4, r5\n\t"
         "eor	%[sha256], %[sha256], r3, ror #11\n\t"
@@ -2454,7 +2454,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r6, r6, %[sha256]\n\t"
         "add	r6, r6, %[data]\n\t"
         /* Round 4 */
-        "vmov	r10, d2[0]\n\t"
+        "vmov.32	r10, d2[0]\n\t"
         "ror	%[sha256], %[len], #6\n\t"
         "eor	%[data], r3, r4\n\t"
         "eor	%[sha256], %[sha256], %[len], ror #11\n\t"
@@ -2477,7 +2477,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r5, r5, %[sha256]\n\t"
         "add	r5, r5, %[data]\n\t"
         /* Round 5 */
-        "vmov	r10, d2[1]\n\t"
+        "vmov.32	r10, d2[1]\n\t"
         "ror	%[sha256], r9, #6\n\t"
         "eor	%[data], %[len], r3\n\t"
         "eor	%[sha256], %[sha256], r9, ror #11\n\t"
@@ -2500,7 +2500,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r4, r4, %[sha256]\n\t"
         "add	r4, r4, %[data]\n\t"
         /* Round 6 */
-        "vmov	r10, d3[0]\n\t"
+        "vmov.32	r10, d3[0]\n\t"
         "ror	%[sha256], r8, #6\n\t"
         "eor	%[data], r9, %[len]\n\t"
         "eor	%[sha256], %[sha256], r8, ror #11\n\t"
@@ -2523,7 +2523,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r3, r3, %[sha256]\n\t"
         "add	r3, r3, %[data]\n\t"
         /* Round 7 */
-        "vmov	r10, d3[1]\n\t"
+        "vmov.32	r10, d3[1]\n\t"
         "ror	%[sha256], r7, #6\n\t"
         "eor	%[data], r8, r9\n\t"
         "eor	%[sha256], %[sha256], r7, ror #11\n\t"
@@ -2546,7 +2546,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	%[len], %[len], %[sha256]\n\t"
         "add	%[len], %[len], %[data]\n\t"
         /* Round 8 */
-        "vmov	r10, d4[0]\n\t"
+        "vmov.32	r10, d4[0]\n\t"
         "ror	%[sha256], r6, #6\n\t"
         "eor	%[data], r7, r8\n\t"
         "eor	%[sha256], %[sha256], r6, ror #11\n\t"
@@ -2569,7 +2569,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r9, r9, %[sha256]\n\t"
         "add	r9, r9, %[data]\n\t"
         /* Round 9 */
-        "vmov	r10, d4[1]\n\t"
+        "vmov.32	r10, d4[1]\n\t"
         "ror	%[sha256], r5, #6\n\t"
         "eor	%[data], r6, r7\n\t"
         "eor	%[sha256], %[sha256], r5, ror #11\n\t"
@@ -2592,7 +2592,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r8, r8, %[sha256]\n\t"
         "add	r8, r8, %[data]\n\t"
         /* Round 10 */
-        "vmov	r10, d5[0]\n\t"
+        "vmov.32	r10, d5[0]\n\t"
         "ror	%[sha256], r4, #6\n\t"
         "eor	%[data], r5, r6\n\t"
         "eor	%[sha256], %[sha256], r4, ror #11\n\t"
@@ -2615,7 +2615,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r7, r7, %[sha256]\n\t"
         "add	r7, r7, %[data]\n\t"
         /* Round 11 */
-        "vmov	r10, d5[1]\n\t"
+        "vmov.32	r10, d5[1]\n\t"
         "ror	%[sha256], r3, #6\n\t"
         "eor	%[data], r4, r5\n\t"
         "eor	%[sha256], %[sha256], r3, ror #11\n\t"
@@ -2638,7 +2638,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r6, r6, %[sha256]\n\t"
         "add	r6, r6, %[data]\n\t"
         /* Round 12 */
-        "vmov	r10, d6[0]\n\t"
+        "vmov.32	r10, d6[0]\n\t"
         "ror	%[sha256], %[len], #6\n\t"
         "eor	%[data], r3, r4\n\t"
         "eor	%[sha256], %[sha256], %[len], ror #11\n\t"
@@ -2661,7 +2661,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r5, r5, %[sha256]\n\t"
         "add	r5, r5, %[data]\n\t"
         /* Round 13 */
-        "vmov	r10, d6[1]\n\t"
+        "vmov.32	r10, d6[1]\n\t"
         "ror	%[sha256], r9, #6\n\t"
         "eor	%[data], %[len], r3\n\t"
         "eor	%[sha256], %[sha256], r9, ror #11\n\t"
@@ -2684,7 +2684,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r4, r4, %[sha256]\n\t"
         "add	r4, r4, %[data]\n\t"
         /* Round 14 */
-        "vmov	r10, d7[0]\n\t"
+        "vmov.32	r10, d7[0]\n\t"
         "ror	%[sha256], r8, #6\n\t"
         "eor	%[data], r9, %[len]\n\t"
         "eor	%[sha256], %[sha256], r8, ror #11\n\t"
@@ -2707,7 +2707,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r3, r3, %[sha256]\n\t"
         "add	r3, r3, %[data]\n\t"
         /* Round 15 */
-        "vmov	r10, d7[1]\n\t"
+        "vmov.32	r10, d7[1]\n\t"
         "ror	%[sha256], r7, #6\n\t"
         "eor	%[data], r8, r9\n\t"
         "eor	%[sha256], %[sha256], r7, ror #11\n\t"
