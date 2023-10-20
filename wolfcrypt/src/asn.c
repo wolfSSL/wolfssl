@@ -29007,6 +29007,12 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
         /* Set signature OID and signature data. */
         SetASN_OID(&dataASN[SIGASN_IDX_SIGALGO_OID], (word32)sigAlgoType,
                    oidSigType);
+        if (dataASN[SIGASN_IDX_SIGALGO_OID].data.buffer.data == NULL) {
+            /* The OID was not found or compiled in! */
+            ret = ASN_UNKNOWN_OID_E;
+        }
+    }
+    if (ret == 0) {
         if (IsSigAlgoECC((word32)sigAlgoType)) {
             /* ECDSA and EdDSA doesn't have NULL tagged item. */
             dataASN[SIGASN_IDX_SIGALGO_NULL].noOut = 1;
