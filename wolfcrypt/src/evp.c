@@ -12028,7 +12028,7 @@ int wolfSSL_EVP_EncodeBlock(unsigned char *out, const unsigned char *in,
     if (out == NULL || in == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    if (Base64_Encode(in, (word32)inLen, out, &ret) == 0)
+    if (Base64_Encode_NoNl(in, (word32)inLen, out, &ret) == 0)
         return (int)ret;
     else
         return WOLFSSL_FATAL_ERROR;
