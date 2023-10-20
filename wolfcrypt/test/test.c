@@ -48752,7 +48752,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_mp_test(void)
 {
     int ret;
-    int blockSz = AES_BLOCK_SIZE;
     byte messageZero[AES_BLOCK_SIZE] = {0};
     /*
     byte testVectorKey[AES_BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -48763,26 +48762,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_mp_test(void)
         0x01, 0x53, 0x48, 0x45, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0xb0};
     byte output[AES_BLOCK_SIZE];
-    byte testVectorOutput[AES_BLOCK_SIZE] = {0x11, 0x8a, 0x46, 0x44, 0x7a, 0x77, 0x0d, 0x87, 0x82, 0x8a,
-        0x69, 0xc2, 0x22, 0xe2, 0xd1, 0x7e};
+    byte testVectorOutput[AES_BLOCK_SIZE] = {0x11, 0x8a, 0x46, 0x44, 0x7a, 0x77,
+        0x0d, 0x87, 0x82, 0x8a, 0x69, 0xc2, 0x22, 0xe2, 0xd1, 0x7e};
     /* check bad func args */
-    ret = wc_AesMp(NULL, blockSz * 2, messageZero, blockSz, output);
+    ret = wc_AesMp16(NULL, sizeof(testVectorInput), messageZero, output);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_AesMp(testVectorInput, 0, messageZero, blockSz, output);
+    ret = wc_AesMp16(testVectorInput, 0, messageZero, output);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_AesMp(testVectorInput, blockSz * 2, NULL, blockSz, output);
+    ret = wc_AesMp16(testVectorInput, sizeof(testVectorInput), NULL, output);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, 0, output);
-    if (ret != BAD_FUNC_ARG)
-        return WC_TEST_RET_ENC_NC;
-    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, blockSz, NULL);
+    ret = wc_AesMp16(testVectorInput, sizeof(testVectorInput), messageZero,
+        NULL);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
     /* try the actual test vector */
-    ret = wc_AesMp(testVectorInput, blockSz * 2, messageZero, blockSz, output);
+    ret = wc_AesMp16(testVectorInput, sizeof(testVectorInput), messageZero,
+        output);
     if (ret != 0)
         return WC_TEST_RET_ENC_NC;
     /* compare to test vector */

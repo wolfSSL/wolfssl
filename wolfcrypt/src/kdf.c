@@ -875,45 +875,45 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
 
 #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_MP)
 /* kdf function based on the Miyaguchi-Preneel one-way compression function */
-int wc_AesMp(byte* in, word32 inSz, byte* messageZero, word32 blockSz,
-    byte* out)
+int wc_AesMp16(byte* in, word32 inSz, byte* messageZero, byte* out)
 {
     int ret;
     int i = 0;
     int j;
     Aes aes[1];
-    byte paddedInput[AES_MAX_KEY_SIZE];
+    byte paddedInput[AES_BLOCK_SIZE];
     /* check valid inputs */
-    if (in == NULL || inSz == 0 || messageZero == NULL || blockSz == 0 ||
-        out == NULL) {
+    if (in == NULL || inSz == 0 || messageZero == NULL || out == NULL)
         return BAD_FUNC_ARG;
-    }
     /* do the first block with messageZero as the key */
-    ret = wc_AesSetKeyDirect(aes, messageZero, blockSz, NULL, AES_ENCRYPTION);
+    ret = wc_AesSetKeyDirect(aes, messageZero, AES_BLOCK_SIZE, NULL,
+        AES_ENCRYPTION);
     while (ret == 0 && i < (int)inSz) {
         /* copy a block and pad it if we're short */
-        if ((int)inSz - i < (int)blockSz) {
+        if ((int)inSz - i < (int)AES_BLOCK_SIZE) {
             XMEMCPY(paddedInput, in + i, inSz - i);
-            XMEMSET(paddedInput + inSz - i, 0, blockSz - (inSz - i));
+            XMEMSET(paddedInput + inSz - i, 0, AES_BLOCK_SIZE - (inSz - i));
         }
         else
-            XMEMCPY(paddedInput, in + i, blockSz);
+            XMEMCPY(paddedInput, in + i, AES_BLOCK_SIZE);
         /* encrypt this block */
         ret = wc_AesEncryptDirect(aes, out, paddedInput);
         /* xor with the original message and then the previous block */
-        for (j = 0; j < (int)blockSz; j++) {
+        for (j = 0; j < (int)AES_BLOCK_SIZE; j++) {
             out[j] ^= paddedInput[j];
             /* use messageZero as our previous output buffer */
             out[j] ^= messageZero[j];
         }
         /* set the key for the next block */
-        if (ret == 0)
-            ret = wc_AesSetKeyDirect(aes, out, blockSz, NULL, AES_ENCRYPTION);
+        if (ret == 0) {
+            ret = wc_AesSetKeyDirect(aes, out, AES_BLOCK_SIZE, NULL,
+                AES_ENCRYPTION);
+        }
         if (ret == 0) {
             /* store previous output in messageZero */
-            XMEMCPY(messageZero, out, blockSz);
+            XMEMCPY(messageZero, out, AES_BLOCK_SIZE);
             /* increment to next block */
-            i += blockSz;
+            i += AES_BLOCK_SIZE;
         }
     }
     /* free aes for protection */
