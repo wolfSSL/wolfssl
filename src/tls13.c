@@ -6129,12 +6129,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
     /* Refine list for PSK processing. */
     RefineSuites(ssl, clSuites);
-    /* set after refineSuites, to avoid taking a stale ptr to ctx->Suites */
-    suites = WOLFSSL_SUITES(ssl);
 #ifndef WOLFSSL_PSK_ONE_ID
     if (usingPSK == NULL)
         return BAD_FUNC_ARG;
 
+    /* set after refineSuites, to avoid taking a stale ptr to ctx->Suites */
+    suites = WOLFSSL_SUITES(ssl);
     /* Server list has only common suites from refining in server or client
      * order. */
     for (i = 0; !(*usingPSK) && i < suites->suiteSz; i += 2) {
