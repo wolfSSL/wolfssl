@@ -17774,6 +17774,73 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
     return err;
 }
 
+/* Convert the multi-precision number to an array of bytes in big-endian format.
+ *
+ * Constant-time implementation.
+ *
+ * The array must be large enough for encoded number - use mp_unsigned_bin_size
+ * to calculate the number of bytes required.
+ * Front-pads the output array with zeros to make number the size of the array.
+ *
+ * @param  [in]   a      SP integer.
+ * @param  [out]  out    Array to put encoding into.
+ * @param  [in]   outSz  Size of the array in bytes.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a or out is NULL.
+ */
+int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
+{
+    int err = MP_OKAY;
+
+    /* Validate parameters. */
+    if ((a == NULL) || (out == NULL) || (outSz < 0)) {
+        err = MP_VAL;
+    }
+
+#if SP_WORD_SIZE > 8
+    if (err == MP_OKAY) {
+        /* Start at the end of the buffer - least significant byte. */
+        int j;
+        unsigned int i;
+        sp_digit mask = (sp_digit)-1;
+        sp_int_digit d;
+
+        /* Put each digit in. */
+        i = 0;
+        for (j = outSz - 1; j >= 0; ) {
+            int b;
+            d = a->dp[i];
+            /* Place each byte of a digit into the buffer. */
+            for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
+                out[j--] = (byte)(d & mask);
+                d >>= 8;
+            }
+            mask &= (sp_digit)0 - (i < a->used - 1);
+            i += (unsigned int)(1 & mask);
+        }
+    }
+#else
+    if ((err == MP_OKAY) && ((unsigned int)outSz < a->used)) {
+        err = MP_VAL;
+    }
+    if (err == MP_OKAY) {
+        unsigned int i;
+        int j;
+        sp_digit mask = (sp_digit)-1;
+
+        i = 0;
+        for (j = outSz - 1; j >= 0; j--) {
+            out[j] = a->dp[i] & mask;
+            mask &= (sp_digit)0 - (i < a->used - 1);
+            i += (unsigned int)(1 & mask);
+        }
+    }
+#endif
+
+    return err;
+}
+
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Store the number in big-endian format in array at an offset.
