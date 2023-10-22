@@ -62,6 +62,9 @@ if  [[ "$RUN_SETUP" == "--run-setup" ]]; then
     echo "Testing a build of wolfSSL in ESP-IDF components directory"
     echo ""
     for file in "test_idf"; do
+        if [ -e "../../../include/user_settings.h" ]; then
+          mv "../../../include/user_settings.h" "../../../include/user_settings.h.${file}.bak"
+        fi
         pushd ${SCRIPT_DIR}/examples/wolfssl_${file}/ && idf.py fullclean build;
         THIS_ERR=$?
         popd
