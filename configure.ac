@@ -8351,26 +8351,30 @@ then
 
     case $host_os in
         *darwin*)
-            # Creates the HAVE_SECURITY_SECXXX_H macros in config.h
+            # Headers used for MacOS default system CA certs behavior. Only MacOS SDK will have this header
             AC_CHECK_HEADERS([Security/SecTrustSettings.h])
+            # Headers used for Apple native cert validation. All device SDKs should have these headers
             AC_CHECK_HEADERS([Security/SecCertificate.h])
             AC_CHECK_HEADERS([Security/SecTrust.h])
             AC_CHECK_HEADERS([Security/SecPolicy.h])
             # Either Security/SecTrustSettings (for MacOS cert loading), or the
             # trio of Security/SecCertificate.h, Security/SecTrust.h, and
-            # Security/SecPolicy.h (for native trust APIs other apple devices)
-            # must be present
-            AS_IF([test -n "$ac_cv_header_Security_SecTrustSettings_h" \
-                   || (test -n "$ac_cv_header_Security_SecCertificate_h" \
-                       && test -n "$ac_cv_header_Security_SecTrust_h" \
-                       && test -n "$ac_cv_header_Security_SecPolicy_h")],
+            # Security/SecPolicy.h (for native trust APIs on other apple devices)
+            # must be present. Default to SecTrustSettings method on MacOS.
+            AS_IF([test "$ac_cv_header_Security_SecTrustSettings_h" = "yes" \
+                   || (test "$ac_cv_header_Security_SecCertificate_h" = "yes" \
+                       && test "$ac_cv_header_Security_SecTrust_h" = "yes" \
+                       && test "$ac_cv_header_Security_SecPolicy_h" = "yes")],
+            [
+                LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
+                AS_IF([test "$ac_cv_header_Security_SecTrustSettings_h" != "yes"],
                 [
-                    LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
-                ],
-                [
-                    AC_MSG_ERROR([Unable to find Apple Security.framework headers])
-                ]
-            )
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_APPLE_NATIVE_CERT_VALIDATION"
+                ])
+            ],
+            [
+              AC_MSG_ERROR([Unable to find Apple Security.framework headers])
+            ])
             ;;
     esac
 fi

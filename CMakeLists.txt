@@ -1723,10 +1723,16 @@ if(WOLFSSL_SYS_CA_CERTS)
         message("Can't enable system CA certs without a filesystem.")
         override_cache(WOLFSSL_SYS_CA_CERTS "no")
     elseif(APPLE)
+        # Headers used for MacOS default system CA certs behavior. Only MacOS SDK will have this header
         check_include_file("Security/SecTrustSettings.h" HAVE_SECURITY_SECTRUSTSETTINGS_H)
+        # Headers used for Apple native cert validation. All device SDKs should have these headers
         check_include_file("Security/SecCertificate.h" HAVE_SECURITY_SECCERTIFICATE_H)
         check_include_file("Security/SecTrust.h" HAVE_SECURITY_SECTRUST_H)
         check_include_file("Security/SecPolicy.h" HAVE_SECURITY_SECPOLICY_H)
+        # Either Security/SecTrustSettings (for MacOS cert loading), or the
+        # trio of Security/SecCertificate.h, Security/SecTrust.h, and
+        # Security/SecPolicy.h (for native trust APIs on other apple devices)
+        # must be present. Default to SecTrustSettings method on MacOS.
         if(HAVE_SECURITY_SECTRUSTSETTINGS_H OR (HAVE_SECURITY_SECCERTIFICATE_H
                                                 AND HAVE_SECURITY_SECTRUST_H
                                                 AND HAVE_SECURITY_SECPOLICY_H))
@@ -1739,6 +1745,14 @@ if(WOLFSSL_SYS_CA_CERTS)
                     message(FATAL_ERROR "Can't enable system CA certs without Security framework.")
                 endif()
             endif()
+
+            # MacOS should not use native cert validation by default, but other apple devices should.
+            if(NOT HAVE_SECURITY_SECTRUSTSETTINGS_H AND HAVE_SECURITY_SECCERTIFICATE_H
+                                                    AND HAVE_SECURITY_SECTRUST_H
+                                                    AND HAVE_SECURITY_SECPOLICY_H)
+                list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_APPLE_NATIVE_CERT_VALIDATION")
+            endif()
+
         else()
             message(FATAL_ERROR "Can't enable system CA certs without Apple Security.framework headers.")
         endif()
