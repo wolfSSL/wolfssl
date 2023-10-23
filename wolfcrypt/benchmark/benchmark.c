@@ -2575,6 +2575,7 @@ static void* benchmarks_do(void* args)
         goto exit;
     }
 
+#ifndef NO_FILESYSTEM
     if (hash_input) {
         XFILE  file;
         file = XFOPEN(hash_input, "rb");
@@ -2642,6 +2643,8 @@ static void* benchmarks_do(void* args)
     else {
         XMEMSET(bench_cipher, 0, (size_t)bench_buf_size);
     }
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(HAVE_INTEL_QA_SYNC)
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf),
                                HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -15458,9 +15461,13 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -print */
 #endif
     e++;
+#ifndef NO_FILESYSTEM
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -hash_input */
+#endif
     e++;
+#ifndef NO_FILESYSTEM
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -cipher_input */
+#endif
 #ifdef ADVANCED_STATS
     e++;
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -cipher_input */
