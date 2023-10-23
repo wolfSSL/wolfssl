@@ -8576,6 +8576,12 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
     ctx->doAppleNativeCertValidationFlag = 1;
     ret = WOLFSSL_SUCCESS;
     loaded = 1;
+
+#if FIPS_VERSION_GE(2,0) /* Gate back to cert 3389 FIPS modules */
+#warning "Cryptographic operations may occur outside the FIPS module boundary" \
+         "Please review FIPS claims for cryptography on this Apple device"
+#endif /* FIPS_VERSION_GE(2,0) */
+
 #else
 /* HAVE_SECURITY_SECXXX_H macros are set by autotools or CMake when searching
  * system for the required SDK headers. If building with user_settings.h, you
