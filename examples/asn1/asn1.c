@@ -470,6 +470,11 @@ int main(int argc, char* argv[])
     if (ret != 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));
     }
+
+    if (fp != stdin) {
+        fclose(fp);
+        fp = stdin;
+    }
     return (ret == 0) ? 0 : 1;
 }
 
