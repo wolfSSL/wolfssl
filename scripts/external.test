@@ -45,4 +45,15 @@ RESULT=$?
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
+# test again, but using system CA certs to verify the server if support is enabled.
+# We don't want to use --sys-ca-certs with static memory, as we don't know how
+# much memory will be required to store an unbounded number of certs
+BUILD_FLAGS="$(./examples/client/client '-#')"
+if echo "$BUILD_FLAGS" | grep -q "WOLFSSL_SYS_CA_CERTS" && ! echo "$BUILD_FLAGS" | grep -q "WOLFSSL_STATIC_MEMORY"; then
+    echo -e "\nConnecting using WOLFSSL_SYS_CA_CERTS..."
+    ./examples/client/client -X -C -h $server -p 443 -g --sys-ca-certs
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed when using WOLFSSL_SYS_CA_CERTS" && exit 1
+fi
+
 exit 0
