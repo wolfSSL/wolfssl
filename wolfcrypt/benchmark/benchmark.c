@@ -2369,11 +2369,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
             printf("%sAlgorithm,key size,operation,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
 #endif
-        #ifdef MULTI_VALUE_STATISTICS
             printf("max duration,min duration,mean duration,sd,\n");
-        #else
-            printf("\n");
-        #endif
             asym_header_printed = 1;
         }
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -2452,11 +2448,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
             printf("%sAlgorithm,key size,operation,avg ms,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
 #endif
-        #ifdef MULTI_VALUE_STATISTICS
-            printf("max duration,min duration,mean duration,sd,\n");
-        #else
             printf("\n");
-        #endif
             asym_header_printed = 1;
         }
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
