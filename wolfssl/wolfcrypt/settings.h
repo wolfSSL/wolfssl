@@ -3143,11 +3143,6 @@ extern void uITRON4_free(void *p) ;
         /* Turning off WOLFSSL_SYS_CA_CERTS b/c NO_CERTS is defined */
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
-
-    #if defined(__APPLE__) && !defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
-        /* Turning off WOLFSSL_SYS_CA_CERTS b/c no Security/SecTrustSettings.h header */
-        #undef WOLFSSL_SYS_CA_CERTS
-    #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */
 
 #if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)

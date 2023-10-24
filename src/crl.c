@@ -844,8 +844,10 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             return BAD_MUTEX_E;
         }
         if (DupX509_CRL(crl, newcrl) != 0) {
-            if (crl != NULL)
+            if (crl != NULL) {
+                wc_UnLockRwLock(&newcrl->crlLock);
                 FreeCRL(crl, 1);
+            }
             return WOLFSSL_FAILURE;
         }
         wc_UnLockRwLock(&newcrl->crlLock);

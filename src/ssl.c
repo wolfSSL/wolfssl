@@ -7942,9 +7942,10 @@ int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl, const unsigned char* buff,
 int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSP");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableOCSP(SSL_CM(ssl), options);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7952,9 +7953,10 @@ int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
 int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSP");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableOCSP(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7963,9 +7965,10 @@ int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_EnableOCSPStapling");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableOCSPStapling(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7973,9 +7976,10 @@ int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSPStapling");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableOCSPStapling(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7983,9 +7987,10 @@ int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
 int wolfSSL_SetOCSP_OverrideURL(WOLFSSL* ssl, const char* url)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_OverrideURL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetOCSPOverrideURL(SSL_CM(ssl), url);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -7995,8 +8000,8 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl,
                         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_Cb");
-    SSL_CM_WARNING(ssl);
     if (ssl) {
+        SSL_CM_WARNING(ssl);
         ssl->ocspIOCtx = ioCbCtx; /* use SSL specific ioCbCtx */
         return wolfSSL_CertManagerSetOCSP_Cb(SSL_CM(ssl),
                                              ioCb, respFreeCb, NULL);
@@ -8398,6 +8403,18 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
 
 #elif defined(__APPLE__)
 
+#if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H) \
+  && !defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION)
+/*
+ * Manually obtains certificates from the system trust store and loads them
+ * directly into wolfSSL "the old way".
+ *
+ * As of MacOS 14.0 we are still able to use this method to access system
+ * certificates. Accessiblity of this API is indicated by the presence of the
+ * Security/SecTrustSettings.h header. In the likely event that Apple removes
+ * access to this API on Macs, this function should be removed and the
+ * DoAppleNativeCertValidation() routine should be used for all devices.
+ */
 static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -8458,6 +8475,7 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 
     return ret;
 }
+#endif /* defined(HAVE_SECURITY_SECTRUSTSETTINGS_H) */
 
 #else
 
@@ -8531,11 +8549,54 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_load_system_CA_certs");
 
 #ifdef USE_WINDOWS_API
+
     ret = LoadSystemCaCertsWindows(ctx, &loaded);
+
 #elif defined(__APPLE__)
+
+#if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H) \
+  && !defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION)
+    /* As of MacOS 14.0 we are still able to access system certificates and
+     * load them manually into wolfSSL "the old way". Accessiblity of this API
+     * is indicated by the presence of the Security/SecTrustSettings.h header */
     ret = LoadSystemCaCertsMac(ctx, &loaded);
+#elif defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION) \
+   || (defined(HAVE_SECURITY_SECCERTIFICATE_H) \
+       && defined(HAVE_SECURITY_SECTRUST_H)    \
+       && defined(HAVE_SECURITY_SECPOLICY_H))
+    /* For other Apple devices, Apple has removed the ability to obtain
+     * certificates from the trust store, so we can't use wolfSSL's built-in
+     * certificate validation mechanisms anymore. We instead must call into the
+     * Security Framework APIs to authenticate peer certificates when received.
+     * (see src/internal.c:DoAppleNativeCertValidation()).
+     * Thus, there is no CA "loading" required, but to keep behavior consistent
+     * with the current API (not using system CA certs unless this function has
+     * been called), we simply set a flag indicating that the new apple trust
+     * verification routine should be used later */
+    ctx->doAppleNativeCertValidationFlag = 1;
+    ret = WOLFSSL_SUCCESS;
+    loaded = 1;
+
+#if FIPS_VERSION_GE(2,0) /* Gate back to cert 3389 FIPS modules */
+#warning "Cryptographic operations may occur outside the FIPS module boundary" \
+         "Please review FIPS claims for cryptography on this Apple device"
+#endif /* FIPS_VERSION_GE(2,0) */
+
 #else
+/* HAVE_SECURITY_SECXXX_H macros are set by autotools or CMake when searching
+ * system for the required SDK headers. If building with user_settings.h, you
+ * will need to manually define WOLFSSL_APPLE_NATIVE_CERT_VALIDATION
+ * and ensure the appropriate Security.framework headers and libraries are
+ * visible to your compiler */
+#error "WOLFSSL_SYS_CA_CERTS on Apple devices requires Security.framework" \
+       " header files to be detected, or a manual override with" \
+       " WOLFSSL_APPLE_NATIVE_CERT_VALIDATION"
+#endif
+
+#else
+
     ret = LoadSystemCaCertsNix(ctx, &loaded);
+
 #endif
 
     if (ret == WOLFSSL_SUCCESS && !loaded) {
@@ -8587,9 +8648,10 @@ int wolfSSL_trust_peer_cert(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerEnableCRL(SSL_CM(ssl), options);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8598,9 +8660,10 @@ int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 int wolfSSL_DisableCRL(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerDisableCRL(SSL_CM(ssl));
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8609,9 +8672,10 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl)
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRL");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerLoadCRL(SSL_CM(ssl), path, type, monitor);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8619,9 +8683,10 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRLFile");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerLoadCRLFile(SSL_CM(ssl), file, type);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -8631,9 +8696,10 @@ int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type)
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetCRL_Cb(SSL_CM(ssl), cb);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -17179,7 +17245,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
  * NOTE: currently wolfSSL_KeepHandshakeResources(WOLFSSL* ssl) must be called
  *       before the ephemeral key is stored.
  * return WOLFSSL_SUCCESS on success */
-int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
+int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 {
     WOLFSSL_EVP_PKEY* ret = NULL;
 
@@ -32481,9 +32547,20 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
-    return (curve_id <= WOLFSSL_ECC_MAX &&
-            ssl->disabledCurves &&
-            ssl->disabledCurves & (1 << curve_id));
+    if (curve_id >= WOLFSSL_FFDHE_START) {
+        /* DH parameters are never disabled. */
+        return 0;
+    }
+    if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
+        WOLFSSL_MSG("Curve id out of supported range");
+        /* Disabled if not in valid range. */
+        return 1;
+    }
+    if (curve_id >= 32) {
+        /* 0 is for invalid and 1-14 aren't used otherwise. */
+        return (ssl->disabledCurves & (1 << (curve_id - 32))) != 0;
+    }
+    return (ssl->disabledCurves & (1 << curve_id)) != 0;
 }
 
 #if (defined(HAVE_ECC) || \
@@ -32543,7 +32620,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         else if ((XSTRNCMP(name, "sm2p256v1", len) == 0) ||
                  (XSTRNCMP(name, "SM2", len) == 0))
         {
-            curve = WOLFSSL_ECC_SECP521R1;
+            curve = WOLFSSL_ECC_SM2P256V1;
         }
     #endif
     #ifdef HAVE_CURVE25519
@@ -32582,10 +32659,8 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         #endif
         }
 
-        if (curve >= (sizeof(word32) * WOLFSSL_BIT_SIZE)) {
-            /* shift left more than size of ctx->disabledCurves causes static
-             * analysis report */
-            WOLFSSL_MSG("curve value is too large for upcoming shift");
+        if (curve >= WOLFSSL_ECC_MAX_AVAIL) {
+            WOLFSSL_MSG("curve value is not supported");
             goto leave;
         }
 
@@ -32612,7 +32687,13 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     for (i = 0; i < groups_len; ++i) {
         /* Switch the bit to off and therefore is enabled. */
         curve = (word16)groups[i];
-        disabled &= ~(1U << curve);
+        if (curve >= 32) {
+            /* 0 is for invalid and 1-14 aren't used otherwise. */
+            disabled &= ~(1U << (curve - 32));
+        }
+        else {
+            disabled &= ~(1U << curve);
+        }
     #ifdef HAVE_SUPPORTED_CURVES
     #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate

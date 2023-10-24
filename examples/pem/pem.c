@@ -151,7 +151,7 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
  * @return  0 on success.
  * @return  1 on failure.
  */
-static int WriteFile(FILE* fp, unsigned char* data, word32 len)
+static int WriteFile(FILE* fp, const char* data, word32 len)
 {
     int ret = 0;
 
@@ -628,6 +628,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
             type);
         if (ret <= 0) {
             fprintf(stderr, "Could not convert DER to PEM\n");
+            free(pem);
         }
         if (ret > 0) {
             *out = pem;
@@ -994,7 +995,7 @@ int main(int argc, char* argv[])
     }
     if (ret == 0) {
         /* Write out PEM. */
-        ret = WriteFile(out_file, out, out_len);
+        ret = WriteFile(out_file, out ? (const char *)out : "", out_len);
         if (ret != 0) {
             fprintf(stderr, "Could not write file\n");
         }
