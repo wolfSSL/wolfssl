@@ -221,8 +221,12 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 /* Free all CRL resources */
 void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 {
-    CRL_Entry* tmp = crl->crlList;
+    CRL_Entry* tmp;
 
+    if (crl == NULL)
+        return;
+
+    tmp = crl->crlList;
     WOLFSSL_ENTER("FreeCRL");
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
