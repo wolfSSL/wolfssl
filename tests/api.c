@@ -26690,32 +26690,32 @@ static int LoadPKCS7SignedDataCerts(
                 ExpectIntGT(*intCARootSz, 0);
 
                 ExpectTrue((fp = XFOPEN(intCA1RSA, "rb")) != XBADFILE);
-                *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
                 if (fp != XBADFILE) {
+                    *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*intCA1Sz, 0);
 
                 ExpectTrue((fp = XFOPEN(intCA2RSA, "rb")) != XBADFILE);
-                *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
                 if (fp != XBADFILE) {
+                    *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*intCA2Sz, 0);
 
                 ExpectTrue((fp = XFOPEN(intServCertRSA, "rb")) != XBADFILE);
-                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                 if (fp != XBADFILE) {
+                    *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*certSz, 0);
 
                 ExpectTrue((fp = XFOPEN(intServKeyRSA, "rb")) != XBADFILE);
-                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                 if (fp != XBADFILE) {
+                    *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
@@ -26734,16 +26734,16 @@ static int LoadPKCS7SignedDataCerts(
                 XMEMCPY(cert, client_cert_der_1024, *certSz);
             #else
                 ExpectTrue((fp = XFOPEN(cli1024Key, "rb")) != XBADFILE);
-                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                 if (fp != XBADFILE) {
+                    *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*keySz, 0);
 
                 ExpectTrue((fp = XFOPEN(cli1024Cert, "rb")) != XBADFILE);
-                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                 if (fp != XBADFILE) {
+                    *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
@@ -26756,40 +26756,41 @@ static int LoadPKCS7SignedDataCerts(
         case ECC_TYPE:
             if (useIntermediateCertChain == 1) {
                 ExpectTrue((fp = XFOPEN(intCARootECC, "rb")) != XBADFILE);
-                *intCARootSz = (word32)XFREAD(intCARoot, 1, *intCARootSz, fp);
                 if (fp != XBADFILE) {
+                    *intCARootSz = (word32)XFREAD(intCARoot, 1, *intCARootSz,
+                                                  fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*intCARootSz, 0);
 
                 ExpectTrue((fp = XFOPEN(intCA1ECC, "rb")) != XBADFILE);
-                *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
                 if (fp != XBADFILE) {
+                    *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*intCA1Sz, 0);
 
                 ExpectTrue((fp = XFOPEN(intCA2ECC, "rb")) != XBADFILE);
-                *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
                 if (fp != XBADFILE) {
+                    *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*intCA2Sz, 0);
 
                 ExpectTrue((fp = XFOPEN(intServCertECC, "rb")) != XBADFILE);
-                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                 if (fp != XBADFILE) {
+                    *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*certSz, 0);
 
                 ExpectTrue((fp = XFOPEN(intServKeyECC, "rb")) != XBADFILE);
-                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                 if (fp != XBADFILE) {
+                    *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
@@ -26803,16 +26804,16 @@ static int LoadPKCS7SignedDataCerts(
                 XMEMCPY(cert, cliecc_cert_der_256, *certSz);
             #else
                 ExpectTrue((fp = XFOPEN(cliEccKey, "rb")) != XBADFILE);
-                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                 if (fp != XBADFILE) {
+                    *keySz = (word32)XFREAD(key, 1, *keySz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
                 ExpectIntGT(*keySz, 0);
 
                 ExpectTrue((fp = XFOPEN(cliEccCert, "rb")) != XBADFILE);
-                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                 if (fp != XBADFILE) {
+                    *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
                     XFCLOSE(fp);
                     fp = XBADFILE;
                 }
