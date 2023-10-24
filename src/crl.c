@@ -221,8 +221,12 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 /* Free all CRL resources */
 void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 {
-    CRL_Entry* tmp = crl->crlList;
+    CRL_Entry* tmp;
 
+    if (crl == NULL)
+        return;
+
+    tmp = crl->crlList;
     WOLFSSL_ENTER("FreeCRL");
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
@@ -829,6 +833,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     WOLFSSL_X509_CRL *crl;
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_crl");
     if (store == NULL || newcrl == NULL || store->cm == NULL)
@@ -837,20 +842,19 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
         if (crl == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_crl_new failed");
             return WOLFSSL_FAILURE;
         }
         if (wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
             WOLFSSL_MSG("wc_LockRwLock_Rd failed");
             return BAD_MUTEX_E;
         }
-        if (DupX509_CRL(crl, newcrl) != 0) {
-            if (crl != NULL) {
-                wc_UnLockRwLock(&newcrl->crlLock);
-                FreeCRL(crl, 1);
-            }
+        ret = DupX509_CRL(crl, newcrl);
+        wc_UnLockRwLock(&newcrl->crlLock);
+        if (ret != 0) {
+            FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
-        wc_UnLockRwLock(&newcrl->crlLock);
         store->crl = store->cm->crl = crl;
         if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
                 != WOLFSSL_SUCCESS) {
