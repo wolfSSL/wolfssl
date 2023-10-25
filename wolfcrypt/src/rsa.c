@@ -2693,7 +2693,7 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
 
     if (ret == 0) {
-        if (mp_to_unsigned_bin_len(tmp, out, (int)*outLen) != MP_OKAY)
+        if (mp_to_unsigned_bin_len_ct(tmp, out, (int)*outLen) != MP_OKAY)
              ret = MP_TO_E;
     }
 #else
