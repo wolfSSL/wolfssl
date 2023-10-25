@@ -56,7 +56,6 @@ jobs:
         run: |
           echo $CSONAR_HUB_PASSWORD > hubpwfile
           $CSONAR_CSHOME/codesonar/bin/codesonar dump_warnings.py --project-file $PROJECT_NAME.prj -auth password -hubuser $CSONAR_HUB_USER -hubpwfile hubpwfile  --hub $CSONAR_HUB_URL --gained-since-previous-analysis --sarif --sarif-detail brief -o diff.sarif
-          rm hubpwfile
       - name: Upload artefact
         uses: actions/upload-artifact@v3
         with:
@@ -80,3 +79,5 @@ jobs:
             to: "mark@hermeling.org"
             reply_to: "mark@hermeling.org"
             attachments: diff.sarif
+      - name: cleanup
+        run: rm hubpwfile
