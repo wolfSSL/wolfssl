@@ -1,5 +1,14 @@
 #!/bin/sh
 
+# bwrap execution environment to avoid port conflicts
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --cap-add ALL --unshare-net --dev-bind / / "$0" "$@"
+    fi
+fi
+
 check_result(){
     if [ $1 -ne 0 ]; then
         if [ -n "$2" ]; then
