@@ -982,7 +982,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifndef _POSIX_C_SOURCE
         #include <zephyr/posix/time.h>
     #else
-        #include <sys/time.h>
+        #include <time.h>
     #endif
 
     time_t z_time(time_t *timer);
