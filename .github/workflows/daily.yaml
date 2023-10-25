@@ -62,6 +62,10 @@ jobs:
         with:
           name: SARIF results summary
           path: diff.sarif
+      - name: Get report
+        run: |
+           $CSONAR_CSHOME/codesonar/bin/codesonar get -auth password -hubuser $CSONAR_HUB_USER -hubpwfile hubpwfile \
+           $CSONAR_HUB_URL/report/aid-$(cat $PROJECT_NAME.prj_files/aid.txt)-3.html -o report.html
       - name: Email results
         uses: dawidd6/action-send-mail@v3
         with:
@@ -71,8 +75,7 @@ jobs:
             password: ${{ secrets.GMAIL_PASSWORD }}
             subject: CodeSonar results for ${{ github.repository }}
             body: CodeSonar-results
-            html_body: file://warnings.md
-            convert_markdown: true
+            html_body: file://report.html
             from: "CodeSonar Analyzer"
             to: "mark@hermeling.org"
             reply_to: "mark@hermeling.org"
