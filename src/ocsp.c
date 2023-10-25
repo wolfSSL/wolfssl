@@ -859,8 +859,8 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
             WOLFSSL_X509* x = wolfSSL_sk_X509_value(certs, idx);
             int derSz = 0;
             const byte* der = wolfSSL_X509_get_der(x, &derSz);
-
-            if (derSz == (int)bs->certSz && XMEMCMP(bs->cert, der, derSz) == 0) {
+            if (der != NULL && derSz == (int)bs->certSz &&
+                    XMEMCMP(bs->cert, der, derSz) == 0) {
                 ret = WOLFSSL_SUCCESS;
                 goto out;
             }
