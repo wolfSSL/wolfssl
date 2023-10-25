@@ -243,8 +243,32 @@
         #define MAX_SAMPLE_RUNS 1000
     #endif
     #define STATS_CLAUSE_SEPARATOR ""
+    #define DECLARE_MULTI_VALUE_STATS_VARS() double deltas[MAX_SAMPLE_RUNS];\
+                                         double max = 0, min = 0, sum = 0,\
+                                         prev = 0, delta;\
+                                         int    runs = 0;
+    #define RECORD_MULTI_VALUE_STATS()  if (runs == 0) {\
+                                            delta = current_time(0) - start;\
+                                            min = delta;\
+                                            max = delta;\
+                                        }\
+                                        else {\
+                                            delta = current_time(0) - prev;\
+                                            if (max < delta)\
+                                                max = delta;\
+                                            else if (min > delta)\
+                                                min = delta;\
+                                        }\
+                                        if (runs < MAX_SAMPLE_RUNS) {\
+                                            deltas[runs] = delta;\
+                                            sum += delta;\
+                                            runs++;\
+                                        }\
+                                        prev = current_time(0)
 #else
     #define STATS_CLAUSE_SEPARATOR "\n"
+    #define DECLARE_MULTI_VALUE_STATS_VARS()
+    #define RECORD_MULTI_VALUE_STATS()  WC_DO_NOTHING
 #endif
 
 #ifdef WOLFSSL_NO_FLOAT_FMT
@@ -3680,11 +3704,7 @@ void bench_rng(void)
     double start;
     long   pos, len, remain;
     WC_RNG myrng;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
@@ -3718,28 +3738,7 @@ void bench_rng(void)
                 remain -= len;
                 pos += len;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -3769,11 +3768,7 @@ static void bench_aescbc_internal(int useDeviceID,
     int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
@@ -3818,28 +3813,7 @@ static void bench_aescbc_internal(int useDeviceID,
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -3894,28 +3868,7 @@ exit_aes_enc:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -3981,11 +3934,7 @@ static void bench_aesgcm_internal(int useDeviceID,
     Aes    dec[BENCH_MAX_PENDING+1];
 #endif
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -4049,28 +3998,7 @@ static void bench_aesgcm_internal(int useDeviceID,
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4130,28 +4058,7 @@ exit_aes_gcm:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4199,11 +4106,7 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
     Aes    dec[BENCH_MAX_PENDING];
 #endif
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -4269,28 +4172,7 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4354,28 +4236,7 @@ exit_aes_gcm:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4470,11 +4331,7 @@ void bench_gmac(int useDeviceID)
     Gmac gmac;
     double start;
     byte tag[AES_AUTH_TAG_SZ];
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* determine GCM GHASH method */
 #ifdef GCM_SMALL
@@ -4510,28 +4367,7 @@ void bench_gmac(int useDeviceID)
             tag, sizeof(tag));
 
         count++;
-    #ifdef MULTI_VALUE_STATISTICS
-        if (runs == 0) {
-            delta = current_time(0) - start;
-            min = delta;
-            max = delta;
-        }
-        else {
-            delta = current_time(0) - prev;
-            if (max < delta)
-                max = delta;
-            else if (min > delta)
-                min = delta;
-        }
-
-        if (runs < MAX_SAMPLE_RUNS) {
-            deltas[runs] = delta;
-            sum += delta;
-            runs++;
-        }
-
-        prev = current_time(0);
-    #endif
+        RECORD_MULTI_VALUE_STATS();
     } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
            || runs < minimum_runs
@@ -4558,11 +4394,7 @@ static void bench_aesecb_internal(int useDeviceID,
     int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
     static const int benchSz = AES_BLOCK_SIZE;
 #else
@@ -4615,28 +4447,7 @@ static void bench_aesecb_internal(int useDeviceID,
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4692,28 +4503,7 @@ exit_aes_enc:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -4762,12 +4552,8 @@ static void bench_aescfb_internal(const byte* key,
 {
     Aes    enc;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, ret, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -4787,28 +4573,7 @@ static void bench_aescfb_internal(const byte* key,
                 printf("wc_AesCfbEncrypt failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -4845,12 +4610,8 @@ static void bench_aesofb_internal(const byte* key,
 {
     Aes    enc;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, ret, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -4876,28 +4637,7 @@ static void bench_aesofb_internal(const byte* key,
                 printf("wc_AesCfbEncrypt failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -4934,12 +4674,8 @@ void bench_aesxts(void)
 {
     XtsAes aes;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count, ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -4972,28 +4708,7 @@ void bench_aesxts(void)
                 printf("wc_AesXtsEncrypt failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5031,28 +4746,7 @@ void bench_aesxts(void)
                 printf("wc_AesXtsDecrypt failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5077,12 +4771,8 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
 {
     Aes    enc;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count, ret = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -5106,28 +4796,7 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
                 printf("wc_AesCtrEncrypt failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5164,12 +4833,8 @@ void bench_aesccm(int useDeviceID)
 {
     Aes    enc;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5204,28 +4869,7 @@ void bench_aesccm(int useDeviceID)
             ret |= wc_AesCcmEncrypt(&enc, bench_cipher, bench_plain, bench_size,
                 bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5257,28 +4901,7 @@ void bench_aesccm(int useDeviceID)
             ret |= wc_AesCcmDecrypt(&enc, bench_plain, bench_cipher, bench_size,
                 bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5316,11 +4939,9 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     byte siv[AES_BLOCK_SIZE];
     int count = 0;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
+#ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
@@ -5334,28 +4955,7 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
                 printf("wc_AesSivEncrypt failed (%d)\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5384,28 +4984,7 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
                 printf("wc_AesSivDecrypt failed (%d)\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5437,11 +5016,9 @@ void bench_poly1305(void)
     byte     mac[16];
     double   start;
     int      ret = 0, i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
+#ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
@@ -5460,28 +5037,7 @@ void bench_poly1305(void)
                     printf("Poly1305Update failed: %d\n", ret);
                     break;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             wc_Poly1305Final(&enc, mac);
             count += i;
@@ -5506,28 +5062,7 @@ void bench_poly1305(void)
                     break;
                 }
                 wc_Poly1305Final(&enc, mac);
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             count += i;
         } while (bench_stats_check(start)
@@ -5550,11 +5085,9 @@ void bench_camellia(void)
     Camellia cam;
     double   start;
     int      ret, i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
+#ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
@@ -5573,28 +5106,7 @@ void bench_camellia(void)
                 printf("CamelliaCbcEncrypt failed: %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
    } while (bench_stats_check(start)
@@ -5615,14 +5127,10 @@ void bench_sm4_cbc(void)
 {
     wc_Sm4 sm4;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret;
     int    i;
     int    count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -5647,28 +5155,7 @@ void bench_sm4_cbc(void)
                 printf("Sm4CbcEncrypt failed: %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5695,28 +5182,7 @@ void bench_sm4_cbc(void)
                 printf("Sm4CbcDecrypt failed: %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5737,14 +5203,10 @@ void bench_sm4_gcm(void)
 {
     wc_Sm4 sm4;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret;
     int    i;
     int    count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5775,28 +5237,7 @@ void bench_sm4_gcm(void)
                 printf("Sm4GcmEncrypt failed: %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5825,28 +5266,7 @@ void bench_sm4_gcm(void)
                 printf("Sm4GcmDecrypt failed: %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5867,12 +5287,8 @@ void bench_sm4_ccm()
 {
     wc_Sm4 enc;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5901,28 +5317,7 @@ void bench_sm4_ccm()
             ret |= wc_Sm4CcmEncrypt(&enc, bench_cipher, bench_plain, bench_size,
                 bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -5953,28 +5348,7 @@ void bench_sm4_ccm()
             ret |= wc_Sm4CcmDecrypt(&enc, bench_plain, bench_cipher, bench_size,
                 bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -6004,11 +5378,7 @@ void bench_des(int useDeviceID)
     int    ret = 0, i, count = 0, times, pending = 0;
     Des3   enc[BENCH_MAX_PENDING];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
@@ -6049,28 +5419,7 @@ void bench_des(int useDeviceID)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -6100,11 +5449,7 @@ void bench_arc4(int useDeviceID)
     int    ret = 0, i, count = 0, times, pending = 0;
     Arc4   enc[BENCH_MAX_PENDING];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
@@ -6144,28 +5489,7 @@ void bench_arc4(int useDeviceID)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -6195,13 +5519,7 @@ void bench_chacha(void)
     ChaCha enc;
     double start;
     int    i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     XMEMSET(&enc, 0, sizeof(enc));
     wc_Chacha_SetKey(&enc, bench_key, 16);
@@ -6211,28 +5529,7 @@ void bench_chacha(void)
         for (i = 0; i < numBlocks; i++) {
             wc_Chacha_SetIV(&enc, bench_iv, 0);
             wc_Chacha_Process(&enc, bench_cipher, bench_plain, bench_size);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -6253,11 +5550,7 @@ void bench_chacha20_poly1305_aead(void)
 {
     double start;
     int    ret = 0, i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     XMEMSET(authTag, 0, sizeof(authTag));
@@ -6274,28 +5567,7 @@ void bench_chacha20_poly1305_aead(void)
                 printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -6318,11 +5590,7 @@ void bench_md5(int useDeviceID)
     wc_Md5 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_MD5_DIGEST_SIZE, HEAP_HINT);
@@ -6367,28 +5635,7 @@ void bench_md5(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -6425,28 +5672,7 @@ void bench_md5(int useDeviceID)
                     ret = wc_Md5Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_md5;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -6480,11 +5706,7 @@ void bench_sha(int useDeviceID)
     wc_Sha hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -6528,28 +5750,7 @@ void bench_sha(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -6587,28 +5788,7 @@ void bench_sha(int useDeviceID)
                     ret = wc_ShaFinal(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -6640,11 +5820,7 @@ void bench_sha224(int useDeviceID)
     wc_Sha224 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA224_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -6685,28 +5861,7 @@ void bench_sha224(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -6775,11 +5930,7 @@ void bench_sha256(int useDeviceID)
     wc_Sha256 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA256_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -6823,28 +5974,7 @@ void bench_sha256(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -6881,28 +6011,7 @@ void bench_sha256(int useDeviceID)
                     ret = wc_Sha256Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha256;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -6932,11 +6041,7 @@ void bench_sha384(int useDeviceID)
     wc_Sha384 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA384_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -6977,28 +6082,7 @@ void bench_sha384(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7035,28 +6119,7 @@ void bench_sha384(int useDeviceID)
                     ret = wc_Sha384Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha384;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7088,11 +6151,7 @@ void bench_sha512(int useDeviceID)
     wc_Sha512 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA512_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -7133,28 +6192,7 @@ void bench_sha512(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7191,28 +6229,7 @@ void bench_sha512(int useDeviceID)
                     ret = wc_Sha512Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha512;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7244,11 +6261,7 @@ void bench_sha512_224(int useDeviceID)
     wc_Sha512_224 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA512_224_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -7289,28 +6302,7 @@ void bench_sha512_224(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7347,28 +6339,7 @@ void bench_sha512_224(int useDeviceID)
                     ret = wc_Sha512_224Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha512_224;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7401,12 +6372,8 @@ void bench_sha512_256(int useDeviceID)
     wc_Sha512_256 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
-   WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
+    DECLARE_MULTI_VALUE_STATS_VARS()
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA512_256_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
                   WC_SHA512_256_DIGEST_SIZE, HEAP_HINT);
@@ -7446,28 +6413,7 @@ void bench_sha512_256(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7504,28 +6450,7 @@ void bench_sha512_256(int useDeviceID)
                     ret = wc_Sha512_256Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha512_256;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7561,11 +6486,7 @@ void bench_sha3_224(int useDeviceID)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_224_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -7606,28 +6527,7 @@ void bench_sha3_224(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7664,28 +6564,7 @@ void bench_sha3_224(int useDeviceID)
                     ret = wc_Sha3_224_Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha3_224;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7716,11 +6595,7 @@ void bench_sha3_256(int useDeviceID)
 {
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_256_DIGEST_SIZE, HEAP_HINT);
@@ -7762,28 +6637,7 @@ void bench_sha3_256(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7820,28 +6674,7 @@ void bench_sha3_256(int useDeviceID)
                     ret = wc_Sha3_256_Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha3_256;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -7873,11 +6706,7 @@ void bench_sha3_384(int useDeviceID)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_384_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -7918,28 +6747,7 @@ void bench_sha3_384(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -7976,28 +6784,7 @@ void bench_sha3_384(int useDeviceID)
                     ret = wc_Sha3_384_Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha3_384;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -8029,12 +6816,8 @@ void bench_sha3_512(int useDeviceID)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
-   WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
+    DECLARE_MULTI_VALUE_STATS_VARS()
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_512_DIGEST_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
                   WC_SHA3_512_DIGEST_SIZE, HEAP_HINT);
@@ -8074,28 +6857,7 @@ void bench_sha3_512(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -8132,28 +6894,7 @@ void bench_sha3_512(int useDeviceID)
                     ret = wc_Sha3_512_Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sha3_512;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -8184,12 +6925,8 @@ void bench_shake128(int useDeviceID)
 {
     wc_Shake hash[BENCH_MAX_PENDING];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count = 0, times, pending = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_128_BLOCK_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8230,28 +6967,7 @@ void bench_shake128(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -8290,28 +7006,7 @@ void bench_shake128(int useDeviceID)
                         WC_SHA3_128_BLOCK_SIZE);
                 if (ret != 0)
                     goto exit_shake128;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -8342,12 +7037,8 @@ void bench_shake256(int useDeviceID)
 {
     wc_Shake hash[BENCH_MAX_PENDING];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count = 0, times, pending = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_SHA3_256_BLOCK_SIZE, HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8388,28 +7079,7 @@ void bench_shake256(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -8448,28 +7118,7 @@ void bench_shake256(int useDeviceID)
                         WC_SHA3_256_BLOCK_SIZE);
                 if (ret != 0)
                     goto exit_shake256;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -8501,12 +7150,8 @@ void bench_sm3(int useDeviceID)
 {
     wc_Sm3 hash[BENCH_MAX_PENDING];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count = 0, times, pending = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SM3_DIGEST_SIZE,
         HEAP_HINT);
     WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SM3_DIGEST_SIZE,
@@ -8546,28 +7191,7 @@ void bench_sm3(int useDeviceID)
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
 
@@ -8603,28 +7227,7 @@ void bench_sm3(int useDeviceID)
                     ret = wc_Sm3Final(hash, digest[0]);
                 if (ret != 0)
                     goto exit_sm3;
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -8656,12 +7259,8 @@ void bench_ripemd(void)
     RipeMd hash;
     byte   digest[RIPEMD_DIGEST_SIZE];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count, ret = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -8682,28 +7281,7 @@ void bench_ripemd(void)
                     printf("wc_RipeMdUpdate failed, retval %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             ret = wc_RipeMdFinal(&hash, digest);
             if (ret != 0) {
@@ -8737,28 +7315,7 @@ void bench_ripemd(void)
                     printf("wc_RipeMdFinal failed, retval %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             count += i;
         } while (bench_stats_check(start)
@@ -8784,11 +7341,9 @@ void bench_blake2b(void)
     byte    digest[64];
     double  start;
     int     ret = 0, i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
+#ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
@@ -8807,28 +7362,7 @@ void bench_blake2b(void)
                     printf("Blake2bUpdate failed, ret = %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             ret = wc_Blake2bFinal(&b2b, digest, 64);
             if (ret != 0) {
@@ -8861,28 +7395,7 @@ void bench_blake2b(void)
                     printf("Blake2bFinal failed, ret = %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             count += i;
         } while (bench_stats_check(start)
@@ -8905,11 +7418,9 @@ void bench_blake2s(void)
     byte    digest[32];
     double  start;
     int     ret = 0, i, count;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
+#ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
@@ -8928,28 +7439,7 @@ void bench_blake2s(void)
                     printf("Blake2sUpdate failed, ret = %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             ret = wc_Blake2sFinal(&b2s, digest, 32);
             if (ret != 0) {
@@ -8982,28 +7472,7 @@ void bench_blake2s(void)
                     printf("Blake2sFinal failed, ret = %d\n", ret);
                     return;
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             }
             count += i;
         } while (bench_stats_check(start)
@@ -9028,12 +7497,8 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     byte    digest[AES_BLOCK_SIZE];
     word32  digestSz = sizeof(digest);
     double  start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int     ret, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef WOLFSSL_SECO_CAAM
     unsigned int keyID;
     int keyGroup = 1; /* group one was chosen arbitrarily */
@@ -9082,28 +7547,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
                 printf("CmacUpdate failed, ret = %d\n", ret);
                 return;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         /* Note: final force zero's the Cmac struct */
         ret = wc_CmacFinal(&cmac, digest, &digestSz);
@@ -9142,12 +7586,8 @@ void bench_scrypt(void)
 {
     byte   derived[64];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret, i, count;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -9163,28 +7603,7 @@ void bench_scrypt(void)
                 printf("scrypt failed, ret = %d\n", ret);
                 goto exit;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -9210,11 +7629,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
     Hmac   hmac[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
                      WC_MAX_DIGEST_SIZE, HEAP_HINT);
@@ -9284,28 +7699,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
                         goto exit_hmac;
                     }
                 }
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for i */
         } while (pending > 0);
     } while (bench_stats_check(start)
@@ -9436,11 +7830,6 @@ void bench_pbkdf2(void)
 {
     double start;
     int    ret = 0, count = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char* passwd32 = "passwordpasswordpasswordpassword";
     WOLFSSL_SMALL_STACK_STATIC const byte salt32[] = {
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
@@ -9448,6 +7837,7 @@ void bench_pbkdf2(void)
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
                             0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
     byte derived[32];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -9458,28 +7848,7 @@ void bench_pbkdf2(void)
         ret = wc_PBKDF2(derived, (const byte*)passwd32, (int)XSTRLEN(passwd32),
             salt32, (int)sizeof(salt32), 1000, 32, WC_SHA256);
         count++;
-    #ifdef MULTI_VALUE_STATISTICS
-        if (runs == 0) {
-            delta = current_time(0) - start;
-            min = delta;
-            max = delta;
-        }
-        else {
-            delta = current_time(0) - prev;
-            if (max < delta)
-                max = delta;
-            else if (min > delta)
-                min = delta;
-        }
-
-        if (runs < MAX_SAMPLE_RUNS) {
-            deltas[runs] = delta;
-            sum += delta;
-            runs++;
-        }
-
-        prev = current_time(0);
-    #endif
+        RECORD_MULTI_VALUE_STATS();
     } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
        || runs < minimum_runs
@@ -9499,15 +7868,11 @@ void bench_pbkdf2(void)
 void bench_siphash(void)
 {
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, count;
     const char* passwd16 = "passwordpassword";
     byte out[16];
     int    i;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -9518,28 +7883,7 @@ void bench_siphash(void)
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SipHash((const byte*)passwd16, bench_plain, bench_size,
                 out, 8);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -9563,28 +7907,7 @@ void bench_siphash(void)
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SipHash((const byte*)passwd16, bench_plain, bench_size,
                 out, 16);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -9673,14 +7996,10 @@ static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
     RsaKey genKey[BENCH_MAX_PENDING];
 #endif
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count = 0, times, pending = 0;
     const long rsa_e_val = WC_RSA_EXPONENT;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef WOLFSSL_SMALL_STACK
     genKey = (RsaKey *)XMALLOC(sizeof(*genKey) * BENCH_MAX_PENDING,
@@ -9722,28 +8041,7 @@ static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -9907,12 +8205,8 @@ static void bench_rsa_helper(int useDeviceID, RsaKey rsaKey[BENCH_MAX_PENDING],
     const int   len = (int)TEST_STRING_SZ;
 #endif
     double      start = 0.0F;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
@@ -9982,28 +8276,7 @@ static void bench_rsa_helper(int useDeviceID, RsaKey rsaKey[BENCH_MAX_PENDING],
                         }
                     }
                 } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -10055,28 +8328,7 @@ exit_rsa_verify:
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -10115,28 +8367,7 @@ exit_rsa_pub:
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -10208,28 +8439,7 @@ exit_rsa_sign:
                         }
                     }
                 } /* for i */
-            #ifdef MULTI_VALUE_STATISTICS
-                if (runs == 0) {
-                    delta = current_time(0) - start;
-                    min = delta;
-                    max = delta;
-                }
-                else {
-                    delta = current_time(0) - prev;
-                    if (max < delta)
-                        max = delta;
-                    else if (min > delta)
-                        min = delta;
-                }
-
-                if (runs < MAX_SAMPLE_RUNS) {
-                    deltas[runs] = delta;
-                    sum += delta;
-                    runs++;
-                }
-
-                prev = current_time(0);
-            #endif
+                RECORD_MULTI_VALUE_STATS();
             } /* for times */
             count += times;
         } while (bench_stats_check(start)
@@ -10476,11 +8686,6 @@ void bench_dh(int useDeviceID)
     int    count = 0, times, pending = 0;
     const byte* tmp = NULL;
     double start = 0.0F;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
 #ifdef WOLFSSL_SMALL_STACK
     DhKey *dhKey = NULL;
 #else
@@ -10504,6 +8709,7 @@ void bench_dh(int useDeviceID)
     int paramName = 0;
 #endif
 #endif
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING,
                      BENCH_DH_KEY_SIZE, HEAP_HINT);
@@ -10670,28 +8876,7 @@ void bench_dh(int useDeviceID)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -10747,28 +8932,7 @@ exit_dh_gen:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -10814,12 +8978,8 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
 {
     int ret = 0, times, count, pending = 0;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -10843,28 +9003,7 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
 #endif
             if (ret != 0)
                 goto exit;
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -10884,15 +9023,11 @@ static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
 {
     int ret = 0, times, count, pending = 0;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
     byte ct[KYBER_MAX_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
     word32 ctSz;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     ret = wc_KyberKey_CipherTextSize(key, &ctSz);
     if (ret != 0) {
@@ -10917,28 +9052,7 @@ static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
 #endif
             if (ret != 0)
                 goto exit_encap;
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -10968,28 +9082,7 @@ exit_encap:
             ret = wc_KyberKey_Decapsulate(key, ss, ct, ctSz);
             if (ret != 0)
                 goto exit_decap;
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -11353,28 +9446,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
                 printf("wc_LmsKey_Sign failed: %d\n", ret);
                 goto exit_lms_sign_verify;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
 
         count += times;
@@ -11406,28 +9478,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
                 printf("wc_LmsKey_Verify failed: %d\n", ret);
                 goto exit_lms_sign_verify;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
 
         count += times;
@@ -11754,12 +9805,8 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
 #endif
     char name[BENCH_ECC_NAME_SZ];
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef WOLFSSL_SMALL_STACK
     genKey = (ecc_key *)XMALLOC(sizeof(*genKey) * BENCH_MAX_PENDING,
@@ -11806,28 +9853,7 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -11883,12 +9909,8 @@ void bench_ecc(int useDeviceID, int curveId)
 
     word32 x[BENCH_MAX_PENDING];
     double start = 0;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef HAVE_ECC_DHE
     WC_DECLARE_ARRAY(shared, byte,
@@ -11996,28 +10018,7 @@ void bench_ecc(int useDeviceID, int curveId)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12082,28 +10083,7 @@ exit_ecdhe:
                     }
                 } /* bench_async_check */
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12159,28 +10139,7 @@ exit_ecdsa_sign:
                     }
                 } /* if bench_async_check */
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12259,12 +10218,8 @@ void bench_eccEncrypt(int curveId)
     word32  bench_plainSz = bench_size;
     int     ret, i, count;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef WOLFSSL_SMALL_STACK
     userA = (ecc_key *)XMALLOC(sizeof(*userA),
@@ -12338,28 +10293,7 @@ void bench_eccEncrypt(int curveId)
                 printf("wc_ecc_encrypt failed! %d\n", ret);
                 goto exit_enc;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -12391,28 +10325,7 @@ exit_enc:
                 printf("wc_ecc_decrypt failed! %d\n", ret);
                 goto exit_dec;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -12459,12 +10372,8 @@ static void bench_sm2_MakeKey(int useDeviceID)
     ecc_key genKey[BENCH_MAX_PENDING];
     char name[BENCH_ECC_NAME_SZ];
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     deviceID = useDeviceID ? devId : INVALID_DEVID;
     keySize = wc_ecc_get_curve_size_from_id(ECC_SM2P256V1);
@@ -12501,28 +10410,7 @@ static void bench_sm2_MakeKey(int useDeviceID)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12564,12 +10452,8 @@ void bench_sm2(int useDeviceID)
 #endif
     word32 x[BENCH_MAX_PENDING];
     double start = 0;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef HAVE_ECC_DHE
     WC_DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
@@ -12656,28 +10540,7 @@ void bench_sm2(int useDeviceID)
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12739,28 +10602,7 @@ exit_ecdhe:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12806,28 +10648,7 @@ exit_ecdsa_sign:
                     }
                 }
             } /* for i */
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for times */
         count += times;
     } while (bench_stats_check(start)
@@ -12884,13 +10705,9 @@ void bench_curve25519KeyGen(int useDeviceID)
 {
     curve25519_key genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -12913,28 +10730,7 @@ void bench_curve25519KeyGen(int useDeviceID)
                 printf("wc_curve25519_make_key failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -12955,15 +10751,11 @@ void bench_curve25519KeyAgree(int useDeviceID)
 {
     curve25519_key genKey, genKey2;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret, i, count;
     byte   shared[32];
     const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -12996,28 +10788,7 @@ void bench_curve25519KeyAgree(int useDeviceID)
                 printf("curve25519_shared_secret failed: %d\n", ret);
                 goto exit;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13045,13 +10816,9 @@ void bench_ed25519KeyGen(void)
 #ifdef HAVE_ED25519_MAKE_KEY
     ed25519_key genKey;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13064,28 +10831,7 @@ void bench_ed25519KeyGen(void)
             wc_ed25519_init(&genKey);
             (void)wc_ed25519_make_key(&gRng, 32, &genKey);
             wc_ed25519_free(&genKey);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13110,16 +10856,12 @@ void bench_ed25519KeySign(void)
     ed25519_key genKey;
 #ifdef HAVE_ED25519_SIGN
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     byte   sig[ED25519_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #endif
 
     wc_ed25519_init(&genKey);
@@ -13150,28 +10892,7 @@ void bench_ed25519KeySign(void)
                 printf("ed25519_sign_msg failed\n");
                 goto exit_ed_sign;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13202,28 +10923,7 @@ exit_ed_sign:
                 printf("ed25519_verify_msg failed\n");
                 goto exit_ed_verify;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13249,13 +10949,9 @@ void bench_curve448KeyGen(void)
 {
     curve448_key genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13271,28 +10967,7 @@ void bench_curve448KeyGen(void)
                 printf("wc_curve448_make_key failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13312,15 +10987,11 @@ void bench_curve448KeyAgree(void)
 {
     curve448_key genKey, genKey2;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    ret, i, count;
     byte   shared[56];
     const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13351,28 +11022,7 @@ void bench_curve448KeyAgree(void)
                 printf("curve448_shared_secret failed: %d\n", ret);
                 goto exit;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13398,13 +11048,9 @@ void bench_ed448KeyGen(void)
 {
     ed448_key genKey;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13417,28 +11063,7 @@ void bench_ed448KeyGen(void)
             wc_ed448_init(&genKey);
             (void)wc_ed448_make_key(&gRng, ED448_KEY_SIZE, &genKey);
             wc_ed448_free(&genKey);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13460,16 +11085,12 @@ void bench_ed448KeySign(void)
     ed448_key genKey;
 #ifdef HAVE_ED448_SIGN
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     byte   sig[ED448_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 #endif
 
     wc_ed448_init(&genKey);
@@ -13499,28 +11120,7 @@ void bench_ed448KeySign(void)
                 printf("ed448_sign_msg failed\n");
                 goto exit_ed_sign;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13551,28 +11151,7 @@ exit_ed_sign:
                 printf("ed448_verify_msg failed\n");
                 goto exit_ed_verify;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13599,14 +11178,10 @@ void bench_eccsiKeyGen(void)
 {
     EccsiKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     int    ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13623,28 +11198,7 @@ void bench_eccsiKeyGen(void)
                 break;
             }
             wc_FreeEccsiKey(&genKey);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13663,17 +11217,13 @@ void bench_eccsiPairGen(void)
 {
     EccsiKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     mp_int ssk;
     ecc_point* pvt;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
@@ -13694,28 +11244,7 @@ void bench_eccsiPairGen(void)
                 printf("wc_MakeEccsiPair failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13740,11 +11269,6 @@ void bench_eccsiValidate(void)
 {
     EccsiKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     mp_int ssk;
@@ -13752,6 +11276,7 @@ void bench_eccsiValidate(void)
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int valid;
     int ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13775,28 +11300,7 @@ void bench_eccsiValidate(void)
                        valid);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13819,11 +11323,6 @@ void bench_eccsi(void)
 {
     EccsiKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     mp_int ssk;
@@ -13836,6 +11335,7 @@ void bench_eccsi(void)
     word32 sigSz = sizeof(sig);
     int ret;
     int verified;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13862,28 +11362,7 @@ void bench_eccsi(void)
                 printf("wc_SignEccsiHash failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13914,28 +11393,7 @@ void bench_eccsi(void)
                        verified);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -13961,14 +11419,10 @@ void bench_sakkeKeyGen(void)
 {
     SakkeKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     int    ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -13985,28 +11439,7 @@ void bench_sakkeKeyGen(void)
                 break;
             }
             wc_FreeSakkeKey(&genKey);
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14025,16 +11458,12 @@ void bench_sakkeRskGen(void)
 {
     SakkeKey genKey;
     double start;
- #ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -14053,28 +11482,7 @@ void bench_sakkeRskGen(void)
                 printf("wc_MakeSakkeRsk failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14098,17 +11506,13 @@ void bench_sakkeValidate(void)
 {
     SakkeKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int valid;
     int ret;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -14130,28 +11534,7 @@ void bench_sakkeValidate(void)
                        valid);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14173,11 +11556,6 @@ void bench_sakke(void)
 {
     SakkeKey genKey;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
@@ -14192,6 +11570,7 @@ void bench_sakke(void)
     word32 len = 0;
     byte* iTable = NULL;
     word32 iTableLen = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 #ifdef MULTI_VALUE_STATISTICS
@@ -14216,28 +11595,7 @@ void bench_sakke(void)
                 printf("wc_MakeSakkeEncapsulatedSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         } /* for */
         count += i;
     } while (bench_stats_check(start)
@@ -14268,28 +11626,7 @@ void bench_sakke(void)
                 printf("wc_DeriveSakkeSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         if (ret != 0) break;
         count += i;
@@ -14325,28 +11662,7 @@ void bench_sakke(void)
                 printf("wc_MakeSakkeEncapsulatedSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14379,28 +11695,7 @@ void bench_sakke(void)
                 printf("wc_DeriveSakkeSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         if (ret != 0) break;
         count += i;
@@ -14440,28 +11735,7 @@ void bench_sakke(void)
                 printf("wc_DeriveSakkeSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         if (ret != 0) break;
         count += i;
@@ -14494,28 +11768,7 @@ void bench_sakke(void)
                 printf("wc_DeriveSakkeSSV failed: %d\n", ret);
                 break;
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         if (ret != 0) break;
         count += i;
@@ -14544,16 +11797,12 @@ void bench_falconKeySign(byte level)
     int    ret = 0;
     falcon_key key;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     byte   sig[FALCON_MAX_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     ret = wc_falcon_init(&key);
     if (ret != 0) {
@@ -14604,28 +11853,7 @@ void bench_falconKeySign(byte level)
                     printf("wc_falcon_sign_msg failed\n");
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14661,28 +11889,7 @@ void bench_falconKeySign(byte level)
                     ret = -1;
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14709,16 +11916,12 @@ void bench_dilithiumKeySign(byte level)
     int    ret = 0;
     dilithium_key key;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     byte   sig[DILITHIUM_MAX_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -14779,28 +11982,7 @@ void bench_dilithiumKeySign(byte level)
                     printf("wc_dilithium_sign_msg failed\n");
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14837,28 +12019,7 @@ void bench_dilithiumKeySign(byte level)
                     ret = -1;
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -14885,16 +12046,12 @@ void bench_sphincsKeySign(byte level, byte optim)
     int    ret = 0;
     sphincs_key key;
     double start;
-#ifdef MULTI_VALUE_STATISTICS
-    double deltas[MAX_SAMPLE_RUNS];
-    double max = 0, min = 0, sum = 0, prev = 0, delta;
-    int    runs = 0;
-#endif
     int    i, count;
     byte   sig[SPHINCS_MAX_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
 #ifdef MULTI_VALUE_STATISTICS
     XMEMSET(deltas, 0, sizeof(deltas));
@@ -14979,28 +12136,7 @@ void bench_sphincsKeySign(byte level, byte optim)
                     printf("wc_sphincs_sign_msg failed\n");
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
@@ -15044,28 +12180,7 @@ void bench_sphincsKeySign(byte level, byte optim)
                     ret = -1;
                 }
             }
-        #ifdef MULTI_VALUE_STATISTICS
-            if (runs == 0) {
-                delta = current_time(0) - start;
-                min = delta;
-                max = delta;
-            }
-            else {
-                delta = current_time(0) - prev;
-                if (max < delta)
-                    max = delta;
-                else if (min > delta)
-                    min = delta;
-            }
-
-            if (runs < MAX_SAMPLE_RUNS) {
-                deltas[runs] = delta;
-                sum += delta;
-                runs++;
-            }
-
-            prev = current_time(0);
-        #endif
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
     } while (bench_stats_check(start)
