@@ -11656,7 +11656,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
 #ifndef WOLFSSL_SMALL_STACK
     byte    suitesCpy[WOLFSSL_MAX_SUITE_SZ];
 #else
-    byte*   suitesCpy;
+    byte*   suitesCpy = NULL;
 #endif
     word16  suitesCpySz = 0;
     word16  i = 0;
@@ -11696,12 +11696,16 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
     /* list contains ciphers either only for TLS 1.3 or <= TLS 1.2 */
 
 #ifdef WOLFSSL_SMALL_STACK
-    suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (suitesCpy == NULL)
-        return WOLFSSL_FAILURE;
+    if (suites->suiteSz > 0) {
+        suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (suitesCpy == NULL)
+            return WOLFSSL_FAILURE;
+    }
 #endif
 
-    XMEMCPY(suitesCpy, suites->suites, suites->suiteSz);
+    if (suites->suiteSz > 0)
+        XMEMCPY(suitesCpy, suites->suites, suites->suiteSz);
     suitesCpySz = suites->suiteSz;
 
     ret = SetCipherList(ctx, suites, list);
