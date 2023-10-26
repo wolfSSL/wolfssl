@@ -3,9 +3,9 @@ on:
   push:
     branches:
       - release/daily
-  #pull_request:
-  #  branches:
-  #    - 'release/daily'
+  pull_request:
+    branches:
+      - 'release/daily'
   #schedule:
   #  - cron: '17 2 * * *'
 
@@ -56,9 +56,28 @@ jobs:
         run: |
           echo $CSONAR_HUB_PASSWORD > hubpwfile
           $CSONAR_CSHOME/codesonar/bin/codesonar dump_warnings.py --project-file $PROJECT_NAME.prj -auth password -hubuser $CSONAR_HUB_USER -hubpwfile hubpwfile  --hub $CSONAR_HUB_URL --gained-since-previous-analysis --sarif --sarif-detail brief -o diff.sarif
-          rm hubpwfile
       - name: Upload artefact
         uses: actions/upload-artifact@v3
         with:
           name: SARIF results summary
           path: diff.sarif
+      - name: Get report
+        run: |
+           $CSONAR_CSHOME/codesonar/bin/codesonar get -auth password -hubuser $CSONAR_HUB_USER -hubpwfile hubpwfile \
+           $CSONAR_HUB_URL/report/aid-$(cat $PROJECT_NAME.prj_files/aid.txt)-3.html -o report.html
+      - name: Email results
+        uses: dawidd6/action-send-mail@v3
+        with:
+            server_address: smtp.gmail.com
+            server_port: 465
+            username: ${{ secrets.GMAIL_USERNAME }}
+            password: ${{ secrets.GMAIL_PASSWORD }}
+            subject: CodeSonar results for ${{ github.repository }}
+            body: CodeSonar-results
+            html_body: file://report.html
+            from: "CodeSonar Analyzer"
+            to: "mark@hermeling.org"
+            reply_to: "mark@hermeling.org"
+            attachments: diff.sarif
+      - name: cleanup
+        run: rm hubpwfile
