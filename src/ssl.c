@@ -8715,9 +8715,10 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetCRL_IOCb(SSL_CM(ssl), cb);
+    }
     else
         return BAD_FUNC_ARG;
 }
