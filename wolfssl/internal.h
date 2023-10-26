@@ -4732,6 +4732,9 @@ struct Options {
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
+#ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
+    word16            dtls13NoHrrOnResume:1;
+#endif
 #ifdef WOLFSSL_DTLS_CH_FRAG
     word16            dtls13ChFrag:1;
 #endif

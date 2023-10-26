@@ -21,11 +21,13 @@
 
 /*
  * WOLFSSL_DTLS_NO_HVR_ON_RESUME
+ * WOLFSSL_DTLS13_NO_HRR_ON_RESUME
  *     If defined, a DTLS server will not do a cookie exchange on successful
  *     client resumption: the resumption will be faster (one RTT less) and
- *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
- *     less). On the other hand, if a valid SessionID is collected, forged
- *     clientHello messages will consume resources on the server.
+ *     will consume less bandwidth (one ClientHello and one
+ *     HelloVerifyRequest/HelloRetryRequest less). On the other hand, if a valid
+ *     SessionID/ticket/psk is collected, forged clientHello messages will
+ *     consume resources on the server.
  * WOLFSSL_DTLS_CH_FRAG
  *     Allow a server to process a fragmented second/verified (one containing a
  *     valid cookie response) ClientHello message. The first/unverified (one
@@ -769,6 +771,15 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         }
     }
 
+#ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
+    if (ssl->options.dtls13NoHrrOnResume && usePSK && pskInfo.isValid &&
+            !cs.doHelloRetry) {
+        /* Skip HRR on resumption */
+        ((WOLFSSL*)ssl)->options.dtlsStateful = 1;
+        goto dtls13_cleanup;
+    }
+#endif
+
 #ifdef HAVE_SUPPORTED_CURVES
     if (cs.doHelloRetry) {
         ret = TLSX_KeyShare_SetSupported(ssl, &parsedExts);
@@ -949,7 +960,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
             ret = COOKIE_ERROR;
         else
 #endif
-            ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
+            ret = SendStatelessReply(ssl, &ch, isTls13);
     }
     else {
         byte cookieGood;
@@ -970,7 +981,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 ret = COOKIE_ERROR;
             else
 #endif
-                ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
+                ret = SendStatelessReply(ssl, &ch, isTls13);
         }
         else {
             ssl->options.dtlsStateful = 1;
