@@ -5128,10 +5128,10 @@ static void _sp_copy_2_ct(const sp_int* a1, const sp_int* a2, sp_int* r1,
 
     /* Copy data - constant time. */
     for (i = 0; i < used; i++) {
-        r1->dp[i] = (a1->dp[i] & ((sp_digit)wc_off_on_addr[y  ])) +
-                    (a2->dp[i] & ((sp_digit)wc_off_on_addr[y^1]));
-        r2->dp[i] = (a1->dp[i] & ((sp_digit)wc_off_on_addr[y^1])) +
-                    (a2->dp[i] & ((sp_digit)wc_off_on_addr[y  ]));
+        r1->dp[i] = (a1->dp[i] & ((sp_int_digit)wc_off_on_addr[y  ])) +
+                    (a2->dp[i] & ((sp_int_digit)wc_off_on_addr[y^1]));
+        r2->dp[i] = (a1->dp[i] & ((sp_int_digit)wc_off_on_addr[y^1])) +
+                    (a2->dp[i] & ((sp_int_digit)wc_off_on_addr[y  ]));
     }
     /* Copy used. */
     r1->used = (a1->used & ((int)wc_off_on_addr[y  ])) +
@@ -17803,7 +17803,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
         /* Start at the end of the buffer - least significant byte. */
         int j;
         unsigned int i;
-        sp_digit mask = (sp_digit)-1;
+        sp_int_digit mask = (sp_int_digit)-1;
         sp_int_digit d;
 
         /* Put each digit in. */
@@ -17813,10 +17813,10 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
             d = a->dp[i];
             /* Place each byte of a digit into the buffer. */
             for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
-                out[j--] = (byte)((sp_digit)d & mask);
+                out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= (sp_digit)0 - (i < a->used - 1);
+            mask &= (sp_int_digit)0 - (i < a->used - 1);
             i += (unsigned int)(1 & mask);
         }
     }
@@ -17827,12 +17827,12 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
     if (err == MP_OKAY) {
         unsigned int i;
         int j;
-        sp_digit mask = (sp_digit)-1;
+        sp_int_digit mask = (sp_int_digit)-1;
 
         i = 0;
         for (j = outSz - 1; j >= 0; j--) {
             out[j] = a->dp[i] & mask;
-            mask &= (sp_digit)0 - (i < a->used - 1);
+            mask &= (sp_int_digit)0 - (i < a->used - 1);
             i += (unsigned int)(1 & mask);
         }
     }
@@ -19405,7 +19405,7 @@ word32 CheckRunTimeFastMath(void)
  */
 void sp_memzero_add(const char* name, sp_int* sp)
 {
-    wc_MemZero_Add(name, sp->dp, sp->size * sizeof(sp_digit));
+    wc_MemZero_Add(name, sp->dp, sp->size * sizeof(sp_int_digit));
 }
 
 /* Check the memory in the data pointer for memory that must be zero.
@@ -19414,7 +19414,7 @@ void sp_memzero_add(const char* name, sp_int* sp)
  */
 void sp_memzero_check(sp_int* sp)
 {
-    wc_MemZero_Check(sp->dp, sp->size * sizeof(sp_digit));
+    wc_MemZero_Check(sp->dp, sp->size * sizeof(sp_int_digit));
 }
 #endif /* WOLFSSL_CHECK_MEM_ZERO */
 
