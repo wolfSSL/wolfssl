@@ -17813,7 +17813,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
             d = a->dp[i];
             /* Place each byte of a digit into the buffer. */
             for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
-                out[j--] = (byte)(d & mask);
+                out[j--] = (byte)((sp_digit)d & mask);
                 d >>= 8;
             }
             mask &= (sp_digit)0 - (i < a->used - 1);
