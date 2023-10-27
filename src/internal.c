@@ -15478,6 +15478,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else if (idx == 1) /* server cert must be OK */
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                     }
+
+                    /* only frees 'single' if single->isDynamic is set */
                     FreeOcspResponse(response);
 
                     *inOutIdx   += status_length;

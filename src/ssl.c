@@ -36777,18 +36777,18 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
             break;
         default:
             WOLFSSL_MSG("Unknown PKCS#7 Type");
-            return WOLFSSL_FAILURE;
+            goto error;
     };
 
     if ((wc_PKCS7_EncodeSignedData_ex(p7, hashBuf, hashSz,
         outputHead, &outputHeadSz, outputFoot, &outputFootSz)) != 0)
-        return WOLFSSL_FAILURE;
+        goto error;
 
     outputSz = outputHeadSz + p7->contentSz + outputFootSz;
     output = (byte*)XMALLOC(outputSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (!output)
-         return WOLFSSL_FAILURE;
+        goto error;
 
     XMEMSET(output, 0, outputSz);
     outputSz = 0;
