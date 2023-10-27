@@ -6482,7 +6482,7 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
                     break;
                 }
             }
-            if (valLen >= (int)sizeof(tmp) - tmpLen - 1) {
+            if (valLen >= ((int)sizeof(tmp) - tmpLen - 1)) {
                 ret = WOLFSSL_FAILURE;
                 break;
             }
