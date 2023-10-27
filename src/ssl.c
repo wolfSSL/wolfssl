@@ -36384,7 +36384,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
 #endif
     XMEMSET(line, 0, MAX_MIME_LINE_LEN);
 
-    while ((lineLen = wolfSSL_BIO_gets(in, line, (int)sizeof(line))) > 0) {
+    while ((lineLen = wolfSSL_BIO_gets(in, line, MAX_MIME_LINE_LEN)) > 0) {
 
         if (line[lineLen - 1] == '\r' || line[lineLen - 1] == '\n') {
             canonLineLen = (word32)lineLen;
