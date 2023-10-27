@@ -29974,12 +29974,16 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
         #endif
             ) {
             if (get) {
-                *getRet = wolfSSL_CRYPTO_get_ex_data(
+                if (getRet) {
+                    *getRet = wolfSSL_CRYPTO_get_ex_data(
                         &cacheSession->ex_data, idx);
+                }
             }
             else {
-                *setRet = wolfSSL_CRYPTO_set_ex_data(
+                if (setRet) {
+                    *setRet = wolfSSL_CRYPTO_set_ex_data(
                         &cacheSession->ex_data, idx, data);
+                }
             }
             foundCache = 1;
             break;
