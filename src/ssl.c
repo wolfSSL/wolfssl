@@ -36778,7 +36778,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     hashType = wc_OidGetHash(p7->hashOID);
     hashSz = wc_HashGetDigestSize(hashType);
     if (hashSz > WC_MAX_DIGEST_SIZE)
-        return WOLFSSL_FAILURE;
+        goto error;
 
     /* only SIGNED_DATA is supported */
     switch (p7->contentOID) {
