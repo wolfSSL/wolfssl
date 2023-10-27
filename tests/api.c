@@ -16876,6 +16876,7 @@ static int test_wc_Chacha_SetKey(void)
     word32 keySz = (word32)(sizeof(key)/sizeof(byte));
     byte       cipher[128];
 
+    XMEMSET(cipher, 0, sizeof(cipher));
     ExpectIntEQ(wc_Chacha_SetKey(&ctx, key, keySz), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_Chacha_SetKey(NULL, key, keySz), BAD_FUNC_ARG);
@@ -54043,6 +54044,8 @@ static int test_wolfssl_EVP_chacha20(void)
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
     /* Encrypt. */
     ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
     ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_chacha20(), NULL, NULL,

@@ -208,6 +208,7 @@ static void test_SrpSetPassword(void)
     byte v[64];
     word32 vSz = 0;
 
+    XMEMSET(v, 0, sizeof(v));
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
 
@@ -262,6 +263,7 @@ static void test_SrpGetPublic(void)
     byte pub[64];
     word32 pubSz = 0;
 
+    XMEMSET(pub, 0, sizeof(pub));
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
     AssertIntEQ(0, wc_SrpSetParams(&srp, srp_N,    sizeof(srp_N),
@@ -318,6 +320,8 @@ static void test_SrpComputeKey(void)
     word32 clientPubKeySz = 64;
     word32 serverPubKeySz = 64;
 
+    XMEMSET(clientPubKey, 0, sizeof(clientPubKey));
+    XMEMSET(serverPubKey, 0, sizeof(serverPubKey));
     AssertIntEQ(0, wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
 
@@ -388,6 +392,10 @@ static void test_SrpGetProofAndVerify(void)
     word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
     word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
 
+    XMEMSET(clientPubKey, 0, sizeof(clientPubKey));
+    XMEMSET(serverPubKey, 0, sizeof(serverPubKey));
+    XMEMSET(clientProof, 0, sizeof(clientProof));
+    XMEMSET(serverProof, 0, sizeof(serverProof));
     AssertIntEQ(0, wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
 
@@ -792,6 +800,10 @@ static void test_SrpKeyGenFunc_cb(void)
     };
 #endif
 
+    XMEMSET(clientPubKey, 0, sizeof(clientPubKey));
+    XMEMSET(serverPubKey, 0, sizeof(serverPubKey));
+    XMEMSET(clientProof, 0, sizeof(clientProof));
+    XMEMSET(serverProof, 0, sizeof(serverProof));
     AssertIntEQ(0, wc_SrpInit(&cli, SRP_TYPE_SHA512, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA512, SRP_SERVER_SIDE));
 
