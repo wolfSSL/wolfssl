@@ -1558,7 +1558,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                             XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             return rc;
                     }
-                    if (tmpLen + valLen > tmpSz) {
+                    if ((tmpLen + valLen) >= tmpSz) {
                         XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return rc;
                     }
@@ -6482,7 +6482,8 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
                     break;
                 }
             }
-            if (valLen >= ((int)sizeof(tmp) - tmpLen - 1)) {
+            if ((tmpLen < 0) || (valLen < 0) ||
+                    (valLen >= ((int)sizeof(tmp) - tmpLen - 1))) {
                 ret = WOLFSSL_FAILURE;
                 break;
             }
