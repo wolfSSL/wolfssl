@@ -6464,7 +6464,8 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #ifdef WOLF_PRIVATE_KEY_ID
     if ((ret != 0) && (devId != INVALID_DEVID
     #ifdef HAVE_PK_CALLBACKS
-        || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
     #endif
     )) {
         word32 nSz;
@@ -6542,7 +6543,8 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6623,7 +6625,8 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6709,7 +6712,8 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6788,7 +6792,8 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
