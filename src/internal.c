@@ -13353,6 +13353,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
         }
 
         XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
+        filename = NULL;
     }
 #else
     (void) type;
