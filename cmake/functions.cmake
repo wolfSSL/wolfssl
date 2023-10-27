@@ -510,9 +510,10 @@ function(generate_lib_src_list LIB_SOURCES)
               endif()
 
               if(BUILD_SP_X86_64)
-                   list(APPEND LIB_SOURCES
-                        wolfcrypt/src/sp_x86_64.c
-                        wolfcrypt/src/sp_x86_64_asm.S)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64.c)
+                    if(WOLFSSL_X86_64_BUILD_ASM)
+                         list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64_asm.S)
+                    endif()
               endif()
 
               if(NOT BUILD_FIPS_V2 AND BUILD_SP_ARM32)

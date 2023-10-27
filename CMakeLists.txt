@@ -1577,6 +1577,7 @@ endif()
 # Set processor-specific build macros
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64|AMD64")
     set(WOLFSSL_X86_64_BUILD ON)
+    add_option("WOLFSSL_X86_64_BUILD_ASM" "Build ASM files" "yes" "yes;no")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
 elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64|arm64")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AARCH64_BUILD")
