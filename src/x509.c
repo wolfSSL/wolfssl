@@ -1548,15 +1548,19 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                     if (sk->next) {
                         if ((valLen = XSNPRINTF(val, len, "%*s%s,",
                                       indent, "", str->strData))
-                            >= len)
+                            >= len) {
+                            XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             return rc;
+                        }
                     } else {
                         if ((valLen = XSNPRINTF(val, len, "%*s%s",
                                       indent, "", str->strData))
-                            >= len)
+                            >= len) {
+                            XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             return rc;
+                        }
                     }
-                    if (tmpLen + valLen > tmpSz) {
+                    if ((tmpLen + valLen) >= tmpSz) {
                         XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return rc;
                     }
@@ -6480,7 +6484,8 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
                     break;
                 }
             }
-            if (valLen >= (int)sizeof(tmp) - tmpLen - 1) {
+            if ((tmpLen < 0) || (valLen < 0) ||
+                    (valLen >= ((int)sizeof(tmp) - tmpLen - 1))) {
                 ret = WOLFSSL_FAILURE;
                 break;
             }
@@ -12823,6 +12828,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 >= tmpSz)
             {
                 WOLFSSL_MSG("buffer overrun");
+                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
 
@@ -12833,6 +12839,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 >= tmpSz)
             {
                 WOLFSSL_MSG("buffer overrun");
+                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
             tmpSz = len + nameStrSz + 1; /* 1 for '=' */

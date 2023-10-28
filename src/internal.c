@@ -13353,6 +13353,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
         }
 
         XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
+        filename = NULL;
     }
 #else
     (void) type;
@@ -15478,6 +15479,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else if (idx == 1) /* server cert must be OK */
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                     }
+
+                    /* only frees 'single' if single->isDynamic is set */
                     FreeOcspResponse(response);
 
                     *inOutIdx   += status_length;
