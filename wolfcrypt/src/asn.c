@@ -33607,6 +33607,9 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
         privKey == NULL || privKeyLen == NULL) {
+    #ifdef WOLFSSL_ASN_TEMPLATE
+        FREE_ASNGETDATA(dataASN, NULL);
+    #endif
         return BAD_FUNC_ARG;
     }
 

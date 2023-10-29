@@ -1866,9 +1866,13 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
 
-            ForceZero(newSeed, sizeof(newSeed));
         #ifdef WOLFSSL_SMALL_STACK
+            if (newSeed != NULL) {
+                ForceZero(newSeed, SEED_SZ + SEED_BLOCK_SZ);
+            }
             XFREE(newSeed, rng->heap, DYNAMIC_TYPE_SEED);
+        #else
+            ForceZero(newSeed, sizeof(newSeed));
         #endif
         }
         else {

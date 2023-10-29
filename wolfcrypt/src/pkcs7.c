@@ -6107,11 +6107,15 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(kari->senderKey, rng);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
+    }
     ret = wc_ecc_set_rng(kari->recipKey, rng);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
+    }
 #else
     (void)rng;
 #endif

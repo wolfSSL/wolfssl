@@ -1045,6 +1045,7 @@ MP_API int sp_unsigned_bin_size(const sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
 MP_API int sp_to_unsigned_bin(const sp_int* a, byte* out);
 MP_API int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz);
+MP_API int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz);
 #ifdef WOLFSSL_SP_MATH_ALL
 MP_API int sp_to_unsigned_bin_at_pos(int o, const sp_int* a,
     unsigned char* out);
@@ -1158,6 +1159,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_read_unsigned_bin                sp_read_unsigned_bin
 #define mp_to_unsigned_bin                  sp_to_unsigned_bin
 #define mp_to_unsigned_bin_len              sp_to_unsigned_bin_len
+#define mp_to_unsigned_bin_len_ct           sp_to_unsigned_bin_len_ct
 #define mp_to_unsigned_bin_at_pos           sp_to_unsigned_bin_at_pos
 #define mp_read_radix                       sp_read_radix
 #define mp_tohex                            sp_tohex

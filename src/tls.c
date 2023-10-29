@@ -6677,13 +6677,17 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         DecodedCert cert[1];
 #endif
 
-        if (length < OPAQUE16_LEN)
-            return BUFFER_ERROR;
-        ato16(input, &extLen);
-        idx += OPAQUE16_LEN;
-
-        if (idx + extLen > length)
+        if (length < OPAQUE16_LEN) {
             ret = BUFFER_ERROR;
+        }
+
+        if (ret == 0) {
+            ato16(input, &extLen);
+            idx += OPAQUE16_LEN;
+
+            if (idx + extLen > length)
+                ret = BUFFER_ERROR;
+        }
 
         if (ret == 0) {
             InitDecodedCert(cert, input + idx, extLen, ssl->heap);

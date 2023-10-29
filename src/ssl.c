@@ -6464,7 +6464,8 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #ifdef WOLF_PRIVATE_KEY_ID
     if ((ret != 0) && (devId != INVALID_DEVID
     #ifdef HAVE_PK_CALLBACKS
-        || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
     #endif
     )) {
         word32 nSz;
@@ -6542,7 +6543,8 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6623,7 +6625,8 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6709,7 +6712,8 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -6788,7 +6792,8 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ret != 0 && (devId != INVALID_DEVID
         #ifdef HAVE_PK_CALLBACKS
-            || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            || ((ssl == NULL) ? wolfSSL_CTX_IsPrivatePkSet(ctx) :
+                                wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
         #endif
         )) {
             /* if using crypto or PK callbacks, try public key decode */
@@ -7353,12 +7358,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
-    #endif
-
-        if (ret != 0)
+        if (ret != 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+        #endif
             return ret;
+        }
         if (keyFormat == 0) {
 #ifdef OPENSSL_EXTRA
             /* Reaching this point probably means that the
@@ -7366,9 +7371,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (info->passwd_cb)
                 EVPerr(0, EVP_R_BAD_DECRYPT);
 #endif
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+        #endif
             WOLFSSL_ERROR(WOLFSSL_BAD_FILE);
             return WOLFSSL_BAD_FILE;
         }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+    #endif
 
         (void)devId;
     }
@@ -8708,9 +8720,10 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
 int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
 {
     WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
-    SSL_CM_WARNING(ssl);
-    if (ssl)
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
         return wolfSSL_CertManagerSetCRL_IOCb(SSL_CM(ssl), cb);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -29966,12 +29979,16 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
         #endif
             ) {
             if (get) {
-                *getRet = wolfSSL_CRYPTO_get_ex_data(
+                if (getRet) {
+                    *getRet = wolfSSL_CRYPTO_get_ex_data(
                         &cacheSession->ex_data, idx);
+                }
             }
             else {
-                *setRet = wolfSSL_CRYPTO_set_ex_data(
+                if (setRet) {
+                    *setRet = wolfSSL_CRYPTO_set_ex_data(
                         &cacheSession->ex_data, idx, data);
+                }
             }
             foundCache = 1;
             break;
@@ -36376,7 +36393,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
 #endif
     XMEMSET(line, 0, MAX_MIME_LINE_LEN);
 
-    while ((lineLen = wolfSSL_BIO_gets(in, line, (int)sizeof(line))) > 0) {
+    while ((lineLen = wolfSSL_BIO_gets(in, line, MAX_MIME_LINE_LEN)) > 0) {
 
         if (line[lineLen - 1] == '\r' || line[lineLen - 1] == '\n') {
             canonLineLen = (word32)lineLen;
@@ -36761,7 +36778,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     hashType = wc_OidGetHash(p7->hashOID);
     hashSz = wc_HashGetDigestSize(hashType);
     if (hashSz > WC_MAX_DIGEST_SIZE)
-        return WOLFSSL_FAILURE;
+        goto error;
 
     /* only SIGNED_DATA is supported */
     switch (p7->contentOID) {
@@ -36769,18 +36786,18 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
             break;
         default:
             WOLFSSL_MSG("Unknown PKCS#7 Type");
-            return WOLFSSL_FAILURE;
+            goto error;
     };
 
     if ((wc_PKCS7_EncodeSignedData_ex(p7, hashBuf, hashSz,
         outputHead, &outputHeadSz, outputFoot, &outputFootSz)) != 0)
-        return WOLFSSL_FAILURE;
+        goto error;
 
     outputSz = outputHeadSz + p7->contentSz + outputFootSz;
     output = (byte*)XMALLOC(outputSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (!output)
-         return WOLFSSL_FAILURE;
+        goto error;
 
     XMEMSET(output, 0, outputSz);
     outputSz = 0;
@@ -37169,6 +37186,8 @@ error:
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
     if (canonSection != NULL)
         XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
+    if (canonLine != NULL)
+        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
     if (bcont) {
         wolfSSL_BIO_free(*bcont);
         *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
