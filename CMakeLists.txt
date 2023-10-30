@@ -28,7 +28,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.6.3 LANGUAGES C ASM)
+project(wolfssl VERSION 5.6.4 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -43,12 +43,12 @@ endif()
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 40)
+set(LIBTOOL_CURRENT 41)
 # increment if source code has changed  set to zero if current is incremented
-set(LIBTOOL_REVISION 1)
+set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 5)
+set(LIBTOOL_AGE 0)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
