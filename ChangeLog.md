@@ -1,3 +1,66 @@
+# wolfSSL Release 5.6.4 (Oct 30, 2023)
+
+Release 5.6.4 has been developed according to wolfSSL's development and QA process (see link below) and successfully passed the quality criteria.
+https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assurance
+
+
+NOTE: * --enable-heapmath is being deprecated and will be removed by 2024
+      * Old CyaSSL/CtaoCrypt shim layer was removed in this release (5.6.4)
+
+
+## Vulnerabilities
+
+* [Medium] A fix was added, but still under review for completeness, for a Bleichenbacher style attack, leading to being able to decrypt a saved TLS connection and potentially forge a signature after probing with a large number of trial connections. This issue is around RSA decryption and affects static RSA cipher suites on the server side, which are not recommended to be used and are off by default. Static RSA cipher suites were also removed from the TLS 1.3 protocol and only present in TLS 1.2 and lower. All padding versions of RSA decrypt are affected since the code under review is outside of the padding processing. Information about the private keys is NOT compromised in affected code. It's recommended to disable static RSA cipher suites and update the version of wolfSSL used if using RSA private decryption alone outside of TLS. The fix is located in this pull request (https://github.com/wolfSSL/wolfssl/pull/6896)
+
+## New Feature Additions
+
+* DTLS 1.3 PQC: support fragmenting the second ClientHello message. This allows arbitrarily long keys to be used, opening up support for all PQC ciphersuites in DTLS 1.3.
+* SM2/SM3/SM4: Chinese cipher support including TLS 1.3 and 1.2 cipher suites. SM2 SP implementation available.
+* Ability to parse ASN1 only with SMIME_read_PKCS7
+* Added support for MemUse Entropy on Windows
+* Added Ada Bindings for wolfSSL
+* Added a PEM example that converts to and from DER/PEM.
+* Added LMS/HSS and XMSS/XMSS^MT wolfcrypt hooks, both normal and verify-only options.
+* Added support for the AES EAX mode of operation
+* Port for use with Hitch (https://github.com/varnish/hitch) added
+* Add XTS API's to handle multiple sectors in new port ot VeraCrypt
+
+## Enhancements and Optimizations
+
+* Turned on SNI by default on hosts with resources
+* Improved support for Silicon Labs Simplicity Studio and the ERF32 Gecko SDK
+* Thumb-2 and ARM32 Curve25519 and Ed25519 assembly have significantly improved performance.
+* Thumb-2 AES assembly code added.
+* Thumb-2 and ARM32 SP implementations of RSA, DH and ECC have significantly improved performance.
+* Minor performance improvements to SP ECC for Intel x64.
+* AES-XTS assembly code added for Intel x64, Aarch64 and ARM32.
+* Added support for X963 KDFs to ECIES.
+* Added 32-bit type only implementation of AES GMULT using tables.
+* Add support for nginx version 1.25.0
+* Add support for Kerberos version 5 1.21.1
+* Check all CRL entries in case a single issuer has multiple CRL's loaded
+* CRL verify the entire chain including loaded CA's
+* Added example for building wolfSSL as an Apple universal binary framework using configure
+* Sniffer tool now supports decrypting TLS sessions using secrets obtained from a SSLKEYLOGFILE
+* Updates made for EBSNET port
+* Update "--enable-jni" to include additional defines for expanded JNI support. Also includes JCE and JSSE builds under the single enable option now.
+
+## Fixes
+
+* Fixed error handling when decrypted pre-master secret is too long when using static RSA.
+* Added a fix for keymod use with i.MX RT1170 CAAM blobs
+* Added a fix for AES-GCM use with Petalinux Xilinx
+* Fixed `wc_SignatureGenerate_ex` to not call verify twice
+* Fixed wolfCrypt FIPS DLL on Win32
+* Fixed TFM math library big-endian reading implementation when a zero length buffer is passed in.
+* Fixed NO_CERT configurations to build correctly.
+* Fixed ARM AES-GCM streaming assembly when –enable-opensslextra defined.
+* Added modulus checks to heap math implementation of mp_exptmod().
+* Fixed Windows assembly code to handle that certain XMM registers are non-volatile.
+* Aarch64 SP ECC implementation of sp_256_mont_dbl_4 has the register list for the assembly code fixed to include all used registers.
+* mp_sqrt_mod_prime fixed to limit the number of iterations of a loop to handle malicious non-prime values being passed in.
+* Ignore session ID's shorter than 32 bytes instead of erroring out
+
 # wolfSSL Release 5.6.3 (Jun 16, 2023)
 
 Release 5.6.3 of wolfSSL embedded TLS has 4 bug fixes:
