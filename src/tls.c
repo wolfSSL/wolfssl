@@ -5820,6 +5820,12 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         /* parse remainder one profile at a time, looking for match in CTX */
         ret = 0;
         for (i=offset; i<length; i+=OPAQUE16_LEN) {
+            if (length < (i + OPAQUE16_LEN)) {
+                WOLFSSL_MSG("Unexpected length when parsing SRTP profile");
+                ret = BUFFER_ERROR;
+                break;
+            }
+
             ato16(input+i, &profile_value);
             /* find first match */
             if (profile_value < 16 &&
