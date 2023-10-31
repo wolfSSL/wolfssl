@@ -7624,6 +7624,12 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     /* Sanity check key destination */
     if (*pKey != NULL) {
         WOLFSSL_MSG("Key already present!");
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* allow calling this again for async reentry */
+        if (ssl->error == WC_PENDING_E) {
+            return 0;
+        }
+    #endif
         return BAD_STATE_E;
     }
 
@@ -38891,14 +38897,17 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
             XMEMSET(&asyncDev->event, 0, sizeof(WOLF_EVENT));
             ssl->asyncDev = NULL;
         }
-    #if !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-        (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS))
+        /* for crypto or PK callback, if pending remove from queue */
+    #if (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
+        !defined(HAVE_CAVIUM)
         else if (ret == WC_PENDING_E) {
             /* Allow the underlying crypto API to be called again to trigger the
              * crypto or PK callback. The actual callback must be called, since
              * the completion is not detected in the poll like Intel QAT or
              * Nitrox */
             ret = wolfEventQueue_Remove(&ssl->ctx->event_queue, event);
+
         }
     #endif
     }
