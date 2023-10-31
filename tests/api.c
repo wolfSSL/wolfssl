@@ -36008,7 +36008,8 @@ static int test_wolfSSL_CTX_add_client_CA(void)
 #endif /* OPENSSL_EXTRA  && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT */
     return EXPECT_RESULT();
 }
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
 static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
 {
     callback_functions* callbacks = ((func_args*)args)->callbacks;
@@ -68190,7 +68191,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_tls_ext_duplicate),
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_Tls13_ECH_params),
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_Tls13_ECH),
