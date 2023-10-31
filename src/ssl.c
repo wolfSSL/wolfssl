@@ -23192,6 +23192,17 @@ unsigned long wolfSSL_THREADID_hash(const WOLFSSL_CRYPTO_THREADID* id)
     (void)id;
     return 0UL;
 }
+/* wolfSSL_set_ecdh_auto is provided as compatible API with
+ * SSL_set_ecdh_auto to enable auto ecdh curve selection functionality.
+ * Since this functionality is enabled by default in wolfSSL,
+ * this API exists as a stub.
+ */
+int wolfSSL_set_ecdh_auto(WOLFSSL* ssl, int onoff)
+{
+    (void)ssl;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
 /* wolfSSL_CTX_set_ecdh_auto is provided as compatible API with
  * SSL_CTX_set_ecdh_auto to enable auto ecdh curve selection functionality.
  * Since this functionality is enabled by default in wolfSSL,
