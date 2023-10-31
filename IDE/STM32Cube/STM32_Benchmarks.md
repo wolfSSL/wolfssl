@@ -2,6 +2,7 @@
 
 * [STM32H753ZI](#stm32h753zi)
 * [STM32WB55](#stm32wb55)
+* [STM32WL55](#stm32wl55)
 * [STM32F437](#stm32f437)
 * [STM32L4A6Z](#stm32l4a6z)
 * [STM32L562E](#stm32l562e)
@@ -9,6 +10,7 @@
 * [STM32U585](#stm32u585)
 * [STM32H563ZI](#stm32h563zi)
 * [STM32G071RB](#stm32g071rb)
+
 
 ## STM32H753ZI
 
@@ -93,6 +95,7 @@ ECDSA    256 verify          6 ops took 1.016 sec, avg 169.333 ms, 5.906 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
 
 ## STM32WB55
 
@@ -211,6 +214,86 @@ Benchmark complete
 Benchmark Test: Return code 0
 ```
 
+
+## STM32WL55
+
+Supports RNG, ECC P-256 and AES-CBC acceleration.
+Note: SP math beats PKA HW. HW RNG on for all tests
+
+Board: NUCLEO-WL55JC1 (MB1389-HIGHBAND-E02)
+CPU: Cortex-M4 at 64 MHz
+IDE: STM32CubeIDE
+RTOS: Bare-Metal
+
+### STM32WL55 (STM AES-CBC Acceleration, -Os, SP-ASM Cortex-M WOLF_CONF_MATH=4)
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.4
+------------------------------------------------------------------------------
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        200 KiB took 1.012 seconds,  197.628 KiB/s
+AES-128-CBC-enc              2 MiB took 1.000 seconds,    2.246 MiB/s
+AES-128-CBC-dec              2 MiB took 1.004 seconds,    2.213 MiB/s
+AES-256-CBC-enc              2 MiB took 1.008 seconds,    2.228 MiB/s
+AES-256-CBC-dec              2 MiB took 1.000 seconds,    2.197 MiB/s
+SHA-256                    600 KiB took 1.000 seconds,  600.000 KiB/s
+HMAC-SHA256                600 KiB took 1.012 seconds,  592.885 KiB/s
+ECC   [      SECP256R1]   256  key gen        56 ops took 1.023 sec, avg 18.268 ms, 54.741 ops/sec
+ECDHE [      SECP256R1]   256    agree        26 ops took 1.024 sec, avg 39.385 ms, 25.391 ops/sec
+ECDSA [      SECP256R1]   256     sign        30 ops took 1.019 sec, avg 33.967 ms, 29.441 ops/sec
+ECDSA [      SECP256R1]   256   verify        18 ops took 1.098 sec, avg 61.000 ms, 16.393 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+### STM32WL55 (STM AES-CBC Acceleration and PKA ECC, -Os)
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.4
+------------------------------------------------------------------------------
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        200 KiB took 1.000 seconds,  200.000 KiB/s
+AES-128-CBC-enc              2 MiB took 1.000 seconds,    2.295 MiB/s
+AES-128-CBC-dec              2 MiB took 1.007 seconds,    2.279 MiB/s
+AES-256-CBC-enc              2 MiB took 1.000 seconds,    2.295 MiB/s
+AES-256-CBC-dec              2 MiB took 1.008 seconds,    2.252 MiB/s
+SHA-256                    575 KiB took 1.043 seconds,  551.294 KiB/s
+HMAC-SHA256                550 KiB took 1.000 seconds,  550.000 KiB/s
+ECC   [      SECP256R1]   256  key gen         4 ops took 1.172 sec, avg 293.000 ms, 3.413 ops/sec
+ECDHE [      SECP256R1]   256    agree         4 ops took 1.165 sec, avg 291.250 ms, 3.433 ops/sec
+ECDSA [      SECP256R1]   256     sign        10 ops took 1.070 sec, avg 107.000 ms, 9.346 ops/sec
+ECDSA [      SECP256R1]   256   verify         6 ops took 1.275 sec, avg 212.500 ms, 4.706 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+### STM32WL55 (No HW Crypto, -Os, SP Math All (WOLF_CONF_MATH=6))
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.4
+------------------------------------------------------------------------------
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        200 KiB took 1.015 seconds,  197.044 KiB/s
+AES-128-CBC-enc            400 KiB took 1.004 seconds,  398.406 KiB/s
+AES-128-CBC-dec            400 KiB took 1.000 seconds,  400.000 KiB/s
+AES-192-CBC-enc            350 KiB took 1.031 seconds,  339.476 KiB/s
+AES-192-CBC-dec            350 KiB took 1.028 seconds,  340.467 KiB/s
+AES-256-CBC-enc            300 KiB took 1.007 seconds,  297.915 KiB/s
+AES-256-CBC-dec            300 KiB took 1.004 seconds,  298.805 KiB/s
+SHA-256                    550 KiB took 1.016 seconds,  541.339 KiB/s
+HMAC-SHA256                550 KiB took 1.024 seconds,  537.109 KiB/s
+ECC   [      SECP256R1]   256  key gen         4 ops took 1.180 sec, avg 295.000 ms, 3.390 ops/sec
+ECDHE [      SECP256R1]   256    agree         4 ops took 1.181 sec, avg 295.250 ms, 3.387 ops/sec
+ECDSA [      SECP256R1]   256     sign         4 ops took 1.306 sec, avg 326.500 ms, 3.063 ops/sec
+ECDSA [      SECP256R1]   256   verify         2 ops took 1.188 sec, avg 594.000 ms, 1.684 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
 ## STM32F437
 
 Supports RNG, AES-CBC/GCM and SHA-256 acceleration.
@@ -295,6 +378,7 @@ Benchmark complete
 Benchmark Test: Return code 0
 ```
 
+
 ## STM32L4A6Z
 
 Supports RNG, AES-CBC/GCM and SHA-256 acceleration.
@@ -306,7 +390,6 @@ IDE: STM32CubeIDE
 RTOS: FreeRTOS
 
 ### STM32L4A6Z (STM Crypto/Hash Acceleration, -Os, SP-ASM Cortex-M)
-
 
 ```
 ------------------------------------------------------------------------------
@@ -375,6 +458,7 @@ ECDSA    256 verify          2 ops took 1.294 sec, avg 647.000 ms, 1.546 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
 
 ## STM32L562E
 
@@ -489,6 +573,7 @@ Benchmark complete
 Benchmark Test: Return code 0
 ```
 
+
 ## STM32F777
 
 Supports RNG, AES-CBC/GCM and SHA-256 acceleration.
@@ -572,6 +657,7 @@ ECDSA    256 verify          2 ops took 1.463 sec, avg 731.500 ms, 1.367 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
 
 ## STM32U585
 
@@ -710,6 +796,7 @@ ECDSA [      SECP256R1]   256 verify          4 ops took 1.196 sec, avg 299.000 
 Benchmark complete
 Benchmark Test: Return code 0
 ```
+
 
 ## STM32H563ZI
 

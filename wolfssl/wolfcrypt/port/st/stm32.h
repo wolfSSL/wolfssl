@@ -131,9 +131,13 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM32_CRYPTO_AES_GCM
     #endif
 
-    #if defined(WOLFSSL_STM32WB)
+    #if defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32WL)
         #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
-        #define CRYP AES1
+        #ifdef WOLFSSL_STM32WB
+            #define CRYP AES1
+        #else
+            #define CRYP AES
+        #endif
         #define STM32_HAL_V2
     #endif
     #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
