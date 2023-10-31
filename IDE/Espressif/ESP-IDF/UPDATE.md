@@ -21,3 +21,4 @@ Updates to Espressif ESP-IDF wolfssl_benchmark and wolfssl_test examples:
 - Added VisualGDB Project file & Visual Studio solution file.
 - Added optional `time_helper` for wolfssl_test
 - Exclude `ssl_misc.c` in component cmake to fix warning:  #warning ssl_misc.c does not need to be compiled separately from ssl.c
+- Exclude `ssl_crypto.c` in component cmake to fix warning:  #warning ssl_crypto.c does not need to be compiled separately from ssl.c

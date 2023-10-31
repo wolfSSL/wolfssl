@@ -844,7 +844,9 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     if (buff != staticBuffer)
 #endif
     {
-        XFREE(buff, cm->heap, DYNAMIC_TYPE_FILE);
+        if (cm != NULL) {
+            XFREE(buff, cm->heap, DYNAMIC_TYPE_FILE);
+        }
     }
     return ret;
 }
