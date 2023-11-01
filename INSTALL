@@ -129,7 +129,7 @@
     popd
 
 
-    ARIA Ciper Suite.
+    ARIA Cipher Suite.
 
     The ARIA cipher needs a 3rd party source binary, typically called
     `MagicCrypto.tar.gz`.

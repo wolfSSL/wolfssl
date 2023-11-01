@@ -19092,7 +19092,7 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
  *
  * a and b are positive integers.
  *
- * Euclidian Algorithm:
+ * Euclidean Algorithm:
  *  1. If a > b then a = b, b = a
  *  2. u = a
  *  3. v = b % a

@@ -25,7 +25,7 @@ make
 
 ## Asynchronous Cryptography Design
 
-When a cryptogaphic call is handed off to harware it return `WC_PENDING_E` up to caller. Then it can keep calling until the operation completes. For some platforms it is required to call `wolfSSL_AsyncPoll`. At the TLS layer a "devId" (Device ID) must be set using `wolfSSL_CTX_SetDevId` to indicate desire to offload cryptography.
+When a cryptogaphic call is handed off to hardware it return `WC_PENDING_E` up to caller. Then it can keep calling until the operation completes. For some platforms it is required to call `wolfSSL_AsyncPoll`. At the TLS layer a "devId" (Device ID) must be set using `wolfSSL_CTX_SetDevId` to indicate desire to offload cryptography.
 
 For further design details please see: https://github.com/wolfSSL/wolfAsyncCrypt#design
 
