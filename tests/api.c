@@ -53025,6 +53025,31 @@ static int test_wolfSSL_X509_load_crl_file(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_i2d_X509(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    const unsigned char* cert_buf = server_cert_der_2048;
+    unsigned char* out = NULL;
+    unsigned char* tmp = NULL;
+    X509* cert = NULL;
+
+    ExpectNotNull(d2i_X509(&cert, &cert_buf, sizeof_server_cert_der_2048));
+    /* Pointer should be advanced */
+    ExpectPtrGT(cert_buf, server_cert_der_2048);
+    ExpectIntGT(i2d_X509(cert, &out), 0);
+    ExpectNotNull(out);
+    tmp = out;
+    ExpectIntGT(i2d_X509(cert, &tmp), 0);
+    ExpectPtrGT(tmp, out);
+
+    if (out != NULL)
+        XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_d2i_X509_REQ(void)
 {
     EXPECT_DECLS;
@@ -67724,6 +67749,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_set_version),
     TEST_DECL(test_wolfSSL_X509_get_serialNumber),
     TEST_DECL(test_wolfSSL_X509_CRL),
+    TEST_DECL(test_wolfSSL_i2d_X509),
     TEST_DECL(test_wolfSSL_d2i_X509_REQ),
     TEST_DECL(test_wolfSSL_PEM_read_X509),
     TEST_DECL(test_wolfSSL_X509_check_ca),
