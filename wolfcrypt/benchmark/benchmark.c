@@ -254,12 +254,12 @@
                                         }\
                                         else {\
                                             delta = current_time(0) - prev;\
+                                        }\
+                                        if (runs < MAX_SAMPLE_RUNS) {\
                                             if (max < delta)\
                                                 max = delta;\
                                             else if (min > delta)\
                                                 min = delta;\
-                                        }\
-                                        if (runs < MAX_SAMPLE_RUNS) {\
                                             deltas[runs] = delta;\
                                             sum += delta;\
                                             runs++;\
