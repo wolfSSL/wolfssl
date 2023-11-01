@@ -182,7 +182,8 @@ extern ${variable.value} ${variable.name};
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    //#define WOLFSSL_GENSEED_FORTEST /* if no HW RNG is available use test seed */
+    /* if no HW RNG is available use test seed */
+    //#define WOLFSSL_GENSEED_FORTEST
     //#define STM32_HAL_V2
 #endif
 
@@ -255,7 +256,6 @@ extern ${variable.value} ${variable.name};
 
     /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
-    /* Enable for SP cache resistance (not usually enabled for embedded micros) */
 
     #if WOLF_CONF_MATH == 4 || WOLF_CONF_MATH == 5
         #define WOLFSSL_SP_ASM /* required if using the ASM versions */

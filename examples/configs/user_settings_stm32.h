@@ -243,7 +243,8 @@ extern "C" {
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    //#define WOLFSSL_GENSEED_FORTEST /* if no HW RNG is available use test seed */
+    /* if no HW RNG is available use test seed */
+    //#define WOLFSSL_GENSEED_FORTEST
     //#define STM32_HAL_V2
 #endif
 
@@ -313,7 +314,6 @@ extern "C" {
 
     /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
-    /* Enable for SP cache resistance (not usually enabled for embedded micros) */
 
     #if WOLF_CONF_MATH == 4 || WOLF_CONF_MATH == 5
         #define WOLFSSL_SP_ASM /* required if using the ASM versions */
@@ -566,12 +566,12 @@ extern "C" {
 /* Sha3 */
 #undef WOLFSSL_SHA3
 #if defined(WOLF_CONF_SHA3) && WOLF_CONF_SHA3 == 1
-	#define WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
 #endif
 
 /* MD5 */
 #if defined(WOLF_CONF_MD5) && WOLF_CONF_MD5 == 1
-	/* enabled */
+    /* enabled */
 #else
     #define NO_MD5
 #endif
@@ -594,8 +594,8 @@ extern "C" {
     #if 0
         #define USE_WOLFSSL_MEMORY
         #define WOLFSSL_TRACK_MEMORY
-  		  #define WOLFSSL_DEBUG_MEMORY
-	  	  #define WOLFSSL_DEBUG_MEMORY_PRINT
+        #define WOLFSSL_DEBUG_MEMORY
+        #define WOLFSSL_DEBUG_MEMORY_PRINT
     #endif
 #else
     //#define NO_WOLFSSL_MEMORY
