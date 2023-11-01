@@ -54,6 +54,8 @@
 #define RSA_PSS_SALTLEN_DIGEST   (-1)
 /* Old max salt length */
 #define RSA_PSS_SALTLEN_MAX_SIGN (-2)
+/* Verification only value to indicate to discover salt length. */
+#define RSA_PSS_SALTLEN_AUTO     (-2)
 /* Max salt length */
 #define RSA_PSS_SALTLEN_MAX      (-3)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
