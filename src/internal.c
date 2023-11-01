@@ -26884,7 +26884,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             /* add data, put in buffer if bigger than static buffer */
             info->packets[info->numberPackets].valueSz = totalSz;
             if (totalSz < MAX_VALUE_SZ) {
-                XMEMCPY(info->packets[info->numberPackets].value, data + lateRL,
+                XMEMCPY(info->packets[info->numberPackets].value + lateRL, data,
                                sz);
             }
             else {
