@@ -1402,7 +1402,7 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
     defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
-    defined(WOLFSSL_STM32H5)
+    defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1422,7 +1422,8 @@ extern void uITRON4_free(void *p) ;
         #define STM32_CRYPTO
 
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-            defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5)
+            defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
+            defined(WOLFSSL_STM32WL)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -1453,6 +1454,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32h7xx_hal.h"
         #elif defined(WOLFSSL_STM32WB)
             #include "stm32wbxx_hal.h"
+        #elif defined(WOLFSSL_STM32WL)
+            #include "stm32wlxx_hal.h"
         #elif defined(WOLFSSL_STM32G0)
             #include "stm32g0xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
@@ -1466,6 +1469,11 @@ extern void uITRON4_free(void *p) ;
 
         #ifndef STM32_HAL_TIMEOUT
             #define STM32_HAL_TIMEOUT   0xFF
+        #endif
+
+        #if defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SP_INT_NEGATIVE)
+            /* enable the negative support for abs(a) |a| */
+            #define WOLFSSL_SP_INT_NEGATIVE
         #endif
     #else
         #if defined(WOLFSSL_STM32F2)

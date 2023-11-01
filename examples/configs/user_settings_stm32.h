@@ -1,4 +1,5 @@
-/* wolfSSL_conf.h (example of generated wolfSSL.I-CUBE-wolfSSL_conf.h)
+/* wolfSSL_conf.h (example of generated wolfSSL.I-CUBE-wolfSSL_conf.h using
+ * default_conf.ftl and STM32CubeIDE or STM32CubeMX tool)
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -23,11 +24,15 @@
  * Generated automatically using `default_conf.ftl` template
  *
  * Included automatically when USE_HAL_DRIVER is defined
- * (and not WOLFSSL_USER_SETTINGS or HAVE_CONF_H).
+ * (and not WOLFSSL_USER_SETTINGS or HAVE_CONFIG_H).
  */
 
 #ifndef __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
 #define __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /*---------- WOLF_CONF_DEBUG -----------*/
@@ -50,6 +55,9 @@
 
 /*---------- WOLF_CONF_RTOS -----------*/
 #define WOLF_CONF_RTOS      2
+
+/*---------- WOLF_CONF_RNG -----------*/
+#define WOLF_CONF_RNG      1
 
 /*---------- WOLF_CONF_RSA -----------*/
 #define WOLF_CONF_RSA      1
@@ -111,17 +119,29 @@
 /*---------- WOLF_CONF_TEST -----------*/
 #define WOLF_CONF_TEST      1
 
+/*---------- WOLF_CONF_PQM4 -----------*/
+#define WOLF_CONF_PQM4      0
+
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
 /* ------------------------------------------------------------------------- */
+/* Setup default (No crypto hardware acceleration or TLS UART test).
+ * Use undef in platform section to enable it.
+ */
 #define NO_STM32_HASH
 #define NO_STM32_CRYPTO
+#define NO_TLS_UART_TEST
 
 #if defined(STM32WB55xx)
     #define WOLFSSL_STM32WB
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_CRYPTO
     #define HAL_CONSOLE_UART huart1
+#elif defined(STM32WL55xx)
+    #define WOLFSSL_STM32WL
+    #define WOLFSSL_STM32_PKA
+    #undef  NO_STM32_CRYPTO
+    #define HAL_CONSOLE_UART huart2
 #elif defined(STM32F407xx)
     #define WOLFSSL_STM32F4
     #define HAL_CONSOLE_UART huart2
@@ -137,10 +157,19 @@
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
     #define HAL_CONSOLE_UART huart2
+#elif defined(STM32F756xx)
+    #define WOLFSSL_STM32F7
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define STM32_HAL_V2
+    #define HAL_CONSOLE_UART huart3
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
+    #define HAL_CONSOLE_UART huart3
+#elif defined(STM32H723xx)
+    #define WOLFSSL_STM32H7
     #define HAL_CONSOLE_UART huart3
 #elif defined(STM32L4A6xx)
     #define WOLFSSL_STM32L4
@@ -163,6 +192,9 @@
 #elif defined(STM32F207xx)
     #define WOLFSSL_STM32F2
     #define HAL_CONSOLE_UART huart3
+#elif defined(STM32F217xx)
+    #define WOLFSSL_STM32F2
+    #define HAL_CONSOLE_UART huart2
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
     #define HAL_CONSOLE_UART huart4
@@ -171,18 +203,34 @@
     #define WOLFSSL_STM32F4
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST
+    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST
+    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
+#elif defined(STM32U575xx) || defined(STM32U585xx)
+    #define HAL_CONSOLE_UART huart1
+    #define WOLFSSL_STM32U5
+    #define STM32_HAL_V2
+    #ifdef STM32U585xx
+        #undef  NO_STM32_HASH
+        #undef  NO_STM32_CRYPTO
+        #define WOLFSSL_STM32_PKA
+    #endif
+#elif defined(STM32H563xx)
+    #define WOLFSSL_STM32H5
+    #define HAL_CONSOLE_UART huart3
+    #define STM32_HAL_V2
+    #undef  NO_STM32_HASH
+
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
     /* You need to define a CPU type, HW crypto and debug UART */
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
-        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4 and WOLFSSL_STM32L5 */
+        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
+        WOLFSSL_STM32G0, WOLFSSL_STM32WB and WOLFSSL_STM32U5 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */
@@ -195,6 +243,7 @@
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
+    /* if no HW RNG is available use test seed */
     //#define WOLFSSL_GENSEED_FORTEST
     //#define STM32_HAL_V2
 #endif
@@ -222,32 +271,60 @@
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-/* 1=Fast, 2=Normal, 3=SP C, 4=SP Cortex-M */
-#if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH != 2
-    /* fast (stack) math */
+/* 1=Fast (stack)
+ * 2=Normal (heap)
+ * 3=Single Precision C (only common curves/key sizes)
+ * 4=Single Precision ASM Cortex-M3+
+ * 5=Single Precision ASM Cortex-M0 (Generic Thumb)
+ * 6=Single Precision C all small
+ * 7=Single Precision C all big
+ */
+#if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH == 1
+    /* fast (stack) math - tfm.c */
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
 
     /* Optimizations (TFM_ARM, TFM_ASM or none) */
     //#define TFM_NO_ASM
     //#define TFM_ASM
-#endif
-#if defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH == 3 || WOLF_CONF_MATH == 4)
+#elif defined(WOLF_CONF_MATH) && WOLF_CONF_MATH == 2
+    /* heap math - integer.c */
+    #define USE_INTEGER_HEAP_MATH
+#elif defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH >= 3)
     /* single precision only */
     #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
-    #define WOLFSSL_HAVE_SP_RSA
-    #define WOLFSSL_HAVE_SP_DH
-    #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_MATH
+    #if WOLF_CONF_MATH != 7
+        #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #endif
+    #if defined(WOLF_CONF_RSA) && WOLF_CONF_RSA == 1
+        #define WOLFSSL_HAVE_SP_RSA
+    #endif
+    #if defined(WOLF_CONF_DH) && WOLF_CONF_DH == 1
+        #define WOLFSSL_HAVE_SP_DH
+    #endif
+    #if defined(WOLF_CONF_ECC) && WOLF_CONF_ECC == 1
+        #define WOLFSSL_HAVE_SP_ECC
+    #endif
+    #if WOLF_CONF_MATH == 6 || WOLF_CONF_MATH == 7
+        #define WOLFSSL_SP_MATH_ALL /* use sp_int.c multi precision math */
+    #else
+        #define WOLFSSL_SP_MATH    /* disable non-standard curves / key sizes */
+    #endif
     #define SP_WORD_SIZE 32
 
+    /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
 
-    /* single precision Cortex-M only */
-    #if WOLF_CONF_MATH == 4
+    #if WOLF_CONF_MATH == 4 || WOLF_CONF_MATH == 5
         #define WOLFSSL_SP_ASM /* required if using the ASM versions */
-        #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+        #if WOLF_CONF_MATH == 4
+            /* ARM Cortex-M3+ */
+            #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+        #endif
+        #if WOLF_CONF_MATH == 5
+            /* Generic ARM Thumb (Cortex-M0) Assembly */
+            #define WOLFSSL_SP_ARM_THUMB_ASM
+        #endif
     #endif
 #endif
 
@@ -279,8 +356,14 @@
 #if defined(WOLF_CONF_BASE64_ENCODE) && WOLF_CONF_BASE64_ENCODE == 1
     #define WOLFSSL_BASE64_ENCODE
 #endif
-#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA == 1
+#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA >= 1
     #define OPENSSL_EXTRA
+    #if !defined(INT_MAX)
+        #include <limits.h>
+    #endif
+#endif
+#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA >= 2
+    #define OPENSSL_ALL
 #endif
 
 /* TLS Session Cache */
@@ -288,6 +371,14 @@
     #define SMALL_SESSION_CACHE
 #else
     #define NO_SESSION_CACHE
+#endif
+
+/* Post Quantum
+ * Note: PQM4 is compatible with STM32. The project can be found at:
+ * https://github.com/mupq/pqm4
+ */
+#if defined(WOLF_CONF_PQM4) && WOLF_CONF_PQM4 == 1
+    #define HAVE_PQM4
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -519,7 +610,6 @@
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
 
-
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* ------------------------------------------------------------------------- */
@@ -531,7 +621,6 @@
     #define WC_NO_HASHDRBG
     #define WC_NO_RNG
 #endif
-
 
 /* ------------------------------------------------------------------------- */
 /* Disable Features */
@@ -574,7 +663,6 @@
 #ifndef HAL_RTC_MODULE_ENABLED
     #define NO_ASN_TIME
 #endif
-
 
 #ifdef __cplusplus
 }
