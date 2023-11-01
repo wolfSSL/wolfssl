@@ -12489,16 +12489,16 @@ void bench_sphincsKeySign(byte level, byte optim)
 
     double current_time(int reset)
     {
-        struct timeval tv;
+        struct timespec tv;
 
         (void)reset;
 
-        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+        LIBCALL_CHECK_RET(clock_gettime(CLOCK_REALTIME, &tv));
 
     #ifdef BENCH_MICROSECOND
-        return (double)tv.tv_sec * 1000000 + (double)tv.tv_usec;
+        return (double)tv.tv_sec * 1000000 + (double)tv.tv_nsec / 1000;
     #else
-        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+        return (double)tv.tv_sec + (double)tv.tv_nsec / 1000000000;
     #endif
     }
 
