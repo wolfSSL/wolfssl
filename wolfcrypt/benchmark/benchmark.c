@@ -4732,6 +4732,7 @@ void bench_chacha(void)
     double start;
     int    i, count;
 
+    XMEMSET(&enc, 0, sizeof(enc));
     wc_Chacha_SetKey(&enc, bench_key, 16);
 
     bench_stats_start(&count, &start);

@@ -4723,10 +4723,14 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     int digestSize;
     HS_Hashes* tmpHashes;
     HS_Hashes* acceptHashes;
-    byte zeros[WC_MAX_DIGEST_SIZE] = {0};
+    byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
     byte acceptConfirmation[ECH_ACCEPT_CONFIRMATION_SZ];
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
+    XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
+    XMEMSET(acceptConfirmation, 0, sizeof(acceptConfirmation));
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
     /* swap hsHashes to acceptHashes */
@@ -4839,9 +4843,12 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     int digestSize;
     HS_Hashes* tmpHashes;
     HS_Hashes* acceptHashes;
-    byte zeros[WC_MAX_DIGEST_SIZE] = {0};
+    byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
+    XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
 
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &acceptHashes);
@@ -5710,7 +5717,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
     if (AllocateSuites(ssl) != 0)
         return;
 
-    XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
+    XMEMSET(suites, 0, sizeof(suites));
 
     if (!ssl->options.useClientOrder) {
         /* Server order refining. */

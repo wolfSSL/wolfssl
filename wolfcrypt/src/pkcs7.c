@@ -8697,6 +8697,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
     mp_int serialNum[1];
     RsaKey privKey[1];
 #endif
+    XMEMSET(issuerHash, 0, sizeof(issuerHash));
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
     keyIdSize = wc_HashGetDigestSize(wc_HashTypeConvert(HashIdAlg(

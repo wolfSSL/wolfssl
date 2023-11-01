@@ -14110,7 +14110,8 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             }
         }
         ret = wolfSSL_sk_push(req->reqAttributes, attr);
-        if (ret != WOLFSSL_SUCCESS) {
+        if ((ret != WOLFSSL_SUCCESS) || (req->reqAttributes->type == STACK_TYPE_CIPHER)) {
+            /* CIPHER type makes a copy */
             wolfSSL_X509_ATTRIBUTE_free(attr);
         }
     }
