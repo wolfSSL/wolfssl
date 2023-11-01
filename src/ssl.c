@@ -35991,6 +35991,9 @@ PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in, int len,
                                                                          != 0) {
             WOLFSSL_MSG("wc_PKCS7_VerifySignedData failed");
             wolfSSL_PKCS7_free((PKCS7*)pkcs7);
+            if (p7 != NULL) {
+                *p7 = NULL;
+            }
             return NULL;
         }
     }

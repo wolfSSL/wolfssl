@@ -1859,7 +1859,9 @@ static int test_wolfSSL_CertManagerAPI(void)
 #if !defined(NO_FILESYSTEM)
     {
         const char* ca_cert = "./certs/ca-cert.pem";
+    #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
         const char* ca_cert_der = "./certs/ca-cert.der";
+    #endif
         const char* ca_path = "./certs";
 
     #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
@@ -41785,8 +41787,10 @@ static int test_wolfSSL_BIO_gets(void)
     ExpectNotNull(emp_bm = BUF_MEM_new());
     ExpectNotNull(msg_bm = BUF_MEM_new());
     ExpectIntEQ(BUF_MEM_grow(msg_bm, sizeof(msg)), sizeof(msg));
-    if (EXPECT_SUCCESS())
+    if (EXPECT_SUCCESS()) {
         XFREE(msg_bm->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        msg_bm->data = NULL;
+    }
     /* emp size is 1 for terminator */
     ExpectIntEQ(BUF_MEM_grow(emp_bm, sizeof(emp)), sizeof(emp));
     if (EXPECT_SUCCESS()) {
@@ -43619,6 +43623,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     ExpectIntEQ(XSTRNCMP((const char*)outbuf, dnsStr, XSTRLEN(dnsStr)), 0);
 
     sk_GENERAL_NAME_pop_free(sk, GENERAL_NAME_free);
+    gn = NULL;
     sk = NULL;
     X509_free(x509);
     x509 = NULL;
@@ -59053,12 +59058,12 @@ static int test_openssl_generate_key_and_cert(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
+    int expectedDerSz;
     EVP_PKEY* pkey = NULL;
 #ifdef HAVE_ECC
     EC_KEY* ec_key = NULL;
 #endif
 #if !defined(NO_RSA)
-    int expectedDerSz;
     int key_length = 2048;
     BIGNUM* exponent = NULL;
     RSA* rsa = NULL;
@@ -59103,7 +59108,6 @@ static int test_openssl_generate_key_and_cert(void)
     #endif
     }
 
-    (void)expectedDerSz;
     EVP_PKEY_free(pkey);
     pkey = NULL;
     BN_free(exponent);
@@ -59133,6 +59137,7 @@ static int test_openssl_generate_key_and_cert(void)
     EVP_PKEY_free(pkey);
 #endif /* HAVE_ECC */
     (void)pkey;
+    (void)expectedDerSz;
 #endif /* OPENSSL_EXTRA */
 
     return EXPECT_RESULT();
@@ -59266,10 +59271,10 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     #define SUCC_T(x, y, z, p, d) ExpectIntEQ((int) x(y, z, p, d), \
                                                 WOLFSSL_SUCCESS)
 #ifndef NO_WOLFSSL_CLIENT
-    #define NEW_CTX(ctx) AssertNotNull( \
+    #define NEW_CTX(ctx) ExpectNotNull( \
             (ctx) = wolfSSL_CTX_new(wolfSSLv23_client_method()))
 #elif !defined(NO_WOLFSSL_SERVER)
-    #define NEW_CTX(ctx) AssertNotNull( \
+    #define NEW_CTX(ctx) ExpectNotNull( \
             (ctx) = wolfSSL_CTX_new(wolfSSLv23_server_method()))
 #else
     #define NEW_CTX(ctx) return

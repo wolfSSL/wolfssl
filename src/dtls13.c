@@ -943,8 +943,10 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         }
 
         ret = CheckAvailableSize(ssl, recordLength + MAX_MSG_EXTRA);
-        if (ret != 0)
+        if (ret != 0) {
+            Dtls13FreeFragmentsBuffer(ssl);
             return ret;
+        }
 
         output = GetOutputBuffer(ssl);
 
