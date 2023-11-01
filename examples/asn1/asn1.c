@@ -473,7 +473,6 @@ int main(int argc, char* argv[])
 
     if (fp != stdin) {
         fclose(fp);
-        fp = stdin;
     }
     return (ret == 0) ? 0 : 1;
 }
