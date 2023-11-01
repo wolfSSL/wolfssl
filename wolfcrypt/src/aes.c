@@ -3073,7 +3073,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         #ifdef DEBUG_WOLFSSL
             ESP_LOGW(TAG, "wc_AesSetKeyLocal ByteReverseWords");
         #endif
-            /* When not ESP32 HW, we need to reverse endianess */
+            /* When not ESP32 HW, we need to reverse endianness */
             ByteReverseWords(rk, rk, keylen);
         }
     #endif
@@ -12078,7 +12078,7 @@ int  wc_AesEaxEncryptUpdate(AesEax* eax, byte* out,
  * Decrypts input ciphertext using AES EAX mode, adding optional auth data to
  * the authentication stream
  *
- * Returns 0 on sucess
+ * Returns 0 on success
  * Returns error code on failure
  */
 int  wc_AesEaxDecryptUpdate(AesEax* eax, byte* out,
