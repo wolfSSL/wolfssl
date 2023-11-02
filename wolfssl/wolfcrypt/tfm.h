@@ -847,8 +847,8 @@ MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 
 MP_API int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 MP_API int  mp_copy(const fp_int* a, fp_int* b);
-MP_API int  mp_isodd(mp_int* a);
-MP_API int  mp_iszero(mp_int* a);
+MP_API int  mp_isodd(const mp_int* a);
+MP_API int  mp_iszero(const mp_int* a);
 MP_API int  mp_count_bits(const mp_int *a);
 MP_API int  mp_leading_bit(mp_int *a);
 MP_API int  mp_set_int(mp_int *a, unsigned long b);
