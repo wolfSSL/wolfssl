@@ -7,10 +7,13 @@ jobs:
   run_test:
     name: Build and run
     strategy:
+      fail-fast: false
       matrix:
         config:
           - zephyr-ref: v3.4.0
             zephyr-sdk: 0.16.1
+          - zephyr-ref: v3.5.0
+            zephyr-sdk: 0.16.3
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 15
