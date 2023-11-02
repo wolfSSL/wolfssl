@@ -4888,6 +4888,7 @@ static int test_wolfSSL_EVP_EncodeUpdate(void)
     const unsigned char plain1[] = {"This is a base64 encodeing test."};
     const unsigned char plain2[] = {"This is additional data."};
 
+    const unsigned char encBlock0[] = {"VGg="};
     const unsigned char enc0[]   = {"VGg=\n"};
     /* expected encoded result for the first output 64 chars plus trailing LF*/
     const unsigned char enc1[]   = {"VGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVpbmcgdGVzdC5UaGlzIGlzIGFkZGl0aW9u\n"};
@@ -4989,12 +4990,8 @@ static int test_wolfSSL_EVP_EncodeUpdate(void)
 
     XMEMSET( encOutBuff,0, sizeof(encOutBuff));
     ExpectIntEQ(EVP_EncodeBlock(encOutBuff, plain0, sizeof(plain0)-1),
-                sizeof(enc0)-1);
-    ExpectIntEQ(
-        XSTRNCMP(
-            (const char*)encOutBuff,
-            (const char*)enc0,sizeof(enc0) ),
-    0);
+                sizeof(encBlock0)-1);
+    ExpectStrEQ(encOutBuff, encBlock0);
 
     /* pass small size( < 48bytes ) input, then make sure they are not
      * encoded  and just stored in ctx
