@@ -21,3 +21,5 @@ jobs:
         run: ./autogen.sh && ./configure --enable-all --disable-crl-monitor
       - name: build wolfSSL
         run: make check
+      - name: Display log
+        run: cat test-suite.log
