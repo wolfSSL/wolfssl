@@ -4884,12 +4884,12 @@ int mp_copy(const fp_int* a, fp_int* b)
     return MP_OKAY;
 }
 
-int mp_isodd(mp_int* a)
+int mp_isodd(const mp_int* a)
 {
     return fp_isodd(a);
 }
 
-int mp_iszero(mp_int* a)
+int mp_iszero(const mp_int* a)
 {
     return fp_iszero(a);
 }
