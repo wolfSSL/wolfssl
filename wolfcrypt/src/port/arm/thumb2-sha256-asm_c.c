@@ -44,6 +44,7 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
@@ -73,12 +74,18 @@ static const uint32_t L_SHA256_transform_len_k[] = {
 };
 
 void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_len_k_c asm ("r3") = (uint32_t*)&L_SHA256_transform_len_k;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register wc_Sha256* sha256 __asm__ ("r0") = (wc_Sha256*)sha256_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_SHA256_transform_len_k_c __asm__ ("r3") = (uint32_t*)&L_SHA256_transform_len_k;
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc0\n\t"

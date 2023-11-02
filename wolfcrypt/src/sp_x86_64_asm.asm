@@ -1,5 +1,5 @@
-; /* sp_x86_64_asm
-;  *
+; /* sp_x86_64_asm.asm */
+; /*
 ;  * Copyright (C) 2006-2023 wolfSSL Inc.
 ;  *
 ;  * This file is part of wolfSSL.
