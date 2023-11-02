@@ -92,8 +92,6 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             /* Set data to new pointer. */
             data = p;
         }
-        /* Done with file. */
-        fclose(fp);
     }
 
     if (data != NULL) {
