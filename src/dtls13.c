@@ -2843,7 +2843,7 @@ int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled)
 #endif
 
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
-int wolfSSL_dtls13_hrr_on_resume(WOLFSSL *ssl, int enabled)
+int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled)
 {
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         return WOLFSSL_FAILURE;

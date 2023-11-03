@@ -67062,7 +67062,7 @@ static int test_dtls13_early_data(void)
         wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
-    ExpectIntEQ(wolfSSL_dtls13_hrr_on_resume(ssl_s, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls13_no_hrr_on_resume(ssl_s, 1), WOLFSSL_SUCCESS);
 #else
     /* Let's test this but we generally don't recommend turning off the
      * cookie exchange */

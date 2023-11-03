@@ -89,7 +89,7 @@ static const char *wolfsentry_config_path = NULL;
 #ifdef WOLFSSL_ALT_TEST_STRINGS
     #define TEST_STR_TERM "\n"
 #else
-    #define TEST_STR_TERM "\n"
+    #define TEST_STR_TERM
 #endif
 
 static const char kHelloMsg[] = "hello wolfssl!" TEST_STR_TERM;
