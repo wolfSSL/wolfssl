@@ -15634,13 +15634,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                        const unsigned char* in,
                                        long sz, int format)
     {
+        int verify;
         WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_buffer");
 
         /* sanity check on arguments */
         if (sz < 0 || in == NULL || ctx == NULL) {
             return BAD_FUNC_ARG;
         }
-        int verify;
 
         verify = GET_VERIFY_SETTING_CTX(ctx);
         if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS &
