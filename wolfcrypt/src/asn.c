@@ -18569,7 +18569,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     word32 idx = 0;
     byte isCA = 0;
 
-    WOLFSSL_ENTER("DecodeBasicCaConstraints");
+    WOLFSSL_ENTER("DecodeBasicCaConstraint");
 
     CALLOC_ASNGETDATA(dataASN, basicConsASN_Length, ret, cert->heap);
 
