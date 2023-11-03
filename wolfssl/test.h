@@ -1225,7 +1225,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
-    if ( ((size_t)peer != INADDR_ANY) && isalpha((int)peer[0])) {
+    if ( ((size_t)peer != INADDR_ANY) && isalpha((unsigned char)peer[0])) {
     #ifdef WOLFSSL_USE_POPEN_HOST
         char host_ipaddr[4] = { 127, 0, 0, 1 };
         int found = 1;
