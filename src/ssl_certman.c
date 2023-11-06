@@ -1648,6 +1648,7 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
     if (ret == WOLFSSL_SUCCESS) {
         /* Disable CRL checking. */
         cm->crlEnabled = 0;
+        cm->crlCheckAll = 0;
     }
 
     return ret;
