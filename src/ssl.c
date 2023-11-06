@@ -7235,10 +7235,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     else if (type == TRUSTED_PEER_TYPE) {
         /* add trusted peer cert. der is freed within */
         if (ctx != NULL)
-            ret = AddTrustedPeer(ctx->cm, &der, !ctx->verifyNone);
+            ret = AddTrustedPeer(ctx->cm, &der, verify);
         else {
             SSL_CM_WARNING(ssl);
-            ret = AddTrustedPeer(SSL_CM(ssl), &der, !ssl->options.verifyNone);
+            ret = AddTrustedPeer(SSL_CM(ssl), &der, verify);
         }
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error adding trusted peer");
@@ -15714,6 +15714,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                        const unsigned char* in,
                                        long sz, int format)
     {
+        int verify;
         WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_buffer");
 
         /* sanity check on arguments */
@@ -15721,12 +15722,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
+        verify = GET_VERIFY_SETTING_CTX(ctx);
+        if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS &
+                 WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
+            verify = VERIFY_SKIP_DATE;
+
         if (format == WOLFSSL_FILETYPE_PEM)
             return ProcessChainBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
-                                      NULL, GET_VERIFY_SETTING_CTX(ctx));
+                                      NULL, verify);
         else
             return ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
-                                 NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
+                                 NULL, 0, verify);
     }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
