@@ -6204,6 +6204,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                     return ret;
 
+                ssl->keys.encryptionOn = 1;
+
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls) {
                     ret = Dtls13NewEpoch(ssl,
@@ -6916,7 +6918,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
         else {
-            ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS13_NO_HRR_ON_RESUME)
+            /* Don't error out as we may be resuming. We confirm this later. */
+            if (!ssl->options.dtls)
+#endif
+                ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
         }
     }
 #endif
@@ -6982,7 +6988,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto exit_dch;
         }
     }
-    else
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
     if (args->usingPSK == 2) {
@@ -6990,6 +6995,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int doHelloRetry = 0;
         ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
         if (doHelloRetry) {
+            /* Make sure we don't send HRR twice */
+            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+                ERROR_OUT(INVALID_PARAMETER, exit_dch);
             ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             if (ret != WC_PENDING_E)
                 ret = 0; /* for hello_retry return 0 */
@@ -7082,32 +7090,58 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = INPUT_CASE_ERROR;
     } /* switch (ssl->options.asyncState) */
 
-#if defined(WOLFSSL_SEND_HRR_COOKIE)
-    if (ret == 0 && ssl->options.sendCookie && ssl->options.cookieGood &&
-            (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE
-#ifdef WOLFSSL_DTLS13
-                    /* DTLS cookie exchange should be done in stateless code in
-                     * DoClientHelloStateless. If we verified the cookie then
-                     * always advance the state. */
-                    || ssl->options.dtls
-#endif
-                    ))
-        ssl->options.serverState = SERVER_HELLO_COMPLETE;
-#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (ret == 0 && ssl->options.sendCookie) {
+        if (ssl->options.cookieGood &&
+                ssl->options.acceptState == TLS13_ACCEPT_FIRST_REPLY_DONE) {
+            /* Processing second ClientHello. Clear HRR state. */
+            ssl->options.serverState = NULL_STATE;
+        }
 
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-    if (ret == 0 && ssl->options.dtls && ssl->options.sendCookie &&
-        ssl->options.serverState <= SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-        /* Cookie and key share negotiation should be handled in
-         * DoClientHelloStateless. If we enter here then something went wrong
-         * in our logic. */
-        ERROR_OUT(BAD_HELLO, exit_dch);
+        if (ssl->options.cookieGood &&
+            ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            /* If we already verified the peer with a cookie then we can't
+             * do another HRR for cipher negotiation. Send alert and restart
+             * the entire handshake. */
+            ERROR_OUT(INVALID_PARAMETER, exit_dch);
+        }
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls &&
+            ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+            /* Cookie and key share negotiation should be handled in
+             * DoClientHelloStateless. If we enter here then something went
+             * wrong in our logic. */
+            ERROR_OUT(BAD_HELLO, exit_dch);
+        }
+#endif
+        /* Send a cookie */
+        if (!ssl->options.cookieGood &&
+            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
+                /* We can skip cookie on resumption */
+                if (!ssl->options.dtls || !ssl->options.dtls13NoHrrOnResume ||
+                        !args->usingPSK)
+#endif
+                    ERROR_OUT(BAD_HELLO, exit_dch);
+            }
+            else
+#endif
+            {
+                /* Need to remove the keyshare ext if we found a common group
+                 * and are not doing curve negotiation. */
+                TLSX_Remove(&ssl->extensions, TLSX_KEY_SHARE, ssl->heap);
+                ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
+            }
+
+        }
     }
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_DTLS_CID
     /* do not modify CID state if we are sending an HRR  */
-    if (ssl->options.useDtlsCID &&
+    if (ret == 0 && ssl->options.dtls && ssl->options.useDtlsCID &&
             ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE)
         DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */

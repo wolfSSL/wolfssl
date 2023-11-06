@@ -16793,11 +16793,13 @@ cleanup:
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
     /* return true if connection established */
-    int wolfSSL_is_init_finished(WOLFSSL* ssl)
+    int wolfSSL_is_init_finished(const WOLFSSL* ssl)
     {
         if (ssl == NULL)
             return 0;
 
+        /* Can't use ssl->options.connectState and ssl->options.acceptState because
+         * they differ in meaning for TLS <=1.2 and 1.3 */
         if (ssl->options.handShakeState == HANDSHAKE_DONE)
             return 1;
 
@@ -31970,12 +31972,7 @@ int wolfSSL_SSL_in_init(WOLFSSL *ssl)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_in_init");
 
-    if (ssl == NULL)
-        return WOLFSSL_FAILURE;
-
-    /* Can't use ssl->options.connectState and ssl->options.acceptState because
-     * they differ in meaning for TLS <=1.2 and 1.3 */
-    return ssl->options.handShakeState != HANDSHAKE_DONE;
+    return !wolfSSL_is_init_finished(ssl);
 }
 
 int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)

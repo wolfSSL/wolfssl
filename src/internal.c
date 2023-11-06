@@ -20185,20 +20185,8 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END
             && ssl->curRL.type != handshake && !IsSCR(ssl)) {
-        int beforeCookieVerified = 0;
-        if (!IsAtLeastTLSv1_3(ssl->version)) {
-            beforeCookieVerified =
-                ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE;
-        }
-#ifdef WOLFSSL_DTLS13
-        else {
-            beforeCookieVerified =
-                ssl->options.acceptState < TLS13_ACCEPT_SECOND_REPLY_DONE;
-        }
-#endif /* WOLFSSL_DTLS13 */
-
-        if (beforeCookieVerified) {
-            WOLFSSL_MSG("Drop non-handshake record before handshake");
+        if (!ssl->options.dtlsStateful) {
+            WOLFSSL_MSG("Drop non-handshake record when not stateful");
             return 1;
         }
     }
@@ -34441,6 +34429,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (cs.doHelloRetry) {
+            /* Make sure we don't send HRR twice */
+            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+                return INVALID_PARAMETER;
             ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             return TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
         }
