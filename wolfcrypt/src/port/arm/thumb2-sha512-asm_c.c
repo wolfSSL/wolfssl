@@ -44,6 +44,7 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
@@ -97,12 +98,18 @@ static const uint64_t L_SHA512_transform_len_k[] = {
 };
 
 void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
-    register const byte* data asm ("r1") = (const byte*)data_p;
-    register word32 len asm ("r2") = (word32)len_p;
-    register uint64_t* L_SHA512_transform_len_k_c asm ("r3") = (uint64_t*)&L_SHA512_transform_len_k;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register wc_Sha512* sha512 __asm__ ("r0") = (wc_Sha512*)sha512_p;
+    register const byte* data __asm__ ("r1") = (const byte*)data_p;
+    register word32 len __asm__ ("r2") = (word32)len_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint64_t* L_SHA512_transform_len_k_c __asm__ ("r3") = (uint64_t*)&L_SHA512_transform_len_k;
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0xc0\n\t"

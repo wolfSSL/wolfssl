@@ -44,6 +44,7 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
@@ -198,12 +199,18 @@ static const uint32_t* L_AES_Thumb2_te = L_AES_Thumb2_te_data;
 #endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 void AES_invert_key(unsigned char* ks, word32 rounds);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
+#else
+void AES_invert_key(unsigned char* ks, word32 rounds)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register unsigned char* ks asm ("r0") = (unsigned char*)ks_p;
-    register word32 rounds asm ("r1") = (word32)rounds_p;
-    register uint32_t* L_AES_Thumb2_te_c asm ("r2") = (uint32_t*)L_AES_Thumb2_te;
-    register uint32_t* L_AES_Thumb2_td_c asm ("r3") = (uint32_t*)L_AES_Thumb2_td;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register unsigned char* ks __asm__ ("r0") = (unsigned char*)ks_p;
+    register word32 rounds __asm__ ("r1") = (word32)rounds_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_c __asm__ ("r2") = (uint32_t*)L_AES_Thumb2_te;
+    register uint32_t* L_AES_Thumb2_td_c __asm__ ("r3") = (uint32_t*)L_AES_Thumb2_td;
 
     __asm__ __volatile__ (
         "MOV	r12, %[L_AES_Thumb2_te]\n\t"
@@ -314,13 +321,19 @@ static const uint32_t L_AES_Thumb2_rcon[] = {
 
 void AES_set_encrypt_key(const unsigned char* key, word32 len,
         unsigned char* ks);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char* ks_p)
+#else
+void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* key asm ("r0") = (const unsigned char*)key_p;
-    register word32 len asm ("r1") = (word32)len_p;
-    register unsigned char* ks asm ("r2") = (unsigned char*)ks_p;
-    register uint32_t* L_AES_Thumb2_te_c asm ("r3") = (uint32_t*)L_AES_Thumb2_te;
-    register uint32_t* L_AES_Thumb2_rcon_c asm ("r4") = (uint32_t*)&L_AES_Thumb2_rcon;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* key __asm__ ("r0") = (const unsigned char*)key_p;
+    register word32 len __asm__ ("r1") = (word32)len_p;
+    register unsigned char* ks __asm__ ("r2") = (unsigned char*)ks_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_c __asm__ ("r3") = (uint32_t*)L_AES_Thumb2_te;
+    register uint32_t* L_AES_Thumb2_rcon_c __asm__ ("r4") = (uint32_t*)&L_AES_Thumb2_rcon;
 
     __asm__ __volatile__ (
         "MOV	r8, %[L_AES_Thumb2_te]\n\t"
@@ -534,12 +547,18 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
 }
 
 void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t* ks_p)
+#else
+void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const uint32_t* te asm ("r0") = (const uint32_t*)te_p;
-    register int nr asm ("r1") = (int)nr_p;
-    register int len asm ("r2") = (int)len_p;
-    register const uint32_t* ks asm ("r3") = (const uint32_t*)ks_p;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const uint32_t* te __asm__ ("r0") = (const uint32_t*)te_p;
+    register int nr __asm__ ("r1") = (int)nr_p;
+    register int len __asm__ ("r2") = (int)len_p;
+    register const uint32_t* ks __asm__ ("r3") = (const uint32_t*)ks_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
@@ -762,14 +781,20 @@ static const uint32_t* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p)
+#else
+void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c asm ("r5") = (uint32_t*)L_AES_Thumb2_te_ecb;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r5") = (uint32_t*)L_AES_Thumb2_te_ecb;
 
     __asm__ __volatile__ (
         "MOV	lr, %[in]\n\t"
@@ -918,15 +943,21 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
 #ifdef HAVE_AES_CBC
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* iv_p)
+#else
+void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register unsigned char* iv asm ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c asm ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+    register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
 
     __asm__ __volatile__ (
         "MOV	r8, r4\n\t"
@@ -1090,15 +1121,21 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
 #ifdef WOLFSSL_AES_COUNTER
 void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* ctr_p)
+#else
+void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c asm ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+    register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
 
     __asm__ __volatile__ (
         "MOV	r12, r4\n\t"
@@ -1283,11 +1320,17 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
+#else
+void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const uint32_t* td asm ("r0") = (const uint32_t*)td_p;
-    register int nr asm ("r1") = (int)nr_p;
-    register const uint8_t* td4 asm ("r2") = (const uint8_t*)td4_p;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const uint32_t* td __asm__ ("r0") = (const uint32_t*)td_p;
+    register int nr __asm__ ("r1") = (int)nr_p;
+    register const uint8_t* td4 __asm__ ("r2") = (const uint8_t*)td4_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
@@ -1543,15 +1586,21 @@ static const unsigned char L_AES_Thumb2_td4[] = {
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p)
+#else
+void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register uint32_t* L_AES_Thumb2_td_ecb_c asm ("r5") = (uint32_t*)L_AES_Thumb2_td_ecb;
-    register unsigned char* L_AES_Thumb2_td4_c asm ("r6") = (unsigned char*)&L_AES_Thumb2_td4;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_td_ecb_c __asm__ ("r5") = (uint32_t*)L_AES_Thumb2_td_ecb;
+    register unsigned char* L_AES_Thumb2_td4_c __asm__ ("r6") = (unsigned char*)&L_AES_Thumb2_td4;
 
     __asm__ __volatile__ (
         "MOV	r8, r4\n\t"
@@ -1697,16 +1746,22 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
 #ifdef HAVE_AES_CBC
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* iv_p)
+#else
+void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register unsigned char* iv asm ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_Thumb2_td_ecb_c asm ("r6") = (uint32_t*)L_AES_Thumb2_td_ecb;
-    register unsigned char* L_AES_Thumb2_td4_c asm ("r7") = (unsigned char*)&L_AES_Thumb2_td4;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+    register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_td_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_td_ecb;
+    register unsigned char* L_AES_Thumb2_td4_c __asm__ ("r7") = (unsigned char*)&L_AES_Thumb2_td4;
 
     __asm__ __volatile__ (
         "MOV	r8, r4\n\t"
@@ -2033,13 +2088,19 @@ static const uint32_t L_GCM_gmult_len_r[] = {
 
 void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         const unsigned char* data, unsigned long len);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned char* data_p, unsigned long len_p)
+#else
+void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned char* data, unsigned long len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register unsigned char* x asm ("r0") = (unsigned char*)x_p;
-    register const unsigned char** m asm ("r1") = (const unsigned char**)m_p;
-    register const unsigned char* data asm ("r2") = (const unsigned char*)data_p;
-    register unsigned long len asm ("r3") = (unsigned long)len_p;
-    register uint32_t* L_GCM_gmult_len_r_c asm ("r4") = (uint32_t*)&L_GCM_gmult_len_r;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register unsigned char* x __asm__ ("r0") = (unsigned char*)x_p;
+    register const unsigned char** m __asm__ ("r1") = (const unsigned char**)m_p;
+    register const unsigned char* data __asm__ ("r2") = (const unsigned char*)data_p;
+    register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_GCM_gmult_len_r_c __asm__ ("r4") = (uint32_t*)&L_GCM_gmult_len_r;
 
     __asm__ __volatile__ (
         "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
@@ -2603,15 +2664,21 @@ void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned
 static const uint32_t* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
 void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* ctr_p)
+#else
+void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
-    register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
-    register unsigned char* out asm ("r1") = (unsigned char*)out_p;
-    register unsigned long len asm ("r2") = (unsigned long)len_p;
-    register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
-    register int nr asm ("r4") = (int)nr_p;
-    register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_Thumb2_te_gcm_c asm ("r6") = (uint32_t*)L_AES_Thumb2_te_gcm;
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register const unsigned char* in __asm__ ("r0") = (const unsigned char*)in_p;
+    register unsigned char* out __asm__ ("r1") = (unsigned char*)out_p;
+    register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
+    register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
+    register int nr __asm__ ("r4") = (int)nr_p;
+    register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+    register uint32_t* L_AES_Thumb2_te_gcm_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_gcm;
 
     __asm__ __volatile__ (
         "MOV	r12, r4\n\t"
