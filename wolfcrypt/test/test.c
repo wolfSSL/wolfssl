@@ -133,6 +133,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <time.h>
     #include <sys/time.h>
     #include <esp_log.h>
+    #include <wolfcrypt/port/Espressif/esp32-crypt.h> /* */
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
 
@@ -716,8 +717,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
+#if defined(WOLFSSL_ESPIDF_ERROR_PAUSE)
+    /* When defined, pause at error condition rather than exit with error. */
+        #define ERROR_OUT(err, eLabel) \
+            do { \
+                ret = (err); \
+                esp_ShowExtendedSystemInfo(); \
+                ESP_LOGE("wolfcrypt_test", "ESP Error! ret = %d ", err); \
+                while (1) { \
+                    vTaskDelay(60000); \
+                } \
+                /* Just to appease compiler, don't actually go to eLabel */ \
+                goto eLabel; \
+            } while (0)
+#else
+    #define ERROR_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
+#endif
 
-#define ERROR_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
+/* Not all unexpected conditions are actually errors .*/
+#define WARNING_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 
 static void render_error_message(const char* msg, wc_test_ret_t es)
 {
@@ -1903,7 +1921,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
     {
         wc_test_ret_t ret;
-        func_args args;
+        func_args args = { 0 };
 #if defined(WOLFSSL_ESPIDF) || defined(WOLFSSL_SE050)
         /* set dummy wallclock time. */
         struct timeval utctime;
@@ -2005,16 +2023,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         while (1);
 #endif
 
-#ifdef WOLFSSL_ESPIDF
-        /* ESP_LOGI to print takes up a lot less memory than printf */
-        ESP_LOGI("wolfcrypt_test", "Exiting main with return code: % d\n", args.return_code);
-#endif
-
-/* everything else will use printf */
-#if !defined(WOLFSSL_ESPIDF)
-/* gate this for target platforms wishing to avoid printf reference */
         printf("Exiting main with return code: %ld\n", (long int)args.return_code);
-#endif
 
         return args.return_code;
     } /* wolfcrypt_test_main or wolf_test_task */
@@ -26770,7 +26779,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 
     /* only perform the below tests if the key size matches */
     if (dp == NULL && keySize > 0 && wc_ecc_size(userA) != keySize)
-        ERROR_OUT(ECC_CURVE_OID_E, done);
+        /* Not an error, just not a key size match */
+        WARNING_OUT(ECC_CURVE_OID_E, done);
 
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
@@ -40550,7 +40560,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     #ifdef WOLFSSL_AES_256
         case AES256CBCb:
             if ((keySz != 32 ) || (ivSz  != AES_BLOCK_SIZE))
-                ERROR_OUT(BAD_FUNC_ARG, out);
+                WARNING_OUT(BAD_FUNC_ARG, out);
             break;
     #endif
     #ifdef WOLFSSL_AES_128
