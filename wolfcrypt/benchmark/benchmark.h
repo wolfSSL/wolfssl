@@ -95,6 +95,7 @@ void bench_hmac_sha256(int useDeviceID);
 void bench_hmac_sha384(int useDeviceID);
 void bench_hmac_sha512(int useDeviceID);
 void bench_siphash(void);
+void bench_srtpkdf(void);
 void bench_rsaKeyGen(int useDeviceID);
 void bench_rsaKeyGen_size(int useDeviceID, word32 keySz);
 void bench_rsa(int useDeviceID);
