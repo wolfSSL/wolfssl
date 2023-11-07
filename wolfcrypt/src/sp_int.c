@@ -14594,9 +14594,15 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
     }
 #endif
     if (err == MP_OKAY) {
+    #ifndef WOLFSSL_SP_INT_SQR_VOLATILE
         sp_int_word w;
         sp_int_word l;
         sp_int_word h;
+    #else
+        volatile sp_int_word w;
+        volatile sp_int_word l;
+        volatile sp_int_word h;
+    #endif
     #ifdef SP_WORD_OVERFLOW
         sp_int_word o;
     #endif
