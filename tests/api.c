@@ -49918,9 +49918,8 @@ static int test_MakeCertWithPathLen(void)
 static int test_MakeCertWithCaFalse(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
-    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
+#if defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE) && defined(WOLFSSL_CERT_REQ) && \
+    !defined(NO_ASN_TIME) && defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
     const byte expectedIsCaSet = 1;
     const byte expectedIsCa = 0;
     Cert cert;

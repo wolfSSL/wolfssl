@@ -530,7 +530,7 @@ typedef struct Cert {
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
     byte    basicConstSet:1;  /* Indicator for when Basic Constraint is set */
-#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     byte    isCaSet:1;        /* Indicator for when isCA is set */
 #endif
     byte    pathLenSet:1;     /* Indicator for when path length is set */

@@ -96,6 +96,9 @@ ASN Options:
     cost of taking up more memory. Adds initials, givenname, dnQualifer for
     example.
  * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
+ * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
+ *  which is discouraged by X.690 (DER) specification - default values shall not
+ *  be encoded.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -18548,7 +18551,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
         ret = 0;
     }
-#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     else {
         /* CA Boolean asserted, GetBoolean didn't return error. */
         cert->isCaSet = 1;
@@ -18590,18 +18593,15 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     /* Empty SEQUENCE is OK - nothing to store. */
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
-    #if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL)
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
+#if !defined(ASN_TEMPLATE_SKIP_ISCA_CHECK) && \
+    !defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE)
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
-    #else
-        if (dataASN[BASICCONSASN_IDX_CA].length != 0) {
-            cert->isCaSet = 1;
-        }
-    #endif
+#endif
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
@@ -27811,7 +27811,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                 dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
             }
         }
-    #if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+    #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
         else if (cert->isCaSet) {
             SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_BC_CA], 0);
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
@@ -28466,7 +28466,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         der->extensionsSz += der->caSz;
     }
-#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     /* Set CA */
     else if (cert->isCaSet) {
         der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);
@@ -29874,7 +29874,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
         der->extensionsSz += der->caSz;
     }
-#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     /* Set CA */
     else if (cert->isCaSet) {
         der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);

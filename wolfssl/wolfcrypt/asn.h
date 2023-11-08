@@ -1882,9 +1882,6 @@ struct DecodedCert {
     byte extNameConstraintSet : 1;
 #endif
     byte isCA : 1;                 /* CA basic constraint true */
-#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
-    byte isCaSet : 1;              /* CA basic constraint set */
-#endif
     byte pathLengthSet : 1;        /* CA basic const path length set */
     byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
     byte extKeyUsageSet : 1;
