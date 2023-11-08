@@ -1921,7 +1921,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
     {
         wc_test_ret_t ret;
-        func_args args = { 0 };
+        func_args args = { 0, 0, 0 };
 #if defined(WOLFSSL_ESPIDF) || defined(WOLFSSL_SE050)
         /* set dummy wallclock time. */
         struct timeval utctime;
