@@ -18548,6 +18548,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
         ret = 0;
     }
+#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+    else {
+        /* CA Boolean asserted, GetBoolean didn't return error. */
+        cert->isCaSet = 1;
+    }
+#endif
 
     cert->isCA = ret ? 1 : 0;
 
@@ -18584,14 +18590,18 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     /* Empty SEQUENCE is OK - nothing to store. */
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
+    #if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL)
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
-#ifndef ASN_TEMPLATE_SKIP_ISCA_CHECK
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
-#endif
+    #else
+        if (dataASN[BASICCONSASN_IDX_CA].length != 0) {
+            cert->isCaSet = 1;
+        }
+    #endif
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
@@ -26019,10 +26029,9 @@ static int SetCaWithPathLen(byte* out, word32 outSz, byte pathLen)
     return (int)sizeof(caPathLenBasicConstASN1);
 }
 
-
-/* encode CA basic constraints true
+/* encode CA basic constraints
  * return total bytes written */
-static int SetCa(byte* out, word32 outSz)
+static int SetCaEx(byte* out, word32 outSz, byte isCa)
 {
     /* ASN1->DER sequence for Basic Constraints True */
     const byte caBasicConstASN1[] = {
@@ -26038,7 +26047,18 @@ static int SetCa(byte* out, word32 outSz)
 
     XMEMCPY(out, caBasicConstASN1, sizeof(caBasicConstASN1));
 
+    if (!isCa) {
+        XMEMCPY(out + (sizeof(caBasicConstASN1) - 1U), &isCa, sizeof(isCa));
+    }
+
     return (int)sizeof(caBasicConstASN1);
+}
+
+/* encode CA basic constraints true
+ * return total bytes written */
+static int SetCa(byte* out, word32 outSz)
+{
+    return SetCaEx(out, outSz, 1);
 }
 
 /* encode basic constraints without CA Boolean
@@ -27791,6 +27811,13 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                 dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
             }
         }
+    #if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+        else if (cert->isCaSet) {
+            SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_BC_CA], 0);
+            SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
+            dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
+        }
+    #endif
         else if (cert->basicConstSet) {
             /* Set Basic Constraints to be a non Certificate Authority. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
@@ -28439,7 +28466,17 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         der->extensionsSz += der->caSz;
     }
+#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
     /* Set CA */
+    else if (cert->isCaSet) {
+        der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->caSz;
+    }
+#endif
+    /* Set CA true */
     else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
@@ -29837,7 +29874,17 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
         der->extensionsSz += der->caSz;
     }
+#if defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
     /* Set CA */
+    else if (cert->isCaSet) {
+        der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->caSz;
+    }
+#endif
+    /* Set CA true */
     else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
