@@ -966,16 +966,38 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-    #ifdef HAVE_LIBOQS
-    /* add DTLSv13 pq tests */
-    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-2.conf", sizeof(argv0[1]));
-    printf("starting DTLSv13 post-quantum groups tests\n");
+    #ifdef WOLFSSL_DTLS_CH_FRAG
+    /* add DTLSv13 pq frag tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-frag.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum groups tests with fragmentation\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif
+    #ifdef HAVE_LIBOQS
+    /* add DTLSv13 pq 2 tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-2.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum 2 groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #ifdef WOLFSSL_DTLS_CH_FRAG
+    /* add DTLSv13 pq 2 frag tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-2-frag.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum 2 groups tests with fragmentation\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #endif
     #endif
 #endif
