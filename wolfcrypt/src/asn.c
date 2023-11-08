@@ -18551,12 +18551,6 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
         ret = 0;
     }
-#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
-    else {
-        /* CA Boolean asserted, GetBoolean didn't return error. */
-        cert->isCaSet = 1;
-    }
-#endif
 
     cert->isCA = ret ? 1 : 0;
 
