@@ -32763,7 +32763,7 @@ static int test_wolfSSL_certs(void)
     ExpectNotNull(ext = X509V3_EXT_i2d(NID_ext_key_usage, crit, sk));
     X509_EXTENSION_free(ext);
     ext = NULL;
-    sk_ASN1_OBJECT_pop_free(sk, NULL);
+    EXTENDED_KEY_USAGE_free(sk);
     sk = NULL;
 #else
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_ext_key_usage,
