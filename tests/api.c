@@ -49920,7 +49920,6 @@ static int test_MakeCertWithCaFalse(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE) && defined(WOLFSSL_CERT_REQ) && \
     !defined(NO_ASN_TIME) && defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
-    const byte expectedIsCaSet = 1;
     const byte expectedIsCa = 0;
     Cert cert;
     DecodedCert decodedCert;
@@ -49952,7 +49951,7 @@ static int test_MakeCertWithCaFalse(void)
 
     cert.selfSigned = 1;
     cert.isCA       = expectedIsCa;
-    cert.isCaSet    = expectedIsCaSet;
+    cert.isCaSet    = 1;
     cert.sigType    = CTC_SHA256wECDSA;
 
     ExpectIntGE(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
