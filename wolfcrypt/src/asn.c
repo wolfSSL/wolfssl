@@ -97,7 +97,7 @@ ASN Options:
     example.
  * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
  * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
- *  which is discouraged by X.690 (DER) specification - default values shall not
+ *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
 */
 
