@@ -7938,6 +7938,11 @@ void bench_srtpkdf(void)
     const byte index[6] = { 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA };
     int kdrIdx = 0;
     int i;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+#ifdef MULTI_VALUE_STATISTICS
+    XMEMSET(deltas, 0, sizeof(deltas));
+#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7945,10 +7950,23 @@ void bench_srtpkdf(void)
             ret = wc_SRTP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
-    } while (bench_stats_check(start));
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
     bench_stats_asym_finish("KDF", 128, "SRTP", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(deltas, max, min, sum, runs);
+
+    XMEMSET(deltas, 0, sizeof(deltas));
+    prev = 0;
+    runs = 0;
+    sum  = 0;
+#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7956,10 +7974,23 @@ void bench_srtpkdf(void)
             ret = wc_SRTP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
-    } while (bench_stats_check(start));
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
     bench_stats_asym_finish("KDF", 256, "SRTP", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(deltas, max, min, sum, runs);
+
+    XMEMSET(deltas, 0, sizeof(deltas));
+    prev = 0;
+    runs = 0;
+    sum  = 0;
+#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7967,10 +7998,23 @@ void bench_srtpkdf(void)
             ret = wc_SRTCP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
-    } while (bench_stats_check(start));
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
     bench_stats_asym_finish("KDF", 128, "SRTCP", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(deltas, max, min, sum, runs);
+
+    XMEMSET(deltas, 0, sizeof(deltas));
+    prev = 0;
+    runs = 0;
+    sum  = 0;
+#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7978,10 +8022,19 @@ void bench_srtpkdf(void)
             ret = wc_SRTCP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
+            RECORD_MULTI_VALUE_STATS();
         }
         count += i;
-    } while (bench_stats_check(start));
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
     bench_stats_asym_finish("KDF", 256, "SRTCP", 0, count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(deltas, max, min, sum, runs);
+#endif
+
 }
 #endif
 
