@@ -26042,7 +26042,7 @@ static int SetCaEx(byte* out, word32 outSz, byte isCa)
     XMEMCPY(out, caBasicConstASN1, sizeof(caBasicConstASN1));
 
     if (!isCa) {
-        XMEMCPY(out + (sizeof(caBasicConstASN1) - 1U), &isCa, sizeof(isCa));
+        out[sizeof(caBasicConstASN1)-1] = isCa;
     }
 
     return (int)sizeof(caBasicConstASN1);
