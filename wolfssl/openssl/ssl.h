@@ -1396,6 +1396,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_ASN1_OBJECT_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
+#define EXTENDED_KEY_USAGE_free         wolfSSL_EXTENDED_KEY_USAGE_free
 
 #define AUTHORITY_INFO_ACCESS_free      wolfSSL_AUTHORITY_INFO_ACCESS_free
 #define AUTHORITY_INFO_ACCESS_pop_free  wolfSSL_AUTHORITY_INFO_ACCESS_pop_free

@@ -4903,6 +4903,17 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     wolfSSL_sk_GENERAL_NAME_free(gens);
 }
 
+void wolfSSL_EXTENDED_KEY_USAGE_free(WOLFSSL_STACK * sk)
+{
+    WOLFSSL_ENTER("wolfSSL_EXTENDED_KEY_USAGE_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    wolfSSL_sk_X509_pop_free(sk, NULL);
+}
+
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO.
  * Can handle following GENERAL_NAME_OBJECT types:
