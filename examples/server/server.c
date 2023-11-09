@@ -3392,7 +3392,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             } while (err == WC_PENDING_E);
         }
 #else
-        (void)nonBlocking;
+        if (nonBlocking) {
+            #ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+            #endif
+            tcp_set_nonblocking(&clientfd);
+        }
         ret = NonBlockingSSL_Accept(ssl);
 #endif
 #ifdef WOLFSSL_EARLY_DATA
