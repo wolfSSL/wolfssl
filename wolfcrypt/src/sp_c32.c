@@ -3543,7 +3543,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
@@ -3553,7 +3553,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     }
 
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 256U) {
@@ -3582,12 +3582,12 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         norm = r;
 
         sp_2048_from_bin(a, 72, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -3606,7 +3606,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         err = sp_2048_mod_72(a, a, m);
     }
     if (err == MP_OKAY) {
-        for (i=28; i>=0; i--) {
+        for (i=63; i>=0; i--) {
             if ((e[0] >> i) != 0) {
                 break;
             }
@@ -3643,14 +3643,14 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 256U) {
         err = MP_TO_E;
     }
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 256U) {
@@ -3679,12 +3679,12 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         m = r + 72 * 2;
 
         sp_2048_from_bin(a, 72, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -3714,7 +3714,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
             err = sp_2048_mod_72(a, a, m);
 
             if (err == MP_OKAY) {
-                for (i=28; i>=0; i--) {
+                for (i=63; i>=0; i--) {
                     if ((e[0] >> i) != 0) {
                         break;
                     }
@@ -7001,7 +7001,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
@@ -7011,7 +7011,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     }
 
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 384U) {
@@ -7040,12 +7040,12 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         norm = r;
 
         sp_3072_from_bin(a, 106, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -7064,7 +7064,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         err = sp_3072_mod_106(a, a, m);
     }
     if (err == MP_OKAY) {
-        for (i=28; i>=0; i--) {
+        for (i=63; i>=0; i--) {
             if ((e[0] >> i) != 0) {
                 break;
             }
@@ -7101,14 +7101,14 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 384U) {
         err = MP_TO_E;
     }
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 384U) {
@@ -7137,12 +7137,12 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         m = r + 106 * 2;
 
         sp_3072_from_bin(a, 106, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -7172,7 +7172,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
             err = sp_3072_mod_106(a, a, m);
 
             if (err == MP_OKAY) {
-                for (i=28; i>=0; i--) {
+                for (i=63; i>=0; i--) {
                     if ((e[0] >> i) != 0) {
                         break;
                     }
@@ -11119,7 +11119,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
@@ -11129,7 +11129,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     }
 
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 28) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 384U) {
@@ -11158,12 +11158,12 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         norm = r;
 
         sp_3072_from_bin(a, 112, in, inLen);
-#if DIGIT_BIT >= 28
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -11182,7 +11182,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         err = sp_3072_mod_112(a, a, m);
     }
     if (err == MP_OKAY) {
-        for (i=27; i>=0; i--) {
+        for (i=63; i>=0; i--) {
             if ((e[0] >> i) != 0) {
                 break;
             }
@@ -11219,14 +11219,14 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 384U) {
         err = MP_TO_E;
     }
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 28) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 384U) {
@@ -11255,12 +11255,12 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         m = r + 112 * 2;
 
         sp_3072_from_bin(a, 112, in, inLen);
-#if DIGIT_BIT >= 28
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -11290,7 +11290,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
             err = sp_3072_mod_112(a, a, m);
 
             if (err == MP_OKAY) {
-                for (i=27; i>=0; i--) {
+                for (i=63; i>=0; i--) {
                     if ((e[0] >> i) != 0) {
                         break;
                     }
@@ -14659,7 +14659,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
@@ -14669,7 +14669,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     }
 
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 512U) {
@@ -14698,12 +14698,12 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         norm = r;
 
         sp_4096_from_bin(a, 142, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -14722,7 +14722,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         err = sp_4096_mod_142(a, a, m);
     }
     if (err == MP_OKAY) {
-        for (i=28; i>=0; i--) {
+        for (i=63; i>=0; i--) {
             if ((e[0] >> i) != 0) {
                 break;
             }
@@ -14759,14 +14759,14 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 512U) {
         err = MP_TO_E;
     }
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 29) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 512U) {
@@ -14795,12 +14795,12 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         m = r + 142 * 2;
 
         sp_4096_from_bin(a, 142, in, inLen);
-#if DIGIT_BIT >= 29
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -14830,7 +14830,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
             err = sp_4096_mod_142(a, a, m);
 
             if (err == MP_OKAY) {
-                for (i=28; i>=0; i--) {
+                for (i=63; i>=0; i--) {
                     if ((e[0] >> i) != 0) {
                         break;
                     }
@@ -18644,7 +18644,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
@@ -18654,7 +18654,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     }
 
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 26) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 512U) {
@@ -18683,12 +18683,12 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         norm = r;
 
         sp_4096_from_bin(a, 162, in, inLen);
-#if DIGIT_BIT >= 26
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -18707,7 +18707,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         err = sp_4096_mod_162(a, a, m);
     }
     if (err == MP_OKAY) {
-        for (i=25; i>=0; i--) {
+        for (i=63; i>=0; i--) {
             if ((e[0] >> i) != 0) {
                 break;
             }
@@ -18744,14 +18744,14 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-    sp_digit e[1] = {0};
+    sp_uint64 e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 512U) {
         err = MP_TO_E;
     }
     if (err == MP_OKAY) {
-        if (mp_count_bits(em) > 26) {
+        if (mp_count_bits(em) > 64) {
             err = MP_READ_E;
         }
         else if (inLen > 512U) {
@@ -18780,12 +18780,12 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         m = r + 162 * 2;
 
         sp_4096_from_bin(a, 162, in, inLen);
-#if DIGIT_BIT >= 26
-        e[0] = (sp_digit)em->dp[0];
+#if DIGIT_BIT >= 64
+        e[0] = (sp_uint64)em->dp[0];
 #else
-        e[0] = (sp_digit)em->dp[0];
+        e[0] = (sp_uint64)em->dp[0];
         if (em->used > 1) {
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e[0] |= ((sp_uint64)em->dp[1]) << DIGIT_BIT;
         }
 #endif
         if (e[0] == 0) {
@@ -18815,7 +18815,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
             err = sp_4096_mod_162(a, a, m);
 
             if (err == MP_OKAY) {
-                for (i=25; i>=0; i--) {
+                for (i=63; i>=0; i--) {
                     if ((e[0] >> i) != 0) {
                         break;
                     }
