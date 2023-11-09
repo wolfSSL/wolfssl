@@ -3164,6 +3164,30 @@ time_t z_time(time_t * timer)
 {
     struct timespec ts;
 
+    #if defined(CONFIG_RTC) && \
+        (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
+    /* Try to obtain the actual time from an RTC */
+    static const struct device *rtc = DEVICE_DT_GET(DT_NODELABEL(rtc));
+
+    if (device_is_ready(rtc)) {
+        struct rtc_time rtc_time;
+        struct tm *tm_time = rtc_time_to_tm(&rtc_time);
+
+        int ret = rtc_get_time(rtc, &rtc_time);
+
+        if (ret == 0) {
+            time_t epochTime = mktime(tm_time);
+
+            if (timer != NULL)
+                *timer = epochTime;
+
+            return epochTime;
+        }
+    }
+    #endif
+
+    /* Fallback to uptime since boot. This works for relative times, but
+     * not for ASN.1 date validation */
     if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
         if (timer != NULL)
             *timer = ts.tv_sec;
