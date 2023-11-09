@@ -3707,10 +3707,10 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_32_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -4027,10 +4027,10 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_32_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -6203,10 +6203,10 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x100\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_64_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -6683,10 +6683,10 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x100\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_64_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -14774,10 +14774,10 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0xc0\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_48_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -15174,10 +15174,10 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0xc0\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_48_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -17974,10 +17974,10 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x180\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_96_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -18614,10 +18614,10 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x180\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_96_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -25648,10 +25648,10 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x200\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.W	L_sp_4096_mont_reduce_128_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -26448,10 +26448,10 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x200\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.W	L_sp_4096_mont_reduce_128_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -34262,10 +34262,10 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x20\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_256_mont_reduce_8_word_%=\n\t"
 #else
-        "BLT.N	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_8_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -34354,10 +34354,10 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x20\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_256_mont_reduce_8_word_%=\n\t"
 #else
-        "BLT.N	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_8_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -34636,10 +34636,10 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x20\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_256_mont_reduce_order_8_word_%=\n\t"
 #else
-        "BLT.N	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_order_8_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -34728,10 +34728,10 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x20\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_256_mont_reduce_order_8_word_%=\n\t"
 #else
-        "BLT.N	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_order_8_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -44011,10 +44011,10 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x30\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_384_mont_reduce_12_word_%=\n\t"
 #else
-        "BLT.N	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT.W	L_sp_384_mont_reduce_12_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -44123,10 +44123,10 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x30\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_384_mont_reduce_12_word_%=\n\t"
 #else
-        "BLT.N	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT.W	L_sp_384_mont_reduce_12_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -55604,10 +55604,10 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x44\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_521_mont_reduce_order_17_word_%=\n\t"
 #else
-        "BLT.N	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT.W	L_sp_521_mont_reduce_order_17_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -55822,10 +55822,10 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x44\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_521_mont_reduce_order_17_word_%=\n\t"
 #else
-        "BLT.N	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT.W	L_sp_521_mont_reduce_order_17_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -69752,10 +69752,10 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r11, r11, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_1024_mont_reduce_32_word_%=\n\t"
 #else
-        "BLT.N	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_1024_mont_reduce_32_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -69969,10 +69969,10 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r4, r4, #0x4\n\t"
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BLT	L_sp_1024_mont_reduce_32_word_%=\n\t"
 #else
-        "BLT.N	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_1024_mont_reduce_32_word_%=\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
