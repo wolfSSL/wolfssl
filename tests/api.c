@@ -24457,7 +24457,7 @@ static int test_wc_ecc_pointFns(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -24557,7 +24557,7 @@ static int test_wc_ecc_shared_secret_ssh(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;
@@ -24631,7 +24631,8 @@ static int test_wc_ecc_verify_hash_ex(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP) \
     && !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-       !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_KCAPI_ECC)
+       !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_KCAPI_ECC) && \
+       !defined(WOLFSSL_MICROCHIP_TA100)
     ecc_key       key;
     WC_RNG        rng;
     int           ret;
@@ -24726,7 +24727,7 @@ static int test_wc_ecc_mulmod(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-      defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+      defined(WOLFSSL_MICROCHIP_TA100) || defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;
@@ -58116,6 +58117,7 @@ static int test_wolfSSL_EC_POINT(void)
         X, Y, ctx), 0);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ExpectIntEQ(EC_POINT_add(NULL, NULL, NULL, NULL, ctx), 0);

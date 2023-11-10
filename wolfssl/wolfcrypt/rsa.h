@@ -140,6 +140,9 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
         #include <wolfssl/wolfcrypt/asn.h>
     #endif
 #endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif /* WOLFSSL_MICROCHIP_TA100 */
 
 enum {
     RSA_PUBLIC   = 0,
@@ -207,6 +210,11 @@ struct RsaKey {
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    uint16_t  rKeyH;        /* private key handle */
+    uint16_t  uKeyH;        /* public key handle */
+    byte uKey[TA_KEY_TYPE_RSA2048_SIZE]; /* public key */
 #endif
 #ifdef WOLF_CRYPTO_CB
     void* devCtx;
