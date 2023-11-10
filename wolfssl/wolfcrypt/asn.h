@@ -1717,6 +1717,9 @@ struct DecodedCert {
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     word32  pkCurveOID;           /* Public Key's curve OID */
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        int  pkCurveSize;         /* Public Key's curve size */
+    #endif
 #endif /* HAVE_ECC */
     const byte* beforeDate;
     int     beforeDateLen;
