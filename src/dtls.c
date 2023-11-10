@@ -27,7 +27,16 @@
  *     will consume less bandwidth (one ClientHello and one
  *     HelloVerifyRequest/HelloRetryRequest less). On the other hand, if a valid
  *     SessionID/ticket/psk is collected, forged clientHello messages will
- *     consume resources on the server.
+ *     consume resources on the server. For DTLS 1.3, using this option also
+ *     allows for the server to process Early Data/0-RTT Data. Without this, the
+ *     Early Data would be dropped since the server doesn't enter stateful
+ *     processing until receiving a verified ClientHello with the cookie.
+ *
+ *     To allow DTLS 1.3 resumption without the cookie exchange:
+ *     - Compile wolfSSL with WOLFSSL_DTLS13_NO_HRR_ON_RESUME defined
+ *     - Call wolfSSL_dtls13_no_hrr_on_resume(ssl, 1) on the WOLFSSL object to
+ *       disable the cookie exchange on resumption
+ *     - Continue like with a normal connection
  * WOLFSSL_DTLS_CH_FRAG
  *     Allow a server to process a fragmented second/verified (one containing a
  *     valid cookie response) ClientHello message. The first/unverified (one
