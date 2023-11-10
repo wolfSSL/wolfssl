@@ -35403,6 +35403,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef OPENSSL_EXTRA
+        ssl->clSuites = clSuites;
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
             ret = CertSetupCbWrapper(ssl);
@@ -35426,7 +35427,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     out:
-
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+        ssl->clSuites = NULL;
+#endif
 #ifdef WOLFSSL_SMALL_STACK
         if (clSuites != NULL)
             XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);

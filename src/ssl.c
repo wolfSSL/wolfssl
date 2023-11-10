@@ -16296,6 +16296,33 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->certSetupCbArg = arg;
     }
 
+    void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+            const byte** suites, word16* suiteSz,
+            const byte** hashSigAlgo, word16* hashSigAlgoSz)
+    {
+        WOLFSSL_ENTER("wolfSSL_get_client_suites_sigalgs");
+
+        if (suites != NULL)
+            *suites = NULL;
+        if (suiteSz != NULL)
+            *suiteSz = 0;
+        if (hashSigAlgo != NULL)
+            *hashSigAlgo = NULL;
+        if (hashSigAlgoSz != NULL)
+            *hashSigAlgoSz = 0;
+
+        if (ssl != NULL && ssl->clSuites != NULL) {
+            if (suites != NULL && suiteSz != NULL) {
+                *suites = ssl->clSuites->suites;
+                *suiteSz = ssl->clSuites->suiteSz;
+            }
+            if (hashSigAlgo != NULL && hashSigAlgoSz != NULL) {
+                *hashSigAlgo = ssl->clSuites->hashSigAlgo;
+                *hashSigAlgoSz = ssl->clSuites->hashSigAlgoSz;
+            }
+        }
+    }
+
     /**
      * Internal wrapper for calling certSetupCb
      * @param ssl The SSL/TLS Object

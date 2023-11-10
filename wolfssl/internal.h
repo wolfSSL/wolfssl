@@ -5389,6 +5389,9 @@ struct WOLFSSL {
                              * re-using the context's object. When WOLFSSL
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
+#ifdef OPENSSL_EXTRA
+    const Suites*   clSuites;
+#endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
                                                  * suites */
