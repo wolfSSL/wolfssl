@@ -127,6 +127,7 @@ check_type_size("time_t" SIZEOF_TIME_T)
 # but we want it as 1.
 if(HAVE___UINT128_T)
     set(HAVE___UINT128_T "1" CACHE INTERNAL "Result of TRY_COMPILE" FORCE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE___UINT128_T")
 endif()
 
 include(TestBigEndian)
