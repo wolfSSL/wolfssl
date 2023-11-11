@@ -205,9 +205,50 @@ enum {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(AES)
 };
 
+#ifdef WC_AES_BITSLICED
+    #ifdef WC_AES_BS_WORD_SIZE
+        #define BS_WORD_SIZE        WC_AES_BS_WORD_SIZE
+    #elif defined(NO_64BIT)
+        #define BS_WORD_SIZE        32
+    #else
+        #define BS_WORD_SIZE        64
+    #endif
+
+    /* Number of bits to a block. */
+    #define AES_BLOCK_BITS      (AES_BLOCK_SIZE * 8)
+    /* Number of bytes of input that can be processed in one call. */
+    #define BS_BLOCK_SIZE       (AES_BLOCK_SIZE * BS_WORD_SIZE)
+    /* Number of words in a block.  */
+    #define BS_BLOCK_WORDS      (AES_BLOCK_BITS / BS_WORD_SIZE)
+
+    #if BS_WORD_SIZE == 64
+        typedef word64          bs_word;
+        #define BS_WORD_SHIFT   6
+        #define bs_bswap(x)     ByteReverseWord64(x)
+    #elif BS_WORD_SIZE == 32
+        typedef word32          bs_word;
+        #define BS_WORD_SHIFT   5
+        #define bs_bswap(x)     ByteReverseWord32(x)
+    #elif BS_WORD_SIZE == 16
+        typedef word16          bs_word;
+        #define BS_WORD_SHIFT   4
+        #define bs_bswap(x)     ByteReverseWord16(x)
+    #elif BS_WORD_SIZE == 8
+        typedef word8           bs_word;
+        #define BS_WORD_SHIFT   3
+        #define bs_bswap(x)     (x)
+    #else
+        #error "Word size not supported"
+    #endif
+#endif
+
 struct Aes {
     /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
+#ifdef WC_AES_BITSLICED
+    /* Extra key schedule space required for bit-slicing technique. */
+    ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
+#endif
     word32  rounds;
     int     keylen;
 

@@ -11089,6 +11089,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
+#ifdef HAVE_AES_ECB
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte verify_ecb[AES_BLOCK_SIZE] = {
+            0xd0, 0xc9, 0xd9, 0xc9, 0x40, 0xe8, 0x97, 0xb6,
+            0xc8, 0x8c, 0x33, 0x3b, 0xb5, 0x8f, 0x85, 0xd1
+        };
+        XMEMSET(cipher, 0, AES_BLOCK_SIZE * 4);
+        ret = wc_AesEcbEncrypt(enc, cipher, msg, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (XMEMCMP(cipher, verify_ecb, AES_BLOCK_SIZE))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #ifdef HAVE_AES_DECRYPT
+        XMEMSET(plain, 0, AES_BLOCK_SIZE * 4);
+        ret = wc_AesEcbDecrypt(dec, plain, cipher, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif /* HAVE_AES_DECRYPT */
+    }
+#endif
+
     XMEMSET(cipher, 0, AES_BLOCK_SIZE * 4);
     ret = wc_AesCbcEncrypt(enc, cipher, msg, AES_BLOCK_SIZE);
 #if defined(WOLFSSL_ASYNC_CRYPT)

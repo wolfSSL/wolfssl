@@ -2493,6 +2493,16 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
 fi
 
+AC_ARG_ENABLE([aes-bitsliced],
+    [AS_HELP_STRING([--enable-aes-bitsliced],[Enable bitsliced implementation of AES (default: disabled)])],
+    [ ENABLED_AESBS=$enableval ],
+    [ ENABLED_AESBS=no ]
+    )
+
+if test "$ENABLED_AESBS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_AES_BITSLICED -DHAVE_AES_ECB"
+fi
 
 # SM4
 ENABLED_SM4="no"
@@ -9563,6 +9573,7 @@ echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * AES-OFB:                    $ENABLED_AESOFB"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
+echo "   * AES Bitspliced:             $ENABLED_AESBS"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
