@@ -8707,6 +8707,9 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
 fi
 
+AS_IF([test "x$ENABLED_AESBS" = "xyes" && test "x$ENABLED_ARMASM" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"])
+
 if test "$ENABLED_HMAC" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_HMAC"
