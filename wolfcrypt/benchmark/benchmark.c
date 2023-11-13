@@ -43,10 +43,6 @@
  * display mean, max, min and sd of operation durations:
  * MULTI_VALUE_STATISTICS
  *
- * related to MULTI_VALUE_STATISTICS, use the below to specify how many sample
- * observations are recorded to produce the stats above (defaults to 1000)
- * MAX_SAMPLE_RUNS
- *
  * Enable tracking of the stats into an allocated linked list:
  * (use -print to display results):
  * WC_BENCH_TRACK_STATS
@@ -239,13 +235,9 @@
 #endif
 
 #ifdef MULTI_VALUE_STATISTICS
-    #ifndef MAX_SAMPLE_RUNS
-        #define MAX_SAMPLE_RUNS 1000
-    #endif
     #define STATS_CLAUSE_SEPARATOR ""
-    #define DECLARE_MULTI_VALUE_STATS_VARS() double deltas[MAX_SAMPLE_RUNS];\
-                                         double max = 0, min = 0, sum = 0,\
-                                         prev = 0, delta;\
+    #define DECLARE_MULTI_VALUE_STATS_VARS() double max = 0, min = 0, sum = 0,\
+                                         squareSum = 0, prev = 0, delta;\
                                          int    runs = 0;
     #define RECORD_MULTI_VALUE_STATS()  if (runs == 0) {\
                                             delta = current_time(0) - start;\
@@ -255,15 +247,13 @@
                                         else {\
                                             delta = current_time(0) - prev;\
                                         }\
-                                        if (runs < MAX_SAMPLE_RUNS) {\
-                                            if (max < delta)\
-                                                max = delta;\
-                                            else if (min > delta)\
-                                                min = delta;\
-                                            deltas[runs] = delta;\
-                                            sum += delta;\
-                                            runs++;\
-                                        }\
+                                        if (max < delta)\
+                                            max = delta;\
+                                        else if (min > delta)\
+                                            min = delta;\
+                                        sum += delta;\
+                                        squareSum += delta * delta;\
+                                        runs++;\
                                         prev = current_time(0)
 #else
     #define STATS_CLAUSE_SEPARATOR "\n"
@@ -2045,8 +2035,8 @@ static double wc_sqroot(double in)
     return root;
 }
 
-static void bench_multi_value_stats(double deltas[], double max, double min,
-        double sum, int runs)
+static void bench_multi_value_stats(double max, double min, double sum,
+        double squareSum, int runs)
 {
     double mean = 0;
     double sd   = 0;
@@ -2058,10 +2048,7 @@ static void bench_multi_value_stats(double deltas[], double max, double min,
     mean = sum / runs;
 
     /* Calculating standard deviation */
-    for (int i = 0; i < runs; i++) {
-        sd += ((deltas[i] - mean) * (deltas[i] - mean));
-    }
-    sd = sd / (runs - 1);
+    sd = (squareSum / runs) - (mean * mean);
     sd = wc_sqroot(sd);
 
     if (csv_format == 1) {
@@ -3716,10 +3703,6 @@ void bench_rng(void)
         return;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
@@ -3749,7 +3732,7 @@ void bench_rng(void)
 exit_rng:
     bench_stats_sym_finish("RNG", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeRng(&myrng);
@@ -3772,9 +3755,6 @@ static void bench_aescbc_internal(int useDeviceID,
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -3790,10 +3770,6 @@ static void bench_aescbc_internal(int useDeviceID,
             goto exit;
         }
     }
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -3826,7 +3802,7 @@ exit_aes_enc:
     bench_stats_sym_finish(encLabel, useDeviceID, count,
                            bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     if (ret < 0) {
@@ -3844,10 +3820,10 @@ exit_aes_enc:
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -3881,7 +3857,7 @@ exit_aes_dec:
     bench_stats_sym_finish(decLabel, useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #endif /* HAVE_AES_DECRYPT */
@@ -3947,9 +3923,6 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (bench_additional)
 #endif
@@ -3973,10 +3946,6 @@ static void bench_aesgcm_internal(int useDeviceID,
             goto exit;
         }
     }
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
@@ -4011,17 +3980,17 @@ exit_aes_gcm:
     bench_stats_sym_finish(encLabel, useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #ifdef HAVE_AES_DECRYPT
     XMEMSET(dec, 0, sizeof(dec));
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* init keys */
@@ -4071,7 +4040,7 @@ exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_AES_DECRYPT */
 
@@ -4185,7 +4154,7 @@ exit_aes_gcm:
     bench_stats_sym_finish(encLabel, useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #ifdef HAVE_AES_DECRYPT
@@ -4205,10 +4174,10 @@ exit_aes_gcm:
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -4249,7 +4218,7 @@ exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_AES_DECRYPT */
 
@@ -4346,10 +4315,6 @@ void bench_gmac(int useDeviceID)
     const char* gmacStr = "GMAC Default";
 #endif
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     /* init keys */
     XMEMSET(bench_plain, 0, bench_size);
     XMEMSET(tag, 0, sizeof(tag));
@@ -4378,7 +4343,7 @@ void bench_gmac(int useDeviceID)
 
     bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 }
@@ -4403,9 +4368,6 @@ static void bench_aesecb_internal(int useDeviceID,
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -4460,7 +4422,7 @@ exit_aes_enc:
     bench_stats_sym_finish(encLabel, useDeviceID, count, benchSz,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #ifdef HAVE_AES_DECRYPT
@@ -4474,10 +4436,10 @@ exit_aes_enc:
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -4516,7 +4478,7 @@ exit_aes_dec:
     bench_stats_sym_finish(decLabel, useDeviceID, count, benchSz,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #endif /* HAVE_AES_DECRYPT */
@@ -4555,10 +4517,6 @@ static void bench_aescfb_internal(const byte* key,
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
@@ -4584,7 +4542,7 @@ static void bench_aescfb_internal(const byte* key,
 
     bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -4612,10 +4570,6 @@ static void bench_aesofb_internal(const byte* key,
     double start;
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     ret = wc_AesInit(&enc, NULL, INVALID_DEVID);
     if (ret != 0) {
@@ -4648,7 +4602,7 @@ static void bench_aesofb_internal(const byte* key,
 
     bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_AesFree(&enc);
@@ -4676,10 +4630,6 @@ void bench_aesxts(void)
     double start;
     int    i, count, ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     static unsigned char k1[] = {
         0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
@@ -4719,7 +4669,7 @@ void bench_aesxts(void)
 
     bench_stats_sym_finish("AES-XTS-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     wc_AesXtsFree(&aes);
 
@@ -4732,10 +4682,10 @@ void bench_aesxts(void)
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -4757,7 +4707,7 @@ void bench_aesxts(void)
 
     bench_stats_sym_finish("AES-XTS-dec", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     wc_AesXtsFree(&aes);
 }
@@ -4773,10 +4723,6 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
     double start;
     int    i, count, ret = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if ((ret = wc_AesInit(&enc, HEAP_HINT,
         useDeviceID ? devId : INVALID_DEVID)) != 0) {
@@ -4807,7 +4753,7 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
 
     bench_stats_sym_finish(label, useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_AesFree(&enc);
@@ -4848,9 +4794,6 @@ void bench_aesccm(int useDeviceID)
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if ((ret = wc_AesInit(&enc, HEAP_HINT,
         useDeviceID ? devId : INVALID_DEVID)) != 0) {
@@ -4881,7 +4824,7 @@ void bench_aesccm(int useDeviceID)
     bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-enc"), useDeviceID, count,
         bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
@@ -4889,10 +4832,10 @@ void bench_aesccm(int useDeviceID)
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -4913,7 +4856,7 @@ void bench_aesccm(int useDeviceID)
     bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-dec"), useDeviceID, count,
         bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
@@ -4941,10 +4884,6 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
@@ -4966,12 +4905,12 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
 
     bench_stats_sym_finish(encLabel, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -4995,7 +4934,7 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
 
     bench_stats_sym_finish(decLabel, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -5017,10 +4956,6 @@ void bench_poly1305(void)
     double   start;
     int      ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         ret = wc_Poly1305SetKey(&enc, bench_key, 32);
@@ -5073,7 +5008,7 @@ void bench_poly1305(void)
     }
     bench_stats_sym_finish("POLY1305", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif /* HAVE_POLY1305 */
@@ -5086,10 +5021,6 @@ void bench_camellia(void)
     double   start;
     int      ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     ret = wc_CamelliaSetKey(&cam, bench_key, 16, bench_iv);
     if (ret != 0) {
@@ -5117,7 +5048,7 @@ void bench_camellia(void)
 
     bench_stats_sym_finish("Camellia", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -5131,10 +5062,6 @@ void bench_sm4_cbc(void)
     int    i;
     int    count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     ret = wc_Sm4SetKey(&sm4, bench_key, SM4_KEY_SIZE);
     if (ret != 0) {
@@ -5166,12 +5093,12 @@ void bench_sm4_cbc(void)
 
     bench_stats_sym_finish("SM4-CBC-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -5193,7 +5120,7 @@ void bench_sm4_cbc(void)
 
     bench_stats_sym_finish("SM4-CBC-dec", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -5215,10 +5142,6 @@ void bench_sm4_gcm(void)
         printf("bench_aesgcm_internal malloc failed\n");
         return;
     }
-#endif
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
     ret = wc_Sm4GcmSetKey(&sm4, bench_key, SM4_KEY_SIZE);
@@ -5248,12 +5171,12 @@ void bench_sm4_gcm(void)
 
     bench_stats_sym_finish("SM4-GCM-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -5277,7 +5200,7 @@ void bench_sm4_gcm(void)
 
     bench_stats_sym_finish("SM4-GCM-dec", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -5302,9 +5225,6 @@ void bench_sm4_ccm()
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if ((ret = wc_Sm4SetKey(&enc, bench_key, 16)) != 0) {
         printf("wc_Sm4SetKey failed, ret = %d\n", ret);
@@ -5328,7 +5248,7 @@ void bench_sm4_ccm()
 
     bench_stats_sym_finish("SM4-CCM-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     if (ret != 0) {
         printf("wc_Sm4Encrypt failed, ret = %d\n", ret);
@@ -5336,10 +5256,10 @@ void bench_sm4_ccm()
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -5359,7 +5279,7 @@ void bench_sm4_ccm()
 
     bench_stats_sym_finish("SM4-CCM-dec", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
     if (ret != 0) {
         printf("wc_Sm4Decrypt failed, ret = %d\n", ret);
@@ -5382,9 +5302,6 @@ void bench_des(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5431,7 +5348,7 @@ void bench_des(int useDeviceID)
 exit_3des:
     bench_stats_sym_finish("3DES", useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -5453,9 +5370,6 @@ void bench_arc4(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5501,7 +5415,7 @@ void bench_arc4(int useDeviceID)
 exit_arc4:
     bench_stats_sym_finish("ARC4", useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -5540,7 +5454,7 @@ void bench_chacha(void)
 
     bench_stats_sym_finish("CHACHA", 0, count, bench_size, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif /* HAVE_CHACHA*/
@@ -5554,9 +5468,6 @@ void bench_chacha20_poly1305_aead(void)
 
     byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     XMEMSET(authTag, 0, sizeof(authTag));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -5578,7 +5489,7 @@ void bench_chacha20_poly1305_aead(void)
 
     bench_stats_sym_finish("CHA-POLY", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
@@ -5599,9 +5510,6 @@ void bench_md5(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -5684,7 +5592,7 @@ void bench_md5(int useDeviceID)
 exit_md5:
     bench_stats_sym_finish("MD5", useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -5714,9 +5622,6 @@ void bench_sha(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -5800,7 +5705,7 @@ void bench_sha(int useDeviceID)
 exit_sha:
     bench_stats_sym_finish("SHA", useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -5828,9 +5733,6 @@ void bench_sha224(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -5910,7 +5812,7 @@ exit_sha224:
     bench_stats_sym_finish("SHA-224", useDeviceID, count,
                            bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -5938,9 +5840,6 @@ void bench_sha256(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6024,7 +5923,7 @@ exit_sha256:
     bench_stats_sym_finish("SHA-256", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 exit:
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -6049,9 +5948,6 @@ void bench_sha384(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6132,7 +6028,7 @@ exit_sha384:
     bench_stats_sym_finish("SHA-384", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6159,9 +6055,6 @@ void bench_sha512(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6242,7 +6135,7 @@ exit_sha512:
     bench_stats_sym_finish("SHA-512", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6269,9 +6162,6 @@ void bench_sha512_224(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6352,7 +6242,7 @@ exit_sha512_224:
     bench_stats_sym_finish("SHA-512/224", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6380,9 +6270,6 @@ void bench_sha512_256(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6463,7 +6350,7 @@ exit_sha512_256:
     bench_stats_sym_finish("SHA-512/256", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6494,9 +6381,6 @@ void bench_sha3_224(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6577,7 +6461,7 @@ exit_sha3_224:
     bench_stats_sym_finish("SHA3-224", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6604,9 +6488,6 @@ void bench_sha3_256(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6687,7 +6568,7 @@ exit_sha3_256:
     bench_stats_sym_finish("SHA3-256", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6714,9 +6595,6 @@ void bench_sha3_384(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6797,7 +6675,7 @@ exit_sha3_384:
     bench_stats_sym_finish("SHA3-384", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6824,9 +6702,6 @@ void bench_sha3_512(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -6907,7 +6782,7 @@ exit_sha3_512:
     bench_stats_sym_finish("SHA3-512", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -6934,9 +6809,6 @@ void bench_shake128(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -7019,7 +6891,7 @@ exit_shake128:
     bench_stats_sym_finish("SHAKE128", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -7046,9 +6918,6 @@ void bench_shake256(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -7131,7 +7000,7 @@ exit_shake256:
     bench_stats_sym_finish("SHAKE256", useDeviceID, count, bench_size,
                            start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -7159,9 +7028,6 @@ void bench_sm3(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         /* init keys */
@@ -7239,7 +7105,7 @@ void bench_sm3(int useDeviceID)
 exit_sm3:
     bench_stats_sym_finish("SM3", useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -7261,10 +7127,6 @@ void bench_ripemd(void)
     double start;
     int    i, count, ret = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         ret = wc_InitRipeMd(&hash);
@@ -7326,7 +7188,7 @@ void bench_ripemd(void)
     }
     bench_stats_sym_finish("RIPEMD", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     return;
@@ -7342,10 +7204,6 @@ void bench_blake2b(void)
     double  start;
     int     ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         ret = wc_InitBlake2b(&b2b, 64);
@@ -7406,7 +7264,7 @@ void bench_blake2b(void)
     }
     bench_stats_sym_finish("BLAKE2b", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -7419,10 +7277,6 @@ void bench_blake2s(void)
     double  start;
     int     ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     if (digest_stream) {
         ret = wc_InitBlake2s(&b2s, 32);
@@ -7483,7 +7337,7 @@ void bench_blake2s(void)
     }
     bench_stats_sym_finish("BLAKE2s", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -7518,10 +7372,6 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     }
 #endif
     (void)useDeviceID;
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7564,7 +7414,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
 
     bench_stats_sym_finish(outMsg, useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -7589,10 +7439,6 @@ void bench_scrypt(void)
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < scryptCnt; i++) {
@@ -7615,7 +7461,7 @@ void bench_scrypt(void)
 exit:
     bench_stats_asym_finish("scrypt", 17, "", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -7643,9 +7489,6 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
 
     /* clear for done cleanup */
     XMEMSET(hmac, 0, sizeof(hmac));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -7711,7 +7554,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
 exit_hmac:
     bench_stats_sym_finish(label, useDeviceID, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -7839,10 +7682,6 @@ void bench_pbkdf2(void)
     byte derived[32];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         ret = wc_PBKDF2(derived, (const byte*)passwd32, (int)XSTRLEN(passwd32),
@@ -7857,7 +7696,7 @@ void bench_pbkdf2(void)
 
     bench_stats_sym_finish("PBKDF2", 32, count, 32, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif /* !NO_PWDBASED */
@@ -7873,10 +7712,6 @@ void bench_siphash(void)
     byte out[16];
     int    i;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -7894,12 +7729,12 @@ void bench_siphash(void)
 
     bench_stats_sym_finish("SipHash-8", 1, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -7918,7 +7753,7 @@ void bench_siphash(void)
 
     bench_stats_sym_finish("SipHash-16", 1, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 #endif
@@ -7940,10 +7775,6 @@ void bench_srtpkdf(void)
     int i;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
@@ -7960,12 +7791,12 @@ void bench_srtpkdf(void)
        );
     bench_stats_asym_finish("KDF", 128, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -7984,12 +7815,12 @@ void bench_srtpkdf(void)
        );
     bench_stats_asym_finish("KDF", 256, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -8008,12 +7839,12 @@ void bench_srtpkdf(void)
        );
     bench_stats_asym_finish("KDF", 128, "SRTCP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -8032,7 +7863,7 @@ void bench_srtpkdf(void)
        );
     bench_stats_asym_finish("KDF", 256, "SRTCP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 }
@@ -8065,9 +7896,6 @@ static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
 
     /* clear for done cleanup */
     XMEMSET(genKey, 0, sizeof(*genKey) * BENCH_MAX_PENDING);
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     bench_stats_start(&count, &start);
     do {
@@ -8107,7 +7935,7 @@ exit:
     bench_stats_asym_finish("RSA", (int)keySz, desc[2], useDeviceID, count,
                             start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     /* cleanup */
@@ -8301,10 +8129,6 @@ static void bench_rsa_helper(int useDeviceID, RsaKey rsaKey[BENCH_MAX_PENDING],
     XMEMCPY(message, messageStr, len);
 #endif
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
         /* begin public RSA */
@@ -8342,7 +8166,7 @@ exit_rsa_verify:
         bench_stats_asym_finish("RSA", (int)rsaKeySz, desc[0],
                                 useDeviceID, count, start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY */
 
@@ -8352,10 +8176,10 @@ exit_rsa_verify:
         }
 
 #ifdef MULTI_VALUE_STATISTICS
-        XMEMSET(deltas, 0, sizeof(deltas));
         prev = 0;
         runs = 0;
         sum  = 0;
+        squareSum = 0;
 #endif
 
         /* capture resulting encrypt length */
@@ -8394,7 +8218,7 @@ exit_rsa_pub:
         bench_stats_asym_finish("RSA", (int)rsaKeySz, desc[1],
                                 useDeviceID, count, start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
     }
@@ -8433,17 +8257,17 @@ exit_rsa_sign:
         bench_stats_asym_finish("RSA", (int)rsaKeySz, desc[4], useDeviceID,
                                 count, start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
         if (ret < 0) {
             goto exit;
         }
 
 #ifdef MULTI_VALUE_STATISTICS
-        XMEMSET(deltas, 0, sizeof(deltas));
         prev = 0;
         runs = 0;
         sum  = 0;
+        squareSum = 0;
 #endif
 
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
@@ -8505,7 +8329,7 @@ exit_rsa_verifyinline:
         bench_stats_asym_finish("RSA", (int)rsaKeySz, desc[5],
                                  useDeviceID, count,  start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 
@@ -8862,9 +8686,6 @@ void bench_dh(int useDeviceID)
         XMEMSET(dhKey[i], 0, sizeof(DhKey));
     }
 #endif
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -8902,9 +8723,6 @@ void bench_dh(int useDeviceID)
         }
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -8943,7 +8761,7 @@ exit_dh_gen:
     bench_stats_asym_finish("DH", dhKeySz, desc[2],
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     if (ret < 0) {
@@ -8951,10 +8769,10 @@ exit_dh_gen:
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* Generate key to use as other public */
@@ -9000,7 +8818,7 @@ exit:
     bench_stats_asym_finish("DH", dhKeySz, desc[3],
     useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     /* cleanup */
@@ -9034,10 +8852,6 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     /* KYBER Make Key */
     bench_stats_start(&count, &start);
     do {
@@ -9068,7 +8882,7 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
 exit:
     bench_stats_asym_finish(name, keySize, desc[2], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -9086,10 +8900,6 @@ static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
     if (ret != 0) {
         return;
     }
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* KYBER Encapsulate */
     bench_stats_start(&count, &start);
@@ -9117,14 +8927,14 @@ static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
 exit_encap:
     bench_stats_asym_finish(name, keySize, desc[9], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* KYBER Decapsulate */
@@ -9147,7 +8957,7 @@ exit_encap:
 exit_decap:
     bench_stats_asym_finish(name, keySize, desc[13], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -9512,12 +9322,12 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     bench_stats_asym_finish(str, (int)sigSz, "sign", 0,
                             count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     count = 0;
@@ -9545,7 +9355,7 @@ exit_lms_sign_verify:
     bench_stats_asym_finish(str, (int)sigSz, "verify", 0,
                             count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 
@@ -9875,9 +9685,6 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
 
     /* clear for done cleanup */
     XMEMSET(genKey, 0, sizeof(*genKey) * BENCH_MAX_PENDING);
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* ECC Make Key */
     bench_stats_start(&count, &start);
@@ -9921,7 +9728,7 @@ exit:
     bench_stats_asym_finish(name, keySize * 8, desc[2],
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     /* cleanup */
@@ -10011,9 +9818,6 @@ void bench_ecc(int useDeviceID, int curveId)
 #ifdef HAVE_ECC_DHE
     XMEMSET(genKey2, 0, sizeof(*genKey2) * BENCH_MAX_PENDING);
 #endif
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
     keySize = wc_ecc_get_curve_size_from_id(curveId);
 
     /* init keys */
@@ -10088,12 +9892,12 @@ exit_ecdhe:
     bench_stats_asym_finish(name, keySize * 8, desc[3],
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     if (ret < 0) {
@@ -10152,12 +9956,12 @@ exit_ecdsa_sign:
     bench_stats_asym_finish(name, keySize * 8, desc[4],
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     if (ret < 0) {
@@ -10208,7 +10012,7 @@ exit_ecdsa_verify:
     bench_stats_asym_finish(name, keySize * 8, desc[5],
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_ECC_VERIFY */
 #endif /* !NO_ASN && HAVE_ECC_SIGN */
@@ -10332,10 +10136,6 @@ void bench_eccEncrypt(int curveId)
         msg[i] = (byte)i;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < ntimes; i++) {
@@ -10360,12 +10160,12 @@ exit_enc:
                     wc_ecc_get_name(curveId));
     bench_stats_asym_finish(name, keySize * 8, desc[6], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -10390,7 +10190,7 @@ exit_enc:
 exit_dec:
     bench_stats_asym_finish(name, keySize * 8, desc[7], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 exit:
@@ -10433,9 +10233,6 @@ static void bench_sm2_MakeKey(int useDeviceID)
 
     /* clear for done cleanup */
     XMEMSET(&genKey, 0, sizeof(genKey));
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* ECC Make Key */
     bench_stats_start(&count, &start);
@@ -10478,7 +10275,7 @@ exit:
     bench_stats_asym_finish(name, keySize * 8, desc[2], useDeviceID, count,
             start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     /* cleanup */
@@ -10531,9 +10328,6 @@ void bench_sm2(int useDeviceID)
     XMEMSET(&genKey, 0, sizeof(genKey));
 #ifdef HAVE_ECC_DHE
     XMEMSET(&genKey2, 0, sizeof(genKey2));
-#endif
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
 #endif
 
     keySize = wc_ecc_get_curve_size_from_id(ECC_SM2P256V1);
@@ -10610,7 +10404,7 @@ exit_ecdhe:
     bench_stats_asym_finish(name, keySize * 8, desc[3], useDeviceID, count,
             start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     if (ret < 0) {
@@ -10628,10 +10422,10 @@ exit_ecdhe:
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* ECC Sign */
@@ -10671,7 +10465,7 @@ exit_ecdsa_sign:
     bench_stats_asym_finish(name, keySize * 8, desc[4], useDeviceID, count,
             start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     if (ret < 0) {
@@ -10717,7 +10511,7 @@ exit_ecdsa_verify:
     bench_stats_asym_finish(name, keySize * 8, desc[5], useDeviceID, count,
             start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
 #endif /* HAVE_ECC_VERIFY */
@@ -10762,10 +10556,6 @@ void bench_curve25519KeyGen(int useDeviceID)
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     /* Key Gen */
     bench_stats_start(&count, &start);
     do {
@@ -10795,7 +10585,7 @@ void bench_curve25519KeyGen(int useDeviceID)
     bench_stats_asym_finish("CURVE", 25519, desc[2], useDeviceID, count, start,
         ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -10809,10 +10599,6 @@ void bench_curve25519KeyAgree(int useDeviceID)
     const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     wc_curve25519_init_ex(&genKey,  HEAP_HINT,
         useDeviceID ? devId : INVALID_DEVID);
@@ -10854,7 +10640,7 @@ exit:
     bench_stats_asym_finish("CURVE", 25519, desc[3], useDeviceID, count, start,
         ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_curve25519_free(&genKey2);
@@ -10872,10 +10658,6 @@ void bench_ed25519KeyGen(void)
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -10895,7 +10677,7 @@ void bench_ed25519KeyGen(void)
 
     bench_stats_asym_finish("ED", 25519, desc[2], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_ED25519_MAKE_KEY */
 }
@@ -10932,10 +10714,6 @@ void bench_ed25519KeySign(void)
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = (byte)i;
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < agreeTimes; i++) {
@@ -10957,12 +10735,12 @@ void bench_ed25519KeySign(void)
 exit_ed_sign:
     bench_stats_asym_finish("ED", 25519, desc[4], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
 #ifdef HAVE_ED25519_VERIFY
@@ -10988,7 +10766,7 @@ exit_ed_sign:
 exit_ed_verify:
     bench_stats_asym_finish("ED", 25519, desc[5], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519_SIGN */
@@ -11005,10 +10783,6 @@ void bench_curve448KeyGen(void)
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11031,7 +10805,7 @@ void bench_curve448KeyGen(void)
 
     bench_stats_asym_finish("CURVE", 448, desc[2], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -11045,10 +10819,6 @@ void bench_curve448KeyAgree(void)
     const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     wc_curve448_init(&genKey);
     wc_curve448_init(&genKey2);
@@ -11087,7 +10857,7 @@ void bench_curve448KeyAgree(void)
 exit:
     bench_stats_asym_finish("CURVE", 448, desc[3], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_curve448_free(&genKey2);
@@ -11104,10 +10874,6 @@ void bench_ed448KeyGen(void)
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11127,7 +10893,7 @@ void bench_ed448KeyGen(void)
 
     bench_stats_asym_finish("ED", 448, desc[2], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -11159,10 +10925,6 @@ void bench_ed448KeySign(void)
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = (byte)i;
 
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
-
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < agreeTimes; i++) {
@@ -11185,12 +10947,12 @@ void bench_ed448KeySign(void)
 exit_ed_sign:
     bench_stats_asym_finish("ED", 448, desc[4], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
 #ifdef HAVE_ED448_VERIFY
@@ -11216,7 +10978,7 @@ exit_ed_sign:
 exit_ed_verify:
     bench_stats_asym_finish("ED", 448, desc[5], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN */
@@ -11235,10 +10997,6 @@ void bench_eccsiKeyGen(void)
     const char**desc = bench_desc_words[lng_index];
     int    ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11262,7 +11020,7 @@ void bench_eccsiKeyGen(void)
 
     bench_stats_asym_finish("ECCSI", 256, desc[2], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -11282,10 +11040,6 @@ void bench_eccsiPairGen(void)
     pvt = wc_ecc_new_point();
     wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* RSK Gen */
     bench_stats_start(&count, &start);
@@ -11308,7 +11062,7 @@ void bench_eccsiPairGen(void)
 
     bench_stats_asym_finish("ECCSI", 256, desc[12], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeEccsiKey(&genKey);
@@ -11330,10 +11084,6 @@ void bench_eccsiValidate(void)
     int valid;
     int ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
@@ -11364,7 +11114,7 @@ void bench_eccsiValidate(void)
 
     bench_stats_asym_finish("ECCSI", 256, desc[11], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeEccsiKey(&genKey);
@@ -11389,10 +11139,6 @@ void bench_eccsi(void)
     int ret;
     int verified;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
@@ -11426,12 +11172,12 @@ void bench_eccsi(void)
 
     bench_stats_asym_finish("ECCSI", 256, desc[4], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* Derive */
@@ -11457,7 +11203,7 @@ void bench_eccsi(void)
 
     bench_stats_asym_finish("ECCSI", 256, desc[5], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeEccsiKey(&genKey);
@@ -11476,10 +11222,6 @@ void bench_sakkeKeyGen(void)
     const char**desc = bench_desc_words[lng_index];
     int    ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11503,7 +11245,7 @@ void bench_sakkeKeyGen(void)
 
     bench_stats_asym_finish("SAKKE", 1024, desc[2], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
@@ -11517,10 +11259,6 @@ void bench_sakkeRskGen(void)
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     rsk = wc_ecc_new_point();
     wc_InitSakkeKey_ex(&genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11546,7 +11284,7 @@ void bench_sakkeRskGen(void)
 
     bench_stats_asym_finish("SAKKE", 1024, desc[8], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeSakkeKey(&genKey);
@@ -11566,10 +11304,6 @@ void bench_sakkeValidate(void)
     int valid;
     int ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(&genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11598,7 +11332,7 @@ void bench_sakkeValidate(void)
 
     bench_stats_asym_finish("SAKKE", 1024, desc[11], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeSakkeKey(&genKey);
@@ -11626,9 +11360,6 @@ void bench_sakke(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     XMEMCPY(ssv, ssv_init, sizeof ssv);
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(&genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11660,12 +11391,12 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[9], "-1",
                                0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     /* Derive */
@@ -11692,7 +11423,7 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[10], "-1",
                                0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     /* Calculate Point I and generate table. */
@@ -11727,12 +11458,12 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[9], "-2", 0,
                                count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     (void)wc_SetSakkeRsk(&genKey, rsk, table, len);
@@ -11761,12 +11492,12 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[10], "-2", 0,
                                count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     len = 0;
@@ -11801,12 +11532,12 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[10], "-3",
                                0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     wc_ClearSakkePointITable(&genKey);
@@ -11834,7 +11565,7 @@ void bench_sakke(void)
     bench_stats_asym_finish_ex("SAKKE", 1024, desc[10], "-4", 0,
                                count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(deltas, max, min, sum, runs);
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
     wc_FreeSakkeKey(&genKey);
@@ -11919,14 +11650,14 @@ void bench_falconKeySign(byte level)
         bench_stats_asym_finish("FALCON", level, desc[4], 0,
                                 count, start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -11955,7 +11686,7 @@ void bench_falconKeySign(byte level)
         bench_stats_asym_finish("FALCON", level, desc[5],
                                 0, count, start, ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 
@@ -11975,10 +11706,6 @@ void bench_dilithiumKeySign(byte level)
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     ret = wc_dilithium_init(&key);
     if (ret != 0) {
@@ -12048,14 +11775,14 @@ void bench_dilithiumKeySign(byte level)
         bench_stats_asym_finish("DILITHIUM", level, desc[4], 0, count, start,
                                 ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -12085,7 +11812,7 @@ void bench_dilithiumKeySign(byte level)
         bench_stats_asym_finish("DILITHIUM", level, desc[5], 0, count, start,
                                 ret);
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 
@@ -12105,10 +11832,6 @@ void bench_sphincsKeySign(byte level, byte optim)
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-#ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
-#endif
 
     ret = wc_sphincs_init(&key);
     if (ret != 0) {
@@ -12208,15 +11931,15 @@ void bench_sphincsKeySign(byte level, byte optim)
                                     start, ret);
         }
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 
 #ifdef MULTI_VALUE_STATISTICS
-    XMEMSET(deltas, 0, sizeof(deltas));
     prev = 0;
     runs = 0;
     sum  = 0;
+    squareSum = 0;
 #endif
 
     bench_stats_start(&count, &start);
@@ -12252,7 +11975,7 @@ void bench_sphincsKeySign(byte level, byte optim)
                                     start, ret);
         }
     #ifdef MULTI_VALUE_STATISTICS
-        bench_multi_value_stats(deltas, max, min, sum, runs);
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
 
@@ -12923,11 +12646,6 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             argv++;
             if (argc > 1) {
                 minimum_runs = XATOI(argv[1]);
-                if (minimum_runs > MAX_SAMPLE_RUNS) {
-                    printf("\nINFO: Specified runs is larger than compiled "
-                    "MAX_SAMPLE_RUNS. Using %d runs.\n\n", MAX_SAMPLE_RUNS);
-                    minimum_runs = MAX_SAMPLE_RUNS;
-                }
             }
         }
 #endif
