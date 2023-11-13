@@ -12258,10 +12258,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif /* HAVE_AES_DECRYPT */
 #endif /* BENCH_AESGCM_LARGE */
 #if defined(ENABLE_NON_12BYTE_IV_TEST) && defined(WOLFSSL_AES_256)
@@ -12443,6 +12443,38 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
 
+    /* Large buffer test */
+#ifdef BENCH_AESGCM_LARGE
+    wc_AesGcmSetKey(enc, k2, k3Sz);
+    wc_AesGcmSetKey(dec, k2, k3Sz);
+    /* setup test buffer */
+    for (alen=0; alen<BENCH_AESGCM_LARGE; alen++)
+        large_input[alen] = (byte)alen;
+
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    ret = wc_AesGcmEncrypt(enc, large_output, large_input,
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1),
+                              resultT, sizeof(t1), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesGcmDecrypt(dec, large_outdec, large_output,
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
+                              sizeof(t1), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* HAVE_AES_DECRYPT */
+#endif /* BENCH_AESGCM_LARGE */
+
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -12475,6 +12507,38 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     if (XMEMCMP(p3, resultP, sizeof(p3)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
+
+    /* Large buffer test */
+#ifdef BENCH_AESGCM_LARGE
+    wc_AesGcmSetKey(enc, k3, k3Sz);
+    wc_AesGcmSetKey(dec, k3, k3Sz);
+    /* setup test buffer */
+    for (alen=0; alen<BENCH_AESGCM_LARGE; alen++)
+        large_input[alen] = (byte)alen;
+
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    ret = wc_AesGcmEncrypt(enc, large_output, large_input,
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1),
+                              resultT, sizeof(t1), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesGcmDecrypt(dec, large_outdec, large_output,
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
+                              sizeof(t1), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* HAVE_AES_DECRYPT */
+#endif /* BENCH_AESGCM_LARGE */
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
