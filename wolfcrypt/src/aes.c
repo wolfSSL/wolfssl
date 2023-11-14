@@ -3609,6 +3609,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
 #elif defined(FREESCALE_MMCAU)
+    #define NEED_SOFTWARE_AES_SETKEY
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
@@ -4991,6 +4992,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
+        int ret;
         int offset = 0;
         byte* iv;
         byte temp_block[AES_BLOCK_SIZE];
@@ -5009,7 +5011,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         while (blocks--) {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
-            wc_AesDecrypt(aes, in + offset, out + offset);
+            ret = wc_AesDecrypt(aes, in + offset, out + offset);
+            if (ret != 0)
+                return ret;
 
             /* XOR block with IV for CBC */
             xorbuf(out + offset, iv, AES_BLOCK_SIZE);
