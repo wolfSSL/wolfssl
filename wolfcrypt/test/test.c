@@ -58,9 +58,10 @@
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
 #ifdef WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES
-    static ssize_t max_relative_stack = WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES;
+    static WC_MAYBE_UNUSED ssize_t max_relative_stack =
+        WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES;
 #else
-    static ssize_t max_relative_stack = -1;
+    static WC_MAYBE_UNUSED ssize_t max_relative_stack = -1;
 #endif
 #endif
 
