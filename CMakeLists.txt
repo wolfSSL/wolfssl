@@ -2162,7 +2162,9 @@ endif()
 # Tests and Examples
 ####################################################
 
+enable_testing()
 if(WOLFSSL_EXAMPLES)
+
     # Build wolfSSL client example
     add_executable(client
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
@@ -2231,6 +2233,9 @@ if(WOLFSSL_EXAMPLES)
     set_property(TARGET unit_test
                  PROPERTY RUNTIME_OUTPUT_NAME
                  unit.test)
+    add_test(NAME unit_test
+             COMMAND $<TARGET_FILE:unit_test>
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 if(WOLFSSL_CRYPT_TESTS)
@@ -2270,6 +2275,9 @@ if(WOLFSSL_CRYPT_TESTS)
     if(WOLFSSL_CRYPT_TESTS_HELP)
         target_compile_options(wolfcrypttest PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
     endif()
+    add_test(NAME wolfcrypttest
+             COMMAND $<TARGET_FILE:wolfcrypttest>
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
     # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
