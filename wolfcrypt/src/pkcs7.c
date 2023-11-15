@@ -12576,7 +12576,14 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             return MEMORY_E;
         }
 
-        FlattenAttributes(pkcs7, flatAttribs, attribs, attribsCount);
+        ret = FlattenAttributes(pkcs7, flatAttribs, attribs, attribsCount);
+        if (ret != 0) {
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ret;
+        }
         attribsSetSz = SetImplicit(ASN_SET, 1, attribsSz, attribSet);
 
     } else {
