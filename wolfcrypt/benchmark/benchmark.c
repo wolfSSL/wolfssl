@@ -10350,6 +10350,9 @@ exit_enc:
 
     RESET_MULTI_VALUE_STATS_VARS();
 
+    if (ret != 0)
+        goto exit;
+
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < ntimes; i++) {
