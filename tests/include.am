@@ -29,7 +29,9 @@ EXTRA_DIST += tests/unit.h \
               tests/test-tls13-pq.conf \
               tests/test-tls13-pq-2.conf \
               tests/test-dtls13-pq.conf \
+              tests/test-dtls13-pq-frag.conf \
               tests/test-dtls13-pq-2.conf \
+              tests/test-dtls13-pq-2-frag.conf \
               tests/test-psk.conf \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \
