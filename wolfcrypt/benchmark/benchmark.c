@@ -255,10 +255,15 @@
                                         squareSum += delta * delta;\
                                         runs++;\
                                         prev = current_time(0)
+    #define RESET_MULTI_VALUE_STATS()   prev = 0;\
+                                        runs = 0;\
+                                        sum  = 0;\
+                                        squareSum = 0
 #else
     #define STATS_CLAUSE_SEPARATOR "\n"
     #define DECLARE_MULTI_VALUE_STATS_VARS()
     #define RECORD_MULTI_VALUE_STATS()  WC_DO_NOTHING
+    #define RESET_MULTI_VALUE_STATS()   WC_DO_NOTHING
 #endif
 
 #ifdef WOLFSSL_NO_FLOAT_FMT
@@ -3819,12 +3824,7 @@ exit_aes_enc:
         }
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -3986,12 +3986,7 @@ exit_aes_gcm:
 #ifdef HAVE_AES_DECRYPT
     XMEMSET(dec, 0, sizeof(dec));
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -4173,12 +4168,7 @@ exit_aes_gcm:
         }
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -4435,12 +4425,7 @@ exit_aes_enc:
         }
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -4681,12 +4666,7 @@ void bench_aesxts(void)
         return;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -4831,12 +4811,7 @@ void bench_aesccm(int useDeviceID)
         goto exit;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -4906,12 +4881,9 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     bench_stats_sym_finish(encLabel, 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -5094,12 +5066,9 @@ void bench_sm4_cbc(void)
     bench_stats_sym_finish("SM4-CBC-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -5172,12 +5141,9 @@ void bench_sm4_gcm(void)
     bench_stats_sym_finish("SM4-GCM-enc", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -5255,12 +5221,7 @@ void bench_sm4_ccm()
         goto exit;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -7730,12 +7691,9 @@ void bench_siphash(void)
     bench_stats_sym_finish("SipHash-8", 1, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -7792,12 +7750,9 @@ void bench_srtpkdf(void)
     bench_stats_asym_finish("KDF", 128, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -7816,12 +7771,9 @@ void bench_srtpkdf(void)
     bench_stats_asym_finish("KDF", 256, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -7840,12 +7792,9 @@ void bench_srtpkdf(void)
     bench_stats_asym_finish("KDF", 128, "SRTCP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -8175,12 +8124,7 @@ exit_rsa_verify:
             goto exit;
         }
 
-#ifdef MULTI_VALUE_STATISTICS
-        prev = 0;
-        runs = 0;
-        sum  = 0;
-        squareSum = 0;
-#endif
+        RESET_MULTI_VALUE_STATS();
 
         /* capture resulting encrypt length */
         idx = (word32)(rsaKeySz/8);
@@ -8263,12 +8207,7 @@ exit_rsa_sign:
             goto exit;
         }
 
-#ifdef MULTI_VALUE_STATISTICS
-        prev = 0;
-        runs = 0;
-        sum  = 0;
-        squareSum = 0;
-#endif
+        RESET_MULTI_VALUE_STATS();
 
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
@@ -8768,12 +8707,7 @@ exit_dh_gen:
         goto exit;
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     /* Generate key to use as other public */
     PRIVATE_KEY_UNLOCK();
@@ -8930,12 +8864,7 @@ exit_encap:
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     /* KYBER Decapsulate */
     bench_stats_start(&count, &start);
@@ -9323,13 +9252,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
                             count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
 
+    RESET_MULTI_VALUE_STATS();
     count = 0;
     bench_stats_start(&count, &start);
 
@@ -9893,12 +9818,9 @@ exit_ecdhe:
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     if (ret < 0) {
         goto exit;
@@ -9957,12 +9879,9 @@ exit_ecdsa_sign:
                             useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     if (ret < 0) {
         goto exit;
@@ -10161,12 +10080,9 @@ exit_enc:
     bench_stats_asym_finish(name, keySize * 8, desc[6], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -10421,12 +10337,7 @@ exit_ecdhe:
         }
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     /* ECC Sign */
     bench_stats_start(&count, &start);
@@ -10736,12 +10647,9 @@ exit_ed_sign:
     bench_stats_asym_finish("ED", 25519, desc[4], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
 #ifdef HAVE_ED25519_VERIFY
     bench_stats_start(&count, &start);
@@ -10948,12 +10856,9 @@ exit_ed_sign:
     bench_stats_asym_finish("ED", 448, desc[4], 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
 #ifdef HAVE_ED448_VERIFY
     bench_stats_start(&count, &start);
@@ -11173,12 +11078,9 @@ void bench_eccsi(void)
     bench_stats_asym_finish("ECCSI", 256, desc[4], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     /* Derive */
     bench_stats_start(&count, &start);
@@ -11392,12 +11294,9 @@ void bench_sakke(void)
                                0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     /* Derive */
     bench_stats_start(&count, &start);
@@ -11459,12 +11358,9 @@ void bench_sakke(void)
                                count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     (void)wc_SetSakkeRsk(&genKey, rsk, table, len);
 
@@ -11493,12 +11389,9 @@ void bench_sakke(void)
                                count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     len = 0;
     (void)wc_GenerateSakkeRskTable(&genKey, rsk, NULL, &len);
@@ -11533,12 +11426,9 @@ void bench_sakke(void)
                                0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
-
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
 #endif
+
+    RESET_MULTI_VALUE_STATS();
 
     wc_ClearSakkePointITable(&genKey);
     /* Derive with RSK table */
@@ -11653,12 +11543,8 @@ void bench_falconKeySign(byte level)
         bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -11778,12 +11664,8 @@ void bench_dilithiumKeySign(byte level)
         bench_multi_value_stats(max, min, sum, squareSum, runs);
     #endif
     }
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
@@ -11935,12 +11817,7 @@ void bench_sphincsKeySign(byte level, byte optim)
     #endif
     }
 
-#ifdef MULTI_VALUE_STATISTICS
-    prev = 0;
-    runs = 0;
-    sum  = 0;
-    squareSum = 0;
-#endif
+    RESET_MULTI_VALUE_STATS();
 
     bench_stats_start(&count, &start);
     do {
