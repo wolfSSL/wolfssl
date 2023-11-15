@@ -55,6 +55,7 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
@@ -2222,7 +2223,7 @@ static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x100\n\t"
         "\n"
-    "L_sp_2048_add_64_word_%=:\n\t"
+    "L_sp_2048_add_64_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -2235,9 +2236,9 @@ static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_2048_add_64_word_%=\n\t"
+        "BNE	L_sp_2048_add_64_word\n\t"
 #else
-        "BNE.N	L_sp_2048_add_64_word_%=\n\t"
+        "BNE.N	L_sp_2048_add_64_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -2269,7 +2270,7 @@ static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x100\n\t"
         "\n"
-    "L_sp_2048_sub_in_pkace_64_word_%=:\n\t"
+    "L_sp_2048_sub_in_pkace_64_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -2281,9 +2282,9 @@ static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_2048_sub_in_pkace_64_word_%=\n\t"
+        "BNE	L_sp_2048_sub_in_pkace_64_word\n\t"
 #else
-        "BNE.N	L_sp_2048_sub_in_pkace_64_word_%=\n\t"
+        "BNE.N	L_sp_2048_sub_in_pkace_64_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -2320,13 +2321,13 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_2048_mul_64_outer_%=:\n\t"
+    "L_sp_2048_mul_64_outer:\n\t"
         "SUBS	r3, r5, #0xfc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_2048_mul_64_inner_%=:\n\t"
+    "L_sp_2048_mul_64_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -2337,18 +2338,18 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_mul_64_inner_done_%=\n\t"
+        "BEQ	L_sp_2048_mul_64_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_mul_64_inner_done_%=\n\t"
+        "BEQ.N	L_sp_2048_mul_64_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_64_inner_%=\n\t"
+        "BLE	L_sp_2048_mul_64_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_64_inner_%=\n\t"
+        "BLE.N	L_sp_2048_mul_64_inner\n\t"
 #endif
         "\n"
-    "L_sp_2048_mul_64_inner_done_%=:\n\t"
+    "L_sp_2048_mul_64_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -2356,20 +2357,20 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x1f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_64_outer_%=\n\t"
+        "BLE	L_sp_2048_mul_64_outer\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_64_outer_%=\n\t"
+        "BLE.N	L_sp_2048_mul_64_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_2048_mul_64_store_%=:\n\t"
+    "L_sp_2048_mul_64_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_mul_64_store_%=\n\t"
+        "BGT	L_sp_2048_mul_64_store\n\t"
 #else
-        "BGT.N	L_sp_2048_mul_64_store_%=\n\t"
+        "BGT.N	L_sp_2048_mul_64_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -2400,18 +2401,18 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_2048_sqr_64_outer_%=:\n\t"
+    "L_sp_2048_sqr_64_outer:\n\t"
         "SUBS	r3, r5, #0xfc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_2048_sqr_64_inner_%=:\n\t"
+    "L_sp_2048_sqr_64_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_64_op_sqr_%=\n\t"
+        "BEQ	L_sp_2048_sqr_64_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_2048_sqr_64_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_2048_sqr_64_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -2422,38 +2423,38 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_2048_sqr_64_op_done_%=\n\t"
+        "bal	L_sp_2048_sqr_64_op_done\n\t"
         "\n"
-    "L_sp_2048_sqr_64_op_sqr_%=:\n\t"
+    "L_sp_2048_sqr_64_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_2048_sqr_64_op_done_%=:\n\t"
+    "L_sp_2048_sqr_64_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_64_inner_done_%=\n\t"
+        "BEQ	L_sp_2048_sqr_64_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_sqr_64_inner_done_%=\n\t"
+        "BEQ.N	L_sp_2048_sqr_64_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_sqr_64_inner_done_%=\n\t"
+        "BGT	L_sp_2048_sqr_64_inner_done\n\t"
 #else
-        "BGT.N	L_sp_2048_sqr_64_inner_done_%=\n\t"
+        "BGT.N	L_sp_2048_sqr_64_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_64_inner_%=\n\t"
+        "BLE	L_sp_2048_sqr_64_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_64_inner_%=\n\t"
+        "BLE.N	L_sp_2048_sqr_64_inner\n\t"
 #endif
         "\n"
-    "L_sp_2048_sqr_64_inner_done_%=:\n\t"
+    "L_sp_2048_sqr_64_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -2461,20 +2462,20 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x1f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_64_outer_%=\n\t"
+        "BLE	L_sp_2048_sqr_64_outer\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_64_outer_%=\n\t"
+        "BLE.N	L_sp_2048_sqr_64_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_2048_sqr_64_store_%=:\n\t"
+    "L_sp_2048_sqr_64_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_sqr_64_store_%=\n\t"
+        "BGT	L_sp_2048_sqr_64_store\n\t"
 #else
-        "BGT.N	L_sp_2048_sqr_64_store_%=\n\t"
+        "BGT.N	L_sp_2048_sqr_64_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -2524,7 +2525,7 @@ static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x80\n\t"
         "\n"
-    "L_sp_2048_add_32_word_%=:\n\t"
+    "L_sp_2048_add_32_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -2537,9 +2538,9 @@ static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_2048_add_32_word_%=\n\t"
+        "BNE	L_sp_2048_add_32_word\n\t"
 #else
-        "BNE.N	L_sp_2048_add_32_word_%=\n\t"
+        "BNE.N	L_sp_2048_add_32_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -2571,7 +2572,7 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x80\n\t"
         "\n"
-    "L_sp_2048_sub_in_pkace_32_word_%=:\n\t"
+    "L_sp_2048_sub_in_pkace_32_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -2583,9 +2584,9 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_2048_sub_in_pkace_32_word_%=\n\t"
+        "BNE	L_sp_2048_sub_in_pkace_32_word\n\t"
 #else
-        "BNE.N	L_sp_2048_sub_in_pkace_32_word_%=\n\t"
+        "BNE.N	L_sp_2048_sub_in_pkace_32_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -2622,13 +2623,13 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_2048_mul_32_outer_%=:\n\t"
+    "L_sp_2048_mul_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_2048_mul_32_inner_%=:\n\t"
+    "L_sp_2048_mul_32_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -2639,18 +2640,18 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_mul_32_inner_done_%=\n\t"
+        "BEQ	L_sp_2048_mul_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_mul_32_inner_done_%=\n\t"
+        "BEQ.N	L_sp_2048_mul_32_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_32_inner_%=\n\t"
+        "BLE	L_sp_2048_mul_32_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_32_inner_%=\n\t"
+        "BLE.N	L_sp_2048_mul_32_inner\n\t"
 #endif
         "\n"
-    "L_sp_2048_mul_32_inner_done_%=:\n\t"
+    "L_sp_2048_mul_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -2658,20 +2659,20 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0xf8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_32_outer_%=\n\t"
+        "BLE	L_sp_2048_mul_32_outer\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_32_outer_%=\n\t"
+        "BLE.N	L_sp_2048_mul_32_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_2048_mul_32_store_%=:\n\t"
+    "L_sp_2048_mul_32_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_mul_32_store_%=\n\t"
+        "BGT	L_sp_2048_mul_32_store\n\t"
 #else
-        "BGT.N	L_sp_2048_mul_32_store_%=\n\t"
+        "BGT.N	L_sp_2048_mul_32_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -2702,18 +2703,18 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_2048_sqr_32_outer_%=:\n\t"
+    "L_sp_2048_sqr_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_2048_sqr_32_inner_%=:\n\t"
+    "L_sp_2048_sqr_32_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_32_op_sqr_%=\n\t"
+        "BEQ	L_sp_2048_sqr_32_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_2048_sqr_32_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_2048_sqr_32_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -2724,38 +2725,38 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_2048_sqr_32_op_done_%=\n\t"
+        "bal	L_sp_2048_sqr_32_op_done\n\t"
         "\n"
-    "L_sp_2048_sqr_32_op_sqr_%=:\n\t"
+    "L_sp_2048_sqr_32_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_2048_sqr_32_op_done_%=:\n\t"
+    "L_sp_2048_sqr_32_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_32_inner_done_%=\n\t"
+        "BEQ	L_sp_2048_sqr_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_sqr_32_inner_done_%=\n\t"
+        "BEQ.N	L_sp_2048_sqr_32_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_sqr_32_inner_done_%=\n\t"
+        "BGT	L_sp_2048_sqr_32_inner_done\n\t"
 #else
-        "BGT.N	L_sp_2048_sqr_32_inner_done_%=\n\t"
+        "BGT.N	L_sp_2048_sqr_32_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_32_inner_%=\n\t"
+        "BLE	L_sp_2048_sqr_32_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_32_inner_%=\n\t"
+        "BLE.N	L_sp_2048_sqr_32_inner\n\t"
 #endif
         "\n"
-    "L_sp_2048_sqr_32_inner_done_%=:\n\t"
+    "L_sp_2048_sqr_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -2763,20 +2764,20 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0xf8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_32_outer_%=\n\t"
+        "BLE	L_sp_2048_sqr_32_outer\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_32_outer_%=\n\t"
+        "BLE.N	L_sp_2048_sqr_32_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_2048_sqr_32_store_%=:\n\t"
+    "L_sp_2048_sqr_32_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_2048_sqr_32_store_%=\n\t"
+        "BGT	L_sp_2048_sqr_32_store\n\t"
 #else
-        "BGT.N	L_sp_2048_sqr_32_store_%=\n\t"
+        "BGT.N	L_sp_2048_sqr_32_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -2835,7 +2836,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_2048_mul_d_64_word_%=:\n\t"
+    "L_sp_2048_mul_d_64_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -2849,9 +2850,9 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mul_d_64_word_%=\n\t"
+        "BLT	L_sp_2048_mul_d_64_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mul_d_64_word_%=\n\t"
+        "BLT.N	L_sp_2048_mul_d_64_word\n\t"
 #endif
         "STR	r3, [%[r], #256]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -3249,7 +3250,7 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_2048_cond_sub_32_words_%=:\n\t"
+    "L_sp_2048_cond_sub_32_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -3260,9 +3261,9 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_cond_sub_32_words_%=\n\t"
+        "BLT	L_sp_2048_cond_sub_32_words\n\t"
 #else
-        "BLT.N	L_sp_2048_cond_sub_32_words_%=\n\t"
+        "BLT.N	L_sp_2048_cond_sub_32_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -3445,7 +3446,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -3708,9 +3709,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x80\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_word\n\t"
 #else
-        "BLT.W	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -3749,7 +3750,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -3757,7 +3758,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_mul_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -3800,9 +3801,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_32_mul_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_mul\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_mul_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_32_mul\n\t"
 #endif
         "LDR	r10, [%[a], #128]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -3816,9 +3817,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -3860,7 +3861,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -4028,9 +4029,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x80\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_word\n\t"
 #else
-        "BLT.W	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -4072,7 +4073,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -4080,7 +4081,7 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_32_mul_%=:\n\t"
+    "L_sp_2048_mont_reduce_32_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -4111,9 +4112,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_32_mul_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_mul\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_mul_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_32_mul\n\t"
 #endif
         "LDR	r10, [%[a], #128]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -4127,9 +4128,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_32_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_32_word_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -4200,7 +4201,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_2048_mul_d_32_word_%=:\n\t"
+    "L_sp_2048_mul_d_32_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -4214,9 +4215,9 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mul_d_32_word_%=\n\t"
+        "BLT	L_sp_2048_mul_d_32_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mul_d_32_word_%=\n\t"
+        "BLT.N	L_sp_2048_mul_d_32_word\n\t"
 #endif
         "STR	r3, [%[r], #128]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -4423,9 +4424,9 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4488,9 +4489,9 @@ static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4514,7 +4515,7 @@ static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_2048_word_32_bit_%=:\n\t"
+    "L_div_2048_word_32_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -4524,7 +4525,7 @@ static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_2048_word_32_bit_%=\n\t"
+        "bpl	L_div_2048_word_32_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -4576,7 +4577,7 @@ static sp_int32 sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x7c\n\t"
         "\n"
-    "L_sp_2048_cmp_32_words_%=:\n\t"
+    "L_sp_2048_cmp_32_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -4589,7 +4590,7 @@ static sp_int32 sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_2048_cmp_32_words_%=\n\t"
+        "bcs	L_sp_2048_cmp_32_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #124]\n\t"
@@ -5377,7 +5378,7 @@ static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_2048_cond_sub_64_words_%=:\n\t"
+    "L_sp_2048_cond_sub_64_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -5388,9 +5389,9 @@ static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_cond_sub_64_words_%=\n\t"
+        "BLT	L_sp_2048_cond_sub_64_words\n\t"
 #else
-        "BLT.N	L_sp_2048_cond_sub_64_words_%=\n\t"
+        "BLT.N	L_sp_2048_cond_sub_64_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -5685,7 +5686,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -6204,9 +6205,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x100\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_word\n\t"
 #else
-        "BLT.W	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_64_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -6245,7 +6246,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -6253,7 +6254,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_mul_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -6296,9 +6297,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_64_mul_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_mul\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_mul_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_64_mul\n\t"
 #endif
         "LDR	r10, [%[a], #256]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -6312,9 +6313,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_64_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -6356,7 +6357,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -6684,9 +6685,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x100\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_word\n\t"
 #else
-        "BLT.W	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.W	L_sp_2048_mont_reduce_64_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -6728,7 +6729,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_word_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -6736,7 +6737,7 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_2048_mont_reduce_64_mul_%=:\n\t"
+    "L_sp_2048_mont_reduce_64_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -6767,9 +6768,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_64_mul_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_mul\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_mul_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_64_mul\n\t"
 #endif
         "LDR	r10, [%[a], #256]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -6783,9 +6784,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT	L_sp_2048_mont_reduce_64_word\n\t"
 #else
-        "BLT.N	L_sp_2048_mont_reduce_64_word_%=\n\t"
+        "BLT.N	L_sp_2048_mont_reduce_64_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -6851,7 +6852,7 @@ static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x100\n\t"
         "\n"
-    "L_sp_2048_sub_64_word_%=:\n\t"
+    "L_sp_2048_sub_64_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -6863,9 +6864,9 @@ static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_2048_sub_64_word_%=\n\t"
+        "BNE	L_sp_2048_sub_64_word\n\t"
 #else
-        "BNE.N	L_sp_2048_sub_64_word_%=\n\t"
+        "BNE.N	L_sp_2048_sub_64_word\n\t"
 #endif
         "MOV	%[r], r11\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -7027,9 +7028,9 @@ static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7092,9 +7093,9 @@ static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7118,7 +7119,7 @@ static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_2048_word_64_bit_%=:\n\t"
+    "L_div_2048_word_64_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -7128,7 +7129,7 @@ static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_2048_word_64_bit_%=\n\t"
+        "bpl	L_div_2048_word_64_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -7283,7 +7284,7 @@ static sp_int32 sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0xfc\n\t"
         "\n"
-    "L_sp_2048_cmp_64_words_%=:\n\t"
+    "L_sp_2048_cmp_64_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -7296,7 +7297,7 @@ static sp_int32 sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_2048_cmp_64_words_%=\n\t"
+        "bcs	L_sp_2048_cmp_64_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #252]\n\t"
@@ -8559,7 +8560,7 @@ static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r8, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_2048_cond_add_32_words_%=:\n\t"
+    "L_sp_2048_cond_add_32_words:\n\t"
         "ADDS	r5, r5, #0xffffffff\n\t"
         "LDR	r6, [%[a], r4]\n\t"
         "LDR	r7, [%[b], r4]\n\t"
@@ -8570,9 +8571,9 @@ static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r4, r4, #0x4\n\t"
         "CMP	r4, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_2048_cond_add_32_words_%=\n\t"
+        "BLT	L_sp_2048_cond_add_32_words\n\t"
 #else
-        "BLT.N	L_sp_2048_cond_add_32_words_%=\n\t"
+        "BLT.N	L_sp_2048_cond_add_32_words\n\t"
 #endif
         "MOV	%[r], r5\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -12945,7 +12946,7 @@ static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x180\n\t"
         "\n"
-    "L_sp_3072_add_96_word_%=:\n\t"
+    "L_sp_3072_add_96_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -12958,9 +12959,9 @@ static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_3072_add_96_word_%=\n\t"
+        "BNE	L_sp_3072_add_96_word\n\t"
 #else
-        "BNE.N	L_sp_3072_add_96_word_%=\n\t"
+        "BNE.N	L_sp_3072_add_96_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -12992,7 +12993,7 @@ static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x180\n\t"
         "\n"
-    "L_sp_3072_sub_in_pkace_96_word_%=:\n\t"
+    "L_sp_3072_sub_in_pkace_96_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -13004,9 +13005,9 @@ static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_3072_sub_in_pkace_96_word_%=\n\t"
+        "BNE	L_sp_3072_sub_in_pkace_96_word\n\t"
 #else
-        "BNE.N	L_sp_3072_sub_in_pkace_96_word_%=\n\t"
+        "BNE.N	L_sp_3072_sub_in_pkace_96_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -13043,13 +13044,13 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_3072_mul_96_outer_%=:\n\t"
+    "L_sp_3072_mul_96_outer:\n\t"
         "SUBS	r3, r5, #0x17c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_3072_mul_96_inner_%=:\n\t"
+    "L_sp_3072_mul_96_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -13060,18 +13061,18 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_mul_96_inner_done_%=\n\t"
+        "BEQ	L_sp_3072_mul_96_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_mul_96_inner_done_%=\n\t"
+        "BEQ.N	L_sp_3072_mul_96_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_96_inner_%=\n\t"
+        "BLE	L_sp_3072_mul_96_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_96_inner_%=\n\t"
+        "BLE.N	L_sp_3072_mul_96_inner\n\t"
 #endif
         "\n"
-    "L_sp_3072_mul_96_inner_done_%=:\n\t"
+    "L_sp_3072_mul_96_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -13079,20 +13080,20 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x2f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_96_outer_%=\n\t"
+        "BLE	L_sp_3072_mul_96_outer\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_96_outer_%=\n\t"
+        "BLE.N	L_sp_3072_mul_96_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_3072_mul_96_store_%=:\n\t"
+    "L_sp_3072_mul_96_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_mul_96_store_%=\n\t"
+        "BGT	L_sp_3072_mul_96_store\n\t"
 #else
-        "BGT.N	L_sp_3072_mul_96_store_%=\n\t"
+        "BGT.N	L_sp_3072_mul_96_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -13123,18 +13124,18 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_3072_sqr_96_outer_%=:\n\t"
+    "L_sp_3072_sqr_96_outer:\n\t"
         "SUBS	r3, r5, #0x17c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_3072_sqr_96_inner_%=:\n\t"
+    "L_sp_3072_sqr_96_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_96_op_sqr_%=\n\t"
+        "BEQ	L_sp_3072_sqr_96_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_3072_sqr_96_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_3072_sqr_96_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -13145,38 +13146,38 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_3072_sqr_96_op_done_%=\n\t"
+        "bal	L_sp_3072_sqr_96_op_done\n\t"
         "\n"
-    "L_sp_3072_sqr_96_op_sqr_%=:\n\t"
+    "L_sp_3072_sqr_96_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_3072_sqr_96_op_done_%=:\n\t"
+    "L_sp_3072_sqr_96_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_96_inner_done_%=\n\t"
+        "BEQ	L_sp_3072_sqr_96_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_sqr_96_inner_done_%=\n\t"
+        "BEQ.N	L_sp_3072_sqr_96_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_sqr_96_inner_done_%=\n\t"
+        "BGT	L_sp_3072_sqr_96_inner_done\n\t"
 #else
-        "BGT.N	L_sp_3072_sqr_96_inner_done_%=\n\t"
+        "BGT.N	L_sp_3072_sqr_96_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_96_inner_%=\n\t"
+        "BLE	L_sp_3072_sqr_96_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_96_inner_%=\n\t"
+        "BLE.N	L_sp_3072_sqr_96_inner\n\t"
 #endif
         "\n"
-    "L_sp_3072_sqr_96_inner_done_%=:\n\t"
+    "L_sp_3072_sqr_96_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -13184,20 +13185,20 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x2f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_96_outer_%=\n\t"
+        "BLE	L_sp_3072_sqr_96_outer\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_96_outer_%=\n\t"
+        "BLE.N	L_sp_3072_sqr_96_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_3072_sqr_96_store_%=:\n\t"
+    "L_sp_3072_sqr_96_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_sqr_96_store_%=\n\t"
+        "BGT	L_sp_3072_sqr_96_store\n\t"
 #else
-        "BGT.N	L_sp_3072_sqr_96_store_%=\n\t"
+        "BGT.N	L_sp_3072_sqr_96_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -13247,7 +13248,7 @@ static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0xc0\n\t"
         "\n"
-    "L_sp_3072_add_48_word_%=:\n\t"
+    "L_sp_3072_add_48_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -13260,9 +13261,9 @@ static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_3072_add_48_word_%=\n\t"
+        "BNE	L_sp_3072_add_48_word\n\t"
 #else
-        "BNE.N	L_sp_3072_add_48_word_%=\n\t"
+        "BNE.N	L_sp_3072_add_48_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -13294,7 +13295,7 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0xc0\n\t"
         "\n"
-    "L_sp_3072_sub_in_pkace_48_word_%=:\n\t"
+    "L_sp_3072_sub_in_pkace_48_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -13306,9 +13307,9 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_3072_sub_in_pkace_48_word_%=\n\t"
+        "BNE	L_sp_3072_sub_in_pkace_48_word\n\t"
 #else
-        "BNE.N	L_sp_3072_sub_in_pkace_48_word_%=\n\t"
+        "BNE.N	L_sp_3072_sub_in_pkace_48_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -13345,13 +13346,13 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_3072_mul_48_outer_%=:\n\t"
+    "L_sp_3072_mul_48_outer:\n\t"
         "SUBS	r3, r5, #0xbc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_3072_mul_48_inner_%=:\n\t"
+    "L_sp_3072_mul_48_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -13362,18 +13363,18 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_mul_48_inner_done_%=\n\t"
+        "BEQ	L_sp_3072_mul_48_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_mul_48_inner_done_%=\n\t"
+        "BEQ.N	L_sp_3072_mul_48_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_48_inner_%=\n\t"
+        "BLE	L_sp_3072_mul_48_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_48_inner_%=\n\t"
+        "BLE.N	L_sp_3072_mul_48_inner\n\t"
 #endif
         "\n"
-    "L_sp_3072_mul_48_inner_done_%=:\n\t"
+    "L_sp_3072_mul_48_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -13381,20 +13382,20 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x178\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_48_outer_%=\n\t"
+        "BLE	L_sp_3072_mul_48_outer\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_48_outer_%=\n\t"
+        "BLE.N	L_sp_3072_mul_48_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_3072_mul_48_store_%=:\n\t"
+    "L_sp_3072_mul_48_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_mul_48_store_%=\n\t"
+        "BGT	L_sp_3072_mul_48_store\n\t"
 #else
-        "BGT.N	L_sp_3072_mul_48_store_%=\n\t"
+        "BGT.N	L_sp_3072_mul_48_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -13425,18 +13426,18 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_3072_sqr_48_outer_%=:\n\t"
+    "L_sp_3072_sqr_48_outer:\n\t"
         "SUBS	r3, r5, #0xbc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_3072_sqr_48_inner_%=:\n\t"
+    "L_sp_3072_sqr_48_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_48_op_sqr_%=\n\t"
+        "BEQ	L_sp_3072_sqr_48_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_3072_sqr_48_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_3072_sqr_48_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -13447,38 +13448,38 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_3072_sqr_48_op_done_%=\n\t"
+        "bal	L_sp_3072_sqr_48_op_done\n\t"
         "\n"
-    "L_sp_3072_sqr_48_op_sqr_%=:\n\t"
+    "L_sp_3072_sqr_48_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_3072_sqr_48_op_done_%=:\n\t"
+    "L_sp_3072_sqr_48_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_48_inner_done_%=\n\t"
+        "BEQ	L_sp_3072_sqr_48_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_sqr_48_inner_done_%=\n\t"
+        "BEQ.N	L_sp_3072_sqr_48_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_sqr_48_inner_done_%=\n\t"
+        "BGT	L_sp_3072_sqr_48_inner_done\n\t"
 #else
-        "BGT.N	L_sp_3072_sqr_48_inner_done_%=\n\t"
+        "BGT.N	L_sp_3072_sqr_48_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_48_inner_%=\n\t"
+        "BLE	L_sp_3072_sqr_48_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_48_inner_%=\n\t"
+        "BLE.N	L_sp_3072_sqr_48_inner\n\t"
 #endif
         "\n"
-    "L_sp_3072_sqr_48_inner_done_%=:\n\t"
+    "L_sp_3072_sqr_48_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -13486,20 +13487,20 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x178\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_48_outer_%=\n\t"
+        "BLE	L_sp_3072_sqr_48_outer\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_48_outer_%=\n\t"
+        "BLE.N	L_sp_3072_sqr_48_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_3072_sqr_48_store_%=:\n\t"
+    "L_sp_3072_sqr_48_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_3072_sqr_48_store_%=\n\t"
+        "BGT	L_sp_3072_sqr_48_store\n\t"
 #else
-        "BGT.N	L_sp_3072_sqr_48_store_%=\n\t"
+        "BGT.N	L_sp_3072_sqr_48_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -13558,7 +13559,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_3072_mul_d_96_word_%=:\n\t"
+    "L_sp_3072_mul_d_96_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -13572,9 +13573,9 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mul_d_96_word_%=\n\t"
+        "BLT	L_sp_3072_mul_d_96_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mul_d_96_word_%=\n\t"
+        "BLT.N	L_sp_3072_mul_d_96_word\n\t"
 #endif
         "STR	r3, [%[r], #384]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -14132,7 +14133,7 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_3072_cond_sub_48_words_%=:\n\t"
+    "L_sp_3072_cond_sub_48_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -14143,9 +14144,9 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_cond_sub_48_words_%=\n\t"
+        "BLT	L_sp_3072_cond_sub_48_words\n\t"
 #else
-        "BLT.N	L_sp_3072_cond_sub_48_words_%=\n\t"
+        "BLT.N	L_sp_3072_cond_sub_48_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -14384,7 +14385,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -14775,9 +14776,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0xc0\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_word\n\t"
 #else
-        "BLT.W	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_48_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -14816,7 +14817,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -14824,7 +14825,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_mul_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -14867,9 +14868,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_48_mul_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_mul\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_mul_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_48_mul\n\t"
 #endif
         "LDR	r10, [%[a], #192]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -14883,9 +14884,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_48_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -14927,7 +14928,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -15175,9 +15176,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0xc0\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_word\n\t"
 #else
-        "BLT.W	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_48_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -15219,7 +15220,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -15227,7 +15228,7 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_48_mul_%=:\n\t"
+    "L_sp_3072_mont_reduce_48_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -15258,9 +15259,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_48_mul_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_mul\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_mul_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_48_mul\n\t"
 #endif
         "LDR	r10, [%[a], #192]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -15274,9 +15275,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_48_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_48_word_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_48_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -15347,7 +15348,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_3072_mul_d_48_word_%=:\n\t"
+    "L_sp_3072_mul_d_48_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -15361,9 +15362,9 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mul_d_48_word_%=\n\t"
+        "BLT	L_sp_3072_mul_d_48_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mul_d_48_word_%=\n\t"
+        "BLT.N	L_sp_3072_mul_d_48_word\n\t"
 #endif
         "STR	r3, [%[r], #192]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -15650,9 +15651,9 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15715,9 +15716,9 @@ static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15741,7 +15742,7 @@ static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_3072_word_48_bit_%=:\n\t"
+    "L_div_3072_word_48_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -15751,7 +15752,7 @@ static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_3072_word_48_bit_%=\n\t"
+        "bpl	L_div_3072_word_48_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -15803,7 +15804,7 @@ static sp_int32 sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0xbc\n\t"
         "\n"
-    "L_sp_3072_cmp_48_words_%=:\n\t"
+    "L_sp_3072_cmp_48_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -15816,7 +15817,7 @@ static sp_int32 sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_3072_cmp_48_words_%=\n\t"
+        "bcs	L_sp_3072_cmp_48_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #188]\n\t"
@@ -16780,7 +16781,7 @@ static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_3072_cond_sub_96_words_%=:\n\t"
+    "L_sp_3072_cond_sub_96_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -16791,9 +16792,9 @@ static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_cond_sub_96_words_%=\n\t"
+        "BLT	L_sp_3072_cond_sub_96_words\n\t"
 #else
-        "BLT.N	L_sp_3072_cond_sub_96_words_%=\n\t"
+        "BLT.N	L_sp_3072_cond_sub_96_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -17200,7 +17201,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -17975,9 +17976,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x180\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_word\n\t"
 #else
-        "BLT.W	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_96_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -18016,7 +18017,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -18024,7 +18025,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_mul_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -18067,9 +18068,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_96_mul_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_mul\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_mul_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_96_mul\n\t"
 #endif
         "LDR	r10, [%[a], #384]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -18083,9 +18084,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_96_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -18127,7 +18128,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -18615,9 +18616,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x180\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_word\n\t"
 #else
-        "BLT.W	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.W	L_sp_3072_mont_reduce_96_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -18659,7 +18660,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_word_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -18667,7 +18668,7 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_3072_mont_reduce_96_mul_%=:\n\t"
+    "L_sp_3072_mont_reduce_96_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -18698,9 +18699,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_96_mul_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_mul\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_mul_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_96_mul\n\t"
 #endif
         "LDR	r10, [%[a], #384]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -18714,9 +18715,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x180\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT	L_sp_3072_mont_reduce_96_word\n\t"
 #else
-        "BLT.N	L_sp_3072_mont_reduce_96_word_%=\n\t"
+        "BLT.N	L_sp_3072_mont_reduce_96_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -18782,7 +18783,7 @@ static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x180\n\t"
         "\n"
-    "L_sp_3072_sub_96_word_%=:\n\t"
+    "L_sp_3072_sub_96_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -18794,9 +18795,9 @@ static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a, const sp_digit* b
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_3072_sub_96_word_%=\n\t"
+        "BNE	L_sp_3072_sub_96_word\n\t"
 #else
-        "BNE.N	L_sp_3072_sub_96_word_%=\n\t"
+        "BNE.N	L_sp_3072_sub_96_word\n\t"
 #endif
         "MOV	%[r], r11\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -19014,9 +19015,9 @@ static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a, const sp_digit* b
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19079,9 +19080,9 @@ static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19105,7 +19106,7 @@ static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_3072_word_96_bit_%=:\n\t"
+    "L_div_3072_word_96_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -19115,7 +19116,7 @@ static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_3072_word_96_bit_%=\n\t"
+        "bpl	L_div_3072_word_96_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -19270,7 +19271,7 @@ static sp_int32 sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x17c\n\t"
         "\n"
-    "L_sp_3072_cmp_96_words_%=:\n\t"
+    "L_sp_3072_cmp_96_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -19283,7 +19284,7 @@ static sp_int32 sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_3072_cmp_96_words_%=\n\t"
+        "bcs	L_sp_3072_cmp_96_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #380]\n\t"
@@ -20898,7 +20899,7 @@ static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r8, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_3072_cond_add_48_words_%=:\n\t"
+    "L_sp_3072_cond_add_48_words:\n\t"
         "ADDS	r5, r5, #0xffffffff\n\t"
         "LDR	r6, [%[a], r4]\n\t"
         "LDR	r7, [%[b], r4]\n\t"
@@ -20909,9 +20910,9 @@ static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r4, r4, #0x4\n\t"
         "CMP	r4, #0xc0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_3072_cond_add_48_words_%=\n\t"
+        "BLT	L_sp_3072_cond_add_48_words\n\t"
 #else
-        "BLT.N	L_sp_3072_cond_add_48_words_%=\n\t"
+        "BLT.N	L_sp_3072_cond_add_48_words\n\t"
 #endif
         "MOV	%[r], r5\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -23042,7 +23043,7 @@ static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a, const sp_digit* 
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x200\n\t"
         "\n"
-    "L_sp_4096_add_128_word_%=:\n\t"
+    "L_sp_4096_add_128_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -23055,9 +23056,9 @@ static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a, const sp_digit* 
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_4096_add_128_word_%=\n\t"
+        "BNE	L_sp_4096_add_128_word\n\t"
 #else
-        "BNE.N	L_sp_4096_add_128_word_%=\n\t"
+        "BNE.N	L_sp_4096_add_128_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -23089,7 +23090,7 @@ static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x200\n\t"
         "\n"
-    "L_sp_4096_sub_in_pkace_128_word_%=:\n\t"
+    "L_sp_4096_sub_in_pkace_128_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -23101,9 +23102,9 @@ static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_4096_sub_in_pkace_128_word_%=\n\t"
+        "BNE	L_sp_4096_sub_in_pkace_128_word\n\t"
 #else
-        "BNE.N	L_sp_4096_sub_in_pkace_128_word_%=\n\t"
+        "BNE.N	L_sp_4096_sub_in_pkace_128_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -23140,13 +23141,13 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_4096_mul_128_outer_%=:\n\t"
+    "L_sp_4096_mul_128_outer:\n\t"
         "SUBS	r3, r5, #0x1fc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_4096_mul_128_inner_%=:\n\t"
+    "L_sp_4096_mul_128_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -23157,18 +23158,18 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_mul_128_inner_done_%=\n\t"
+        "BEQ	L_sp_4096_mul_128_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_4096_mul_128_inner_done_%=\n\t"
+        "BEQ.N	L_sp_4096_mul_128_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_mul_128_inner_%=\n\t"
+        "BLE	L_sp_4096_mul_128_inner\n\t"
 #else
-        "BLE.N	L_sp_4096_mul_128_inner_%=\n\t"
+        "BLE.N	L_sp_4096_mul_128_inner\n\t"
 #endif
         "\n"
-    "L_sp_4096_mul_128_inner_done_%=:\n\t"
+    "L_sp_4096_mul_128_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -23176,20 +23177,20 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x3f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_mul_128_outer_%=\n\t"
+        "BLE	L_sp_4096_mul_128_outer\n\t"
 #else
-        "BLE.N	L_sp_4096_mul_128_outer_%=\n\t"
+        "BLE.N	L_sp_4096_mul_128_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_4096_mul_128_store_%=:\n\t"
+    "L_sp_4096_mul_128_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_4096_mul_128_store_%=\n\t"
+        "BGT	L_sp_4096_mul_128_store\n\t"
 #else
-        "BGT.N	L_sp_4096_mul_128_store_%=\n\t"
+        "BGT.N	L_sp_4096_mul_128_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -23220,18 +23221,18 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_4096_sqr_128_outer_%=:\n\t"
+    "L_sp_4096_sqr_128_outer:\n\t"
         "SUBS	r3, r5, #0x1fc\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_4096_sqr_128_inner_%=:\n\t"
+    "L_sp_4096_sqr_128_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_sqr_128_op_sqr_%=\n\t"
+        "BEQ	L_sp_4096_sqr_128_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_4096_sqr_128_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_4096_sqr_128_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -23242,38 +23243,38 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_4096_sqr_128_op_done_%=\n\t"
+        "bal	L_sp_4096_sqr_128_op_done\n\t"
         "\n"
-    "L_sp_4096_sqr_128_op_sqr_%=:\n\t"
+    "L_sp_4096_sqr_128_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_4096_sqr_128_op_done_%=:\n\t"
+    "L_sp_4096_sqr_128_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_sqr_128_inner_done_%=\n\t"
+        "BEQ	L_sp_4096_sqr_128_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_4096_sqr_128_inner_done_%=\n\t"
+        "BEQ.N	L_sp_4096_sqr_128_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_4096_sqr_128_inner_done_%=\n\t"
+        "BGT	L_sp_4096_sqr_128_inner_done\n\t"
 #else
-        "BGT.N	L_sp_4096_sqr_128_inner_done_%=\n\t"
+        "BGT.N	L_sp_4096_sqr_128_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_sqr_128_inner_%=\n\t"
+        "BLE	L_sp_4096_sqr_128_inner\n\t"
 #else
-        "BLE.N	L_sp_4096_sqr_128_inner_%=\n\t"
+        "BLE.N	L_sp_4096_sqr_128_inner\n\t"
 #endif
         "\n"
-    "L_sp_4096_sqr_128_inner_done_%=:\n\t"
+    "L_sp_4096_sqr_128_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -23281,20 +23282,20 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x3f8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_sqr_128_outer_%=\n\t"
+        "BLE	L_sp_4096_sqr_128_outer\n\t"
 #else
-        "BLE.N	L_sp_4096_sqr_128_outer_%=\n\t"
+        "BLE.N	L_sp_4096_sqr_128_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_4096_sqr_128_store_%=:\n\t"
+    "L_sp_4096_sqr_128_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_4096_sqr_128_store_%=\n\t"
+        "BGT	L_sp_4096_sqr_128_store\n\t"
 #else
-        "BGT.N	L_sp_4096_sqr_128_store_%=\n\t"
+        "BGT.N	L_sp_4096_sqr_128_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -23351,7 +23352,7 @@ static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_4096_mul_d_128_word_%=:\n\t"
+    "L_sp_4096_mul_d_128_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -23365,9 +23366,9 @@ static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_mul_d_128_word_%=\n\t"
+        "BLT	L_sp_4096_mul_d_128_word\n\t"
 #else
-        "BLT.N	L_sp_4096_mul_d_128_word_%=\n\t"
+        "BLT.N	L_sp_4096_mul_d_128_word\n\t"
 #endif
         "STR	r3, [%[r], #512]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -24086,7 +24087,7 @@ static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a, const sp_di
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_4096_cond_sub_128_words_%=:\n\t"
+    "L_sp_4096_cond_sub_128_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -24097,9 +24098,9 @@ static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a, const sp_di
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_cond_sub_128_words_%=\n\t"
+        "BLT	L_sp_4096_cond_sub_128_words\n\t"
 #else
-        "BLT.N	L_sp_4096_cond_sub_128_words_%=\n\t"
+        "BLT.N	L_sp_4096_cond_sub_128_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -24618,7 +24619,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_word_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -25649,9 +25650,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x200\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_word\n\t"
 #else
-        "BLT.W	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.W	L_sp_4096_mont_reduce_128_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -25690,7 +25691,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_word_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -25698,7 +25699,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_mul_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -25741,9 +25742,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_mont_reduce_128_mul_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_mul\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_mul_%=\n\t"
+        "BLT.N	L_sp_4096_mont_reduce_128_mul\n\t"
 #endif
         "LDR	r10, [%[a], #512]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -25757,9 +25758,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_word\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.N	L_sp_4096_mont_reduce_128_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -25801,7 +25802,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_word_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -26449,9 +26450,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x200\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_word\n\t"
 #else
-        "BLT.W	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.W	L_sp_4096_mont_reduce_128_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -26493,7 +26494,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* ca = 0 */
         "MOV	r3, #0x0\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_word_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_word:\n\t"
         /* mu = a[i] * mp */
         "LDR	r10, [%[a]]\n\t"
         "MUL	r8, %[mp], r10\n\t"
@@ -26501,7 +26502,7 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "MOV	r12, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_4096_mont_reduce_128_mul_%=:\n\t"
+    "L_sp_4096_mont_reduce_128_mul:\n\t"
         /* a[i+j+0] += m[j+0] * mu */
         "LDR	r7, [%[m], r12]\n\t"
         "LDR	r10, [%[a], r12]\n\t"
@@ -26532,9 +26533,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	r12, r12, #0x4\n\t"
         "CMP	r12, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_mont_reduce_128_mul_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_mul\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_mul_%=\n\t"
+        "BLT.N	L_sp_4096_mont_reduce_128_mul\n\t"
 #endif
         "LDR	r10, [%[a], #512]\n\t"
         "ADDS	r4, r4, r3\n\t"
@@ -26548,9 +26549,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r9, #0x200\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT	L_sp_4096_mont_reduce_128_word\n\t"
 #else
-        "BLT.N	L_sp_4096_mont_reduce_128_word_%=\n\t"
+        "BLT.N	L_sp_4096_mont_reduce_128_word\n\t"
 #endif
         /* Loop Done */
         "MOV	%[mp], r3\n\t"
@@ -26616,7 +26617,7 @@ static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a, const sp_digit* 
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x200\n\t"
         "\n"
-    "L_sp_4096_sub_128_word_%=:\n\t"
+    "L_sp_4096_sub_128_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -26628,9 +26629,9 @@ static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a, const sp_digit* 
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_4096_sub_128_word_%=\n\t"
+        "BNE	L_sp_4096_sub_128_word\n\t"
 #else
-        "BNE.N	L_sp_4096_sub_128_word_%=\n\t"
+        "BNE.N	L_sp_4096_sub_128_word\n\t"
 #endif
         "MOV	%[r], r11\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -26904,9 +26905,9 @@ static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a, const sp_digit* 
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -26969,9 +26970,9 @@ static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -26995,7 +26996,7 @@ static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_4096_word_128_bit_%=:\n\t"
+    "L_div_4096_word_128_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -27005,7 +27006,7 @@ static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_4096_word_128_bit_%=\n\t"
+        "bpl	L_div_4096_word_128_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -27160,7 +27161,7 @@ static sp_int32 sp_4096_cmp_128(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x1fc\n\t"
         "\n"
-    "L_sp_4096_cmp_128_words_%=:\n\t"
+    "L_sp_4096_cmp_128_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -27173,7 +27174,7 @@ static sp_int32 sp_4096_cmp_128(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_4096_cmp_128_words_%=\n\t"
+        "bcs	L_sp_4096_cmp_128_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #508]\n\t"
@@ -29140,7 +29141,7 @@ static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r8, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_4096_cond_add_64_words_%=:\n\t"
+    "L_sp_4096_cond_add_64_words:\n\t"
         "ADDS	r5, r5, #0xffffffff\n\t"
         "LDR	r6, [%[a], r4]\n\t"
         "LDR	r7, [%[b], r4]\n\t"
@@ -29151,9 +29152,9 @@ static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r4, r4, #0x4\n\t"
         "CMP	r4, #0x100\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_4096_cond_add_64_words_%=\n\t"
+        "BLT	L_sp_4096_cond_add_64_words\n\t"
 #else
-        "BLT.N	L_sp_4096_cond_add_64_words_%=\n\t"
+        "BLT.N	L_sp_4096_cond_add_64_words\n\t"
 #endif
         "MOV	%[r], r5\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -30830,13 +30831,13 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_256_mul_8_outer_%=:\n\t"
+    "L_sp_256_mul_8_outer:\n\t"
         "SUBS	r3, r5, #0x1c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_256_mul_8_inner_%=:\n\t"
+    "L_sp_256_mul_8_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -30847,18 +30848,18 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_mul_8_inner_done_%=\n\t"
+        "BEQ	L_sp_256_mul_8_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_256_mul_8_inner_done_%=\n\t"
+        "BEQ.N	L_sp_256_mul_8_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_mul_8_inner_%=\n\t"
+        "BLE	L_sp_256_mul_8_inner\n\t"
 #else
-        "BLE.N	L_sp_256_mul_8_inner_%=\n\t"
+        "BLE.N	L_sp_256_mul_8_inner\n\t"
 #endif
         "\n"
-    "L_sp_256_mul_8_inner_done_%=:\n\t"
+    "L_sp_256_mul_8_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -30866,20 +30867,20 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x38\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_mul_8_outer_%=\n\t"
+        "BLE	L_sp_256_mul_8_outer\n\t"
 #else
-        "BLE.N	L_sp_256_mul_8_outer_%=\n\t"
+        "BLE.N	L_sp_256_mul_8_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_256_mul_8_store_%=:\n\t"
+    "L_sp_256_mul_8_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_256_mul_8_store_%=\n\t"
+        "BGT	L_sp_256_mul_8_store\n\t"
 #else
-        "BGT.N	L_sp_256_mul_8_store_%=\n\t"
+        "BGT.N	L_sp_256_mul_8_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -31416,18 +31417,18 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_256_sqr_8_outer_%=:\n\t"
+    "L_sp_256_sqr_8_outer:\n\t"
         "SUBS	r3, r5, #0x1c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_256_sqr_8_inner_%=:\n\t"
+    "L_sp_256_sqr_8_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_sqr_8_op_sqr_%=\n\t"
+        "BEQ	L_sp_256_sqr_8_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_256_sqr_8_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_256_sqr_8_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -31438,38 +31439,38 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_256_sqr_8_op_done_%=\n\t"
+        "bal	L_sp_256_sqr_8_op_done\n\t"
         "\n"
-    "L_sp_256_sqr_8_op_sqr_%=:\n\t"
+    "L_sp_256_sqr_8_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_256_sqr_8_op_done_%=:\n\t"
+    "L_sp_256_sqr_8_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_sqr_8_inner_done_%=\n\t"
+        "BEQ	L_sp_256_sqr_8_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_256_sqr_8_inner_done_%=\n\t"
+        "BEQ.N	L_sp_256_sqr_8_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_256_sqr_8_inner_done_%=\n\t"
+        "BGT	L_sp_256_sqr_8_inner_done\n\t"
 #else
-        "BGT.N	L_sp_256_sqr_8_inner_done_%=\n\t"
+        "BGT.N	L_sp_256_sqr_8_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_sqr_8_inner_%=\n\t"
+        "BLE	L_sp_256_sqr_8_inner\n\t"
 #else
-        "BLE.N	L_sp_256_sqr_8_inner_%=\n\t"
+        "BLE.N	L_sp_256_sqr_8_inner\n\t"
 #endif
         "\n"
-    "L_sp_256_sqr_8_inner_done_%=:\n\t"
+    "L_sp_256_sqr_8_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -31477,20 +31478,20 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x38\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_sqr_8_outer_%=\n\t"
+        "BLE	L_sp_256_sqr_8_outer\n\t"
 #else
-        "BLE.N	L_sp_256_sqr_8_outer_%=\n\t"
+        "BLE.N	L_sp_256_sqr_8_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_256_sqr_8_store_%=:\n\t"
+    "L_sp_256_sqr_8_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_256_sqr_8_store_%=\n\t"
+        "BGT	L_sp_256_sqr_8_store\n\t"
 #else
-        "BGT.N	L_sp_256_sqr_8_store_%=\n\t"
+        "BGT.N	L_sp_256_sqr_8_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -31896,7 +31897,7 @@ static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x20\n\t"
         "\n"
-    "L_sp_256_add_8_word_%=:\n\t"
+    "L_sp_256_add_8_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -31909,9 +31910,9 @@ static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_256_add_8_word_%=\n\t"
+        "BNE	L_sp_256_add_8_word\n\t"
 #else
-        "BNE.N	L_sp_256_add_8_word_%=\n\t"
+        "BNE.N	L_sp_256_add_8_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -33931,7 +33932,7 @@ static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x1c\n\t"
         "\n"
-    "L_sp_256_cmp_8_words_%=:\n\t"
+    "L_sp_256_cmp_8_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -33944,7 +33945,7 @@ static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_256_cmp_8_words_%=\n\t"
+        "bcs	L_sp_256_cmp_8_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #28]\n\t"
@@ -34078,7 +34079,7 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a, const sp_digit
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_256_cond_sub_8_words_%=:\n\t"
+    "L_sp_256_cond_sub_8_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -34089,9 +34090,9 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a, const sp_digit
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_256_cond_sub_8_words_%=\n\t"
+        "BLT	L_sp_256_cond_sub_8_words\n\t"
 #else
-        "BLT.N	L_sp_256_cond_sub_8_words_%=\n\t"
+        "BLT.N	L_sp_256_cond_sub_8_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -34192,7 +34193,7 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_256_mont_reduce_8_word_%=:\n\t"
+    "L_sp_256_mont_reduce_8_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -34263,9 +34264,9 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x20\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT	L_sp_256_mont_reduce_8_word\n\t"
 #else
-        "BLT.W	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_8_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -34307,7 +34308,7 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_256_mont_reduce_8_word_%=:\n\t"
+    "L_sp_256_mont_reduce_8_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -34355,9 +34356,9 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x20\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT	L_sp_256_mont_reduce_8_word\n\t"
 #else
-        "BLT.W	L_sp_256_mont_reduce_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_8_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -34566,7 +34567,7 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_256_mont_reduce_order_8_word_%=:\n\t"
+    "L_sp_256_mont_reduce_order_8_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -34637,9 +34638,9 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x20\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT	L_sp_256_mont_reduce_order_8_word\n\t"
 #else
-        "BLT.W	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_order_8_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -34681,7 +34682,7 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_256_mont_reduce_order_8_word_%=:\n\t"
+    "L_sp_256_mont_reduce_order_8_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -34729,9 +34730,9 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x20\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT	L_sp_256_mont_reduce_order_8_word\n\t"
 #else
-        "BLT.W	L_sp_256_mont_reduce_order_8_word_%=\n\t"
+        "BLT.W	L_sp_256_mont_reduce_order_8_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -39060,7 +39061,7 @@ static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x20\n\t"
         "\n"
-    "L_sp_256_sub_in_pkace_8_word_%=:\n\t"
+    "L_sp_256_sub_in_pkace_8_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -39072,9 +39073,9 @@ static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_256_sub_in_pkace_8_word_%=\n\t"
+        "BNE	L_sp_256_sub_in_pkace_8_word\n\t"
 #else
-        "BNE.N	L_sp_256_sub_in_pkace_8_word_%=\n\t"
+        "BNE.N	L_sp_256_sub_in_pkace_8_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -39153,7 +39154,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_256_mul_d_8_word_%=:\n\t"
+    "L_sp_256_mul_d_8_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -39167,9 +39168,9 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_256_mul_d_8_word_%=\n\t"
+        "BLT	L_sp_256_mul_d_8_word\n\t"
 #else
-        "BLT.N	L_sp_256_mul_d_8_word_%=\n\t"
+        "BLT.N	L_sp_256_mul_d_8_word\n\t"
 #endif
         "STR	r3, [%[r], #32]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -39256,9 +39257,9 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -39321,9 +39322,9 @@ static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -39347,7 +39348,7 @@ static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_256_word_8_bit_%=:\n\t"
+    "L_div_256_word_8_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -39357,7 +39358,7 @@ static sp_digit div_256_word_8(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_256_word_8_bit_%=\n\t"
+        "bpl	L_div_256_word_8_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -40051,7 +40052,7 @@ static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x20\n\t"
         "\n"
-    "L_sp_256_sub_8_word_%=:\n\t"
+    "L_sp_256_sub_8_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -40063,9 +40064,9 @@ static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_256_sub_8_word_%=\n\t"
+        "BNE	L_sp_256_sub_8_word\n\t"
 #else
-        "BNE.N	L_sp_256_sub_8_word_%=\n\t"
+        "BNE.N	L_sp_256_sub_8_word\n\t"
 #endif
         "MOV	%[r], r11\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -40185,9 +40186,9 @@ static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
         "LDM	%[a]!, {r4}\n\t"
         "ANDS	r3, r4, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_div2_mod_8_even_%=\n\t"
+        "BEQ	L_sp_256_div2_mod_8_even\n\t"
 #else
-        "BEQ.N	L_sp_256_div2_mod_8_even_%=\n\t"
+        "BEQ.N	L_sp_256_div2_mod_8_even\n\t"
 #endif
         "LDM	%[a]!, {r5, r6, r7}\n\t"
         "LDM	%[m]!, {r8, r9, r10, r11}\n\t"
@@ -40203,13 +40204,13 @@ static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
         "ADCS	r6, r6, r10\n\t"
         "ADCS	r7, r7, r11\n\t"
         "ADC	r3, r12, r12\n\t"
-        "B	L_sp_256_div2_mod_8_div2_%=\n\t"
+        "B	L_sp_256_div2_mod_8_div2\n\t"
         "\n"
-    "L_sp_256_div2_mod_8_even_%=:\n\t"
+    "L_sp_256_div2_mod_8_even:\n\t"
         "LDRD	r4, r5, [%[a], #12]\n\t"
         "LDRD	r6, r7, [%[a], #20]\n\t"
         "\n"
-    "L_sp_256_div2_mod_8_div2_%=:\n\t"
+    "L_sp_256_div2_mod_8_div2:\n\t"
         "LSR	r8, r4, #1\n\t"
         "AND	r4, r4, #0x1\n\t"
         "LSR	r9, r5, #1\n\t"
@@ -40252,100 +40253,100 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "LDR	r1, [%[a], #28]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_7_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_7\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_7_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_7\n\t"
 #endif
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_7_%=:\n\t"
+    "L_sp_256_num_bits_8_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_6_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_6\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_6_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_6\n\t"
 #endif
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_6_%=:\n\t"
+    "L_sp_256_num_bits_8_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_5_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_5\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_5_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_5\n\t"
 #endif
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_5_%=:\n\t"
+    "L_sp_256_num_bits_8_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_4_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_4\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_4_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_4\n\t"
 #endif
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_4_%=:\n\t"
+    "L_sp_256_num_bits_8_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_3_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_3\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_3_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_3\n\t"
 #endif
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_3_%=:\n\t"
+    "L_sp_256_num_bits_8_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_2_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_2\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_2_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_2\n\t"
 #endif
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_2_%=:\n\t"
+    "L_sp_256_num_bits_8_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_num_bits_8_1_%=\n\t"
+        "BEQ	L_sp_256_num_bits_8_1\n\t"
 #else
-        "BEQ.N	L_sp_256_num_bits_8_1_%=\n\t"
+        "BEQ.N	L_sp_256_num_bits_8_1\n\t"
 #endif
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_256_num_bits_8_9_%=\n\t"
+        "B	L_sp_256_num_bits_8_9\n\t"
         "\n"
-    "L_sp_256_num_bits_8_1_%=:\n\t"
+    "L_sp_256_num_bits_8_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
         "MOV	r2, #0x20\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
         "\n"
-    "L_sp_256_num_bits_8_9_%=:\n\t"
+    "L_sp_256_num_bits_8_9:\n\t"
         "MOV	%[a], r4\n\t"
         : [a] "+r" (a)
         :
@@ -41465,13 +41466,13 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_384_mul_12_outer_%=:\n\t"
+    "L_sp_384_mul_12_outer:\n\t"
         "SUBS	r3, r5, #0x2c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_384_mul_12_inner_%=:\n\t"
+    "L_sp_384_mul_12_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -41482,18 +41483,18 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x30\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_mul_12_inner_done_%=\n\t"
+        "BEQ	L_sp_384_mul_12_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_384_mul_12_inner_done_%=\n\t"
+        "BEQ.N	L_sp_384_mul_12_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_mul_12_inner_%=\n\t"
+        "BLE	L_sp_384_mul_12_inner\n\t"
 #else
-        "BLE.N	L_sp_384_mul_12_inner_%=\n\t"
+        "BLE.N	L_sp_384_mul_12_inner\n\t"
 #endif
         "\n"
-    "L_sp_384_mul_12_inner_done_%=:\n\t"
+    "L_sp_384_mul_12_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -41501,20 +41502,20 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x58\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_mul_12_outer_%=\n\t"
+        "BLE	L_sp_384_mul_12_outer\n\t"
 #else
-        "BLE.N	L_sp_384_mul_12_outer_%=\n\t"
+        "BLE.N	L_sp_384_mul_12_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_384_mul_12_store_%=:\n\t"
+    "L_sp_384_mul_12_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_384_mul_12_store_%=\n\t"
+        "BGT	L_sp_384_mul_12_store\n\t"
 #else
-        "BGT.N	L_sp_384_mul_12_store_%=\n\t"
+        "BGT.N	L_sp_384_mul_12_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -42575,18 +42576,18 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_384_sqr_12_outer_%=:\n\t"
+    "L_sp_384_sqr_12_outer:\n\t"
         "SUBS	r3, r5, #0x2c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_384_sqr_12_inner_%=:\n\t"
+    "L_sp_384_sqr_12_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_sqr_12_op_sqr_%=\n\t"
+        "BEQ	L_sp_384_sqr_12_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_384_sqr_12_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_384_sqr_12_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -42597,38 +42598,38 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_384_sqr_12_op_done_%=\n\t"
+        "bal	L_sp_384_sqr_12_op_done\n\t"
         "\n"
-    "L_sp_384_sqr_12_op_sqr_%=:\n\t"
+    "L_sp_384_sqr_12_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_384_sqr_12_op_done_%=:\n\t"
+    "L_sp_384_sqr_12_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x30\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_sqr_12_inner_done_%=\n\t"
+        "BEQ	L_sp_384_sqr_12_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_384_sqr_12_inner_done_%=\n\t"
+        "BEQ.N	L_sp_384_sqr_12_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_384_sqr_12_inner_done_%=\n\t"
+        "BGT	L_sp_384_sqr_12_inner_done\n\t"
 #else
-        "BGT.N	L_sp_384_sqr_12_inner_done_%=\n\t"
+        "BGT.N	L_sp_384_sqr_12_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_sqr_12_inner_%=\n\t"
+        "BLE	L_sp_384_sqr_12_inner\n\t"
 #else
-        "BLE.N	L_sp_384_sqr_12_inner_%=\n\t"
+        "BLE.N	L_sp_384_sqr_12_inner\n\t"
 #endif
         "\n"
-    "L_sp_384_sqr_12_inner_done_%=:\n\t"
+    "L_sp_384_sqr_12_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -42636,20 +42637,20 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x58\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_sqr_12_outer_%=\n\t"
+        "BLE	L_sp_384_sqr_12_outer\n\t"
 #else
-        "BLE.N	L_sp_384_sqr_12_outer_%=\n\t"
+        "BLE.N	L_sp_384_sqr_12_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_384_sqr_12_store_%=:\n\t"
+    "L_sp_384_sqr_12_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_384_sqr_12_store_%=\n\t"
+        "BGT	L_sp_384_sqr_12_store\n\t"
 #else
-        "BGT.N	L_sp_384_sqr_12_store_%=\n\t"
+        "BGT.N	L_sp_384_sqr_12_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -43382,7 +43383,7 @@ static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x30\n\t"
         "\n"
-    "L_sp_384_add_12_word_%=:\n\t"
+    "L_sp_384_add_12_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -43395,9 +43396,9 @@ static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_384_add_12_word_%=\n\t"
+        "BNE	L_sp_384_add_12_word\n\t"
 #else
-        "BNE.N	L_sp_384_add_12_word_%=\n\t"
+        "BNE.N	L_sp_384_add_12_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -43782,7 +43783,7 @@ static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a, const sp_digi
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_384_cond_sub_12_words_%=:\n\t"
+    "L_sp_384_cond_sub_12_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -43793,9 +43794,9 @@ static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a, const sp_digi
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x30\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_384_cond_sub_12_words_%=\n\t"
+        "BLT	L_sp_384_cond_sub_12_words\n\t"
 #else
-        "BLT.N	L_sp_384_cond_sub_12_words_%=\n\t"
+        "BLT.N	L_sp_384_cond_sub_12_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -43909,7 +43910,7 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_384_mont_reduce_12_word_%=:\n\t"
+    "L_sp_384_mont_reduce_12_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -44012,9 +44013,9 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x30\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT	L_sp_384_mont_reduce_12_word\n\t"
 #else
-        "BLT.W	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT.W	L_sp_384_mont_reduce_12_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -44056,7 +44057,7 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_384_mont_reduce_12_word_%=:\n\t"
+    "L_sp_384_mont_reduce_12_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -44124,9 +44125,9 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x30\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT	L_sp_384_mont_reduce_12_word\n\t"
 #else
-        "BLT.W	L_sp_384_mont_reduce_12_word_%=\n\t"
+        "BLT.W	L_sp_384_mont_reduce_12_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -44311,7 +44312,7 @@ static sp_int32 sp_384_cmp_12(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x2c\n\t"
         "\n"
-    "L_sp_384_cmp_12_words_%=:\n\t"
+    "L_sp_384_cmp_12_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -44324,7 +44325,7 @@ static sp_int32 sp_384_cmp_12(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_384_cmp_12_words_%=\n\t"
+        "bcs	L_sp_384_cmp_12_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #44]\n\t"
@@ -44614,7 +44615,7 @@ static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x30\n\t"
         "\n"
-    "L_sp_384_sub_12_word_%=:\n\t"
+    "L_sp_384_sub_12_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -44626,9 +44627,9 @@ static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_384_sub_12_word_%=\n\t"
+        "BNE	L_sp_384_sub_12_word\n\t"
 #else
-        "BNE.N	L_sp_384_sub_12_word_%=\n\t"
+        "BNE.N	L_sp_384_sub_12_word\n\t"
 #endif
         "MOV	%[r], r11\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -44715,7 +44716,7 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a, const sp_digi
         "MOV	r8, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_384_cond_add_12_words_%=:\n\t"
+    "L_sp_384_cond_add_12_words:\n\t"
         "ADDS	r5, r5, #0xffffffff\n\t"
         "LDR	r6, [%[a], r4]\n\t"
         "LDR	r7, [%[b], r4]\n\t"
@@ -44726,9 +44727,9 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a, const sp_digi
         "ADD	r4, r4, #0x4\n\t"
         "CMP	r4, #0x30\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_384_cond_add_12_words_%=\n\t"
+        "BLT	L_sp_384_cond_add_12_words\n\t"
 #else
-        "BLT.N	L_sp_384_cond_add_12_words_%=\n\t"
+        "BLT.N	L_sp_384_cond_add_12_words\n\t"
 #endif
         "MOV	%[r], r5\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -48912,7 +48913,7 @@ static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x30\n\t"
         "\n"
-    "L_sp_384_sub_in_pkace_12_word_%=:\n\t"
+    "L_sp_384_sub_in_pkace_12_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -48924,9 +48925,9 @@ static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_384_sub_in_pkace_12_word_%=\n\t"
+        "BNE	L_sp_384_sub_in_pkace_12_word\n\t"
 #else
-        "BNE.N	L_sp_384_sub_in_pkace_12_word_%=\n\t"
+        "BNE.N	L_sp_384_sub_in_pkace_12_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -49012,7 +49013,7 @@ static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_384_mul_d_12_word_%=:\n\t"
+    "L_sp_384_mul_d_12_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -49026,9 +49027,9 @@ static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x30\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_384_mul_d_12_word_%=\n\t"
+        "BLT	L_sp_384_mul_d_12_word\n\t"
 #else
-        "BLT.N	L_sp_384_mul_d_12_word_%=\n\t"
+        "BLT.N	L_sp_384_mul_d_12_word\n\t"
 #endif
         "STR	r3, [%[r], #48]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -49135,9 +49136,9 @@ static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -49200,9 +49201,9 @@ static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -49226,7 +49227,7 @@ static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_384_word_12_bit_%=:\n\t"
+    "L_div_384_word_12_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -49236,7 +49237,7 @@ static sp_digit div_384_word_12(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_384_word_12_bit_%=\n\t"
+        "bpl	L_div_384_word_12_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -49900,9 +49901,9 @@ static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a, const sp_digit* m
         "LDM	%[a]!, {r4}\n\t"
         "ANDS	r3, r4, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_div2_mod_12_even_%=\n\t"
+        "BEQ	L_sp_384_div2_mod_12_even\n\t"
 #else
-        "BEQ.N	L_sp_384_div2_mod_12_even_%=\n\t"
+        "BEQ.N	L_sp_384_div2_mod_12_even\n\t"
 #endif
         "MOV	r12, #0x0\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
@@ -49927,9 +49928,9 @@ static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a, const sp_digit* m
         "ADCS	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "ADC	r3, r12, r12\n\t"
-        "B	L_sp_384_div2_mod_12_div2_%=\n\t"
+        "B	L_sp_384_div2_mod_12_div2\n\t"
         "\n"
-    "L_sp_384_div2_mod_12_even_%=:\n\t"
+    "L_sp_384_div2_mod_12_even:\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
@@ -49937,7 +49938,7 @@ static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a, const sp_digit* m
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "\n"
-    "L_sp_384_div2_mod_12_div2_%=:\n\t"
+    "L_sp_384_div2_mod_12_div2:\n\t"
         "SUB	%[r], %[r], #0x30\n\t"
         "LDRD	r8, r9, [%[r]]\n\t"
         "LSR	r8, r8, #1\n\t"
@@ -50006,152 +50007,152 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "LDR	r1, [%[a], #44]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_11_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_11\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_11_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_11\n\t"
 #endif
         "MOV	r2, #0x180\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_11_%=:\n\t"
+    "L_sp_384_num_bits_12_11:\n\t"
         "LDR	r1, [%[a], #40]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_10_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_10\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_10_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_10\n\t"
 #endif
         "MOV	r2, #0x160\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_10_%=:\n\t"
+    "L_sp_384_num_bits_12_10:\n\t"
         "LDR	r1, [%[a], #36]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_9_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_9\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_9_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_9\n\t"
 #endif
         "MOV	r2, #0x140\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_9_%=:\n\t"
+    "L_sp_384_num_bits_12_9:\n\t"
         "LDR	r1, [%[a], #32]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_8_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_8\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_8_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_8\n\t"
 #endif
         "MOV	r2, #0x120\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_8_%=:\n\t"
+    "L_sp_384_num_bits_12_8:\n\t"
         "LDR	r1, [%[a], #28]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_7_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_7\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_7_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_7\n\t"
 #endif
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_7_%=:\n\t"
+    "L_sp_384_num_bits_12_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_6_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_6\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_6_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_6\n\t"
 #endif
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_6_%=:\n\t"
+    "L_sp_384_num_bits_12_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_5_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_5\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_5_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_5\n\t"
 #endif
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_5_%=:\n\t"
+    "L_sp_384_num_bits_12_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_4_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_4\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_4_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_4\n\t"
 #endif
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_4_%=:\n\t"
+    "L_sp_384_num_bits_12_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_3_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_3\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_3_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_3\n\t"
 #endif
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_3_%=:\n\t"
+    "L_sp_384_num_bits_12_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_2_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_2\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_2_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_2\n\t"
 #endif
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_2_%=:\n\t"
+    "L_sp_384_num_bits_12_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_num_bits_12_1_%=\n\t"
+        "BEQ	L_sp_384_num_bits_12_1\n\t"
 #else
-        "BEQ.N	L_sp_384_num_bits_12_1_%=\n\t"
+        "BEQ.N	L_sp_384_num_bits_12_1\n\t"
 #endif
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_384_num_bits_12_13_%=\n\t"
+        "B	L_sp_384_num_bits_12_13\n\t"
         "\n"
-    "L_sp_384_num_bits_12_1_%=:\n\t"
+    "L_sp_384_num_bits_12_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
         "MOV	r2, #0x20\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
         "\n"
-    "L_sp_384_num_bits_12_13_%=:\n\t"
+    "L_sp_384_num_bits_12_13:\n\t"
         "MOV	%[a], r4\n\t"
         : [a] "+r" (a)
         :
@@ -51317,13 +51318,13 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_521_mul_17_outer_%=:\n\t"
+    "L_sp_521_mul_17_outer:\n\t"
         "SUBS	r3, r5, #0x40\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_521_mul_17_inner_%=:\n\t"
+    "L_sp_521_mul_17_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -51334,18 +51335,18 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x44\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_mul_17_inner_done_%=\n\t"
+        "BEQ	L_sp_521_mul_17_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_521_mul_17_inner_done_%=\n\t"
+        "BEQ.N	L_sp_521_mul_17_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_mul_17_inner_%=\n\t"
+        "BLE	L_sp_521_mul_17_inner\n\t"
 #else
-        "BLE.N	L_sp_521_mul_17_inner_%=\n\t"
+        "BLE.N	L_sp_521_mul_17_inner\n\t"
 #endif
         "\n"
-    "L_sp_521_mul_17_inner_done_%=:\n\t"
+    "L_sp_521_mul_17_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -51353,23 +51354,23 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_mul_17_outer_%=\n\t"
+        "BLE	L_sp_521_mul_17_outer\n\t"
 #else
-        "BLE.N	L_sp_521_mul_17_outer_%=\n\t"
+        "BLE.N	L_sp_521_mul_17_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "LDM	sp!, {r6, r7}\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SUB	r5, r5, #0x8\n\t"
         "\n"
-    "L_sp_521_mul_17_store_%=:\n\t"
+    "L_sp_521_mul_17_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_521_mul_17_store_%=\n\t"
+        "BGT	L_sp_521_mul_17_store\n\t"
 #else
-        "BGT.N	L_sp_521_mul_17_store_%=\n\t"
+        "BGT.N	L_sp_521_mul_17_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -53444,18 +53445,18 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_521_sqr_17_outer_%=:\n\t"
+    "L_sp_521_sqr_17_outer:\n\t"
         "SUBS	r3, r5, #0x40\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_521_sqr_17_inner_%=:\n\t"
+    "L_sp_521_sqr_17_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_sqr_17_op_sqr_%=\n\t"
+        "BEQ	L_sp_521_sqr_17_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_521_sqr_17_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_521_sqr_17_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -53466,38 +53467,38 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_521_sqr_17_op_done_%=\n\t"
+        "bal	L_sp_521_sqr_17_op_done\n\t"
         "\n"
-    "L_sp_521_sqr_17_op_sqr_%=:\n\t"
+    "L_sp_521_sqr_17_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_521_sqr_17_op_done_%=:\n\t"
+    "L_sp_521_sqr_17_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x44\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_sqr_17_inner_done_%=\n\t"
+        "BEQ	L_sp_521_sqr_17_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_521_sqr_17_inner_done_%=\n\t"
+        "BEQ.N	L_sp_521_sqr_17_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_521_sqr_17_inner_done_%=\n\t"
+        "BGT	L_sp_521_sqr_17_inner_done\n\t"
 #else
-        "BGT.N	L_sp_521_sqr_17_inner_done_%=\n\t"
+        "BGT.N	L_sp_521_sqr_17_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_sqr_17_inner_%=\n\t"
+        "BLE	L_sp_521_sqr_17_inner\n\t"
 #else
-        "BLE.N	L_sp_521_sqr_17_inner_%=\n\t"
+        "BLE.N	L_sp_521_sqr_17_inner\n\t"
 #endif
         "\n"
-    "L_sp_521_sqr_17_inner_done_%=:\n\t"
+    "L_sp_521_sqr_17_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -53505,23 +53506,23 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_sqr_17_outer_%=\n\t"
+        "BLE	L_sp_521_sqr_17_outer\n\t"
 #else
-        "BLE.N	L_sp_521_sqr_17_outer_%=\n\t"
+        "BLE.N	L_sp_521_sqr_17_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "LDM	sp!, {r6, r7}\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SUB	r5, r5, #0x8\n\t"
         "\n"
-    "L_sp_521_sqr_17_store_%=:\n\t"
+    "L_sp_521_sqr_17_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_521_sqr_17_store_%=\n\t"
+        "BGT	L_sp_521_sqr_17_store\n\t"
 #else
-        "BGT.N	L_sp_521_sqr_17_store_%=\n\t"
+        "BGT.N	L_sp_521_sqr_17_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -54838,7 +54839,7 @@ static sp_digit sp_521_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x40\n\t"
         "\n"
-    "L_sp_521_add_17_word_%=:\n\t"
+    "L_sp_521_add_17_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -54851,9 +54852,9 @@ static sp_digit sp_521_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_521_add_17_word_%=\n\t"
+        "BNE	L_sp_521_add_17_word\n\t"
 #else
-        "BNE.N	L_sp_521_add_17_word_%=\n\t"
+        "BNE.N	L_sp_521_add_17_word\n\t"
 #endif
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a], {r4}\n\t"
@@ -55171,7 +55172,7 @@ static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a, const sp_digi
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_521_cond_sub_17_words_%=:\n\t"
+    "L_sp_521_cond_sub_17_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -55182,9 +55183,9 @@ static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a, const sp_digi
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x44\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_521_cond_sub_17_words_%=\n\t"
+        "BLT	L_sp_521_cond_sub_17_words\n\t"
 #else
-        "BLT.N	L_sp_521_cond_sub_17_words_%=\n\t"
+        "BLT.N	L_sp_521_cond_sub_17_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -55451,19 +55452,19 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_521_mont_reduce_order_17_word_%=:\n\t"
+    "L_sp_521_mont_reduce_order_17_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         "CMP	r11, #0x40\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_521_mont_reduce_order_17_nomask_%=\n\t"
+        "BNE	L_sp_521_mont_reduce_order_17_nomask\n\t"
 #else
-        "BNE.N	L_sp_521_mont_reduce_order_17_nomask_%=\n\t"
+        "BNE.N	L_sp_521_mont_reduce_order_17_nomask\n\t"
 #endif
         "MOV	r9, #0x1ff\n\t"
         "AND	r10, r10, r9\n\t"
         "\n"
-    "L_sp_521_mont_reduce_order_17_nomask_%=:\n\t"
+    "L_sp_521_mont_reduce_order_17_nomask:\n\t"
         /* a[i+0] += m[0] * mu */
         "MOV	r7, #0x0\n\t"
         "UMLAL	r4, r7, r10, lr\n\t"
@@ -55605,9 +55606,9 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x44\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT	L_sp_521_mont_reduce_order_17_word\n\t"
 #else
-        "BLT.W	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT.W	L_sp_521_mont_reduce_order_17_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -55719,19 +55720,19 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_521_mont_reduce_order_17_word_%=:\n\t"
+    "L_sp_521_mont_reduce_order_17_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         "CMP	r4, #0x40\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_521_mont_reduce_order_17_nomask_%=\n\t"
+        "BNE	L_sp_521_mont_reduce_order_17_nomask\n\t"
 #else
-        "BNE.N	L_sp_521_mont_reduce_order_17_nomask_%=\n\t"
+        "BNE.N	L_sp_521_mont_reduce_order_17_nomask\n\t"
 #endif
         "MOV	r12, #0x1ff\n\t"
         "AND	lr, lr, r12\n\t"
         "\n"
-    "L_sp_521_mont_reduce_order_17_nomask_%=:\n\t"
+    "L_sp_521_mont_reduce_order_17_nomask:\n\t"
         /* a[i+0] += m[0] * mu */
         "LDR	r12, [%[m]]\n\t"
         "MOV	r3, #0x0\n\t"
@@ -55823,9 +55824,9 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x44\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT	L_sp_521_mont_reduce_order_17_word\n\t"
 #else
-        "BLT.W	L_sp_521_mont_reduce_order_17_word_%=\n\t"
+        "BLT.W	L_sp_521_mont_reduce_order_17_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -56077,7 +56078,7 @@ static sp_int32 sp_521_cmp_17(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x40\n\t"
         "\n"
-    "L_sp_521_cmp_17_words_%=:\n\t"
+    "L_sp_521_cmp_17_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -56090,7 +56091,7 @@ static sp_int32 sp_521_cmp_17(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_521_cmp_17_words_%=\n\t"
+        "bcs	L_sp_521_cmp_17_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #64]\n\t"
@@ -61870,7 +61871,7 @@ static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x40\n\t"
         "\n"
-    "L_sp_521_sub_in_pkace_17_word_%=:\n\t"
+    "L_sp_521_sub_in_pkace_17_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -61882,9 +61883,9 @@ static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_521_sub_in_pkace_17_word_%=\n\t"
+        "BNE	L_sp_521_sub_in_pkace_17_word\n\t"
 #else
-        "BNE.N	L_sp_521_sub_in_pkace_17_word_%=\n\t"
+        "BNE.N	L_sp_521_sub_in_pkace_17_word\n\t"
 #endif
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2}\n\t"
@@ -61986,7 +61987,7 @@ static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_521_mul_d_17_word_%=:\n\t"
+    "L_sp_521_mul_d_17_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -62000,9 +62001,9 @@ static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x44\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_521_mul_d_17_word_%=\n\t"
+        "BLT	L_sp_521_mul_d_17_word\n\t"
 #else
-        "BLT.N	L_sp_521_mul_d_17_word_%=\n\t"
+        "BLT.N	L_sp_521_mul_d_17_word\n\t"
 #endif
         "STR	r3, [%[r], #68]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -62134,9 +62135,9 @@ static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -62199,9 +62200,9 @@ static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -62225,7 +62226,7 @@ static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_521_word_17_bit_%=:\n\t"
+    "L_div_521_word_17_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -62235,7 +62236,7 @@ static sp_digit div_521_word_17(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_521_word_17_bit_%=\n\t"
+        "bpl	L_div_521_word_17_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -62930,7 +62931,7 @@ static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r11, #0x0\n\t"
         "ADD	r12, %[a], #0x40\n\t"
         "\n"
-    "L_sp_521_sub_17_word_%=:\n\t"
+    "L_sp_521_sub_17_word:\n\t"
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3, r4, r5, r6}\n\t"
         "LDM	%[b]!, {r7, r8, r9, r10}\n\t"
@@ -62942,9 +62943,9 @@ static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SBC	r11, r3, r3\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_521_sub_17_word_%=\n\t"
+        "BNE	L_sp_521_sub_17_word\n\t"
 #else
-        "BNE.N	L_sp_521_sub_17_word_%=\n\t"
+        "BNE.N	L_sp_521_sub_17_word\n\t"
 #endif
         "RSBS	r11, r11, #0x0\n\t"
         "LDM	%[a]!, {r3}\n\t"
@@ -63042,9 +63043,9 @@ static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "LDM	%[a]!, {r4}\n\t"
         "ANDS	r3, r4, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_div2_mod_17_even_%=\n\t"
+        "BEQ	L_sp_521_div2_mod_17_even\n\t"
 #else
-        "BEQ.N	L_sp_521_div2_mod_17_even_%=\n\t"
+        "BEQ.N	L_sp_521_div2_mod_17_even\n\t"
 #endif
         "MOV	r12, #0x0\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
@@ -63080,9 +63081,9 @@ static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "ADCS	r4, r4, r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "ADC	r3, r12, r12\n\t"
-        "B	L_sp_521_div2_mod_17_div2_%=\n\t"
+        "B	L_sp_521_div2_mod_17_div2\n\t"
         "\n"
-    "L_sp_521_div2_mod_17_even_%=:\n\t"
+    "L_sp_521_div2_mod_17_even:\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
@@ -63094,7 +63095,7 @@ static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "LDM	%[a]!, {r4}\n\t"
         "STM	%[r]!, {r4}\n\t"
         "\n"
-    "L_sp_521_div2_mod_17_div2_%=:\n\t"
+    "L_sp_521_div2_mod_17_div2:\n\t"
         "SUB	%[r], %[r], #0x44\n\t"
         "LDRD	r8, r9, [%[r]]\n\t"
         "LSR	r8, r8, #1\n\t"
@@ -63183,217 +63184,217 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "LDR	r1, [%[a], #64]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_16_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_16\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_16_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_16\n\t"
 #endif
         "MOV	r2, #0x220\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_16_%=:\n\t"
+    "L_sp_521_num_bits_17_16:\n\t"
         "LDR	r1, [%[a], #60]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_15_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_15\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_15_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_15\n\t"
 #endif
         "MOV	r2, #0x200\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_15_%=:\n\t"
+    "L_sp_521_num_bits_17_15:\n\t"
         "LDR	r1, [%[a], #56]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_14_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_14\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_14_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_14\n\t"
 #endif
         "MOV	r2, #0x1e0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_14_%=:\n\t"
+    "L_sp_521_num_bits_17_14:\n\t"
         "LDR	r1, [%[a], #52]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_13_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_13\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_13_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_13\n\t"
 #endif
         "MOV	r2, #0x1c0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_13_%=:\n\t"
+    "L_sp_521_num_bits_17_13:\n\t"
         "LDR	r1, [%[a], #48]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_12_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_12\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_12_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_12\n\t"
 #endif
         "MOV	r2, #0x1a0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_12_%=:\n\t"
+    "L_sp_521_num_bits_17_12:\n\t"
         "LDR	r1, [%[a], #44]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_11_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_11\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_11_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_11\n\t"
 #endif
         "MOV	r2, #0x180\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_11_%=:\n\t"
+    "L_sp_521_num_bits_17_11:\n\t"
         "LDR	r1, [%[a], #40]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_10_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_10\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_10_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_10\n\t"
 #endif
         "MOV	r2, #0x160\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_10_%=:\n\t"
+    "L_sp_521_num_bits_17_10:\n\t"
         "LDR	r1, [%[a], #36]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_9_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_9\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_9_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_9\n\t"
 #endif
         "MOV	r2, #0x140\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_9_%=:\n\t"
+    "L_sp_521_num_bits_17_9:\n\t"
         "LDR	r1, [%[a], #32]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_8_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_8\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_8_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_8\n\t"
 #endif
         "MOV	r2, #0x120\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_8_%=:\n\t"
+    "L_sp_521_num_bits_17_8:\n\t"
         "LDR	r1, [%[a], #28]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_7_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_7\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_7_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_7\n\t"
 #endif
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_7_%=:\n\t"
+    "L_sp_521_num_bits_17_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_6_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_6\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_6_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_6\n\t"
 #endif
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_6_%=:\n\t"
+    "L_sp_521_num_bits_17_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_5_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_5\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_5_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_5\n\t"
 #endif
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_5_%=:\n\t"
+    "L_sp_521_num_bits_17_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_4_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_4\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_4_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_4\n\t"
 #endif
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_4_%=:\n\t"
+    "L_sp_521_num_bits_17_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_3_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_3\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_3_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_3\n\t"
 #endif
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_3_%=:\n\t"
+    "L_sp_521_num_bits_17_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_2_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_2\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_2_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_2\n\t"
 #endif
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_2_%=:\n\t"
+    "L_sp_521_num_bits_17_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
         "CMP	r1, #0x0\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_num_bits_17_1_%=\n\t"
+        "BEQ	L_sp_521_num_bits_17_1\n\t"
 #else
-        "BEQ.N	L_sp_521_num_bits_17_1_%=\n\t"
+        "BEQ.N	L_sp_521_num_bits_17_1\n\t"
 #endif
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
-        "B	L_sp_521_num_bits_17_18_%=\n\t"
+        "B	L_sp_521_num_bits_17_18\n\t"
         "\n"
-    "L_sp_521_num_bits_17_1_%=:\n\t"
+    "L_sp_521_num_bits_17_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
         "MOV	r2, #0x20\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
         "\n"
-    "L_sp_521_num_bits_17_18_%=:\n\t"
+    "L_sp_521_num_bits_17_18:\n\t"
         "MOV	%[a], r4\n\t"
         : [a] "+r" (a)
         :
@@ -67785,13 +67786,13 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
         "\n"
-    "L_sp_1024_mul_32_outer_%=:\n\t"
+    "L_sp_1024_mul_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_1024_mul_32_inner_%=:\n\t"
+    "L_sp_1024_mul_32_inner:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[b], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -67802,18 +67803,18 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_mul_32_inner_done_%=\n\t"
+        "BEQ	L_sp_1024_mul_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_1024_mul_32_inner_done_%=\n\t"
+        "BEQ.N	L_sp_1024_mul_32_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_mul_32_inner_%=\n\t"
+        "BLE	L_sp_1024_mul_32_inner\n\t"
 #else
-        "BLE.N	L_sp_1024_mul_32_inner_%=\n\t"
+        "BLE.N	L_sp_1024_mul_32_inner\n\t"
 #endif
         "\n"
-    "L_sp_1024_mul_32_inner_done_%=:\n\t"
+    "L_sp_1024_mul_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -67821,20 +67822,20 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0xf8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_mul_32_outer_%=\n\t"
+        "BLE	L_sp_1024_mul_32_outer\n\t"
 #else
-        "BLE.N	L_sp_1024_mul_32_outer_%=\n\t"
+        "BLE.N	L_sp_1024_mul_32_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_1024_mul_32_store_%=:\n\t"
+    "L_sp_1024_mul_32_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_1024_mul_32_store_%=\n\t"
+        "BGT	L_sp_1024_mul_32_store\n\t"
 #else
-        "BGT.N	L_sp_1024_mul_32_store_%=\n\t"
+        "BGT.N	L_sp_1024_mul_32_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
@@ -67865,18 +67866,18 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
         "MOV	r8, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_1024_sqr_32_outer_%=:\n\t"
+    "L_sp_1024_sqr_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
         "movcc	r3, #0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
-    "L_sp_1024_sqr_32_inner_%=:\n\t"
+    "L_sp_1024_sqr_32_inner:\n\t"
         "CMP	r4, r3\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_sqr_32_op_sqr_%=\n\t"
+        "BEQ	L_sp_1024_sqr_32_op_sqr\n\t"
 #else
-        "BEQ.N	L_sp_1024_sqr_32_op_sqr_%=\n\t"
+        "BEQ.N	L_sp_1024_sqr_32_op_sqr\n\t"
 #endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
@@ -67887,38 +67888,38 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_1024_sqr_32_op_done_%=\n\t"
+        "bal	L_sp_1024_sqr_32_op_done\n\t"
         "\n"
-    "L_sp_1024_sqr_32_op_sqr_%=:\n\t"
+    "L_sp_1024_sqr_32_op_sqr:\n\t"
         "LDR	lr, [%[a], r3]\n\t"
         "UMULL	r9, r10, lr, lr\n\t"
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
         "\n"
-    "L_sp_1024_sqr_32_op_done_%=:\n\t"
+    "L_sp_1024_sqr_32_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
         "CMP	r3, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_sqr_32_inner_done_%=\n\t"
+        "BEQ	L_sp_1024_sqr_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_1024_sqr_32_inner_done_%=\n\t"
+        "BEQ.N	L_sp_1024_sqr_32_inner_done\n\t"
 #endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_1024_sqr_32_inner_done_%=\n\t"
+        "BGT	L_sp_1024_sqr_32_inner_done\n\t"
 #else
-        "BGT.N	L_sp_1024_sqr_32_inner_done_%=\n\t"
+        "BGT.N	L_sp_1024_sqr_32_inner_done\n\t"
 #endif
         "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_sqr_32_inner_%=\n\t"
+        "BLE	L_sp_1024_sqr_32_inner\n\t"
 #else
-        "BLE.N	L_sp_1024_sqr_32_inner_%=\n\t"
+        "BLE.N	L_sp_1024_sqr_32_inner\n\t"
 #endif
         "\n"
-    "L_sp_1024_sqr_32_inner_done_%=:\n\t"
+    "L_sp_1024_sqr_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
         "MOV	r6, r7\n\t"
         "MOV	r7, r8\n\t"
@@ -67926,20 +67927,20 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0xf8\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_sqr_32_outer_%=\n\t"
+        "BLE	L_sp_1024_sqr_32_outer\n\t"
 #else
-        "BLE.N	L_sp_1024_sqr_32_outer_%=\n\t"
+        "BLE.N	L_sp_1024_sqr_32_outer\n\t"
 #endif
         "STR	r6, [sp, r5]\n\t"
         "\n"
-    "L_sp_1024_sqr_32_store_%=:\n\t"
+    "L_sp_1024_sqr_32_store:\n\t"
         "LDM	sp!, {r6, r7, r8, r9}\n\t"
         "STM	%[r]!, {r6, r7, r8, r9}\n\t"
         "SUBS	r5, r5, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BGT	L_sp_1024_sqr_32_store_%=\n\t"
+        "BGT	L_sp_1024_sqr_32_store\n\t"
 #else
-        "BGT.N	L_sp_1024_sqr_32_store_%=\n\t"
+        "BGT.N	L_sp_1024_sqr_32_store\n\t"
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -68054,7 +68055,7 @@ static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
         "MOV	r10, #0x0\n\t"
         "ADD	r11, %[a], #0x80\n\t"
         "\n"
-    "L_sp_1024_sub_in_pkace_32_word_%=:\n\t"
+    "L_sp_1024_sub_in_pkace_32_word:\n\t"
         "RSBS	r10, r10, #0x0\n\t"
         "LDM	%[a], {r2, r3, r4, r5}\n\t"
         "LDM	%[b]!, {r6, r7, r8, r9}\n\t"
@@ -68066,9 +68067,9 @@ static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
         "SBC	r10, r10, r10\n\t"
         "CMP	%[a], r11\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_1024_sub_in_pkace_32_word_%=\n\t"
+        "BNE	L_sp_1024_sub_in_pkace_32_word\n\t"
 #else
-        "BNE.N	L_sp_1024_sub_in_pkace_32_word_%=\n\t"
+        "BNE.N	L_sp_1024_sub_in_pkace_32_word\n\t"
 #endif
         "MOV	%[a], r10\n\t"
         : [a] "+r" (a), [b] "+r" (b)
@@ -68106,7 +68107,7 @@ static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r4, #0x0\n\t"
         "MOV	r5, #0x0\n\t"
         "\n"
-    "L_sp_1024_cond_sub_32_words_%=:\n\t"
+    "L_sp_1024_cond_sub_32_words:\n\t"
         "SUBS	r4, r8, r4\n\t"
         "LDR	r6, [%[a], r5]\n\t"
         "LDR	r7, [%[b], r5]\n\t"
@@ -68117,9 +68118,9 @@ static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r5, r5, #0x4\n\t"
         "CMP	r5, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_1024_cond_sub_32_words_%=\n\t"
+        "BLT	L_sp_1024_cond_sub_32_words\n\t"
 #else
-        "BLT.N	L_sp_1024_cond_sub_32_words_%=\n\t"
+        "BLT.N	L_sp_1024_cond_sub_32_words\n\t"
 #endif
         "MOV	%[r], r4\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
@@ -68297,7 +68298,7 @@ static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b
         "MOV	r3, #0x0\n\t"
         "ADD	r12, %[a], #0x80\n\t"
         "\n"
-    "L_sp_1024_add_32_word_%=:\n\t"
+    "L_sp_1024_add_32_word:\n\t"
         "ADDS	r3, r3, #0xffffffff\n\t"
         "LDM	%[a]!, {r4, r5, r6, r7}\n\t"
         "LDM	%[b]!, {r8, r9, r10, r11}\n\t"
@@ -68310,9 +68311,9 @@ static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ADC	r3, r4, #0x0\n\t"
         "CMP	%[a], r12\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_sp_1024_add_32_word_%=\n\t"
+        "BNE	L_sp_1024_add_32_word\n\t"
 #else
-        "BNE.N	L_sp_1024_add_32_word_%=\n\t"
+        "BNE.N	L_sp_1024_add_32_word\n\t"
 #endif
         "MOV	%[r], r3\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -68351,7 +68352,7 @@ static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
         "MOV	r5, #0x0\n\t"
         "MOV	r9, #0x4\n\t"
         "\n"
-    "L_sp_1024_mul_d_32_word_%=:\n\t"
+    "L_sp_1024_mul_d_32_word:\n\t"
         /* A[i] * B */
         "LDR	r8, [%[a], r9]\n\t"
         "UMULL	r6, r7, %[b], r8\n\t"
@@ -68365,9 +68366,9 @@ static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
         "ADD	r9, r9, #0x4\n\t"
         "CMP	r9, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_1024_mul_d_32_word_%=\n\t"
+        "BLT	L_sp_1024_mul_d_32_word\n\t"
 #else
-        "BLT.N	L_sp_1024_mul_d_32_word_%=\n\t"
+        "BLT.N	L_sp_1024_mul_d_32_word\n\t"
 #endif
         "STR	r3, [%[r], #128]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
@@ -68574,9 +68575,9 @@ static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -68639,9 +68640,9 @@ static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
+SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
+SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -68665,7 +68666,7 @@ static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
         /* Next 30 bits */
         "MOV	r4, #0x1d\n\t"
         "\n"
-    "L_div_1024_word_32_bit_%=:\n\t"
+    "L_div_1024_word_32_bit:\n\t"
         "LSLS	r6, r6, #1\n\t"
         "ADC	r7, r7, r7\n\t"
         "SUBS	r8, r5, r7\n\t"
@@ -68675,7 +68676,7 @@ static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0, sp_digit div)
         "AND	r8, r8, r5\n\t"
         "SUBS	r7, r7, r8\n\t"
         "SUBS	r4, r4, #0x1\n\t"
-        "bpl	L_div_1024_word_32_bit_%=\n\t"
+        "bpl	L_div_1024_word_32_bit\n\t"
         "ADD	r3, r3, r3\n\t"
         "ADD	r3, r3, #0x1\n\t"
         "UMULL	r6, r7, r3, %[div]\n\t"
@@ -68757,7 +68758,7 @@ static sp_int32 sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
 #ifdef WOLFSSL_SP_SMALL
         "MOV	r6, #0x7c\n\t"
         "\n"
-    "L_sp_1024_cmp_32_words_%=:\n\t"
+    "L_sp_1024_cmp_32_words:\n\t"
         "LDR	r4, [%[a], r6]\n\t"
         "LDR	r5, [%[b], r6]\n\t"
         "AND	r4, r4, r3\n\t"
@@ -68770,7 +68771,7 @@ static sp_int32 sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
-        "bcs	L_sp_1024_cmp_32_words_%=\n\t"
+        "bcs	L_sp_1024_cmp_32_words\n\t"
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #124]\n\t"
@@ -69490,7 +69491,7 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r4, [%[a]]\n\t"
         "LDR	r5, [%[a], #4]\n\t"
         "\n"
-    "L_sp_1024_mont_reduce_32_word_%=:\n\t"
+    "L_sp_1024_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	r10, %[mp], r4\n\t"
         /* a[i+0] += m[0] * mu */
@@ -69753,9 +69754,9 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r11, #0x80\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_1024_mont_reduce_32_word\n\t"
 #else
-        "BLT.W	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_1024_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "STR	r4, [%[a]]\n\t"
@@ -69802,7 +69803,7 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "LDR	r9, [%[a], #12]\n\t"
         "LDR	r10, [%[a], #16]\n\t"
         "\n"
-    "L_sp_1024_mont_reduce_32_word_%=:\n\t"
+    "L_sp_1024_mont_reduce_32_word:\n\t"
         /* mu = a[i] * mp */
         "MUL	lr, %[mp], r6\n\t"
         /* a[i+0] += m[0] * mu */
@@ -69970,9 +69971,9 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
         "ADD	%[a], %[a], #0x4\n\t"
         "CMP	r4, #0x80\n\t"
 #ifdef __GNUC__
-        "BLT	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT	L_sp_1024_mont_reduce_32_word\n\t"
 #else
-        "BLT.W	L_sp_1024_mont_reduce_32_word_%=\n\t"
+        "BLT.W	L_sp_1024_mont_reduce_32_word\n\t"
 #endif
         /* Loop Done */
         "STR	r6, [%[a]]\n\t"
@@ -70987,7 +70988,7 @@ static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a, const sp_dig
         "MOV	r8, #0x0\n\t"
         "MOV	r4, #0x0\n\t"
         "\n"
-    "L_sp_1024_cond_add_32_words_%=:\n\t"
+    "L_sp_1024_cond_add_32_words:\n\t"
         "ADDS	r5, r5, #0xffffffff\n\t"
         "LDR	r6, [%[a], r4]\n\t"
         "LDR	r7, [%[b], r4]\n\t"
@@ -70998,9 +70999,9 @@ static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a, const sp_dig
         "ADD	r4, r4, #0x4\n\t"
         "CMP	r4, #0x80\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLT	L_sp_1024_cond_add_32_words_%=\n\t"
+        "BLT	L_sp_1024_cond_add_32_words\n\t"
 #else
-        "BLT.N	L_sp_1024_cond_add_32_words_%=\n\t"
+        "BLT.N	L_sp_1024_cond_add_32_words\n\t"
 #endif
         "MOV	%[r], r5\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b), [m] "+r" (m)
