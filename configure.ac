@@ -720,7 +720,7 @@ then
     # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
+    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -788,7 +788,6 @@ then
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_ech" = "" && enable_ech=yes
-    test "$enable_quic" = "" && enable_quic=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -799,13 +798,14 @@ then
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
+        test "$enable_quic" = "" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
     # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
     if test "$ENABLED_SP_MATH" = "no"
     then
-        test "$enable_dsa" = "" && enable_dsa=yes
+        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
         test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
         test "$enable_brainpool" = "" && enable_brainpool=yes
         test "$enable_srp" = "" && enable_srp=yes
@@ -908,7 +908,7 @@ if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
+    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -974,7 +974,7 @@ then
 
     if test "$ENABLED_SP_MATH" = "no"
     then
-        test "$enable_dsa" = "" && enable_dsa=yes
+        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
         test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
         test "$enable_brainpool" = "" && enable_brainpool=yes
         test "$enable_srp" = "" && enable_srp=yes
@@ -1475,6 +1475,10 @@ then
     if test "x$ENABLED_TLS13" = "xno"
     then
         AC_MSG_ERROR([TLS 1.3 is disabled - necessary for QUIC])
+    fi
+    if test "$enable_aesgcm" = "no"
+    then
+        AC_MSG_ERROR([AES-GCM is disabled - necessary for QUIC])
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QUIC"
     # QUIC proto handlers need app_data at WOLFSSL*
@@ -3581,7 +3585,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$enable_dsa" = ""
+if test "$enable_dsa" = "" && test "$enable_sha" != "no"
 then
     if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
     then
@@ -9721,8 +9725,11 @@ echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
-echo "   * PKCS#7:                     $ENABLED_PKCS7"
 echo "   * S/MIME:                     $ENABLED_SMIME"
+echo "   * PKCS#7:                     $ENABLED_PKCS7"
+echo "   * PKCS#8:                     $ENABLED_PKCS8"
+echo "   * PKCS#11:                    $ENABLED_PKCS11"
+echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * wolfSSH:                    $ENABLED_WOLFSSH"
 echo "   * wolfEngine:                 $ENABLED_WOLFENGINE"
 echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
@@ -9741,9 +9748,6 @@ echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Asynchronous Crypto:        $ENABLED_ASYNCCRYPT"
 echo "   * Asynchronous Crypto (sim):  $ENABLED_ASYNCCRYPT_SW"
-echo "   * PKCS#8:                     $ENABLED_PKCS8"
-echo "   * PKCS#11:                    $ENABLED_PKCS11"
-echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
 echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"

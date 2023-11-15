@@ -2489,11 +2489,18 @@ int MicriumSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 /* Micrium DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    #define MICRIUM_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define MICRIUM_COOKIE_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#else
+    #error Must enable either SHA-1 or SHA256 (or both) for Micrium.
+#endif
 int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 {
     NET_SOCK_ADDR peer;
     NET_SOCK_ADDR_LEN peerSz = sizeof(peer);
-    byte digest[WC_SHA_DIGEST_SIZE];
+    byte digest[MICRIUM_COOKIE_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
@@ -2505,12 +2512,16 @@ int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
 
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    ret = wc_Sha256Hash((byte*)&peer, peerSz, digest);
+#else
     ret = wc_ShaHash((byte*)&peer, peerSz, digest);
+#endif
     if (ret != 0)
         return ret;
 
-    if (sz > WC_SHA_DIGEST_SIZE)
-        sz = WC_SHA_DIGEST_SIZE;
+    if (sz > MICRIUM_COOKIE_DIGEST_SIZE)
+        sz = MICRIUM_COOKIE_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;
@@ -2804,20 +2815,31 @@ int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 /* uIP DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    #define UIP_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define UIP_COOKIE_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#else
+    #error Must enable either SHA-1 or SHA256 (or both) for uIP.
+#endif
 int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 {
     uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
     byte token[32];
-    byte digest[WC_SHA_DIGEST_SIZE];
+    byte digest[UIP_COOKIE_DIGEST_SIZE];
     int  ret = 0;
     XMEMSET(token, 0, sizeof(token));
     XMEMCPY(token, &ctx->peer_addr, sizeof(uip_ipaddr_t));
     XMEMCPY(token + sizeof(uip_ipaddr_t), &ctx->peer_port, sizeof(word16));
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    ret = wc_Sha256Hash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
+#else
     ret = wc_ShaHash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
+#endif
     if (ret != 0)
         return ret;
-    if (sz > WC_SHA_DIGEST_SIZE)
-        sz = WC_SHA_DIGEST_SIZE;
+    if (sz > UIP_COOKIE_DIGEST_SIZE)
+        sz = UIP_COOKIE_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
     return sz;
 }
@@ -2881,13 +2903,20 @@ int GNRC_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
  *  return : number of bytes copied into buf, or error
  */
 #define GNRC_MAX_TOKEN_SIZE (32)
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    #define GNRC_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define GNRC_COOKIE_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#else
+    #error Must enable either SHA-1 or SHA256 (or both) for GNRC.
+#endif
 int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 {
     sock_tls_t *ctx = (sock_tls_t *)_ctx;
     if (!ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     byte token[GNRC_MAX_TOKEN_SIZE];
-    byte digest[WC_SHA_DIGEST_SIZE];
+    byte digest[GNRC_COOKIE_DIGEST_SIZE];
     int  ret = 0;
     size_t token_size = sizeof(sock_udp_ep_t);
     (void)ssl;
@@ -2895,11 +2924,15 @@ int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
         token_size = GNRC_MAX_TOKEN_SIZE;
     XMEMSET(token, 0, GNRC_MAX_TOKEN_SIZE);
     XMEMCPY(token, &ctx->peer_addr, token_size);
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    ret = wc_Sha256Hash(token, token_size, digest);
+#else
     ret = wc_ShaHash(token, token_size, digest);
+#endif
     if (ret != 0)
         return ret;
-    if (sz > WC_SHA_DIGEST_SIZE)
-        sz = WC_SHA_DIGEST_SIZE;
+    if (sz > GNRC_COOKIE_DIGEST_SIZE)
+        sz = GNRC_COOKIE_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
     return sz;
 }

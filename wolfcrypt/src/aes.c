@@ -859,11 +859,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
 #elif defined(WOLFSSL_KCAPI_AES)
-    /* Only CBC and GCM that are in wolfcrypt/src/port/kcapi/kcapi_aes.c */
+    /* Only CBC and GCM are in wolfcrypt/src/port/kcapi/kcapi_aes.c */
     #if defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AESCCM) || \
         defined(WOLFSSL_CMAC) || defined(WOLFSSL_AES_OFB) || \
         defined(WOLFSSL_AES_CFB) || defined(HAVE_AES_ECB) || \
-        defined(WOLFSSL_AES_DIRECT) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_XTS) || \
         (defined(HAVE_AES_CBC) && defined(WOLFSSL_NO_KCAPI_AES_CBC))
 
         #define NEED_AES_TABLES
@@ -5460,8 +5460,12 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #else
         while (blocks--) {
             int ret;
+#ifdef WOLFSSL_AESNI
+            ret = wc_AesDecrypt(aes, in, out);
+#else
             XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
             ret = wc_AesDecrypt(aes, (byte*)aes->tmp, out);
+#endif
             if (ret != 0)
                 return ret;
             xorbuf(out, (byte*)aes->reg, AES_BLOCK_SIZE);

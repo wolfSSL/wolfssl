@@ -3196,7 +3196,7 @@ static int test_wolfSSL_CertManagerCRL(void)
 static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP) && !defined(NO_RSA)
+#if defined(HAVE_OCSP) && !defined(NO_RSA) && !defined(NO_SHA)
 /* Need one of these for wolfSSL_OCSP_REQUEST_new. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
@@ -3516,7 +3516,8 @@ static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 static int test_wolfSSL_CheckOCSPResponse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP) && !defined(NO_RSA) && defined(OPENSSL_ALL)
+#if defined(HAVE_OCSP) && !defined(NO_RSA) && !defined(NO_SHA) && \
+       defined(OPENSSL_ALL)
     const char* responseFile = "./certs/ocsp/test-response.der";
     const char* responseMultiFile = "./certs/ocsp/test-multi-response.der";
     const char* responseNoInternFile =

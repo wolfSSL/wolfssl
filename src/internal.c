@@ -13219,9 +13219,11 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 
     len = wolfSSL_i2d_X509_NAME_canon(issuer, &pbuf);
     if (len > 0) {
-        #ifndef NO_SHA
+    #if defined(NO_SHA) && !defined(NO_SHA256)
+        retHash = wc_Sha256Hash((const byte*)pbuf, len, dgt);
+    #elif !defined(NO_SHA)
         retHash = wc_ShaHash((const byte*)pbuf, len, dgt);
-        #endif
+    #endif
         if (retHash == 0) {
             /* 4 bytes in little endian as unsigned long */
             hash = (((unsigned long)dgt[3] << 24) |
