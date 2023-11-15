@@ -7801,6 +7801,13 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
     }
     else {
         err = _ecc_projective_dbl_point(P, R, a, modulus, mp);
+        if ((err == MP_OKAY) && mp_iszero(R->z)) {
+           err = mp_set(R->x, 0);
+           if (err == MP_OKAY)
+               err = mp_set(R->y, 0);
+           if (err == MP_OKAY)
+               err = mp_set(R->z, 1);
+        }
     }
 
     return err;
