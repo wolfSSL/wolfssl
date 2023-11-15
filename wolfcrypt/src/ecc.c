@@ -337,7 +337,7 @@ enum {
         #endif
         #define ecc_oid_secp112r1_sz CODED_SECP112R1_SZ
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_SECPR2
+    #if defined(HAVE_ECC_SECPR2) && defined(HAVE_ECC_KOBLITZ)
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP112R2    {1,3,132,0,7}
             #define CODED_SECP112R2_SZ 5
@@ -351,7 +351,7 @@ enum {
             #define ecc_oid_secp112r2 CODED_SECP112R2
         #endif
         #define ecc_oid_secp112r2_sz CODED_SECP112R2_SZ
-    #endif /* HAVE_ECC_SECPR2 */
+    #endif /* HAVE_ECC_SECPR2 && HAVE_ECC_KOBLITZ */
 #endif /* ECC112 */
 #ifdef ECC128
     #ifndef NO_ECC_SECP
@@ -369,7 +369,7 @@ enum {
         #endif
         #define ecc_oid_secp128r1_sz CODED_SECP128R1_SZ
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_SECPR2
+    #if defined(HAVE_ECC_SECPR2) && defined(HAVE_ECC_KOBLITZ)
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP128R2    {1,3,132,0,29}
             #define CODED_SECP128R2_SZ 5
@@ -383,7 +383,7 @@ enum {
             #define ecc_oid_secp128r2 CODED_SECP128R2
         #endif
         #define ecc_oid_secp128r2_sz CODED_SECP128R2_SZ
-    #endif /* HAVE_ECC_SECPR2 */
+    #endif /* HAVE_ECC_SECPR2 && HAVE_ECC_KOBLITZ */
 #endif /* ECC128 */
 #ifdef ECC160
 #ifndef FP_ECC
@@ -790,7 +790,7 @@ const ecc_set_type ecc_sets[] = {
         1,                              /* cofactor   */
     },
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_SECPR2
+    #if defined(HAVE_ECC_SECPR2) && defined(HAVE_ECC_KOBLITZ)
     {
         14,                             /* size/bytes */
         ECC_SECP112R2,                  /* ID         */
@@ -806,7 +806,7 @@ const ecc_set_type ecc_sets[] = {
         ECC_SECP112R2_OID,              /* oid sum    */
         4,                              /* cofactor   */
     },
-    #endif /* HAVE_ECC_SECPR2 */
+    #endif /* HAVE_ECC_SECPR2 && HAVE_ECC_KOBLITZ */
 #endif /* ECC112 */
 #ifdef ECC128
     #ifndef NO_ECC_SECP
@@ -826,7 +826,7 @@ const ecc_set_type ecc_sets[] = {
         1,                                  /* cofactor   */
     },
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_SECPR2
+    #if defined(HAVE_ECC_SECPR2) && defined(HAVE_ECC_KOBLITZ)
     {
         16,                                 /* size/bytes */
         ECC_SECP128R2,                      /* ID         */
@@ -842,7 +842,7 @@ const ecc_set_type ecc_sets[] = {
         ECC_SECP128R2_OID,                  /* oid sum    */
         4,                                  /* cofactor   */
     },
-    #endif /* HAVE_ECC_SECPR2 */
+    #endif /* HAVE_ECC_SECPR2 && HAVE_ECC_KOBLITZ */
 #endif /* ECC128 */
 #ifdef ECC160
 #ifndef FP_ECC
@@ -7801,6 +7801,13 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
     }
     else {
         err = _ecc_projective_dbl_point(P, R, a, modulus, mp);
+        if ((err == MP_OKAY) && mp_iszero(R->z)) {
+           err = mp_set(R->x, 0);
+           if (err == MP_OKAY)
+               err = mp_set(R->y, 0);
+           if (err == MP_OKAY)
+               err = mp_set(R->z, 1);
+        }
     }
 
     return err;
