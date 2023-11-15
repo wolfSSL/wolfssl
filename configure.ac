@@ -720,7 +720,7 @@ then
     # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
+    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -788,7 +788,6 @@ then
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_ech" = "" && enable_ech=yes
-    test "$enable_quic" = "" && enable_quic=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -799,6 +798,7 @@ then
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
+        test "$enable_quic" = "" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
@@ -908,7 +908,7 @@ if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
+    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -1475,6 +1475,10 @@ then
     if test "x$ENABLED_TLS13" = "xno"
     then
         AC_MSG_ERROR([TLS 1.3 is disabled - necessary for QUIC])
+    fi
+    if test "$enable_aesgcm" = "no"
+    then
+        AC_MSG_ERROR([AES-GCM is disabled - necessary for QUIC])
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QUIC"
     # QUIC proto handlers need app_data at WOLFSSL*
