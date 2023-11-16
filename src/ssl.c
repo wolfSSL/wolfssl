@@ -7629,8 +7629,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 keyType = ecc_dsa_sa_algo;
             #endif
                 /* Determine ECC key size based on curve */
-                keySz = wc_ecc_get_curve_size_from_id(
-                    wc_ecc_get_oid(cert->pkCurveOID, NULL, NULL));
+            #ifdef WOLFSSL_CUSTOM_CURVES
+                if (cert->pkCurveOID == 0 && cert->pkCurveSize != 0) {
+                    keySz = cert->pkCurveSize * 8;
+                }
+                else
+            #endif
+                {
+                    keySz = wc_ecc_get_curve_size_from_id(
+                        wc_ecc_get_oid(cert->pkCurveOID, NULL, NULL));
+                }
 
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minEccKeySz < 0 ||
