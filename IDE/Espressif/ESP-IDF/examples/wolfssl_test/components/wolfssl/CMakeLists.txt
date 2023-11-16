@@ -482,6 +482,7 @@ endif()
         "\"${WOLFSSL_ROOT}/src/ssl_asn1.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_bn.c\""      # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_certman.c\"" # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_crypto.c\""  # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_misc.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/x509.c\""
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""

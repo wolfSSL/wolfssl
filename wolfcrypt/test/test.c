@@ -15463,7 +15463,7 @@ static void initDefaultName(void)
     WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
     #endif
-    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
+    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA) && !defined(NO_ASN_TIME)
         WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
     #endif

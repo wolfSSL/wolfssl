@@ -343,6 +343,9 @@
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
+#ifndef NO_RC4
+    #include <wolfssl/openssl/rc4.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/openssl/ecdsa.h>
 #endif
@@ -384,6 +387,13 @@
 #include <wolfssl/certs_test.h>
 
 #include "tests/utils.h"
+
+/* include misc.c here regardless of NO_INLINE, because misc.c implementations
+ * have default (hidden) visibility, and in the absence of visibility, it's
+ * benign to mask out the library implementation.
+ */
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
@@ -32100,72 +32110,6 @@ static int test_wolfSSL_X509_check_email(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_DES(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
-    const_DES_cblock myDes;
-    DES_cblock iv;
-    DES_key_schedule key;
-    word32 i;
-    DES_LONG dl;
-    unsigned char msg[] = "hello wolfssl";
-
-    DES_check_key(1);
-    DES_set_key(&myDes, &key);
-
-    /* check, check of odd parity */
-    XMEMSET(myDes, 4, sizeof(const_DES_cblock));
-    myDes[0] = 6; /* set even parity */
-    XMEMSET(key, 5, sizeof(DES_key_schedule));
-    ExpectIntEQ(DES_set_key_checked(&myDes, &key), -1);
-    ExpectIntNE(key[0], myDes[0]); /* should not have copied over key */
-
-    /* set odd parity for success case */
-    DES_set_odd_parity(&myDes);
-    ExpectIntEQ(DES_check_key_parity(&myDes), 1);
-    fprintf(stderr, "%02x %02x %02x %02x", myDes[0], myDes[1], myDes[2],
-        myDes[3]);
-    ExpectIntEQ(DES_set_key_checked(&myDes, &key), 0);
-    for (i = 0; i < sizeof(DES_key_schedule); i++) {
-        ExpectIntEQ(key[i], myDes[i]);
-    }
-    ExpectIntEQ(DES_is_weak_key(&myDes), 0);
-
-    /* check weak key */
-    XMEMSET(myDes, 1, sizeof(const_DES_cblock));
-    XMEMSET(key, 5, sizeof(DES_key_schedule));
-    ExpectIntEQ(DES_set_key_checked(&myDes, &key), -2);
-    ExpectIntNE(key[0], myDes[0]); /* should not have copied over key */
-
-    /* now do unchecked copy of a weak key over */
-    DES_set_key_unchecked(&myDes, &key);
-    /* compare arrays, should be the same */
-    for (i = 0; i < sizeof(DES_key_schedule); i++) {
-        ExpectIntEQ(key[i], myDes[i]);
-    }
-    ExpectIntEQ(DES_is_weak_key(&myDes), 1);
-
-    /* check DES_key_sched API */
-    XMEMSET(key, 1, sizeof(DES_key_schedule));
-    ExpectIntEQ(DES_key_sched(&myDes, NULL), 0);
-    ExpectIntEQ(DES_key_sched(NULL, &key),   0);
-    ExpectIntEQ(DES_key_sched(&myDes, &key), 0);
-    /* compare arrays, should be the same */
-    for (i = 0; i < sizeof(DES_key_schedule); i++) {
-        ExpectIntEQ(key[i], myDes[i]);
-    }
-
-    /* DES_cbc_cksum should return the last 4 of the last 8 bytes after
-     * DES_cbc_encrypt on the input */
-    XMEMSET(iv, 0, sizeof(DES_cblock));
-    XMEMSET(myDes, 5, sizeof(DES_key_schedule));
-    ExpectIntGT((dl = DES_cbc_cksum(msg, &key, sizeof(msg), &myDes, &iv)), 0);
-    ExpectIntEQ(dl, 480052723);
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
-    return EXPECT_RESULT();
-}
-
 static int test_wc_PemToDer(void)
 {
     EXPECT_DECLS;
@@ -39053,40 +38997,6 @@ static int test_wolfSSL_a2i_IPADDRESS(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_DES_ecb_encrypt(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
-    WOLFSSL_DES_cblock input1, input2, output1, output2, back1, back2;
-    WOLFSSL_DES_key_schedule key;
-
-    XMEMCPY(key, "12345678", sizeof(WOLFSSL_DES_key_schedule));
-    XMEMCPY(input1, "Iamhuman", sizeof(WOLFSSL_DES_cblock));
-    XMEMCPY(input2, "Whoisit?", sizeof(WOLFSSL_DES_cblock));
-    XMEMSET(output1, 0, sizeof(WOLFSSL_DES_cblock));
-    XMEMSET(output2, 0, sizeof(WOLFSSL_DES_cblock));
-    XMEMSET(back1, 0, sizeof(WOLFSSL_DES_cblock));
-    XMEMSET(back2, 0, sizeof(WOLFSSL_DES_cblock));
-
-    /* Encrypt messages */
-    wolfSSL_DES_ecb_encrypt(&input1, &output1, &key, DES_ENCRYPT);
-    wolfSSL_DES_ecb_encrypt(&input2, &output2, &key, DES_ENCRYPT);
-
-    {
-        /* Decrypt messages */
-        int ret1 = 0;
-        int ret2 = 0;
-        wolfSSL_DES_ecb_encrypt(&output1, &back1, &key, DES_DECRYPT);
-        ExpectIntEQ(ret1 = XMEMCMP((unsigned char *)back1,
-            (unsigned char *)input1, sizeof(WOLFSSL_DES_cblock)), 0);
-        wolfSSL_DES_ecb_encrypt(&output2, &back2, &key, DES_DECRYPT);
-        ExpectIntEQ(ret2 = XMEMCMP((unsigned char *)back2,
-            (unsigned char *)input2, sizeof(WOLFSSL_DES_cblock)), 0);
-    }
-#endif
-    return EXPECT_RESULT();
-}
-
 
 static int test_wolfSSL_X509_cmp_time(void)
 {
@@ -40864,6 +40774,968 @@ static int test_wolfSSL_GetLoggingCb(void)
 
 #endif /* !NO_BIO */
 
+static int test_wolfSSL_MD4(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD4)
+    MD4_CTX md4;
+    unsigned char out[16]; /* MD4_DIGEST_SIZE */
+    const char* msg = "12345678901234567890123456789012345678901234567890123456"
+                      "789012345678901234567890";
+    const char* test = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f"
+                       "\xcc\x05\x36";
+    int msgSz = (int)XSTRLEN(msg);
+
+
+    XMEMSET(out, 0, sizeof(out));
+    MD4_Init(&md4);
+    MD4_Update(&md4, (const void*)msg, (unsigned long)msgSz);
+    MD4_Final(out, &md4);
+    ExpectIntEQ(XMEMCMP(out, test, sizeof(out)), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_MD5(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
+    byte input1[] = "";
+    byte input2[] = "message digest";
+    byte hash[WC_MD5_DIGEST_SIZE];
+    unsigned char output1[] =
+        "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42\x7e";
+    unsigned char output2[] =
+        "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d\x52\x5a\x2f\x31\xaa\xf1\x61\xd0";
+    WOLFSSL_MD5_CTX md5;
+
+    XMEMSET(&md5, 0, sizeof(md5));
+
+    /* Test cases for illegal parameters */
+    ExpectIntEQ(MD5_Init(NULL), 0);
+    ExpectIntEQ(MD5_Init(&md5), 1);
+    ExpectIntEQ(MD5_Update(NULL, input1, 0), 0);
+    ExpectIntEQ(MD5_Update(NULL, NULL, 0), 0);
+    ExpectIntEQ(MD5_Update(&md5, NULL, 1), 0);
+    ExpectIntEQ(MD5_Final(NULL, &md5), 0);
+    ExpectIntEQ(MD5_Final(hash, NULL), 0);
+    ExpectIntEQ(MD5_Final(NULL, NULL), 0);
+
+    /* Init MD5 CTX */
+    ExpectIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    ExpectIntEQ(wolfSSL_MD5_Update(&md5, input1, XSTRLEN((const char*)&input1)),
+        1);
+    ExpectIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
+    ExpectIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
+
+    /* Init MD5 CTX */
+    ExpectIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    ExpectIntEQ(wolfSSL_MD5_Update(&md5, input2,
+        (int)XSTRLEN((const char*)input2)), 1);
+    ExpectIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
+    ExpectIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
+#if !defined(NO_OLD_NAMES) && \
+  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+    ExpectPtrNE(MD5(NULL, 1, (byte*)&hash), &hash);
+    ExpectPtrEq(MD5(input1, 0, (byte*)&hash), &hash);
+    ExpectPtrNE(MD5(input1, 1, NULL), NULL);
+    ExpectPtrNE(MD5(NULL, 0, NULL), NULL);
+
+    ExpectPtrEq(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash),
+        &hash);
+    ExpectIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
+
+    ExpectPtrEq(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash),
+        &hash);
+    ExpectIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
+    {
+        byte data[] = "Data to be hashed.";
+        XMEMSET(hash, 0, WC_MD5_DIGEST_SIZE);
+
+        ExpectNotNull(MD5(data, sizeof(data), NULL));
+        ExpectNotNull(MD5(data, sizeof(data), hash));
+        ExpectNotNull(MD5(NULL, 0, hash));
+        ExpectNull(MD5(NULL, sizeof(data), hash));
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_MD5_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_MD5_BLOCK_SIZE];
+    word32 sLen = 0;
+#ifdef BIG_ENDIAN_ORDER
+    unsigned char output1[] =
+        "\x03\x1f\x1d\xac\x6e\xa5\x8e\xd0\x1f\xab\x67\xb7\x74\x31\x77\x91";
+    unsigned char output2[] =
+        "\xef\xd3\x79\x8d\x67\x17\x25\x90\xa4\x13\x79\xc7\xe3\xa7\x7b\xbc";
+#else
+    unsigned char output1[] =
+        "\xac\x1d\x1f\x03\xd0\x8e\xa5\x6e\xb7\x67\xab\x1f\x91\x77\x31\x74";
+    unsigned char output2[] =
+        "\x8d\x79\xd3\xef\x90\x25\x17\x67\xc7\x79\x13\xa4\xbc\x7b\xa7\xe3";
+#endif
+
+    union {
+        wc_Md5 native;
+        MD5_CTX compat;
+    } md5;
+
+    XMEMSET(&md5.compat, 0, sizeof(md5.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(MD5_Transform(NULL, NULL), 0);
+    ExpectIntEQ(MD5_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(MD5_Transform(&md5.compat, NULL), 0);
+    ExpectIntEQ(wc_Md5Transform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Md5Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Md5Transform(&md5.native, NULL), BAD_FUNC_ARG);
+
+    /* Init MD5 CTX */
+    ExpectIntEQ(wolfSSL_MD5_Init(&md5.compat), 1);
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
+
+    ExpectIntEQ(XMEMCMP(md5.native.digest, output1, WC_MD5_DIGEST_SIZE), 0);
+
+    /* Init MD5 CTX */
+    ExpectIntEQ(MD5_Init(&md5.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_MD5_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(md5.native.digest, output2, WC_MD5_DIGEST_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
+    #if !defined(NO_SHA) && defined(NO_OLD_SHA_NAMES) && \
+        (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    {
+        const unsigned char in[] = "abc";
+        unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"
+                                   "\x25\x71\x78\x50\xC2\x6C\x9C\xD0\xD8\x9D";
+        unsigned char out[WC_SHA_DIGEST_SIZE];
+        unsigned char* p;
+        WOLFSSL_SHA_CTX sha;
+
+        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
+        ExpectNotNull(SHA1(in, XSTRLEN((char*)in), out));
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
+
+        /* SHA interface test */
+        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
+
+        ExpectNull(SHA(NULL, XSTRLEN((char*)in), out));
+        ExpectNotNull(SHA(in, 0, out));
+        ExpectNotNull(SHA(in, XSTRLEN((char*)in), NULL));
+        ExpectNotNull(SHA(NULL, 0, out));
+        ExpectNotNull(SHA(NULL, 0, NULL));
+
+        ExpectNotNull(SHA(in, XSTRLEN((char*)in), out));
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
+        ExpectNotNull(p = SHA(in, XSTRLEN((char*)in), NULL));
+        ExpectIntEQ(XMEMCMP(p, expected, WC_SHA_DIGEST_SIZE), 0);
+
+        ExpectIntEQ(wolfSSL_SHA_Init(&sha), 1);
+        ExpectIntEQ(wolfSSL_SHA_Update(&sha, in, XSTRLEN((char*)in)), 1);
+        ExpectIntEQ(wolfSSL_SHA_Final(out, &sha), 1);
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
+
+        ExpectIntEQ(wolfSSL_SHA1_Init(&sha), 1);
+        ExpectIntEQ(wolfSSL_SHA1_Update(&sha, in, XSTRLEN((char*)in)), 1);
+        ExpectIntEQ(wolfSSL_SHA1_Final(out, &sha), 1);
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
+    }
+    #endif
+
+    #if !defined(NO_SHA256)
+    {
+        const unsigned char in[] = "abc";
+        unsigned char expected[] =
+            "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
+            "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
+            "\x15\xAD";
+        unsigned char out[WC_SHA256_DIGEST_SIZE];
+        unsigned char* p;
+
+        XMEMSET(out, 0, WC_SHA256_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(SHA256(in, XSTRLEN((char*)in), out));
+#else
+        ExpectNotNull(wolfSSL_SHA256(in, XSTRLEN((char*)in), out));
+#endif
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA256_DIGEST_SIZE), 0);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(p = SHA256(in, XSTRLEN((char*)in), NULL));
+#else
+        ExpectNotNull(p = wolfSSL_SHA256(in, XSTRLEN((char*)in), NULL));
+#endif
+        ExpectIntEQ(XMEMCMP(p, expected, WC_SHA256_DIGEST_SIZE), 0);
+    }
+    #endif
+
+    #if defined(WOLFSSL_SHA384)
+    {
+        const unsigned char in[] = "abc";
+        unsigned char expected[] =
+            "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
+            "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
+            "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
+            "\xc8\x25\xa7";
+        unsigned char out[WC_SHA384_DIGEST_SIZE];
+        unsigned char* p;
+
+        XMEMSET(out, 0, WC_SHA384_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(SHA384(in, XSTRLEN((char*)in), out));
+#else
+        ExpectNotNull(wolfSSL_SHA384(in, XSTRLEN((char*)in), out));
+#endif
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA384_DIGEST_SIZE), 0);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(p = SHA384(in, XSTRLEN((char*)in), NULL));
+#else
+        ExpectNotNull(p = wolfSSL_SHA384(in, XSTRLEN((char*)in), NULL));
+#endif
+        ExpectIntEQ(XMEMCMP(p, expected, WC_SHA384_DIGEST_SIZE), 0);
+    }
+    #endif
+
+    #if defined(WOLFSSL_SHA512)
+    {
+        const unsigned char in[] = "abc";
+        unsigned char expected[] =
+            "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
+            "\x31\x12\xe6\xfa\x4e\x89\xa9\x7e\xa2\x0a\x9e\xee\xe6\x4b\x55"
+            "\xd3\x9a\x21\x92\x99\x2a\x27\x4f\xc1\xa8\x36\xba\x3c\x23\xa3"
+            "\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f"
+            "\xa5\x4c\xa4\x9f";
+        unsigned char out[WC_SHA512_DIGEST_SIZE];
+        unsigned char* p;
+
+        XMEMSET(out, 0, WC_SHA512_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(SHA512(in, XSTRLEN((char*)in), out));
+#else
+        ExpectNotNull(wolfSSL_SHA512(in, XSTRLEN((char*)in), out));
+#endif
+        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA512_DIGEST_SIZE), 0);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
+        ExpectNotNull(p = SHA512(in, XSTRLEN((char*)in), NULL));
+#else
+        ExpectNotNull(p = wolfSSL_SHA512(in, XSTRLEN((char*)in), NULL));
+#endif
+        ExpectIntEQ(XMEMCMP(p, expected, WC_SHA512_DIGEST_SIZE), 0);
+    }
+    #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA_BLOCK_SIZE];
+    word32 sLen = 0;
+#ifdef BIG_ENDIAN_ORDER
+    unsigned char output1[] =
+        "\x92\xb4\x04\xe5\x56\x58\x8c\xed\x6c\x1a\xcd\x4e\xbf\x05\x3f\x68"
+        "\x09\xf7\x3a\x93";
+    unsigned char output2[] =
+        "\x97\xb2\x74\x8b\x4f\x5b\xbc\xca\x5b\xc0\xe6\xea\x2d\x40\xb4\xa0"
+        "\x7c\x6e\x08\xb8";
+#else
+    unsigned char output1[] =
+        "\xe5\x04\xb4\x92\xed\x8c\x58\x56\x4e\xcd\x1a\x6c\x68\x3f\x05\xbf"
+        "\x93\x3a\xf7\x09";
+    unsigned char output2[] =
+        "\x8b\x74\xb2\x97\xca\xbc\x5b\x4f\xea\xe6\xc0\x5b\xa0\xb4\x40\x2d"
+        "\xb8\x08\x6e\x7c";
+#endif
+
+    union {
+        wc_Sha native;
+        SHA_CTX compat;
+    } sha;
+    union {
+        wc_Sha native;
+        SHA_CTX compat;
+    } sha1;
+
+    XMEMSET(&sha.compat, 0, sizeof(sha.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(SHA_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA_Transform(&sha.compat, NULL), 0);
+    ExpectIntEQ(SHA1_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA1_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA1_Transform(&sha.compat, NULL), 0);
+    ExpectIntEQ(wc_ShaTransform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ShaTransform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ShaTransform(&sha.native, NULL), BAD_FUNC_ARG);
+
+    /* Init SHA CTX */
+    ExpectIntEQ(SHA_Init(&sha.compat), 1);
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha.native.digest, output1, WC_SHA_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
+
+    /* Init SHA CTX */
+    ExpectIntEQ(SHA_Init(&sha.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha.native.digest, output2, WC_SHA_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
+
+    /* SHA1 */
+    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
+    /* Init SHA CTX */
+    ExpectIntEQ(SHA1_Init(&sha1.compat), 1);
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha1.native.digest, output1, WC_SHA_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA1_Final(local, &sha1.compat), 1); /* frees resources */
+
+    /* Init SHA CTX */
+    ExpectIntEQ(SHA1_Init(&sha1.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha1.native.digest, output2, WC_SHA_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA_Final(local, &sha1.compat), 1); /* frees resources */
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA224(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA224) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    unsigned char input[] =
+        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    unsigned char output[] =
+         "\x75\x38\x8b\x16\x51\x27\x76\xcc\x5d\xba\x5d\xa1\xfd\x89\x01"
+         "\x50\xb0\xc6\x45\x5c\xb4\xf5\x8b\x19\x52\x52\x25\x25";
+    size_t inLen;
+    byte hash[WC_SHA224_DIGEST_SIZE];
+    unsigned char* p;
+
+    inLen  = XSTRLEN((char*)input);
+
+    XMEMSET(hash, 0, WC_SHA224_DIGEST_SIZE);
+
+    ExpectNull(SHA224(NULL, inLen, hash));
+    ExpectNotNull(SHA224(input, 0, hash));
+    ExpectNotNull(SHA224(input, inLen, NULL));
+    ExpectNotNull(SHA224(NULL, 0, hash));
+    ExpectNotNull(SHA224(NULL, 0, NULL));
+
+    ExpectNotNull(SHA224(input, inLen, hash));
+    ExpectIntEQ(XMEMCMP(hash, output, WC_SHA224_DIGEST_SIZE), 0);
+    ExpectNotNull(p = SHA224(input, inLen, NULL));
+    ExpectIntEQ(XMEMCMP(p, output, WC_SHA224_DIGEST_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA256(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
+    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    unsigned char input[] =
+        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    unsigned char output[] =
+        "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
+        "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
+        "\x06\xC1";
+    size_t inLen;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+
+    inLen  = XSTRLEN((char*)input);
+
+    XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
+    ExpectNotNull(SHA256(input, inLen, hash));
+    ExpectIntEQ(XMEMCMP(hash, output, WC_SHA256_DIGEST_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA256_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_DEVCRYPTO_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
+        !defined(WOLFSSL_KCAPI_HASH)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA256_BLOCK_SIZE];
+    word32 sLen = 0;
+#ifdef BIG_ENDIAN_ORDER
+    unsigned char output1[] =
+        "\xda\x56\x98\xbe\x17\xb9\xb4\x69\x62\x33\x57\x99\x77\x9f\xbe\xca"
+        "\x8c\xe5\xd4\x91\xc0\xd2\x62\x43\xba\xfe\xf9\xea\x18\x37\xa9\xd8";
+    unsigned char output2[] =
+        "\x1d\x4e\xd4\x67\x67\x7c\x61\x67\x44\x10\x76\x26\x78\x10\xff\xb8"
+        "\x40\xc8\x9a\x39\x73\x16\x60\x8c\xa6\x61\xd6\x05\x91\xf2\x8c\x35";
+#else
+    unsigned char output1[] =
+        "\xbe\x98\x56\xda\x69\xb4\xb9\x17\x99\x57\x33\x62\xca\xbe\x9f\x77"
+        "\x91\xd4\xe5\x8c\x43\x62\xd2\xc0\xea\xf9\xfe\xba\xd8\xa9\x37\x18";
+    unsigned char output2[] =
+        "\x67\xd4\x4e\x1d\x67\x61\x7c\x67\x26\x76\x10\x44\xb8\xff\x10\x78"
+        "\x39\x9a\xc8\x40\x8c\x60\x16\x73\x05\xd6\x61\xa6\x35\x8c\xf2\x91";
+#endif
+    union {
+        wc_Sha256 native;
+        SHA256_CTX compat;
+    } sha256;
+
+    XMEMSET(&sha256.compat, 0, sizeof(sha256.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(SHA256_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA256_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA256_Transform(&sha256.compat, NULL), 0);
+    ExpectIntEQ(wc_Sha256Transform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha256Transform(&sha256.native, NULL), BAD_FUNC_ARG);
+
+    /* Init SHA256 CTX */
+    ExpectIntEQ(SHA256_Init(&sha256.compat), 1);
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha256.native.digest, output1, WC_SHA256_DIGEST_SIZE),
+        0);
+    ExpectIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
+
+    /* Init SHA256 CTX */
+    ExpectIntEQ(SHA256_Init(&sha256.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha256.native.digest, output2, WC_SHA256_DIGEST_SIZE),
+        0);
+    ExpectIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA512_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_KCAPI_HASH)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA512_BLOCK_SIZE];
+    word32 sLen = 0;
+#ifdef BIG_ENDIAN_ORDER
+    unsigned char output1[] =
+        "\xcf\x78\x81\xd5\x77\x4a\xcb\xe8\x53\x33\x62\xe0\xfb\xc7\x80\x70"
+        "\x02\x67\x63\x9d\x87\x46\x0e\xda\x30\x86\xcb\x40\xe8\x59\x31\xb0"
+        "\x71\x7d\xc9\x52\x88\xa0\x23\xa3\x96\xba\xb2\xc1\x4c\xe0\xb5\xe0"
+        "\x6f\xc4\xfe\x04\xea\xe3\x3e\x0b\x91\xf4\xd8\x0c\xbd\x66\x8b\xee";
+   unsigned char output2[] =
+        "\x11\x10\x93\x4e\xeb\xa0\xcc\x0d\xfd\x33\x43\x9c\xfb\x04\xc8\x21"
+        "\xa9\xb4\x26\x3d\xca\xab\x31\x41\xe2\xc6\xaa\xaf\xe1\x67\xd7\xab"
+        "\x31\x8f\x2e\x54\x2c\xba\x4e\x83\xbe\x88\xec\x9d\x8f\x2b\x38\x98"
+        "\x14\xd2\x4e\x9d\x53\x8b\x5e\x4d\xde\x68\x6c\x69\xaf\x20\x96\xf0";
+#else
+    unsigned char output1[] =
+        "\xe8\xcb\x4a\x77\xd5\x81\x78\xcf\x70\x80\xc7\xfb\xe0\x62\x33\x53"
+        "\xda\x0e\x46\x87\x9d\x63\x67\x02\xb0\x31\x59\xe8\x40\xcb\x86\x30"
+        "\xa3\x23\xa0\x88\x52\xc9\x7d\x71\xe0\xb5\xe0\x4c\xc1\xb2\xba\x96"
+        "\x0b\x3e\xe3\xea\x04\xfe\xc4\x6f\xee\x8b\x66\xbd\x0c\xd8\xf4\x91";
+   unsigned char output2[] =
+        "\x0d\xcc\xa0\xeb\x4e\x93\x10\x11\x21\xc8\x04\xfb\x9c\x43\x33\xfd"
+        "\x41\x31\xab\xca\x3d\x26\xb4\xa9\xab\xd7\x67\xe1\xaf\xaa\xc6\xe2"
+        "\x83\x4e\xba\x2c\x54\x2e\x8f\x31\x98\x38\x2b\x8f\x9d\xec\x88\xbe"
+        "\x4d\x5e\x8b\x53\x9d\x4e\xd2\x14\xf0\x96\x20\xaf\x69\x6c\x68\xde";
+#endif
+    union {
+        wc_Sha512 native;
+        SHA512_CTX compat;
+    } sha512;
+
+    XMEMSET(&sha512.compat, 0, sizeof(sha512.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(SHA512_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA512_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA512_Transform(&sha512.compat, NULL), 0);
+    ExpectIntEQ(wc_Sha512Transform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512Transform(&sha512.native, NULL), BAD_FUNC_ARG);
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(wolfSSL_SHA512_Init(&sha512.compat), 1);
+
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1,
+                                                    WC_SHA512_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(SHA512_Init(&sha512.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2,
+                                                    WC_SHA512_DIGEST_SIZE), 0);
+    ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
+
+    (void)input1;
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA512_224_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512) && \
+    !defined(WOLFSSL_NOSHA512_224)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_KCAPI_HASH)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA512_BLOCK_SIZE];
+    word32 sLen = 0;
+    unsigned char output1[] =
+        "\x94\x24\x66\xd4\x60\x3a\xeb\x23\x1d\xa8\x69\x31\x3c\xd2\xde\x11"
+        "\x48\x0f\x4a\x5a\xdf\x3a\x8d\x87\xcf\xcd\xbf\xa5\x03\x21\x50\xf1"
+        "\x8a\x0d\x0f\x0d\x3c\x07\xba\x52\xe0\xaa\x3c\xbb\xf1\xd3\x3f\xca"
+        "\x12\xa7\x61\xf8\x47\xda\x0d\x1b\x79\xc2\x65\x13\x92\xc1\x9c\xa5";
+   unsigned char output2[] =
+        "\x51\x28\xe7\x0b\xca\x1e\xbc\x5f\xd7\x34\x0b\x48\x30\xd7\xc2\x75"
+        "\x6d\x8d\x48\x2c\x1f\xc7\x9e\x2b\x20\x5e\xbb\x0f\x0e\x4d\xb7\x61"
+        "\x31\x76\x33\xa0\xb4\x3d\x5f\x93\xc1\x73\xac\xf7\x21\xff\x69\x17"
+        "\xce\x66\xe5\x1e\x31\xe7\xf3\x22\x0f\x0b\x34\xd7\x5a\x57\xeb\xbf";
+    union {
+        wc_Sha512 native;
+        SHA512_CTX compat;
+    } sha512;
+
+#ifdef BIG_ENDIAN_ORDER
+    ByteReverseWords64((word64*)output1, (word64*)output1, sizeof(output1));
+    ByteReverseWords64((word64*)output2, (word64*)output2, sizeof(output2));
+#endif
+
+    XMEMSET(&sha512.compat, 0, sizeof(sha512.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(SHA512_224_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA512_224_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA512_224_Transform(&sha512.compat, NULL), 0);
+    ExpectIntEQ(wc_Sha512_224Transform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512_224Transform(NULL, (const byte*)&input1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512_224Transform(&sha512.native, NULL), BAD_FUNC_ARG);
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(wolfSSL_SHA512_224_Init(&sha512.compat), 1);
+
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA512_224_Transform(&sha512.compat, (const byte*)&local[0]),
+        1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1,
+        WC_SHA512_DIGEST_SIZE), 0);
+    /* frees resources */
+    ExpectIntEQ(SHA512_224_Final(local, &sha512.compat), 1);
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(SHA512_224_Init(&sha512.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA512_224_Transform(&sha512.compat, (const byte*)&local[0]),
+        1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2,
+        WC_SHA512_DIGEST_SIZE), 0);
+    /* frees resources */
+    ExpectIntEQ(SHA512_224_Final(local, &sha512.compat), 1);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_SHA512_256_Transform(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512) && \
+    !defined(WOLFSSL_NOSHA512_256)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_KCAPI_HASH)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA512_BLOCK_SIZE];
+    word32 sLen = 0;
+    unsigned char output1[] =
+        "\xf8\x37\x37\x5a\xd7\x2e\x56\xec\xe2\x51\xa8\x31\x3a\xa0\x63\x2b"
+        "\x7e\x7c\x64\xcc\xd9\xff\x2b\x6b\xeb\xc3\xd4\x4d\x7f\x8a\x3a\xb5"
+        "\x61\x85\x0b\x37\x30\x9f\x3b\x08\x5e\x7b\xd3\xbc\x6d\x00\x61\xc0"
+        "\x65\x9a\xd7\x73\xda\x40\xbe\xc1\xe5\x2f\xc6\x5d\xb7\x9f\xbe\x60";
+   unsigned char output2[] =
+        "\x22\xad\xc0\x30\xee\xd4\x6a\xef\x13\xee\x5a\x95\x8b\x1f\xb7\xb6"
+        "\xb6\xba\xc0\x44\xb8\x18\x3b\xf0\xf6\x4b\x70\x9f\x03\xba\x64\xa1"
+        "\xe1\xe3\x45\x15\x91\x7d\xcb\x0b\x9a\xf0\xd2\x8e\x47\x8b\x37\x78"
+        "\x91\x41\xa6\xc4\xb0\x29\x8f\x8b\xdd\x78\x5c\xf2\x73\x3f\x21\x31";
+    union {
+        wc_Sha512 native;
+        SHA512_CTX compat;
+    } sha512;
+
+#ifdef BIG_ENDIAN_ORDER
+    ByteReverseWords64((word64*)output1, (word64*)output1, sizeof(output1));
+    ByteReverseWords64((word64*)output2, (word64*)output2, sizeof(output2));
+#endif
+
+    XMEMSET(&sha512.compat, 0, sizeof(sha512.compat));
+    XMEMSET(&local, 0, sizeof(local));
+
+    /* sanity check */
+    ExpectIntEQ(SHA512_256_Transform(NULL, NULL), 0);
+    ExpectIntEQ(SHA512_256_Transform(NULL, (const byte*)&input1), 0);
+    ExpectIntEQ(SHA512_256_Transform(&sha512.compat, NULL), 0);
+    ExpectIntEQ(wc_Sha512_256Transform(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512_256Transform(NULL, (const byte*)&input1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sha512_256Transform(&sha512.native, NULL), BAD_FUNC_ARG);
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(wolfSSL_SHA512_256_Init(&sha512.compat), 1);
+
+    /* Do Transform*/
+    sLen = (word32)XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    ExpectIntEQ(SHA512_256_Transform(&sha512.compat, (const byte*)&local[0]),
+        1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1,
+        WC_SHA512_DIGEST_SIZE), 0);
+    /* frees resources */
+    ExpectIntEQ(SHA512_256_Final(local, &sha512.compat), 1);
+
+    /* Init SHA512 CTX */
+    ExpectIntEQ(SHA512_256_Init(&sha512.compat), 1);
+    sLen = (word32)XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    ExpectIntEQ(SHA512_256_Transform(&sha512.compat, (const byte*)&local[0]),
+        1);
+    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2,
+        WC_SHA512_DIGEST_SIZE), 0);
+    /* frees resources */
+    ExpectIntEQ(SHA512_256_Final(local, &sha512.compat), 1);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
+/* helper function for test_wolfSSL_HMAC_CTX, digest size is expected to be a
+ * buffer of 64 bytes.
+ *
+ * returns the size of the digest buffer on success and a negative value on
+ * failure.
+ */
+static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
+    int* sz)
+{
+    EXPECT_DECLS;
+    HMAC_CTX ctx1;
+    HMAC_CTX ctx2;
+
+    unsigned char key[] = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                          "\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    unsigned char long_key[] =
+        "0123456789012345678901234567890123456789"
+        "0123456789012345678901234567890123456789"
+        "0123456789012345678901234567890123456789"
+        "0123456789012345678901234567890123456789";
+
+    unsigned char msg[] = "message to hash";
+    unsigned int  digestSz = 64;
+    int keySz = sizeof(key);
+    int long_keySz = sizeof(long_key);
+    int msgSz = sizeof(msg);
+
+    unsigned char digest2[64];
+    unsigned int digestSz2 = 64;
+
+    HMAC_CTX_init(&ctx1);
+
+    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz2), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx2);
+
+    ExpectIntEQ(digestSz, digestSz2);
+    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    /* test HMAC_Init with NULL key */
+
+    /* init after copy */
+    HMAC_CTX_init(&ctx1);
+    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+
+    ExpectIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx2);
+
+    ExpectIntEQ(digestSz, digestSz2);
+    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    /* long key */
+    HMAC_CTX_init(&ctx1);
+    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)long_key, long_keySz, type),
+        SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+
+    ExpectIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx2);
+
+    ExpectIntEQ(digestSz, digestSz2);
+    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    /* init before copy */
+    HMAC_CTX_init(&ctx1);
+    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx2);
+
+    ExpectIntEQ(digestSz, digestSz2);
+    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    *sz = digestSz;
+    return EXPECT_RESULT();
+}
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */
+
+static int test_wolfSSL_HMAC_CTX(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
+    unsigned char digest[64];
+    int digestSz;
+    WOLFSSL_HMAC_CTX* hmac_ctx = NULL;
+    WOLFSSL_HMAC_CTX ctx1;
+    WOLFSSL_HMAC_CTX ctx2;
+
+    ExpectNotNull(hmac_ctx = wolfSSL_HMAC_CTX_new());
+    ExpectIntEQ(wolfSSL_HMAC_CTX_Init(NULL), 1);
+    ExpectIntEQ(wolfSSL_HMAC_CTX_Init(hmac_ctx), 1);
+    wolfSSL_HMAC_CTX_free(NULL);
+    wolfSSL_HMAC_CTX_free(hmac_ctx);
+
+    XMEMSET(&ctx2, 0, sizeof(WOLFSSL_HMAC_CTX));
+    ExpectIntEQ(HMAC_CTX_init(NULL), 1);
+    ExpectIntEQ(HMAC_CTX_init(&ctx2), 1);
+    ExpectIntEQ(HMAC_CTX_copy(NULL, NULL), 0);
+    ExpectIntEQ(HMAC_CTX_copy(NULL, &ctx2), 0);
+    ExpectIntEQ(HMAC_CTX_copy(&ctx2, NULL), 0);
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+    ((! defined(HAVE_FIPS_VERSION)) || \
+     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2)))
+    /* Copy object that hasn't had a digest set - MD5. */
+    ExpectIntEQ(HMAC_CTX_copy(&ctx1, &ctx2), 1);
+#else
+    /* Copy object that hasn't had a digest set. */
+    ExpectIntEQ(HMAC_CTX_copy(&ctx1, &ctx2), 0);
+#endif
+    HMAC_CTX_cleanup(NULL);
+    HMAC_CTX_cleanup(&ctx2);
+
+    ExpectNull(HMAC_CTX_get_md(NULL));
+
+    #ifndef NO_SHA
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha1(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 20);
+    ExpectIntEQ(XMEMCMP("\xD9\x68\x77\x23\x70\xFB\x53\x70\x53\xBA\x0E\xDC\xDA"
+                          "\xBF\x03\x98\x31\x19\xB2\xCC", digest, digestSz), 0);
+    #endif /* !NO_SHA */
+    #ifdef WOLFSSL_SHA224
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha224(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 28);
+    ExpectIntEQ(XMEMCMP("\x57\xFD\xF4\xE1\x2D\xB0\x79\xD7\x4B\x25\x7E\xB1\x95"
+                          "\x9C\x11\xAC\x2D\x1E\x78\x94\x4F\x3A\x0F\xED\xF8\xAD"
+                          "\x02\x0E", digest, digestSz), 0);
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha256(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 32);
+    ExpectIntEQ(XMEMCMP("\x13\xAB\x76\x91\x0C\x37\x86\x8D\xB3\x7E\x30\x0C\xFC"
+                          "\xB0\x2E\x8E\x4A\xD7\xD4\x25\xCC\x3A\xA9\x0F\xA2\xF2"
+                          "\x47\x1E\x62\x6F\x5D\xF2", digest, digestSz), 0);
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha384(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 48);
+    ExpectIntEQ(XMEMCMP("\x9E\xCB\x07\x0C\x11\x76\x3F\x23\xC3\x25\x0E\xC4\xB7"
+                          "\x28\x77\x95\x99\xD5\x9D\x7A\xBB\x1A\x9F\xB7\xFD\x25"
+                          "\xC9\x72\x47\x9F\x8F\x86\x76\xD6\x20\x57\x87\xB7\xE7"
+                          "\xCD\xFB\xC2\xCC\x9F\x2B\xC5\x41\xAB",
+                          digest, digestSz), 0);
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha512(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 64);
+    ExpectIntEQ(XMEMCMP("\xD4\x21\x0C\x8B\x60\x6F\xF4\xBF\x07\x2F\x26\xCC\xAD"
+                          "\xBC\x06\x0B\x34\x78\x8B\x4F\xD6\xC0\x42\xF1\x33\x10"
+                          "\x6C\x4F\x1E\x55\x59\xDD\x2A\x9F\x15\x88\x62\xF8\x60"
+                          "\xA3\x99\x91\xE2\x08\x7B\xF7\x95\x3A\xB0\x92\x48\x60"
+                          "\x88\x8B\x5B\xB8\x5F\xE9\xB6\xB1\x96\xE3\xB5\xF0",
+                          digest, digestSz), 0);
+    #endif /* WOLFSSL_SHA512 */
+
+#ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha3_224(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 28);
+    ExpectIntEQ(XMEMCMP("\xdc\x53\x25\x3f\xc0\x9d\x2b\x0c\x7f\x59\x11\x17\x08"
+                        "\x5c\xe8\x43\x31\x01\x5a\xb3\xe3\x08\x37\x71\x26\x0b"
+                        "\x29\x0f", digest, digestSz), 0);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha3_256(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 32);
+    ExpectIntEQ(XMEMCMP("\x0f\x00\x89\x82\x15\xce\xd6\x45\x01\x83\xce\xc8\x35"
+                        "\xab\x71\x07\xc9\xfe\x61\x22\x38\xf9\x09\xad\x35\x65"
+                        "\x43\x77\x24\xd4\x1e\xf4", digest, digestSz), 0);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha3_384(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 48);
+    ExpectIntEQ(XMEMCMP("\x0f\x6a\xc0\xfb\xc3\xf2\x80\xb1\xb4\x04\xb6\xc8\x45"
+                        "\x23\x3b\xb4\xbe\xc6\xea\x85\x07\xca\x8c\x71\xbb\x6e"
+                        "\x79\xf6\xf9\x2b\x98\xf5\xef\x11\x39\xd4\x5d\xd3\xca"
+                        "\xc0\xe6\x81\xf7\x73\xf9\x85\x5d\x4f",
+                          digest, digestSz), 0);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha3_512(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 64);
+    ExpectIntEQ(XMEMCMP("\x3e\x77\xe3\x59\x42\x89\xed\xc3\xa4\x26\x3d\xa4\x75"
+                        "\xd2\x84\x8c\xb2\xf3\x25\x04\x47\x61\xce\x1c\x42\x86"
+                        "\xcd\xf4\x56\xaa\x2f\x84\xb1\x3b\x18\xed\xe6\xd6\x48"
+                        "\x15\xb0\x29\xc5\x9d\x32\xef\xdd\x3e\x09\xf6\xed\x9e"
+                        "\x70\xbc\x1c\x63\xf7\x3b\x3e\xe1\xdc\x84\x9c\x1c",
+                          digest, digestSz), 0);
+    #endif
+#endif
+
+    #if !defined(NO_MD5) && (!defined(HAVE_FIPS_VERSION) || \
+        HAVE_FIPS_VERSION <= 2)
+    ExpectIntEQ((test_HMAC_CTX_helper(EVP_md5(), digest, &digestSz)),
+        TEST_SUCCESS);
+    ExpectIntEQ(digestSz, 16);
+    ExpectIntEQ(XMEMCMP("\xB7\x27\xC4\x41\xE5\x2E\x62\xBA\x54\xED\x72\x70\x9F"
+                          "\xE4\x98\xDD", digest, digestSz), 0);
+    #endif /* !NO_MD5 */
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && (!defined(NO_SHA256) || \
     defined(WOLFSSL_SHA224) || defined(WOLFSSL_SHA384) || \
     defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3))
@@ -40878,23 +41750,58 @@ static int test_openssl_hmac(const WOLFSSL_EVP_MD* md, int md_len)
 
     ExpectNotNull(hmac = HMAC_CTX_new());
     HMAC_CTX_init(hmac);
-    ExpectIntEQ(HMAC_Init_ex(hmac, (void*)key, (int)sizeof(key), md, e),
-                SSL_SUCCESS);
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+    ((! defined(HAVE_FIPS_VERSION)) || \
+     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2)))
+    /* Get size on object that hasn't had a digest set - MD5. */
+    ExpectIntEQ(HMAC_size(hmac), 16);
+    ExpectIntEQ(HMAC_Init(hmac, NULL, 0, NULL), 1);
+    ExpectIntEQ(HMAC_Init(hmac, (void*)key, (int)sizeof(key), NULL), 1);
+    ExpectIntEQ(HMAC_Init(hmac, NULL, 0, md), 1);
+#else
+    ExpectIntEQ(HMAC_size(hmac), BAD_FUNC_ARG);
+    ExpectIntEQ(HMAC_Init(hmac, NULL, 0, NULL), 0);
+    ExpectIntEQ(HMAC_Init(hmac, (void*)key, (int)sizeof(key), NULL), 0);
+    ExpectIntEQ(HMAC_Init(hmac, NULL, 0, md), 0);
+#endif
+    ExpectIntEQ(HMAC_Init_ex(NULL, (void*)key, (int)sizeof(key), md, e), 0);
+    ExpectIntEQ(HMAC_Init_ex(hmac, (void*)key, (int)sizeof(key), md, e), 1);
 
     /* re-using test key as data to hash */
-    ExpectIntEQ(HMAC_Update(hmac, key, (int)sizeof(key)), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(hmac, NULL, 0), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(hmac, hash, &len), SSL_SUCCESS);
+    ExpectIntEQ(HMAC_Update(NULL, key, (int)sizeof(key)), 0);
+    ExpectIntEQ(HMAC_Update(hmac, key, (int)sizeof(key)), 1);
+    ExpectIntEQ(HMAC_Update(hmac, key, 0), 1);
+    ExpectIntEQ(HMAC_Update(hmac, NULL, 0), 1);
+    ExpectIntEQ(HMAC_Update(hmac, NULL, (int)sizeof(key)), 1);
+    ExpectIntEQ(HMAC_Final(NULL, NULL, &len), 0);
+    ExpectIntEQ(HMAC_Final(hmac, NULL, &len), 0);
+    ExpectIntEQ(HMAC_Final(NULL, hash, &len), 0);
+    ExpectIntEQ(HMAC_Final(hmac, hash, &len), 1);
+    ExpectIntEQ(HMAC_Final(hmac, hash, NULL), 1);
     ExpectIntEQ(len, md_len);
+    ExpectIntEQ(HMAC_size(NULL), 0);
     ExpectIntEQ(HMAC_size(hmac), md_len);
     ExpectStrEQ(HMAC_CTX_get_md(hmac), md);
 
+    HMAC_cleanup(NULL);
     HMAC_cleanup(hmac);
     HMAC_CTX_free(hmac);
 
     len = 0;
+    ExpectNull(HMAC(NULL, key, (int)sizeof(key), NULL, 0, hash, &len));
+    ExpectNull(HMAC(md, NULL, (int)sizeof(key), NULL, 0, hash, &len));
+    ExpectNull(HMAC(md, key, (int)sizeof(key), NULL, 0, NULL, &len));
     ExpectNotNull(HMAC(md, key, (int)sizeof(key), NULL, 0, hash, &len));
     ExpectIntEQ(len, md_len);
+    ExpectNotNull(HMAC(md, key, (int)sizeof(key), NULL, 0, hash, NULL));
+    /* With data. */
+    ExpectNotNull(HMAC(md, key, (int)sizeof(key), key, (int)sizeof(key), hash,
+        &len));
+    /* With NULL data. */
+    ExpectNull(HMAC(md, key, (int)sizeof(key), NULL, (int)sizeof(key), hash,
+        &len));
+    /* With zero length data. */
+    ExpectNotNull(HMAC(md, key, (int)sizeof(key), key, 0, hash, &len));
 
     return EXPECT_RESULT();
 }
@@ -40954,37 +41861,1011 @@ static int test_wolfSSL_CMAC(void)
 #if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_AES_DIRECT)
     int i;
-    byte key[AES_128_KEY_SIZE];
+    byte key[AES_256_KEY_SIZE];
     CMAC_CTX* cmacCtx = NULL;
     byte out[AES_BLOCK_SIZE];
     size_t outLen = AES_BLOCK_SIZE;
 
-    for (i=0; i < AES_128_KEY_SIZE; ++i) {
+    for (i=0; i < AES_256_KEY_SIZE; ++i) {
         key[i] = i;
     }
     ExpectNotNull(cmacCtx = CMAC_CTX_new());
     /* Check CMAC_CTX_get0_cipher_ctx; return value not used. */
     ExpectNotNull(CMAC_CTX_get0_cipher_ctx(cmacCtx));
     ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_128_cbc(),
-        NULL), SSL_SUCCESS);
+        NULL), 1);
     /* re-using test key as data to hash */
-    ExpectIntEQ(CMAC_Update(cmacCtx, key, AES_128_KEY_SIZE), SSL_SUCCESS);
-    ExpectIntEQ(CMAC_Update(cmacCtx, NULL, 0), SSL_SUCCESS);
-    ExpectIntEQ(CMAC_Final(cmacCtx, out, &outLen), SSL_SUCCESS);
+    ExpectIntEQ(CMAC_Update(cmacCtx, key, AES_128_KEY_SIZE), 1);
+    ExpectIntEQ(CMAC_Update(cmacCtx, NULL, 0), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, &outLen), 1);
     ExpectIntEQ(outLen, AES_BLOCK_SIZE);
+
+    /* No Update works. */
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_128_cbc(),
+        NULL), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, NULL), 1);
+
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_128_cbc(),
+        NULL), 1);
+    /* Test parameters with CMAC_Update. */
+    ExpectIntEQ(CMAC_Update(NULL, NULL, 0), 0);
+    ExpectIntEQ(CMAC_Update(NULL, key, 0), 0);
+    ExpectIntEQ(CMAC_Update(NULL, NULL, AES_128_KEY_SIZE), 0);
+    ExpectIntEQ(CMAC_Update(NULL, key, AES_128_KEY_SIZE), 0);
+    ExpectIntEQ(CMAC_Update(cmacCtx, key, 0), 1);
+    ExpectIntEQ(CMAC_Update(cmacCtx, NULL, 0), 1);
+    ExpectIntEQ(CMAC_Update(cmacCtx, NULL, AES_128_KEY_SIZE), 1);
+    /* Test parameters with CMAC_Final. */
+    ExpectIntEQ(CMAC_Final(NULL, NULL, NULL), 0);
+    ExpectIntEQ(CMAC_Final(NULL, out, NULL), 0);
+    ExpectIntEQ(CMAC_Final(NULL, NULL, &outLen), 0);
+    ExpectIntEQ(CMAC_Final(NULL, out, &outLen), 0);
+    ExpectIntEQ(CMAC_Final(cmacCtx, NULL, NULL), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, NULL, &outLen), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, NULL), 1);
     CMAC_CTX_free(cmacCtx);
 
-    /* give a key too small for the cipher, verify we get failure */
+    /* Test parameters with CMAC Init. */
     cmacCtx = NULL;
     ExpectNotNull(cmacCtx = CMAC_CTX_new());
     ExpectNotNull(CMAC_CTX_get0_cipher_ctx(cmacCtx));
+    ExpectIntEQ(CMAC_Init(NULL, NULL, 0, NULL, NULL), 0);
+    ExpectIntEQ(CMAC_Init(NULL, key, AES_192_KEY_SIZE, EVP_aes_192_cbc(),
+        NULL), 0);
+    ExpectIntEQ(CMAC_Init(cmacCtx, NULL, AES_192_KEY_SIZE, EVP_aes_192_cbc(),
+        NULL), 0);
+    /* give a key too small for the cipher, verify we get failure */
     ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_192_cbc(),
-        NULL), SSL_FAILURE);
+        NULL), 0);
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_192_KEY_SIZE, NULL, NULL), 0);
+    #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+    /* Only AES-CBC supported. */
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_128_gcm(),
+        NULL), 0);
+    #endif
+    CMAC_CTX_free(cmacCtx);
+
+    ExpectNull(CMAC_CTX_get0_cipher_ctx(NULL));
+    cmacCtx = NULL;
+    ExpectNotNull(cmacCtx = CMAC_CTX_new());
+    /* No Init. */
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, &outLen), 0);
+    CMAC_CTX_free(cmacCtx);
+
+    /* Test AES-256-CBC */
+    cmacCtx = NULL;
+    ExpectNotNull(cmacCtx = CMAC_CTX_new());
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_256_KEY_SIZE, EVP_aes_256_cbc(),
+        NULL), 1);
+    ExpectIntEQ(CMAC_Update(cmacCtx, key, AES_128_KEY_SIZE), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, NULL), 1);
+    CMAC_CTX_free(cmacCtx);
+
+    /* Test AES-192-CBC */
+    cmacCtx = NULL;
+    ExpectNotNull(cmacCtx = CMAC_CTX_new());
+    ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_192_KEY_SIZE, EVP_aes_192_cbc(),
+        NULL), 1);
+    ExpectIntEQ(CMAC_Update(cmacCtx, key, AES_128_KEY_SIZE), 1);
+    ExpectIntEQ(CMAC_Final(cmacCtx, out, NULL), 1);
+    CMAC_CTX_free(cmacCtx);
+
+    cmacCtx = NULL;
+    ExpectNotNull(cmacCtx = CMAC_CTX_new());
     CMAC_CTX_free(cmacCtx);
 #endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_DES(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    const_DES_cblock myDes;
+    DES_cblock iv;
+    DES_key_schedule key;
+    word32 i;
+    DES_LONG dl;
+    unsigned char msg[] = "hello wolfssl";
+    unsigned char weakKey[][8] = {
+        { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 },
+        { 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE },
+        { 0xE0, 0xE0, 0xE0, 0xE0, 0xF1, 0xF1, 0xF1, 0xF1 },
+        { 0x1F, 0x1F, 0x1F, 0x1F, 0x0E, 0x0E, 0x0E, 0x0E }
+    };
+    unsigned char semiWeakKey[][8] = {
+        { 0x01, 0x1F, 0x01, 0x1F, 0x01, 0x0E, 0x01, 0x0E },
+        { 0x1F, 0x01, 0x1F, 0x01, 0x0E, 0x01, 0x0E, 0x01 },
+        { 0x01, 0xE0, 0x01, 0xE0, 0x01, 0xF1, 0x01, 0xF1 },
+        { 0xE0, 0x01, 0xE0, 0x01, 0xF1, 0x01, 0xF1, 0x01 },
+        { 0x01, 0xFE, 0x01, 0xFE, 0x01, 0xFE, 0x01, 0xFE },
+        { 0xFE, 0x01, 0xFE, 0x01, 0xFE, 0x01, 0xFE, 0x01 },
+        { 0x1F, 0xE0, 0x1F, 0xE0, 0x0E, 0xF1, 0x0E, 0xF1 },
+        { 0xE0, 0x1F, 0xE0, 0x1F, 0xF1, 0x0E, 0xF1, 0x0E },
+        { 0x1F, 0xFE, 0x1F, 0xFE, 0x0E, 0xFE, 0x0E, 0xFE },
+        { 0xFE, 0x1F, 0xFE, 0x1F, 0xFE, 0x0E, 0xFE, 0x0E },
+        { 0xE0, 0xFE, 0xE0, 0xFE, 0xF1, 0xFE, 0xF1, 0xFE },
+        { 0xFE, 0xE0, 0xFE, 0xE0, 0xFE, 0xF1, 0xFE, 0xF1 }
+    };
+
+    DES_check_key(1);
+    DES_set_key(&myDes, &key);
+
+    /* check, check of odd parity */
+    XMEMSET(myDes, 4, sizeof(const_DES_cblock));
+    myDes[0] = 6; /* set even parity */
+    XMEMSET(key, 5, sizeof(DES_key_schedule));
+    ExpectIntEQ(DES_set_key_checked(&myDes, &key), -1);
+    ExpectIntNE(key[0], myDes[0]); /* should not have copied over key */
+    ExpectIntEQ(DES_set_key_checked(NULL, NULL), -2);
+    ExpectIntEQ(DES_set_key_checked(&myDes, NULL), -2);
+    ExpectIntEQ(DES_set_key_checked(NULL, &key), -2);
+
+    /* set odd parity for success case */
+    DES_set_odd_parity(&myDes);
+    ExpectIntEQ(DES_check_key_parity(&myDes), 1);
+    fprintf(stderr, "%02x %02x %02x %02x", myDes[0], myDes[1], myDes[2],
+        myDes[3]);
+    ExpectIntEQ(DES_set_key_checked(&myDes, &key), 0);
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        ExpectIntEQ(key[i], myDes[i]);
+    }
+    ExpectIntEQ(DES_is_weak_key(&myDes), 0);
+
+    /* check weak key */
+    XMEMSET(myDes, 1, sizeof(const_DES_cblock));
+    XMEMSET(key, 5, sizeof(DES_key_schedule));
+    ExpectIntEQ(DES_set_key_checked(&myDes, &key), -2);
+    ExpectIntNE(key[0], myDes[0]); /* should not have copied over key */
+
+    DES_set_key_unchecked(NULL, NULL);
+    DES_set_key_unchecked(&myDes, NULL);
+    DES_set_key_unchecked(NULL, &key);
+    /* compare arrays, should be the same */
+    /* now do unchecked copy of a weak key over */
+    DES_set_key_unchecked(&myDes, &key);
+    /* compare arrays, should be the same */
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        ExpectIntEQ(key[i], myDes[i]);
+    }
+    ExpectIntEQ(DES_is_weak_key(&myDes), 1);
+
+    myDes[7] = 2;
+    ExpectIntEQ(DES_set_key_checked(&myDes, &key), 0);
+    ExpectIntEQ(DES_is_weak_key(&myDes), 0);
+    ExpectIntEQ(DES_is_weak_key(NULL), 1);
+
+    /* Test all weak keys. */
+    for (i = 0; i < sizeof(weakKey) / sizeof(*weakKey); i++) {
+        ExpectIntEQ(DES_set_key_checked(&weakKey[i], &key), -2);
+    }
+    /* Test all semi-weak keys. */
+    for (i = 0; i < sizeof(semiWeakKey) / sizeof(*semiWeakKey); i++) {
+        ExpectIntEQ(DES_set_key_checked(&semiWeakKey[i], &key), -2);
+    }
+
+    /* check DES_key_sched API */
+    XMEMSET(key, 1, sizeof(DES_key_schedule));
+    ExpectIntEQ(DES_key_sched(&myDes, NULL), 0);
+    ExpectIntEQ(DES_key_sched(NULL, &key),   0);
+    ExpectIntEQ(DES_key_sched(&myDes, &key), 0);
+    /* compare arrays, should be the same */
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        ExpectIntEQ(key[i], myDes[i]);
+    }
+
+
+    ExpectIntEQ((DES_cbc_cksum(NULL, NULL, 0, NULL, NULL)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, NULL, 0, NULL, NULL)), 0);
+    ExpectIntEQ((DES_cbc_cksum(NULL, &key, 0, NULL, NULL)), 0);
+    ExpectIntEQ((DES_cbc_cksum(NULL, NULL, 0, &myDes, NULL)), 0);
+    ExpectIntEQ((DES_cbc_cksum(NULL, NULL, 0, NULL, &iv)), 0);
+    ExpectIntEQ((DES_cbc_cksum(NULL, &key, sizeof(msg), &myDes, &iv)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, NULL, sizeof(msg), &myDes, &iv)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, &key, sizeof(msg), NULL, &iv)), 0);
+    ExpectIntEQ((DES_cbc_cksum(msg, &key, sizeof(msg), &myDes, NULL)), 0);
+    /* DES_cbc_cksum should return the last 4 of the last 8 bytes after
+     * DES_cbc_encrypt on the input */
+    XMEMSET(iv, 0, sizeof(DES_cblock));
+    XMEMSET(myDes, 5, sizeof(DES_key_schedule));
+    ExpectIntGT((dl = DES_cbc_cksum(msg, &key, sizeof(msg), &myDes, &iv)), 0);
+    ExpectIntEQ(dl, 480052723);
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_DES_ncbc(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    const_DES_cblock myDes;
+    DES_cblock iv = {1};
+    DES_key_schedule key = {0};
+    unsigned char msg[] = "hello wolfssl";
+    unsigned char out[DES_BLOCK_SIZE * 2] = {0};
+    unsigned char pln[DES_BLOCK_SIZE * 2] = {0};
+
+    unsigned char exp[]  = {0x31, 0x98, 0x2F, 0x3A, 0x55, 0xBF, 0xD8, 0xC4};
+    unsigned char exp2[] = {0xC7, 0x45, 0x8B, 0x28, 0x10, 0x53, 0xE0, 0x58};
+
+    /* partial block test */
+    DES_set_key(&key, &myDes);
+    DES_ncbc_encrypt(msg, out, 3, &myDes, &iv, DES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(exp, out, DES_BLOCK_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
+
+    DES_set_key(&key, &myDes);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(out, pln, 3, &myDes, &iv, DES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(msg, pln, 3), 0);
+    ExpectIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
+
+    /* full block test */
+    DES_set_key(&key, &myDes);
+    XMEMSET(pln, 0, DES_BLOCK_SIZE);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(msg, out, 8, &myDes, &iv, DES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(exp2, out, DES_BLOCK_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
+
+    DES_set_key(&key, &myDes);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(out, pln, 8, &myDes, &iv, DES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(msg, pln, 8), 0);
+    ExpectIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_DES_ecb_encrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
+    WOLFSSL_DES_cblock input1, input2, output1, output2, back1, back2;
+    WOLFSSL_DES_key_schedule key;
+
+    XMEMCPY(key, "12345678", sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(input1, "Iamhuman", sizeof(WOLFSSL_DES_cblock));
+    XMEMCPY(input2, "Whoisit?", sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output2, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back2, 0, sizeof(WOLFSSL_DES_cblock));
+
+    wolfSSL_DES_ecb_encrypt(NULL, NULL, NULL, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(&input1, NULL, NULL, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(NULL, &output1, NULL, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(NULL, NULL, &key, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(&input1, &output1, NULL, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(&input1, NULL, &key, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(NULL, &output1, &key, DES_ENCRYPT);
+
+    /* Encrypt messages */
+    wolfSSL_DES_ecb_encrypt(&input1, &output1, &key, DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(&input2, &output2, &key, DES_ENCRYPT);
+
+    {
+        /* Decrypt messages */
+        int ret1 = 0;
+        int ret2 = 0;
+        wolfSSL_DES_ecb_encrypt(&output1, &back1, &key, DES_DECRYPT);
+        ExpectIntEQ(ret1 = XMEMCMP((unsigned char *)back1,
+            (unsigned char *)input1, sizeof(WOLFSSL_DES_cblock)), 0);
+        wolfSSL_DES_ecb_encrypt(&output2, &back2, &key, DES_DECRYPT);
+        ExpectIntEQ(ret2 = XMEMCMP((unsigned char *)back2,
+            (unsigned char *)input2, sizeof(WOLFSSL_DES_cblock)), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_DES_ede3_cbc_encrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    unsigned char input1[8], input2[8];
+    unsigned char output1[8], output2[8];
+    unsigned char back1[8], back2[8];
+    WOLFSSL_DES_cblock iv1, iv2;
+    WOLFSSL_DES_key_schedule key1, key2, key3;
+    int i;
+
+    XMEMCPY(key1, "12345678", sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(key2, "23456781", sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(key3, "34567823", sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(input1, "Iamhuman", sizeof(input1));
+    XMEMCPY(input2, "Whoisit?", sizeof(input2));
+
+    XMEMSET(output1, 0, sizeof(output1));
+    XMEMSET(output2, 0, sizeof(output2));
+    XMEMSET(back1, 0, sizeof(back1));
+    XMEMSET(back2, 0, sizeof(back2));
+
+    XMEMCPY(iv1, "87654321", sizeof(WOLFSSL_DES_cblock));
+    XMEMCPY(iv2, "98765432", sizeof(WOLFSSL_DES_cblock));
+    /* Encrypt messages */
+    wolfSSL_DES_ede3_cbc_encrypt(input1, output1, 8, &key1, &key2, &key3, &iv1,
+        DES_ENCRYPT);
+    wolfSSL_DES_ede3_cbc_encrypt(input2, output2, 8, &key1, &key2, &key3, &iv2,
+        DES_ENCRYPT);
+
+    {
+        XMEMCPY(iv1, "87654321", sizeof(WOLFSSL_DES_cblock));
+        XMEMCPY(iv2, "98765432", sizeof(WOLFSSL_DES_cblock));
+        /* Decrypt messages */
+        wolfSSL_DES_ede3_cbc_encrypt(output1, back1, 8, &key1, &key2, &key3,
+            &iv1, DES_DECRYPT);
+        ExpectIntEQ(XMEMCMP(back1, input1, sizeof(input1)), 0);
+        wolfSSL_DES_ede3_cbc_encrypt(output2, back2, 8, &key1, &key2, &key3,
+            &iv2, DES_DECRYPT);
+        ExpectIntEQ(XMEMCMP(back2, input2, sizeof(input2)), 0);
+    }
+
+    for (i = 0; i < 8; i++) {
+        XMEMSET(output1, 0, sizeof(output1));
+        XMEMSET(output2, 0, sizeof(output2));
+        XMEMSET(back1, 0, sizeof(back1));
+        XMEMSET(back2, 0, sizeof(back2));
+
+        XMEMCPY(iv1, "87654321", sizeof(WOLFSSL_DES_cblock));
+        XMEMCPY(iv2, "98765432", sizeof(WOLFSSL_DES_cblock));
+        /* Encrypt partial messages */
+        wolfSSL_DES_ede3_cbc_encrypt(input1, output1, i, &key1, &key2, &key3,
+            &iv1, DES_ENCRYPT);
+        wolfSSL_DES_ede3_cbc_encrypt(input2, output2, i, &key1, &key2, &key3,
+            &iv2, DES_ENCRYPT);
+
+        {
+            XMEMCPY(iv1, "87654321", sizeof(WOLFSSL_DES_cblock));
+            XMEMCPY(iv2, "98765432", sizeof(WOLFSSL_DES_cblock));
+            /* Decrypt messages */
+            wolfSSL_DES_ede3_cbc_encrypt(output1, back1, i, &key1, &key2,
+                &key3, &iv1, DES_DECRYPT);
+            ExpectIntEQ(XMEMCMP(back1, input1, i), 0);
+            wolfSSL_DES_ede3_cbc_encrypt(output2, back2, i, &key1, &key2,
+                &key3, &iv2, DES_DECRYPT);
+            ExpectIntEQ(XMEMCMP(back2, input2, i), 0);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_AES_encrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
+    AES_KEY enc;
+    AES_KEY dec;
+    const byte msg[] = {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a
+    };
+    const byte exp[] = {
+        0xf3, 0xee, 0xd1, 0xbd, 0xb5, 0xd2, 0xa0, 0x3c,
+        0x06, 0x4b, 0x5a, 0x7e, 0x3d, 0xb1, 0x81, 0xf8,
+    };
+    const byte key[] = {
+        0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+        0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+    };
+    byte eout[sizeof(msg)];
+    byte dout[sizeof(msg)];
+
+    ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &enc), 0);
+    ExpectIntEQ(AES_set_decrypt_key(key, sizeof(key)*8, &dec), 0);
+
+    wolfSSL_AES_encrypt(NULL, NULL, NULL);
+    wolfSSL_AES_encrypt(msg, NULL, NULL);
+    wolfSSL_AES_encrypt(NULL, eout, NULL);
+    wolfSSL_AES_encrypt(NULL, NULL, &enc);
+    wolfSSL_AES_encrypt(msg, eout, NULL);
+    wolfSSL_AES_encrypt(msg, NULL, &enc);
+    wolfSSL_AES_encrypt(NULL, eout, &enc);
+
+    wolfSSL_AES_decrypt(NULL, NULL, NULL);
+    wolfSSL_AES_decrypt(eout, NULL, NULL);
+    wolfSSL_AES_decrypt(NULL, dout, NULL);
+    wolfSSL_AES_decrypt(NULL, NULL, &dec);
+    wolfSSL_AES_decrypt(eout, dout, NULL);
+    wolfSSL_AES_decrypt(eout, NULL, &dec);
+    wolfSSL_AES_decrypt(NULL, dout, &dec);
+
+    wolfSSL_AES_encrypt(msg, eout, &enc);
+    ExpectIntEQ(XMEMCMP(eout, exp, AES_BLOCK_SIZE), 0);
+    wolfSSL_AES_decrypt(eout, dout, &dec);
+    ExpectIntEQ(XMEMCMP(dout, msg, AES_BLOCK_SIZE), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_AES_ecb_encrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
+    AES_KEY aes;
+    const byte msg[] =
+    {
+      0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+      0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+        0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+    };
+
+    const byte key[] =
+    {
+      0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+      0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+      0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+      0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+
+
+    byte out[AES_BLOCK_SIZE];
+
+    ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aes), 0);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_ecb_encrypt(msg, out, &aes, AES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(out, verify, AES_BLOCK_SIZE), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(AES_set_decrypt_key(key, sizeof(key)*8, &aes), 0);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_ecb_encrypt(verify, out, &aes, AES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(out, msg, AES_BLOCK_SIZE), 0);
+#endif
+
+    /* test bad arguments */
+    AES_ecb_encrypt(NULL, out, &aes, AES_DECRYPT);
+    AES_ecb_encrypt(verify, NULL, &aes, AES_DECRYPT);
+    AES_ecb_encrypt(verify, out, NULL, AES_DECRYPT);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_AES_cbc_encrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA)
+    AES_KEY aes;
+    AES_KEY* aesN = NULL;
+    size_t len = 0;
+    size_t lenB = 0;
+    int keySz0 = 0;
+    int keySzN = -1;
+    byte out[AES_BLOCK_SIZE] = {0};
+    byte* outN = NULL;
+
+    /* Test vectors retrieved from:
+     *   <begin URL>
+     *       https://csrc.nist.gov/
+     *       CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/
+     *       documents/aes/KAT_AES.zip
+     *   </end URL>
+     */
+    const byte* pt128N  = NULL;
+    byte* key128N       = NULL;
+    byte* iv128N        = NULL;
+    byte iv128tmp[AES_BLOCK_SIZE] = {0};
+
+    const byte pt128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
+
+    const byte ct128[]  = { 0x87,0x85,0xb1,0xa7,0x5b,0x0f,0x3b,0xd9,
+                            0x58,0xdc,0xd0,0xe2,0x93,0x18,0xc5,0x21 };
+
+    const byte iv128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
+
+    byte key128[]       = { 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+                            0xff,0xff,0xf0,0x00,0x00,0x00,0x00,0x00 };
+
+
+    len = sizeof(pt128);
+
+    #define STRESS_T(a, b, c, d, e, f, g, h, i) \
+            wolfSSL_AES_cbc_encrypt(a, b, c, d, e, f); \
+            ExpectIntNE(XMEMCMP(b, g, h), i)
+
+    #define RESET_IV(x, y) XMEMCPY(x, y, AES_BLOCK_SIZE)
+
+    /* Stressing wolfSSL_AES_cbc_encrypt() */
+    STRESS_T(pt128N, out, len, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, len, &aes, iv128N, 1, ct128, AES_BLOCK_SIZE, 0);
+
+    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128tmp, AES_ENCRYPT);
+    ExpectIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128tmp, AES_ENCRYPT);
+    ExpectIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
+
+    STRESS_T(pt128, out, lenB, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
+
+    /* Stressing wolfSSL_AES_set_encrypt_key */
+    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),0);
+    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, aesN),0);
+    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, keySz0, &aes), 0);
+    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, keySzN, &aes), 0);
+
+    /* Stressing wolfSSL_AES_set_decrypt_key */
+    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, &aes),0);
+    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, aesN),0);
+    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128, keySz0, &aes), 0);
+    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128, keySzN, &aes), 0);
+
+  #ifdef WOLFSSL_AES_128
+
+    /* wolfSSL_AES_cbc_encrypt() 128-bit */
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv128tmp, iv128);
+
+    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, AES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #ifdef HAVE_AES_DECRYPT
+
+    /* wolfSSL_AES_cbc_encrypt() 128-bit in decrypt mode */
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv128tmp, iv128);
+    len = sizeof(ct128);
+
+    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, AES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #endif
+
+  #endif /* WOLFSSL_AES_128 */
+  #ifdef WOLFSSL_AES_192
+  {
+    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition
+     * Appendix F.2.3  */
+
+    byte iv192tmp[AES_BLOCK_SIZE] = {0};
+
+    const byte pt192[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
+
+    const byte ct192[]  = { 0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
+                            0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8 };
+
+    const byte iv192[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+
+    byte key192[]       = { 0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+                            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+                            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b };
+
+    len = sizeof(pt192);
+
+    /* wolfSSL_AES_cbc_encrypt() 192-bit */
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv192tmp, iv192);
+
+    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key192, sizeof(key192)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, AES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(out, ct192, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #ifdef HAVE_AES_DECRYPT
+
+    /* wolfSSL_AES_cbc_encrypt() 192-bit in decrypt mode */
+    len = sizeof(ct192);
+    RESET_IV(iv192tmp, iv192);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, AES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #endif
+  }
+  #endif /* WOLFSSL_AES_192 */
+  #ifdef WOLFSSL_AES_256
+  {
+    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition,
+     * Appendix F.2.5  */
+    byte iv256tmp[AES_BLOCK_SIZE] = {0};
+
+    const byte pt256[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
+
+    const byte ct256[]  = { 0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
+                            0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6 };
+
+    const byte iv256[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+
+    byte key256[]       = { 0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+                            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+                            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+                            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4 };
+
+
+    len = sizeof(pt256);
+
+    /* wolfSSL_AES_cbc_encrypt() 256-bit */
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv256tmp, iv256);
+
+    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, AES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(out, ct256, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #ifdef HAVE_AES_DECRYPT
+
+    /* wolfSSL_AES_cbc_encrypt() 256-bit in decrypt mode */
+    len = sizeof(ct256);
+    RESET_IV(iv256tmp, iv256);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+
+    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, AES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
+
+    #endif
+
+    #if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+    {
+    byte wrapCipher[sizeof(key256) + KEYWRAP_BLOCK_SIZE] = { 0 };
+    byte wrapPlain[sizeof(key256)] = { 0 };
+    byte wrapIV[KEYWRAP_BLOCK_SIZE] = { 0 };
+
+    /* wolfSSL_AES_wrap_key() 256-bit NULL iv */
+    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
+            15), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
+            sizeof(key256)), sizeof(wrapCipher));
+    wc_AesFree((Aes*)&aes);
+
+    /* wolfSSL_AES_unwrap_key() 256-bit NULL iv */
+    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
+            23), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
+            sizeof(wrapCipher)), sizeof(wrapPlain));
+    ExpectIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
+    XMEMSET(wrapCipher, 0, sizeof(wrapCipher));
+    XMEMSET(wrapPlain, 0, sizeof(wrapPlain));
+    wc_AesFree((Aes*)&aes);
+
+    /* wolfSSL_AES_wrap_key() 256-bit custom iv */
+    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapCipher, key256,
+            sizeof(key256)), sizeof(wrapCipher));
+    wc_AesFree((Aes*)&aes);
+
+    /* wolfSSL_AES_unwrap_key() 256-bit custom iv */
+    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, wrapPlain, wrapCipher,
+            sizeof(wrapCipher)), sizeof(wrapPlain));
+    ExpectIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
+    wc_AesFree((Aes*)&aes);
+
+    ExpectIntEQ(wolfSSL_AES_wrap_key(NULL, NULL, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(NULL, wrapIV, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(NULL, NULL, wrapCipher, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(NULL, NULL, NULL, key256, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(NULL, wrapIV, wrapCipher, key256, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, NULL, key256, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapCipher, NULL, 0), 0);
+
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(NULL, NULL, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(NULL, wrapIV, NULL, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(NULL, NULL, wrapPlain, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(NULL, NULL, NULL, wrapCipher, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(NULL, wrapIV, wrapPlain, wrapCipher, 0),
+        0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher, 0),
+        0);
+    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, NULL, wrapCipher, 0), 0);
+    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapPlain, NULL, 0), 0);
+    }
+    #endif /* HAVE_AES_KEYWRAP */
+  }
+  #endif /* WOLFSSL_AES_256 */
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_AES_cfb128_encrypt(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_CFB)
+    AES_KEY aesEnc;
+    AES_KEY aesDec;
+    const byte msg[] = {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a
+    };
+    const byte exp[] = {
+        0x16, 0xc9, 0x90, 0x6c, 0x04, 0x0c, 0xd1, 0x2f,
+        0x84, 0x7b, 0x18, 0xed, 0xed, 0x6a, 0xb5, 0xfd
+    };
+    const byte key[] = {
+        0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+        0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+    };
+    const byte ivData[] = {
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+    };
+    byte out[AES_BLOCK_SIZE];
+    byte iv[AES_BLOCK_SIZE];
+    word32 i;
+    int num;
+
+    ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aesEnc), 0);
+    XMEMCPY(iv, ivData, sizeof(iv));
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_cfb128_encrypt(msg, out, sizeof(msg), &aesEnc, iv, NULL, AES_ENCRYPT);
+    ExpectIntEQ(XMEMCMP(out, exp, sizeof(msg)), 0);
+    ExpectIntNE(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aesDec), 0);
+    XMEMCPY(iv, ivData, sizeof(iv));
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_cfb128_encrypt(exp, out, sizeof(msg), &aesDec, iv, NULL, AES_DECRYPT);
+    ExpectIntEQ(XMEMCMP(out, msg, sizeof(msg)), 0);
+    ExpectIntNE(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+#endif
+
+    for (i = 0; EXPECT_SUCCESS() && (i <= sizeof(msg)); i++) {
+        ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aesEnc), 0);
+        XMEMCPY(iv, ivData, sizeof(iv));
+        XMEMSET(out, 0, AES_BLOCK_SIZE);
+        AES_cfb128_encrypt(msg, out, i, &aesEnc, iv, &num, AES_ENCRYPT);
+        ExpectIntEQ(num, i % AES_BLOCK_SIZE);
+        ExpectIntEQ(XMEMCMP(out, exp, i), 0);
+        if (i == 0) {
+            ExpectIntEQ(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+        }
+        else {
+            ExpectIntNE(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+        }
+
+    #ifdef HAVE_AES_DECRYPT
+        ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aesDec), 0);
+        XMEMCPY(iv, ivData, sizeof(iv));
+        XMEMSET(out, 0, AES_BLOCK_SIZE);
+        AES_cfb128_encrypt(exp, out, i, &aesDec, iv, &num, AES_DECRYPT);
+        ExpectIntEQ(num, i % AES_BLOCK_SIZE);
+        ExpectIntEQ(XMEMCMP(out, msg, i), 0);
+        if (i == 0) {
+            ExpectIntEQ(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+        }
+        else {
+            ExpectIntNE(XMEMCMP(iv, ivData, sizeof(iv)), 0);
+        }
+    #endif
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* test bad arguments */
+        AES_cfb128_encrypt(NULL, NULL, 0, NULL, NULL, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(msg, NULL, 0, NULL, NULL, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(NULL, out, 0, NULL, NULL, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(NULL, NULL, 0, &aesDec, NULL, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(NULL, NULL, 0, NULL, iv, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(NULL, out, 0, &aesDec, iv, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(msg, NULL, 0, &aesDec, iv, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(msg, out, 0, NULL, iv, NULL, AES_DECRYPT);
+        AES_cfb128_encrypt(msg, out, 0, &aesDec, NULL, NULL, AES_DECRYPT);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_CRYPTO_cts128(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_CTS)
+    byte tmp[64]; /* Largest vector size */
+    /* Test vectors taken form RFC3962 Appendix B */
+    const testVector vects[] = {
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20",
+            "\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
+            "\x97",
+            17, 17
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
+            "\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5",
+            31, 31
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
+            32, 32
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5",
+            47, 47
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8",
+            48, 48
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+            "\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
+            64, 64
+        }
+    };
+    byte keyBytes[AES_128_KEY_SIZE] = {
+        0x63, 0x68, 0x69, 0x63, 0x6b, 0x65, 0x6e, 0x20,
+        0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
+    };
+    size_t i;
+    AES_KEY encKey;
+    byte iv[AES_IV_SIZE]; /* All-zero IV for all cases */
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+
+    for (i = 0; i < sizeof(vects)/sizeof(vects[0]); i++) {
+        AES_KEY decKey;
+
+        ExpectIntEQ(AES_set_encrypt_key(keyBytes, AES_128_KEY_SIZE * 8,
+            &encKey), 0);
+        ExpectIntEQ(AES_set_decrypt_key(keyBytes, AES_128_KEY_SIZE * 8,
+            &decKey), 0);
+        XMEMSET(iv, 0, sizeof(iv));
+        ExpectIntEQ(CRYPTO_cts128_encrypt((const unsigned char*)vects[i].input,
+            tmp, vects[i].inLen, &encKey, iv, (cbc128_f)AES_cbc_encrypt),
+            vects[i].outLen);
+        ExpectIntEQ(XMEMCMP(tmp, vects[i].output, vects[i].outLen), 0);
+        XMEMSET(iv, 0, sizeof(iv));
+        ExpectIntEQ(CRYPTO_cts128_decrypt((const unsigned char*)vects[i].output,
+            tmp, vects[i].outLen, &decKey, iv, (cbc128_f)AES_cbc_encrypt),
+            vects[i].inLen);
+        ExpectIntEQ(XMEMCMP(tmp, vects[i].input, vects[i].inLen), 0);
+    }
+
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, NULL, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, NULL, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, tmp, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, NULL, 17, &encKey, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, NULL, 17, NULL, iv, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, NULL, 17, NULL, NULL,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(NULL, tmp, 17, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, NULL, 17, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, tmp, 17, NULL, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, tmp, 17, &encKey, NULL,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, tmp, 17, &encKey, iv, NULL), 0);
+    /* Length too small. */
+    ExpectIntEQ(CRYPTO_cts128_encrypt(tmp, tmp, 0, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, NULL, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, NULL, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, tmp, 17, NULL, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, NULL, 17, &encKey, NULL, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, NULL, 17, NULL, iv, NULL), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, NULL, 17, NULL, NULL,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(NULL, tmp, 17, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, NULL, 17, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, tmp, 17, NULL, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, tmp, 17, &encKey, NULL,
+        (cbc128_f)AES_cbc_encrypt), 0);
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, tmp, 17, &encKey, iv, NULL), 0);
+    /* Length too small. */
+    ExpectIntEQ(CRYPTO_cts128_decrypt(tmp, tmp, 0, &encKey, iv,
+        (cbc128_f)AES_cbc_encrypt), 0);
+#endif /* !NO_AES && HAVE_AES_CBC && OPENSSL_EXTRA && HAVE_CTS */
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_RC4(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RC4) && defined(OPENSSL_EXTRA)
+    WOLFSSL_RC4_KEY rc4Key;
+    unsigned char key[] =  {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    };
+    unsigned char data[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    };
+    unsigned char enc[sizeof(data)];
+    unsigned char dec[sizeof(data)];
+    word32 i;
+    word32 j;
+
+    wolfSSL_RC4_set_key(NULL, -1, NULL);
+    wolfSSL_RC4_set_key(&rc4Key, -1, NULL);
+    wolfSSL_RC4_set_key(NULL, 0, NULL);
+    wolfSSL_RC4_set_key(NULL, -1, key);
+    wolfSSL_RC4_set_key(&rc4Key, 0, NULL);
+    wolfSSL_RC4_set_key(&rc4Key, -1, key);
+    wolfSSL_RC4_set_key(NULL, 0, key);
+
+    wolfSSL_RC4(NULL, 0, NULL, NULL);
+    wolfSSL_RC4(&rc4Key, 0, NULL, NULL);
+    wolfSSL_RC4(NULL, 0, data, NULL);
+    wolfSSL_RC4(NULL, 0, NULL, enc);
+    wolfSSL_RC4(&rc4Key, 0, data, NULL);
+    wolfSSL_RC4(&rc4Key, 0, NULL, enc);
+    wolfSSL_RC4(NULL, 0, data, enc);
+
+    ExpectIntEQ(1, 1);
+    for (i = 0; EXPECT_SUCCESS() && (i <= sizeof(key)); i++) {
+        for (j = 0; EXPECT_SUCCESS() && (j <= sizeof(data)); j++) {
+            XMEMSET(enc, 0, sizeof(enc));
+            XMEMSET(dec, 0, sizeof(dec));
+
+            /* Encrypt */
+            wolfSSL_RC4_set_key(&rc4Key, i, key);
+            wolfSSL_RC4(&rc4Key, j, data, enc);
+            /* Decrypt */
+            wolfSSL_RC4_set_key(&rc4Key, i, key);
+            wolfSSL_RC4(&rc4Key, j, enc, dec);
+
+            ExpectIntEQ(XMEMCMP(dec, data, j), 0);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_OBJ(void)
 {
@@ -44081,27 +45962,6 @@ static int test_wolfSSL_sk_DIST_POINT(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_MD4(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_MD4)
-    MD4_CTX md4;
-    unsigned char out[16]; /* MD4_DIGEST_SIZE */
-    const char* msg = "12345678901234567890123456789012345678901234567890123456"
-                      "789012345678901234567890";
-    const char* test = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f"
-                       "\xcc\x05\x36";
-    int msgSz = (int)XSTRLEN(msg);
-
-
-    XMEMSET(out, 0, sizeof(out));
-    MD4_Init(&md4);
-    MD4_Update(&md4, (const void*)msg, (unsigned long)msgSz);
-    MD4_Final(out, &md4);
-    ExpectIntEQ(XMEMCMP(out, test, sizeof(out)), 0);
-#endif
-    return EXPECT_RESULT();
-}
 
 
 static int test_wolfSSL_verify_mode(void)
@@ -44219,188 +46079,6 @@ static int test_wolfSSL_verify_result(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
-/* helper function for test_wolfSSL_HMAC_CTX, digest size is expected to be a
- * buffer of 64 bytes.
- *
- * returns the size of the digest buffer on success and a negative value on
- * failure.
- */
-static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
-    int* sz)
-{
-    EXPECT_DECLS;
-    HMAC_CTX ctx1;
-    HMAC_CTX ctx2;
-
-    unsigned char key[] = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
-                          "\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
-    unsigned char long_key[] =
-        "0123456789012345678901234567890123456789"
-        "0123456789012345678901234567890123456789"
-        "0123456789012345678901234567890123456789"
-        "0123456789012345678901234567890123456789";
-
-    unsigned char msg[] = "message to hash";
-    unsigned int  digestSz = 64;
-    int keySz = sizeof(key);
-    int long_keySz = sizeof(long_key);
-    int msgSz = sizeof(msg);
-
-    unsigned char digest2[64];
-    unsigned int digestSz2 = 64;
-
-    HMAC_CTX_init(&ctx1);
-
-    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
-
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx1);
-
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz2), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx2);
-
-    ExpectIntEQ(digestSz, digestSz2);
-    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
-
-    /* test HMAC_Init with NULL key */
-
-    /* init after copy */
-    HMAC_CTX_init(&ctx1);
-    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
-
-    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx1);
-
-    ExpectIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx2);
-
-    ExpectIntEQ(digestSz, digestSz2);
-    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
-
-    /* long key */
-    HMAC_CTX_init(&ctx1);
-    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)long_key, long_keySz, type), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
-
-    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx1);
-
-    ExpectIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx2);
-
-    ExpectIntEQ(digestSz, digestSz2);
-    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
-
-    /* init before copy */
-    HMAC_CTX_init(&ctx1);
-    ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
-
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx1);
-
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
-    ExpectIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-    HMAC_CTX_cleanup(&ctx2);
-
-    ExpectIntEQ(digestSz, digestSz2);
-    ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
-
-    *sz = digestSz;
-    return EXPECT_RESULT();
-}
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */
-
-static int test_wolfSSL_HMAC_CTX(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
-    unsigned char digest[64];
-    int digestSz;
-
-    #ifndef NO_SHA
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha1(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 20);
-    ExpectIntEQ(XMEMCMP("\xD9\x68\x77\x23\x70\xFB\x53\x70\x53\xBA\x0E\xDC\xDA"
-                          "\xBF\x03\x98\x31\x19\xB2\xCC", digest, digestSz), 0);
-    #endif /* !NO_SHA */
-    #ifdef WOLFSSL_SHA224
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha224(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 28);
-    ExpectIntEQ(XMEMCMP("\x57\xFD\xF4\xE1\x2D\xB0\x79\xD7\x4B\x25\x7E\xB1\x95"
-                          "\x9C\x11\xAC\x2D\x1E\x78\x94\x4F\x3A\x0F\xED\xF8\xAD"
-                          "\x02\x0E", digest, digestSz), 0);
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha256(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 32);
-    ExpectIntEQ(XMEMCMP("\x13\xAB\x76\x91\x0C\x37\x86\x8D\xB3\x7E\x30\x0C\xFC"
-                          "\xB0\x2E\x8E\x4A\xD7\xD4\x25\xCC\x3A\xA9\x0F\xA2\xF2"
-                          "\x47\x1E\x62\x6F\x5D\xF2", digest, digestSz), 0);
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha384(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 48);
-    ExpectIntEQ(XMEMCMP("\x9E\xCB\x07\x0C\x11\x76\x3F\x23\xC3\x25\x0E\xC4\xB7"
-                          "\x28\x77\x95\x99\xD5\x9D\x7A\xBB\x1A\x9F\xB7\xFD\x25"
-                          "\xC9\x72\x47\x9F\x8F\x86\x76\xD6\x20\x57\x87\xB7\xE7"
-                          "\xCD\xFB\xC2\xCC\x9F\x2B\xC5\x41\xAB",
-                          digest, digestSz), 0);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_sha512(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 64);
-    ExpectIntEQ(XMEMCMP("\xD4\x21\x0C\x8B\x60\x6F\xF4\xBF\x07\x2F\x26\xCC\xAD"
-                          "\xBC\x06\x0B\x34\x78\x8B\x4F\xD6\xC0\x42\xF1\x33\x10"
-                          "\x6C\x4F\x1E\x55\x59\xDD\x2A\x9F\x15\x88\x62\xF8\x60"
-                          "\xA3\x99\x91\xE2\x08\x7B\xF7\x95\x3A\xB0\x92\x48\x60"
-                          "\x88\x8B\x5B\xB8\x5F\xE9\xB6\xB1\x96\xE3\xB5\xF0",
-                          digest, digestSz), 0);
-    #endif /* WOLFSSL_SHA512 */
-
-    #if !defined(NO_MD5) && (!defined(HAVE_FIPS_VERSION) || \
-        HAVE_FIPS_VERSION <= 2)
-    ExpectIntEQ((test_HMAC_CTX_helper(EVP_md5(), digest, &digestSz)),
-        TEST_SUCCESS);
-    ExpectIntEQ(digestSz, 16);
-    ExpectIntEQ(XMEMCMP("\xB7\x27\xC4\x41\xE5\x2E\x62\xBA\x54\xED\x72\x70\x9F"
-                          "\xE4\x98\xDD", digest, digestSz), 0);
-    #endif /* !NO_MD5 */
-#endif
-    return EXPECT_RESULT();
-}
-
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
 static void sslMsgCb(int w, int version, int type, const void* buf,
         size_t sz, SSL* ssl, void* arg)
@@ -44435,101 +46113,6 @@ static int test_wolfSSL_msg_callback(void)
 #endif
     return EXPECT_RESULT();
 }
-
-static int test_wolfSSL_SHA(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
-    #if !defined(NO_SHA) && defined(NO_OLD_SHA_NAMES) && \
-        (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-    {
-        const unsigned char in[] = "abc";
-        unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"
-                                   "\x25\x71\x78\x50\xC2\x6C\x9C\xD0\xD8\x9D";
-        unsigned char out[WC_SHA_DIGEST_SIZE];
-
-        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
-        ExpectNotNull(SHA1(in, XSTRLEN((char*)in), out));
-        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
-
-        /* SHA interface test */
-        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
-
-        ExpectNull(SHA(NULL, XSTRLEN((char*)in), out));
-        ExpectNotNull(SHA(in, 0, out));
-        ExpectNotNull(SHA(in, XSTRLEN((char*)in), NULL));
-        ExpectNotNull(SHA(NULL, 0, out));
-        ExpectNotNull(SHA(NULL, 0, NULL));
-
-        ExpectNotNull(SHA(in, XSTRLEN((char*)in), out));
-        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
-    }
-    #endif
-
-    #if !defined(NO_SHA256)
-    {
-        const unsigned char in[] = "abc";
-        unsigned char expected[] =
-            "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
-            "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
-            "\x15\xAD";
-        unsigned char out[WC_SHA256_DIGEST_SIZE];
-
-        XMEMSET(out, 0, WC_SHA256_DIGEST_SIZE);
-#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
-        ExpectNotNull(SHA256(in, XSTRLEN((char*)in), out));
-#else
-        ExpectNotNull(wolfSSL_SHA256(in, XSTRLEN((char*)in), out));
-#endif
-        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA256_DIGEST_SIZE), 0);
-    }
-    #endif
-
-    #if defined(WOLFSSL_SHA384)
-    {
-        const unsigned char in[] = "abc";
-        unsigned char expected[] =
-            "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
-            "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
-            "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
-            "\xc8\x25\xa7";
-        unsigned char out[WC_SHA384_DIGEST_SIZE];
-
-        XMEMSET(out, 0, WC_SHA384_DIGEST_SIZE);
-#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
-        ExpectNotNull(SHA384(in, XSTRLEN((char*)in), out));
-#else
-        ExpectNotNull(wolfSSL_SHA384(in, XSTRLEN((char*)in), out));
-#endif
-        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA384_DIGEST_SIZE), 0);
-    }
-    #endif
-
-    #if defined(WOLFSSL_SHA512)
-    {
-        const unsigned char in[] = "abc";
-        unsigned char expected[] =
-            "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
-            "\x31\x12\xe6\xfa\x4e\x89\xa9\x7e\xa2\x0a\x9e\xee\xe6\x4b\x55"
-            "\xd3\x9a\x21\x92\x99\x2a\x27\x4f\xc1\xa8\x36\xba\x3c\x23\xa3"
-            "\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f"
-            "\xa5\x4c\xa4\x9f";
-        unsigned char out[WC_SHA512_DIGEST_SIZE];
-
-        XMEMSET(out, 0, WC_SHA512_DIGEST_SIZE);
-#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
-        ExpectNotNull(SHA512(in, XSTRLEN((char*)in), out));
-#else
-        ExpectNotNull(wolfSSL_SHA512(in, XSTRLEN((char*)in), out));
-#endif
-        ExpectIntEQ(XMEMCMP(out, expected, WC_SHA512_DIGEST_SIZE), 0);
-    }
-    #endif
-#endif
-    return EXPECT_RESULT();
-}
-
 
 /* test_EVP_Cipher_extra, Extra-test on EVP_CipherUpdate/Final. see also test.c */
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) &&\
@@ -44830,462 +46413,6 @@ static int test_wolfSSL_PEM_read_DHparams(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_AES_ecb_encrypt(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
-    AES_KEY aes;
-    const byte msg[] =
-    {
-      0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-      0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
-    };
-
-    const byte verify[] =
-    {
-        0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
-        0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
-    };
-
-    const byte key[] =
-    {
-      0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
-      0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
-      0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-      0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
-    };
-
-
-    byte out[AES_BLOCK_SIZE];
-
-    ExpectIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aes), 0);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    AES_ecb_encrypt(msg, out, &aes, AES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(out, verify, AES_BLOCK_SIZE), 0);
-
-#ifdef HAVE_AES_DECRYPT
-    ExpectIntEQ(AES_set_decrypt_key(key, sizeof(key)*8, &aes), 0);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    AES_ecb_encrypt(verify, out, &aes, AES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(out, msg, AES_BLOCK_SIZE), 0);
-#endif
-
-    /* test bad arguments */
-    AES_ecb_encrypt(NULL, out, &aes, AES_DECRYPT);
-    AES_ecb_encrypt(verify, NULL, &aes, AES_DECRYPT);
-    AES_ecb_encrypt(verify, out, NULL, AES_DECRYPT);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_MD5(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
-    byte input1[] = "";
-    byte input2[] = "message digest";
-    byte hash[WC_MD5_DIGEST_SIZE];
-    unsigned char output1[] =
-        "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42\x7e";
-    unsigned char output2[] =
-        "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d\x52\x5a\x2f\x31\xaa\xf1\x61\xd0";
-    WOLFSSL_MD5_CTX md5;
-
-    XMEMSET(&md5, 0, sizeof(md5));
-
-    /* Test cases for illegal parameters */
-    ExpectIntEQ(MD5_Init(NULL), 0);
-    ExpectIntEQ(MD5_Init(&md5), 1);
-    ExpectIntEQ(MD5_Update(NULL, input1, 0), 0);
-    ExpectIntEQ(MD5_Update(NULL, NULL, 0), 0);
-    ExpectIntEQ(MD5_Update(&md5, NULL, 1), 0);
-    ExpectIntEQ(MD5_Final(NULL, &md5), 0);
-    ExpectIntEQ(MD5_Final(hash, NULL), 0);
-    ExpectIntEQ(MD5_Final(NULL, NULL), 0);
-
-    /* Init MD5 CTX */
-    ExpectIntEQ(wolfSSL_MD5_Init(&md5), 1);
-    ExpectIntEQ(wolfSSL_MD5_Update(&md5, input1, XSTRLEN((const char*)&input1)),
-        1);
-    ExpectIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
-    ExpectIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
-
-    /* Init MD5 CTX */
-    ExpectIntEQ(wolfSSL_MD5_Init(&md5), 1);
-    ExpectIntEQ(wolfSSL_MD5_Update(&md5, input2,
-        (int)XSTRLEN((const char*)input2)), 1);
-    ExpectIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
-    ExpectIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
-#if !defined(NO_OLD_NAMES) && \
-  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
-    ExpectPtrNE(MD5(NULL, 1, (byte*)&hash), &hash);
-    ExpectPtrEq(MD5(input1, 0, (byte*)&hash), &hash);
-    ExpectPtrNE(MD5(input1, 1, NULL), NULL);
-    ExpectPtrNE(MD5(NULL, 0, NULL), NULL);
-
-    ExpectPtrEq(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash),
-        &hash);
-    ExpectIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
-
-    ExpectPtrEq(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash),
-        &hash);
-    ExpectIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
-    {
-        byte data[] = "Data to be hashed.";
-        XMEMSET(hash, 0, WC_MD5_DIGEST_SIZE);
-
-        ExpectNotNull(MD5(data, sizeof(data), NULL));
-        ExpectNotNull(MD5(data, sizeof(data), hash));
-        ExpectNotNull(MD5(NULL, 0, hash));
-        ExpectNull(MD5(NULL, sizeof(data), hash));
-    }
-#endif
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_MD5_Transform(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
-    byte input1[] = "";
-    byte input2[] = "abc";
-    byte local[WC_MD5_BLOCK_SIZE];
-    word32 sLen = 0;
-#ifdef BIG_ENDIAN_ORDER
-    unsigned char output1[] =
-        "\x03\x1f\x1d\xac\x6e\xa5\x8e\xd0\x1f\xab\x67\xb7\x74\x31\x77\x91";
-    unsigned char output2[] =
-        "\xef\xd3\x79\x8d\x67\x17\x25\x90\xa4\x13\x79\xc7\xe3\xa7\x7b\xbc";
-#else
-    unsigned char output1[] =
-        "\xac\x1d\x1f\x03\xd0\x8e\xa5\x6e\xb7\x67\xab\x1f\x91\x77\x31\x74";
-    unsigned char output2[] =
-        "\x8d\x79\xd3\xef\x90\x25\x17\x67\xc7\x79\x13\xa4\xbc\x7b\xa7\xe3";
-#endif
-
-    union {
-        wc_Md5 native;
-        MD5_CTX compat;
-    } md5;
-
-    XMEMSET(&md5.compat, 0, sizeof(md5.compat));
-    XMEMSET(&local, 0, sizeof(local));
-
-    /* sanity check */
-    ExpectIntEQ(MD5_Transform(NULL, NULL), 0);
-    ExpectIntEQ(MD5_Transform(NULL, (const byte*)&input1), 0);
-    ExpectIntEQ(MD5_Transform(&md5.compat, NULL), 0);
-    ExpectIntEQ(wc_Md5Transform(NULL, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Md5Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Md5Transform(&md5.native, NULL), BAD_FUNC_ARG);
-
-    /* Init MD5 CTX */
-    ExpectIntEQ(wolfSSL_MD5_Init(&md5.compat), 1);
-    /* Do Transform*/
-    sLen = (word32)XSTRLEN((char*)input1);
-    XMEMCPY(local, input1, sLen);
-    ExpectIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
-
-    ExpectIntEQ(XMEMCMP(md5.native.digest, output1, WC_MD5_DIGEST_SIZE), 0);
-
-    /* Init MD5 CTX */
-    ExpectIntEQ(MD5_Init(&md5.compat), 1);
-    sLen = (word32)XSTRLEN((char*)input2);
-    XMEMSET(local, 0, WC_MD5_BLOCK_SIZE);
-    XMEMCPY(local, input2, sLen);
-    ExpectIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(md5.native.digest, output2, WC_MD5_DIGEST_SIZE), 0);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_SHA224(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA224) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-    unsigned char input[] =
-        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
-    unsigned char output[] =
-         "\x75\x38\x8b\x16\x51\x27\x76\xcc\x5d\xba\x5d\xa1\xfd\x89\x01"
-         "\x50\xb0\xc6\x45\x5c\xb4\xf5\x8b\x19\x52\x52\x25\x25";
-    size_t inLen;
-    byte hash[WC_SHA224_DIGEST_SIZE];
-
-    inLen  = XSTRLEN((char*)input);
-
-    XMEMSET(hash, 0, WC_SHA224_DIGEST_SIZE);
-
-    ExpectNull(SHA224(NULL, inLen, hash));
-    ExpectNotNull(SHA224(input, 0, hash));
-    ExpectNotNull(SHA224(input, inLen, NULL));
-    ExpectNotNull(SHA224(NULL, 0, hash));
-    ExpectNotNull(SHA224(NULL, 0, NULL));
-
-    ExpectNotNull(SHA224(input, inLen, hash));
-    ExpectIntEQ(XMEMCMP(hash, output, WC_SHA224_DIGEST_SIZE), 0);
-#endif
-    return EXPECT_RESULT();
-}
-static int test_wolfSSL_SHA_Transform(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
-    byte input1[] = "";
-    byte input2[] = "abc";
-    byte local[WC_SHA_BLOCK_SIZE];
-    word32 sLen = 0;
-#ifdef BIG_ENDIAN_ORDER
-    unsigned char output1[] =
-        "\x92\xb4\x04\xe5\x56\x58\x8c\xed\x6c\x1a\xcd\x4e\xbf\x05\x3f\x68"
-        "\x09\xf7\x3a\x93";
-    unsigned char output2[] =
-        "\x97\xb2\x74\x8b\x4f\x5b\xbc\xca\x5b\xc0\xe6\xea\x2d\x40\xb4\xa0"
-        "\x7c\x6e\x08\xb8";
-#else
-    unsigned char output1[] =
-        "\xe5\x04\xb4\x92\xed\x8c\x58\x56\x4e\xcd\x1a\x6c\x68\x3f\x05\xbf"
-        "\x93\x3a\xf7\x09";
-    unsigned char output2[] =
-        "\x8b\x74\xb2\x97\xca\xbc\x5b\x4f\xea\xe6\xc0\x5b\xa0\xb4\x40\x2d"
-        "\xb8\x08\x6e\x7c";
-#endif
-
-    union {
-        wc_Sha native;
-        SHA_CTX compat;
-    } sha;
-    union {
-        wc_Sha native;
-        SHA_CTX compat;
-    } sha1;
-
-    XMEMSET(&sha.compat, 0, sizeof(sha.compat));
-    XMEMSET(&local, 0, sizeof(local));
-
-    /* sanity check */
-    ExpectIntEQ(SHA_Transform(NULL, NULL), 0);
-    ExpectIntEQ(SHA_Transform(NULL, (const byte*)&input1), 0);
-    ExpectIntEQ(SHA_Transform(&sha.compat, NULL), 0);
-    ExpectIntEQ(SHA1_Transform(NULL, NULL), 0);
-    ExpectIntEQ(SHA1_Transform(NULL, (const byte*)&input1), 0);
-    ExpectIntEQ(SHA1_Transform(&sha.compat, NULL), 0);
-    ExpectIntEQ(wc_ShaTransform(NULL, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ShaTransform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ShaTransform(&sha.native, NULL), BAD_FUNC_ARG);
-
-    /* Init SHA CTX */
-    ExpectIntEQ(SHA_Init(&sha.compat), 1);
-    /* Do Transform*/
-    sLen = (word32)XSTRLEN((char*)input1);
-    XMEMCPY(local, input1, sLen);
-    ExpectIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha.native.digest, output1, WC_SHA_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
-
-    /* Init SHA CTX */
-    ExpectIntEQ(SHA_Init(&sha.compat), 1);
-    sLen = (word32)XSTRLEN((char*)input2);
-    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
-    XMEMCPY(local, input2, sLen);
-    ExpectIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha.native.digest, output2, WC_SHA_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
-
-    /* SHA1 */
-    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
-    /* Init SHA CTX */
-    ExpectIntEQ(SHA1_Init(&sha1.compat), 1);
-    /* Do Transform*/
-    sLen = (word32)XSTRLEN((char*)input1);
-    XMEMCPY(local, input1, sLen);
-    ExpectIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha1.native.digest, output1, WC_SHA_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA_Final(local, &sha1.compat), 1); /* frees resources */
-
-    /* Init SHA CTX */
-    ExpectIntEQ(SHA1_Init(&sha1.compat), 1);
-    sLen = (word32)XSTRLEN((char*)input2);
-    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
-    XMEMCPY(local, input2, sLen);
-    ExpectIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha1.native.digest, output2, WC_SHA_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA_Final(local, &sha1.compat), 1); /* frees resources */
-#endif
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_SHA256_Transform(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
-        !defined(WOLFSSL_DEVCRYPTO_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
-        !defined(WOLFSSL_KCAPI_HASH)
-    byte input1[] = "";
-    byte input2[] = "abc";
-    byte local[WC_SHA256_BLOCK_SIZE];
-    word32 sLen = 0;
-#ifdef BIG_ENDIAN_ORDER
-    unsigned char output1[] =
-        "\xda\x56\x98\xbe\x17\xb9\xb4\x69\x62\x33\x57\x99\x77\x9f\xbe\xca"
-        "\x8c\xe5\xd4\x91\xc0\xd2\x62\x43\xba\xfe\xf9\xea\x18\x37\xa9\xd8";
-    unsigned char output2[] =
-        "\x1d\x4e\xd4\x67\x67\x7c\x61\x67\x44\x10\x76\x26\x78\x10\xff\xb8"
-        "\x40\xc8\x9a\x39\x73\x16\x60\x8c\xa6\x61\xd6\x05\x91\xf2\x8c\x35";
-#else
-    unsigned char output1[] =
-        "\xbe\x98\x56\xda\x69\xb4\xb9\x17\x99\x57\x33\x62\xca\xbe\x9f\x77"
-        "\x91\xd4\xe5\x8c\x43\x62\xd2\xc0\xea\xf9\xfe\xba\xd8\xa9\x37\x18";
-    unsigned char output2[] =
-        "\x67\xd4\x4e\x1d\x67\x61\x7c\x67\x26\x76\x10\x44\xb8\xff\x10\x78"
-        "\x39\x9a\xc8\x40\x8c\x60\x16\x73\x05\xd6\x61\xa6\x35\x8c\xf2\x91";
-#endif
-    union {
-        wc_Sha256 native;
-        SHA256_CTX compat;
-    } sha256;
-
-    XMEMSET(&sha256.compat, 0, sizeof(sha256.compat));
-    XMEMSET(&local, 0, sizeof(local));
-
-    /* sanity check */
-    ExpectIntEQ(SHA256_Transform(NULL, NULL), 0);
-    ExpectIntEQ(SHA256_Transform(NULL, (const byte*)&input1), 0);
-    ExpectIntEQ(SHA256_Transform(&sha256.compat, NULL), 0);
-    ExpectIntEQ(wc_Sha256Transform(NULL, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Sha256Transform(&sha256.native, NULL), BAD_FUNC_ARG);
-
-    /* Init SHA256 CTX */
-    ExpectIntEQ(SHA256_Init(&sha256.compat), 1);
-    /* Do Transform*/
-    sLen = (word32)XSTRLEN((char*)input1);
-    XMEMCPY(local, input1, sLen);
-    ExpectIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha256.native.digest, output1, WC_SHA256_DIGEST_SIZE),
-        0);
-    ExpectIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
-
-    /* Init SHA256 CTX */
-    ExpectIntEQ(SHA256_Init(&sha256.compat), 1);
-    sLen = (word32)XSTRLEN((char*)input2);
-    XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
-    XMEMCPY(local, input2, sLen);
-    ExpectIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha256.native.digest, output2, WC_SHA256_DIGEST_SIZE),
-        0);
-    ExpectIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
-#endif
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_SHA256(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
-    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    unsigned char input[] =
-        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
-    unsigned char output[] =
-        "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
-        "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
-        "\x06\xC1";
-    size_t inLen;
-    byte hash[WC_SHA256_DIGEST_SIZE];
-
-    inLen  = XSTRLEN((char*)input);
-
-    XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
-    ExpectNotNull(SHA256(input, inLen, hash));
-    ExpectIntEQ(XMEMCMP(hash, output, WC_SHA256_DIGEST_SIZE), 0);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_SHA512_Transform(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512)
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
-        !defined(WOLFSSL_KCAPI_HASH)
-    byte input1[] = "";
-    byte input2[] = "abc";
-    byte local[WC_SHA512_BLOCK_SIZE];
-    word32 sLen = 0;
-#ifdef BIG_ENDIAN_ORDER
-    unsigned char output1[] =
-        "\xcf\x78\x81\xd5\x77\x4a\xcb\xe8\x53\x33\x62\xe0\xfb\xc7\x80\x70"
-        "\x02\x67\x63\x9d\x87\x46\x0e\xda\x30\x86\xcb\x40\xe8\x59\x31\xb0"
-        "\x71\x7d\xc9\x52\x88\xa0\x23\xa3\x96\xba\xb2\xc1\x4c\xe0\xb5\xe0"
-        "\x6f\xc4\xfe\x04\xea\xe3\x3e\x0b\x91\xf4\xd8\x0c\xbd\x66\x8b\xee";
-   unsigned char output2[] =
-        "\x11\x10\x93\x4e\xeb\xa0\xcc\x0d\xfd\x33\x43\x9c\xfb\x04\xc8\x21"
-        "\xa9\xb4\x26\x3d\xca\xab\x31\x41\xe2\xc6\xaa\xaf\xe1\x67\xd7\xab"
-        "\x31\x8f\x2e\x54\x2c\xba\x4e\x83\xbe\x88\xec\x9d\x8f\x2b\x38\x98"
-        "\x14\xd2\x4e\x9d\x53\x8b\x5e\x4d\xde\x68\x6c\x69\xaf\x20\x96\xf0";
-#else
-    unsigned char output1[] =
-        "\xe8\xcb\x4a\x77\xd5\x81\x78\xcf\x70\x80\xc7\xfb\xe0\x62\x33\x53"
-        "\xda\x0e\x46\x87\x9d\x63\x67\x02\xb0\x31\x59\xe8\x40\xcb\x86\x30"
-        "\xa3\x23\xa0\x88\x52\xc9\x7d\x71\xe0\xb5\xe0\x4c\xc1\xb2\xba\x96"
-        "\x0b\x3e\xe3\xea\x04\xfe\xc4\x6f\xee\x8b\x66\xbd\x0c\xd8\xf4\x91";
-   unsigned char output2[] =
-        "\x0d\xcc\xa0\xeb\x4e\x93\x10\x11\x21\xc8\x04\xfb\x9c\x43\x33\xfd"
-        "\x41\x31\xab\xca\x3d\x26\xb4\xa9\xab\xd7\x67\xe1\xaf\xaa\xc6\xe2"
-        "\x83\x4e\xba\x2c\x54\x2e\x8f\x31\x98\x38\x2b\x8f\x9d\xec\x88\xbe"
-        "\x4d\x5e\x8b\x53\x9d\x4e\xd2\x14\xf0\x96\x20\xaf\x69\x6c\x68\xde";
-#endif
-    union {
-        wc_Sha512 native;
-        SHA512_CTX compat;
-    } sha512;
-
-    XMEMSET(&sha512.compat, 0, sizeof(sha512.compat));
-    XMEMSET(&local, 0, sizeof(local));
-
-    /* sanity check */
-    ExpectIntEQ(SHA512_Transform(NULL, NULL), 0);
-    ExpectIntEQ(SHA512_Transform(NULL, (const byte*)&input1), 0);
-    ExpectIntEQ(SHA512_Transform(&sha512.compat, NULL), 0);
-    ExpectIntEQ(wc_Sha512Transform(NULL, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Sha512Transform(&sha512.native, NULL), BAD_FUNC_ARG);
-
-    /* Init SHA512 CTX */
-    ExpectIntEQ(wolfSSL_SHA512_Init(&sha512.compat), 1);
-
-    /* Do Transform*/
-    sLen = (word32)XSTRLEN((char*)input1);
-    XMEMCPY(local, input1, sLen);
-    ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha512.native.digest, output1,
-                                                    WC_SHA512_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
-
-    /* Init SHA512 CTX */
-    ExpectIntEQ(SHA512_Init(&sha512.compat), 1);
-    sLen = (word32)XSTRLEN((char*)input2);
-    XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
-    XMEMCPY(local, input2, sLen);
-    ExpectIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
-    ExpectIntEQ(XMEMCMP(sha512.native.digest, output2,
-                                                    WC_SHA512_DIGEST_SIZE), 0);
-    ExpectIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
-
-    (void)input1;
-#endif
-#endif
-    return EXPECT_RESULT();
-}
 
 static int test_wolfSSL_X509_get_serialNumber(void)
 {
@@ -45675,373 +46802,6 @@ static int test_wolfSSL_X509_get_version(void)
     ExpectIntEQ((int)wolfSSL_X509_get_version(x509), 2);
     wolfSSL_X509_free(x509);
 #endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_DES_ncbc(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
-    const_DES_cblock myDes;
-    DES_cblock iv = {1};
-    DES_key_schedule key = {0};
-    unsigned char msg[] = "hello wolfssl";
-    unsigned char out[DES_BLOCK_SIZE * 2] = {0};
-    unsigned char pln[DES_BLOCK_SIZE * 2] = {0};
-
-    unsigned char exp[]  = {0x31, 0x98, 0x2F, 0x3A, 0x55, 0xBF, 0xD8, 0xC4};
-    unsigned char exp2[] = {0xC7, 0x45, 0x8B, 0x28, 0x10, 0x53, 0xE0, 0x58};
-
-    /* partial block test */
-    DES_set_key(&key, &myDes);
-    DES_ncbc_encrypt(msg, out, 3, &myDes, &iv, DES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(exp, out, DES_BLOCK_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
-
-    DES_set_key(&key, &myDes);
-    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
-    *((byte*)&iv) = 1;
-    DES_ncbc_encrypt(out, pln, 3, &myDes, &iv, DES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(msg, pln, 3), 0);
-    ExpectIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
-
-    /* full block test */
-    DES_set_key(&key, &myDes);
-    XMEMSET(pln, 0, DES_BLOCK_SIZE);
-    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
-    *((byte*)&iv) = 1;
-    DES_ncbc_encrypt(msg, out, 8, &myDes, &iv, DES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(exp2, out, DES_BLOCK_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
-
-    DES_set_key(&key, &myDes);
-    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
-    *((byte*)&iv) = 1;
-    DES_ncbc_encrypt(out, pln, 8, &myDes, &iv, DES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(msg, pln, 8), 0);
-    ExpectIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_AES_cbc_encrypt(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA)
-    AES_KEY aes;
-    AES_KEY* aesN = NULL;
-    size_t len = 0;
-    size_t lenB = 0;
-    int keySz0 = 0;
-    int keySzN = -1;
-    byte out[AES_BLOCK_SIZE] = {0};
-    byte* outN = NULL;
-
-    /* Test vectors retrieved from:
-     *   <begin URL>
-     *       https://csrc.nist.gov/
-     *       CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/
-     *       documents/aes/KAT_AES.zip
-     *   </end URL>
-     */
-    const byte* pt128N  = NULL;
-    byte* key128N       = NULL;
-    byte* iv128N        = NULL;
-    byte iv128tmp[AES_BLOCK_SIZE] = {0};
-
-    const byte pt128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
-
-    const byte ct128[]  = { 0x87,0x85,0xb1,0xa7,0x5b,0x0f,0x3b,0xd9,
-                            0x58,0xdc,0xd0,0xe2,0x93,0x18,0xc5,0x21 };
-
-    const byte iv128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
-
-    byte key128[]       = { 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-                            0xff,0xff,0xf0,0x00,0x00,0x00,0x00,0x00 };
-
-
-    len = sizeof(pt128);
-
-    #define STRESS_T(a, b, c, d, e, f, g, h, i) \
-            wolfSSL_AES_cbc_encrypt(a, b, c, d, e, f); \
-            ExpectIntNE(XMEMCMP(b, g, h), i)
-
-    #define RESET_IV(x, y) XMEMCPY(x, y, AES_BLOCK_SIZE)
-
-    /* Stressing wolfSSL_AES_cbc_encrypt() */
-    STRESS_T(pt128N, out, len, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
-    STRESS_T(pt128, out, len, &aes, iv128N, 1, ct128, AES_BLOCK_SIZE, 0);
-
-    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128tmp, AES_ENCRYPT);
-    ExpectIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128tmp, AES_ENCRYPT);
-    ExpectIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
-
-    STRESS_T(pt128, out, lenB, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
-
-    /* Stressing wolfSSL_AES_set_encrypt_key */
-    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),0);
-    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, aesN),0);
-    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, keySz0, &aes), 0);
-    ExpectIntNE(wolfSSL_AES_set_encrypt_key(key128, keySzN, &aes), 0);
-
-    /* Stressing wolfSSL_AES_set_decrypt_key */
-    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, &aes),0);
-    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, aesN),0);
-    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128, keySz0, &aes), 0);
-    ExpectIntNE(wolfSSL_AES_set_decrypt_key(key128, keySzN, &aes), 0);
-
-  #ifdef WOLFSSL_AES_128
-
-    /* wolfSSL_AES_cbc_encrypt() 128-bit */
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    RESET_IV(iv128tmp, iv128);
-
-    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, AES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #ifdef HAVE_AES_DECRYPT
-
-    /* wolfSSL_AES_cbc_encrypt() 128-bit in decrypt mode */
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    RESET_IV(iv128tmp, iv128);
-    len = sizeof(ct128);
-
-    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, AES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #endif
-
-  #endif /* WOLFSSL_AES_128 */
-  #ifdef WOLFSSL_AES_192
-  {
-    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition
-     * Appendix F.2.3  */
-
-    byte iv192tmp[AES_BLOCK_SIZE] = {0};
-
-    const byte pt192[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
-
-    const byte ct192[]  = { 0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
-                            0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8 };
-
-    const byte iv192[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
-
-    byte key192[]       = { 0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
-                            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
-                            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b };
-
-    len = sizeof(pt192);
-
-    /* wolfSSL_AES_cbc_encrypt() 192-bit */
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    RESET_IV(iv192tmp, iv192);
-
-    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key192, sizeof(key192)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, AES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(out, ct192, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #ifdef HAVE_AES_DECRYPT
-
-    /* wolfSSL_AES_cbc_encrypt() 192-bit in decrypt mode */
-    len = sizeof(ct192);
-    RESET_IV(iv192tmp, iv192);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-
-    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, AES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #endif
-  }
-  #endif /* WOLFSSL_AES_192 */
-  #ifdef WOLFSSL_AES_256
-  {
-    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition,
-     * Appendix F.2.5  */
-    byte iv256tmp[AES_BLOCK_SIZE] = {0};
-
-    const byte pt256[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
-
-    const byte ct256[]  = { 0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
-                            0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6 };
-
-    const byte iv256[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
-
-    byte key256[]       = { 0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
-                            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
-                            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-                            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4 };
-
-
-    len = sizeof(pt256);
-
-    /* wolfSSL_AES_cbc_encrypt() 256-bit */
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    RESET_IV(iv256tmp, iv256);
-
-    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, AES_ENCRYPT);
-    ExpectIntEQ(XMEMCMP(out, ct256, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #ifdef HAVE_AES_DECRYPT
-
-    /* wolfSSL_AES_cbc_encrypt() 256-bit in decrypt mode */
-    len = sizeof(ct256);
-    RESET_IV(iv256tmp, iv256);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-
-    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, AES_DECRYPT);
-    ExpectIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
-    wc_AesFree((Aes*)&aes);
-
-    #endif
-
-    #if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    {
-    byte wrapCipher[sizeof(key256) + KEYWRAP_BLOCK_SIZE] = { 0 };
-    byte wrapPlain[sizeof(key256)] = { 0 };
-    byte wrapIV[KEYWRAP_BLOCK_SIZE] = { 0 };
-
-    /* wolfSSL_AES_wrap_key() 256-bit NULL iv */
-    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
-            15), WOLFSSL_FAILURE);
-    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
-            sizeof(key256)), sizeof(wrapCipher));
-    wc_AesFree((Aes*)&aes);
-
-    /* wolfSSL_AES_unwrap_key() 256-bit NULL iv */
-    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
-            23), WOLFSSL_FAILURE);
-    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
-            sizeof(wrapCipher)), sizeof(wrapPlain));
-    ExpectIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
-    XMEMSET(wrapCipher, 0, sizeof(wrapCipher));
-    XMEMSET(wrapPlain, 0, sizeof(wrapPlain));
-    wc_AesFree((Aes*)&aes);
-
-    /* wolfSSL_AES_wrap_key() 256-bit custom iv */
-    ExpectIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    ExpectIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapCipher, key256,
-            sizeof(key256)), sizeof(wrapCipher));
-    wc_AesFree((Aes*)&aes);
-
-    /* wolfSSL_AES_unwrap_key() 256-bit custom iv */
-    ExpectIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    ExpectIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, wrapPlain, wrapCipher,
-            sizeof(wrapCipher)), sizeof(wrapPlain));
-    ExpectIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
-    wc_AesFree((Aes*)&aes);
-    }
-    #endif /* HAVE_AES_KEYWRAP */
-  }
-  #endif /* WOLFSSL_AES_256 */
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wolfSSL_CRYPTO_cts128(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) && \
-    defined(HAVE_CTS)
-    byte tmp[64]; /* Largest vector size */
-    /* Test vectors taken form RFC3962 Appendix B */
-    const testVector vects[] = {
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20",
-            "\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
-            "\x97",
-            17, 17
-        },
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
-            "\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
-            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5",
-            31, 31
-        },
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
-            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
-            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
-            32, 32
-        },
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
-            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
-            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
-            "\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
-            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5",
-            47, 47
-        },
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
-            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
-            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
-            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
-            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8",
-            48, 48
-        },
-        {
-            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
-            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
-            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
-            "\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e",
-            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
-            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
-            "\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
-            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
-            64, 64
-        }
-    };
-    byte keyBytes[AES_128_KEY_SIZE] = {
-        0x63, 0x68, 0x69, 0x63, 0x6b, 0x65, 0x6e, 0x20,
-        0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
-    };
-    size_t i;
-
-    XMEMSET(tmp, 0, sizeof(tmp));
-    for (i = 0; i < sizeof(vects)/sizeof(vects[0]); i++) {
-        AES_KEY encKey;
-        AES_KEY decKey;
-        byte iv[AES_IV_SIZE]; /* All-zero IV for all cases */
-        XMEMSET(iv, 0, sizeof(iv));
-        ExpectIntEQ(AES_set_encrypt_key(keyBytes, AES_128_KEY_SIZE * 8,
-            &encKey), 0);
-        ExpectIntEQ(AES_set_decrypt_key(keyBytes, AES_128_KEY_SIZE * 8,
-            &decKey), 0);
-        ExpectIntEQ(CRYPTO_cts128_encrypt((const unsigned char*)vects[i].input,
-            tmp, vects[i].inLen, &encKey, iv, (cbc128_f)AES_cbc_encrypt),
-            vects[i].outLen);
-        ExpectIntEQ(XMEMCMP(tmp, vects[i].output, vects[i].outLen), 0);
-        XMEMSET(iv, 0, sizeof(iv));
-        ExpectIntEQ(CRYPTO_cts128_decrypt((const unsigned char*)vects[i].output,
-            tmp, vects[i].outLen, &decKey, iv, (cbc128_f)AES_cbc_encrypt),
-            vects[i].inLen);
-        ExpectIntEQ(XMEMCMP(tmp, vects[i].input, vects[i].inLen), 0);
-    }
-#endif /* !NO_AES && HAVE_AES_CBC && OPENSSL_EXTRA && HAVE_CTS */
     return EXPECT_RESULT();
 }
 
@@ -55131,12 +55891,6 @@ static int test_wolfSSL_dup_CA_list(void)
 #endif /* OPENSSL_ALL */
     return res;
 }
-/* include misc.c here regardless of NO_INLINE, because misc.c implementations
- * have default (hidden) visibility, and in the absence of visibility, it's
- * benign to mask out the library implementation.
- */
-#define WOLFSSL_MISC_INCLUDED
-#include <wolfcrypt/src/misc.c>
 
 static int test_ForceZero(void)
 {
@@ -67842,7 +68596,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_lhash),
 
     TEST_DECL(test_wolfSSL_certs),
-    TEST_DECL(test_wolfSSL_DES),
 
     TEST_DECL(test_wolfSSL_private_keys),
     TEST_DECL(test_wolfSSL_PEM_read_PrivateKey),
@@ -67920,6 +68673,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_evp_cipher_aes_gcm),
 #endif
+    TEST_DECL(test_wolfssl_EVP_aria_gcm),
     TEST_DECL(test_wolfSSL_EVP_Cipher_extra),
 #ifdef OPENSSL_EXTRA
     TEST_DECL(test_wolfSSL_EVP_get_cipherbynid),
@@ -68209,25 +68963,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_verify_result),
     TEST_DECL(test_wolfSSL_msg_callback),
 
-    TEST_DECL(test_wolfSSL_MD4),
-    TEST_DECL(test_wolfSSL_MD5),
-    TEST_DECL(test_wolfSSL_MD5_Transform),
-    TEST_DECL(test_wolfSSL_SHA),
-    TEST_DECL(test_wolfSSL_SHA_Transform),
-    TEST_DECL(test_wolfSSL_SHA224),
-    TEST_DECL(test_wolfSSL_SHA256),
-    TEST_DECL(test_wolfSSL_SHA256_Transform),
-    TEST_DECL(test_wolfSSL_SHA512_Transform),
-    TEST_DECL(test_wolfSSL_HMAC_CTX),
-    TEST_DECL(test_wolfSSL_HMAC),
-    TEST_DECL(test_wolfSSL_CMAC),
-
-    TEST_DECL(test_wolfSSL_DES_ecb_encrypt),
-    TEST_DECL(test_wolfSSL_DES_ncbc),
-    TEST_DECL(test_wolfSSL_AES_ecb_encrypt),
-    TEST_DECL(test_wolfSSL_AES_cbc_encrypt),
-    TEST_DECL(test_wolfSSL_CRYPTO_cts128),
-    TEST_DECL(test_wolfssl_EVP_aria_gcm),
     TEST_DECL(test_wolfSSL_OCSP_id_get0_info),
     TEST_DECL(test_wolfSSL_i2d_OCSP_CERTID),
     TEST_DECL(test_wolfSSL_d2i_OCSP_CERTID),
@@ -68269,6 +69004,36 @@ TEST_CASE testCases[] = {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     TEST_DECL(test_wolfSSL_CTX_use_certificate_ASN1),
 #endif /* (OPENSSL_ALL || WOLFSSL_ASIO) && !NO_RSA */
+
+    /*********************************
+     * Crypto API tests
+     *********************************/
+
+    TEST_DECL(test_wolfSSL_MD4),
+    TEST_DECL(test_wolfSSL_MD5),
+    TEST_DECL(test_wolfSSL_MD5_Transform),
+    TEST_DECL(test_wolfSSL_SHA),
+    TEST_DECL(test_wolfSSL_SHA_Transform),
+    TEST_DECL(test_wolfSSL_SHA224),
+    TEST_DECL(test_wolfSSL_SHA256),
+    TEST_DECL(test_wolfSSL_SHA256_Transform),
+    TEST_DECL(test_wolfSSL_SHA512_Transform),
+    TEST_DECL(test_wolfSSL_SHA512_224_Transform),
+    TEST_DECL(test_wolfSSL_SHA512_256_Transform),
+    TEST_DECL(test_wolfSSL_HMAC_CTX),
+    TEST_DECL(test_wolfSSL_HMAC),
+    TEST_DECL(test_wolfSSL_CMAC),
+
+    TEST_DECL(test_wolfSSL_DES),
+    TEST_DECL(test_wolfSSL_DES_ncbc),
+    TEST_DECL(test_wolfSSL_DES_ecb_encrypt),
+    TEST_DECL(test_wolfSSL_DES_ede3_cbc_encrypt),
+    TEST_DECL(test_wolfSSL_AES_encrypt),
+    TEST_DECL(test_wolfSSL_AES_ecb_encrypt),
+    TEST_DECL(test_wolfSSL_AES_cbc_encrypt),
+    TEST_DECL(test_wolfSSL_AES_cfb128_encrypt),
+    TEST_DECL(test_wolfSSL_CRYPTO_cts128),
+    TEST_DECL(test_wolfSSL_RC4),
 
     TEST_DECL(test_wolfSSL_RSA),
     TEST_DECL(test_wolfSSL_RSA_DER),
