@@ -875,7 +875,7 @@ AES_CBC_decrypt_AESNI_by8 ENDP
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-;	.	globl	AES_ECB_encrypt
+;	.	globl	AES_ECB_encrypt_AESNI
 AES_ECB_encrypt_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
@@ -1057,14 +1057,14 @@ EECB_END_4:
 AES_ECB_encrypt_AESNI ENDP
 
 ;	/*
-;	AES_ECB_decrypt[const	,unsigned	char*in
+;	AES_ECB_decrypt_AESNI[const	,unsigned	char*in
 ;	unsigned	,char*out
 ;	unsigned	,long	length
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-;	.	globl	AES_ECB_decrypt
-AES_ECB_decrypt PROC
+;	.	globl	AES_ECB_decrypt_AESNI
+AES_ECB_decrypt_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 ;#	parameter	3:	rdx
@@ -1250,7 +1250,7 @@ AES_ECB_decrypt_AESNI ENDP
 ;	unsigned	char*key_schedule]/
 ;	*/
 ;	.	align	16,0x90
-;	.	globl	AES_128_Key_Expansion
+;	.	globl	AES_128_Key_Expansion_AESNI
 AES_128_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
@@ -1328,7 +1328,7 @@ AES_128_Key_Expansion_AESNI ENDP
 ;	void	,AES_192_Key_Expansion_AESNI[const	unsigned	char*userkey
 ;	unsigned	char*key]
 ;	*/
-;	.	globl	AES_192_Key_Expansion
+;	.	globl	AES_192_Key_Expansion_AESNI
 AES_192_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
@@ -1432,7 +1432,7 @@ AES_192_Key_Expansion_AESNI ENDP
 ;	void	,AES_256_Key_Expansion_AESNI[const	unsigned	char*userkey
 ;	unsigned	char*key]
 ;	*/
-;	.	globl	AES_256_Key_Expansion
+;	.	globl	AES_256_Key_Expansion_AESNI
 AES_256_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
