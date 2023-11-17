@@ -2676,6 +2676,7 @@ static void* benchmarks_do(void* args)
 
 #ifndef NO_FILESYSTEM
     if (hash_input) {
+        int    rawSz;
         XFILE  file;
         file = XFOPEN(hash_input, "rb");
         if (file == XBADFILE)
@@ -2694,14 +2695,20 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        bench_plain = (byte*)XMALLOC((size_t)bench_buf_size,
+        rawSz = bench_buf_size;
+        if (bench_buf_size % 16)
+            bench_buf_size += 16 - (bench_buf_size % 16);
+
+        bench_size = bench_buf_size;
+
+        bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
         if (bench_plain == NULL)
             goto exit;
 
-        if ((size_t)XFREAD(bench_plain, 1, bench_buf_size, file)
-                != (size_t)bench_buf_size) {
+        if ((size_t)XFREAD(bench_plain, 1, rawSz, file)
+                != (size_t)rawSz) {
             XFCLOSE(file);
             goto exit;
         }
@@ -2711,6 +2718,7 @@ static void* benchmarks_do(void* args)
     }
 
     if (cipher_input) {
+        int    rawSz;
         XFILE  file;
         file = XFOPEN(cipher_input, "rb");
         if (file == XBADFILE)
@@ -2729,14 +2737,21 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size,
+        rawSz = bench_buf_size;
+        if (bench_buf_size % 16)
+            bench_buf_size += 16 - (bench_buf_size % 16);
+
+        if (bench_size > bench_buf_size)
+            bench_size = bench_buf_size;
+
+        bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
         if (bench_cipher == NULL)
             goto exit;
 
-        if ((size_t)XFREAD(bench_cipher, 1, bench_buf_size, file)
-                != (size_t)bench_buf_size) {
+        if ((size_t)XFREAD(bench_cipher, 1, rawSz, file)
+                != (size_t)rawSz) {
             XFCLOSE(file);
             goto exit;
         }
@@ -4351,9 +4366,9 @@ static void bench_aesecb_internal(int useDeviceID,
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
-    static const int benchSz = AES_BLOCK_SIZE;
+    const int benchSz = AES_BLOCK_SIZE;
 #else
-    static const int benchSz = BENCH_SIZE;
+    const int benchSz = (const int)bench_size;
 #endif
 
     /* clear for done cleanup */
