@@ -2695,11 +2695,11 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        rawSz = bench_buf_size;
+        rawSz = (int)bench_buf_size;
         if (bench_buf_size % 16)
             bench_buf_size += 16 - (bench_buf_size % 16);
 
-        bench_size = bench_buf_size;
+        bench_size = (word32)bench_buf_size;
 
         bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -2737,12 +2737,12 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        rawSz = bench_buf_size;
+        rawSz = (int)bench_buf_size;
         if (bench_buf_size % 16)
             bench_buf_size += 16 - (bench_buf_size % 16);
 
         if (bench_size > bench_buf_size)
-            bench_size = bench_buf_size;
+            bench_size = (word32)bench_buf_size;
 
         bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
