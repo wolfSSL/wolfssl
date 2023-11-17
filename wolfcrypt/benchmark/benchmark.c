@@ -4368,7 +4368,7 @@ static void bench_aesecb_internal(int useDeviceID,
 #ifdef HAVE_FIPS
     const int benchSz = AES_BLOCK_SIZE;
 #else
-    const int benchSz = (const int)bench_size;
+    const int benchSz = (int)bench_size;
 #endif
 
     /* clear for done cleanup */
