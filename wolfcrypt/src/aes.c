@@ -11093,6 +11093,16 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #endif /* !WOLFSSL_TI_CRYPT */
 
+/* the earlier do-nothing default definitions for VECTOR_REGISTERS_{PUSH,POP}
+ * are missed when WOLFSSL_TI_CRYPT or WOLFSSL_ARMASM.
+ */
+#ifndef VECTOR_REGISTERS_PUSH
+    #define VECTOR_REGISTERS_PUSH { WC_DO_NOTHING
+#endif
+#ifndef VECTOR_REGISTERS_POP
+    #define VECTOR_REGISTERS_POP } WC_DO_NOTHING
+#endif
+
 #ifdef HAVE_AES_ECB
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
         !defined(WOLFSSL_QNX_CAAM)
