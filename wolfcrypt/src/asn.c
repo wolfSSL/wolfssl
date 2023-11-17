@@ -14507,6 +14507,23 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
+/* Check time struct for valid values. Returns 0 for success */
+static int ValidateGmtime(struct tm* inTime)
+{
+    int ret = 1;
+    if ((inTime != NULL) &&
+        (inTime->tm_sec >= 0) && (inTime->tm_sec <= 61) &&
+        (inTime->tm_min >= 0) && (inTime->tm_min <= 59) &&
+        (inTime->tm_hour >= 0) && (inTime->tm_hour <= 23) &&
+        (inTime->tm_mday >= 1) && (inTime->tm_mday <= 31) &&
+        (inTime->tm_mon >= 0) && (inTime->tm_mon <= 11) &&
+        (inTime->tm_wday >= 0) && (inTime->tm_wday <= 6) &&
+        (inTime->tm_yday >= 0) && (inTime->tm_yday <= 365)) {
+        ret = 0;
+    }
+
+    return ret;
+}
 
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
@@ -14583,7 +14600,7 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         return BAD_FUNC_ARG;
 
     ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
-    if (ts == NULL) {
+    if (ValidateGmtime(ts)) {
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;
     }
@@ -14750,7 +14767,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     ltime -= (time_t)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
-    if (localTime == NULL) {
+    if (ValidateGmtime(localTime)) {
         WOLFSSL_MSG("XGMTIME failed");
         return 0;
     }
@@ -28121,7 +28138,7 @@ static int SetValidity(byte* output, int daysValid)
     /* subtract 1 day of seconds for more compliance */
     then = now - 86400;
     expandedTime = XGMTIME(&then, tmpTime);
-    if (expandedTime == NULL) {
+    if (ValidateGmtime(expandedTime)) {
         WOLFSSL_MSG("XGMTIME failed");
         return 0;   /* error */
     }
@@ -28140,7 +28157,7 @@ static int SetValidity(byte* output, int daysValid)
     /* add daysValid of seconds */
     then = now + (daysValid * (time_t)86400);
     expandedTime = XGMTIME(&then, tmpTime);
-    if (expandedTime == NULL) {
+    if (ValidateGmtime(expandedTime)) {
         WOLFSSL_MSG("XGMTIME failed");
         return 0;   /* error */
     }
@@ -28189,7 +28206,7 @@ static int SetValidity(byte* before, byte* after, int daysValid)
     /* subtract 1 day of seconds for more compliance */
     then = now - 86400;
     expandedTime = XGMTIME(&then, tmpTime);
-    if (expandedTime == NULL) {
+    if (ValidateGmtime(expandedTime)) {
         WOLFSSL_MSG("XGMTIME failed");
         ret = DATE_E;
     }
@@ -28205,7 +28222,7 @@ static int SetValidity(byte* before, byte* after, int daysValid)
         /* add daysValid of seconds */
         then = now + (daysValid * (time_t)86400);
         expandedTime = XGMTIME(&then, tmpTime);
-        if (expandedTime == NULL) {
+        if (ValidateGmtime(expandedTime)) {
             WOLFSSL_MSG("XGMTIME failed");
             ret = DATE_E;
         }
