@@ -2741,7 +2741,7 @@ static void* benchmarks_do(void* args)
         if (bench_buf_size % 16)
             bench_buf_size += 16 - (bench_buf_size % 16);
 
-        if (bench_size > bench_buf_size)
+        if (bench_size > (word32)bench_buf_size)
             bench_size = (word32)bench_buf_size;
 
         bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
