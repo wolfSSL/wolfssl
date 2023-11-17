@@ -185,6 +185,7 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
+            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -193,6 +194,7 @@
         #include <asm/fpsimd.h>
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
+            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
