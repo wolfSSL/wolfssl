@@ -81,7 +81,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 
-%{_libdir}/libwolfssl@LIBSUFFIX@.so*
+%{_libdir}/libwolfssl@LIBSUFFIX@.so.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -91,6 +91,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/*.h
 %{_includedir}/wolfssl/openssl/*.h
 %{_libdir}/pkgconfig/wolfssl.pc
+
+%{_libdir}/libwolfssl@LIBSUFFIX@.so
 
 %changelog
 * Mon Oct 17 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>
