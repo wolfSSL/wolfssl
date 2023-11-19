@@ -2061,7 +2061,7 @@ size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX* ctx)
  * START OF CMAC API
  ******************************************************************************/
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 #if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_AES_DIRECT)
 /* Allocate a new CMAC context object.
@@ -2275,7 +2275,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
     return ret;
 }
 #endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
 /*******************************************************************************
  * END OF CMAC API
