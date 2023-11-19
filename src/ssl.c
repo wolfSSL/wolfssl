@@ -14690,7 +14690,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         cacheSession->ticketNonce.data = cacheSession->ticketNonce.dataStatic;
         cacheSession->ticketNonce.len = 0;
     }
-#endif /* WOFLSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
 #ifdef SESSION_CERTS
     if (overwrite &&

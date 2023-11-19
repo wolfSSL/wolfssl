@@ -5992,8 +5992,8 @@ void wolfSSL_EVP_init(void)
                 }
                 else
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
-#if defined(WOFLSSL_SM4_GCM)
-                if (ctx->cipherType == WOLFSSL_SM4_GCM) {
+#if defined(WOLFSSL_SM4_GCM)
+                if (ctx->cipherType == SM4_GCM_TYPE) {
                     if ((arg <= 0) || (arg > SM4_BLOCK_SIZE) || (ptr == NULL)) {
                         break;
                     }
@@ -6005,8 +6005,8 @@ void wolfSSL_EVP_init(void)
                 }
                 else
 #endif
-#if defined(WOFLSSL_SM4_CCM)
-                if (ctx->cipherType == WOLFSSL_SM4_CCM) {
+#if defined(WOLFSSL_SM4_CCM)
+                if (ctx->cipherType == SM4_CCM_TYPE) {
                     if ((arg <= 0) || (arg > SM4_BLOCK_SIZE) || (ptr == NULL)) {
                         break;
                     }
@@ -6040,7 +6040,7 @@ void wolfSSL_EVP_init(void)
                 else
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 #if defined(WOLFSSL_SM4_GCM)
-                if (ctx->cipherType == WOLFSSL_SM4_GCM) {
+                if (ctx->cipherType == SM4_GCM_TYPE) {
                     if (arg <= 0 || arg > SM4_BLOCK_SIZE) {
                         break;
                     }
@@ -6048,7 +6048,7 @@ void wolfSSL_EVP_init(void)
                 else
 #endif
 #if defined(WOLFSSL_SM4_CCM)
-                if (ctx->cipherType == WOLFSSL_SM4_CCM) {
+                if (ctx->cipherType == SM4_CCM_TYPE) {
                     if (arg <= 0 || arg > SM4_BLOCK_SIZE) {
                         break;
                     }
