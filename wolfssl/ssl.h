@@ -2124,6 +2124,14 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
 WOLFSSL_API void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
         const byte** hashSigAlgo, word16* hashSigAlgoSz);
+typedef struct WOLFSSL_CIPHERSUITE_INFO {
+    byte rsaAuth:1;
+    byte eccAuth:1;
+    byte eccStatic:1;
+    byte psk:1;
+} WOLFSSL_CIPHERSUITE_INFO;
+WOLFSSL_API WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
+        byte second);
 WOLFSSL_LOCAL int CertSetupCbWrapper(WOLFSSL* ssl);
 
 WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(

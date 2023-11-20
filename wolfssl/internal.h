@@ -6014,6 +6014,16 @@ enum ProvisionSide {
     PROVISION_CLIENT_SERVER = 3
 };
 
+/* cipher requirements */
+enum {
+    REQUIRES_RSA,
+    REQUIRES_DHE,
+    REQUIRES_ECC,
+    REQUIRES_ECC_STATIC,
+    REQUIRES_PSK,
+    REQUIRES_RSA_SIG,
+    REQUIRES_AEAD
+};
 
 static const byte kTlsClientStr[SIZEOF_SENDER+1] = { 0x43, 0x4C, 0x4E, 0x54, 0x00 }; /* CLNT */
 static const byte kTlsServerStr[SIZEOF_SENDER+1] = { 0x53, 0x52, 0x56, 0x52, 0x00 }; /* SRVR */
@@ -6105,6 +6115,7 @@ WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte* GetOutputBuffer(WOLFSSL* ssl);
 
+WOLFSSL_LOCAL int CipherRequires(byte first, byte second, int requirement);
 WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
                                     byte cipherSuite);
 

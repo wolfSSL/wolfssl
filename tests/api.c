@@ -370,7 +370,7 @@
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
     defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
-    || !defined(WOLFSSL_NO_TLS12)
+    || !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -44849,20 +44849,14 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
             hashSigAlgoSz == 0)
         return 0;
 
-    if (wolfSSL_GetVersion(ssl) != TLSv1_3_MINOR) {
-        for (idx = 0; idx < suiteSz; idx += 2) {
-            const char* cipherName = wolfSSL_get_cipher_name_from_suite(
-                    suites[idx], suites[idx+1]);
-            if (cipherName == NULL)
-                return 0;
-            /* TLS 1.3 suites tell us nothing about the sigalg */
-            if (XSTRSTR(cipherName, "TLS13-") != NULL)
-                continue;
-            if (XSTRSTR(cipherName, "-RSA-") != NULL)
-                haveRSA = 1;
-            if (XSTRSTR(cipherName, "-ECDSA-") != NULL)
-                haveECC = 1;
-        }
+    for (idx = 0; idx < suiteSz; idx += 2) {
+        WOLFSSL_CIPHERSUITE_INFO info =
+                wolfSSL_get_ciphersuite_info(suites[idx], suites[idx+1]);
+
+        if (info.rsaAuth)
+            haveRSA = 1;
+        else if (info.eccAuth)
+            haveECC = 1;
     }
 
     if (hashSigAlgoSz > 0) {
@@ -44994,6 +44988,96 @@ static int test_wolfSSL_cert_cb_dyn_ciphers(void)
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
             &func_cb_server, NULL), TEST_SUCCESS);
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_ciphersuite_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    WOLFSSL_CIPHERSUITE_INFO info;
+
+    (void)info;
+
+#ifndef WOLFSSL_NO_TLS12
+#ifdef HAVE_CHACHA
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 1);
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+#ifndef NO_RSA
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_RSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_RSA_WITH_AES_256_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+#endif
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECDHE_PSK_BYTE,
+            TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 1);
+#endif
+#endif
+
+#ifdef WOLFSSL_TLS13
+    info = wolfSSL_get_ciphersuite_info(TLS13_BYTE,
+            TLS_AES_128_GCM_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+#endif
+
 #endif
     return EXPECT_RESULT();
 }
@@ -69183,6 +69267,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
+    TEST_DECL(test_wolfSSL_ciphersuite_auth),
     /* Can't memory test as tcp_connect aborts. */
     TEST_DECL(test_wolfSSL_SESSION),
     TEST_DECL(test_wolfSSL_SESSION_expire_downgrade),

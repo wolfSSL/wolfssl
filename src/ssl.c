@@ -16322,6 +16322,21 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
     }
+    WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
+            byte second)
+    {
+        WOLFSSL_CIPHERSUITE_INFO info;
+        info.rsaAuth = (byte)(CipherRequires(first, second, REQUIRES_RSA) ||
+                CipherRequires(first, second, REQUIRES_RSA_SIG));
+        info.eccAuth = (byte)(CipherRequires(first, second, REQUIRES_ECC) ||
+                /* Static ECC ciphers may require RSA for authentication */
+                (CipherRequires(first, second, REQUIRES_ECC_STATIC) &&
+                        !CipherRequires(first, second, REQUIRES_RSA_SIG)));
+        info.eccStatic =
+                (byte)CipherRequires(first, second, REQUIRES_ECC_STATIC);
+        info.psk = (byte)CipherRequires(first, second, REQUIRES_PSK);
+        return info;
+    }
 
     /**
      * Internal wrapper for calling certSetupCb

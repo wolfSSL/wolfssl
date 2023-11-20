@@ -11222,23 +11222,11 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif /* WOLFSSL_NO_TLS12 */
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
-/* cipher requirements */
-enum {
-    REQUIRES_RSA,
-    REQUIRES_DHE,
-    REQUIRES_ECC,
-    REQUIRES_ECC_STATIC,
-    REQUIRES_PSK,
-    REQUIRES_RSA_SIG,
-    REQUIRES_AEAD
-};
-
-
 
 /* Does this cipher suite (first, second) have the requirement
    an ephemeral key exchange will still require the key for signing
    the key exchange so ECDHE_RSA requires an rsa key thus rsa_kea */
-static int CipherRequires(byte first, byte second, int requirement)
+int CipherRequires(byte first, byte second, int requirement)
 {
 
     (void)requirement;
