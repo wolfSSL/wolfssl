@@ -151,12 +151,14 @@
 
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY
-    #include <wolfssl/openssl/evp.h>
+      #include <wolfssl/openssl/evp.h>
   #endif
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/aes.h>
     #include <wolfssl/openssl/des.h>
+    #include <wolfssl/openssl/modes.h>
+    #include <wolfssl/openssl/rc4.h>
 #endif
 
 #if defined(NO_FILESYSTEM)
