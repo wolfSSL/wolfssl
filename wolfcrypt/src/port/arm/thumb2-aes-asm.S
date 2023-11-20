@@ -670,10 +670,10 @@ L_AES_invert_key_mix_loop:
 	EOR	r8, r8, r9, ROR #24
 	STR	r8, [r0], #4
 	SUBS	r11, r11, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_invert_key_mix_loop
 #else
-	BNE.N	L_AES_invert_key_mix_loop
+	BNE.W	L_AES_invert_key_mix_loop
 #endif
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 165 */
@@ -703,16 +703,16 @@ AES_set_encrypt_key:
 	LDR	r10, L_AES_Thumb2_te
 	ADR	lr, L_AES_Thumb2_rcon
 	CMP	r1, #0x80
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_set_encrypt_key_start_128
 #else
-	BEQ.N	L_AES_set_encrypt_key_start_128
+	BEQ.W	L_AES_set_encrypt_key_start_128
 #endif
 	CMP	r1, #0xc0
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_set_encrypt_key_start_192
 #else
-	BEQ.N	L_AES_set_encrypt_key_start_192
+	BEQ.W	L_AES_set_encrypt_key_start_192
 #endif
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -799,7 +799,11 @@ L_AES_set_encrypt_key_loop_256:
 	ADD	r2, r2, #0x10
 	STM	r2, {r4, r5, r6, r7}
 	SUB	r2, r2, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_set_encrypt_key_end
+#else
+	B.N	L_AES_set_encrypt_key_end
+#endif
 L_AES_set_encrypt_key_start_192:
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -861,7 +865,11 @@ L_AES_set_encrypt_key_loop_192:
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
 	STM	r2, {r4, r5, r6, r7}
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_set_encrypt_key_end
+#else
+	B.N	L_AES_set_encrypt_key_end
+#endif
 L_AES_set_encrypt_key_start_128:
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -1009,10 +1017,10 @@ L_AES_encrypt_block_nr:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	SUBS	r1, r1, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_encrypt_block_nr
 #else
-	BNE.N	L_AES_encrypt_block_nr
+	BNE.W	L_AES_encrypt_block_nr
 #endif
 	UBFX	r8, r5, #16, #8
 	LSR	r11, r4, #24
@@ -1137,16 +1145,16 @@ AES_ECB_encrypt:
 	LDR	r12, [sp, #36]
 	PUSH	{r3}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_ECB_encrypt_start_block_128
+	BEQ.W	L_AES_ECB_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_ECB_encrypt_start_block_192
+	BEQ.W	L_AES_ECB_encrypt_start_block_192
 #endif
 L_AES_ECB_encrypt_loop_block_256:
 	LDR	r4, [lr]
@@ -1179,12 +1187,16 @@ L_AES_ECB_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_256
+	BNE.W	L_AES_ECB_encrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_encrypt_end
+#else
+	B.N	L_AES_ECB_encrypt_end
+#endif
 L_AES_ECB_encrypt_start_block_192:
 L_AES_ECB_encrypt_loop_block_192:
 	LDR	r4, [lr]
@@ -1217,12 +1229,16 @@ L_AES_ECB_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_192
+	BNE.W	L_AES_ECB_encrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_encrypt_end
+#else
+	B.N	L_AES_ECB_encrypt_end
+#endif
 L_AES_ECB_encrypt_start_block_128:
 L_AES_ECB_encrypt_loop_block_128:
 	LDR	r4, [lr]
@@ -1255,10 +1271,10 @@ L_AES_ECB_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_128
+	BNE.W	L_AES_ECB_encrypt_loop_block_128
 #endif
 L_AES_ECB_encrypt_end:
 	POP	{r3}
@@ -1280,16 +1296,16 @@ AES_CBC_encrypt:
 	LDM	r9, {r4, r5, r6, r7}
 	PUSH	{r3, r9}
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_CBC_encrypt_start_block_128
+	BEQ.W	L_AES_CBC_encrypt_start_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_CBC_encrypt_start_block_192
+	BEQ.W	L_AES_CBC_encrypt_start_block_192
 #endif
 L_AES_CBC_encrypt_loop_block_256:
 	LDR	r8, [lr]
@@ -1326,12 +1342,16 @@ L_AES_CBC_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_256
+	BNE.W	L_AES_CBC_encrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_encrypt_end
+#else
+	B.N	L_AES_CBC_encrypt_end
+#endif
 L_AES_CBC_encrypt_start_block_192:
 L_AES_CBC_encrypt_loop_block_192:
 	LDR	r8, [lr]
@@ -1368,12 +1388,16 @@ L_AES_CBC_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_192
+	BNE.W	L_AES_CBC_encrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_encrypt_end
+#else
+	B.N	L_AES_CBC_encrypt_end
+#endif
 L_AES_CBC_encrypt_start_block_128:
 L_AES_CBC_encrypt_loop_block_128:
 	LDR	r8, [lr]
@@ -1410,10 +1434,10 @@ L_AES_CBC_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_128
+	BNE.W	L_AES_CBC_encrypt_loop_block_128
 #endif
 L_AES_CBC_encrypt_end:
 	POP	{r3, r9}
@@ -1441,16 +1465,16 @@ AES_CTR_encrypt:
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CTR_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_CTR_encrypt_start_block_128
+	BEQ.W	L_AES_CTR_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CTR_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_CTR_encrypt_start_block_192
+	BEQ.W	L_AES_CTR_encrypt_start_block_192
 #endif
 L_AES_CTR_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
@@ -1491,12 +1515,16 @@ L_AES_CTR_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_256
+	BNE.W	L_AES_CTR_encrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_CTR_encrypt_end
+#else
+	B.W	L_AES_CTR_encrypt_end
+#endif
 L_AES_CTR_encrypt_start_block_192:
 L_AES_CTR_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
@@ -1537,12 +1565,16 @@ L_AES_CTR_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_192
+	BNE.W	L_AES_CTR_encrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_CTR_encrypt_end
+#else
+	B.W	L_AES_CTR_encrypt_end
+#endif
 L_AES_CTR_encrypt_start_block_128:
 L_AES_CTR_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
@@ -1583,10 +1615,10 @@ L_AES_CTR_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_128
+	BNE.W	L_AES_CTR_encrypt_loop_block_128
 #endif
 L_AES_CTR_encrypt_end:
 	POP	{r3, r8}
@@ -1709,10 +1741,10 @@ L_AES_decrypt_block_nr:
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	SUBS	r1, r1, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_decrypt_block_nr
 #else
-	BNE.N	L_AES_decrypt_block_nr
+	BNE.W	L_AES_decrypt_block_nr
 #endif
 	UBFX	r8, r7, #16, #8
 	LSR	r11, r4, #24
@@ -2097,16 +2129,16 @@ AES_ECB_decrypt:
 	MOV	r12, r2
 	ADR	r2, L_AES_Thumb2_td4
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_decrypt_start_block_128
 #else
-	BEQ.N	L_AES_ECB_decrypt_start_block_128
+	BEQ.W	L_AES_ECB_decrypt_start_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_decrypt_start_block_192
 #else
-	BEQ.N	L_AES_ECB_decrypt_start_block_192
+	BEQ.W	L_AES_ECB_decrypt_start_block_192
 #endif
 L_AES_ECB_decrypt_loop_block_256:
 	LDR	r4, [lr]
@@ -2138,12 +2170,16 @@ L_AES_ECB_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_256
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_256
+	BNE.W	L_AES_ECB_decrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_decrypt_end
+#else
+	B.N	L_AES_ECB_decrypt_end
+#endif
 L_AES_ECB_decrypt_start_block_192:
 L_AES_ECB_decrypt_loop_block_192:
 	LDR	r4, [lr]
@@ -2175,12 +2211,16 @@ L_AES_ECB_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_192
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_192
+	BNE.W	L_AES_ECB_decrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_decrypt_end
+#else
+	B.N	L_AES_ECB_decrypt_end
+#endif
 L_AES_ECB_decrypt_start_block_128:
 L_AES_ECB_decrypt_loop_block_128:
 	LDR	r4, [lr]
@@ -2212,10 +2252,10 @@ L_AES_ECB_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_128
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_128
+	BNE.W	L_AES_ECB_decrypt_loop_block_128
 #endif
 L_AES_ECB_decrypt_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
@@ -2237,16 +2277,16 @@ AES_CBC_decrypt:
 	ADR	r2, L_AES_Thumb2_td4
 	PUSH	{r3, r4}
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_loop_block_128
 #else
-	BEQ.N	L_AES_CBC_decrypt_loop_block_128
+	BEQ.W	L_AES_CBC_decrypt_loop_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_loop_block_192
 #else
-	BEQ.N	L_AES_CBC_decrypt_loop_block_192
+	BEQ.W	L_AES_CBC_decrypt_loop_block_192
 #endif
 L_AES_CBC_decrypt_loop_block_256:
 	PUSH	{r1, r12, lr}
@@ -2288,10 +2328,10 @@ L_AES_CBC_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2333,12 +2373,16 @@ L_AES_CBC_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_256
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_256
+	BNE.W	L_AES_CBC_decrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_CBC_decrypt_end
+#else
+	B.W	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_loop_block_192:
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2379,10 +2423,10 @@ L_AES_CBC_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2424,12 +2468,16 @@ L_AES_CBC_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_192
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_192
+	BNE.W	L_AES_CBC_decrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_CBC_decrypt_end
+#else
+	B.W	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_loop_block_128:
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2470,10 +2518,10 @@ L_AES_CBC_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2515,12 +2563,16 @@ L_AES_CBC_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_128
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_128
+	BNE.W	L_AES_CBC_decrypt_loop_block_128
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_decrypt_end
+#else
+	B.N	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_end_odd:
 	LDR	r4, [sp, #4]
 	LDRD	r8, r9, [r4, #16]
@@ -3109,10 +3161,10 @@ L_GCM_gmult_len_start_block:
 	POP	{r3}
 	SUBS	r3, r3, #0x10
 	ADD	r2, r2, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_GCM_gmult_len_start_block
 #else
-	BNE.N	L_GCM_gmult_len_start_block
+	BNE.W	L_GCM_gmult_len_start_block
 #endif
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 742 */
@@ -3141,16 +3193,16 @@ AES_GCM_encrypt:
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_GCM_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_GCM_encrypt_start_block_128
+	BEQ.W	L_AES_GCM_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_GCM_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_GCM_encrypt_start_block_192
+	BEQ.W	L_AES_GCM_encrypt_start_block_192
 #endif
 L_AES_GCM_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
@@ -3188,12 +3240,16 @@ L_AES_GCM_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_256
+	BNE.W	L_AES_GCM_encrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_GCM_encrypt_end
+#else
+	B.W	L_AES_GCM_encrypt_end
+#endif
 L_AES_GCM_encrypt_start_block_192:
 L_AES_GCM_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
@@ -3231,12 +3287,16 @@ L_AES_GCM_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_192
+	BNE.W	L_AES_GCM_encrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_GCM_encrypt_end
+#else
+	B.W	L_AES_GCM_encrypt_end
+#endif
 L_AES_GCM_encrypt_start_block_128:
 L_AES_GCM_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
@@ -3274,10 +3334,10 @@ L_AES_GCM_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_128
+	BNE.W	L_AES_GCM_encrypt_loop_block_128
 #endif
 L_AES_GCM_encrypt_end:
 	POP	{r3, r8}

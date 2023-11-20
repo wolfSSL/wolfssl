@@ -2316,15 +2316,18 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x200\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_2048_mul_64_outer:\n\t"
         "SUBS	r3, r5, #0xfc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_2048_mul_64_inner:\n\t"
@@ -2334,20 +2337,31 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x100\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_mul_64_inner_done\n\t"
+        "BGT	L_sp_2048_mul_64_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_mul_64_inner_done\n\t"
+        "BGT.N	L_sp_2048_mul_64_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_64_inner\n\t"
+        "BLT	L_sp_2048_mul_64_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_64_inner\n\t"
+        "BLT.N	L_sp_2048_mul_64_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_2048_mul_64_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -2355,18 +2369,23 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x1f8\n\t"
+        "CMP	r5, #0x1f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_2048_mul_64_outer\n\t"
 #else
         "BLE.N	L_sp_2048_mul_64_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #252]\n\t"
+        "LDR	r11, [%[b], #252]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_2048_mul_64_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_mul_64_store\n\t"
 #else
@@ -2396,24 +2415,20 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x200\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_2048_sqr_64_outer:\n\t"
         "SUBS	r3, r5, #0xfc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_2048_sqr_64_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_64_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_2048_sqr_64_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -2423,36 +2438,24 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_2048_sqr_64_op_done\n\t"
-        "\n"
-    "L_sp_2048_sqr_64_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_2048_sqr_64_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x100\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_64_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_2048_sqr_64_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_sqr_64_inner_done\n\t"
 #else
         "BGT.N	L_sp_2048_sqr_64_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_64_inner\n\t"
+        "BLT	L_sp_2048_sqr_64_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_64_inner\n\t"
+        "BLT.N	L_sp_2048_sqr_64_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_2048_sqr_64_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -2460,18 +2463,22 @@ static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x1f8\n\t"
+        "CMP	r5, #0x1f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_2048_sqr_64_outer\n\t"
 #else
         "BLE.N	L_sp_2048_sqr_64_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #252]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_2048_sqr_64_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_sqr_64_store\n\t"
 #else
@@ -2618,15 +2625,18 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x100\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_2048_mul_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_2048_mul_32_inner:\n\t"
@@ -2636,20 +2646,31 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x80\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_mul_32_inner_done\n\t"
+        "BGT	L_sp_2048_mul_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_2048_mul_32_inner_done\n\t"
+        "BGT.N	L_sp_2048_mul_32_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_mul_32_inner\n\t"
+        "BLT	L_sp_2048_mul_32_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_mul_32_inner\n\t"
+        "BLT.N	L_sp_2048_mul_32_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_2048_mul_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -2657,18 +2678,23 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0xf8\n\t"
+        "CMP	r5, #0xf4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_2048_mul_32_outer\n\t"
 #else
         "BLE.N	L_sp_2048_mul_32_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #124]\n\t"
+        "LDR	r11, [%[b], #124]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_2048_mul_32_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_mul_32_store\n\t"
 #else
@@ -2698,24 +2724,20 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x100\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_2048_sqr_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_2048_sqr_32_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_32_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_2048_sqr_32_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -2725,36 +2747,24 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_2048_sqr_32_op_done\n\t"
-        "\n"
-    "L_sp_2048_sqr_32_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_2048_sqr_32_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_2048_sqr_32_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_2048_sqr_32_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_sqr_32_inner_done\n\t"
 #else
         "BGT.N	L_sp_2048_sqr_32_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_2048_sqr_32_inner\n\t"
+        "BLT	L_sp_2048_sqr_32_inner\n\t"
 #else
-        "BLE.N	L_sp_2048_sqr_32_inner\n\t"
+        "BLT.N	L_sp_2048_sqr_32_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_2048_sqr_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -2762,18 +2772,22 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0xf8\n\t"
+        "CMP	r5, #0xf4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_2048_sqr_32_outer\n\t"
 #else
         "BLE.N	L_sp_2048_sqr_32_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #124]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_2048_sqr_32_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_2048_sqr_32_store\n\t"
 #else
@@ -13039,15 +13053,18 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x300\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_3072_mul_96_outer:\n\t"
         "SUBS	r3, r5, #0x17c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_3072_mul_96_inner:\n\t"
@@ -13057,20 +13074,31 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x180\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_mul_96_inner_done\n\t"
+        "BGT	L_sp_3072_mul_96_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_mul_96_inner_done\n\t"
+        "BGT.N	L_sp_3072_mul_96_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_96_inner\n\t"
+        "BLT	L_sp_3072_mul_96_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_96_inner\n\t"
+        "BLT.N	L_sp_3072_mul_96_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_3072_mul_96_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -13078,18 +13106,23 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x2f8\n\t"
+        "CMP	r5, #0x2f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_3072_mul_96_outer\n\t"
 #else
         "BLE.N	L_sp_3072_mul_96_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #380]\n\t"
+        "LDR	r11, [%[b], #380]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_3072_mul_96_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_mul_96_store\n\t"
 #else
@@ -13119,24 +13152,20 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x300\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_3072_sqr_96_outer:\n\t"
         "SUBS	r3, r5, #0x17c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_3072_sqr_96_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_96_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_3072_sqr_96_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -13146,36 +13175,24 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_3072_sqr_96_op_done\n\t"
-        "\n"
-    "L_sp_3072_sqr_96_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_3072_sqr_96_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x180\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_96_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_3072_sqr_96_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_sqr_96_inner_done\n\t"
 #else
         "BGT.N	L_sp_3072_sqr_96_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_96_inner\n\t"
+        "BLT	L_sp_3072_sqr_96_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_96_inner\n\t"
+        "BLT.N	L_sp_3072_sqr_96_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_3072_sqr_96_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -13183,18 +13200,22 @@ static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x2f8\n\t"
+        "CMP	r5, #0x2f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_3072_sqr_96_outer\n\t"
 #else
         "BLE.N	L_sp_3072_sqr_96_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #380]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_3072_sqr_96_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_sqr_96_store\n\t"
 #else
@@ -13341,15 +13362,18 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x180\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_3072_mul_48_outer:\n\t"
         "SUBS	r3, r5, #0xbc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_3072_mul_48_inner:\n\t"
@@ -13359,20 +13383,31 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0xc0\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_mul_48_inner_done\n\t"
+        "BGT	L_sp_3072_mul_48_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_3072_mul_48_inner_done\n\t"
+        "BGT.N	L_sp_3072_mul_48_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_mul_48_inner\n\t"
+        "BLT	L_sp_3072_mul_48_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_mul_48_inner\n\t"
+        "BLT.N	L_sp_3072_mul_48_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_3072_mul_48_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -13380,18 +13415,23 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x178\n\t"
+        "CMP	r5, #0x174\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_3072_mul_48_outer\n\t"
 #else
         "BLE.N	L_sp_3072_mul_48_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #188]\n\t"
+        "LDR	r11, [%[b], #188]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_3072_mul_48_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_mul_48_store\n\t"
 #else
@@ -13421,24 +13461,20 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x180\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_3072_sqr_48_outer:\n\t"
         "SUBS	r3, r5, #0xbc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_3072_sqr_48_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_48_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_3072_sqr_48_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -13448,36 +13484,24 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_3072_sqr_48_op_done\n\t"
-        "\n"
-    "L_sp_3072_sqr_48_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_3072_sqr_48_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0xc0\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_3072_sqr_48_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_3072_sqr_48_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_sqr_48_inner_done\n\t"
 #else
         "BGT.N	L_sp_3072_sqr_48_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_3072_sqr_48_inner\n\t"
+        "BLT	L_sp_3072_sqr_48_inner\n\t"
 #else
-        "BLE.N	L_sp_3072_sqr_48_inner\n\t"
+        "BLT.N	L_sp_3072_sqr_48_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_3072_sqr_48_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -13485,18 +13509,22 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x178\n\t"
+        "CMP	r5, #0x174\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_3072_sqr_48_outer\n\t"
 #else
         "BLE.N	L_sp_3072_sqr_48_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #188]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_3072_sqr_48_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_3072_sqr_48_store\n\t"
 #else
@@ -23136,15 +23164,18 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x400\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_4096_mul_128_outer:\n\t"
         "SUBS	r3, r5, #0x1fc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_4096_mul_128_inner:\n\t"
@@ -23154,20 +23185,31 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x200\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_mul_128_inner_done\n\t"
+        "BGT	L_sp_4096_mul_128_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_4096_mul_128_inner_done\n\t"
+        "BGT.N	L_sp_4096_mul_128_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_mul_128_inner\n\t"
+        "BLT	L_sp_4096_mul_128_inner\n\t"
 #else
-        "BLE.N	L_sp_4096_mul_128_inner\n\t"
+        "BLT.N	L_sp_4096_mul_128_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_4096_mul_128_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -23175,18 +23217,23 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x3f8\n\t"
+        "CMP	r5, #0x3f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_4096_mul_128_outer\n\t"
 #else
         "BLE.N	L_sp_4096_mul_128_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #508]\n\t"
+        "LDR	r11, [%[b], #508]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_4096_mul_128_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_4096_mul_128_store\n\t"
 #else
@@ -23216,24 +23263,20 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x400\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_4096_sqr_128_outer:\n\t"
         "SUBS	r3, r5, #0x1fc\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_4096_sqr_128_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_sqr_128_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_4096_sqr_128_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -23243,36 +23286,24 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_4096_sqr_128_op_done\n\t"
-        "\n"
-    "L_sp_4096_sqr_128_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_4096_sqr_128_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x200\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_4096_sqr_128_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_4096_sqr_128_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_4096_sqr_128_inner_done\n\t"
 #else
         "BGT.N	L_sp_4096_sqr_128_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_4096_sqr_128_inner\n\t"
+        "BLT	L_sp_4096_sqr_128_inner\n\t"
 #else
-        "BLE.N	L_sp_4096_sqr_128_inner\n\t"
+        "BLT.N	L_sp_4096_sqr_128_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_4096_sqr_128_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -23280,18 +23311,22 @@ static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x3f8\n\t"
+        "CMP	r5, #0x3f4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_4096_sqr_128_outer\n\t"
 #else
         "BLE.N	L_sp_4096_sqr_128_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #508]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_4096_sqr_128_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_4096_sqr_128_store\n\t"
 #else
@@ -30826,15 +30861,18 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x40\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_256_mul_8_outer:\n\t"
         "SUBS	r3, r5, #0x1c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_256_mul_8_inner:\n\t"
@@ -30844,20 +30882,31 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x20\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_mul_8_inner_done\n\t"
+        "BGT	L_sp_256_mul_8_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_256_mul_8_inner_done\n\t"
+        "BGT.N	L_sp_256_mul_8_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_mul_8_inner\n\t"
+        "BLT	L_sp_256_mul_8_inner\n\t"
 #else
-        "BLE.N	L_sp_256_mul_8_inner\n\t"
+        "BLT.N	L_sp_256_mul_8_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_256_mul_8_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -30865,18 +30914,23 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x38\n\t"
+        "CMP	r5, #0x34\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_256_mul_8_outer\n\t"
 #else
         "BLE.N	L_sp_256_mul_8_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #28]\n\t"
+        "LDR	r11, [%[b], #28]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_256_mul_8_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_256_mul_8_store\n\t"
 #else
@@ -31412,24 +31466,20 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x40\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_256_sqr_8_outer:\n\t"
         "SUBS	r3, r5, #0x1c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_256_sqr_8_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_sqr_8_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_256_sqr_8_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -31439,36 +31489,24 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_256_sqr_8_op_done\n\t"
-        "\n"
-    "L_sp_256_sqr_8_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_256_sqr_8_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x20\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_256_sqr_8_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_256_sqr_8_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_256_sqr_8_inner_done\n\t"
 #else
         "BGT.N	L_sp_256_sqr_8_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_256_sqr_8_inner\n\t"
+        "BLT	L_sp_256_sqr_8_inner\n\t"
 #else
-        "BLE.N	L_sp_256_sqr_8_inner\n\t"
+        "BLT.N	L_sp_256_sqr_8_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_256_sqr_8_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -31476,18 +31514,22 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x38\n\t"
+        "CMP	r5, #0x34\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_256_sqr_8_outer\n\t"
 #else
         "BLE.N	L_sp_256_sqr_8_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #28]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_256_sqr_8_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_256_sqr_8_store\n\t"
 #else
@@ -40204,7 +40246,11 @@ static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
         "ADCS	r6, r6, r10\n\t"
         "ADCS	r7, r7, r11\n\t"
         "ADC	r3, r12, r12\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_div2_mod_8_div2\n\t"
+#else
+        "B.N	L_sp_256_div2_mod_8_div2\n\t"
+#endif
         "\n"
     "L_sp_256_div2_mod_8_even:\n\t"
         "LDRD	r4, r5, [%[a], #12]\n\t"
@@ -40260,7 +40306,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
@@ -40273,7 +40323,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
@@ -40286,7 +40340,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
@@ -40299,7 +40357,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
@@ -40312,7 +40374,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
@@ -40325,7 +40391,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
@@ -40338,7 +40408,11 @@ static int sp_256_num_bits_8(const sp_digit* a)
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_256_num_bits_8_9\n\t"
+#else
+        "B.N	L_sp_256_num_bits_8_9\n\t"
+#endif
         "\n"
     "L_sp_256_num_bits_8_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
@@ -41461,15 +41535,18 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x60\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_384_mul_12_outer:\n\t"
         "SUBS	r3, r5, #0x2c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_384_mul_12_inner:\n\t"
@@ -41479,20 +41556,31 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x30\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_mul_12_inner_done\n\t"
+        "BGT	L_sp_384_mul_12_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_384_mul_12_inner_done\n\t"
+        "BGT.N	L_sp_384_mul_12_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_mul_12_inner\n\t"
+        "BLT	L_sp_384_mul_12_inner\n\t"
 #else
-        "BLE.N	L_sp_384_mul_12_inner\n\t"
+        "BLT.N	L_sp_384_mul_12_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_384_mul_12_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -41500,18 +41588,23 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x58\n\t"
+        "CMP	r5, #0x54\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_384_mul_12_outer\n\t"
 #else
         "BLE.N	L_sp_384_mul_12_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #44]\n\t"
+        "LDR	r11, [%[b], #44]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_384_mul_12_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_384_mul_12_store\n\t"
 #else
@@ -42571,24 +42664,20 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x60\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_384_sqr_12_outer:\n\t"
         "SUBS	r3, r5, #0x2c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_384_sqr_12_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_sqr_12_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_384_sqr_12_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -42598,36 +42687,24 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_384_sqr_12_op_done\n\t"
-        "\n"
-    "L_sp_384_sqr_12_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_384_sqr_12_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x30\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_384_sqr_12_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_384_sqr_12_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_384_sqr_12_inner_done\n\t"
 #else
         "BGT.N	L_sp_384_sqr_12_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_384_sqr_12_inner\n\t"
+        "BLT	L_sp_384_sqr_12_inner\n\t"
 #else
-        "BLE.N	L_sp_384_sqr_12_inner\n\t"
+        "BLT.N	L_sp_384_sqr_12_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_384_sqr_12_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -42635,18 +42712,22 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x58\n\t"
+        "CMP	r5, #0x54\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_384_sqr_12_outer\n\t"
 #else
         "BLE.N	L_sp_384_sqr_12_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #44]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_384_sqr_12_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_384_sqr_12_store\n\t"
 #else
@@ -49928,7 +50009,11 @@ static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a, const sp_digit* m
         "ADCS	r7, r7, r11\n\t"
         "STM	%[r]!, {r4, r5, r6, r7}\n\t"
         "ADC	r3, r12, r12\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_div2_mod_12_div2\n\t"
+#else
+        "B.N	L_sp_384_div2_mod_12_div2\n\t"
+#endif
         "\n"
     "L_sp_384_div2_mod_12_even:\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
@@ -50014,7 +50099,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x180\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_11:\n\t"
         "LDR	r1, [%[a], #40]\n\t"
@@ -50027,7 +50116,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x160\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_10:\n\t"
         "LDR	r1, [%[a], #36]\n\t"
@@ -50040,7 +50133,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x140\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_9:\n\t"
         "LDR	r1, [%[a], #32]\n\t"
@@ -50053,7 +50150,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x120\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_8:\n\t"
         "LDR	r1, [%[a], #28]\n\t"
@@ -50066,7 +50167,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
@@ -50079,7 +50184,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
@@ -50092,7 +50201,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
@@ -50105,7 +50218,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
@@ -50118,7 +50235,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
@@ -50131,7 +50252,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
@@ -50144,7 +50269,11 @@ static int sp_384_num_bits_12(const sp_digit* a)
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_384_num_bits_12_13\n\t"
+#else
+        "B.N	L_sp_384_num_bits_12_13\n\t"
+#endif
         "\n"
     "L_sp_384_num_bits_12_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
@@ -51313,15 +51442,18 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x88\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_521_mul_17_outer:\n\t"
         "SUBS	r3, r5, #0x40\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_521_mul_17_inner:\n\t"
@@ -51331,20 +51463,31 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x44\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_mul_17_inner_done\n\t"
+        "BGT	L_sp_521_mul_17_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_521_mul_17_inner_done\n\t"
+        "BGT.N	L_sp_521_mul_17_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_mul_17_inner\n\t"
+        "BLT	L_sp_521_mul_17_inner\n\t"
 #else
-        "BLE.N	L_sp_521_mul_17_inner\n\t"
+        "BLT.N	L_sp_521_mul_17_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_521_mul_17_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -51352,21 +51495,26 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x80\n\t"
+        "CMP	r5, #0x7c\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_521_mul_17_outer\n\t"
 #else
         "BLE.N	L_sp_521_mul_17_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #64]\n\t"
+        "LDR	r11, [%[b], #64]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "LDM	sp!, {r6, r7}\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SUB	r5, r5, #0x8\n\t"
         "\n"
     "L_sp_521_mul_17_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_521_mul_17_store\n\t"
 #else
@@ -53440,24 +53588,20 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x88\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_521_sqr_17_outer:\n\t"
         "SUBS	r3, r5, #0x40\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_521_sqr_17_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_sqr_17_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_521_sqr_17_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -53467,36 +53611,24 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_521_sqr_17_op_done\n\t"
-        "\n"
-    "L_sp_521_sqr_17_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_521_sqr_17_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x44\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_521_sqr_17_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_521_sqr_17_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_521_sqr_17_inner_done\n\t"
 #else
         "BGT.N	L_sp_521_sqr_17_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_521_sqr_17_inner\n\t"
+        "BLT	L_sp_521_sqr_17_inner\n\t"
 #else
-        "BLE.N	L_sp_521_sqr_17_inner\n\t"
+        "BLT.N	L_sp_521_sqr_17_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_521_sqr_17_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -53504,21 +53636,25 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0x80\n\t"
+        "CMP	r5, #0x7c\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_521_sqr_17_outer\n\t"
 #else
         "BLE.N	L_sp_521_sqr_17_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #64]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "LDM	sp!, {r6, r7}\n\t"
         "STM	%[r]!, {r6, r7}\n\t"
         "SUB	r5, r5, #0x8\n\t"
         "\n"
     "L_sp_521_sqr_17_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_521_sqr_17_store\n\t"
 #else
@@ -63081,7 +63217,11 @@ static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "ADCS	r4, r4, r8\n\t"
         "STM	%[r]!, {r4}\n\t"
         "ADC	r3, r12, r12\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_div2_mod_17_div2\n\t"
+#else
+        "B.N	L_sp_521_div2_mod_17_div2\n\t"
+#endif
         "\n"
     "L_sp_521_div2_mod_17_even:\n\t"
         "LDM	%[a]!, {r5, r6, r7}\n\t"
@@ -63191,7 +63331,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x220\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_16:\n\t"
         "LDR	r1, [%[a], #60]\n\t"
@@ -63204,7 +63348,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x200\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_15:\n\t"
         "LDR	r1, [%[a], #56]\n\t"
@@ -63217,7 +63365,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x1e0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_14:\n\t"
         "LDR	r1, [%[a], #52]\n\t"
@@ -63230,7 +63382,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x1c0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_13:\n\t"
         "LDR	r1, [%[a], #48]\n\t"
@@ -63243,7 +63399,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x1a0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_12:\n\t"
         "LDR	r1, [%[a], #44]\n\t"
@@ -63256,7 +63416,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x180\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_11:\n\t"
         "LDR	r1, [%[a], #40]\n\t"
@@ -63269,7 +63433,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x160\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_10:\n\t"
         "LDR	r1, [%[a], #36]\n\t"
@@ -63282,7 +63450,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x140\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_9:\n\t"
         "LDR	r1, [%[a], #32]\n\t"
@@ -63295,7 +63467,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x120\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_8:\n\t"
         "LDR	r1, [%[a], #28]\n\t"
@@ -63308,7 +63484,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x100\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_7:\n\t"
         "LDR	r1, [%[a], #24]\n\t"
@@ -63321,7 +63501,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0xe0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_6:\n\t"
         "LDR	r1, [%[a], #20]\n\t"
@@ -63334,7 +63518,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0xc0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_5:\n\t"
         "LDR	r1, [%[a], #16]\n\t"
@@ -63347,7 +63535,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0xa0\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_4:\n\t"
         "LDR	r1, [%[a], #12]\n\t"
@@ -63360,7 +63552,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x80\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_3:\n\t"
         "LDR	r1, [%[a], #8]\n\t"
@@ -63373,7 +63569,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x60\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_2:\n\t"
         "LDR	r1, [%[a], #4]\n\t"
@@ -63386,7 +63586,11 @@ static int sp_521_num_bits_17(const sp_digit* a)
         "MOV	r2, #0x40\n\t"
         "CLZ	r4, r1\n\t"
         "SUB	r4, r2, r4\n\t"
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "B	L_sp_521_num_bits_17_18\n\t"
+#else
+        "B.N	L_sp_521_num_bits_17_18\n\t"
+#endif
         "\n"
     "L_sp_521_num_bits_17_1:\n\t"
         "LDR	r1, [%[a]]\n\t"
@@ -67781,15 +67985,18 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x100\n\t"
-        "MOV	r5, #0x0\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "LDR	r11, [%[b]]\n\t"
+        "UMULL	r8, r6, lr, r11\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_1024_mul_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_1024_mul_32_inner:\n\t"
@@ -67799,20 +68006,31 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
+        "LDR	lr, [%[a], r4]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x80\n\t"
+        "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_mul_32_inner_done\n\t"
+        "BGT	L_sp_1024_mul_32_inner_done\n\t"
 #else
-        "BEQ.N	L_sp_1024_mul_32_inner_done\n\t"
+        "BGT.N	L_sp_1024_mul_32_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_mul_32_inner\n\t"
+        "BLT	L_sp_1024_mul_32_inner\n\t"
 #else
-        "BLE.N	L_sp_1024_mul_32_inner\n\t"
+        "BLT.N	L_sp_1024_mul_32_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "LDR	r11, [%[b], r3]\n\t"
+        "UMULL	r9, r10, lr, r11\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_1024_mul_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -67820,18 +68038,23 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0xf8\n\t"
+        "CMP	r5, #0xf4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_1024_mul_32_outer\n\t"
 #else
         "BLE.N	L_sp_1024_mul_32_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #124]\n\t"
+        "LDR	r11, [%[b], #124]\n\t"
+        "UMLAL	r6, r7, lr, r11\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_1024_mul_32_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_1024_mul_32_store\n\t"
 #else
@@ -67861,24 +68084,20 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x100\n\t"
-        "MOV	r6, #0x0\n\t"
+        "LDR	lr, [%[a]]\n\t"
+        "UMULL	r8, r6, lr, lr\n\t"
+        "STR	r8, [sp]\n\t"
         "MOV	r7, #0x0\n\t"
         "MOV	r8, #0x0\n\t"
-        "MOV	r5, #0x0\n\t"
+        "MOV	r5, #0x4\n\t"
         "\n"
     "L_sp_1024_sqr_32_outer:\n\t"
         "SUBS	r3, r5, #0x7c\n\t"
         "IT	cc\n\t"
-        "movcc	r3, #0\n\t"
+        "MOVCC	r3, #0x0\n\t"
         "SUB	r4, r5, r3\n\t"
         "\n"
     "L_sp_1024_sqr_32_inner:\n\t"
-        "CMP	r4, r3\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_sqr_32_op_sqr\n\t"
-#else
-        "BEQ.N	L_sp_1024_sqr_32_op_sqr\n\t"
-#endif
         "LDR	lr, [%[a], r3]\n\t"
         "LDR	r11, [%[a], r4]\n\t"
         "UMULL	r9, r10, lr, r11\n\t"
@@ -67888,36 +68107,24 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
         "ADDS	r6, r6, r9\n\t"
         "ADCS	r7, r7, r10\n\t"
         "ADC	r8, r8, #0x0\n\t"
-        "bal	L_sp_1024_sqr_32_op_done\n\t"
-        "\n"
-    "L_sp_1024_sqr_32_op_sqr:\n\t"
-        "LDR	lr, [%[a], r3]\n\t"
-        "UMULL	r9, r10, lr, lr\n\t"
-        "ADDS	r6, r6, r9\n\t"
-        "ADCS	r7, r7, r10\n\t"
-        "ADC	r8, r8, #0x0\n\t"
-        "\n"
-    "L_sp_1024_sqr_32_op_done:\n\t"
         "ADD	r3, r3, #0x4\n\t"
         "SUB	r4, r4, #0x4\n\t"
-        "CMP	r3, #0x80\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BEQ	L_sp_1024_sqr_32_inner_done\n\t"
-#else
-        "BEQ.N	L_sp_1024_sqr_32_inner_done\n\t"
-#endif
         "CMP	r3, r4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_1024_sqr_32_inner_done\n\t"
 #else
         "BGT.N	L_sp_1024_sqr_32_inner_done\n\t"
 #endif
-        "CMP	r3, r5\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BLE	L_sp_1024_sqr_32_inner\n\t"
+        "BLT	L_sp_1024_sqr_32_inner\n\t"
 #else
-        "BLE.N	L_sp_1024_sqr_32_inner\n\t"
+        "BLT.N	L_sp_1024_sqr_32_inner\n\t"
 #endif
+        "LDR	lr, [%[a], r3]\n\t"
+        "UMULL	r9, r10, lr, lr\n\t"
+        "ADDS	r6, r6, r9\n\t"
+        "ADCS	r7, r7, r10\n\t"
+        "ADC	r8, r8, #0x0\n\t"
         "\n"
     "L_sp_1024_sqr_32_inner_done:\n\t"
         "STR	r6, [sp, r5]\n\t"
@@ -67925,18 +68132,22 @@ static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
         "MOV	r7, r8\n\t"
         "MOV	r8, #0x0\n\t"
         "ADD	r5, r5, #0x4\n\t"
-        "CMP	r5, #0xf8\n\t"
+        "CMP	r5, #0xf4\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BLE	L_sp_1024_sqr_32_outer\n\t"
 #else
         "BLE.N	L_sp_1024_sqr_32_outer\n\t"
 #endif
+        "LDR	lr, [%[a], #124]\n\t"
+        "UMLAL	r6, r7, lr, lr\n\t"
         "STR	r6, [sp, r5]\n\t"
+        "ADD	r5, r5, #0x4\n\t"
+        "STR	r7, [sp, r5]\n\t"
         "\n"
     "L_sp_1024_sqr_32_store:\n\t"
-        "LDM	sp!, {r6, r7, r8, r9}\n\t"
-        "STM	%[r]!, {r6, r7, r8, r9}\n\t"
-        "SUBS	r5, r5, #0x10\n\t"
+        "LDM	sp!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "STM	%[r]!, {r3, r4, r6, r7, r8, r9, r10, r11}\n\t"
+        "SUBS	r5, r5, #0x20\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "BGT	L_sp_1024_sqr_32_store\n\t"
 #else

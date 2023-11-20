@@ -904,10 +904,10 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "STR	r9, [sp, #60]\n\t"
         "ADD	r3, r3, #0x40\n\t"
         "SUBS	r12, r12, #0x1\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BNE	L_SHA256_transform_len_start\n\t"
 #else
-        "BNE.N	L_SHA256_transform_len_start\n\t"
+        "BNE.W	L_SHA256_transform_len_start\n\t"
 #endif
         /* Round 0 */
         "LDR	r5, [%[sha256], #16]\n\t"
@@ -1449,19 +1449,20 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "SUBS	%[len], %[len], #0x40\n\t"
         "SUB	r3, r3, #0xc0\n\t"
         "ADD	%[data], %[data], #0x40\n\t"
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
         "BNE	L_SHA256_transform_len_begin\n\t"
 #else
-        "BNE.N	L_SHA256_transform_len_begin\n\t"
+        "BNE.W	L_SHA256_transform_len_begin\n\t"
 #endif
         "ADD	sp, sp, #0xc0\n\t"
-        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-         [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
-#else
-         [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
+#else
+        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len)
+        : [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
     );
 }

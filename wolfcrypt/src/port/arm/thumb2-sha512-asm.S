@@ -2319,10 +2319,10 @@ L_SHA512_transform_len_start:
 	STRD	r4, r5, [sp, #120]
 	ADD	r3, r3, #0x80
 	SUBS	r12, r12, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA512_transform_len_start
 #else
-	BNE.N	L_SHA512_transform_len_start
+	BNE.W	L_SHA512_transform_len_start
 #endif
 	/* Round 0 */
 	LDRD	r4, r5, [r0, #32]
@@ -3656,10 +3656,10 @@ L_SHA512_transform_len_start:
 	SUBS	r2, r2, #0x80
 	SUB	r3, r3, #0x200
 	ADD	r1, r1, #0x80
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA512_transform_len_begin
 #else
-	BNE.N	L_SHA512_transform_len_begin
+	BNE.W	L_SHA512_transform_len_begin
 #endif
 	EOR	r0, r0, r0
 	ADD	sp, sp, #0xc0
