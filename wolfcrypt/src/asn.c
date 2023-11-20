@@ -96,6 +96,9 @@ ASN Options:
     cost of taking up more memory. Adds initials, givenname, dnQualifer for
     example.
  * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
+ * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
+ *  which is discouraged by X.690 specification - default values shall not
+ *  be encoded.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -18622,7 +18625,8 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
-#ifndef ASN_TEMPLATE_SKIP_ISCA_CHECK
+#if !defined(ASN_TEMPLATE_SKIP_ISCA_CHECK) && \
+    !defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE)
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
@@ -26055,10 +26059,9 @@ static int SetCaWithPathLen(byte* out, word32 outSz, byte pathLen)
     return (int)sizeof(caPathLenBasicConstASN1);
 }
 
-
-/* encode CA basic constraints true
+/* encode CA basic constraints
  * return total bytes written */
-static int SetCa(byte* out, word32 outSz)
+static int SetCaEx(byte* out, word32 outSz, byte isCa)
 {
     /* ASN1->DER sequence for Basic Constraints True */
     const byte caBasicConstASN1[] = {
@@ -26074,7 +26077,18 @@ static int SetCa(byte* out, word32 outSz)
 
     XMEMCPY(out, caBasicConstASN1, sizeof(caBasicConstASN1));
 
+    if (!isCa) {
+        out[sizeof(caBasicConstASN1)-1] = isCa;
+    }
+
     return (int)sizeof(caBasicConstASN1);
+}
+
+/* encode CA basic constraints true
+ * return total bytes written */
+static int SetCa(byte* out, word32 outSz)
+{
+    return SetCaEx(out, outSz, 1);
 }
 
 /* encode basic constraints without CA Boolean
@@ -27827,6 +27841,13 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                 dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
             }
         }
+    #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
+        else if (cert->isCaSet) {
+            SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_BC_CA], 0);
+            SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
+            dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
+        }
+    #endif
         else if (cert->basicConstSet) {
             /* Set Basic Constraints to be a non Certificate Authority. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
@@ -28475,7 +28496,17 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         der->extensionsSz += der->caSz;
     }
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     /* Set CA */
+    else if (cert->isCaSet) {
+        der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->caSz;
+    }
+#endif
+    /* Set CA true */
     else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
@@ -29873,7 +29904,17 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
         der->extensionsSz += der->caSz;
     }
+#ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     /* Set CA */
+    else if (cert->isCaSet) {
+        der->caSz = SetCaEx(der->ca, sizeof(der->ca), cert->isCA);
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->caSz;
+    }
+#endif
+    /* Set CA true */
     else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
