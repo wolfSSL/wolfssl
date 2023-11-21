@@ -2,10 +2,11 @@
 
 ##### Reformatting wolfSSL as a compatible Arduino Library
 This is a shell script that will re-organize the wolfSSL library to be 
-compatible with Arduino projects. The Arduino IDE requires a library's source
-files to be in the library's root directory with a header file in the name of 
-the library. This script moves all src/ files to the `IDE/ARDUINO/wolfSSL`
-directory and creates a stub header file called `wolfssl.h`.
+compatible with Arduino projects that use Arduino IDE 1.5.0 or newer. 
+The Arduino IDE requires a library's source files to be in the library's root 
+directory with a header file in the name of the library. This script moves all 
+src/ files to the `IDE/ARDUINO/wolfSSL/src` directory and creates a stub header
+file called `wolfssl.h` inside that directory.
 
 Step 1: To configure wolfSSL with Arduino, enter the following from within the
 wolfssl/IDE/ARDUINO directory:
@@ -15,7 +16,7 @@ wolfssl/IDE/ARDUINO directory:
 Step 2: Copy the directory wolfSSL that was just created to:
 `~/Documents/Arduino/libraries/` directory so the Arduino IDE can find it.
 
-Step 3: Edit `<arduino-libraries>/wolfSSL/user_settings.h`
+Step 3: Edit `<arduino-libraries>/wolfSSL/src/user_settings.h`
 If building for Intel Galileo platform add: `#define INTEL_GALILEO`.
 Add any other custom settings, for a good start see the examples in wolfssl root
 "/examples/configs/user_settings_*.h"
