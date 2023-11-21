@@ -209,7 +209,7 @@ Transform_Sha512_Len:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xc0
 	ADR	r3, L_SHA512_transform_len_k
-	# Copy digest to add in at end
+	/* Copy digest to add in at end */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
 	LDRD	r8, r9, [r0, #16]
@@ -226,9 +226,9 @@ Transform_Sha512_Len:
 	STRD	r6, r7, [sp, #168]
 	STRD	r8, r9, [sp, #176]
 	STRD	r10, r11, [sp, #184]
-	# Start of loop processing a block
+	/* Start of loop processing a block */
 L_SHA512_transform_len_begin:
-	# Load, Reverse and Store W
+	/* Load, Reverse and Store W */
 	LDR	r4, [r1]
 	LDR	r5, [r1, #4]
 	LDR	r6, [r1, #8]
@@ -325,15 +325,15 @@ L_SHA512_transform_len_begin:
 	STR	r8, [sp, #116]
 	STR	r11, [sp, #120]
 	STR	r10, [sp, #124]
-	# Pre-calc: b ^ c
+	/* Pre-calc: b ^ c */
 	LDRD	r10, r11, [r0, #8]
 	LDRD	r4, r5, [r0, #16]
 	EOR	r10, r10, r4
 	EOR	r11, r11, r5
 	MOV	r12, #0x4
-	# Start of 16 rounds
+	/* Start of 16 rounds */
 L_SHA512_transform_len_start:
-	# Round 0
+	/* Round 0 */
 	LDRD	r4, r5, [r0, #32]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -413,7 +413,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #56]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[0]
+	/* Calc new W[0] */
 	LDRD	r4, r5, [sp, #112]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -457,7 +457,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp]
-	# Round 1
+	/* Round 1 */
 	LDRD	r4, r5, [r0, #24]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -537,7 +537,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #48]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[1]
+	/* Calc new W[1] */
 	LDRD	r4, r5, [sp, #120]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -581,7 +581,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #8]
-	# Round 2
+	/* Round 2 */
 	LDRD	r4, r5, [r0, #16]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -661,7 +661,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #40]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[2]
+	/* Calc new W[2] */
 	LDRD	r4, r5, [sp]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -705,7 +705,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #16]
-	# Round 3
+	/* Round 3 */
 	LDRD	r4, r5, [r0, #8]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -785,7 +785,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #32]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[3]
+	/* Calc new W[3] */
 	LDRD	r4, r5, [sp, #8]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -829,7 +829,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #24]
-	# Round 4
+	/* Round 4 */
 	LDRD	r4, r5, [r0]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -909,7 +909,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #24]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[4]
+	/* Calc new W[4] */
 	LDRD	r4, r5, [sp, #16]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -953,7 +953,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #32]
-	# Round 5
+	/* Round 5 */
 	LDRD	r4, r5, [r0, #56]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1033,7 +1033,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #16]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[5]
+	/* Calc new W[5] */
 	LDRD	r4, r5, [sp, #24]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1077,7 +1077,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #40]
-	# Round 6
+	/* Round 6 */
 	LDRD	r4, r5, [r0, #48]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1157,7 +1157,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #8]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[6]
+	/* Calc new W[6] */
 	LDRD	r4, r5, [sp, #32]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1201,7 +1201,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #48]
-	# Round 7
+	/* Round 7 */
 	LDRD	r4, r5, [r0, #40]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1281,7 +1281,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[7]
+	/* Calc new W[7] */
 	LDRD	r4, r5, [sp, #40]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1325,7 +1325,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #56]
-	# Round 8
+	/* Round 8 */
 	LDRD	r4, r5, [r0, #32]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1405,7 +1405,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #56]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[8]
+	/* Calc new W[8] */
 	LDRD	r4, r5, [sp, #48]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1449,7 +1449,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #64]
-	# Round 9
+	/* Round 9 */
 	LDRD	r4, r5, [r0, #24]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1529,7 +1529,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #48]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[9]
+	/* Calc new W[9] */
 	LDRD	r4, r5, [sp, #56]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1573,7 +1573,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #72]
-	# Round 10
+	/* Round 10 */
 	LDRD	r4, r5, [r0, #16]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1653,7 +1653,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #40]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[10]
+	/* Calc new W[10] */
 	LDRD	r4, r5, [sp, #64]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1697,7 +1697,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #80]
-	# Round 11
+	/* Round 11 */
 	LDRD	r4, r5, [r0, #8]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1777,7 +1777,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #32]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[11]
+	/* Calc new W[11] */
 	LDRD	r4, r5, [sp, #72]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1821,7 +1821,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #88]
-	# Round 12
+	/* Round 12 */
 	LDRD	r4, r5, [r0]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -1901,7 +1901,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #24]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[12]
+	/* Calc new W[12] */
 	LDRD	r4, r5, [sp, #80]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -1945,7 +1945,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #96]
-	# Round 13
+	/* Round 13 */
 	LDRD	r4, r5, [r0, #56]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2025,7 +2025,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #16]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[13]
+	/* Calc new W[13] */
 	LDRD	r4, r5, [sp, #88]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -2069,7 +2069,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #104]
-	# Round 14
+	/* Round 14 */
 	LDRD	r4, r5, [r0, #48]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2149,7 +2149,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #8]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[14]
+	/* Calc new W[14] */
 	LDRD	r4, r5, [sp, #96]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -2193,7 +2193,7 @@ L_SHA512_transform_len_start:
 	ADDS	r4, r4, r6
 	ADC	r5, r5, r7
 	STRD	r4, r5, [sp, #112]
-	# Round 15
+	/* Round 15 */
 	LDRD	r4, r5, [r0, #40]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2273,7 +2273,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Calc new W[15]
+	/* Calc new W[15] */
 	LDRD	r4, r5, [sp, #104]
 	LSRS	r6, r4, #19
 	LSRS	r7, r5, #19
@@ -2319,12 +2319,12 @@ L_SHA512_transform_len_start:
 	STRD	r4, r5, [sp, #120]
 	ADD	r3, r3, #0x80
 	SUBS	r12, r12, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA512_transform_len_start
 #else
-	BNE.N	L_SHA512_transform_len_start
+	BNE.W	L_SHA512_transform_len_start
 #endif
-	# Round 0
+	/* Round 0 */
 	LDRD	r4, r5, [r0, #32]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2404,7 +2404,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #56]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 1
+	/* Round 1 */
 	LDRD	r4, r5, [r0, #24]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2484,7 +2484,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #48]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 2
+	/* Round 2 */
 	LDRD	r4, r5, [r0, #16]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2564,7 +2564,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #40]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 3
+	/* Round 3 */
 	LDRD	r4, r5, [r0, #8]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2644,7 +2644,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #32]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 4
+	/* Round 4 */
 	LDRD	r4, r5, [r0]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2724,7 +2724,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #24]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 5
+	/* Round 5 */
 	LDRD	r4, r5, [r0, #56]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2804,7 +2804,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #16]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 6
+	/* Round 6 */
 	LDRD	r4, r5, [r0, #48]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2884,7 +2884,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #8]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 7
+	/* Round 7 */
 	LDRD	r4, r5, [r0, #40]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -2964,7 +2964,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 8
+	/* Round 8 */
 	LDRD	r4, r5, [r0, #32]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3044,7 +3044,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #56]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 9
+	/* Round 9 */
 	LDRD	r4, r5, [r0, #24]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3124,7 +3124,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #48]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 10
+	/* Round 10 */
 	LDRD	r4, r5, [r0, #16]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3204,7 +3204,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #40]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 11
+	/* Round 11 */
 	LDRD	r4, r5, [r0, #8]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3284,7 +3284,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #32]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 12
+	/* Round 12 */
 	LDRD	r4, r5, [r0]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3364,7 +3364,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #24]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 13
+	/* Round 13 */
 	LDRD	r4, r5, [r0, #56]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3444,7 +3444,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #16]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 14
+	/* Round 14 */
 	LDRD	r4, r5, [r0, #48]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3524,7 +3524,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0, #8]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Round 15
+	/* Round 15 */
 	LDRD	r4, r5, [r0, #40]
 	LSRS	r6, r4, #14
 	LSRS	r7, r5, #14
@@ -3604,7 +3604,7 @@ L_SHA512_transform_len_start:
 	STRD	r6, r7, [r0]
 	MOV	r10, r8
 	MOV	r11, r9
-	# Add in digest from start
+	/* Add in digest from start */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
 	LDRD	r8, r9, [sp, #128]
@@ -3656,15 +3656,15 @@ L_SHA512_transform_len_start:
 	SUBS	r2, r2, #0x80
 	SUB	r3, r3, #0x200
 	ADD	r1, r1, #0x80
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA512_transform_len_begin
 #else
-	BNE.N	L_SHA512_transform_len_begin
+	BNE.W	L_SHA512_transform_len_begin
 #endif
 	EOR	r0, r0, r0
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 5021
+	/* Cycle Count = 5021 */
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */

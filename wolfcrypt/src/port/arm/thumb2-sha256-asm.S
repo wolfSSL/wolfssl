@@ -113,7 +113,7 @@ Transform_Sha256_Len:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xc0
 	ADR	r3, L_SHA256_transform_len_k
-	# Copy digest to add in at end
+	/* Copy digest to add in at end */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
 	LDRD	r8, r9, [r0, #16]
@@ -122,9 +122,9 @@ Transform_Sha256_Len:
 	STRD	r6, r7, [sp, #72]
 	STRD	r8, r9, [sp, #80]
 	STRD	r10, r11, [sp, #88]
-	# Start of loop processing a block
+	/* Start of loop processing a block */
 L_SHA256_transform_len_begin:
-	# Load, Reverse and Store W - 64 bytes
+	/* Load, Reverse and Store W - 64 bytes */
 	LDR	r4, [r1]
 	LDR	r5, [r1, #4]
 	LDR	r6, [r1, #8]
@@ -169,9 +169,9 @@ L_SHA256_transform_len_begin:
 	LDR	r4, [r0, #8]
 	EOR	r11, r11, r4
 	MOV	r12, #0x3
-	# Start of 16 rounds
+	/* Start of 16 rounds */
 L_SHA256_transform_len_start:
-	# Round 0
+	/* Round 0 */
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
 	LDR	r7, [r0, #24]
@@ -203,7 +203,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #12]
 	STR	r9, [r0, #28]
-	# Calc new W[0]
+	/* Calc new W[0] */
 	LDR	r6, [sp, #56]
 	LDR	r7, [sp, #36]
 	LDR	r8, [sp, #4]
@@ -218,7 +218,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp]
-	# Round 1
+	/* Round 1 */
 	LDR	r5, [r0, #12]
 	LDR	r6, [r0, #16]
 	LDR	r7, [r0, #20]
@@ -250,7 +250,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #8]
 	STR	r9, [r0, #24]
-	# Calc new W[1]
+	/* Calc new W[1] */
 	LDR	r6, [sp, #60]
 	LDR	r7, [sp, #40]
 	LDR	r8, [sp, #8]
@@ -265,7 +265,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #4]
-	# Round 2
+	/* Round 2 */
 	LDR	r5, [r0, #8]
 	LDR	r6, [r0, #12]
 	LDR	r7, [r0, #16]
@@ -297,7 +297,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #4]
 	STR	r9, [r0, #20]
-	# Calc new W[2]
+	/* Calc new W[2] */
 	LDR	r6, [sp]
 	LDR	r7, [sp, #44]
 	LDR	r8, [sp, #12]
@@ -312,7 +312,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #8]
-	# Round 3
+	/* Round 3 */
 	LDR	r5, [r0, #4]
 	LDR	r6, [r0, #8]
 	LDR	r7, [r0, #12]
@@ -344,7 +344,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0]
 	STR	r9, [r0, #16]
-	# Calc new W[3]
+	/* Calc new W[3] */
 	LDR	r6, [sp, #4]
 	LDR	r7, [sp, #48]
 	LDR	r8, [sp, #16]
@@ -359,7 +359,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #12]
-	# Round 4
+	/* Round 4 */
 	LDR	r5, [r0]
 	LDR	r6, [r0, #4]
 	LDR	r7, [r0, #8]
@@ -391,7 +391,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #28]
 	STR	r9, [r0, #12]
-	# Calc new W[4]
+	/* Calc new W[4] */
 	LDR	r6, [sp, #8]
 	LDR	r7, [sp, #52]
 	LDR	r8, [sp, #20]
@@ -406,7 +406,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #16]
-	# Round 5
+	/* Round 5 */
 	LDR	r5, [r0, #28]
 	LDR	r6, [r0]
 	LDR	r7, [r0, #4]
@@ -438,7 +438,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #24]
 	STR	r9, [r0, #8]
-	# Calc new W[5]
+	/* Calc new W[5] */
 	LDR	r6, [sp, #12]
 	LDR	r7, [sp, #56]
 	LDR	r8, [sp, #24]
@@ -453,7 +453,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #20]
-	# Round 6
+	/* Round 6 */
 	LDR	r5, [r0, #24]
 	LDR	r6, [r0, #28]
 	LDR	r7, [r0]
@@ -485,7 +485,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #20]
 	STR	r9, [r0, #4]
-	# Calc new W[6]
+	/* Calc new W[6] */
 	LDR	r6, [sp, #16]
 	LDR	r7, [sp, #60]
 	LDR	r8, [sp, #28]
@@ -500,7 +500,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #24]
-	# Round 7
+	/* Round 7 */
 	LDR	r5, [r0, #20]
 	LDR	r6, [r0, #24]
 	LDR	r7, [r0, #28]
@@ -532,7 +532,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #16]
 	STR	r9, [r0]
-	# Calc new W[7]
+	/* Calc new W[7] */
 	LDR	r6, [sp, #20]
 	LDR	r7, [sp]
 	LDR	r8, [sp, #32]
@@ -547,7 +547,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #28]
-	# Round 8
+	/* Round 8 */
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
 	LDR	r7, [r0, #24]
@@ -579,7 +579,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #12]
 	STR	r9, [r0, #28]
-	# Calc new W[8]
+	/* Calc new W[8] */
 	LDR	r6, [sp, #24]
 	LDR	r7, [sp, #4]
 	LDR	r8, [sp, #36]
@@ -594,7 +594,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #32]
-	# Round 9
+	/* Round 9 */
 	LDR	r5, [r0, #12]
 	LDR	r6, [r0, #16]
 	LDR	r7, [r0, #20]
@@ -626,7 +626,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #8]
 	STR	r9, [r0, #24]
-	# Calc new W[9]
+	/* Calc new W[9] */
 	LDR	r6, [sp, #28]
 	LDR	r7, [sp, #8]
 	LDR	r8, [sp, #40]
@@ -641,7 +641,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #36]
-	# Round 10
+	/* Round 10 */
 	LDR	r5, [r0, #8]
 	LDR	r6, [r0, #12]
 	LDR	r7, [r0, #16]
@@ -673,7 +673,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #4]
 	STR	r9, [r0, #20]
-	# Calc new W[10]
+	/* Calc new W[10] */
 	LDR	r6, [sp, #32]
 	LDR	r7, [sp, #12]
 	LDR	r8, [sp, #44]
@@ -688,7 +688,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #40]
-	# Round 11
+	/* Round 11 */
 	LDR	r5, [r0, #4]
 	LDR	r6, [r0, #8]
 	LDR	r7, [r0, #12]
@@ -720,7 +720,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0]
 	STR	r9, [r0, #16]
-	# Calc new W[11]
+	/* Calc new W[11] */
 	LDR	r6, [sp, #36]
 	LDR	r7, [sp, #16]
 	LDR	r8, [sp, #48]
@@ -735,7 +735,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #44]
-	# Round 12
+	/* Round 12 */
 	LDR	r5, [r0]
 	LDR	r6, [r0, #4]
 	LDR	r7, [r0, #8]
@@ -767,7 +767,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #28]
 	STR	r9, [r0, #12]
-	# Calc new W[12]
+	/* Calc new W[12] */
 	LDR	r6, [sp, #40]
 	LDR	r7, [sp, #20]
 	LDR	r8, [sp, #52]
@@ -782,7 +782,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #48]
-	# Round 13
+	/* Round 13 */
 	LDR	r5, [r0, #28]
 	LDR	r6, [r0]
 	LDR	r7, [r0, #4]
@@ -814,7 +814,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #24]
 	STR	r9, [r0, #8]
-	# Calc new W[13]
+	/* Calc new W[13] */
 	LDR	r6, [sp, #44]
 	LDR	r7, [sp, #24]
 	LDR	r8, [sp, #56]
@@ -829,7 +829,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #52]
-	# Round 14
+	/* Round 14 */
 	LDR	r5, [r0, #24]
 	LDR	r6, [r0, #28]
 	LDR	r7, [r0]
@@ -861,7 +861,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #20]
 	STR	r9, [r0, #4]
-	# Calc new W[14]
+	/* Calc new W[14] */
 	LDR	r6, [sp, #48]
 	LDR	r7, [sp, #28]
 	LDR	r8, [sp, #60]
@@ -876,7 +876,7 @@ L_SHA256_transform_len_start:
 	ADD	r4, r4, r5
 	ADD	r9, r9, r4
 	STR	r9, [sp, #56]
-	# Round 15
+	/* Round 15 */
 	LDR	r5, [r0, #20]
 	LDR	r6, [r0, #24]
 	LDR	r7, [r0, #28]
@@ -908,7 +908,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #16]
 	STR	r9, [r0]
-	# Calc new W[15]
+	/* Calc new W[15] */
 	LDR	r6, [sp, #52]
 	LDR	r7, [sp, #32]
 	LDR	r8, [sp]
@@ -925,12 +925,12 @@ L_SHA256_transform_len_start:
 	STR	r9, [sp, #60]
 	ADD	r3, r3, #0x40
 	SUBS	r12, r12, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA256_transform_len_start
 #else
-	BNE.N	L_SHA256_transform_len_start
+	BNE.W	L_SHA256_transform_len_start
 #endif
-	# Round 0
+	/* Round 0 */
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
 	LDR	r7, [r0, #24]
@@ -962,7 +962,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #12]
 	STR	r9, [r0, #28]
-	# Round 1
+	/* Round 1 */
 	LDR	r5, [r0, #12]
 	LDR	r6, [r0, #16]
 	LDR	r7, [r0, #20]
@@ -994,7 +994,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #8]
 	STR	r9, [r0, #24]
-	# Round 2
+	/* Round 2 */
 	LDR	r5, [r0, #8]
 	LDR	r6, [r0, #12]
 	LDR	r7, [r0, #16]
@@ -1026,7 +1026,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #4]
 	STR	r9, [r0, #20]
-	# Round 3
+	/* Round 3 */
 	LDR	r5, [r0, #4]
 	LDR	r6, [r0, #8]
 	LDR	r7, [r0, #12]
@@ -1058,7 +1058,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0]
 	STR	r9, [r0, #16]
-	# Round 4
+	/* Round 4 */
 	LDR	r5, [r0]
 	LDR	r6, [r0, #4]
 	LDR	r7, [r0, #8]
@@ -1090,7 +1090,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #28]
 	STR	r9, [r0, #12]
-	# Round 5
+	/* Round 5 */
 	LDR	r5, [r0, #28]
 	LDR	r6, [r0]
 	LDR	r7, [r0, #4]
@@ -1122,7 +1122,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #24]
 	STR	r9, [r0, #8]
-	# Round 6
+	/* Round 6 */
 	LDR	r5, [r0, #24]
 	LDR	r6, [r0, #28]
 	LDR	r7, [r0]
@@ -1154,7 +1154,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #20]
 	STR	r9, [r0, #4]
-	# Round 7
+	/* Round 7 */
 	LDR	r5, [r0, #20]
 	LDR	r6, [r0, #24]
 	LDR	r7, [r0, #28]
@@ -1186,7 +1186,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #16]
 	STR	r9, [r0]
-	# Round 8
+	/* Round 8 */
 	LDR	r5, [r0, #16]
 	LDR	r6, [r0, #20]
 	LDR	r7, [r0, #24]
@@ -1218,7 +1218,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #12]
 	STR	r9, [r0, #28]
-	# Round 9
+	/* Round 9 */
 	LDR	r5, [r0, #12]
 	LDR	r6, [r0, #16]
 	LDR	r7, [r0, #20]
@@ -1250,7 +1250,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #8]
 	STR	r9, [r0, #24]
-	# Round 10
+	/* Round 10 */
 	LDR	r5, [r0, #8]
 	LDR	r6, [r0, #12]
 	LDR	r7, [r0, #16]
@@ -1282,7 +1282,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #4]
 	STR	r9, [r0, #20]
-	# Round 11
+	/* Round 11 */
 	LDR	r5, [r0, #4]
 	LDR	r6, [r0, #8]
 	LDR	r7, [r0, #12]
@@ -1314,7 +1314,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0]
 	STR	r9, [r0, #16]
-	# Round 12
+	/* Round 12 */
 	LDR	r5, [r0]
 	LDR	r6, [r0, #4]
 	LDR	r7, [r0, #8]
@@ -1346,7 +1346,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #28]
 	STR	r9, [r0, #12]
-	# Round 13
+	/* Round 13 */
 	LDR	r5, [r0, #28]
 	LDR	r6, [r0]
 	LDR	r7, [r0, #4]
@@ -1378,7 +1378,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #24]
 	STR	r9, [r0, #8]
-	# Round 14
+	/* Round 14 */
 	LDR	r5, [r0, #24]
 	LDR	r6, [r0, #28]
 	LDR	r7, [r0]
@@ -1410,7 +1410,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r11
 	STR	r8, [r0, #20]
 	STR	r9, [r0, #4]
-	# Round 15
+	/* Round 15 */
 	LDR	r5, [r0, #20]
 	LDR	r6, [r0, #24]
 	LDR	r7, [r0, #28]
@@ -1442,7 +1442,7 @@ L_SHA256_transform_len_start:
 	ADD	r9, r9, r10
 	STR	r8, [r0, #16]
 	STR	r9, [r0]
-	# Add in digest from start
+	/* Add in digest from start */
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
 	LDRD	r8, r9, [sp, #64]
@@ -1470,14 +1470,14 @@ L_SHA256_transform_len_start:
 	SUBS	r2, r2, #0x40
 	SUB	r3, r3, #0xc0
 	ADD	r1, r1, #0x40
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_SHA256_transform_len_begin
 #else
-	BNE.N	L_SHA256_transform_len_begin
+	BNE.W	L_SHA256_transform_len_begin
 #endif
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 1874
+	/* Cycle Count = 1874 */
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
