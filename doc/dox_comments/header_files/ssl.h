@@ -14882,7 +14882,7 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
         wolfSSL_get_client_suites_sigalgs(ssl, &suites, &suiteSz, &hashSigAlgo,
                 &hashSigAlgoSz);
 
-        // Choose certificate to load based on ciphersuites
+        // Choose certificate to load based on ciphersuites and sigalgs
     }
 
     WOLFSSL* ctx;
@@ -14890,8 +14890,8 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     wolfSSL_CTX_set_cert_cb(ctx, certCB, NULL);
     \endcode
 
-    \sa wolfSSL_new
-    \sa wolfSSL_free
+    \sa wolfSSL_get_ciphersuite_info
+    \sa wolfSSL_get_sigalg_info
 */
 void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
@@ -14919,8 +14919,39 @@ void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         haveECC = 1;
     \endcode
 
-    \sa wolfSSL_new
-    \sa wolfSSL_free
+    \sa wolfSSL_get_client_suites_sigalgs
+    \sa wolfSSL_get_sigalg_info
 */
 WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
         byte second);
+
+/*!
+    \ingroup TLS
+
+    \brief This returns information about the hash and signature algorithm
+    directly from the raw ciphersuite bytes.
+
+    \param [in] first First byte of the hash and signature algorith
+    \param [in] second Second byte of the hash and signature algorith
+    \param [out] hashAlgo The enum wc_HashType of the MAC algorithm
+    \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
+
+    _Example_
+    \code
+    enum wc_HashType hashAlgo;
+    enum Key_Sum sigAlgo;
+
+    wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+            &hashAlgo, &sigAlgo);
+
+    if (sigAlgo == RSAk || sigAlgo == RSAPSSk)
+        haveRSA = 1;
+    else if (sigAlgo == ECDSAk)
+        haveECC = 1;
+    \endcode
+
+    \sa wolfSSL_get_client_suites_sigalgs
+    \sa wolfSSL_get_ciphersuite_info
+*/
+void wolfSSL_get_sigalg_info(byte first, byte second,
+        enum wc_HashType* hashAlgo, enum Key_Sum* sigAlgo);

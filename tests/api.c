@@ -44865,31 +44865,16 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
         haveECC = 0;
     }
     for (idx = 0; idx < hashSigAlgoSz; idx += 2) {
-        /* Based on DecodeSigAlg. Enums are not exposed so need to use magic
-         * numbers. */
-        switch (hashSigAlgo[idx+0]) {
-            case 8:
-                switch (hashSigAlgo[idx+1]) {
-                    case 7: /* ED25519 */
-                    case 8: /* ED448 */
-                        haveECC = 1;
-                        break;
-                    default:
-                        /* RSA-PSS */
-                        haveRSA = 1;
-                        break;
-                }
-                break;
-            default:
-                switch (hashSigAlgo[idx+1]) {
-                    case 1: /* RSA */
-                        haveRSA = 1;
-                        break;
-                    case 3: /* ECC */
-                        haveECC = 1;
-                        break;
-                }
-        }
+        enum wc_HashType hashAlgo;
+        enum Key_Sum sigAlgo;
+
+        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+                &hashAlgo, &sigAlgo);
+
+        if (sigAlgo == RSAk || sigAlgo == RSAPSSk)
+            haveRSA = 1;
+        else if (sigAlgo == ECDSAk)
+            haveECC = 1;
     }
 
     if (haveRSA) {
@@ -45077,6 +45062,43 @@ static int test_wolfSSL_ciphersuite_auth(void)
     ExpectIntEQ(info.eccStatic, 0);
     ExpectIntEQ(info.psk, 0);
 #endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_sigalg_info(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
+    word16 len = 0;
+    word16 idx = 0;
+    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_DILITHIUM;
+
+    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
+    for (idx = 0; idx < len; idx += 2) {
+        enum wc_HashType hashAlgo;
+        enum Key_Sum sigAlgo;
+
+        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+                &hashAlgo, &sigAlgo);
+
+        ExpectIntNE(hashAlgo, 0);
+        ExpectIntNE(sigAlgo, 0);
+    }
+
+    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
+            0xFFFFFFFF, &len);
+    for (idx = 0; idx < len; idx += 2) {
+        enum wc_HashType hashAlgo;
+        enum Key_Sum sigAlgo;
+
+        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+                &hashAlgo, &sigAlgo);
+
+        ExpectIntNE(hashAlgo, 0);
+    }
 
 #endif
     return EXPECT_RESULT();
@@ -69268,6 +69290,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
+    TEST_DECL(test_wolfSSL_sigalg_info),
     /* Can't memory test as tcp_connect aborts. */
     TEST_DECL(test_wolfSSL_SESSION),
     TEST_DECL(test_wolfSSL_SESSION_expire_downgrade),
