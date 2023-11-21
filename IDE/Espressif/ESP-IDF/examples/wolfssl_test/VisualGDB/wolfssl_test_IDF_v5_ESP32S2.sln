@@ -3,31 +3,19 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_test-IDF_v5_ESP32C3", "wolfssl_test-IDF_v5_ESP32C3.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_test_IDF_v5_ESP32S2", "wolfssl_test_IDF_v5_ESP32S2.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl", "wolfssl", "{6789AE30-A5A9-43B9-8058-B2BB4C6DF48C}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl", "wolfssl", "{B18B004C-75A5-4569-857C-BFDB7A0DDE66}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{659DEA11-DB60-4A90-838A-639F265D2C43}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\..\..\..\..\wolfssl\wolfcrypt\port\Espressif\esp32-crypt.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\port\Espressif\esp32-crypt.h
-		..\..\..\..\..\..\wolfcrypt\src\port\Espressif\esp32_sha.c = ..\..\..\..\..\..\wolfcrypt\src\port\Espressif\esp32_sha.c
-		..\..\..\..\..\..\wolfcrypt\src\sha.c = ..\..\..\..\..\..\wolfcrypt\src\sha.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha.h
-		..\..\..\..\..\..\wolfcrypt\src\sha256.c = ..\..\..\..\..\..\wolfcrypt\src\sha256.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h
-		..\..\..\..\..\..\wolfcrypt\src\sha512.c = ..\..\..\..\..\..\wolfcrypt\src\sha512.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h
-		..\..\..\..\..\..\wolfcrypt\test\test.c = ..\..\..\..\..\..\wolfcrypt\test\test.c
-		..\..\..\..\..\..\wolfcrypt\test\test.h = ..\..\..\..\..\..\wolfcrypt\test\test.h
+		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{8CA461CD-1E61-4C3A-BD05-347442D0CEA4}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{204ED033-2CB1-4B10-AA16-A5BDCEC89C5F}"
 	ProjectSection(SolutionItems) = preProject
 		..\components\wolfssl\include\config.h = ..\components\wolfssl\include\config.h
 		..\components\wolfssl\include\user_settings.h = ..\components\wolfssl\include\user_settings.h
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D0174CC3-7BCE-4A3C-8DA1-935271FEA6DC}"
-	ProjectSection(SolutionItems) = preProject
-		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Global
@@ -51,9 +39,9 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{8CA461CD-1E61-4C3A-BD05-347442D0CEA4} = {6789AE30-A5A9-43B9-8058-B2BB4C6DF48C}
+		{204ED033-2CB1-4B10-AA16-A5BDCEC89C5F} = {B18B004C-75A5-4569-857C-BFDB7A0DDE66}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {BBD58395-CE14-4ADC-9039-0BB2950C6D59}
+		SolutionGuid = {48C05769-394F-4D45-AF33-8477DD6730A4}
 	EndGlobalSection
 EndGlobal

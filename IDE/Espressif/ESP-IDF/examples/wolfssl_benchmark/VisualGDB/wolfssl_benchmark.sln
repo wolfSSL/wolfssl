@@ -1,33 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.6.33815.320
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33027.164
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_test-IDF_v5_ESP32C3", "wolfssl_test-IDF_v5_ESP32C3.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_benchmark", "wolfssl_benchmark.vgdbproj", "{EADCC9AB-72B3-4B51-A838-593E5D80DDF7}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl", "wolfssl", "{6789AE30-A5A9-43B9-8058-B2BB4C6DF48C}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{51FEFEA9-C2BA-43A1-8B36-9140367E5AAF}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\..\..\..\..\wolfssl\wolfcrypt\port\Espressif\esp32-crypt.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\port\Espressif\esp32-crypt.h
-		..\..\..\..\..\..\wolfcrypt\src\port\Espressif\esp32_sha.c = ..\..\..\..\..\..\wolfcrypt\src\port\Espressif\esp32_sha.c
-		..\..\..\..\..\..\wolfcrypt\src\sha.c = ..\..\..\..\..\..\wolfcrypt\src\sha.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha.h
-		..\..\..\..\..\..\wolfcrypt\src\sha256.c = ..\..\..\..\..\..\wolfcrypt\src\sha256.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h
-		..\..\..\..\..\..\wolfcrypt\src\sha512.c = ..\..\..\..\..\..\wolfcrypt\src\sha512.c
-		..\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h
-		..\..\..\..\..\..\wolfcrypt\test\test.c = ..\..\..\..\..\..\wolfcrypt\test\test.c
-		..\..\..\..\..\..\wolfcrypt\test\test.h = ..\..\..\..\..\..\wolfcrypt\test\test.h
+		..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.c = ..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.c
+		..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.h = ..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.h
+		..\sdkconfig.defaults = ..\sdkconfig.defaults
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{8CA461CD-1E61-4C3A-BD05-347442D0CEA4}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl", "wolfssl", "{E0C1A3C6-D2E2-4E10-890C-3468B1B8834C}"
+	ProjectSection(SolutionItems) = preProject
+		..\components\wolfssl\CMakeLists.txt = ..\components\wolfssl\CMakeLists.txt
+		..\components\wolfssl\component.mk = ..\components\wolfssl\component.mk
+		..\..\..\..\..\..\wolfcrypt\src\sha.c = ..\..\..\..\..\..\wolfcrypt\src\sha.c
+		..\..\..\..\..\..\wolfcrypt\src\sha256.c = ..\..\..\..\..\..\wolfcrypt\src\sha256.c
+		..\..\..\..\..\..\wolfcrypt\src\sha3.c = ..\..\..\..\..\..\wolfcrypt\src\sha3.c
+		..\..\..\..\..\..\wolfcrypt\src\sha512.c = ..\..\..\..\..\..\wolfcrypt\src\sha512.c
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{530960D7-4FAB-4683-9C83-35ADE6C00358}"
 	ProjectSection(SolutionItems) = preProject
 		..\components\wolfssl\include\config.h = ..\components\wolfssl\include\config.h
 		..\components\wolfssl\include\user_settings.h = ..\components\wolfssl\include\user_settings.h
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D0174CC3-7BCE-4A3C-8DA1-935271FEA6DC}"
-	ProjectSection(SolutionItems) = preProject
-		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Global
@@ -51,9 +49,10 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{8CA461CD-1E61-4C3A-BD05-347442D0CEA4} = {6789AE30-A5A9-43B9-8058-B2BB4C6DF48C}
+		{E0C1A3C6-D2E2-4E10-890C-3468B1B8834C} = {51FEFEA9-C2BA-43A1-8B36-9140367E5AAF}
+		{530960D7-4FAB-4683-9C83-35ADE6C00358} = {E0C1A3C6-D2E2-4E10-890C-3468B1B8834C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {BBD58395-CE14-4ADC-9039-0BB2950C6D59}
+		SolutionGuid = {668EEFC0-010C-4688-916F-A628190717D4}
 	EndGlobalSection
 EndGlobal
