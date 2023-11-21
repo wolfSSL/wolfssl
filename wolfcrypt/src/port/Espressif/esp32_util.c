@@ -19,6 +19,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+/* Reminder: user_settings.h is needed and included from settings.h
+ * Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt */
+#include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
+#include "sdkconfig.h" /* programmatically generated from sdkconfig */
+#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+
+/* Espressif */
+#include <esp_log.h>
+#include <esp_err.h>
+#include <hal/efuse_hal.h>
+
+/* wolfSSL */
+#include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/version.h>
+
 /*
 ** Version / Platform info.
 **
@@ -26,23 +48,25 @@
 ** https://github.com/wolfSSL/wolfssl/pull/6149
 */
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
-
-#include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
-
-#if defined(WOLFSSL_ESPIDF)
-    #include <esp_log.h>
-    #include "sdkconfig.h"
-    #define WOLFSSL_VERSION_PRINTF(...) ESP_LOGI(TAG, __VA_ARGS__)
-#else
-    #include <stdio.h>
-    #define WOLFSSL_VERSION_PRINTF(...) { printf(__VA_ARGS__); printf("\n"); }
-#endif
+#define WOLFSSL_VERSION_PRINTF(...) ESP_LOGI(TAG, __VA_ARGS__)
+/*
+ * If used in other platforms:
+ *   #include <stdio.h>
+ *   #define WOLFSSL_VERSION_PRINTF(...) { printf(__VA_ARGS__); printf("\n"); }
+ */
 
 static const char* TAG = "esp32_util";
 
-/* some functions are only applicable when hardware encryption is enabled */
+/* Variable holding number of times ESP32 restarted since first boot.
+ * It is placed into RTC memory using RTC_DATA_ATTR and
+ * maintains its value when ESP32 wakes from deep sleep.
+ */
+RTC_DATA_ATTR static int _boot_count = 0;
+static int esp_ShowMacroStatus_need_header = 0;
+/* Some helpers for macro display */
+#define STRING_OF(macro) #macro
+#define STR_IFNDEF(macro) STRING_OF(macro)
+
 #if defined(WOLFSSL_ESP32_CRYPT) && \
   (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_SHA256) ||\
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
@@ -51,6 +75,7 @@ static const char* TAG = "esp32_util";
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+/* big nums can be very long, perhaps unitialized, so limit displayed words */
 #define MAX_WORDS_ESP_SHOW_MP 32
 
 /*
@@ -62,7 +87,7 @@ static const char* TAG = "esp32_util";
  *   other value from wc_InitMutex()
  *
  */
-WOLFSSL_LOCAL int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
+int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
     if (mutex == NULL) {
         return BAD_MUTEX_E;
     }
@@ -72,9 +97,10 @@ WOLFSSL_LOCAL int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
 
 /*
  * call the ESP-IDF mutex lock; xSemaphoreTake
- *
+ * this is a general mutex locker, used for different mutex objects for
+ * different HW acclerators or other single-use HW features.
  */
-WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
+int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
@@ -83,7 +109,7 @@ WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_ti
 #ifdef SINGLE_THREADED
     return wc_LockMutex(mutex); /* xSemaphoreTake take with portMAX_DELAY */
 #else
-    return ((xSemaphoreTake( *mutex, block_time ) == pdTRUE) ? 0 : BAD_MUTEX_E);
+    return ((xSemaphoreTake(*mutex, block_time) == pdTRUE) ? 0 : BAD_MUTEX_E);
 #endif
 }
 
@@ -91,7 +117,7 @@ WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_ti
  * call the ESP-IDF mutex UNlock; xSemaphoreGive
  *
  */
-WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
@@ -101,7 +127,7 @@ WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
     return wc_UnLockMutex(mutex);
 #else
     xSemaphoreGive(*mutex);
-    return 0;
+    return ESP_OK;
 #endif
 }
 #endif /* WOLFSSL_ESP32_CRYPT, etc. */
@@ -122,7 +148,7 @@ WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
 ** Specific platforms: Espressif
 */
 #if defined(WOLFSSL_ESPIDF)
-static int ShowExtendedSystemInfo_platform_espressif()
+static int ShowExtendedSystemInfo_platform_espressif(void)
 {
 #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
     WOLFSSL_VERSION_PRINTF("CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: %u MHz",
@@ -161,8 +187,13 @@ static int ShowExtendedSystemInfo_platform_espressif()
     char thisHWM = 0;
     WOLFSSL_VERSION_PRINTF("Stack HWM: %x", (size_t) &thisHWM);
 #else
-    WOLFSSL_VERSION_PRINTF("Stack HWM: %d",
-                           uxTaskGetStackHighWaterMark(NULL));
+    #ifdef INCLUDE_uxTaskGetStackHighWaterMark
+    {
+        WOLFSSL_VERSION_PRINTF("Stack HWM: %d",
+                               uxTaskGetStackHighWaterMark(NULL));
+    }
+    #endif /* INCLUDE_uxTaskGetStackHighWaterMark */
+
 #endif
 
 #elif CONFIG_IDF_TARGET_ESP32S2
@@ -190,42 +221,62 @@ static int ShowExtendedSystemInfo_platform_espressif()
 #else
     /* first show what platform hardware acceleration is enabled
     ** (some new platforms may not be supported yet) */
-#if defined(CONFIG_IDF_TARGET_ESP32)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32.");
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S2.");
-#elif defined(CONFIG_IDF_TARGET_ESP32S3)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S3.");
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C3.");
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C6.");
-#elif defined(CONFIG_IDF_TARGET_ESP32H2)
-    WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-H2.");
-#else
-    /* this should have been detected & disabled in user_settins.h */
-    #error "ESP32_CRYPT not yet supported on this IDF TARGET"
+    #if defined(CONFIG_IDF_TARGET_ESP32)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S2.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S3.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C3.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C6.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-H2.");
+    #else
+        /* this should have been detected & disabled in user_settins.h */
+        #error "ESP32_CRYPT not yet supported on this IDF TARGET"
+    #endif
+
+        /* Even though enabled, some specifics may be disabled */
+    #if defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
+        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_HASH is defined!"
+                               "(disabled HW SHA).");
+    #endif
+
+    #if defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_AES is defined!"
+                               "(disabled HW AES).");
+    #endif
+
+    #if defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
+        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_RSA_PRI defined!"
+                               "(disabled HW RSA)");
+    #endif
 #endif
 
-    /* Even though enabled, some specifics may be disabled */
-#if defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
-    WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_HASH is defined!"
-                           "(disabled HW SHA).");
+#if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
+    WOLFSSL_VERSION_PRINTF("SM Ciphers enabled");
+    #if defined(WOLFSSL_SM2)
+        WOLFSSL_VERSION_PRINTF("  WOLFSSL_SM2 enabled");
+    #else
+        WOLFSSL_VERSION_PRINTF(" WOLFSSL_SM2 NOT enabled");
+    #endif
+
+    #if defined(WOLFSSL_SM3)
+        WOLFSSL_VERSION_PRINTF("  WOLFSSL_SM3 enabled");
+    #else
+        WOLFSSL_VERSION_PRINTF(" WOLFSSL_SM3 NOT enabled");
+    #endif
+
+    #if defined(WOLFSSL_SM4)
+        WOLFSSL_VERSION_PRINTF("  WOLFSSL_SM4 enabled");
+    #else
+        WOLFSSL_VERSION_PRINTF(" WOLFSSL_SM4 NOT enabled");
+    #endif
 #endif
 
-#if defined(NO_WOLFSSL_ESP32_CRYPT_AES)
-    WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_AES is defined!"
-                           "(disabled HW AES).");
-#endif
-
-#if defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
-    WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_RSA_PRI defined!"
-                           "(disabled HW RSA)");
-#endif
-
-#endif /* ! NO_ESP32_CRYPT */
-
-    return 0;
+    return ESP_OK;
 }
 #endif
 
@@ -238,21 +289,12 @@ static int ShowExtendedSystemInfo_platform_espressif()
 /*
 ** All platforms: git details
 */
-static int ShowExtendedSystemInfo_git()
+static int ShowExtendedSystemInfo_git(void)
 {
-#if defined(HAVE_WC_INTROSPECTION) && !defined(ALLOW_BINARY_MISMATCH_INTROSPECTION)
-#pragma message("WARNING: both HAVE_VERSION_EXTENDED_INFO and " \
-                "HAVE_WC_INTROSPECTION are enabled. Some extended " \
-                "information details will not be available.")
-
-    WOLFSSL_VERSION_PRINTF("HAVE_WC_INTROSPECTION enabled. "
-                           "Some extended system details not available.");
-#else
     /* Display some interesting git values that may change,
     ** but not desired for introspection which requires object code to be
     ** maximally bitwise-invariant.
     */
-
 
 #if defined(LIBWOLFSSL_VERSION_GIT_TAG)
     /* git config describe --tags --abbrev=0 */
@@ -290,14 +332,13 @@ static int ShowExtendedSystemInfo_git()
                            LIBWOLFSSL_VERSION_GIT_HASH_DATE);
 #endif
 
-#endif /* else not HAVE_WC_INTROSPECTION */
-    return 0;
+    return ESP_OK;
 }
 
 /*
 ** All platforms: thread details
 */
-static int ShowExtendedSystemInfo_thread()
+static int ShowExtendedSystemInfo_thread(void)
 {
     /* all platforms: stack high water mark check */
 #if defined(SINGLE_THREADED)
@@ -305,13 +346,13 @@ static int ShowExtendedSystemInfo_thread()
 #else
     WOLFSSL_VERSION_PRINTF("NOT SINGLE_THREADED");
 #endif
-    return 0;
+    return ESP_OK;
 }
 
 /*
 ** All Platforms: platform details
 */
-static int ShowExtendedSystemInfo_platform()
+static int ShowExtendedSystemInfo_platform(void)
 {
 #if defined(WOLFSSL_ESPIDF)
 #if defined(CONFIG_IDF_TARGET)
@@ -320,44 +361,233 @@ static int ShowExtendedSystemInfo_platform()
     ShowExtendedSystemInfo_platform_espressif();
 #endif
 #endif
-    return 0;
+    return ESP_OK;
 }
 
+int esp_increment_boot_count(void)
+{
+    return ++_boot_count;
+}
+
+int esp_current_boot_count(void)
+{
+    return _boot_count;
+}
+
+/* See macro helpers above; not_defined is macro name when *not* defined */
+static int esp_ShowMacroStatus(char* s, char* not_defined)
+{
+    char hd1[] = "Macro Name                 Defined   Not Defined";
+    char hd2[] = "------------------------- --------- -------------";
+    char msg[] = ".........................                        ";
+        /*        012345678901234567890123456789012345678901234567890    */
+        /*                  1         2         3         4         5    */
+    size_t i = 0;
+    #define MAX_STATUS_NAME_LENGTH 25
+    #define ESP_SMS_ENA_POS 30
+    #define ESP_SMS_DIS_POS 42
+
+    /* save our string (s) into the space-padded message (msg) */
+    while (s[i] != '\0' && msg[i] != '\0' && (i < MAX_STATUS_NAME_LENGTH)) {
+        msg[i] = s[i];
+        i++;
+    }
+
+    /* Depending on if defined, put an "x" in the appropriate column */
+    if (not_defined == NULL || not_defined[0] == '\0') {
+        msg[ESP_SMS_ENA_POS] = 'X';
+    }
+    else {
+        msg[ESP_SMS_DIS_POS] = 'X';
+    }
+
+    /* do we need a header? */
+    if (esp_ShowMacroStatus_need_header) {
+        ESP_LOGI(TAG, "%s", hd1);
+        ESP_LOGI(TAG, "%s", hd2);
+        esp_ShowMacroStatus_need_header = 0;
+    }
+
+    /* show the macro name with the "x" in the defined/not defined column */
+    ESP_LOGI(TAG, "%s", msg);
+    return ESP_OK;
+}
+
+/* Show some interesting settings */
+int esp_ShowHardwareAcclerationSettings(void)
+{
+    esp_ShowMacroStatus_need_header = 1;
+    esp_ShowMacroStatus("HW_MATH_ENABLED",     STR_IFNDEF(HW_MATH_ENABLED));
+    esp_ShowMacroStatus("RSA_LOW_MEM",         STR_IFNDEF(RSA_LOW_MEM));
+    esp_ShowMacroStatus("WOLFSSL_SHA224",      STR_IFNDEF(WOLFSSL_SHA224));
+    esp_ShowMacroStatus("WOLFSSL_SHA384",      STR_IFNDEF(WOLFSSL_SHA384));
+    esp_ShowMacroStatus("WOLFSSL_SHA512",      STR_IFNDEF(WOLFSSL_SHA512));
+    esp_ShowMacroStatus("WOLFSSL_SHA3",        STR_IFNDEF(WOLFSSL_SHA3));
+    esp_ShowMacroStatus("HAVE_ED25519",        STR_IFNDEF(HAVE_ED25519));
+    esp_ShowMacroStatus("USE_FAST_MATH",       STR_IFNDEF(USE_FAST_MATH));
+    esp_ShowMacroStatus("WOLFSSL_SP_MATH_ALL", STR_IFNDEF(WOLFSSL_SP_MATH_ALL));
+    esp_ShowMacroStatus("WOLFSSL_SP_RISCV32",  STR_IFNDEF(WOLFSSL_SP_RISCV32));
+    esp_ShowMacroStatus("SP_MATH",             STR_IFNDEF(SP_MATH));
+    esp_ShowMacroStatus("WOLFSSL_HW_METRICS",  STR_IFNDEF(WOLFSSL_HW_METRICS));
+
+    #ifdef USE_FAST_MATH
+        ESP_LOGI(TAG, "USE_FAST_MATH");
+    #endif /* USE_FAST_MATH */
+
+    #ifdef WOLFSSL_SP_MATH_ALL
+        #ifdef WOLFSSL_SP_RISCV32
+            ESP_LOGI(TAG, "WOLFSSL_SP_MATH_ALL + WOLFSSL_SP_RISCV32");
+        #else
+            ESP_LOGI(TAG, "WOLFSSL_SP_MATH_ALL");
+        #endif
+    #endif /* WOLFSSL_SP_MATH_ALL */
+
+    ESP_LOGI(TAG, "");
+    return ESP_OK;
+}
 /*
 *******************************************************************************
 ** The internal, portable, but currently private ShowExtendedSystemInfo()
 *******************************************************************************
 */
 int ShowExtendedSystemInfo(void)
-    {
-        WOLFSSL_VERSION_PRINTF("Extended Version and Platform Information.");
-
-#if defined(LIBWOLFSSL_VERSION_STRING)
-        WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_STRING = %s",
-                               LIBWOLFSSL_VERSION_STRING);
+{
+    unsigned chip_rev = -1;
+#ifdef HAVE_ESP_CLK
+    /* esp_clk.h is private */
+    int cpu_freq = 0;
 #endif
 
-#if defined(LIBWOLFSSL_VERSION_HEX)
-        WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_HEX = %x",
-                               LIBWOLFSSL_VERSION_HEX);
+    WOLFSSL_VERSION_PRINTF("Extended Version and Platform Information.");
+
+#if defined(HAVE_WC_INTROSPECTION) && \
+   !defined(ALLOW_BINARY_MISMATCH_INTROSPECTION)
+#pragma message("WARNING: both HAVE_VERSION_EXTENDED_INFO and " \
+                "HAVE_WC_INTROSPECTION are enabled. Some extended " \
+                "information details will not be available.")
+
+    WOLFSSL_VERSION_PRINTF("HAVE_WC_INTROSPECTION enabled. "
+                           "Some extended system details not available.");
+#endif /* else not HAVE_WC_INTROSPECTION */
+
+    chip_rev = efuse_hal_chip_revision();
+    ESP_LOGI(TAG, "Chip revision: v%d.%d", chip_rev / 100, chip_rev % 100);
+
+#ifdef HAVE_ESP_CLK
+    cpu_freq = esp_clk_cpu_freq();
+    ESP_EARLY_LOGI(TAG, "cpu freq: %d Hz", cpu_freq);
+#endif
+
+#if defined(SHOW_SSID_AND_PASSWORD)
+    ESP_LOGW(TAG, "WARNING: SSID and plain text WiFi "
+                  "password displayed in startup logs. ");
+    ESP_LOGW(TAG, "Remove SHOW_SSID_AND_PASSWORD from user_settings.h "
+                  "to disable.");
+#else
+    ESP_LOGI(TAG, "SSID and plain text WiFi "
+                  "password not displayed in startup logs.");
+    ESP_LOGI(TAG, "  Define SHOW_SSID_AND_PASSWORD to enable display.");
 #endif
 
 #if defined(WOLFSSL_MULTI_INSTALL_WARNING)
-        /* CMake may have detected undesired multiple installs, so give warning. */
-        WOLFSSL_VERSION_PRINTF("");
-        WOLFSSL_VERSION_PRINTF("WARNING: Multiple wolfSSL installs found.");
-        WOLFSSL_VERSION_PRINTF("Check ESP-IDF and local project [components] directory.");
-        WOLFSSL_VERSION_PRINTF("");
+    /* CMake may have detected undesired multiple installs, so give warning. */
+    WOLFSSL_VERSION_PRINTF("");
+    WOLFSSL_VERSION_PRINTF("WARNING: Multiple wolfSSL installs found.");
+    WOLFSSL_VERSION_PRINTF("Check ESP-IDF components and "
+                           "local project [components] directory.");
+    WOLFSSL_VERSION_PRINTF("");
+#else
+    #ifdef WOLFSSL_USER_SETTINGS_DIR
+    {
+        ESP_LOGI(TAG, "Using wolfSSL user_settings.h in %s",
+                       WOLFSSL_USER_SETTINGS_DIR);
+    }
+    #else
+    {
+        ESP_LOGW(TAG, "Warning: old cmake, user_settings.h location unknown.");
+    }
+    #endif
 #endif
 
-        ShowExtendedSystemInfo_git(); /* may be limited during active introspection */
-        ShowExtendedSystemInfo_platform();
-        ShowExtendedSystemInfo_thread();
-        return 0;
-    }
+#if defined(LIBWOLFSSL_VERSION_STRING)
+    WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_STRING = %s",
+                            LIBWOLFSSL_VERSION_STRING);
+#endif
 
-WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo()
+#if defined(LIBWOLFSSL_VERSION_HEX)
+    WOLFSSL_VERSION_PRINTF("LIBWOLFSSL_VERSION_HEX = %x",
+                            LIBWOLFSSL_VERSION_HEX);
+#endif
+
+    /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    /* ESP_RSA_MULM_BITS should be set to at least 16 for ESP32 */
+    #if defined(ESP_RSA_MULM_BITS)
+        #if (ESP_RSA_MULM_BITS < 16)
+            ESP_LOGW(TAG, "Warning: ESP_RSA_MULM_BITS < 16 for ESP32");
+        #endif
+    #else
+        ESP_LOGW(TAG, "Warning: ESP_RSA_MULM_BITS not defined for ESP32");
+    #endif
+
+#elif  defined(CONFIG_IDF_TARGET_ESP32C2)
+    ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+            );
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+            );
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+            );
+/*  ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount); */
+
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    #if defined(CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ)
+        ESP_LOGI(TAG, "CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                       CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+                    );
+    #endif
+
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    #if defined(CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ)
+        ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                       CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+                    );
+    #endif
+
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#else
+
+#endif
+
+    /* all platforms: stack high water mark check */
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+    ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+#endif
+    ESP_LOGI(TAG, "");
+
+    esp_ShowHardwareAcclerationSettings();
+    ShowExtendedSystemInfo_git();
+    ShowExtendedSystemInfo_platform();
+    ShowExtendedSystemInfo_thread();
+
+    /* show number of RTC sleep boots */
+    esp_increment_boot_count();
+    ESP_LOGI(TAG, "Boot count: %d", esp_current_boot_count());
+
+    return ESP_OK;
+}
+
+int esp_ShowExtendedSystemInfo(void)
 {
+    /* Someday the ShowExtendedSystemInfo may be global.
+     * See https://github.com/wolfSSL/wolfssl/pull/6149 */
     return ShowExtendedSystemInfo();
 }
 
@@ -366,12 +596,13 @@ WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo()
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-WOLFSSL_LOCAL int esp_show_mp_attributes(char* c, MATH_INT_T* X)
+int esp_show_mp_attributes(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
-    int ret = 0;
+    int ret = ESP_OK;
+
     if (X == NULL) {
-        ret = -1;
+        ret = ESP_FAIL;
         ESP_LOGV(MP_TAG, "esp_show_mp_attributes called with X == NULL");
     }
     else {
@@ -389,15 +620,14 @@ WOLFSSL_LOCAL int esp_show_mp_attributes(char* c, MATH_INT_T* X)
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-WOLFSSL_LOCAL int esp_show_mp(char* c, MATH_INT_T* X)
+int esp_show_mp(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
     int ret = MP_OKAY;
     int words_to_show = 0;
-    size_t i;
 
     if (X == NULL) {
-        ret = -1;
+        ret = ESP_FAIL;
         ESP_LOGV(MP_TAG, "esp_show_mp called with X == NULL");
     }
     else {
@@ -420,7 +650,7 @@ WOLFSSL_LOCAL int esp_show_mp(char* c, MATH_INT_T* X)
     #endif
         ESP_LOGI(MP_TAG, "%s:",c);
         esp_show_mp_attributes(c, X);
-        for (i = 0; i < words_to_show; i++) {
+        for (size_t i = 0; i < words_to_show; i++) {
             ESP_LOGI(MP_TAG, "%s.dp[%2d] = 0x%08x;  /* %2d */ ",
                                    c, /* the supplied variable name      */
                                    i, /* the index, i for dp[%d]         */
@@ -435,12 +665,10 @@ WOLFSSL_LOCAL int esp_show_mp(char* c, MATH_INT_T* X)
 
 /* Perform a full mp_cmp and binary compare.
  * (typically only used during debugging) */
-WOLFSSL_LOCAL int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
+int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
 {
     int ret = MP_OKAY;
-    int e;
-
-    e = memcmp(A, B, sizeof(mp_int));
+    int e = memcmp(A, B, sizeof(mp_int));
     if (mp_cmp(A, B) == MP_EQ) {
         if (e == 0) {
             /* we always want to be here: both esp_show_mp and binary equal! */
@@ -486,10 +714,38 @@ WOLFSSL_LOCAL int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT
                        name_A, name_B);
     }
     else {
-#ifdef DEBUG_WOLFSSL
-        esp_show_mp(name_A, A);
-        esp_show_mp(name_B, B);
-#endif
+      /*  esp_show_mp(name_A, A); */
+      /*  esp_show_mp(name_B, B); */
     }
     return ret;
 }
+
+int esp_hw_show_metrics(void)
+{
+#if  defined(WOLFSSL_HW_METRICS)
+    #if defined(WOLFSSL_ESP32_CRYPT)
+        esp_hw_show_sha_metrics();
+    #else
+        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT");
+    #endif
+
+    #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
+        esp_hw_show_mp_metrics();
+    #else
+        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT_RSA_PRI not defined,"
+                      "HW math not enabled");
+    #endif
+
+    #if defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+        ESP_LOGI(TAG, "NO_WOLFSSL_ESP32_CRYPT_AES is defined,"
+                      "HW AES not enabled");
+    #else
+        esp_hw_show_aes_metrics();
+    #endif
+#else
+    ESP_LOGV(TAG, "WOLFSSL_HW_METRICS is not enabled");
+#endif
+    return ESP_OK;
+}
+
+#endif /* WOLFSSL_ESPIDF */
