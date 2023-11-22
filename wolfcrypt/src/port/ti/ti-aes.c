@@ -471,7 +471,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         XMEMSET(in_a, 0, ROUNDUP_16(inSz));
         XMEMCPY(in_a, in, inSz);
 
-        out_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER)
+        out_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (out_save == NULL) { ret = MEMORY_E; goto exit; }
         out_a = out_save;
     }
@@ -493,7 +493,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     else {
         nonce_save = XMALLOC(ROUNDUP_16(nonceSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (authIn_save == NULL) { ret = MEMORY_E; goto exit; }
+        if (nonce_save == NULL) { ret = MEMORY_E; goto exit; }
 
         nonce_a = nonce_save;
         XMEMSET(nonce_a, 0, ROUNDUP_16(nonceSz));
