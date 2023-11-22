@@ -147,7 +147,7 @@ enum {
 **   Turns on development testing. Validates HW accelerated results to software
 **   - Automatically turns on WOLFSSL_HW_METRICS
 **
-** DEBUG_WOLFSSL_SHA_MUTEX
+** WOLFSSL_DEBUG_MUTEX
 **   Turns on diagnostic messages for SHA mutex. Note that given verbosity,
 **   there may be TLS timing issues encountered. Use with caution.
 **
@@ -589,7 +589,7 @@ extern "C"
                                              byte blockprocess);
     WOLFSSL_LOCAL int esp_sha_process(struct wc_Sha* sha, const byte* data);
 
-#ifdef DEBUG_WOLFSSL_SHA_MUTEX
+#ifdef WOLFSSL_DEBUG_MUTEX
     /* testing HW release in task that did not lock */
     extern WC_ESP32SHA* stray_ctx;
 #endif

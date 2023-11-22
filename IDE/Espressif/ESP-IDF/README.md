@@ -14,7 +14,6 @@ Including the following examples:
 * Simple [TLS client](./examples/wolfssl_client/)/[server](./examples/wolfssl_server/)
 * Cryptographic [test](./examples/wolfssl_test/)
 * Cryptographic [benchmark](./examples/wolfssl_benchmark/)
-* Bare-bones [template](./examples/template/)
 
  The *user_settings.h* file enables some of the hardened settings.
 
