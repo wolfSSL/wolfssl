@@ -1972,7 +1972,7 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
     unsigned char* ret = NULL;
     int rc = 0;
     int type = 0;
-    int hmacLen;
+    int hmacLen = 0;
 #ifdef WOLFSSL_SMALL_STACK
     Hmac* hmac = NULL;
 #else
