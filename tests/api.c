@@ -35690,7 +35690,7 @@ static int test_X509_STORE_untrusted(void)
         NULL
     };
 
-    /* Only immediate issuer in untrusted chaing. Fails since can't build chain
+    /* Only immediate issuer in untrusted chain. Fails since can't build chain
      * to loaded CA. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted1, 0,
             X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 1), TEST_SUCCESS);

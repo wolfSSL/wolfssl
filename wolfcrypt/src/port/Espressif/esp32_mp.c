@@ -818,7 +818,7 @@ int esp_mp_montgomery_init(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M,
         return MP_HW_FALLBACK;
     }
     if ((X == NULL) || (Y == NULL) || (M == NULL) ) {
-        /* if a bad oprand passed, we cannot use HW */
+        /* if a bad operand passed, we cannot use HW */
         ESP_LOGE(TAG, "ERROR: Bad montgomery operand, falling back to SW");
         return MP_HW_FALLBACK;
     }
@@ -1437,10 +1437,10 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
         SET_HW_VALIDATION;
         reti = mp_mulmod(X2, Y2, M2, Z2);
         if (reti == 0) {
-            ESP_LOGV(TAG, "wolfSSL mp_mulmod during vaidation success");
+            ESP_LOGV(TAG, "wolfSSL mp_mulmod during validation success");
         }
         else {
-            ESP_LOGE(TAG, "wolfSSL mp_mulmod during vaidation failed");
+            ESP_LOGE(TAG, "wolfSSL mp_mulmod during validation failed");
         }
         CLR_HW_VALIDATION;
     }

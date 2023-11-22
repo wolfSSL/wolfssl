@@ -20394,7 +20394,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         case getRecordLayerHeader:
 
             /* DTLSv1.3 record numbers in the header are encrypted, and AAD
-             * uses the unecrypted form. Because of this we need to modify the
+             * uses the unencrypted form. Because of this we need to modify the
              * header, decrypting the numbers inside
              * DtlsParseUnifiedRecordLayer(). This violates the const attribute
              * of the buffer parameter of GetRecordHeader() used here. */

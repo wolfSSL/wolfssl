@@ -152,7 +152,7 @@ $./examples/server/server -b -d -i -v 4
 
 + For ECDSA sign and verify use,
 Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
+Disable the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server with the following option.
 ```
@@ -214,7 +214,7 @@ $./examples/server/server -b -d -i -v 3
 
 + For ECDSA sign and verify use,
 Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
+Disable the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server with the following option.
 ```
@@ -281,7 +281,7 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 
 + For ECDSA sign and verify use,
 Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
+Disable the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server from e2studio
 
@@ -311,7 +311,7 @@ Cleaning up socket and wolfSSL objects.
 Waiting connection....
 ```
 
-You will see the follwoing message on Linux terminal.
+You will see the following message on Linux terminal.
 ```
 $ ./examples/client/client -h 192.168.11.241 -p 11111 -v 4
 SSL version is TLSv1.3
@@ -333,7 +333,7 @@ Received: hello wolfssl!
 Cleaning up socket and wolfSSL objects.
 Waiting connection....
 ```
-You will see the follwoing message on Linux terminal.
+You will see the following message on Linux terminal.
 ```
 $ ./examples/client/client -h 192.168.11.241 -p 11111 -v 4 -A ./certs/ca-ecc-cert.pem -c ./certs/client-ecc-cert.pem  -k ./cert
 s/ecc-client-key.pem
@@ -359,7 +359,7 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 
 + For ECDSA sign and verify use,
 Enable the `USE_CERT_BUFFER_256` macro in `wolfssl_demo.h`
-Disble the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
+Disable the `USE_CERT_BUFFER_2048` macro in `wolfssl_demo.h`
 
 + launch server from e2studio
 
@@ -389,7 +389,7 @@ Cleaning up socket and wolfSSL objects.
 Waiting connection....
 ```
 
-You will see the follwoing message on Linux terminal.
+You will see the following message on Linux terminal.
 ```
 $ ./examples/client/client -h 192.168.11.241 -p 11111 -v 3
 SSL version is TLSv1.2
@@ -411,7 +411,7 @@ Received: hello wolfssl!
 Cleaning up socket and wolfSSL objects.
 Waiting connection....
 ```
-You will see the follwoing message on Linux terminal.
+You will see the following message on Linux terminal.
 ```
 $ ./examples/client/client -h 192.168.11.241 -p 11111 -v 3 -A ./certs/ca-ecc-cert.pem -c ./certs/client-ecc-cert.pem  -k ./certs/ecc-client-key.pem
 SSL version is TLSv1.2

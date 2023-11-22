@@ -23,7 +23,7 @@ NOTE: * --enable-heapmath is being deprecated and will be removed by 2024
 * Added LMS/HSS and XMSS/XMSS^MT wolfcrypt hooks, both normal and verify-only options.
 * Added support for the AES EAX mode of operation
 * Port for use with Hitch (https://github.com/varnish/hitch) added
-* Add XTS API's to handle multiple sectors in new port ot VeraCrypt
+* Add XTS API's to handle multiple sectors in new port to VeraCrypt
 
 ## Enhancements and Optimizations
 

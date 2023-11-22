@@ -1533,7 +1533,7 @@ WOLFSSL_API int wc_AesEaxEncryptFinal(AesEax* eax,
     \ref wc_AesEaxInit. When done using the \c AesEax context structure, make 
     sure to free it using \ref wc_AesEaxFree.
 
-    \return 0 if data is authenticated succesfully
+    \return 0 if data is authenticated successfully
     \return AES_EAX_AUTH_E if the authentication tag does not match the
     supplied authentication code vector \c authIn
     \return other error code on failure

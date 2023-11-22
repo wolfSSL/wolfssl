@@ -27,7 +27,7 @@
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args);
 
 /* Echo bytes using buffer of blockSize until [echoData] bytes are complete. */
-/* If [bechmarkThroughput] set the statistcs will be output at the end */
+/* If [benchmarkThroughput] set the statistics will be output at the end */
 int ServerEchoData(WOLFSSL* ssl, int clientfd, int echoData, int blockSize,
                    size_t benchmarkThroughput);
 

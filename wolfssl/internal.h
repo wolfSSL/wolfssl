@@ -1764,7 +1764,7 @@ enum Misc {
 #ifndef ECDHE_SIZE /* allow this to be overridden at compile-time */
     ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
-    MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
+    MAX_EXPORT_ECC_SZ   = 256, /* Export ANSI X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
@@ -3576,7 +3576,7 @@ struct WOLFSSL_CTX {
     byte        sendVerify:2;     /* for client side (can not be single bit) */
     byte        haveRSA:1;        /* RSA available */
     byte        haveECC:1;        /* ECC available */
-    byte        haveDH:1;         /* server DH parms set by user */
+    byte        haveDH:1;         /* server DH params set by user */
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
     byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
     byte        haveDilithiumSig:1;/* server cert signed w/ Dilithium */
@@ -4630,7 +4630,7 @@ struct Options {
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
-    word16            haveDH:1;           /* server DH parms set by user */
+    word16            haveDH:1;           /* server DH params set by user */
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            haveFalconSig:1;    /* server Falcon signed cert */
