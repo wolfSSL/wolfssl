@@ -1601,6 +1601,7 @@ AC_ARG_ENABLE([mcast],
 # strongSwan (--enable-strongswan)
 # OpenLDAP (--enable-openldap)
 # hitch (--enable-hitch)
+# memcached (--enable-memcached)
 
 # Bind DNS compatibility Build
 AC_ARG_ENABLE([bind],
@@ -1809,6 +1810,13 @@ AC_ARG_ENABLE([hitch],
     [AS_HELP_STRING([--enable-hitch],[Enable hitch support (default: disabled)])],
     [ ENABLED_HITCH=$enableval ],
     [ ENABLED_HITCH=no ]
+    )
+
+# memcached support
+AC_ARG_ENABLE([memcached],
+    [AS_HELP_STRING([--enable-memcached],[Enable memcached support (default: disabled)])],
+    [ ENABLED_MEMCACHED=$enableval ],
+    [ ENABLED_MEMCACHED=no ]
     )
 
 # OpenSSL Coexist
@@ -6391,6 +6399,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS -DWOLFSSL_CIPHER_INTERNALNAME"
 fi
 
+if test "$ENABLED_MEMCACHED" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_ID_CTX"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_MEMCACHED"
+fi
+
 
 if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
@@ -9682,6 +9696,7 @@ echo "   * chrony:                     $ENABLED_CHRONY"
 echo "   * strongSwan:                 $ENABLED_STRONGSWAN"
 echo "   * OpenLDAP:                   $ENABLED_OPENLDAP"
 echo "   * hitch:                      $ENABLED_HITCH"
+echo "   * memcached:                  $ENABLED_MEMCACHED"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * DTLS v1.3:                  $ENABLED_DTLS13"

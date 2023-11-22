@@ -1,0 +1,81 @@
+name: memcached Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-memcached
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-memcached
+          path: build-dir
+          retention-days: 1
+
+  memcached_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        include:
+          - ref: 1.6.22
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-memcached
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y libevent-dev libevent-2.1-7 automake pkg-config make libio-socket-ssl-perl
+
+      - name: Checkout memcached
+        uses: actions/checkout@v3
+        with:
+          repository: memcached/memcached
+          ref: 1.6.22
+          path: memcached
+
+      - name: Configure and build memcached
+        run: |
+            cd $GITHUB_WORKSPACE/memcached/
+            patch -p1 < $GITHUB_WORKSPACE/osp/memcached/memcached_1.6.22.patch
+            ./autogen.sh
+            export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+            PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig ./configure --enable-wolfssl
+            make -j$(nproc)
+
+      - name: Confirm memcached built with wolfSSL
+        working-directory: ./memcached
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          ldd memcached | grep wolfssl
+
+      - name: Run memcached tests
+        working-directory: ./memcached
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          make -j$(nproc) test_tls

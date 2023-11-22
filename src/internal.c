@@ -7321,10 +7321,12 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->alert_history.last_tx.code  = -1;
     ssl->alert_history.last_tx.level = -1;
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+#endif
+#ifdef OPENSSL_EXTRA
     ssl->cbioFlag = ctx->cbioFlag;
 
     ssl->protoMsgCb  = ctx->protoMsgCb;
@@ -10359,6 +10361,8 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 
 int SendBuffered(WOLFSSL* ssl)
 {
+    int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
+
     if (ssl->CBIOSend == NULL && !WOLFSSL_IS_QUIC(ssl)) {
         WOLFSSL_MSG("Your IO Send callback is null, please set");
         return SOCKET_ERROR_E;
@@ -10379,15 +10383,22 @@ int SendBuffered(WOLFSSL* ssl)
 #endif
 
     while (ssl->buffers.outputBuffer.length > 0) {
-        int sent = ssl->CBIOSend(ssl,
-                                      (char*)ssl->buffers.outputBuffer.buffer +
-                                      ssl->buffers.outputBuffer.idx,
-                                      (int)ssl->buffers.outputBuffer.length,
-                                      ssl->IOCB_WriteCtx);
+        int sent = 0;
+retry:
+        sent = ssl->CBIOSend(ssl,
+                             (char*)ssl->buffers.outputBuffer.buffer +
+                             ssl->buffers.outputBuffer.idx,
+                             (int)ssl->buffers.outputBuffer.length,
+                             ssl->IOCB_WriteCtx);
         if (sent < 0) {
             switch (sent) {
 
                 case WOLFSSL_CBIO_ERR_WANT_WRITE:        /* would block */
+                    if (retryLimit > 0 && ssl->ctx->autoRetry &&
+                            !ssl->options.handShakeDone && !ssl->options.dtls) {
+                        retryLimit--;
+                        goto retry;
+                    }
                     return WANT_WRITE;
 
                 case WOLFSSL_CBIO_ERR_CONN_RST:          /* connection reset */

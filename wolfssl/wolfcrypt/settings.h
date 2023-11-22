@@ -334,6 +334,9 @@
 
 #undef HAVE_CTS
 #define HAVE_CTS
+
+#undef WOLFSSL_SESSION_ID_CTX
+#define WOLFSSL_SESSION_ID_CTX
 #endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
 
 /* Special small OpenSSL compat layer for certs */
