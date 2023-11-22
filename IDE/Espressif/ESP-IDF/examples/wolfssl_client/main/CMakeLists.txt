@@ -1,12 +1,36 @@
-
+# wolfSSL Espressif Example Project/main CMakeLists.txt
+#   v1.0
 #
 # wolfssl client test
 #
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 
-set(COMPONENT_SRCS "client-tls.c" "wifi_connect.c")
-set(COMPONENT_ADD_INCLUDEDIRS "." "./include")
-
+if(WIN32)
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WINDOWS")
+    message("Detected Windows")
+endif()
+if(CMAKE_HOST_UNIX)
+    message("Detected UNIX")
+endif()
+if(APPLE)
+    message("Detected APPLE")
+endif()
+if(CMAKE_HOST_UNIX AND (NOT APPLE) AND EXISTS "/proc/sys/fs/binfmt_misc/WSLInterop")
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WSL")
+    message("Detected WSL")
+endif()
+if(CMAKE_HOST_UNIX AND (NOT APPLE) AND (NOT WIN32))
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_LINUX")
+    message("Detected Linux")
+endif()
+if(APPLE)
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_APPLE")
+    message("Detected Apple")
+endif()
 set (git_cmd "git")
 
 if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
@@ -19,7 +43,14 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
 endif()
 
-register_component()
+## register_component()
+idf_component_register(SRCS main.c
+                            wifi_connect.c
+                            time_helper.c
+                            client-tls.c
+                       INCLUDE_DIRS "."
+                                    "./include")
+#
 
 #
 # LIBWOLFSSL_SAVE_INFO(VAR_OUPUT THIS_VAR VAR_RESULT)

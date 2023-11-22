@@ -1,4 +1,3 @@
-
 #
 # wolfssl crypt test
 #
@@ -23,7 +22,9 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
 endif()
 
-register_component()
+idf_component_register(SRCS main.c
+                       INCLUDE_DIRS "." 
+                       "./include")
 
 #
 # LIBWOLFSSL_SAVE_INFO(VAR_OUPUT THIS_VAR VAR_RESULT)

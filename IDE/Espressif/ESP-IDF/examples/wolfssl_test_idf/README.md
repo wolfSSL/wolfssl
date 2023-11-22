@@ -6,6 +6,12 @@ This IDF version does NOT contain a local component and exists only to test wolf
 
 The recommended configuration is to have only the CMakeLists.txt in the local project components\wolfssl directory. See the [wolfssl_test](../wolfssl_test/README.md) example.
 
+## VisualGDB
+
+Open the VisualGDB Visual Studio Project file in the VisualGDB directory and click the "Start" button.
+
+## ESP-IDF Commandline
+
 1. `idf.py menuconfig` to configure the program.  
     1-1. Example Configuration ->
 
@@ -35,7 +41,7 @@ cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_test
 . /mnt/c/SysGCC/esp32/esp-idf/v4.4.2/export.sh
 
 # build and flash, in this example to COM20
-idf.py build flash -p /dev/ttyS20 -b 921600 monitor
+idf.py build flash -p /dev/ttyS20 -b 115200 monitor
 ```
 
 ## Example Output
@@ -45,7 +51,7 @@ compatible across the widest ranges of targets. Contact wolfSSL at support@wolfs
 for help in optimizing for your particular application, or see the 
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
-Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 921600 monitor`:
+Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:
 
 ```
 ets Jun  8 2016 00:22:57

@@ -1,5 +1,4 @@
-/* main.c
- *
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
@@ -18,32 +17,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#ifndef _TIME_HELPER_H
 
-/* Espressif */
-#include <esp_log.h>
-
-/* wolfSSL  */
-#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
-
-/* project */
-#include "main.h"
-
-static const char* const TAG = "My Project";
-
-void app_main(void)
-{
-    ESP_LOGI(TAG, "Hello wolfSSL!");
-
-#ifdef HAVE_VERSION_EXTENDED_INFO
-    esp_ShowExtendedSystemInfo();
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#ifdef WOLFSSL_HW_METRICS_DISABLED /* Remove _DISABLED upon #6990 Merge  */
-    esp_hw_show_metrics();
+int set_time(void);
+
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
 
-    ESP_LOGI(TAG, "\n\nDone!"
-                  "If running from idf.py monitor, press twice: Ctrl+]\n\n"
-                  "WOLFSSL_COMPLETE\n" /* exit keyword for wolfssl_monitor.py */
-            );
-}
+#endif /* #ifndef _TIME_HELPER_H */

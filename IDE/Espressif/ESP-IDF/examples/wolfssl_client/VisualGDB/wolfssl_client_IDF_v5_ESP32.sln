@@ -1,0 +1,56 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_client_IDF_v5_ESP32", "wolfssl_client_IDF_v5_ESP32.vgdbproj", "{E903E9CC-1A23-4B00-8914-7E45EC21E351}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl", "wolfssl", "{5D78034B-FAE6-4B8D-8003-EC2B0993F286}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\..\..\wolfssl\error-ssl.h = ..\..\..\..\..\..\wolfssl\error-ssl.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{53267705-B3FE-418C-975D-CD898BAF1F46}"
+	ProjectSection(SolutionItems) = preProject
+		..\components\wolfssl\include\config.h = ..\components\wolfssl\include\config.h
+		..\components\wolfssl\include\user_settings.h = ..\components\wolfssl\include\user_settings.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A51226B3-88A7-4463-B443-0E321C4A3D53}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\..\..\..\my_private_config.h = ..\..\..\..\..\..\..\my_private_config.h
+		..\partitions_singleapp_large.csv = ..\partitions_singleapp_large.csv
+		..\README.md = ..\README.md
+		..\sdkconfig = ..\sdkconfig
+		..\build\VisualGDB\Debug\config\sdkconfig.cmake = ..\build\VisualGDB\Debug\config\sdkconfig.cmake
+		..\sdkconfig.defaults = ..\sdkconfig.defaults
+		..\build\VisualGDB\Debug\config\sdkconfig.h = ..\build\VisualGDB\Debug\config\sdkconfig.h
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|VisualGDB = Debug|VisualGDB
+		Release|VisualGDB = Release|VisualGDB
+		Tests (Debug)|VisualGDB = Tests (Debug)|VisualGDB
+		Tests (Release)|VisualGDB = Tests (Release)|VisualGDB
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Debug|VisualGDB.ActiveCfg = Debug|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Debug|VisualGDB.Build.0 = Debug|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Release|VisualGDB.ActiveCfg = Release|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Release|VisualGDB.Build.0 = Release|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Tests (Debug)|VisualGDB.ActiveCfg = Tests (Debug)|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Tests (Debug)|VisualGDB.Build.0 = Tests (Debug)|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Tests (Release)|VisualGDB.ActiveCfg = Tests (Release)|VisualGDB
+		{E903E9CC-1A23-4B00-8914-7E45EC21E351}.Tests (Release)|VisualGDB.Build.0 = Tests (Release)|VisualGDB
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{53267705-B3FE-418C-975D-CD898BAF1F46} = {5D78034B-FAE6-4B8D-8003-EC2B0993F286}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BA06FD8D-BEFD-429B-9F82-B6F34B43272E}
+	EndGlobalSection
+EndGlobal

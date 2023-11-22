@@ -1,11 +1,36 @@
-# This tag is used to include this file in the ESP Component Registry:
-# __ESP_COMPONENT_SOURCE__
-
+# wolfSSL Espressif Example Project/main CMakeLists.txt
+#   v1.0
 #
-# wolfssl client test
+# wolfssl template
 #
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 
+if(WIN32)
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WINDOWS")
+    message("Detected Windows")
+endif()
+if(CMAKE_HOST_UNIX)
+    message("Detected UNIX")
+endif()
+if(APPLE)
+    message("Detected APPLE")
+endif()
+if(CMAKE_HOST_UNIX AND (NOT APPLE) AND EXISTS "/proc/sys/fs/binfmt_misc/WSLInterop")
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WSL")
+    message("Detected WSL")
+endif()
+if(CMAKE_HOST_UNIX AND (NOT APPLE) AND (NOT WIN32))
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_LINUX")
+    message("Detected Linux")
+endif()
+if(APPLE)
+    # Windows-specific configuration here
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_APPLE")
+    message("Detected Apple")
+endif()
 set (git_cmd "git")
 
 if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
@@ -20,8 +45,8 @@ endif()
 
 ## register_component()
 idf_component_register(SRCS main.c
-                       INCLUDE_DIRS "." "./include")
-#
+                       INCLUDE_DIRS "."
+                                    "./include")
 
 #
 # LIBWOLFSSL_SAVE_INFO(VAR_OUPUT THIS_VAR VAR_RESULT)
