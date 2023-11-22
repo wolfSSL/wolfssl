@@ -28906,7 +28906,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             dilithiumKey) {
             word32 outSz = sigSz;
-            ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey);
+            ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey, rng);
             if (ret == 0)
                 ret = outSz;
         }

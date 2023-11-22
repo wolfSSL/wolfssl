@@ -8896,7 +8896,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = wc_dilithium_sign_msg(args->sigData, args->sigDataSz,
                                          args->verify + HASH_SIG_SIZE +
                                          VERIFY_HEADER, (word32*)&sig->length,
-                                         (dilithium_key*)ssl->hsKey);
+                                         (dilithium_key*)ssl->hsKey, ssl->rng);
                 args->length = (word16)sig->length;
             }
             #endif
