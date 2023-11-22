@@ -65,7 +65,6 @@ echo "---------------------------------------------------------------------"
 echo "Updating self-sm2-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-#echo -e "US\\nMontana\\nBozeman\\nwolfSSL_sm2\\nServer-sm2\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key self-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out self-sm2.csr
 echo -e "AU\\nQLD\\n.\\nwolfSSL\\nTesting\\nwolfssl-dev-sm2\\n\\n\\n\\n\\n" | openssl req -new -key self-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out self-sm2.csr
 check_result $? "Generate request"
 
