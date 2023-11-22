@@ -79,9 +79,9 @@
         #undef WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
     #endif
 
-    /* Note with HW there's a EPS_RSA_EXPT_XBTIS setting
+    /* Note with HW there's a ESP_RSA_EXPT_XBITS setting
      * as for some small numbers, SW may be faster.
-     * See ESP_LOGV messages for EPS_RSA_EXPT_XBTIS values. */
+     * See ESP_LOGV messages for ESP_RSA_EXPT_XBITS values. */
 
 #endif /* WOLFSSL_ESP32_CRYPT_RSA_PRI */
 
@@ -3427,6 +3427,36 @@ int fp_sqr(fp_int *A, fp_int *B)
        err = FP_VAL;
        goto clean;
     }
+
+#if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL)
+    if (esp_hw_validation_active()) {
+        ESP_LOGV(TAG, "Skipping call to esp_mp_mul "
+                      "during active validation.");
+    }
+    else {
+        err = esp_mp_mul(A, A, B); /* HW accelerated multiply  */
+        switch (err) {
+            case MP_OKAY:
+                goto clean; /* success */
+                break;
+
+            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
+            case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
+                /* fall back to software, below */
+                break;
+
+            default:
+                /* Once we've failed, exit without trying to continue.
+                 * We may have mangled operands: (e.g. Z = X * Z)
+                 * Future implementation may consider saving operands,
+                 * but errors should never occur. */
+                goto clean;  /* error */
+                break;
+        }
+    }
+    /* fall through to software calcs */
+#endif /* WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL */
 
 #if defined(TFM_SQR3) && FP_SIZE >= 6
         if (y <= 3) {

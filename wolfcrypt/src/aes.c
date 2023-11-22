@@ -483,7 +483,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #undef  WOLFSSL_AES_DIRECT
     #define WOLFSSL_AES_DIRECT
 
-    /* If we choose to never have a fallback to SW: */
+    /* Encrypt: If we choose to never have a fallback to SW: */
     #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
     static WARN_UNUSED_RESULT int wc_AesEncrypt( /* calling this one when NO_AES_192 is defined */
         Aes* aes, const byte* inBlock, byte* outBlock)
@@ -501,7 +501,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
     #endif
 
-    /* If we choose to never have a fallback to SW */
+    /* Decrypt: If we choose to never have a fallback to SW: */
     #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT))
     static WARN_UNUSED_RESULT int wc_AesDecrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
@@ -882,10 +882,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #ifdef NEED_AES_TABLES
 
 #ifndef WC_AES_BITSLICED
-#if (!defined(WOLFSSL_SILABS_SE_ACCEL) &&  \
-     !defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) \
-    ) || \
-    (defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && defined(NEED_AES_HW_FALLBACK))
+#if !defined(WOLFSSL_SILABS_SE_ACCEL) ||  \
+     defined(NO_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES) || \
+     defined(NEED_AES_HW_FALLBACK)
 static const FLASH_QUALIFIER word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
@@ -1535,8 +1534,8 @@ static WARN_UNUSED_RESULT word32 inv_col_mul(
     byte t0 = t9 ^ tb ^ td;
     return t0 ^ AES_XTIME(AES_XTIME(AES_XTIME(t0 ^ te) ^ td ^ te) ^ tb ^ te);
 }
-#endif
-#endif
+#endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
+#endif /* WOLFSSL_AES_SMALL_TABLES */
 #endif
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) || \
@@ -3894,8 +3893,29 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     XMEMCPY(rk, key, keySz);
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
     (!defined(WOLFSSL_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES))
-    ByteReverseWords(rk, rk, keySz);
-#endif
+    /* Always reverse words when using only SW */
+    {
+        ByteReverseWords(rk, rk, keySz);
+    }
+#else
+    /* Sometimes reverse words when using supported HW */
+    #if defined(WOLFSSL_ESPIDF)
+        /* Some platforms may need SW fallback (e.g. AES192) */
+        #if defined(NEED_AES_HW_FALLBACK)
+        {
+            ESP_LOGV(TAG, "wc_AesEncrypt fallback check");
+            if (wc_esp32AesSupportedKeyLen(aes)) {
+                /* don't reverse for HW supported key lengths */
+            }
+            else {
+                ByteReverseWords(rk, rk, keySz);
+            }
+        }
+        #else
+            /* If we don't need SW fallback, don't need to reverse words. */
+        #endif /* NEED_AES_HW_FALLBACK */
+    #endif /* WOLFSSL_ESPIDF */
+#endif /* LITTLE_ENDIAN_ORDER, etc */
 
     switch (keySz) {
 #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 && \
@@ -4345,13 +4365,20 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             return wc_AesSetKey_for_ESP32(aes, userKey, keylen, iv, dir);
         }
         else {
+        #if  defined(WOLFSSL_HW_METRICS)
+            /* It is interesting to know how many times we could not complete
+             * AES in hardware due to unsupported lengths. */
+            wc_esp32AesUnupportedLengthCountAdd();
+        #endif
         #ifdef DEBUG_WOLFSSL
             ESP_LOGW(TAG, "wc_AesSetKey HW Fallback, unsupported keylen = %d",
                            keylen);
         #endif
         }
-    #endif
+    #endif /* WOLFSSL_ESPIDF && NEED_AES_HW_FALLBACK */
+
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
+
     } /* wc_AesSetKey() */
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)

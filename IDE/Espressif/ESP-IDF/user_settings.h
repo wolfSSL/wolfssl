@@ -83,7 +83,7 @@
     #define WOLFSSL_AES_DIRECT
 #endif
 
-/* when you want to use aes counter mode */
+/* when you want to use AES counter mode */
 /* #define WOLFSSL_AES_DIRECT */
 /* #define WOLFSSL_AES_COUNTER */
 
@@ -102,10 +102,17 @@
     /* Define USE_FAST_MATH and SMALL_STACK                        */
     #define ESP32_USE_RSA_PRIMITIVE
     /* threshold for performance adjustment for HW primitive use   */
+
+    /* NOTE HW unreliable for small values on older original ESP32!*/
+    /* threshold for performance adjustment for HW primitive use   */
     /* X bits of G^X mod P greater than                            */
-    #define EPS_RSA_EXPT_XBTIS           36
+    #undef  ESP_RSA_EXPT_XBITS
+    #define ESP_RSA_EXPT_XBITS 32
+
     /* X and Y of X * Y mod P greater than                         */
-    #define ESP_RSA_MULM_BITS            2000
+    #undef  ESP_RSA_MULM_BITS
+    #define ESP_RSA_MULM_BITS  16
+
 #endif
 
 /* debug options */
@@ -123,46 +130,129 @@
 /* adjust wait-timeout count if you see timeout in RSA HW acceleration */
 #define ESP_RSA_TIMEOUT_CNT    0x249F00
 
+/* Default is HW enabled unless turned off.
+** Uncomment these lines to force SW instead of HW acceleration */
+
 #if defined(CONFIG_IDF_TARGET_ESP32)
-    /* when you want not to use HW acceleration on ESP32 (below for S3, etc */
-    /* #define NO_ESP32_CRYPT                 */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_AES     */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+    /* wolfSSL HW Acceleration supported on ESP32. Uncomment to disable: */
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES     */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+
+    /*  These are defined automatically in esp32-crypt.h, here for clarity:  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224 /* no SHA224 HW on ESP32  */
+    /* end CONFIG_IDF_TARGET_ESP32 */
+    #undef  ESP_RSA_MULM_BITS
+    #define ESP_RSA_MULM_BITS 16 /* TODO add compile-time warning */
+    /***** END CONFIG_IDF_TARGET_ESP32 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32S2)
-    /* ESP32-S2 disabled by default; not implemented */
-    #define NO_ESP32_CRYPT
-    #define NO_WOLFSSL_ESP32_CRYPT_HASH
-    #define NO_WOLFSSL_ESP32_CRYPT_AES
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /* wolfSSL HW Acceleration supported on ESP32-S2. Uncomment to disable: */
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /* Note: There's no AES192 HW on the ESP32-S2; falls back to SW */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES     */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /***** END CONFIG_IDF_TARGET_ESP32S2 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-    /* when you want not to use HW acceleration on ESP32-S3 */
-    /* #define NO_ESP32_CRYPT                 */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_AES     */
-    /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+    /* wolfSSL HW Acceleration supported on ESP32-S3. Uncomment to disable: */
+    /*  #define NO_ESP32_CRYPT                         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH            */
+    /* Note: There's no AES192 HW on the ESP32-S3; falls back to SW */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /***** END CONFIG_IDF_TARGET_ESP32S3 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
-    /* ESP32-C3 disabled by default, not implemented */
-    #define NO_ESP32_CRYPT
-    #define NO_WOLFSSL_ESP32_CRYPT_HASH
-    #define NO_WOLFSSL_ESP32_CRYPT_AES
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /* wolfSSL HW Acceleration supported on ESP32-C2. Uncomment to disable: */
+
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */ /* to disable all SHA HW   */
+
+    /* These are defined automatically in esp32-crypt.h, here for clarity:  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384    /* no SHA384 HW on C6  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512    /* no SHA512 HW on C6  */
+
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /***** END CONFIG_IDF_TARGET_ESP32C3 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
-    /* ESP32-C6 disabled by default, not implemented */
-    #define NO_ESP32_CRYPT
-    #define NO_WOLFSSL_ESP32_CRYPT_HASH
-    #define NO_WOLFSSL_ESP32_CRYPT_AES
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /* wolfSSL HW Acceleration supported on ESP32-C6. Uncomment to disable: */
+
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /*  These are defined automatically in esp32-crypt.h, here for clarity:  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384    /* no SHA384 HW on C6  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512    /* no SHA512 HW on C6  */
+
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_AES             */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI         */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD  */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
+    /***** END CONFIG_IDF_TARGET_ESP32C6 *****/
+
 #elif defined(CONFIG_IDF_TARGET_ESP32H2)
-    /* ESP32-H2 disabled by default, not implemented */
+    /*  wolfSSL Hardware Acceleration not yet implemented */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /***** END CONFIG_IDF_TARGET_ESP32H2 *****/
+
 #else
-    /* anything else unknown will have HW disabled by default */
+    /* Anything else encountered, disable HW accleration */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#endif /* CONFIG_IDF_TARGET Check */
+
+/* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm
+#define WOLFSSL_SM2
+#define WOLFSSL_SM3
+#define WOLFSSL_SM4
+*/
+
+#if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
+    #include <wolfssl/certs_test_sm.h>
+    #define CTX_CA_CERT          root_sm2
+    #define CTX_CA_CERT_SIZE     sizeof_root_sm2
+    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_PEM
+    #define CTX_SERVER_CERT      server_sm2
+    #define CTX_SERVER_CERT_SIZE sizeof_server_sm2
+    #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_PEM
+    #define CTX_SERVER_KEY       server_sm2_priv
+    #define CTX_SERVER_KEY_SIZE  sizeof_server_sm2_priv
+    #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_PEM
+
+    #undef  WOLFSSL_BASE16
+    #define WOLFSSL_BASE16
+#else
+    #define USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_256
+    #define CTX_CA_CERT          ca_cert_der_2048
+    #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
+    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
+    #define CTX_SERVER_CERT      server_cert_der_2048
+    #define CTX_SERVER_CERT_SIZE sizeof_server_cert_der_2048
+    #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+    #define CTX_SERVER_KEY       server_key_der_2048
+    #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_2048
+    #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
 #endif
