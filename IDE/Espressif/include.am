@@ -45,7 +45,6 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/Makefile
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/partitions_singleapp_large.csv
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/README.md
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/sdkconfig
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/sdkconfig.defaults
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/VisualGDB
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/components/wolfssl
