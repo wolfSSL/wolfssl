@@ -241,9 +241,6 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
 
 #ifndef WOLFSSL_SP_SMALL
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -251,9 +248,9 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
+SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -603,9 +600,6 @@ static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -613,9 +607,9 @@ static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
+SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1540,18 +1534,15 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
 }
 
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
 #else
-static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1792,18 +1783,15 @@ static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
 #else
-static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3441,9 +3429,9 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3746,9 +3734,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3854,9 +3842,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4069,9 +4057,9 @@ static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5681,9 +5669,9 @@ static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_dig
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6242,9 +6230,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6350,9 +6338,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6725,9 +6713,9 @@ static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14394,9 +14382,9 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_dig
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14827,9 +14815,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14935,9 +14923,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15230,9 +15218,9 @@ static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -17210,9 +17198,9 @@ static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a, const sp_dig
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -18027,9 +18015,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -18135,9 +18123,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -18670,9 +18658,9 @@ static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -24635,9 +24623,9 @@ static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a, const sp_di
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -25708,9 +25696,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -25816,9 +25804,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -26511,9 +26499,9 @@ static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -30944,9 +30932,6 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
 #else
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -30954,9 +30939,9 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -31306,9 +31291,6 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -31316,9 +31298,9 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -31543,18 +31525,15 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 
 #else
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
 #else
-static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -31795,18 +31774,15 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif /* __IAR_SYSTEMS_ICC__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
 #else
-static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32450,9 +32426,6 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
 }
 
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
@@ -32463,9 +32436,9 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32944,9 +32917,6 @@ static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif
 /* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
@@ -32957,9 +32927,9 @@ static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -33217,9 +33187,6 @@ static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
 
 #endif
 #ifdef WOLFSSL_SP_NO_UMAAL
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
@@ -33228,9 +33195,9 @@ static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -33600,9 +33567,6 @@ static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
 }
 
 #else
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma inline=never
-#endif
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
@@ -33611,9 +33575,9 @@ static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34216,9 +34180,9 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a, const sp_digit
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34329,9 +34293,9 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34425,9 +34389,9 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34590,9 +34554,9 @@ static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_reduce_order_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34703,9 +34667,9 @@ static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit 
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_reduce_order_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34840,9 +34804,9 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_add_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34905,9 +34869,9 @@ static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_dbl_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34965,9 +34929,9 @@ static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_tpl_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35058,9 +35022,9 @@ static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_sub_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35121,9 +35085,9 @@ static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
  * m  Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mont_div2_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_256_mont_div2_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -43972,9 +43936,9 @@ static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a, const sp_digi
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_reduce_12(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44117,9 +44081,9 @@ static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_reduce_12(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44605,9 +44569,9 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_add_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44630,9 +44594,9 @@ static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_dbl_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44654,9 +44618,9 @@ static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const sp_digit* m
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_tpl_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44903,9 +44867,9 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a, const sp_digi
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mont_sub_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_384_mont_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -55432,9 +55396,9 @@ static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a, const sp_digi
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_reduce_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -55569,9 +55533,9 @@ static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_reduce_order_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -55835,9 +55799,9 @@ static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_reduce_order_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56481,9 +56445,9 @@ static void sp_521_map_17(sp_point_521* r, const sp_point_521* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_add_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56571,9 +56535,9 @@ static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_dbl_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56651,9 +56615,9 @@ static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a, const sp_digit* m
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_tpl_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56752,9 +56716,9 @@ static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a, const sp_digit* m
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mont_sub_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_521_mont_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69683,9 +69647,9 @@ static int sp_1024_point_to_ecc_point_32(const sp_point_1024* p, ecc_point* pm)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69993,9 +69957,9 @@ static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
+SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70351,9 +70315,9 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_add_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70529,9 +70493,9 @@ static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_dbl_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70690,9 +70654,9 @@ static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_tpl_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -71007,9 +70971,9 @@ static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mont_sub_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
+SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r_p, const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
+SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
