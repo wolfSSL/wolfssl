@@ -269,6 +269,18 @@ if(NOT WOLFSSL_SINGLE_THREADED)
     endif()
 endif()
 
+# DTLS-SRTP
+add_option("WOLFSSL_SRTP"
+    "Enables wolfSSL DTLS-SRTP (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_SRTP)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SRTP")
+    set(WOLFSSL_DTLS "yes")
+    set(WOLFSSL_KEYING_MATERIAL "yes")
+endif()
+
 
 # DTLS
 add_option("WOLFSSL_DTLS"
