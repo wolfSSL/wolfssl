@@ -12,7 +12,7 @@ Setup process:
   - Unzip wolfssl under the same directory
  
 2. Set up wolfSSL
-  - open wolfssl\IDE\Renesas\cs+\Projec/wolfssl\lib.mtpj with CS+ and build
+  - open wolfssl\IDE\Renesas\cs+\Projects\wolfssl\lib.mtpj with CS+ and build
   - open t4_demo.mtpj and build. This create demo program library.
 
 3. Set up AlphaProject

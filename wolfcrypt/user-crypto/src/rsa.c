@@ -2042,7 +2042,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
     IppStatus ret;
     int scratchSz;
-    int i; /* for trys on calling make key */
+    int i; /* for tries on calling make key */
     int ctxSz;
 
     IppsBigNumState* pSrcPublicExp = NULL;
@@ -2178,7 +2178,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         goto makeKeyEnd;
     }
 
-    /* call IPP to generate keys, if inseficent entropy error call again */
+    /* call IPP to generate keys, if insufficient entropy error call again */
     ret = ippStsInsufficientEntropy;
     while (ret == ippStsInsufficientEntropy) {
         ret = ippsRSA_GenerateKeys(pSrcPublicExp, key->n, key->e,

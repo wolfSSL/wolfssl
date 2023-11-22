@@ -131,7 +131,7 @@ void RSIP_KeyGeneration(FSPSM_ST *g)
 }
 
 /* only pointer sets to NULL     */
-/* onwer of keys should be freed */
+/* owner of keys should be freed */
 void Clr_CallbackCtx(FSPSM_ST *g)
 {
     (void) g;

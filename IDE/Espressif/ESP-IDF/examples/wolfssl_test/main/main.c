@@ -241,6 +241,6 @@ void app_main(void)
 #else
         vTaskDelay(60000);
 #endif
-    } /* done whle */
+    } /* done while */
 #endif
 }
