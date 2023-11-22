@@ -11788,7 +11788,7 @@ void bench_falconKeySign(byte level)
                     x = FALCON_LEVEL5_SIG_SIZE;
                 }
 
-                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
+                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key, GLOBAL_RNG);
                 if (ret != 0) {
                     printf("wc_falcon_sign_msg failed\n");
                 }

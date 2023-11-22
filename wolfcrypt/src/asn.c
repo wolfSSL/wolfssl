@@ -28897,7 +28897,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     #if defined(HAVE_FALCON)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
             word32 outSz = sigSz;
-            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey);
+            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey, rng);
             if (ret == 0)
                 ret = outSz;
         }
