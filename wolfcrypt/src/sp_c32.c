@@ -59,6 +59,7 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
@@ -20987,8 +20988,8 @@ SP_NOINLINE static void sp_256_mont_sqr_9(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery multiplier.
  */
-static void sp_256_mont_sqr_n_9(sp_digit* r, const sp_digit* a, int n,
-        const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_256_mont_sqr_n_9(sp_digit* r,
+    const sp_digit* a, int n, const sp_digit* m, sp_digit mp)
 {
     sp_256_mont_sqr_9(r, a, m, mp);
     for (; n > 1; n--) {
@@ -26540,7 +26541,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
  * heap   Heap to use if dynamically allocating.
@@ -26596,7 +26597,7 @@ static int sp_256_ecc_is_point_9(const sp_point_256* point,
     return err;
 }
 
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * pX  X ordinate of EC point.
  * pY  Y ordinate of EC point.
@@ -28395,8 +28396,8 @@ SP_NOINLINE static void sp_384_mont_sqr_15(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery multiplier.
  */
-static void sp_384_mont_sqr_n_15(sp_digit* r, const sp_digit* a, int n,
-        const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_384_mont_sqr_n_15(sp_digit* r,
+    const sp_digit* a, int n, const sp_digit* m, sp_digit mp)
 {
     sp_384_mont_sqr_15(r, a, m, mp);
     for (; n > 1; n--) {
@@ -34621,7 +34622,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
  * heap   Heap to use if dynamically allocating.
@@ -34677,7 +34678,7 @@ static int sp_384_ecc_is_point_15(const sp_point_384* point,
     return err;
 }
 
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * pX  X ordinate of EC point.
  * pY  Y ordinate of EC point.
@@ -36068,8 +36069,8 @@ SP_NOINLINE static void sp_521_mont_sqr_21(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery multiplier.
  */
-static void sp_521_mont_sqr_n_21(sp_digit* r, const sp_digit* a, int n,
-        const sp_digit* m, sp_digit mp)
+SP_NOINLINE static void sp_521_mont_sqr_n_21(sp_digit* r,
+    const sp_digit* a, int n, const sp_digit* m, sp_digit mp)
 {
     sp_521_mont_sqr_21(r, a, m, mp);
     for (; n > 1; n--) {
@@ -42795,7 +42796,7 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
  * heap   Heap to use if dynamically allocating.
@@ -42851,7 +42852,7 @@ static int sp_521_ecc_is_point_21(const sp_point_521* point,
     return err;
 }
 
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * pX  X ordinate of EC point.
  * pY  Y ordinate of EC point.
@@ -54684,7 +54685,7 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 }
 
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
  * heap   Heap to use if dynamically allocating.
@@ -54744,7 +54745,7 @@ static int sp_1024_ecc_is_point_42(const sp_point_1024* point,
     return err;
 }
 
-/* Check that the x and y oridinates are a valid point on the curve.
+/* Check that the x and y ordinates are a valid point on the curve.
  *
  * pX  X ordinate of EC point.
  * pY  Y ordinate of EC point.

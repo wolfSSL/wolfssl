@@ -1882,7 +1882,7 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte counter[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     /* Noticed different optimization levels treated head of array different.
-     * Some cases was stack pointer plus offset others was a regester containing
+     * Some cases was stack pointer plus offset others was a register containing
      * address. To make uniform for passing in to inline assembly code am using
      * pointers to the head of each local array.
      */
@@ -3528,7 +3528,7 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte counter[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     /* Noticed different optimization levels treated head of array different.
-     * Some cases was stack pointer plus offset others was a regester containing
+     * Some cases was stack pointer plus offset others was a register containing
      * address. To make uniform for passing in to inline assembly code am using
      * pointers to the head of each local array.
      */
@@ -5291,7 +5291,7 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte counter[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     /* Noticed different optimization levels treated head of array different.
-     * Some cases was stack pointer plus offset others was a regester containing
+     * Some cases was stack pointer plus offset others was a register containing
      * address. To make uniform for passing in to inline assembly code am using
      * pointers to the head of each local array.
      */

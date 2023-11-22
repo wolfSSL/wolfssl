@@ -1228,7 +1228,7 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
 }
 
 
-/* trasnlates the HSM error to wolfSSL error and does debug print out */
+/* Translates the HSM error to wolfSSL error and does debug print out */
 int wc_TranslateHSMError(int current, hsm_err_t err)
 {
     int ret = -1;

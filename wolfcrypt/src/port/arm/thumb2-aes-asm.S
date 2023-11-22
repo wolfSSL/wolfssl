@@ -670,13 +670,13 @@ L_AES_invert_key_mix_loop:
 	EOR	r8, r8, r9, ROR #24
 	STR	r8, [r0], #4
 	SUBS	r11, r11, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_invert_key_mix_loop
 #else
-	BNE.N	L_AES_invert_key_mix_loop
+	BNE.W	L_AES_invert_key_mix_loop
 #endif
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 165
+	/* Cycle Count = 165 */
 	.size	AES_invert_key,.-AES_invert_key
 #endif /* HAVE_AES_DECRYPT */
 	.text
@@ -699,20 +699,20 @@ L_AES_Thumb2_rcon:
 	.globl	AES_set_encrypt_key
 	.type	AES_set_encrypt_key, %function
 AES_set_encrypt_key:
-	PUSH	{r4, r5, r6, r7, r8, lr}
-	LDR	r8, L_AES_Thumb2_te
+	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}
+	LDR	r10, L_AES_Thumb2_te
 	ADR	lr, L_AES_Thumb2_rcon
 	CMP	r1, #0x80
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_set_encrypt_key_start_128
 #else
-	BEQ.N	L_AES_set_encrypt_key_start_128
+	BEQ.W	L_AES_set_encrypt_key_start_128
 #endif
 	CMP	r1, #0xc0
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_set_encrypt_key_start_192
 #else
-	BEQ.N	L_AES_set_encrypt_key_start_192
+	BEQ.W	L_AES_set_encrypt_key_start_192
 #endif
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -735,10 +735,10 @@ L_AES_set_encrypt_key_loop_256:
 	UBFX	r5, r7, #8, #8
 	UBFX	r6, r7, #16, #8
 	LSR	r7, r7, #24
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r5, [r8, r5, LSL #2]
-	LDRB	r6, [r8, r6, LSL #2]
-	LDRB	r7, [r8, r7, LSL #2]
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r7, [r10, r7, LSL #2]
 	EOR	r3, r7, r4, LSL #8
 	EOR	r3, r3, r5, LSL #16
 	EOR	r3, r3, r6, LSL #24
@@ -757,10 +757,10 @@ L_AES_set_encrypt_key_loop_256:
 	UBFX	r5, r3, #16, #8
 	LSR	r6, r3, #24
 	UBFX	r3, r3, #0, #8
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r6, [r8, r6, LSL #2]
-	LDRB	r5, [r8, r5, LSL #2]
-	LDRB	r3, [r8, r3, LSL #2]
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r3, [r10, r3, LSL #2]
 	EOR	r3, r3, r4, LSL #8
 	EOR	r3, r3, r5, LSL #16
 	EOR	r3, r3, r6, LSL #24
@@ -782,10 +782,10 @@ L_AES_set_encrypt_key_loop_256:
 	UBFX	r5, r7, #8, #8
 	UBFX	r6, r7, #16, #8
 	LSR	r7, r7, #24
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r5, [r8, r5, LSL #2]
-	LDRB	r6, [r8, r6, LSL #2]
-	LDRB	r7, [r8, r7, LSL #2]
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r7, [r10, r7, LSL #2]
 	EOR	r3, r7, r4, LSL #8
 	EOR	r3, r3, r5, LSL #16
 	EOR	r3, r3, r6, LSL #24
@@ -799,69 +799,77 @@ L_AES_set_encrypt_key_loop_256:
 	ADD	r2, r2, #0x10
 	STM	r2, {r4, r5, r6, r7}
 	SUB	r2, r2, #0x10
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_set_encrypt_key_end
+#else
+	B.N	L_AES_set_encrypt_key_end
+#endif
 L_AES_set_encrypt_key_start_192:
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
-	LDRD	r0, r1, [r0, #16]
+	LDRD	r8, r9, [r0, #16]
 	REV	r4, r4
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	REV	r0, r0
-	REV	r1, r1
+	REV	r8, r8
+	REV	r9, r9
 	STM	r2, {r4, r5, r6, r7}
-	STRD	r0, r1, [r2, #16]
-	MOV	r7, r1
+	STRD	r8, r9, [r2, #16]
+	MOV	r7, r9
 	MOV	r12, #0x7
 L_AES_set_encrypt_key_loop_192:
-	UBFX	r0, r7, #0, #8
-	UBFX	r1, r7, #8, #8
-	UBFX	r4, r7, #16, #8
-	LSR	r7, r7, #24
-	LDRB	r0, [r8, r0, LSL #2]
-	LDRB	r1, [r8, r1, LSL #2]
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r7, [r8, r7, LSL #2]
-	EOR	r3, r7, r0, LSL #8
-	EOR	r3, r3, r1, LSL #16
-	EOR	r3, r3, r4, LSL #24
-	LDM	r2!, {r0, r1, r4, r5, r6, r7}
-	EOR	r0, r0, r3
+	UBFX	r4, r9, #0, #8
+	UBFX	r5, r9, #8, #8
+	UBFX	r6, r9, #16, #8
+	LSR	r9, r9, #24
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r9, [r10, r9, LSL #2]
+	EOR	r3, r9, r4, LSL #8
+	EOR	r3, r3, r5, LSL #16
+	EOR	r3, r3, r6, LSL #24
+	LDM	r2!, {r4, r5, r6, r7, r8, r9}
+	EOR	r4, r4, r3
 	LDM	lr!, {r3}
-	EOR	r0, r0, r3
-	EOR	r1, r1, r0
-	EOR	r4, r4, r1
+	EOR	r4, r4, r3
 	EOR	r5, r5, r4
 	EOR	r6, r6, r5
 	EOR	r7, r7, r6
-	STM	r2, {r0, r1, r4, r5, r6, r7}
+	EOR	r8, r8, r7
+	EOR	r9, r9, r8
+	STM	r2, {r4, r5, r6, r7, r8, r9}
 	SUBS	r12, r12, #0x1
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_AES_set_encrypt_key_loop_192
 #else
 	BNE.N	L_AES_set_encrypt_key_loop_192
 #endif
-	UBFX	r0, r7, #0, #8
-	UBFX	r1, r7, #8, #8
-	UBFX	r4, r7, #16, #8
-	LSR	r7, r7, #24
-	LDRB	r0, [r8, r0, LSL #2]
-	LDRB	r1, [r8, r1, LSL #2]
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r7, [r8, r7, LSL #2]
-	EOR	r3, r7, r0, LSL #8
-	EOR	r3, r3, r1, LSL #16
-	EOR	r3, r3, r4, LSL #24
-	LDM	r2!, {r0, r1, r4, r5, r6, r7}
-	EOR	r0, r0, r3
+	UBFX	r4, r9, #0, #8
+	UBFX	r5, r9, #8, #8
+	UBFX	r6, r9, #16, #8
+	LSR	r9, r9, #24
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r9, [r10, r9, LSL #2]
+	EOR	r3, r9, r4, LSL #8
+	EOR	r3, r3, r5, LSL #16
+	EOR	r3, r3, r6, LSL #24
+	LDM	r2!, {r4, r5, r6, r7, r8, r9}
+	EOR	r4, r4, r3
 	LDM	lr!, {r3}
-	EOR	r0, r0, r3
-	EOR	r1, r1, r0
-	EOR	r4, r4, r1
+	EOR	r4, r4, r3
 	EOR	r5, r5, r4
-	STM	r2, {r0, r1, r4, r5}
+	EOR	r6, r6, r5
+	EOR	r7, r7, r6
+	STM	r2, {r4, r5, r6, r7}
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_set_encrypt_key_end
+#else
+	B.N	L_AES_set_encrypt_key_end
+#endif
 L_AES_set_encrypt_key_start_128:
 	LDRD	r4, r5, [r0]
 	LDRD	r6, r7, [r0, #8]
@@ -876,10 +884,10 @@ L_AES_set_encrypt_key_loop_128:
 	UBFX	r5, r7, #8, #8
 	UBFX	r6, r7, #16, #8
 	LSR	r7, r7, #24
-	LDRB	r4, [r8, r4, LSL #2]
-	LDRB	r5, [r8, r5, LSL #2]
-	LDRB	r6, [r8, r6, LSL #2]
-	LDRB	r7, [r8, r7, LSL #2]
+	LDRB	r4, [r10, r4, LSL #2]
+	LDRB	r5, [r10, r5, LSL #2]
+	LDRB	r6, [r10, r6, LSL #2]
+	LDRB	r7, [r10, r7, LSL #2]
 	EOR	r3, r7, r4, LSL #8
 	EOR	r3, r3, r5, LSL #16
 	EOR	r3, r3, r6, LSL #24
@@ -898,8 +906,8 @@ L_AES_set_encrypt_key_loop_128:
 	BNE.N	L_AES_set_encrypt_key_loop_128
 #endif
 L_AES_set_encrypt_key_end:
-	POP	{r4, r5, r6, r7, r8, pc}
-	# Cycle Count = 327
+	POP	{r4, r5, r6, r7, r8, r9, r10, pc}
+	/* Cycle Count = 331 */
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 	.text
 	.align	4
@@ -953,7 +961,7 @@ L_AES_encrypt_block_nr:
 	LDM	r3!, {r4, r5, r6, r7}
 	EOR	r11, r11, lr, ROR #24
 	EOR	r11, r11, r2, ROR #8
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r8, r8, r4
 	EOR	r9, r9, r5
 	EOR	r10, r10, r6
@@ -1003,16 +1011,16 @@ L_AES_encrypt_block_nr:
 	LDM	r3!, {r8, r9, r10, r11}
 	EOR	r7, r7, lr, ROR #24
 	EOR	r7, r7, r2, ROR #8
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	SUBS	r1, r1, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_encrypt_block_nr
 #else
-	BNE.N	L_AES_encrypt_block_nr
+	BNE.W	L_AES_encrypt_block_nr
 #endif
 	UBFX	r8, r5, #16, #8
 	LSR	r11, r4, #24
@@ -1059,7 +1067,7 @@ L_AES_encrypt_block_nr:
 	LDM	r3!, {r4, r5, r6, r7}
 	EOR	r11, r11, lr, ROR #24
 	EOR	r11, r11, r2, ROR #8
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r8, r8, r4
 	EOR	r9, r9, r5
 	EOR	r10, r10, r6
@@ -1109,13 +1117,13 @@ L_AES_encrypt_block_nr:
 	LDM	r3, {r8, r9, r10, r11}
 	EOR	r7, r7, lr, LSL #8
 	EOR	r7, r7, r2, LSL #16
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	POP	{pc}
-	# Cycle Count = 285
+	/* Cycle Count = 285 */
 	.size	AES_encrypt_block,.-AES_encrypt_block
 #if defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
@@ -1137,16 +1145,16 @@ AES_ECB_encrypt:
 	LDR	r12, [sp, #36]
 	PUSH	{r3}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_ECB_encrypt_start_block_128
+	BEQ.W	L_AES_ECB_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_ECB_encrypt_start_block_192
+	BEQ.W	L_AES_ECB_encrypt_start_block_192
 #endif
 L_AES_ECB_encrypt_loop_block_256:
 	LDR	r4, [lr]
@@ -1159,7 +1167,7 @@ L_AES_ECB_encrypt_loop_block_256:
 	REV	r7, r7
 	PUSH	{r1, r2, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1179,12 +1187,16 @@ L_AES_ECB_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_256
+	BNE.W	L_AES_ECB_encrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_encrypt_end
+#else
+	B.N	L_AES_ECB_encrypt_end
+#endif
 L_AES_ECB_encrypt_start_block_192:
 L_AES_ECB_encrypt_loop_block_192:
 	LDR	r4, [lr]
@@ -1197,7 +1209,7 @@ L_AES_ECB_encrypt_loop_block_192:
 	REV	r7, r7
 	PUSH	{r1, r2, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1217,12 +1229,16 @@ L_AES_ECB_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_192
+	BNE.W	L_AES_ECB_encrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_encrypt_end
+#else
+	B.N	L_AES_ECB_encrypt_end
+#endif
 L_AES_ECB_encrypt_start_block_128:
 L_AES_ECB_encrypt_loop_block_128:
 	LDR	r4, [lr]
@@ -1235,7 +1251,7 @@ L_AES_ECB_encrypt_loop_block_128:
 	REV	r7, r7
 	PUSH	{r1, r2, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1255,15 +1271,15 @@ L_AES_ECB_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_ECB_encrypt_loop_block_128
+	BNE.W	L_AES_ECB_encrypt_loop_block_128
 #endif
 L_AES_ECB_encrypt_end:
 	POP	{r3}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 212
+	/* Cycle Count = 212 */
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
@@ -1280,16 +1296,16 @@ AES_CBC_encrypt:
 	LDM	r9, {r4, r5, r6, r7}
 	PUSH	{r3, r9}
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_CBC_encrypt_start_block_128
+	BEQ.W	L_AES_CBC_encrypt_start_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_CBC_encrypt_start_block_192
+	BEQ.W	L_AES_CBC_encrypt_start_block_192
 #endif
 L_AES_CBC_encrypt_loop_block_256:
 	LDR	r8, [lr]
@@ -1306,7 +1322,7 @@ L_AES_CBC_encrypt_loop_block_256:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1326,12 +1342,16 @@ L_AES_CBC_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_256
+	BNE.W	L_AES_CBC_encrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_encrypt_end
+#else
+	B.N	L_AES_CBC_encrypt_end
+#endif
 L_AES_CBC_encrypt_start_block_192:
 L_AES_CBC_encrypt_loop_block_192:
 	LDR	r8, [lr]
@@ -1348,7 +1368,7 @@ L_AES_CBC_encrypt_loop_block_192:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1368,12 +1388,16 @@ L_AES_CBC_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_192
+	BNE.W	L_AES_CBC_encrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_encrypt_end
+#else
+	B.N	L_AES_CBC_encrypt_end
+#endif
 L_AES_CBC_encrypt_start_block_128:
 L_AES_CBC_encrypt_loop_block_128:
 	LDR	r8, [lr]
@@ -1390,7 +1414,7 @@ L_AES_CBC_encrypt_loop_block_128:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1410,16 +1434,16 @@ L_AES_CBC_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_CBC_encrypt_loop_block_128
+	BNE.W	L_AES_CBC_encrypt_loop_block_128
 #endif
 L_AES_CBC_encrypt_end:
 	POP	{r3, r9}
 	STM	r9, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 238
+	/* Cycle Count = 238 */
 	.size	AES_CBC_encrypt,.-AES_CBC_encrypt
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
@@ -1441,16 +1465,16 @@ AES_CTR_encrypt:
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CTR_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_CTR_encrypt_start_block_128
+	BEQ.W	L_AES_CTR_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CTR_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_CTR_encrypt_start_block_192
+	BEQ.W	L_AES_CTR_encrypt_start_block_192
 #endif
 L_AES_CTR_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
@@ -1461,7 +1485,7 @@ L_AES_CTR_encrypt_loop_block_256:
 	ADC	r8, r4, #0x0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1491,12 +1515,16 @@ L_AES_CTR_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_256
+	BNE.W	L_AES_CTR_encrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_CTR_encrypt_end
+#else
+	B.W	L_AES_CTR_encrypt_end
+#endif
 L_AES_CTR_encrypt_start_block_192:
 L_AES_CTR_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
@@ -1507,7 +1535,7 @@ L_AES_CTR_encrypt_loop_block_192:
 	ADC	r8, r4, #0x0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1537,12 +1565,16 @@ L_AES_CTR_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_192
+	BNE.W	L_AES_CTR_encrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_CTR_encrypt_end
+#else
+	B.W	L_AES_CTR_encrypt_end
+#endif
 L_AES_CTR_encrypt_start_block_128:
 L_AES_CTR_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
@@ -1553,7 +1585,7 @@ L_AES_CTR_encrypt_loop_block_128:
 	ADC	r8, r4, #0x0
 	STM	lr, {r8, r9, r10, r11}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -1583,10 +1615,10 @@ L_AES_CTR_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CTR_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_CTR_encrypt_loop_block_128
+	BNE.W	L_AES_CTR_encrypt_loop_block_128
 #endif
 L_AES_CTR_encrypt_end:
 	POP	{r3, r8}
@@ -1596,7 +1628,7 @@ L_AES_CTR_encrypt_end:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 293
+	/* Cycle Count = 293 */
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
@@ -1653,7 +1685,7 @@ L_AES_decrypt_block_nr:
 	LDM	r3!, {r4, r5, r6, r7}
 	EOR	r11, r11, lr, ROR #8
 	EOR	r11, r11, r12, ROR #24
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r8, r8, r4
 	EOR	r9, r9, r5
 	EOR	r10, r10, r6
@@ -1703,16 +1735,16 @@ L_AES_decrypt_block_nr:
 	LDM	r3!, {r8, r9, r10, r11}
 	EOR	r7, r7, lr, ROR #8
 	EOR	r7, r7, r12, ROR #24
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	SUBS	r1, r1, #0x1
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_decrypt_block_nr
 #else
-	BNE.N	L_AES_decrypt_block_nr
+	BNE.W	L_AES_decrypt_block_nr
 #endif
 	UBFX	r8, r7, #16, #8
 	LSR	r11, r4, #24
@@ -1759,7 +1791,7 @@ L_AES_decrypt_block_nr:
 	LDM	r3!, {r4, r5, r6, r7}
 	EOR	r11, r11, lr, ROR #8
 	EOR	r11, r11, r12, ROR #24
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r8, r8, r4
 	EOR	r9, r9, r5
 	EOR	r10, r10, r6
@@ -1809,13 +1841,13 @@ L_AES_decrypt_block_nr:
 	LDM	r3, {r8, r9, r10, r11}
 	EOR	r7, r7, r12, LSL #8
 	EOR	r7, r7, lr, LSL #16
-	#   XOR in Key Schedule
+	/*   XOR in Key Schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
 	EOR	r7, r7, r11
 	POP	{pc}
-	# Cycle Count = 285
+	/* Cycle Count = 285 */
 	.size	AES_decrypt_block,.-AES_decrypt_block
 	.text
 	.type	L_AES_Thumb2_td_ecb, %object
@@ -2097,16 +2129,16 @@ AES_ECB_decrypt:
 	MOV	r12, r2
 	ADR	r2, L_AES_Thumb2_td4
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_decrypt_start_block_128
 #else
-	BEQ.N	L_AES_ECB_decrypt_start_block_128
+	BEQ.W	L_AES_ECB_decrypt_start_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_ECB_decrypt_start_block_192
 #else
-	BEQ.N	L_AES_ECB_decrypt_start_block_192
+	BEQ.W	L_AES_ECB_decrypt_start_block_192
 #endif
 L_AES_ECB_decrypt_loop_block_256:
 	LDR	r4, [lr]
@@ -2119,7 +2151,7 @@ L_AES_ECB_decrypt_loop_block_256:
 	REV	r7, r7
 	PUSH	{r1, r3, r12, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2138,12 +2170,16 @@ L_AES_ECB_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_256
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_256
+	BNE.W	L_AES_ECB_decrypt_loop_block_256
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_decrypt_end
+#else
+	B.N	L_AES_ECB_decrypt_end
+#endif
 L_AES_ECB_decrypt_start_block_192:
 L_AES_ECB_decrypt_loop_block_192:
 	LDR	r4, [lr]
@@ -2156,7 +2192,7 @@ L_AES_ECB_decrypt_loop_block_192:
 	REV	r7, r7
 	PUSH	{r1, r3, r12, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2175,12 +2211,16 @@ L_AES_ECB_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_192
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_192
+	BNE.W	L_AES_ECB_decrypt_loop_block_192
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_ECB_decrypt_end
+#else
+	B.N	L_AES_ECB_decrypt_end
+#endif
 L_AES_ECB_decrypt_start_block_128:
 L_AES_ECB_decrypt_loop_block_128:
 	LDR	r4, [lr]
@@ -2193,7 +2233,7 @@ L_AES_ECB_decrypt_loop_block_128:
 	REV	r7, r7
 	PUSH	{r1, r3, r12, lr}
 	LDM	r3!, {r8, r9, r10, r11}
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2212,14 +2252,14 @@ L_AES_ECB_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_ECB_decrypt_loop_block_128
 #else
-	BNE.N	L_AES_ECB_decrypt_loop_block_128
+	BNE.W	L_AES_ECB_decrypt_loop_block_128
 #endif
 L_AES_ECB_decrypt_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 210
+	/* Cycle Count = 210 */
 	.size	AES_ECB_decrypt,.-AES_ECB_decrypt
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
@@ -2237,16 +2277,16 @@ AES_CBC_decrypt:
 	ADR	r2, L_AES_Thumb2_td4
 	PUSH	{r3, r4}
 	CMP	r8, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_loop_block_128
 #else
-	BEQ.N	L_AES_CBC_decrypt_loop_block_128
+	BEQ.W	L_AES_CBC_decrypt_loop_block_128
 #endif
 	CMP	r8, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_loop_block_192
 #else
-	BEQ.N	L_AES_CBC_decrypt_loop_block_192
+	BEQ.W	L_AES_CBC_decrypt_loop_block_192
 #endif
 L_AES_CBC_decrypt_loop_block_256:
 	PUSH	{r1, r12, lr}
@@ -2262,7 +2302,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2288,10 +2328,10 @@ L_AES_CBC_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2306,7 +2346,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2333,12 +2373,16 @@ L_AES_CBC_decrypt_loop_block_256:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_256
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_256
+	BNE.W	L_AES_CBC_decrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_CBC_decrypt_end
+#else
+	B.W	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_loop_block_192:
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2353,7 +2397,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2379,10 +2423,10 @@ L_AES_CBC_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2397,7 +2441,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2424,12 +2468,16 @@ L_AES_CBC_decrypt_loop_block_192:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_192
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_192
+	BNE.W	L_AES_CBC_decrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_CBC_decrypt_end
+#else
+	B.W	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_loop_block_128:
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2444,7 +2492,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2470,10 +2518,10 @@ L_AES_CBC_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_CBC_decrypt_end_odd
 #else
-	BEQ.N	L_AES_CBC_decrypt_end_odd
+	BEQ.W	L_AES_CBC_decrypt_end_odd
 #endif
 	PUSH	{r1, r12, lr}
 	LDR	r4, [lr]
@@ -2488,7 +2536,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	REV	r5, r5
 	REV	r6, r6
 	REV	r7, r7
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -2515,12 +2563,16 @@ L_AES_CBC_decrypt_loop_block_128:
 	SUBS	r12, r12, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_CBC_decrypt_loop_block_128
 #else
-	BNE.N	L_AES_CBC_decrypt_loop_block_128
+	BNE.W	L_AES_CBC_decrypt_loop_block_128
 #endif
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	B	L_AES_CBC_decrypt_end
+#else
+	B.N	L_AES_CBC_decrypt_end
+#endif
 L_AES_CBC_decrypt_end_odd:
 	LDR	r4, [sp, #4]
 	LDRD	r8, r9, [r4, #16]
@@ -2530,7 +2582,7 @@ L_AES_CBC_decrypt_end_odd:
 L_AES_CBC_decrypt_end:
 	POP	{r3, r4}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 518
+	/* Cycle Count = 518 */
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_CBC */
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC */
@@ -3109,13 +3161,13 @@ L_GCM_gmult_len_start_block:
 	POP	{r3}
 	SUBS	r3, r3, #0x10
 	ADD	r2, r2, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_GCM_gmult_len_start_block
 #else
-	BNE.N	L_GCM_gmult_len_start_block
+	BNE.W	L_GCM_gmult_len_start_block
 #endif
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 742
+	/* Cycle Count = 742 */
 	.size	GCM_gmult_len,.-GCM_gmult_len
 	.text
 	.type	L_AES_Thumb2_te_gcm, %object
@@ -3141,16 +3193,16 @@ AES_GCM_encrypt:
 	STM	r8, {r4, r5, r6, r7}
 	PUSH	{r3, r8}
 	CMP	r12, #0xa
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_GCM_encrypt_start_block_128
 #else
-	BEQ.N	L_AES_GCM_encrypt_start_block_128
+	BEQ.W	L_AES_GCM_encrypt_start_block_128
 #endif
 	CMP	r12, #0xc
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BEQ	L_AES_GCM_encrypt_start_block_192
 #else
-	BEQ.N	L_AES_GCM_encrypt_start_block_192
+	BEQ.W	L_AES_GCM_encrypt_start_block_192
 #endif
 L_AES_GCM_encrypt_loop_block_256:
 	PUSH	{r1, r2, lr}
@@ -3158,7 +3210,7 @@ L_AES_GCM_encrypt_loop_block_256:
 	ADD	r7, r7, #0x1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -3188,12 +3240,16 @@ L_AES_GCM_encrypt_loop_block_256:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_256
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_256
+	BNE.W	L_AES_GCM_encrypt_loop_block_256
 #endif
+#ifdef __GNUC__
 	B	L_AES_GCM_encrypt_end
+#else
+	B.W	L_AES_GCM_encrypt_end
+#endif
 L_AES_GCM_encrypt_start_block_192:
 L_AES_GCM_encrypt_loop_block_192:
 	PUSH	{r1, r2, lr}
@@ -3201,7 +3257,7 @@ L_AES_GCM_encrypt_loop_block_192:
 	ADD	r7, r7, #0x1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -3231,12 +3287,16 @@ L_AES_GCM_encrypt_loop_block_192:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_192
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_192
+	BNE.W	L_AES_GCM_encrypt_loop_block_192
 #endif
+#ifdef __GNUC__
 	B	L_AES_GCM_encrypt_end
+#else
+	B.W	L_AES_GCM_encrypt_end
+#endif
 L_AES_GCM_encrypt_start_block_128:
 L_AES_GCM_encrypt_loop_block_128:
 	PUSH	{r1, r2, lr}
@@ -3244,7 +3304,7 @@ L_AES_GCM_encrypt_loop_block_128:
 	ADD	r7, r7, #0x1
 	LDM	r3!, {r8, r9, r10, r11}
 	STR	r7, [lr, #12]
-	# Round: 0 - XOR in key schedule
+	/* Round: 0 - XOR in key schedule */
 	EOR	r4, r4, r8
 	EOR	r5, r5, r9
 	EOR	r6, r6, r10
@@ -3274,10 +3334,10 @@ L_AES_GCM_encrypt_loop_block_128:
 	SUBS	r2, r2, #0x10
 	ADD	lr, lr, #0x10
 	ADD	r1, r1, #0x10
-#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
+#ifdef __GNUC__
 	BNE	L_AES_GCM_encrypt_loop_block_128
 #else
-	BNE.N	L_AES_GCM_encrypt_loop_block_128
+	BNE.W	L_AES_GCM_encrypt_loop_block_128
 #endif
 L_AES_GCM_encrypt_end:
 	POP	{r3, r8}
@@ -3287,7 +3347,7 @@ L_AES_GCM_encrypt_end:
 	REV	r7, r7
 	STM	r8, {r4, r5, r6, r7}
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	# Cycle Count = 275
+	/* Cycle Count = 275 */
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */

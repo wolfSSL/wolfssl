@@ -8396,7 +8396,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     ret = kyber_id2type(oqs_group, &type);
     if (ret != 0) {
         WOLFSSL_MSG("Invalid OQS algorithm specified.");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
     if (ret == 0) {
         ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
@@ -8887,7 +8887,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     ret = kyber_id2type(oqs_group, &type);
     if (ret != 0) {
         WOLFSSL_MSG("Invalid Kyber algorithm specified.");
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
     if (ret == 0) {

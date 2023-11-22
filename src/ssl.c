@@ -8432,7 +8432,7 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
  * directly into wolfSSL "the old way".
  *
  * As of MacOS 14.0 we are still able to use this method to access system
- * certificates. Accessiblity of this API is indicated by the presence of the
+ * certificates. Accessibility of this API is indicated by the presence of the
  * Security/SecTrustSettings.h header. In the likely event that Apple removes
  * access to this API on Macs, this function should be removed and the
  * DoAppleNativeCertValidation() routine should be used for all devices.
@@ -8579,7 +8579,7 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
 #if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H) \
   && !defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION)
     /* As of MacOS 14.0 we are still able to access system certificates and
-     * load them manually into wolfSSL "the old way". Accessiblity of this API
+     * load them manually into wolfSSL "the old way". Accessibility of this API
      * is indicated by the presence of the Security/SecTrustSettings.h header */
     ret = LoadSystemCaCertsMac(ctx, &loaded);
 #elif defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION)

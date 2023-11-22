@@ -6346,7 +6346,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         if (r > SP_HALF_MAX) {
             r = SP_HALF_MAX;
         }
-        /* Shift up result for trial division calucation. */
+        /* Shift up result for trial division calculation. */
         r <<= SP_HALF_SIZE;
         /* Calculate trial value. */
         trial = r * (sp_int_word)d;
@@ -12416,7 +12416,7 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
             int bit = sp_is_bit_set(e, (unsigned int)i);
 
             /* 6.2. j += bit
-             *      Update count of consequitive 1 bits.
+             *      Update count of consecutive 1 bits.
              */
             j += bit;
             /* 6.3. s += 1
@@ -13107,7 +13107,7 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
     DECL_SP_INT_ARRAY(t, m->used * 2 + 1, (1 << 6) + 1);
 
     /* Window bits based on number of pre-calculations versus number of loop
-     * calculcations.
+     * calculations.
      * Exponents for RSA and DH will result in 6-bit windows.
      */
     if (bits > 450) {
