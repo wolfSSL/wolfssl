@@ -43,9 +43,7 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v3
         with:
-          # TODO: Change to upstream wolfssl/osp once merged
-          repository: kareem-wolfssl/osp
-          ref: memcached
+          repository: wolfssl/osp
           path: osp
 
       - name: Install dependencies

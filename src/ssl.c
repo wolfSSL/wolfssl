@@ -29505,13 +29505,7 @@ int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        return ssl->options.connectState > CONNECT_BEGIN &&
-            ssl->options.connectState < SECOND_REPLY_DONE;
-    }
-
-    return ssl->options.acceptState > ACCEPT_BEGIN &&
-        ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
+    return ssl->options.handShakeState == NULL_STATE;
 }
 
 #ifndef NO_SESSION_CACHE
