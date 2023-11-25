@@ -13,6 +13,9 @@ BuildRequires: make
 BuildRequires: pkgconfig
 BuildRequires: sed
 BuildRequires: tar
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: libtool
 URL: http://www.wolfssl.com/
 
 Packager: wolfSSL <support@wolfssl.com>
@@ -37,6 +40,7 @@ you will need to install %{name}-devel.
 %setup -q
 
 %build
+autoreconf -fi
 %configure @WOLFSSL_CONFIG_ARGS@
 %{__make} %{?_smp_mflags}
 if [ "@ENABLED_FIPS@" = "yes" ]
@@ -49,7 +53,7 @@ fi
 %install
 %{__rm} -rf %{buildroot}
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
-mkdir -p $RPM_BUILD_ROOT/
+%{__install} -m 0644 wolfssl/options.h %{buildroot}/usr/include/wolfssl/options.h
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.a
 
@@ -81,7 +85,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 
-%{_libdir}/libwolfssl@LIBSUFFIX@.so*
+%{_libdir}/libwolfssl@LIBSUFFIX@.so.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -90,6 +94,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/*.h
 %{_includedir}/wolfssl/wolfcrypt/*.h
 %{_includedir}/wolfssl/openssl/*.h
+%{_libdir}/libwolfssl.so
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
