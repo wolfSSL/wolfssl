@@ -32894,6 +32894,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->eccTempKeyPresent =
                                         DYNAMIC_TYPE_CURVE25519;
                                 }
+                                else {
+                                    FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                    (void**)&ssl->eccTempKey);
+                                }
                             }
                             break;
                         }
@@ -32916,6 +32920,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 if (ret == 0 || ret == WC_PENDING_E) {
                                     ssl->eccTempKeyPresent =
                                         DYNAMIC_TYPE_CURVE448;
+                                }
+                                else {
+                                    FreeKey(ssl, DYNAMIC_TYPE_CURVE448,
+                                    (void**)&ssl->eccTempKey);
                                 }
                             }
                             break;
