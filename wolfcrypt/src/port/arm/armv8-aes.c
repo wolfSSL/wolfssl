@@ -14512,8 +14512,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
-            ((ivSz == 0) && (iv != NULL)) ||
-            ((ivSz > 0) && (iv == NULL))) {
+            ((ivSz == 0) && (iv != NULL)) || ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -14534,14 +14533,14 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     }
 
     if (ret == 0) {
-        /* Setup with IV if needed. */
-        if (iv != NULL) {
-            /* Cache the IV in AES GCM object. */
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
+        /* Set the IV passed in if it is smaller than a block. */
+        if ((iv != NULL) && (ivSz <= AES_BLOCK_SIZE)) {
+            XMEMMOVE((byte*)aes->reg, iv, ivSz);
             aes->nonceSz = ivSz;
         }
-        else if (aes->nonceSz != 0) {
-            /* Copy out the cached copy. */
+        /* No IV passed in, check for cached IV. */
+        if ((iv == NULL) && (aes->nonceSz != 0)) {
+            /* Use the cached copy. */
             iv = (byte*)aes->reg;
             ivSz = aes->nonceSz;
         }
