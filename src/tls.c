@@ -1139,6 +1139,8 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     msgSz &= ~(0 - (msgSz >> 31));
     realSz = WOLFSSL_TLS_HMAC_INNER_SZ + msgSz;
     maxSz = WOLFSSL_TLS_HMAC_INNER_SZ + (sz - 1) - macSz;
+    /* Make negative result 0 */
+    maxSz &= ~(0 - (maxSz >> 31));
 
     /* Calculate #blocks processed in HMAC for max and real data. */
     blocks      = maxSz >> blockBits;
