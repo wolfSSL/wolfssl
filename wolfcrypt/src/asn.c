@@ -18961,7 +18961,6 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int length = 0;
-    int count  = 0;
     byte b = 0;
     word32 oid;
 
@@ -18971,7 +18970,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
     if (GetSequence(input, &idx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    while ((idx < (word32)sz) && (count < MAX_AIA_SZ)) {
+    while ((idx < (word32)sz)) {
         /* Unwrap a single AIA */
         if (GetSequence(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
@@ -18989,23 +18988,22 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
             return ASN_PARSE_E;
 
         /* Set ocsp entry */
-        if (b == GENERALNAME_URI && oid == AIA_OCSP_OID)
+        if (b == GENERALNAME_URI && oid == AIA_OCSP_OID &&
+                cert->extAuthInfo == NULL)
         {
             cert->extAuthInfoSz = length;
             cert->extAuthInfo = input + idx;
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            count++;
-        #else
+        #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
             break;
         #endif
         }
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         /* Set CaIssuers entry */
-        else if ((b == GENERALNAME_URI) && oid == AIA_CA_ISSUER_OID)
+        else if ((b == GENERALNAME_URI) && oid == AIA_CA_ISSUER_OID &&
+                cert->extAuthInfoCaIssuer == NULL)
         {
             cert->extAuthInfoCaIssuerSz = length;
             cert->extAuthInfoCaIssuer = input + idx;
-            count++;
         }
         #endif
         idx += (word32)length;
@@ -19015,7 +19013,6 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 #else
     word32 idx = 0;
     int length = 0;
-    int count  = 0;
     int ret    = 0;
 
     WOLFSSL_ENTER("DecodeAuthInfo");
@@ -19025,7 +19022,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
         ret = ASN_PARSE_E;
     }
 
-    while ((ret == 0) && (idx < (word32)sz) && (count < MAX_AIA_SZ)) {
+    while ((ret == 0) && (idx < (word32)sz)) {
         ASNGetData dataASN[accessDescASN_Length];
 
         /* Clear dynamic data and retrieve OID and name. */
@@ -19040,14 +19037,13 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 
             /* Check we have OCSP and URI. */
             if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum == AIA_OCSP_OID) &&
-                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI)) {
+                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI) &&
+                    (cert->extAuthInfo == NULL)) {
                 /* Store URI for OCSP lookup. */
                 GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
                         &cert->extAuthInfo, &sz32);
                 cert->extAuthInfoSz = (int)sz32;
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-                count++;
-            #else
+            #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
                 break;
             #endif
             }
@@ -19055,12 +19051,12 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
             /* Check we have CA Issuer and URI. */
             else if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum ==
                         AIA_CA_ISSUER_OID) &&
-                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI)) {
+                    (dataASN[ACCESSDESCASN_IDX_LOC].tag == GENERALNAME_URI) &&
+                    (cert->extAuthInfoCaIssuer == NULL)) {
                 /* Set CaIssuers entry */
                 GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
                         &cert->extAuthInfoCaIssuer, &sz32);
                 cert->extAuthInfoCaIssuerSz = (int)sz32;
-                count++;
             }
             #endif
             /* Otherwise skip. */
