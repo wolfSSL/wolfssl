@@ -31021,6 +31021,9 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     wc_ecc_free(eckey);
     XFREE(eckey, cert->heap, DYNAMIC_TYPE_ECC);
 #endif
+#if defined(NO_RSA) && !defined(HAVE_ECC)
+    (void)idx;
+#endif
     return ret;
 }
 
@@ -32232,7 +32235,7 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
 
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#ifdef WOLFSSL_CUSTOM_CURVES
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES)
 /* Convert data to hex string.
  *
  * Big-endian byte array is converted to big-endian hexadecimal string.

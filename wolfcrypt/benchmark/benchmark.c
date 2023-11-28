@@ -2296,7 +2296,9 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#endif
 
     TEST_SLEEP();
 } /* bench_stats_sym_finish */
@@ -2554,7 +2556,9 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#endif
 
     TEST_SLEEP();
 } /* bench_stats_asym_finish_ex */

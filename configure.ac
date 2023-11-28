@@ -720,7 +720,6 @@ then
     # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -741,22 +740,22 @@ then
     test "$enable_hkdf" = "" && enable_hkdf=yes
     test "$enable_curve25519" = "" && enable_curve25519=yes
     test "$enable_curve448" = "" && enable_curve448=yes
-    test "$enable_fpecc" = "" && enable_fpecc=yes
-    test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_xts" = "" && enable_xts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
-    test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
-    test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
+    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
+    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
     test "$enable_pwdbased" = "" && enable_pwdbased=yes
     test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
     test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && enable_scrypt=yes
+    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     test "$enable_indef" = "" && enable_indef=yes
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
@@ -771,7 +770,7 @@ then
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
-    test "$enable_ssh" = "" && enable_ssh=yes
+    test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
@@ -797,6 +796,7 @@ then
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
+        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
         test "$enable_compkey" = "" && enable_compkey=yes
         test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
@@ -836,7 +836,7 @@ then
     if test "$ENABLED_FIPS" = "no"
     then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-        test "$enable_xchacha" = "" && enable_xchacha=yes
+        test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -844,9 +844,9 @@ then
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
+            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
             test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
+            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
         fi
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -856,8 +856,8 @@ then
             test "$enable_curl" = "" && enable_curl=yes
             test "$enable_tcpdump" = "" && enable_tcpdump=yes
 
-            test "$enable_eccsi" = "" && enable_eccsi=yes
-            test "$enable_sakke" = "" && enable_sakke=yes
+            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
+            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
     fi
 
@@ -908,7 +908,6 @@ if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -929,22 +928,22 @@ then
     test "$enable_hkdf" = "" && enable_hkdf=yes
     test "$enable_curve25519" = "" && enable_curve25519=yes
     test "$enable_curve448" = "" && enable_curve448=yes
-    test "$enable_fpecc" = "" && enable_fpecc=yes
-    test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_xts" = "" && enable_xts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
-    test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
-    test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
+    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
+    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
     test "$enable_crl" = "" && enable_crl=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
     test "$enable_pwdbased" = "" && enable_pwdbased=yes
     test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
     test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && enable_scrypt=yes
+    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
     test "$enable_indef" = "" && enable_indef=yes
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
@@ -959,7 +958,7 @@ then
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
-    test "$enable_ssh" = "" && enable_ssh=yes
+    test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -969,6 +968,7 @@ then
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
+        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
 
@@ -983,21 +983,21 @@ then
     if test "$ENABLED_FIPS" = "no"
     then
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-        test "$enable_xchacha" = "" && enable_xchacha=yes
+        test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
         if test "$ENABLED_32BIT" != "yes"
         then
             test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
+            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
             test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
+            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
         fi
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
-            test "$enable_eccsi" = "" && enable_eccsi=yes
-            test "$enable_sakke" = "" && enable_sakke=yes
+            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
+            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
     fi
 
@@ -2904,6 +2904,10 @@ then
     if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
+        if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+        then
+                AM_CFLAGS="$AM_CFLAGS -DWC_AES_C_DYNAMIC_FALLBACK"
+        fi
         if test "$CC" != "icc"
         then
             case $host_os in
@@ -3959,6 +3963,10 @@ AC_ARG_ENABLE([eccsi],
 
 if test "x$ENABLED_ECCSI" = "xyes"
 then
+    if test "$ENABLED_ECC" = "no"
+    then
+        AC_MSG_ERROR([ECCSI requires ECC.])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_ECCSI -DWOLFSSL_PUBLIC_MP"
 fi
 
@@ -3968,6 +3976,11 @@ AC_ARG_ENABLE([sakke],
     [ ENABLED_SAKKE=$enableval ],
     [ ENABLED_SAKKE=no ]
     )
+
+if test "$ENABLED_SAKKE" != "no" && test "$ENABLED_ECC" = "no"
+then
+    AC_MSG_ERROR([SAKKE requires ECC.])
+fi
 
 if test "x$ENABLED_SAKKE" = "xsmall"
 then
@@ -8938,6 +8951,11 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
     if test "x$ENABLED_OPENSSLEXTRA" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
     fi
+fi
+
+if test "$ENABLED_WOLFSSH" = "yes" && test "$ENABLED_HMAC" = "no"
+then
+    AC_MSG_ERROR([WOLFSSH requires HMAC.])
 fi
 
 AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_WOLFSSH"])

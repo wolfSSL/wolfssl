@@ -31,7 +31,7 @@
     #define WOLFSSL_NEED_LINUX_CURRENT
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 /*
 Possible memory options:
@@ -1231,7 +1231,6 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
 /* Example for user io pool, shared build may need definitions in lib proper */
 
-#include <wolfssl/wolfcrypt/types.h>
 #include <stdlib.h>
 
 #ifndef HAVE_THREAD_LS
@@ -1437,6 +1436,42 @@ void __attribute__((no_instrument_function))
     fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(wc_ptr_t)func, sp);
     (void)caller;
 }
+#endif
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS
+THREAD_LS_T int wc_svr_count = 0;
+THREAD_LS_T const char *wc_svr_last_file = NULL;
+THREAD_LS_T int wc_svr_last_line = -1;
+THREAD_LS_T int wc_debug_vector_registers_retval =
+    WC_DEBUG_VECTOR_REGISTERS_RETVAL_INITVAL;
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+
+WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
+    static THREAD_LS_T struct drand48_data wc_svr_fuzzing_state;
+    static THREAD_LS_T int wc_svr_fuzzing_seeded = 0;
+    long result;
+
+    if (wc_debug_vector_registers_retval)
+        return wc_debug_vector_registers_retval;
+
+    if (wc_svr_fuzzing_seeded == 0) {
+        long seed = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
+        char *seed_envstr = getenv("WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED");
+        if (seed_envstr)
+            seed = strtol(seed_envstr, NULL, 0);
+        (void)srand48_r(seed, &wc_svr_fuzzing_state);
+        wc_svr_fuzzing_seeded = 1;
+    }
+    (void)lrand48_r(&wc_svr_fuzzing_state, &result);
+    if (result & 1)
+        return IO_FAILED_E;
+    else
+        return 0;
+}
+
+#endif
+
 #endif
 
 #ifdef WOLFSSL_LINUXKM

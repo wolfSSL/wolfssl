@@ -56,15 +56,15 @@ L_aes_xts_gc_xts:
 .long	0x87,0x1,0x1,0x1
 #ifndef __APPLE__
 .text
-.globl	AES_XTS_encrypt
-.type	AES_XTS_encrypt,@function
+.globl	AES_XTS_encrypt_aesni
+.type	AES_XTS_encrypt_aesni,@function
 .align	16
-AES_XTS_encrypt:
+AES_XTS_encrypt_aesni:
 #else
 .section	__TEXT,__text
-.globl	_AES_XTS_encrypt
+.globl	_AES_XTS_encrypt_aesni
 .p2align	4
-_AES_XTS_encrypt:
+_AES_XTS_encrypt_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -96,25 +96,25 @@ _AES_XTS_encrypt:
         aesenc	%xmm5, %xmm0
         cmpl	$11, %r10d
         movdqu	160(%r9), %xmm5
-        jl	L_AES_XTS_encrypt_tweak_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_tweak_aes_enc_block_last
         aesenc	%xmm5, %xmm0
         movdqu	176(%r9), %xmm6
         aesenc	%xmm6, %xmm0
         cmpl	$13, %r10d
         movdqu	192(%r9), %xmm5
-        jl	L_AES_XTS_encrypt_tweak_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_tweak_aes_enc_block_last
         aesenc	%xmm5, %xmm0
         movdqu	208(%r9), %xmm6
         aesenc	%xmm6, %xmm0
         movdqu	224(%r9), %xmm5
-L_AES_XTS_encrypt_tweak_aes_enc_block_last:
+L_AES_XTS_encrypt_aesni_tweak_aes_enc_block_last:
         aesenclast	%xmm5, %xmm0
         xorl	%r13d, %r13d
         cmpl	$0x40, %eax
         movl	%eax, %r11d
-        jl	L_AES_XTS_encrypt_done_64
+        jl	L_AES_XTS_encrypt_aesni_done_64
         andl	$0xffffffc0, %r11d
-L_AES_XTS_encrypt_enc_64:
+L_AES_XTS_encrypt_aesni_enc_64:
         # 64 bytes of input
         # aes_enc_64
         leaq	(%rdi,%r13,1), %rcx
@@ -201,7 +201,7 @@ L_AES_XTS_encrypt_enc_64:
         aesenc	%xmm4, %xmm11
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm4
-        jl	L_AES_XTS_encrypt_aes_enc_64_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_aes_enc_64_aes_enc_block_last
         aesenc	%xmm4, %xmm8
         aesenc	%xmm4, %xmm9
         aesenc	%xmm4, %xmm10
@@ -213,7 +213,7 @@ L_AES_XTS_encrypt_enc_64:
         aesenc	%xmm4, %xmm11
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm4
-        jl	L_AES_XTS_encrypt_aes_enc_64_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_aes_enc_64_aes_enc_block_last
         aesenc	%xmm4, %xmm8
         aesenc	%xmm4, %xmm9
         aesenc	%xmm4, %xmm10
@@ -224,7 +224,7 @@ L_AES_XTS_encrypt_enc_64:
         aesenc	%xmm4, %xmm10
         aesenc	%xmm4, %xmm11
         movdqu	224(%r8), %xmm4
-L_AES_XTS_encrypt_aes_enc_64_aes_enc_block_last:
+L_AES_XTS_encrypt_aesni_aes_enc_64_aes_enc_block_last:
         aesenclast	%xmm4, %xmm8
         aesenclast	%xmm4, %xmm9
         aesenclast	%xmm4, %xmm10
@@ -246,18 +246,18 @@ L_AES_XTS_encrypt_aes_enc_64_aes_enc_block_last:
         pxor	%xmm4, %xmm0
         addl	$0x40, %r13d
         cmpl	%r11d, %r13d
-        jl	L_AES_XTS_encrypt_enc_64
-L_AES_XTS_encrypt_done_64:
+        jl	L_AES_XTS_encrypt_aesni_enc_64
+L_AES_XTS_encrypt_aesni_done_64:
         cmpl	%eax, %r13d
         movl	%eax, %r11d
-        je	L_AES_XTS_encrypt_done_enc
+        je	L_AES_XTS_encrypt_aesni_done_enc
         subl	%r13d, %r11d
         cmpl	$16, %r11d
         movl	%eax, %r11d
-        jl	L_AES_XTS_encrypt_last_15
+        jl	L_AES_XTS_encrypt_aesni_last_15
         andl	$0xfffffff0, %r11d
         # 16 bytes of input
-L_AES_XTS_encrypt_enc_16:
+L_AES_XTS_encrypt_aesni_enc_16:
         leaq	(%rdi,%r13,1), %rcx
         movdqu	(%rcx), %xmm8
         pxor	%xmm0, %xmm8
@@ -283,18 +283,18 @@ L_AES_XTS_encrypt_enc_16:
         aesenc	%xmm5, %xmm8
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm5
-        jl	L_AES_XTS_encrypt_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_aes_enc_block_last
         aesenc	%xmm5, %xmm8
         movdqu	176(%r8), %xmm6
         aesenc	%xmm6, %xmm8
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm5
-        jl	L_AES_XTS_encrypt_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_aes_enc_block_last
         aesenc	%xmm5, %xmm8
         movdqu	208(%r8), %xmm6
         aesenc	%xmm6, %xmm8
         movdqu	224(%r8), %xmm5
-L_AES_XTS_encrypt_aes_enc_block_last:
+L_AES_XTS_encrypt_aesni_aes_enc_block_last:
         aesenclast	%xmm5, %xmm8
         pxor	%xmm0, %xmm8
         leaq	(%rsi,%r13,1), %rcx
@@ -307,17 +307,17 @@ L_AES_XTS_encrypt_aes_enc_block_last:
         pxor	%xmm4, %xmm0
         addl	$16, %r13d
         cmpl	%r11d, %r13d
-        jl	L_AES_XTS_encrypt_enc_16
+        jl	L_AES_XTS_encrypt_aesni_enc_16
         cmpl	%eax, %r13d
-        je	L_AES_XTS_encrypt_done_enc
-L_AES_XTS_encrypt_last_15:
+        je	L_AES_XTS_encrypt_aesni_done_enc
+L_AES_XTS_encrypt_aesni_last_15:
         subq	$16, %r13
         leaq	(%rsi,%r13,1), %rcx
         movdqu	(%rcx), %xmm8
         addq	$16, %r13
         movdqu	%xmm8, (%rsp)
         xorq	%rdx, %rdx
-L_AES_XTS_encrypt_last_15_byte_loop:
+L_AES_XTS_encrypt_aesni_last_15_byte_loop:
         movb	(%rsp,%rdx,1), %r11b
         movb	(%rdi,%r13,1), %cl
         movb	%r11b, (%rsi,%r13,1)
@@ -325,7 +325,7 @@ L_AES_XTS_encrypt_last_15_byte_loop:
         incl	%r13d
         incl	%edx
         cmpl	%eax, %r13d
-        jl	L_AES_XTS_encrypt_last_15_byte_loop
+        jl	L_AES_XTS_encrypt_aesni_last_15_byte_loop
         subq	%rdx, %r13
         movdqu	(%rsp), %xmm8
         subq	$16, %r13
@@ -352,41 +352,41 @@ L_AES_XTS_encrypt_last_15_byte_loop:
         aesenc	%xmm5, %xmm8
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm5
-        jl	L_AES_XTS_encrypt_last_15_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_last_15_aes_enc_block_last
         aesenc	%xmm5, %xmm8
         movdqu	176(%r8), %xmm6
         aesenc	%xmm6, %xmm8
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm5
-        jl	L_AES_XTS_encrypt_last_15_aes_enc_block_last
+        jl	L_AES_XTS_encrypt_aesni_last_15_aes_enc_block_last
         aesenc	%xmm5, %xmm8
         movdqu	208(%r8), %xmm6
         aesenc	%xmm6, %xmm8
         movdqu	224(%r8), %xmm5
-L_AES_XTS_encrypt_last_15_aes_enc_block_last:
+L_AES_XTS_encrypt_aesni_last_15_aes_enc_block_last:
         aesenclast	%xmm5, %xmm8
         pxor	%xmm0, %xmm8
         leaq	(%rsi,%r13,1), %rcx
         movdqu	%xmm8, (%rcx)
-L_AES_XTS_encrypt_done_enc:
+L_AES_XTS_encrypt_aesni_done_enc:
         addq	$0x40, %rsp
         popq	%r13
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	AES_XTS_encrypt,.-AES_XTS_encrypt
+.size	AES_XTS_encrypt_aesni,.-AES_XTS_encrypt_aesni
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	AES_XTS_decrypt
-.type	AES_XTS_decrypt,@function
+.globl	AES_XTS_decrypt_aesni
+.type	AES_XTS_decrypt_aesni,@function
 .align	16
-AES_XTS_decrypt:
+AES_XTS_decrypt_aesni:
 #else
 .section	__TEXT,__text
-.globl	_AES_XTS_decrypt
+.globl	_AES_XTS_decrypt_aesni
 .p2align	4
-_AES_XTS_decrypt:
+_AES_XTS_decrypt_aesni:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -418,32 +418,32 @@ _AES_XTS_decrypt:
         aesenc	%xmm5, %xmm0
         cmpl	$11, %r10d
         movdqu	160(%r9), %xmm5
-        jl	L_AES_XTS_decrypt_tweak_aes_enc_block_last
+        jl	L_AES_XTS_decrypt_aesni_tweak_aes_enc_block_last
         aesenc	%xmm5, %xmm0
         movdqu	176(%r9), %xmm6
         aesenc	%xmm6, %xmm0
         cmpl	$13, %r10d
         movdqu	192(%r9), %xmm5
-        jl	L_AES_XTS_decrypt_tweak_aes_enc_block_last
+        jl	L_AES_XTS_decrypt_aesni_tweak_aes_enc_block_last
         aesenc	%xmm5, %xmm0
         movdqu	208(%r9), %xmm6
         aesenc	%xmm6, %xmm0
         movdqu	224(%r9), %xmm5
-L_AES_XTS_decrypt_tweak_aes_enc_block_last:
+L_AES_XTS_decrypt_aesni_tweak_aes_enc_block_last:
         aesenclast	%xmm5, %xmm0
         xorl	%r13d, %r13d
         movl	%eax, %r11d
         andl	$0xfffffff0, %r11d
         cmpl	%eax, %r11d
-        je	L_AES_XTS_decrypt_mul16_64
+        je	L_AES_XTS_decrypt_aesni_mul16_64
         subl	$16, %r11d
         cmpl	$16, %r11d
-        jl	L_AES_XTS_decrypt_last_31_start
-L_AES_XTS_decrypt_mul16_64:
+        jl	L_AES_XTS_decrypt_aesni_last_31_start
+L_AES_XTS_decrypt_aesni_mul16_64:
         cmpl	$0x40, %r11d
-        jl	L_AES_XTS_decrypt_done_64
+        jl	L_AES_XTS_decrypt_aesni_done_64
         andl	$0xffffffc0, %r11d
-L_AES_XTS_decrypt_dec_64:
+L_AES_XTS_decrypt_aesni_dec_64:
         # 64 bytes of input
         # aes_dec_64
         leaq	(%rdi,%r13,1), %rcx
@@ -530,7 +530,7 @@ L_AES_XTS_decrypt_dec_64:
         aesdec	%xmm4, %xmm11
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm4
-        jl	L_AES_XTS_decrypt_aes_dec_64_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_aes_dec_64_aes_dec_block_last
         aesdec	%xmm4, %xmm8
         aesdec	%xmm4, %xmm9
         aesdec	%xmm4, %xmm10
@@ -542,7 +542,7 @@ L_AES_XTS_decrypt_dec_64:
         aesdec	%xmm4, %xmm11
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm4
-        jl	L_AES_XTS_decrypt_aes_dec_64_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_aes_dec_64_aes_dec_block_last
         aesdec	%xmm4, %xmm8
         aesdec	%xmm4, %xmm9
         aesdec	%xmm4, %xmm10
@@ -553,7 +553,7 @@ L_AES_XTS_decrypt_dec_64:
         aesdec	%xmm4, %xmm10
         aesdec	%xmm4, %xmm11
         movdqu	224(%r8), %xmm4
-L_AES_XTS_decrypt_aes_dec_64_aes_dec_block_last:
+L_AES_XTS_decrypt_aesni_aes_dec_64_aes_dec_block_last:
         aesdeclast	%xmm4, %xmm8
         aesdeclast	%xmm4, %xmm9
         aesdeclast	%xmm4, %xmm10
@@ -575,21 +575,21 @@ L_AES_XTS_decrypt_aes_dec_64_aes_dec_block_last:
         pxor	%xmm4, %xmm0
         addl	$0x40, %r13d
         cmpl	%r11d, %r13d
-        jl	L_AES_XTS_decrypt_dec_64
-L_AES_XTS_decrypt_done_64:
+        jl	L_AES_XTS_decrypt_aesni_dec_64
+L_AES_XTS_decrypt_aesni_done_64:
         cmpl	%eax, %r13d
         movl	%eax, %r11d
-        je	L_AES_XTS_decrypt_done_dec
+        je	L_AES_XTS_decrypt_aesni_done_dec
         andl	$0xfffffff0, %r11d
         cmpl	%eax, %r11d
-        je	L_AES_XTS_decrypt_mul16
+        je	L_AES_XTS_decrypt_aesni_mul16
         subl	$16, %r11d
         subl	%r13d, %r11d
         cmpl	$16, %r11d
-        jl	L_AES_XTS_decrypt_last_31_start
+        jl	L_AES_XTS_decrypt_aesni_last_31_start
         addl	%r13d, %r11d
-L_AES_XTS_decrypt_mul16:
-L_AES_XTS_decrypt_dec_16:
+L_AES_XTS_decrypt_aesni_mul16:
+L_AES_XTS_decrypt_aesni_dec_16:
         # 16 bytes of input
         leaq	(%rdi,%r13,1), %rcx
         movdqu	(%rcx), %xmm8
@@ -616,18 +616,18 @@ L_AES_XTS_decrypt_dec_16:
         aesdec	%xmm5, %xmm8
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	176(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	208(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         movdqu	224(%r8), %xmm5
-L_AES_XTS_decrypt_aes_dec_block_last:
+L_AES_XTS_decrypt_aesni_aes_dec_block_last:
         aesdeclast	%xmm5, %xmm8
         pxor	%xmm0, %xmm8
         leaq	(%rsi,%r13,1), %rcx
@@ -640,10 +640,10 @@ L_AES_XTS_decrypt_aes_dec_block_last:
         pxor	%xmm4, %xmm0
         addl	$16, %r13d
         cmpl	%r11d, %r13d
-        jl	L_AES_XTS_decrypt_dec_16
+        jl	L_AES_XTS_decrypt_aesni_dec_16
         cmpl	%eax, %r13d
-        je	L_AES_XTS_decrypt_done_dec
-L_AES_XTS_decrypt_last_31_start:
+        je	L_AES_XTS_decrypt_aesni_done_dec
+L_AES_XTS_decrypt_aesni_last_31_start:
         movdqa	%xmm0, %xmm4
         movdqa	%xmm0, %xmm7
         psrad	$31, %xmm4
@@ -676,24 +676,24 @@ L_AES_XTS_decrypt_last_31_start:
         aesdec	%xmm5, %xmm8
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_last_31_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_last_31_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	176(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_last_31_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_last_31_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	208(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         movdqu	224(%r8), %xmm5
-L_AES_XTS_decrypt_last_31_aes_dec_block_last:
+L_AES_XTS_decrypt_aesni_last_31_aes_dec_block_last:
         aesdeclast	%xmm5, %xmm8
         pxor	%xmm7, %xmm8
         movdqu	%xmm8, (%rsp)
         addq	$16, %r13
         xorq	%rdx, %rdx
-L_AES_XTS_decrypt_last_31_byte_loop:
+L_AES_XTS_decrypt_aesni_last_31_byte_loop:
         movb	(%rsp,%rdx,1), %r11b
         movb	(%rdi,%r13,1), %cl
         movb	%r11b, (%rsi,%r13,1)
@@ -701,7 +701,7 @@ L_AES_XTS_decrypt_last_31_byte_loop:
         incl	%r13d
         incl	%edx
         cmpl	%eax, %r13d
-        jl	L_AES_XTS_decrypt_last_31_byte_loop
+        jl	L_AES_XTS_decrypt_aesni_last_31_byte_loop
         subq	%rdx, %r13
         movdqu	(%rsp), %xmm8
         pxor	%xmm0, %xmm8
@@ -727,30 +727,30 @@ L_AES_XTS_decrypt_last_31_byte_loop:
         aesdec	%xmm5, %xmm8
         cmpl	$11, %r10d
         movdqu	160(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_last_31_2_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_last_31_2_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	176(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         cmpl	$13, %r10d
         movdqu	192(%r8), %xmm5
-        jl	L_AES_XTS_decrypt_last_31_2_aes_dec_block_last
+        jl	L_AES_XTS_decrypt_aesni_last_31_2_aes_dec_block_last
         aesdec	%xmm5, %xmm8
         movdqu	208(%r8), %xmm6
         aesdec	%xmm6, %xmm8
         movdqu	224(%r8), %xmm5
-L_AES_XTS_decrypt_last_31_2_aes_dec_block_last:
+L_AES_XTS_decrypt_aesni_last_31_2_aes_dec_block_last:
         aesdeclast	%xmm5, %xmm8
         pxor	%xmm0, %xmm8
         subq	$16, %r13
         leaq	(%rsi,%r13,1), %rcx
         movdqu	%xmm8, (%rcx)
-L_AES_XTS_decrypt_done_dec:
+L_AES_XTS_decrypt_aesni_done_dec:
         addq	$16, %rsp
         popq	%r13
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	AES_XTS_decrypt,.-AES_XTS_decrypt
+.size	AES_XTS_decrypt_aesni,.-AES_XTS_decrypt_aesni
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
