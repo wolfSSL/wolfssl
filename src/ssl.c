@@ -16523,6 +16523,11 @@ cleanup:
         }
 #endif
 
+#ifdef NO_FILESYSTEM
+        WOLFSSL_MSG("wolfSSL_CTX_set_default_verify_paths not supported"
+                    " with NO_FILESYSTEM enabled");
+        ret = WOLFSSL_FATAL_ERROR;
+#else
         ret = wolfSSL_CTX_load_system_CA_certs(ctx);
         if (ret == WOLFSSL_BAD_PATH) {
             /*
@@ -16531,6 +16536,7 @@ cleanup:
              */
             ret = WOLFSSL_SUCCESS;
         }
+#endif
 
         WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);
 
