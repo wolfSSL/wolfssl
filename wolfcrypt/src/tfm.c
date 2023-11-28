@@ -6049,15 +6049,8 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 
 #endif /* !defined(NO_DSA) || defined(HAVE_ECC) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || (!defined(NO_RSA) && defined(WC_RSA_BLINDING))
 
-/* fast math conversion */
-int mp_sqr(fp_int *A, fp_int *B)
-{
-    return fp_sqr(A, B);
-}
-
-/* fast math conversion */
 int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
     return fp_montgomery_reduce(a, m, mp);
@@ -6075,6 +6068,17 @@ int mp_montgomery_setup(fp_int *a, fp_digit *rho)
     return fp_montgomery_setup(a, rho);
 }
 
+#endif /* HAVE_ECC || (!NO_RSA && WC_RSA_BLINDING) */
+
+#ifdef HAVE_ECC
+
+/* fast math conversion */
+int mp_sqr(fp_int *A, fp_int *B)
+{
+    return fp_sqr(A, B);
+}
+
+/* fast math conversion */
 int mp_div_2(fp_int * a, fp_int * b)
 {
     fp_div_2(a, b);
