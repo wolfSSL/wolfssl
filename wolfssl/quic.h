@@ -32,6 +32,8 @@
 
 #ifdef WOLFSSL_QUIC
 
+#include <stdint.h>
+
 /* QUIC operates on three encryption levels which determine
  * which keys/algos are used for de-/encryption. These are
  * kept separately for incoming and outgoing data and.

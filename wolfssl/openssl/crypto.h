@@ -96,13 +96,8 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
 #define OpenSSL_version_num wolfSSL_OpenSSL_version_num
+#define SSLEAY_VERSION_NUMBER OPENSSL_VERSION_NUMBER
 
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HITCH)
-    #define SSLEAY_VERSION 0x10001000L
-#else
-    #define SSLEAY_VERSION 0x0090600fL
-#endif
-#define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 #define CRYPTO_lock wc_LockMutex_ex
 
 /* this function was used to set the default malloc, free, and realloc */
