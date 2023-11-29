@@ -7687,7 +7687,7 @@ static void sp_clamp_ct(sp_int* a)
     unsigned int used = a->used;
     unsigned int mask = (unsigned int)-1;
 
-    for (i = a->used-1; i >= 0; i--) {
+    for (i = (int)a->used - 1; i >= 0; i--) {
         used -= ((unsigned int)(a->dp[i] == 0)) & mask;
         mask &= (unsigned int)0 - (a->dp[i] == 0);
     }
@@ -17072,7 +17072,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     }
     else {
         for (i = 0; i < m->used * 2; i++) {
-            a->dp[i] &= (sp_int_digit)(sp_int_sdigit)ctMaskIntGTE(a->used-1, i);
+            a->dp[i] &=
+                (sp_int_digit)
+                (sp_int_sdigit)ctMaskIntGTE((int)(a->used-1), (int)i);
         }
     }
 
@@ -17195,7 +17197,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     }
     else {
         for (i = 0; i < m->used * 2; i++) {
-            a->dp[i] &= (sp_int_digit)(sp_int_sdigit)ctMaskIntGTE(a->used-1, i);
+            a->dp[i] &=
+                (sp_int_digit)
+                (sp_int_sdigit)ctMaskIntGTE((int)(a->used-1), (int)i);
         }
     }
 

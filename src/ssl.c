@@ -30149,7 +30149,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     char name[MAX_CURVE_NAME_SZ];
     byte groups_len = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    void *heap = ssl? ssl->heap : ctx ? ctx->heap : NULL; (void)heap;
+    void *heap = ssl? ssl->heap : ctx ? ctx->heap : NULL;
     int *groups;
 #else
     int groups[WOLFSSL_MAX_GROUP_COUNT];
