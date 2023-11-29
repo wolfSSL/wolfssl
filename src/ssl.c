@@ -3241,6 +3241,7 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     }
     else if (ssl->earlyData != no_early_data &&
             (ret = wolfSSL_negotiate(ssl)) < 0) {
+        ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
     ssl->earlyData = no_early_data;
