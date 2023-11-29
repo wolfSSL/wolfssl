@@ -8163,6 +8163,14 @@ EVP_TEST_END:
         }
     #endif
 
+        ret = wc_AesInit(enc, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_AesInit(dec, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
         ret = wc_AesSetKey(enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -13563,6 +13571,10 @@ static wc_test_ret_t aesccm_128_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     XMEMSET(p2, 0, sizeof(p2));
     XMEMSET(iv2, 0, sizeof(iv2));
+
+    ret = wc_AesInit(enc, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifndef HAVE_SELFTEST
     /* selftest build does not have wc_AesCcmSetNonce() or
