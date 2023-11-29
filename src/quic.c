@@ -1056,7 +1056,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUF);
+    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
