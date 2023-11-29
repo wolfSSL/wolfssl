@@ -44865,8 +44865,8 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
         haveECC = 0;
     }
     for (idx = 0; idx < hashSigAlgoSz; idx += 2) {
-        enum wc_HashType hashAlgo;
-        enum Key_Sum sigAlgo;
+        int hashAlgo;
+        int sigAlgo;
 
         wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
                 &hashAlgo, &sigAlgo);
@@ -45078,8 +45078,8 @@ static int test_wolfSSL_sigalg_info(void)
 
     InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
-        enum wc_HashType hashAlgo;
-        enum Key_Sum sigAlgo;
+        int hashAlgo;
+        int sigAlgo;
 
         wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
                 &hashAlgo, &sigAlgo);
@@ -45091,8 +45091,8 @@ static int test_wolfSSL_sigalg_info(void)
     InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
             0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
-        enum wc_HashType hashAlgo;
-        enum Key_Sum sigAlgo;
+        int hashAlgo;
+        int sigAlgo;
 
         wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
                 &hashAlgo, &sigAlgo);

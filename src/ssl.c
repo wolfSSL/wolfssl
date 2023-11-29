@@ -16338,8 +16338,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return info;
     }
 
+    /**
+     * @param first First byte of the hash and signature algorithm
+     * @param second Second byte of the hash and signature algorithm
+     * @param hashAlgo The enum wc_HashType of the MAC algorithm
+     * @param sigAlgo The enum Key_Sum of the authentication algorithm
+     */
     void wolfSSL_get_sigalg_info(byte first, byte second,
-            enum wc_HashType* hashAlgo, enum Key_Sum* sigAlgo)
+            int* hashAlgo, int* sigAlgo)
     {
         byte input[2];
         byte hashType;
@@ -16399,7 +16405,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         case invalid_sa_algo:
         default:
             *hashAlgo = WC_HASH_TYPE_NONE;
-            *sigAlgo = (enum Key_Sum)0;
+            *sigAlgo = 0;
             return;
         }
 
@@ -16439,7 +16445,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             break;
         default:
             *hashAlgo = WC_HASH_TYPE_NONE;
-            *sigAlgo = (enum Key_Sum)0;
+            *sigAlgo = 0;
             return;
         }
     }

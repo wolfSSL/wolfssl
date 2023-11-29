@@ -14931,8 +14931,8 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \brief This returns information about the hash and signature algorithm
     directly from the raw ciphersuite bytes.
 
-    \param [in] first First byte of the hash and signature algorith
-    \param [in] second Second byte of the hash and signature algorith
+    \param [in] first First byte of the hash and signature algorithm
+    \param [in] second Second byte of the hash and signature algorithm
     \param [out] hashAlgo The enum wc_HashType of the MAC algorithm
     \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
 
@@ -14954,4 +14954,4 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \sa wolfSSL_get_ciphersuite_info
 */
 void wolfSSL_get_sigalg_info(byte first, byte second,
-        enum wc_HashType* hashAlgo, enum Key_Sum* sigAlgo);
+        int* hashAlgo, int* sigAlgo);

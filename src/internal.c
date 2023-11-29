@@ -4236,7 +4236,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
  * hashalgo  The hash algorithm.
  * hsType    The signature type.
  */
-WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
+void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 {
     *hsType = invalid_sa_algo;
     switch (input[0]) {
