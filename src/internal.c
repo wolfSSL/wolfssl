@@ -19640,18 +19640,12 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
     *inOutIdx = idx;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.connectState == WAIT_FINISHED_ACK) {
-        /* Reset the processReply state since
-         * we finished processing this message. */
-        ssl->options.processReply = doProcessInit;
         /* DTLS 1.3 is waiting for an ACK but we can still return app data. */
         return APP_DATA_READY;
     }
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (IsSCR(ssl)) {
-        /* Reset the processReply state since
-         * we finished processing this message. */
-        ssl->options.processReply = doProcessInit;
         /* If we are in a secure renegotiation then APP DATA is treated
          * differently */
         return APP_DATA_READY;
@@ -21211,7 +21205,13 @@ default:
                                                 &ssl->buffers.inputBuffer.idx,
                                                               NO_SNIFF)) != 0) {
                         WOLFSSL_ERROR(ret);
-                        return ret;
+                    #if defined(WOLFSSL_DTLS13) || \
+                        defined(HAVE_SECURE_RENEGOTIATION)
+                        /* Not really an error. We will return after cleaning
+                         * up the processReply state. */
+                        if (ret != APP_DATA_READY)
+                    #endif
+                            return ret;
                     }
                     break;
 
@@ -21333,6 +21333,11 @@ default:
              * (probably WC_PENDING_E) so return that so it can be handled
              * by higher layers. */
             if (ret != 0)
+                return ret;
+#endif
+#if defined(WOLFSSL_DTLS13) || defined(HAVE_SECURE_RENEGOTIATION)
+            /* Signal to user that we have application data ready to read */
+            if (ret == APP_DATA_READY)
                 return ret;
 #endif
             /* It is safe to shrink the input buffer here now. local vars will
