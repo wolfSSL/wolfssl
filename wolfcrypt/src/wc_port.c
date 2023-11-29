@@ -1489,7 +1489,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
         return 0;
     }
 
-#elif defined(USE_WINDOWS_API)
+#elif defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -3426,7 +3426,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #ifndef SINGLE_THREADED
 
-#ifdef _MSC_VER
+#if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
     {
@@ -3450,6 +3450,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
+#ifdef WOLFSSL_THREAD_NO_JOIN
     int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb, void* arg)
     {
         THREAD_TYPE thread;
@@ -3464,6 +3465,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         return 0;
     }
+#endif
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {

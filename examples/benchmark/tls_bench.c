@@ -1203,7 +1203,7 @@ static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN client_thread(void* args)
     THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_server.cond));
     THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_server.cond));
 
-    WOLFSSL_RETURN_FROM_THREAD(NULL);
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif /* !SINGLE_THREADED */
 #endif /* !NO_WOLFSSL_CLIENT */
@@ -1663,7 +1663,7 @@ static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN server_thread(void* args)
     THREAD_CHECK_RET(wolfSSL_CondSignal(&info->to_client.cond));
     THREAD_CHECK_RET(wolfSSL_CondEnd(&info->to_client.cond));
 
-    WOLFSSL_RETURN_FROM_THREAD(NULL);
+    WOLFSSL_RETURN_FROM_THREAD(0);
 }
 #endif /* !SINGLE_THREADED */
 #endif /* !NO_WOLFSSL_SERVER */

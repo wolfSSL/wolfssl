@@ -1377,7 +1377,7 @@ typedef struct w64wrapper {
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD))
+    #elif defined(WOLFSSL_PTHREADS)
         #ifndef __MACH__
             #include <pthread.h>
             typedef struct COND_TYPE {
@@ -1402,7 +1402,7 @@ typedef struct w64wrapper {
         typedef unsigned int   THREAD_RETURN;
         typedef TaskHandle_t   THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif defined(_MSC_VER)
+    #elif defined(USE_WINDOWS_API)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
         typedef struct COND_TYPE {
@@ -1412,7 +1412,9 @@ typedef struct w64wrapper {
         #define WOLFSSL_COND
         #define INVALID_THREAD_VAL ((THREAD_TYPE)(INVALID_HANDLE_VALUE))
         #define WOLFSSL_THREAD __stdcall
-        #define WOLFSSL_THREAD_NO_JOIN __cdecl
+        #if !defined(__MINGW32__)
+            #define WOLFSSL_THREAD_NO_JOIN __cdecl
+        #endif
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
