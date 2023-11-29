@@ -403,7 +403,7 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
         "bne	L_AES_invert_key_mix_loop_%=\n\t"
         : [ks] "+r" (ks), [rounds] "+r" (rounds), [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c), [L_AES_ARM32_td] "+r" (L_AES_ARM32_td_c)
         :
-        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -924,7 +924,7 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
     "L_AES_set_encrypt_key_end_%=: \n\t"
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks), [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c), [L_AES_ARM32_rcon] "+r" (L_AES_ARM32_rcon_c)
         :
-        : "memory", "r12", "lr", "r5", "r6", "r7", "r8"
+        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "cc"
     );
 }
 
@@ -1575,7 +1575,7 @@ void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t
         "eor	r7, r7, r11\n\t"
         : [te] "+r" (te), [nr] "+r" (nr), [len] "+r" (len), [ks] "+r" (ks)
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -1824,7 +1824,7 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "pop	{%[ks]}\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [L_AES_ARM32_te_ecb] "+r" (L_AES_ARM32_te_ecb_c)
         :
-        : "memory", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -2090,7 +2090,7 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "stm	r9, {r4, r5, r6, r7}\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv), [L_AES_ARM32_te_cbc] "+r" (L_AES_ARM32_te_cbc_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -2358,7 +2358,7 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "stm	r8, {r4, r5, r6, r7}\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr), [L_AES_ARM32_te_ctr] "+r" (L_AES_ARM32_te_ctr_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -3011,7 +3011,7 @@ void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
         "eor	r7, r7, r11\n\t"
         : [td] "+r" (td), [nr] "+r" (nr), [td4] "+r" (td4)
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -3293,7 +3293,7 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     "L_AES_ECB_decrypt_end_%=: \n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c), [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -3925,7 +3925,7 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "pop	{%[ks]-r4}\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c), [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
-        : "memory", "r12", "lr", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -4523,7 +4523,7 @@ void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned
         "bne	L_GCM_gmult_len_start_block_%=\n\t"
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len), [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
-        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -4780,7 +4780,7 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "stm	r8, {r4, r5, r6, r7}\n\t"
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr), [L_AES_ARM32_te_gcm] "+r" (L_AES_ARM32_te_gcm_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 

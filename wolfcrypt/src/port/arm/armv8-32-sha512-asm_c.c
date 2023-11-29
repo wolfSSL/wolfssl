@@ -7603,7 +7603,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "add	sp, sp, #0xc0\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
     );
 }
 
@@ -9153,7 +9153,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "bne	L_SHA512_transform_neon_len_begin_%=\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_neon_len_k] "+r" (L_SHA512_transform_neon_len_k_c)
         :
-        : "memory", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+        : "memory", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "cc"
     );
 }
 
