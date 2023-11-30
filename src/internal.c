@@ -8458,9 +8458,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif /* HAVE_PK_CALLBACKS */
 
-#if defined(HAVE_TLS_EXTENSIONS) && !defined(HAVE_SNI) && !defined(NO_TLS) && \
-    !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
-    !defined(WOLFSSL_DTLS_CID)
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
+#if !defined(HAVE_SNI) && !defined(HAVE_ALPN) && !defined(WOLFSSL_DTLS_CID) && \
+    !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Some extensions need to be kept for post-handshake querying. */
     TLSX_FreeAll(ssl->extensions, ssl->heap);
     ssl->extensions = NULL;
@@ -8474,7 +8474,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, ssl->heap);
     TLSX_Remove(&ssl->extensions, TLSX_KEY_SHARE, ssl->heap);
 #endif
-#endif
+#endif /* !HAVE_SNI && && !HAVE_ALPN && !WOLFSSL_DTLS_CID &&
+        * !WOLFSSL_POST_HANDSHAKE_AUTH */
+#endif /* HAVE_TLS_EXTENSIONS && !NO_TLS */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* when done with handshake decrement current handshake count */
