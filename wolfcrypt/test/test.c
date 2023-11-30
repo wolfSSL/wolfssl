@@ -20683,6 +20683,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
     if (answer != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+    wc_FreeDsaKey(key);
+    key_inited = 0;
+
+    ret = wc_InitDsaKey_h(key, NULL);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    key_inited = 1;
+
 #ifdef WOLFSSL_KEY_GEN
     {
     int    derSz = 0;
@@ -20726,16 +20734,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
 #endif /* WOLFSSL_KEY_GEN */
 
   out:
-
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (key) {
-#endif
-        ret = wc_InitDsaKey_h(key, NULL);
-        if (ret != 0)
-            ret = WC_TEST_RET_ENC_EC(ret);
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    }
-#endif
 
 #ifdef WOLFSSL_KEY_GEN
     if (der)
