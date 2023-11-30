@@ -39,6 +39,8 @@
 
 #if defined (HAVE_LIBOQS)
 
+#include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
+
 static const char* OQS_ID2name(int id) {
     switch (id) {
         case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512;
@@ -338,11 +340,15 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
         }
     }
     if (ret == 0) {
+        ret = wolfSSL_liboqsRngMutexLock(rng);
+    }
+    if (ret == 0) {
         if (OQS_KEM_keypair(kem, key->pub, key->priv) !=
             OQS_SUCCESS) {
             ret = BAD_FUNC_ARG;
         }
     }
+    wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
@@ -423,11 +429,14 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
         }
     }
     if (ret == 0) {
+        ret = wolfSSL_liboqsRngMutexLock(rng);
+    }
+    if (ret == 0) {
         if (OQS_KEM_encaps(kem, ct, ss, key->pub) != OQS_SUCCESS) {
             ret = BAD_FUNC_ARG;
         }
     }
-
+    wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4

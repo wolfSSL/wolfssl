@@ -127,6 +127,10 @@
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
+#if defined(HAVE_LIBOQS)
+    #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
+#endif
+
 
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
@@ -385,6 +389,12 @@ int wolfCrypt_Init(void)
             return ret;
         }
         rpcmem_init();
+#endif
+
+#if defined(HAVE_LIBOQS)
+        if ((ret = wolfSSL_liboqsInit()) != 0) {
+            return ret;
+        }
 #endif
     }
     initRefCount++;

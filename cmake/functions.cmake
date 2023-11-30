@@ -198,6 +198,7 @@ function(generate_build_flags)
         set(BUILD_SPHINCS "yes" PARENT_SCOPE)
         set(BUILD_DILITHIUM "yes" PARENT_SCOPE)
         set(BUILD_EXT_KYBER "yes" PARENT_SCOPE)
+        set(BUILD_OQS_HELPER "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_ARIA OR WOLFSSL_USER_SETTINGS)
         message(STATUS "ARIA functions.cmake found WOLFSSL_ARIA")
@@ -586,6 +587,11 @@ function(generate_lib_src_list LIB_SOURCES)
          wolfcrypt/src/logging.c
          wolfcrypt/src/wc_port.c
          wolfcrypt/src/error.c)
+
+    if(BUILD_OQS_HELPER)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/liboqs/liboqs.c)
+    endif()
 
     if(BUILD_ARIA)
         list(APPEND LIB_SOURCES
