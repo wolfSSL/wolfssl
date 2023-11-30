@@ -20,7 +20,7 @@
     int ret = 0;
     byte key[] = { some 16, 24 or 32 byte key };
     byte iv[]  = { some 16 byte iv };
-    if (ret = wc_AesInit(gmac.aes, HEAP_HINT, INVALID_DEVID) != 0) {
+    if (ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID) != 0) {
         // failed to initialize aes key
     }
     if (ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv,
