@@ -78,4 +78,4 @@ jobs:
         working-directory: ./memcached
         run: |
           export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
-          make -j$(nproc) test_tls
+          make -j$(nproc) PARALLEL=$(nproc) test_tls
