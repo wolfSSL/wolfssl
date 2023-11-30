@@ -545,8 +545,8 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     Aes enc;
     key[] = { some 16, 24, or 32 byte length key };
 
-    wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
-    wc_AesCcmSetKey(&aes, key, sizeof(key));
+    wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
+    wc_AesCcmSetKey(&enc, key, sizeof(key));
     \endcode
 
     \sa wc_AesCcmEncrypt
