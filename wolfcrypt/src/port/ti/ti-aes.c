@@ -67,17 +67,29 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
 {
     if (!wolfSSL_TI_CCMInit())
         return 1;
-    if ((aes == NULL) || (key == NULL) || (iv == NULL))
+    if ((aes == NULL) || (key == NULL))
         return BAD_FUNC_ARG;
     if (!((dir == AES_ENCRYPTION) || (dir == AES_DECRYPTION)))
         return BAD_FUNC_ARG;
 
     switch (len) {
-        case 16: aes->keylen = AES_CFG_KEY_SIZE_128BIT; break;
-        case 24: aes->keylen = AES_CFG_KEY_SIZE_192BIT; break;
-        case 32: aes->keylen = AES_CFG_KEY_SIZE_256BIT; break;
-    default: return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_AES_128
+        case 16:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        case 24:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        case 32:
+            break;
+    #endif
+        default:
+            return BAD_FUNC_ARG;
     }
+    aes->keylen = len;
+    aes->rounds = len / 4 + 6;
 
     XMEMCPY(aes->key, key, len);
 #ifdef WOLFSSL_AES_COUNTER
@@ -92,10 +104,10 @@ static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Processed aligned chunk to HW AES */
     wolfSSL_TI_lockCCM();
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | dir |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | dir |
         (mode == AES_CFG_MODE_CTR_NOCTR ? AES_CFG_MODE_CTR : mode)));
     ROM_AESIVSet(AES_BASE, (uint32_t *)aes->reg);
-    ROM_AESKey1Set(AES_BASE, (uint32_t *)aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, (uint32_t *)aes->key, aes->keylen-8);
     if ((dir == AES_CFG_DIR_DECRYPT)&& (mode == AES_CFG_MODE_CBC)) {
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -104,7 +116,7 @@ static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
     wolfSSL_TI_unlockCCM();
 
     /* store iv for next call */
-    if (mode == AES_CFG_MODE_CBC){
+    if (mode == AES_CFG_MODE_CBC) {
         if (dir == AES_CFG_DIR_ENCRYPT)
             XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         else
@@ -139,19 +151,19 @@ static int AesProcess(Aes* aes, byte* out, const byte* in, word32 sz,
 
     while (sz > 0) {
         size = sz; in_p = in; out_p = out;
-        if (!IS_ALIGN16(in)){
+        if (!IS_ALIGN16(in)) {
             size = sz > TI_BUFFSIZE ? TI_BUFFSIZE : sz;
             XMEMCPY(buff, in, size);
             in_p = (const byte *)buff;
         }
-        if (!IS_ALIGN16(out)){
+        if (!IS_ALIGN16(out)) {
             size = sz > TI_BUFFSIZE ? TI_BUFFSIZE : sz;
             out_p = buff;
         }
 
         AesAlign16(aes, out_p, in_p, size, dir, mode);
 
-        if (!IS_ALIGN16(out)){
+        if (!IS_ALIGN16(out)) {
             XMEMCPY(out, buff, size);
         }
         sz -= size; in += size; out += size;
@@ -181,13 +193,13 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     tmp = (char *)aes->tmp;
     if (aes->left) {
-        if ((aes->left + sz) >= AES_BLOCK_SIZE){
+        if ((aes->left + sz) >= AES_BLOCK_SIZE) {
             odd = AES_BLOCK_SIZE - aes->left;
         } else {
             odd = sz;
         }
         XMEMCPY(tmp+aes->left, in, odd);
-        if ((odd+aes->left) == AES_BLOCK_SIZE){
+        if ((odd+aes->left) == AES_BLOCK_SIZE) {
             ret = AesProcess(aes, (byte *)out_block, (byte const *)tmp, AES_BLOCK_SIZE,
                         AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CTR);
             if (ret != 0)
@@ -267,12 +279,12 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     const byte* authIn, word32 authInSz, word32 *M, word32 *L)
 {
     (void) authInSz;
-    if ((aes == NULL)||(nonce == NULL)||(authTag== NULL)||(authIn == NULL))
+    if ((aes == NULL) || (nonce == NULL) || (authTag== NULL) || (authIn == NULL))
         return BAD_FUNC_ARG;
-    if ((inSz != 0) && ((out == NULL)||(in == NULL)))
+    if ((inSz != 0) && ((out == NULL) || (in == NULL)))
         return BAD_FUNC_ARG;
 
-    switch(authTagSz){
+    switch (authTagSz) {
     case 4:
         *M = AES_CFG_CCM_M_4; break;
     case 6:
@@ -291,7 +303,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
         return 1;
     }
 
-    switch(nonceSz){
+    switch (nonceSz) {
     case 7:
         *L = AES_CFG_CCM_L_8; break;
     case 8:
@@ -317,7 +329,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
 static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     int mode)
 {
-    if (mode == AES_CFG_MODE_CCM){
+    if (mode == AES_CFG_MODE_CCM) {
         XMEMSET(aes->reg, 0, 16);
         switch (L) {
         case AES_CFG_CCM_L_8:
@@ -342,7 +354,8 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     else {
         byte *b = (byte *)aes->reg;
         XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
-        XMEMCPY(aes->reg, nonce, len);
+        if (nonce != NULL && len < AES_BLOCK_SIZE)
+            XMEMCPY(aes->reg, nonce, len);
         b[AES_BLOCK_SIZE-4] = 0;
         b[AES_BLOCK_SIZE-3] = 0;
         b[AES_BLOCK_SIZE-2] = 0;
@@ -365,7 +378,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, authIn, authInSz, &M, &L);
-    if (ret != 0) {
+    if (ret == BAD_FUNC_ARG) {
         return ret;
     }
 
@@ -415,11 +428,11 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* do aes-ccm */
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | AES_CFG_DIR_ENCRYPT |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_ENCRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
                                 mode | ((mode== AES_CFG_MODE_CCM) ? (L | M) : 0 )));
     ROM_AESIVSet(AES_BASE, aes->reg);
-    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen-8);
     ret = ROM_AESDataProcessAuth(AES_BASE, (unsigned int*)in_a, (unsigned int *)out_a, inSz,
                            (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
     if (ret == false) {
@@ -451,10 +464,9 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte *nonce_a,  *nonce_save = NULL;
     word32 tmpTag[4];
 
-
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, authIn, authInSz, &M, &L);
-    if (ret != 0) {
+    if (ret == BAD_FUNC_ARG) {
         return ret;
     }
 
@@ -503,14 +515,14 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* do aes-ccm */
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | AES_CFG_DIR_DECRYPT |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_DECRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
                                   mode | ((mode== AES_CFG_MODE_CCM) ? (L | M) : 0 )));
     ROM_AESIVSet(AES_BASE, aes->reg);
-    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen-8);
     ret = ROM_AESDataProcessAuth(AES_BASE, (unsigned int*)in_a, (unsigned int *)out_a, inSz,
                            (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
-    if ((ret == false) || (XMEMCMP(authTag, tmpTag, authTagSz) != 0)){
+    if ((ret == false) || (XMEMCMP(authTag, tmpTag, authTagSz) != 0)) {
         XMEMSET(out, 0, inSz);
         ret = false;
     } else {
