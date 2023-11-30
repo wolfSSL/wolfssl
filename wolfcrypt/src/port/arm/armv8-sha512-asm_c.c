@@ -1049,7 +1049,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "stp	x10, x11, [%x[sha512], #48]\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
         : [L_SHA512_transform_neon_len_k] "S" (L_SHA512_transform_neon_len_k), [L_SHA512_transform_neon_len_ror8] "S" (L_SHA512_transform_neon_len_ror8)
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "cc"
     );
 }
 
@@ -1659,7 +1659,7 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data, word32 len
         "st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [%x[sha512]]\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
         : [L_SHA512_transform_crypto_len_k] "S" (L_SHA512_transform_crypto_len_k)
-        : "memory", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+        : "memory", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
     );
 }
 
