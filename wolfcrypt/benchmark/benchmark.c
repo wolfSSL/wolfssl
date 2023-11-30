@@ -4521,6 +4521,12 @@ static void bench_aescfb_internal(const byte* key,
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
+    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("AesInit failed, ret = %d\n", ret);
+        return;
+    }
+
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);

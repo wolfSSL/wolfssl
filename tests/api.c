@@ -18165,6 +18165,7 @@ static int test_wc_GmacUpdate(void)
 
 #ifdef WOLFSSL_AES_192
     ExpectNotNull(XMEMSET(&gmac, 0, sizeof(Gmac)));
+    ExpectIntEQ(wc_AesInit(&gmac.aes, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte)), 0);
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv2, sizeof(iv2), authIn2, sizeof(authIn2),
         tagOut2, sizeof(tag2)), 0);
@@ -18173,6 +18174,7 @@ static int test_wc_GmacUpdate(void)
 
 #ifdef WOLFSSL_AES_256
     ExpectNotNull(XMEMSET(&gmac, 0, sizeof(Gmac)));
+    ExpectIntEQ(wc_AesInit(&gmac.aes, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte)), 0);
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3)), 0);

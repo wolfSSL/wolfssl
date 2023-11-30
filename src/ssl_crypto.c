@@ -2904,7 +2904,6 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
 /* Sets the key into the AES key object for encryption or decryption.
  *
  * TODO: check bits value?
- * TODO: initialize AES key?
  *
  * @param [in]  key   Key data.
  * @param [in]  bits  Number of bits in key.
@@ -2927,6 +2926,12 @@ static int wolfssl_aes_set_key(const unsigned char *key, const int bits,
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
+
+    if (wc_AesInit((Aes*)aes, NULL, INVALID_DEVID) != 0) {
+        WOLFSSL_MSG("Error in initting AES key");
+        return -1;
+    }
+
     if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, enc) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
         return -1;
