@@ -12091,7 +12091,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
     #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
-                WOLFSSL_MSG("Cookie extension freee");
+                WOLFSSL_MSG("Cookie extension free");
                 CKE_FREE_ALL((Cookie*)extension->data, heap);
                 break;
     #endif

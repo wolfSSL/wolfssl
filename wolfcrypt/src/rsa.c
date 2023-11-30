@@ -2628,8 +2628,8 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
 #endif   /* RSA_LOW_MEM */
 
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
-    /* Multiply result (tmp) by bliding invertor (rndi).
-     * Use Montogemery form to make operation more constant time.
+    /* Multiply result (tmp) by blinding invertor (rndi).
+     * Use Montgomery form to make operation more constant time.
      */
     if ((ret == 0) && (mp_montgomery_setup(&key->n, &mp) != MP_OKAY)) {
         ret = MP_MULMOD_E;
@@ -2638,7 +2638,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
             MP_OKAY)) {
         ret = MP_MULMOD_E;
     }
-    /* Convert blinding invert to Montogmery form. */
+    /* Convert blinding invert to Montgomery form. */
     if ((ret == 0) && (mp_mul(rndi, rnd, rndi) != MP_OKAY)) {
         ret = MP_MULMOD_E;
     }
