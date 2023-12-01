@@ -20605,15 +20605,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
     wc_Sha sha;
     byte   hash[WC_SHA_DIGEST_SIZE];
     byte   signature[40];
+#if (defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) || \
+    defined(WOLFSSL_KEY_GEN)
+    int key_inited = 0;
+#endif
 #ifdef WOLFSSL_KEY_GEN
     byte*  der = 0;
-#endif
-#define DSA_TEST_TMP_SIZE 1024
-    int key_inited = 0;
     int derIn_inited = 0;
-#ifdef WOLFSSL_KEY_GEN
     int genKey_inited = 0;
 #endif
+#define DSA_TEST_TMP_SIZE 1024
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte   *tmp = (byte *)XMALLOC(DSA_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     DsaKey *key = (DsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -20670,7 +20671,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
     ret = wc_InitDsaKey(key);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if (defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) || \
+    defined(WOLFSSL_KEY_GEN)
     key_inited = 1;
+#endif
 
     ret = wc_DsaPrivateKeyDecode(tmp, &idx, key, bytes);
     if (ret != 0)
@@ -20696,12 +20700,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     wc_FreeDsaKey(key);
+#if (defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) || \
+    defined(WOLFSSL_KEY_GEN)
     key_inited = 0;
+#endif
 
     ret = wc_InitDsaKey_h(key, NULL);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if (defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)) || \
+    defined(WOLFSSL_KEY_GEN)
     key_inited = 1;
+#endif
 
 #ifdef WOLFSSL_KEY_GEN
     {
