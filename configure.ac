@@ -6105,7 +6105,10 @@ AC_ARG_ENABLE([jni],
     )
 if test "$ENABLED_JNI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI -DHAVE_EX_DATA -DKEEP_PEER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
