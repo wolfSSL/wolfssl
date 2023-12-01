@@ -60,8 +60,7 @@
 
 /* THREADING/MUTEX SECTION */
 #ifdef USE_WINDOWS_API
-    #if defined(__MINGW32__) && !defined(SINGLE_THREADED)
-        #define WOLFSSL_PTHREADS
+    #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif
     #ifdef WOLFSSL_GAME_BUILD
@@ -231,7 +230,7 @@
             signed char mutexBuffer[portQUEUE_OVERHEAD_BYTES];
             xSemaphoreHandle mutex;
         } wolfSSL_Mutex;
-    #elif defined(USE_WINDOWS_API)
+    #elif defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
         typedef CRITICAL_SECTION wolfSSL_Mutex;
     #elif defined(MAXQ10XX_MUTEX)
         #include <sys/mman.h>
