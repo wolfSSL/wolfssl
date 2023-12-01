@@ -32062,6 +32062,14 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
 
     /* Clear dynamic data and set buffers for r and s */
     XMEMSET(dataASN, 0, sizeof(dataASN));
+    while ((rLen > 1) && (r[0] == 0)) {
+        rLen--;
+        r++;
+    }
+    while ((sLen > 1) && (s[0] == 0)) {
+        sLen--;
+        s++;
+    }
     SetASN_Buffer(&dataASN[DSASIGASN_IDX_R], r, rLen);
     SetASN_Buffer(&dataASN[DSASIGASN_IDX_S], s, sLen);
 
