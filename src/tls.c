@@ -678,55 +678,6 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     return ret;
 }
 
-int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
-{
-    if (specs == NULL)
-        return BAD_FUNC_ARG;
-
-    switch (specs->mac_algorithm) {
-        #ifndef NO_MD5
-        case md5_mac:
-        {
-            return WC_MD5;
-        }
-        #endif
-        #ifndef NO_SHA256
-        case sha256_mac:
-        {
-            return WC_SHA256;
-        }
-        #endif
-        #ifdef WOLFSSL_SHA384
-        case sha384_mac:
-        {
-            return WC_SHA384;
-        }
-        #endif
-        #ifdef WOLFSSL_SM3
-        case sm3_mac:
-        {
-            return WC_SM3;
-        }
-        #endif
-        #ifndef NO_SHA
-        case sha_mac:
-        {
-            return WC_SHA;
-        }
-        #endif
-        #ifdef HAVE_BLAKE2
-        case blake2b_mac:
-        {
-            return BLAKE2B_ID;
-        }
-        #endif
-        default:
-        {
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-}
-
 /* return HMAC digest type in wolfSSL format */
 int wolfSSL_GetHmacType(WOLFSSL* ssl)
 {
@@ -1278,6 +1229,55 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 #endif /* WOLFSSL_AEAD_ONLY */
 
 #endif /* !WOLFSSL_NO_TLS12 */
+
+int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
+{
+    if (specs == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (specs->mac_algorithm) {
+        #ifndef NO_MD5
+        case md5_mac:
+        {
+            return WC_MD5;
+        }
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+        {
+            return WC_SHA256;
+        }
+        #endif
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+        {
+            return WC_SHA384;
+        }
+        #endif
+        #ifdef WOLFSSL_SM3
+        case sm3_mac:
+        {
+            return WC_SM3;
+        }
+        #endif
+        #ifndef NO_SHA
+        case sha_mac:
+        {
+            return WC_SHA;
+        }
+        #endif
+        #ifdef HAVE_BLAKE2
+        case blake2b_mac:
+        {
+            return BLAKE2B_ID;
+        }
+        #endif
+        default:
+        {
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+}
 
 #ifdef HAVE_TLS_EXTENSIONS
 
