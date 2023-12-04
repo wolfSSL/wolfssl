@@ -11787,13 +11787,17 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_ENTER("DoTls13HandShakeMsg");
 
     if (ssl->arrays == NULL) {
-
-
         if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
                                                                 totalSz) != 0) {
             SendAlert(ssl, alert_fatal, unexpected_message);
             WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
             return PARSE_ERROR;
+        }
+
+        ret = EarlySanityCheckMsgReceived(ssl, type, size);
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
         }
 
         return DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
@@ -11810,6 +11814,13 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                totalSz) != 0) {
             WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
             return PARSE_ERROR;
+        }
+
+        ret = EarlySanityCheckMsgReceived(ssl, type,
+                min(inputLength - HANDSHAKE_HEADER_SZ, size));
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
         }
 
         /* Cap the maximum size of a handshake message to something reasonable.
@@ -11847,6 +11858,14 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             inputLength = ssl->arrays->pendingMsgSz -
                                                   ssl->arrays->pendingMsgOffset;
         }
+
+        ret = EarlySanityCheckMsgReceived(ssl, ssl->arrays->pendingMsgType,
+                inputLength);
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
+        }
+
         XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
                 input + *inOutIdx, inputLength);
         ssl->arrays->pendingMsgOffset += inputLength;

@@ -61806,6 +61806,7 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     sslCopy.buffers.outputBuffer.offset = 0;
     sslCopy.error = 0;
     sslCopy.curSize = 0;
+    sslCopy.curStartIdx = 0;
     sslCopy.keys.curSeq_lo = 0;
     XMEMSET(&sslCopy.curRL, 0, sizeof(sslCopy.curRL));
 #ifdef WOLFSSL_DTLS13
@@ -67470,7 +67471,7 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         }
 
         ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), BUFFER_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
 
         wolfSSL_free(ssl_c);
         ssl_c = NULL;
