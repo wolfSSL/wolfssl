@@ -19,7 +19,7 @@
 #
 # cmake for wolfssl Espressif projects
 #
-# Version 5.6.0.009 for FIND_WOLFSSL_DIRECTORY
+# Version 5.6.0.011 for detect test/benchmark
 #
 # See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html
 #
@@ -50,9 +50,9 @@ message(STATUS "THIS_USER = ${THIS_USER}")
 # The component name is the directory name. "No feature to change this".
 # See https://github.com/espressif/esp-idf/issues/8978#issuecomment-1129892685
 
-# set the root of wolfSSL:
+# set the root of wolfSSL in top-level project CMakelists.txt:
 #   set(WOLFSSL_ROOT  "C:/some path/with/spaces")
-#   set(WOLFSSL_ROOT  "c:/workspace/wolfssl-gojimmypi")
+#   set(WOLFSSL_ROOT  "c:/workspace/wolfssl-[username]")
 #   set(WOLFSSL_ROOT  "/mnt/c/some path/with/spaces")
 #   or use this logic to assign value from Environment Variable WOLFSSL_ROOT,
 #   or assume this is an example 7 subdirectories below:
@@ -145,6 +145,12 @@ function(FIND_WOLFSSL_DIRECTORY OUTPUT_FOUND_WOLFSSL_DIRECTORY)
     set(${OUTPUT_FOUND_WOLFSSL_DIRECTORY} "" PARENT_SCOPE)
 endfunction()
 
+
+# Example usage:
+
+
+
+
 if(CMAKE_BUILD_EARLY_EXPANSION)
     message(STATUS "wolfssl component CMAKE_BUILD_EARLY_EXPANSION:")
     idf_component_register(
@@ -173,16 +179,28 @@ else()
 
     set(INCLUDE_PATH ${WOLFSSL_ROOT})
 
+    set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/src/")
+
+    if( ${CMAKE_PROJECT_NAME} STREQUAL "wolfssl_benchmark" )
+        set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/wolfcrypt/benchmark")
+    endif()
+
+    if( ${CMAKE_PROJECT_NAME} STREQUAL "wolfssl_test" )
+        set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/wolfcrypt/test")
+    endif()
+
     set(COMPONENT_SRCDIRS "\"${WOLFSSL_ROOT}/src/\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src/port/Espressif\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src/port/atmel\""
-                          "\"${WOLFSSL_ROOT}/wolfcrypt/benchmark\"" # the benchmark application
-                          "\"${WOLFSSL_ROOT}/wolfcrypt/test\"" # the test application
-       ) # COMPONENT_SRCDIRS
+                          "\"${WOLFSSL_EXTRA_PROJECT_DIR}\""
+                         ) # COMPONENT_SRCDIRS
+
     message(STATUS "This COMPONENT_SRCDIRS = ${COMPONENT_SRCDIRS}")
 
     set(WOLFSSL_PROJECT_DIR "${CMAKE_HOME_DIRECTORY}/components/wolfssl")
+    add_definitions(-DWOLFSSL_USER_SETTINGS_DIR="${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+
 
     # Espressif may take several passes through this makefile. Check to see if we found IDF
     string(COMPARE EQUAL "${PROJECT_SOURCE_DIR}" "" WOLFSSL_FOUND_IDF)
@@ -270,10 +288,10 @@ else()
                         # we won't overwrite an existing user settings file, just note that we already have one:
                         if( EXISTS "${WOLFSSL_PROJECT_DIR}/include/user_settings.h" )
                             message(STATUS "Using existing wolfSSL user_settings.h in "
-                                           "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+                                            "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
                         else()
                             message(STATUS "Installing wolfSSL user_settings.h to "
-                                           "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+                                            "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
                             file(COPY "${WOLFSSL_ROOT}/IDE/Espressif/ESP-IDF/user_settings.h"
                             DESTINATION "${CMAKE_HOME_DIRECTORY}/wolfssl/include/")
                         endif()
@@ -281,7 +299,12 @@ else()
 
                     # next check if there's a [root]/include/config.h
                     if( EXISTS "${WOLFSSL_ROOT}/include/config.h" )
-                        message(FATAL_ERROR "Found stray wolfSSL config.h in        ${WOLFSSL_ROOT}/include/config.h (please move it to ${WOLFSSL_PROJECT_DIR}/include/config.h")
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "Found stray wolfSSL config.h in ${WOLFSSL_ROOT}/include/config.h"              )
+                        message(STATUS "  Please move it to ${WOLFSSL_PROJECT_DIR}/include/config.h"                   )
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "******************************************************************************")
                     else()
                         # we won't overwrite an existing user settings file, just note that we already have one:
                         if( EXISTS "${WOLFSSL_PROJECT_DIR}/include/config.h" )
@@ -311,6 +334,7 @@ else()
         endif() #else not an ESP-IDF component
     endif() # else not local copy and EDP-IDF wolfSSL
 
+
     # RTOS_IDF_PATH is typically:
     # "/Users/{username}/Desktop/esp-idf/components/freertos/include/freertos"
     # depending on the environment, we may need to swap backslashes with forward slashes
@@ -330,6 +354,7 @@ else()
         endif()
     endif()
 
+
     set(COMPONENT_ADD_INCLUDEDIRS
         "./include" # this is the location of wolfssl user_settings.h
         "\"${WOLFSSL_ROOT}/\""
@@ -338,12 +363,15 @@ else()
         "\"${RTOS_IDF_PATH}/\""
         )
 
+
     if(IS_DIRECTORY ${IDF_PATH}/components/cryptoauthlib)
         list(APPEND COMPONENT_ADD_INCLUDEDIRS "../cryptoauthlib/lib")
     endif()
 
     list(APPEND COMPONENT_ADD_INCLUDEDIRS "\"${WOLFSSL_ROOT}/wolfssl/\"")
     list(APPEND COMPONENT_ADD_INCLUDEDIRS "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/\"")
+
+
 
     set(COMPONENT_SRCEXCLUDE
         "\"${WOLFSSL_ROOT}/src/bio.c\""
@@ -359,6 +387,14 @@ else()
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/misc.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm32.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_armthumb.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_c32.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_c64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_cortexm.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_x86_64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_x86_64_asm.S\""
         "\"${EXCLUDE_ASM}\""
         )
 
@@ -388,7 +424,7 @@ else()
                             PRIV_REQUIRES esp_timer driver # this will typically only be needed for wolfSSL benchmark
                            )
     # some optional diagnostics
-    if (0)
+    if (1)
         get_cmake_property(_variableNames VARIABLES)
         list (SORT _variableNames)
         message(STATUS "")
@@ -403,7 +439,10 @@ else()
     endif()
 
     # target_sources(wolfssl PRIVATE  "\"${WOLFSSL_ROOT}/wolfssl/\""  "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt\"")
+
 endif() # CMAKE_BUILD_EARLY_EXPANSION
+
+
 
 # check to see if there's both a local copy and EDP-IDF copy of the wolfssl components
 if( EXISTS "${WOLFSSL_PROJECT_DIR}" AND EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )

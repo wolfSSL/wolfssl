@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<VisualGDBProjectSettings2 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<VisualGDBProjectSettings2 xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Project xsi:type="com.visualgdb.project.external.esp-idf">
     <CustomSourceDirectories>
       <Directories />
@@ -18,9 +18,9 @@
     <ToolchainID>
       <ID>com.visualgdb.xtensa-esp32-elf</ID>
       <Version>
-        <GCC>8.4.0</GCC>
-        <GDB>8.1.0</GDB>
-        <Revision>9</Revision>
+        <GCC>12.2.0</GCC>
+        <GDB>12.1</GDB>
+        <Revision>1</Revision>
       </Version>
     </ToolchainID>
     <RelativeSourceDirectory>..</RelativeSourceDirectory>
@@ -67,11 +67,11 @@
       <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
       <ESPIDFExtension>
         <IDFCheckout>
-          <Version>v4.4.1</Version>
-          <Subdirectory>esp-idf/v4.4.1</Subdirectory>
+          <Version>release/v5.1</Version>
+          <Subdirectory>esp-idf/v5.1</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
-        <COMPort>COM20</COMPort>
+        <COMPort>COM19</COMPort>
         <SuppressTestPrerequisiteChecks>false</SuppressTestPrerequisiteChecks>
         <UseCCache>false</UseCCache>
         <DeviceID>ESP32</DeviceID>
@@ -93,7 +93,7 @@
   </CustomDebug>
   <DeviceTerminalSettings>
     <Connection xsi:type="com.sysprogs.terminal.connection.serial">
-      <ComPortName>COM20</ComPortName>
+      <ComPortName>COM19</ComPortName>
       <AdvancedSettings>
         <BaudRate>115200</BaudRate>
         <DataBits>8</DataBits>
@@ -104,7 +104,7 @@
     </Connection>
     <LastConnectionTime>0</LastConnectionTime>
     <EchoTypedCharacters>false</EchoTypedCharacters>
-    <ClearContentsWhenReconnecting>false</ClearContentsWhenReconnecting>
+    <ClearContentsWhenReconnecting>true</ClearContentsWhenReconnecting>
     <ReconnectAutomatically>false</ReconnectAutomatically>
     <DisplayMode>ASCII</DisplayMode>
     <Colors>
@@ -220,7 +220,7 @@
     <DebugMethod>
       <ID>openocd</ID>
       <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 3000" -f target/esp32.cfg</CommandLine>
+        <CommandLine>-f interface/ftdi/tigard.cfg -c "adapter_khz 15000" -f interface/ftdi/tigard.cfg -f target/esp32.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />
@@ -252,7 +252,7 @@
       </Configuration>
     </DebugMethod>
     <AutoDetectRTOS>true</AutoDetectRTOS>
-    <SemihostingSupport>Auto</SemihostingSupport>
+    <SemihostingSupport>Disabled</SemihostingSupport>
     <SemihostingPollingDelay>0</SemihostingPollingDelay>
     <StepIntoEntryPoint>false</StepIntoEntryPoint>
     <ReloadFirmwareOnReset>false</ReloadFirmwareOnReset>

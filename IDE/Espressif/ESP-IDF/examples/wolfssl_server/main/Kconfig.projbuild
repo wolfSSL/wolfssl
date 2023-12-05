@@ -1,0 +1,9 @@
+menu "Example Configuration"
+
+config WOLFSSL_TARGET_PORT
+    int "Target port"
+    default 11111
+    help
+        Host listening port for the example to connect.
+
+endmenu

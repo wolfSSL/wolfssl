@@ -19,7 +19,7 @@
 #
 # cmake for wolfssl Espressif projects
 #
-# Version 5.6.0.009 for FIND_WOLFSSL_DIRECTORY
+# Version 5.6.0.011 for detect test/benchmark
 #
 # See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html
 #
@@ -50,9 +50,9 @@ message(STATUS "THIS_USER = ${THIS_USER}")
 # The component name is the directory name. "No feature to change this".
 # See https://github.com/espressif/esp-idf/issues/8978#issuecomment-1129892685
 
-# set the root of wolfSSL:
+# set the root of wolfSSL in top-level project CMakelists.txt:
 #   set(WOLFSSL_ROOT  "C:/some path/with/spaces")
-#   set(WOLFSSL_ROOT  "c:/workspace/wolfssl-gojimmypi")
+#   set(WOLFSSL_ROOT  "c:/workspace/wolfssl-[username]")
 #   set(WOLFSSL_ROOT  "/mnt/c/some path/with/spaces")
 #   or use this logic to assign value from Environment Variable WOLFSSL_ROOT,
 #   or assume this is an example 7 subdirectories below:
@@ -177,136 +177,30 @@ else()
                             "Try setting WOLFSSL_ROOT environment variable or git clone.")
     endif()
 
-if( 0 )
-    # Check to see if we're already in wolfssl, and only if WOLFSSL_ROOT not specified
-    if ("${WOLFSSL_ROOT}" STREQUAL "")
-        # wolfssl examples are 7 directories deep from wolfssl repo root
-        #                        1  2  3  4  5  6  7
-        set(THIS_RELATIVE_PATH "../../../../../../..")
-        get_filename_component(THIS_SEARCH_PATH  "${THIS_RELATIVE_PATH}" ABSOLUTE)
-        message(STATUS "Searching in path = ${THIS_SEARCH_PATH}")
-
-        if (EXISTS "${THIS_SEARCH_PATH}/wolfcrypt/src")
-            # we're already in wolfssl examples!
-            get_filename_component(WOLFSSL_ROOT  "${THIS_SEARCH_PATH}" ABSOLUTE)
-            message(STATUS "Using wolfSSL example with root ${WOLFSSL_ROOT}")
-        else()
-            # We're in some other repo such as wolfssh, so we'll search for an
-            # adjacent-level directory for wolfssl. (8 directories up, then down one)
-            #
-            # For example wolfSSL examples:
-            #   C:\workspace\wolfssl-gojimmypi\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\components\wolfssl
-            #
-            # For example wolfSSH examples:
-            #   C:\workspace\wolfssh-gojimmypi\ide\Espressif\ESP-IDF\examples\wolfssh_benchmark\components\wolfssl
-            #
-            #                        1  2  3  4  5  6  7  8
-            set(THIS_RELATIVE_PATH "../../../../../../../..")
-            get_filename_component(THIS_SEARCH_PATH  "${THIS_RELATIVE_PATH}" ABSOLUTE)
-            message(STATUS "Searching next in path = ${THIS_SEARCH_PATH}")
-        endif()
-    endif()
-
-    # search other possible locations
-    if ("${WOLFSSL_ROOT}" STREQUAL "")
-        # there's not a hard-coded WOLFSSL_ROOT value above, so let's see if we can find it.
-        if( "$ENV{WOLFSSL_ROOT}" STREQUAL "" )
-            message(STATUS "Environment Variable WOLFSSL_ROOT not set. Will search common locations.")
-
-            message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
-            get_filename_component(THIS_DIR "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
-            message(STATUS "THIS_DIR = ${THIS_DIR}")
-
-            # find the user name to search for possible "wolfssl-username"
-            message(STATUS "USERNAME = $ENV{USERNAME}")
-            if(  "$ENV{USER}" STREQUAL "" ) # the bash user
-                if(  "$ENV{USERNAME}" STREQUAL "" ) # the Windows user
-                    message(STATUS "could not find USER or USERNAME")
-                else()
-                    # the bash user is not blank, so we'll use it.
-                    set(THIS_USER "$ENV{USERNAME}")
-                endif()
-            else()
-                # the bash user is not blank, so we'll use it.
-               set(THIS_USER "$ENV{USER}")
-            endif()
-            message(STATUS "THIS_USER = ${THIS_USER}")
-
-            # This same makefile is used for both the wolfssl component, and other
-            # components that may depend on wolfssl, such as wolfssh. Therefore
-            # we need to determine if this makefile is in the wolfssl repo, or
-            # some other repo.
-
-            if(  "{THIS_USER}" STREQUAL "" )
-                # This is highly unusual to not find a user name.
-                # In this case, we'll just search for a "wolfssl" directory:
-                message(STATUS "No username found!")
-                get_filename_component(WOLFSSL_ROOT  "${THIS_RELATIVE_PATH}/wolfssl" ABSOLUTE)
-            else()
-                # We found an environment USER name!
-                # The first place to look for wolfssl will be in a user-clone called "wolfssl-[username]"
-                message(STATUS "Using [THIS_USER = ${THIS_USER}] to see if there's a [relative path]/wolfssl-${THIS_USER} directory.")
-                get_filename_component(WOLFSSL_ROOT  "${THIS_RELATIVE_PATH}/wolfssl-${THIS_USER}" ABSOLUTE)
-
-                if( EXISTS "${WOLFSSL_ROOT}" )
-                    message(STATUS "Found wolfssl in user-suffix ${WOLFSSL_ROOT}")
-                else()
-                    # If there's not a user-clone called "wolfssl-[username]",
-                    # perhaps there's simply a git clone called "wolfssl"?
-                    message(STATUS "Did not find wolfssl-${THIS_USER}; continuing search...")
-                    get_filename_component(WOLFSSL_ROOT  "${THIS_RELATIVE_PATH}/wolfssl" ABSOLUTE)
-
-                    if( EXISTS "${WOLFSSL_ROOT}" )
-                        message(STATUS "Found wolfssl in standard ${WOLFSSL_ROOT}")
-                    else()
-                        # Things are looking pretty bleak. We'll likely not be able to compile.
-                        message(STATUS "Did not find wolfssl in ${WOLFSSL_ROOT}")
-                    endif()
-                endif()
-            endif()
-
-        else()
-            # there's an environment variable, so use it.
-            set(WOLFSSL_ROOT "$ENV{WOLFSSL_ROOT}")
-
-            if( EXISTS "${WOLFSSL_ROOT}" )
-                get_filename_component(WOLFSSL_ROOT  "$ENV{WOLFSSL_ROOT}" ABSOLUTE)
-                message(STATUS "Found WOLFSSL_ROOT via Environment Variable:")
-            else()
-                message(FATAL_ERROR "WOLFSSL_ROOT Environment Variable defined, but path not found:")
-                message(STATUS "$ENV{WOLFSSL_ROOT}")
-            endif()
-        endif()
-        # end of search for wolfssl component root
-    else()
-        # There's already a value assigned; we won't search for anything else.
-        message(STATUS "Found user-specified WOLFSSL_ROOT value.")
-    endif() # WOLFSSL_ROOT user defined
-
-    # After all the logic above, does our WOLFSSL_ROOT actually exist?
-    if( EXISTS "${WOLFSSL_ROOT}" )
-        message(STATUS "WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
-    else()
-        # Abort. We need wolfssl _somewhere_.
-        message(FATAL_ERROR "Could not find wolfssl in ${WOLFSSL_ROOT}. Try setting environment variable or git clone.")
-    endif()
-endif()
-
-
-
-
     set(INCLUDE_PATH ${WOLFSSL_ROOT})
+
+    set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/src/")
+
+    if( ${CMAKE_PROJECT_NAME} STREQUAL "wolfssl_benchmark" )
+        set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/wolfcrypt/benchmark")
+    endif()
+
+    if( ${CMAKE_PROJECT_NAME} STREQUAL "wolfssl_test" )
+        set(WOLFSSL_EXTRA_PROJECT_DIR "${WOLFSSL_ROOT}/wolfcrypt/test")
+    endif()
 
     set(COMPONENT_SRCDIRS "\"${WOLFSSL_ROOT}/src/\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src/port/Espressif\""
                           "\"${WOLFSSL_ROOT}/wolfcrypt/src/port/atmel\""
-                          "\"${WOLFSSL_ROOT}/wolfcrypt/benchmark\"" # the benchmark application
-                          "\"${WOLFSSL_ROOT}/wolfcrypt/test\"" # the test application
-       ) # COMPONENT_SRCDIRS
+                          "\"${WOLFSSL_EXTRA_PROJECT_DIR}\""
+                         ) # COMPONENT_SRCDIRS
+
     message(STATUS "This COMPONENT_SRCDIRS = ${COMPONENT_SRCDIRS}")
 
     set(WOLFSSL_PROJECT_DIR "${CMAKE_HOME_DIRECTORY}/components/wolfssl")
+    add_definitions(-DWOLFSSL_USER_SETTINGS_DIR="${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+
 
     # Espressif may take several passes through this makefile. Check to see if we found IDF
     string(COMPARE EQUAL "${PROJECT_SOURCE_DIR}" "" WOLFSSL_FOUND_IDF)
@@ -394,10 +288,10 @@ endif()
                         # we won't overwrite an existing user settings file, just note that we already have one:
                         if( EXISTS "${WOLFSSL_PROJECT_DIR}/include/user_settings.h" )
                             message(STATUS "Using existing wolfSSL user_settings.h in "
-                                           "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+                                            "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
                         else()
                             message(STATUS "Installing wolfSSL user_settings.h to "
-                                           "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+                                            "${WOLFSSL_PROJECT_DIR}/include/user_settings.h")
                             file(COPY "${WOLFSSL_ROOT}/IDE/Espressif/ESP-IDF/user_settings.h"
                             DESTINATION "${CMAKE_HOME_DIRECTORY}/wolfssl/include/")
                         endif()
@@ -405,7 +299,12 @@ endif()
 
                     # next check if there's a [root]/include/config.h
                     if( EXISTS "${WOLFSSL_ROOT}/include/config.h" )
-                        message(FATAL_ERROR "Found stray wolfSSL config.h in        ${WOLFSSL_ROOT}/include/config.h (please move it to ${WOLFSSL_PROJECT_DIR}/include/config.h")
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "Found stray wolfSSL config.h in ${WOLFSSL_ROOT}/include/config.h"              )
+                        message(STATUS "  Please move it to ${WOLFSSL_PROJECT_DIR}/include/config.h"                   )
+                        message(STATUS "******************************************************************************")
+                        message(STATUS "******************************************************************************")
                     else()
                         # we won't overwrite an existing user settings file, just note that we already have one:
                         if( EXISTS "${WOLFSSL_PROJECT_DIR}/include/config.h" )
@@ -488,6 +387,14 @@ endif()
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/misc.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm32.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_armthumb.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_c32.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_c64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_cortexm.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_x86_64.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_x86_64_asm.S\""
         "\"${EXCLUDE_ASM}\""
         )
 
@@ -532,6 +439,7 @@ endif()
     endif()
 
     # target_sources(wolfssl PRIVATE  "\"${WOLFSSL_ROOT}/wolfssl/\""  "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt\"")
+
 endif() # CMAKE_BUILD_EARLY_EXPANSION
 
 

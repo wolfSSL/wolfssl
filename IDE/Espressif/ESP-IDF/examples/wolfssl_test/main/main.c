@@ -27,11 +27,14 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <user_settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/types.h>
+
 #ifndef WOLFSSL_ESPIDF
 #warning "problem with wolfSSL user settings. Check components/wolfssl/include"
 #endif
 
 #include <wolfcrypt/test/test.h>
+#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 
 /*
 ** the wolfssl component can be installed in either:
@@ -58,7 +61,6 @@
 
 /* see wolfssl/wolfcrypt/test/test.h */
 extern void wolf_crypt_task();
-
 
 static const char* const TAG = "wolfssl_test";
 
@@ -123,65 +125,80 @@ void my_atmel_free(int slotId)
 #endif /* CUSTOM_SLOT_ALLOCATION                                        */
 #endif /* WOLFSSL_ESPWROOM32SE && HAVE_PK_CALLBACK && WOLFSSL_ATECC508A */
 
-
 /* entry point */
 void app_main(void)
 {
-    int rc = 0;
+    int stack_start = 0;
+    esp_err_t ret = 0;
+    ESP_LOGI(TAG, "------------------ wolfSSL Test Example ----------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
 
+#ifdef ESP_TASK_MAIN_STACK
+     ESP_LOGI(TAG, "ESP_TASK_MAIN_STACK: %d", ESP_TASK_MAIN_STACK);
+#endif
+#ifdef TASK_EXTRA_STACK_SIZE
+     ESP_LOGI(TAG, "TASK_EXTRA_STACK_SIZE: %d", TASK_EXTRA_STACK_SIZE);
+#endif
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+    ESP_LOGI(TAG, "CONFIG_ESP_MAIN_TASK_STACK_SIZE = %d bytes (%d words)",
+                   CONFIG_ESP_MAIN_TASK_STACK_SIZE,
+                   (int)(CONFIG_ESP_MAIN_TASK_STACK_SIZE / sizeof(void*)));
 
-    ESP_LOGI(TAG, "CONFIG_IDF_TARGET = %s", CONFIG_IDF_TARGET);
-    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_STRING = %s", LIBWOLFSSL_VERSION_STRING);
-
-#if defined(LIBWOLFSSL_VERSION_GIT_HASH)
-    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH = %s", LIBWOLFSSL_VERSION_GIT_HASH);
+    /* Returns the high water mark of the stack associated with xTask. That is,
+     * the minimum free stack space there has been (in bytes not words, unlike
+     * vanilla FreeRTOS) since the task started. The smaller the returned
+     * number the closer the task has come to overflowing its stack.
+     * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html
+     */
+    stack_start = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI(TAG, "Stack Start HWM: %d bytes", stack_start);
 #endif
 
-#if defined(LIBWOLFSSL_VERSION_GIT_SHORT_HASH )
-    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_SHORT_HASH = %s", LIBWOLFSSL_VERSION_GIT_SHORT_HASH);
+#ifdef HAVE_VERSION_EXTENDED_INFO
+    esp_ShowExtendedSystemInfo();
 #endif
-
-#if defined(LIBWOLFSSL_VERSION_GIT_HASH_DATE)
-    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH_DATE = %s", LIBWOLFSSL_VERSION_GIT_HASH_DATE);
-#endif
-
 
     /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
-    /* not available for C3 at this time */
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
-    /* not available for C6 at this time */
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    ESP_LOGI(TAG, "CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
              );
     ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
 #else
-    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
-            );
-    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+    /* not available for other platformas at this time */
 #endif
 
     /* all platforms: stack high water mark check */
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
-    /* check to see if we are using hardware encryption */
+    /* check to see if we are using hardware encryption
+     * TODO: move this to esp_util.c  */
 #if defined(NO_ESP32_CRYPT)
     ESP_LOGI(TAG, "NO_ESP32_CRYPT defined! HW acceleration DISABLED.");
 #else
     #if defined(CONFIG_IDF_TARGET_ESP32C3)
-        #error "ESP32_CRYPT not yet supported on ESP32-C3"
+        ESP_LOGI(TAG, "ESP32_CRYPT is enabled for ESP32-C3.");
+
     #elif defined(CONFIG_IDF_TARGET_ESP32S2)
-        #error "ESP32_CRYPT not yet supported on ESP32-S2"
+        ESP_LOGI(TAG, "ESP32_CRYPT is enabled for ESP32-S2.");
+
     #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-        /* #error "ESP32_CRYPT not yet supported on ESP32-S3" */
-        ESP_LOGI(TAG, "ESP32_CRYPT is enabled for  ESP32-S3.");
+        ESP_LOGI(TAG, "ESP32_CRYPT is enabled for ESP32-S3.");
+
     #else
         ESP_LOGI(TAG, "ESP32_CRYPT is enabled.");
     #endif
@@ -191,7 +208,7 @@ void app_main(void)
     set_time();
 #endif
 
-/* when using atecc608a on esp32-wroom-32se */
+/* when using atecc608a on esp32-WROOM-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
     #if defined(CUSTOM_SLOT_ALLOCATION)
@@ -211,24 +228,42 @@ void app_main(void)
     /* Although wolfCrypt_Init() may be explicitly called above,
     ** Note it is still always called in wolf_test_task.
     */
-    rc = wolf_test_task();
+    int loops = 0;
+    do {
+        #if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_HAS_METRICS)
+            esp_hw_show_metrics();
+        #endif
+        ret = wolf_test_task();
+        ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI(TAG, "loops = %d", loops);
+
+        loops++;
+    }
+    while (ret == 0);
+    ESP_LOGI(TAG, "loops = %d", loops);
+
     /* note wolfCrypt_Cleanup() should always be called when finished.
     ** This is called at the end of wolf_test_task();
     */
 
-    if (rc == 0) {
-        ESP_LOGI(TAG, "wolf_test_task complete success result code = %d", rc);
+    if (ret == 0) {
+        ESP_LOGI(TAG, "wolf_test_task complete success result code = %d", ret);
     }
     else {
-        ESP_LOGE(TAG, "wolf_test_task FAIL result code = %d", rc);
+        ESP_LOGE(TAG, "wolf_test_task FAIL result code = %d", ret);
         /* see wolfssl/wolfcrypt/error-crypt.h */
     }
 
+#if defined(DEBUG_WOLFSSL) && !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
+    esp_hw_show_mp_metrics();
+#endif
+
+    /* after the test, we'll just wait */
 #ifdef INCLUDE_uxTaskGetStackHighWaterMark
         ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
 
         ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                        - (uxTaskGetStackHighWaterMark(NULL) / 4));
+                                        - (uxTaskGetStackHighWaterMark(NULL)));
 #endif
 
     ESP_LOGI(TAG, "\n\nDone!\n\n"

@@ -40,6 +40,9 @@ echo "Run export.sh from ${WRK_IDF_PATH}"
 # build the example:
 idf.py build
 
+# optionally erase the flash
+idf.py erase-flash -p /dev/ttyS19 -b 115200
+
 # flash the code onto the serial device at /dev/ttyS19
 idf.py flash -p /dev/ttyS19 -b 115200
 

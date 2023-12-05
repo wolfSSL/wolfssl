@@ -2,6 +2,14 @@
 
 The Example contains of wolfSSL tls client demo.
 
+## VisualGDB
+
+Open the VisualGDB Visual Studio Project file in the VisualGDB directory and click the "Start" button.
+No wolfSSL setup is needed. You may need to adjust your specific COM port. The default is `COM20`.
+
+## ESP-IDF Commandline
+
+
 1. `idf.py menuconfig` to config the project
 
       1-1. Example Configuration ->  
@@ -24,4 +32,41 @@ When you want to test the wolfSSL client
 
          e.g. Launch ./examples/server/server -v 4 -b -i -d
 
+## SM Ciphers
+
+#### Working Linux Client to ESP32 Server
+
+Command:
+
+```
+cd /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_server
+. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+idf.py flash -p /dev/ttyS19 -b 115200 monitor
+
+```
+
+```
+cd /mnt/c/workspace/wolfssl-gojimmypi
+
+./examples/client/client  -h 192.168.1.108 -v 4 -l TLS_SM4_GCM_SM3 -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem     -A ./certs/sm2/root-sm2.pem -C
+```
+
+Output:
+
+```text
+SSL version is TLSv1.3
+SSL cipher suite is TLS_SM4_GCM_SM3
+SSL curve name is SM2P256V1
+I hear you fa shizzle!
+```
+
+#### Linux client to Linux server:
+
+```
+./examples/client/client  -h 127.0.0.1 -v 4 -l ECDHE-ECDSA-SM4-CBC-SM3     -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem     -A ./certs/sm2/root-sm2.pem -C
+
+./examples/server/server                   -v 3 -l ECDHE-ECDSA-SM4-CBC-SM3     -c ./certs/sm2/server-sm2.pem -k ./certs/sm2/server-sm2-priv.pem     -A ./certs/sm2/client-sm2.pem -V
+```
+
 See the README.md file in the upper level 'examples' directory for more information about examples.
+
