@@ -230,9 +230,16 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     const byte* subKey;
     word32 remainder;
 
-    if (cmac == NULL || out == NULL || outSz == NULL) {
+    if (cmac == NULL)
         return BAD_FUNC_ARG;
+
+    if (out == NULL || outSz == NULL) {
+        if ((out == NULL) ^ (outSz == NULL))
+            return BAD_FUNC_ARG;
+        ret = 0;
+        goto out;
     }
+
     if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
         return BUFFER_E;
     }
@@ -244,7 +251,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
+            goto out;
         /* fall-through when unavailable */
     }
 #endif
@@ -255,7 +262,8 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     else {
         /* ensure we will have a valid remainder value */
         if (cmac->bufferSz > AES_BLOCK_SIZE) {
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+            goto out;
         }
         remainder = AES_BLOCK_SIZE - cmac->bufferSz;
 
@@ -285,6 +293,9 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         cmac->msg = NULL;
     }
 #endif
+
+out:
+
     wc_AesFree(&cmac->aes);
     ForceZero(cmac, sizeof(Cmac));
 

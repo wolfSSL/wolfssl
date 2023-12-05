@@ -1438,6 +1438,70 @@ void __attribute__((no_instrument_function))
 }
 #endif
 
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+static const byte wc_debug_cipher_lifecycle_tag_value[] =
+    { 'W', 'o', 'l', 'f' };
+
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleInit(
+    void **CipherLifecycleTag,
+    void *heap)
+{
+    if (CipherLifecycleTag == NULL)
+        return BAD_FUNC_ARG;
+    *CipherLifecycleTag = (void *)XMALLOC(
+        sizeof(wc_debug_cipher_lifecycle_tag_value),
+        heap,
+        DYNAMIC_TYPE_DEBUG_TAG);
+    if (*CipherLifecycleTag == NULL)
+        return MEMORY_E;
+    XMEMCPY(*CipherLifecycleTag,
+            wc_debug_cipher_lifecycle_tag_value,
+            sizeof(wc_debug_cipher_lifecycle_tag_value));
+    return 0;
+}
+
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleCheck(
+    void *CipherLifecycleTag,
+    int abort_p)
+{
+    int ret;
+    if (CipherLifecycleTag == NULL) {
+        ret = BAD_STATE_E;
+        goto out;
+    }
+    if (XMEMCMP(CipherLifecycleTag,
+                wc_debug_cipher_lifecycle_tag_value,
+                sizeof(wc_debug_cipher_lifecycle_tag_value)) != 0)
+    {
+        ret = BAD_STATE_E;
+        goto out;
+    }
+    ret = 0;
+
+out:
+    if ((ret < 0) && abort_p)
+        abort();
+
+    return ret;
+}
+
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(
+    void **CipherLifecycleTag,
+    void *heap,
+    int abort_p)
+{
+    int ret;
+    if (CipherLifecycleTag == NULL)
+        return BAD_FUNC_ARG;
+    ret = wc_debug_CipherLifecycleCheck(*CipherLifecycleTag, abort_p);
+    if (ret != 0)
+        return ret;
+    XFREE(*CipherLifecycleTag, heap, DYNAMIC_TYPE_DEBUG_TAG);
+    *CipherLifecycleTag = NULL;
+    return 0;
+}
+#endif /* WC_DEBUG_CIPHER_LIFECYCLE */
+
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
 THREAD_LS_T int wc_svr_count = 0;
 THREAD_LS_T const char *wc_svr_last_file = NULL;
