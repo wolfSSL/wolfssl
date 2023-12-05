@@ -1,34 +1,68 @@
 # ESP32 Port
 
-Support for the ESP32-WROOM-32 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512 and RSA primitive including mul, mulmod and exptmod.
+Support for the ESP32 on-board cryptographic hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512 and RSA primitive including mul, mulmod and exptmod.
+
+* ESP32 - Supported
+* ESP32S2 - Supported
+* ESP32S3 - Supported
+* ESP32C2 - Software only (contact support to request hardware acceleration)
+* ESP32C3 - Supported
+* ESP32C6 - Supported
+* ESP32H2 - Software only (contact support to request hardware acceleration)
 
 ## ESP32 Acceleration
 
-For detail about ESP32 HW Acceleration, you can find in [Technical Reference Manual](https://espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
+More details about ESP32 HW Accelerationcan be found in:
+
+* [ESP32 Technical Reference Manual](https://espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
+* [ESP32-S2 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s2_technical_reference_manual_en.pdf)
+* [ESP32-S3 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf)
+* [ESP32-C2 (aka ESP8684 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp8684_technical_reference_manual_en.pdf)
+* [ESP32-C3 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf)
+* [ESP32-C6 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-c6_technical_reference_manual_en.pdf)
+* [ESP32-H2 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-h2_technical_reference_manual_en.pdf)
 
 ### Building
 
-To enable hw acceleration :
+Simply run `ESP-IDF.py` in any of the [Espressif/ESP-IDF/Examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples).
+See the respective project README files. Examples are also available using wolfssl as a [Managed Component](https://components.espressif.com/components/wolfssl/wolfssl).
 
-* Uncomment out `#define WOLFSSL_ESPIDF` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
-* Uncomment out `#define WOLFSSL_ESP32` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
+Hardware acceleration is enabled by default. All settings should be adjusted in the respective project component
+`user_settings.h` file. See the example in [template example](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/user_settings.h).
+In particular, comment out the `NO_[feature_name]` macros to enable hardware encryption:
 
-To disable portions of the hardware acceleration you can optionally define:
+    /* #define NO_ESP32_CRYPT                 */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_AES     */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI */
+
+To disable specific portions of the hardware acceleration you can optionally define:
 
 ```c
-/* Disabled SHA, AES and RSA acceleration */
+/* Disable all SHA, AES and RSA acceleration */
 #define NO_ESP32_CRYPT
-/* Disabled AES acceleration */
+
+/* Disable only AES acceleration */
 #define NO_WOLFSSL_ESP32_CRYPT_AES
-/* Disabled SHA acceleration */
+
+/* Disabled only SHA acceleration */
 #define NO_WOLFSSL_ESP32_CRYPT_HASH
-/* Disabled RSA Primitive acceleration */
+
+/* Disabled only RSA Primitive acceleration */
 #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 ```
 
+See the [wolfcrypt/port/Espressif/esp32-crypt.h](https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h)
+for more details on fine tuning and debugging options.
+
 ### Coding
 
-In your application you must include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h` file. You can find a good reference for this in `IDE/GCC-ARM/Header/user_settings.h`.
+In your application you must include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers.
+If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` (typically defined in the `CMakeLists.txt`)
+and adding your own `user_settings.h` file. You can find a good reference in the [Espressif examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples)
+as well as other examples such as [IDE/GCC-ARM/Header/user_settings.h](https://github.com/wolfSSL/wolfssl/blob/master/IDE/GCC-ARM/Header/user_settings.h).
+
+To view disassembly, add `__attribute__((section(".iram1")))` decorator. Foe example:
 
 To view disassembly, add `__attribute__((section(".iram1")))` decorator. Foe example:
 

@@ -2296,7 +2296,9 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#endif
 
     TEST_SLEEP();
 } /* bench_stats_sym_finish */
@@ -2554,7 +2556,9 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#endif
 
     TEST_SLEEP();
 } /* bench_stats_asym_finish_ex */
@@ -4516,6 +4520,12 @@ static void bench_aescfb_internal(const byte* key,
     double start;
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
+
+    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("AesInit failed, ret = %d\n", ret);
+        return;
+    }
 
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0) {

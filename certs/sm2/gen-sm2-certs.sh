@@ -60,6 +60,25 @@ echo "End of section"
 echo "---------------------------------------------------------------------"
 
 ############################################################
+###### update self-sm2-cert.pem               ##############
+############################################################
+echo "Updating self-sm2-cert.pem"
+echo ""
+#pipe the following arguments to openssl req...
+echo -e "AU\\nQLD\\n.\\nwolfSSL\\nTesting\\nwolfssl-dev-sm2\\n\\n\\n\\n\\n" | openssl req -new -key self-sm2-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out self-sm2.csr
+check_result $? "Generate request"
+
+openssl x509 -req -in self-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions ca_ecc_cert -signkey self-sm2-priv.pem -out self-sm2-cert.pem
+check_result $? "Generate certificate"
+rm self-sm2.csr
+
+openssl x509 -in self-sm2-cert.pem -text > tmp.pem
+check_result $? "Add text"
+mv tmp.pem self-sm2-cert.pem
+echo "End of section"
+echo "---------------------------------------------------------------------"
+
+############################################################
 ###### update server-sm2.pem signed by ca ##############
 ############################################################
 echo "Updating server-sm2.pem"

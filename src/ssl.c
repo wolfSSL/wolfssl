@@ -13509,7 +13509,7 @@ void SetupSession(WOLFSSL* ssl)
     if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
         XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
     session->haveEMS = ssl->options.haveEMS;
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* If using compatibility layer then check for and copy over session context
      * id. */
     if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
@@ -14279,7 +14279,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* check for application context id */
     if (ssl->sessionCtxSz > 0) {
         if (XMEMCMP(ssl->sessionCtx, ssl->session->sessionCtx, ssl->sessionCtxSz)) {
@@ -14288,7 +14288,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
             return WOLFSSL_FAILURE;
         }
     }
-#endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_SESSION_ID_CTX */
 
     if (LowResTimer() >= (ssl->session->bornOn + ssl->session->timeout)) {
 #if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
@@ -17137,7 +17137,20 @@ cleanup:
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+    unsigned long wolfSSL_ERR_get_error(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_get_error");
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+        return wc_GetErrorNodeErr();
+#else
+        return (unsigned long)(0 - NOT_COMPILED_IN);
+#endif
+    }
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
     int wolfSSL_num_locks(void)
     {
         return 0;
@@ -17177,16 +17190,6 @@ cleanup:
     void wolfSSL_set_id_callback(unsigned long (*f)(void))
     {
         inner_idCb = f;
-    }
-
-    unsigned long wolfSSL_ERR_get_error(void)
-    {
-        WOLFSSL_ENTER("wolfSSL_ERR_get_error");
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
-        return wc_GetErrorNodeErr();
-#else
-        return (unsigned long)(0 - NOT_COMPILED_IN);
-#endif
     }
 
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
@@ -18218,7 +18221,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
     long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode)
     {
         /* WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
@@ -18274,39 +18277,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
-
-    #ifndef NO_WOLFSSL_STUB
-    long wolfSSL_SSL_get_mode(WOLFSSL* ssl)
-    {
-        /* TODO: */
-        (void)ssl;
-        WOLFSSL_STUB("SSL_get_mode");
-        return 0;
-    }
-    #endif
-
-    #ifndef NO_WOLFSSL_STUB
-    long wolfSSL_CTX_get_mode(WOLFSSL_CTX* ctx)
-    {
-        /* TODO: */
-        (void)ctx;
-        WOLFSSL_STUB("SSL_CTX_get_mode");
-        return 0;
-    }
-    #endif
-
-    #ifndef NO_WOLFSSL_STUB
-    void wolfSSL_CTX_set_default_read_ahead(WOLFSSL_CTX* ctx, int m)
-    {
-        /* TODO: maybe? */
-        (void)ctx;
-        (void)m;
-        WOLFSSL_STUB("SSL_CTX_set_default_read_ahead");
-    }
-    #endif
-
-
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* Storing app session context id, this value is inherited by WOLFSSL
      * objects created from WOLFSSL_CTX. Any session that is imported with a
      * different session context id will be rejected.
@@ -18357,6 +18328,39 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return WOLFSSL_SUCCESS;
     }
+#endif
+
+#ifdef OPENSSL_EXTRA
+
+    #ifndef NO_WOLFSSL_STUB
+    long wolfSSL_SSL_get_mode(WOLFSSL* ssl)
+    {
+        /* TODO: */
+        (void)ssl;
+        WOLFSSL_STUB("SSL_get_mode");
+        return 0;
+    }
+    #endif
+
+    #ifndef NO_WOLFSSL_STUB
+    long wolfSSL_CTX_get_mode(WOLFSSL_CTX* ctx)
+    {
+        /* TODO: */
+        (void)ctx;
+        WOLFSSL_STUB("SSL_CTX_get_mode");
+        return 0;
+    }
+    #endif
+
+    #ifndef NO_WOLFSSL_STUB
+    void wolfSSL_CTX_set_default_read_ahead(WOLFSSL_CTX* ctx, int m)
+    {
+        /* TODO: maybe? */
+        (void)ctx;
+        (void)m;
+        WOLFSSL_STUB("SSL_CTX_set_default_read_ahead");
+    }
+    #endif
 
 
     long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx)
@@ -20992,6 +20996,18 @@ void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
     }
 }
 
+void wolfSSL_set_info_callback(WOLFSSL* ssl,
+       void (*f)(const WOLFSSL* ssl, int type, int val))
+{
+    WOLFSSL_ENTER("wolfSSL_set_info_callback");
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad function argument");
+    }
+    else {
+        ssl->CBIS = f;
+    }
+}
+
 
 unsigned long wolfSSL_ERR_peek_error(void)
 {
@@ -22802,7 +22818,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     /* ServerID len | ServerID */
     size += OPAQUE16_LEN + sess->idLen;
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* session context ID len | session context ID */
     size += OPAQUE8_LEN + sess->sessionCtxSz;
 #endif
@@ -22882,7 +22898,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         XMEMCPY(data + idx, sess->serverID, sess->idLen);
         idx += sess->idLen;
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
         data[idx++] = sess->sessionCtxSz;
         XMEMCPY(data + idx, sess->sessionCtx, sess->sessionCtxSz);
         idx += sess->sessionCtxSz;
@@ -23062,7 +23078,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->serverID, data + idx, s->idLen); idx += s->idLen;
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* byte for length of session context ID */
     if (i - idx < OPAQUE8_LEN) {
         ret = BUFFER_ERROR;
@@ -27871,7 +27887,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveDilithiumSig = ctx->haveDilithiumSig;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_SESSION_ID_CTX
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
@@ -29472,6 +29488,16 @@ int wolfSSL_SSL_in_init(WOLFSSL *ssl)
     return !wolfSSL_is_init_finished(ssl);
 }
 
+int wolfSSL_SSL_in_before(const WOLFSSL *ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_SSL_in_before");
+
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
+    return ssl->options.handShakeState == NULL_STATE;
+}
+
 int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_in_connect_init");
@@ -30123,7 +30149,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     char name[MAX_CURVE_NAME_SZ];
     byte groups_len = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    void *heap = ssl? ssl->heap : ctx ? ctx->heap : NULL; (void)heap;
+    void *heap = ssl? ssl->heap : ctx ? ctx->heap : NULL;
     int *groups;
 #else
     int groups[WOLFSSL_MAX_GROUP_COUNT];

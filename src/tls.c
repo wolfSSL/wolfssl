@@ -678,55 +678,6 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     return ret;
 }
 
-int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
-{
-    if (specs == NULL)
-        return BAD_FUNC_ARG;
-
-    switch (specs->mac_algorithm) {
-        #ifndef NO_MD5
-        case md5_mac:
-        {
-            return WC_MD5;
-        }
-        #endif
-        #ifndef NO_SHA256
-        case sha256_mac:
-        {
-            return WC_SHA256;
-        }
-        #endif
-        #ifdef WOLFSSL_SHA384
-        case sha384_mac:
-        {
-            return WC_SHA384;
-        }
-        #endif
-        #ifdef WOLFSSL_SM3
-        case sm3_mac:
-        {
-            return WC_SM3;
-        }
-        #endif
-        #ifndef NO_SHA
-        case sha_mac:
-        {
-            return WC_SHA;
-        }
-        #endif
-        #ifdef HAVE_BLAKE2
-        case blake2b_mac:
-        {
-            return BLAKE2B_ID;
-        }
-        #endif
-        default:
-        {
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-}
-
 /* return HMAC digest type in wolfSSL format */
 int wolfSSL_GetHmacType(WOLFSSL* ssl)
 {
@@ -1139,6 +1090,8 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     msgSz &= ~(0 - (msgSz >> 31));
     realSz = WOLFSSL_TLS_HMAC_INNER_SZ + msgSz;
     maxSz = WOLFSSL_TLS_HMAC_INNER_SZ + (sz - 1) - macSz;
+    /* Make negative result 0 */
+    maxSz &= ~(0 - (maxSz >> 31));
 
     /* Calculate #blocks processed in HMAC for max and real data. */
     blocks      = maxSz >> blockBits;
@@ -1276,6 +1229,55 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 #endif /* WOLFSSL_AEAD_ONLY */
 
 #endif /* !WOLFSSL_NO_TLS12 */
+
+int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
+{
+    if (specs == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (specs->mac_algorithm) {
+        #ifndef NO_MD5
+        case md5_mac:
+        {
+            return WC_MD5;
+        }
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+        {
+            return WC_SHA256;
+        }
+        #endif
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+        {
+            return WC_SHA384;
+        }
+        #endif
+        #ifdef WOLFSSL_SM3
+        case sm3_mac:
+        {
+            return WC_SM3;
+        }
+        #endif
+        #ifndef NO_SHA
+        case sha_mac:
+        {
+            return WC_SHA;
+        }
+        #endif
+        #ifdef HAVE_BLAKE2
+        case blake2b_mac:
+        {
+            return BLAKE2B_ID;
+        }
+        #endif
+        default:
+        {
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+}
 
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -8384,7 +8386,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         XMEMCPY(ssl->arrays->preMasterSecret, keyShareEntry->ke,
                 keyShareEntry->keLen);
         ssl->arrays->preMasterSz = keyShareEntry->keLen;
-        XFREE(keyShareEntry->ke, sl->heap, DYNAMIC_TYPE_SECRET)
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_SECRET)
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
         return 0;
@@ -12001,111 +12003,141 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
 #if defined(HAVE_RPK)
             case TLSX_CLIENT_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Client Certificate Type extension free");
+                /* nothing to do */
+                break;
             case TLSX_SERVER_CERTIFICATE_TYPE:
+                WOLFSSL_MSG("Server Certificate Type extension free");
                 /* nothing to do */
                 break;
 #endif
 
 #ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
+                WOLFSSL_MSG("SNI extension free");
                 SNI_FREE_ALL((SNI*)extension->data, heap);
                 break;
 #endif
 
             case TLSX_TRUSTED_CA_KEYS:
+                WOLFSSL_MSG("Trusted CA Indication extension free");
                 TCA_FREE_ALL((TCA*)extension->data, heap);
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
+                WOLFSSL_MSG("Max Fragment Length extension free");
                 MFL_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_EXTENDED_MASTER_SECRET:
+                WOLFSSL_MSG("Extended Master Secret free");
+                /* Nothing to do. */
+                break;
             case TLSX_TRUNCATED_HMAC:
+                WOLFSSL_MSG("Truncated HMAC extension free");
                 /* Nothing to do. */
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
+                WOLFSSL_MSG("Supported Groups extension free");
                 EC_FREE_ALL((SupportedCurve*)extension->data, heap);
                 break;
 
             case TLSX_EC_POINT_FORMATS:
+                WOLFSSL_MSG("Point Formats extension free");
                 PF_FREE_ALL((PointFormat*)extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST:
+                WOLFSSL_MSG("Certificate Status Request extension free");
                 CSR_FREE_ALL((CertificateStatusRequest*)extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
+                WOLFSSL_MSG("Certificate Status Request v2 extension free");
                 CSR2_FREE_ALL((CertificateStatusRequestItemV2*)extension->data,
                         heap);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
+                WOLFSSL_MSG("Secure Renegotiation extension free");
                 SCR_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_SESSION_TICKET:
+                WOLFSSL_MSG("Session Ticket extension free");
                 WOLF_STK_FREE(extension->data, heap);
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
+                WOLFSSL_MSG("ALPN extension free");
                 ALPN_FREE_ALL((ALPN*)extension->data, heap);
                 break;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
+                WOLFSSL_MSG("Signature Algorithms extension to free");
                 SA_FREE_ALL((SignatureAlgorithms*)extension->data, heap);
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             case TLSX_ENCRYPT_THEN_MAC:
+                WOLFSSL_MSG("Encrypt-Then-Mac extension free");
                 break;
 #endif
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
+                WOLFSSL_MSG("Supported Versions extension free");
                 break;
 
     #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
+                WOLFSSL_MSG("Cookie extension free");
                 CKE_FREE_ALL((Cookie*)extension->data, heap);
                 break;
     #endif
 
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
+                WOLFSSL_MSG("Pre-Shared Key extension free");
                 PSK_FREE_ALL((PreSharedKey*)extension->data, heap);
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
+                WOLFSSL_MSG("PSK Key Exchange Modes extension free");
                 break;
     #endif
 
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
+                WOLFSSL_MSG("Early Data extension free");
                 break;
     #endif
 
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
+                WOLFSSL_MSG("Post-Handshake Authentication extension free");
                 break;
     #endif
 
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
+                WOLFSSL_MSG("Signature Algorithms extension free");
                 break;
     #endif
 
             case TLSX_KEY_SHARE:
+                WOLFSSL_MSG("Key Share extension free");
                 KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
                 break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
+                WOLFSSL_MSG("Certificate Authorities extension free");
                 break;
     #endif
 #endif
 #ifdef WOLFSSL_SRTP
             case TLSX_USE_SRTP:
+                WOLFSSL_MSG("SRTP extension free");
                 SRTP_FREE((TlsxSrtp*)extension->data, heap);
                 break;
 #endif
@@ -12114,22 +12146,25 @@ void TLSX_FreeAll(TLSX* list, void* heap)
             case TLSX_KEY_QUIC_TP_PARAMS:
                 FALL_THROUGH;
             case TLSX_KEY_QUIC_TP_PARAMS_DRAFT:
+                WOLFSSL_MSG("QUIC transport parameter free");
                 QTP_FREE((QuicTransportParam*)extension->data, heap);
                 break;
     #endif
 
 #ifdef WOLFSSL_DTLS_CID
-        case TLSX_CONNECTION_ID:
-            CID_FREE((byte*)extension->data, heap);
-            break;
+            case TLSX_CONNECTION_ID:
+                WOLFSSL_MSG("Connection ID extension free");
+                CID_FREE((byte*)extension->data, heap);
+                break;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-        case TLSX_ECH:
-            ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
-            break;
+            case TLSX_ECH:
+                WOLFSSL_MSG("ECH extension free");
+                ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
+                break;
 #endif
-        default:
-            break;
+            default:
+                break;
         }
 
         XFREE(extension, heap, DYNAMIC_TYPE_TLSX);
@@ -12507,6 +12542,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #endif
 #ifdef WOLFSSL_SRTP
             case TLSX_USE_SRTP:
+                WOLFSSL_MSG("SRTP extension to write");
                 offset += SRTP_WRITE((TlsxSrtp*)extension->data, output+offset);
                 break;
 #endif
@@ -12534,12 +12570,14 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 #endif
 #ifdef WOLFSSL_DTLS_CID
             case TLSX_CONNECTION_ID:
+                WOLFSSL_MSG("Connection ID extension to write");
                 offset += CID_WRITE((byte*)extension->data, output+offset);
                 break;
 
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
+                WOLFSSL_MSG("ECH extension to write");
                 ret = ECH_WRITE((WOLFSSL_ECH*)extension->data,
                     output + offset, &offset);
                 break;
@@ -14653,6 +14691,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif /* HAVE_RPK */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
             case TLSX_ECH:
+                WOLFSSL_MSG("ECH extension received");
                 ret = ECH_PARSE(ssl, input + offset, size, msgType);
                 break;
 #endif

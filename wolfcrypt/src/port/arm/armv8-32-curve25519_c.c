@@ -68,7 +68,7 @@ void fe_init()
         "\n\t"
         :
         :
-        : "memory"
+        : "memory", "cc"
     );
 }
 
@@ -282,7 +282,7 @@ void fe_add_sub_op()
         /* Done Add-Sub */
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -324,7 +324,7 @@ void fe_sub_op()
         /* Done Sub */
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -338,7 +338,7 @@ void fe_sub(fe r_p, const fe a_p, const fe b_p)
         "bl	fe_sub_op\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -381,7 +381,7 @@ void fe_add_op()
         /* Done Add */
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -395,7 +395,7 @@ void fe_add(fe r_p, const fe a_p, const fe b_p)
         "bl	fe_add_op\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -429,7 +429,7 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
         "str	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [in] "+r" (in)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
 }
 
@@ -473,7 +473,7 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
         "str	r9, [%[out], #28]\n\t"
         : [out] "+r" (out), [n] "+r" (n)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "cc"
     );
 }
 
@@ -494,7 +494,7 @@ void fe_1(fe n_p)
         "stm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
 }
 
@@ -515,7 +515,7 @@ void fe_0(fe n_p)
         "stm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
 }
 
@@ -576,7 +576,7 @@ void fe_copy(fe r_p, const fe a_p)
 #endif
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "r2", "r3", "r4", "r5"
+        : "memory", "r2", "r3", "r4", "r5", "cc"
     );
 }
 
@@ -603,7 +603,7 @@ void fe_neg(fe r_p, const fe a_p)
         "stm	%[r]!, {r2, r3, r4, r5}\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r12", "lr"
+        : "memory", "r2", "r3", "r4", "r5", "r12", "lr", "cc"
     );
 }
 
@@ -645,7 +645,7 @@ int fe_isnonzero(const fe a_p)
         "orr	%[a], r2, r4\n\t"
         : [a] "+r" (a)
         :
-        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12"
+        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "cc"
     );
     return (uint32_t)(size_t)a;
 }
@@ -671,7 +671,7 @@ int fe_isnegative(const fe a_p)
         "eor	%[a], %[a], r1\n\t"
         : [a] "+r" (a)
         :
-        : "memory", "r1", "r2", "r3", "r4", "r5"
+        : "memory", "r1", "r2", "r3", "r4", "r5", "cc"
     );
     return (uint32_t)(size_t)a;
 }
@@ -2407,7 +2407,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10", "r11", "r12", "lr"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -2527,7 +2527,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
         "sub	%[base], %[base], %[b]\n\t"
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -2914,7 +2914,7 @@ void fe_mul_op()
         "add	sp, sp, #40\n\t"
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -3057,7 +3057,7 @@ void fe_mul_op()
         "add	sp, sp, #16\n\t"
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -3072,7 +3072,7 @@ void fe_mul(fe r_p, const fe a_p, const fe b_p)
         "bl	fe_mul_op\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -3349,7 +3349,7 @@ void fe_sq_op()
         "add	sp, sp, #0x44\n\t"
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -3478,7 +3478,7 @@ void fe_sq_op()
         "stm	lr, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         :
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -3492,7 +3492,7 @@ void fe_sq(fe r_p, const fe a_p)
         "bl	fe_sq_op\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "r11"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "r11", "cc"
     );
 }
 
@@ -3564,7 +3564,7 @@ void fe_mul121666(fe r_p, fe a_p)
         "stm	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "cc"
     );
 }
 
@@ -3622,7 +3622,7 @@ void fe_mul121666(fe r_p, fe a_p)
         "stm	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "cc"
     );
 }
 
@@ -4012,7 +4012,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "add	sp, sp, #0xbc\n\t"
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr", "cc"
     );
     return (uint32_t)(size_t)r;
 }
@@ -4325,7 +4325,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "add	sp, sp, #0xc0\n\t"
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r3", "r12", "lr", "cc"
     );
     return (uint32_t)(size_t)r;
 }
@@ -4499,7 +4499,7 @@ void fe_invert(fe r_p, const fe a_p)
         "add	sp, sp, #0x88\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -4819,7 +4819,7 @@ void fe_sq2(fe r_p, const fe a_p)
         "add	sp, sp, #0x44\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -4998,7 +4998,7 @@ void fe_sq2(fe r_p, const fe a_p)
         "mov	r1, lr\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "lr"
+        : "memory", "lr", "cc"
     );
 }
 
@@ -5169,7 +5169,7 @@ void fe_pow22523(fe r_p, const fe a_p)
         "add	sp, sp, #0x68\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -5199,7 +5199,7 @@ void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
         "add	sp, sp, #8\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -5234,7 +5234,7 @@ void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
         "add	sp, sp, #8\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+        : "memory", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
     );
 }
 
@@ -5281,7 +5281,7 @@ void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
         "add	sp, sp, #8\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -5367,7 +5367,7 @@ void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
         "add	sp, sp, #12\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -5454,7 +5454,7 @@ void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
         "add	sp, sp, #12\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -5541,7 +5541,7 @@ void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
         "add	sp, sp, #44\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -5628,7 +5628,7 @@ void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
         "add	sp, sp, #44\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -6408,7 +6408,7 @@ void sc_reduce(byte* s_p)
         "add	sp, sp, #56\n\t"
         : [s] "+r" (s)
         :
-        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -7059,7 +7059,7 @@ void sc_reduce(byte* s_p)
         "add	sp, sp, #56\n\t"
         : [s] "+r" (s)
         :
-        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -8201,7 +8201,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "add	sp, sp, #0x50\n\t"
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 
@@ -8985,7 +8985,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "add	sp, sp, #0x50\n\t"
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
     );
 }
 

@@ -243,13 +243,15 @@ enum {
 #endif
 
 struct Aes {
-    /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
 #ifdef WC_AES_BITSLICED
     /* Extra key schedule space required for bit-slicing technique. */
     ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
+#ifdef WC_AES_C_DYNAMIC_FALLBACK
+    word32 key_C_fallback[60];
+#endif
     int     keylen;
 
     ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */

@@ -20,6 +20,9 @@
     int ret = 0;
     byte key[] = { some 16, 24 or 32 byte key };
     byte iv[]  = { some 16 byte iv };
+    if (ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID) != 0) {
+        // failed to initialize aes key
+    }
     if (ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv,
     AES_ENCRYPTION) != 0) {
 	// failed to set aes key
@@ -94,7 +97,8 @@ int  wc_AesSetIV(Aes* aes, const byte* iv);
     \code
     Aes enc;
     int ret = 0;
-    // initialize enc with AesSetKey, using direction AES_ENCRYPTION
+    // initialize enc with wc_AesInit and wc_AesSetKey, using direction
+    // AES_ENCRYPTION
     byte msg[AES_BLOCK_SIZE * n]; // multiple of 16 bytes
     // fill msg with data
     byte cipher[AES_BLOCK_SIZE * n]; // Some multiple of 16 bytes
@@ -103,6 +107,7 @@ int  wc_AesSetIV(Aes* aes, const byte* iv);
     }
     \endcode
 
+    \sa wc_AesInit
     \sa wc_AesSetKey
     \sa wc_AesSetIV
     \sa wc_AesCbcDecrypt
@@ -146,7 +151,8 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
     \code
     Aes dec;
     int ret = 0;
-    // initialize dec with AesSetKey, using direction AES_DECRYPTION
+    // initialize dec with wc_AesInit and wc_AesSetKey, using direction
+    // AES_DECRYPTION
     byte cipher[AES_BLOCK_SIZE * n]; // some multiple of 16 bytes
     // fill cipher with cipher text
     byte plain [AES_BLOCK_SIZE * n];
@@ -155,6 +161,7 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
     }
     \endcode
 
+    \sa wc_AesInit
     \sa wc_AesSetKey
     \sa wc_AesCbcEncrypt
 */
@@ -187,11 +194,10 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \code
     Aes enc;
     Aes dec;
-    // initialize enc and dec with AesSetKeyDirect, using direction
-    AES_ENCRYPTION
-    // since the underlying API only calls Encrypt and by default calling
-    encrypt on
-    // a cipher results in a decryption of the cipher
+    // initialize enc and dec with wc_AesInit and wc_AesSetKeyDirect, using
+    // direction AES_ENCRYPTION since the underlying API only calls Encrypt
+    // and by default calling encrypt on a cipher results in a decryption of
+    // the cipher
 
     byte msg[AES_BLOCK_SIZE * n]; //n being a positive integer making msg
     some multiple of 16 bytes
@@ -229,7 +235,8 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
     _Example_
     \code
     Aes enc;
-    // initialize enc with AesSetKey, using direction AES_ENCRYPTION
+    // initialize enc with wc_AesInit and wc_AesSetKey, using direction
+    // AES_ENCRYPTION
     byte msg [AES_BLOCK_SIZE]; // 16 bytes
     // initialize msg with plain text to encrypt
     byte cipher[AES_BLOCK_SIZE];
@@ -263,7 +270,8 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     _Example_
     \code
     Aes dec;
-    // initialize enc with AesSetKey, using direction AES_DECRYPTION
+    // initialize enc with wc_AesInit and wc_AesSetKey, using direction
+    // AES_DECRYPTION
     byte cipher [AES_BLOCK_SIZE]; // 16 bytes
     // initialize cipher with cipher text to decrypt
     byte msg[AES_BLOCK_SIZE];
@@ -303,6 +311,10 @@ int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
     int ret = 0;
     byte key[] = { some 16, 24, or 32 byte key };
     byte iv[]  = { some 16 byte iv };
+
+    if (ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID) != 0) {
+        // failed to initialize aes key
+    }
     if (ret = wc_AesSetKeyDirect(&enc, key, sizeof(key), iv,
     AES_ENCRYPTION) != 0) {
 	// failed to set aes key
@@ -335,6 +347,9 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     Aes enc;
     int ret = 0;
     byte key[] = { some 16, 24,32 byte key };
+    if (ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID) != 0) {
+        // failed to initialize aes key
+    }
     if (ret = wc_AesGcmSetKey(&enc, key, sizeof(key)) != 0) {
 	// failed to set aes key
     }
@@ -373,7 +388,7 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     _Example_
     \code
     Aes enc;
-    // initialize aes structure by calling wc_AesGcmSetKey
+    // initialize Aes structure by calling wc_AesInit() and wc_AesGcmSetKey
 
     byte plain[AES_BLOCK_LENGTH * n]; //n being a positive integer
     making plain some multiple of 16 bytes
@@ -424,7 +439,8 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     _Example_
     \code
     Aes enc; //can use the same struct as was passed to wc_AesGcmEncrypt
-    // initialize aes structure by calling wc_AesGcmSetKey if not already done
+    // initialize aes structure by calling wc_AesInit and wc_AesGcmSetKey
+    // if not already done
 
     byte cipher[AES_BLOCK_LENGTH * n]; //n being a positive integer
     making cipher some multiple of 16 bytes
@@ -529,7 +545,8 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     Aes enc;
     key[] = { some 16, 24, or 32 byte length key };
 
-    wc_AesCcmSetKey(&aes, key, sizeof(key));
+    wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
+    wc_AesCcmSetKey(&enc, key, sizeof(key));
     \endcode
 
     \sa wc_AesCcmEncrypt
@@ -564,7 +581,7 @@ int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
     _Example_
     \code
     Aes enc;
-    // initialize enc with wc_AesCcmSetKey
+    // initialize enc with wc_AesInit and wc_AesCcmSetKey
 
     nonce[] = { initialize nonce };
     plain[] = { some plain text message };
@@ -616,7 +633,7 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     _Example_
     \code
     Aes dec;
-    // initialize dec with wc_AesCcmSetKey
+    // initialize dec with wc_AesInit and wc_AesCcmSetKey
 
     nonce[] = { initialize nonce };
     cipher[] = { encrypted message };

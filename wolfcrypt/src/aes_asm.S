@@ -30,7 +30,7 @@
 #ifdef WOLFSSL_X86_64_BUILD
 
 /*
-AES_CBC_encrypt (const unsigned char *in,
+AES_CBC_encrypt_AESNI (const unsigned char *in,
 	unsigned char *out,
 	unsigned char ivec[16],
 	unsigned long length,
@@ -38,11 +38,11 @@ AES_CBC_encrypt (const unsigned char *in,
 	int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_encrypt
-AES_CBC_encrypt:
+.globl AES_CBC_encrypt_AESNI
+AES_CBC_encrypt_AESNI:
 #else
-.globl _AES_CBC_encrypt
-_AES_CBC_encrypt:
+.globl _AES_CBC_encrypt_AESNI
+_AES_CBC_encrypt_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -95,7 +95,7 @@ ret
 #if defined(WOLFSSL_AESNI_BY4)
 
 /*
-AES_CBC_decrypt_by4 (const unsigned char *in,
+AES_CBC_decrypt_AESNI_by4 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
@@ -103,11 +103,11 @@ AES_CBC_decrypt_by4 (const unsigned char *in,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_decrypt_by4
-AES_CBC_decrypt_by4:
+.globl AES_CBC_decrypt_AESNI_by4
+AES_CBC_decrypt_AESNI_by4:
 #else
-.globl _AES_CBC_decrypt_by4
-_AES_CBC_decrypt_by4:
+.globl _AES_CBC_decrypt_AESNI_by4
+_AES_CBC_decrypt_AESNI_by4:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -276,7 +276,7 @@ DEND_4:
 #elif defined(WOLFSSL_AESNI_BY6)
 
 /*
-AES_CBC_decrypt_by6 (const unsigned char *in,
+AES_CBC_decrypt_AESNI_by6 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
@@ -284,11 +284,11 @@ AES_CBC_decrypt_by6 (const unsigned char *in,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_decrypt_by6
-AES_CBC_decrypt_by6:
+.globl AES_CBC_decrypt_AESNI_by6
+AES_CBC_decrypt_AESNI_by6:
 #else
-.globl _AES_CBC_decrypt_by6
-_AES_CBC_decrypt_by6:
+.globl _AES_CBC_decrypt_AESNI_by6
+_AES_CBC_decrypt_AESNI_by6:
 #endif
 # parameter 1: %rdi - in
 # parameter 2: %rsi - out
@@ -504,7 +504,7 @@ DEND_6:
 #else /* WOLFSSL_AESNI_BYx */
 
 /*
-AES_CBC_decrypt_by8 (const unsigned char *in,
+AES_CBC_decrypt_AESNI_by8 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
@@ -512,11 +512,11 @@ AES_CBC_decrypt_by8 (const unsigned char *in,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_decrypt_by8
-AES_CBC_decrypt_by8:
+.globl AES_CBC_decrypt_AESNI_by8
+AES_CBC_decrypt_AESNI_by8:
 #else
-.globl _AES_CBC_decrypt_by8
-_AES_CBC_decrypt_by8:
+.globl _AES_CBC_decrypt_AESNI_by8
+_AES_CBC_decrypt_AESNI_by8:
 #endif
 # parameter 1: %rdi - in
 # parameter 2: %rsi - out
@@ -761,18 +761,18 @@ DEND_8:
 
 
 /*
-AES_ECB_encrypt (const unsigned char *in,
+AES_ECB_encrypt_AESNI (const unsigned char *in,
 	unsigned char *out,
 	unsigned long length,
 	const unsigned char *KS,
 	int nr)
 */
 #ifndef __APPLE__
-.globl AES_ECB_encrypt
-AES_ECB_encrypt:
+.globl AES_ECB_encrypt_AESNI
+AES_ECB_encrypt_AESNI:
 #else
-.globl _AES_ECB_encrypt
-_AES_ECB_encrypt:
+.globl _AES_ECB_encrypt_AESNI
+_AES_ECB_encrypt_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -925,18 +925,18 @@ EECB_END_4:
 
 
 /*
-AES_ECB_decrypt (const unsigned char *in,
+AES_ECB_decrypt_AESNI (const unsigned char *in,
   unsigned char *out,
   unsigned long length,
   const unsigned char *KS,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_ECB_decrypt
-AES_ECB_decrypt:
+.globl AES_ECB_decrypt_AESNI
+AES_ECB_decrypt_AESNI:
 #else
-.globl _AES_ECB_decrypt
-_AES_ECB_decrypt:
+.globl _AES_ECB_decrypt_AESNI
+_AES_ECB_decrypt_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -1092,20 +1092,19 @@ DECB_END_4:
 
 
 /*
-void AES_128_Key_Expansion(const unsigned char* userkey,
+void AES_128_Key_Expansion_AESNI(const unsigned char* userkey,
    unsigned char* key_schedule);
 */
 .align  16,0x90
 #ifndef __APPLE__
-.globl AES_128_Key_Expansion
-AES_128_Key_Expansion:
+.globl AES_128_Key_Expansion_AESNI
+AES_128_Key_Expansion_AESNI:
 #else
-.globl _AES_128_Key_Expansion
-_AES_128_Key_Expansion:
+.globl _AES_128_Key_Expansion_AESNI
+_AES_128_Key_Expansion_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
-movl    $10, 240(%rsi)
 
 movdqu  (%rdi), %xmm1
 movdqa    %xmm1, (%rsi)
@@ -1158,15 +1157,15 @@ ret
 
 
 /*
-void AES_192_Key_Expansion (const unsigned char *userkey,
+void AES_192_Key_Expansion_AESNI (const unsigned char *userkey,
   unsigned char *key)
 */
 #ifndef __APPLE__
-.globl AES_192_Key_Expansion
-AES_192_Key_Expansion:
+.globl AES_192_Key_Expansion_AESNI
+AES_192_Key_Expansion_AESNI:
 #else
-.globl _AES_192_Key_Expansion
-_AES_192_Key_Expansion:
+.globl _AES_192_Key_Expansion_AESNI
+_AES_192_Key_Expansion_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -1249,15 +1248,15 @@ ret
 
 
 /*
-void AES_256_Key_Expansion (const unsigned char *userkey,
+void AES_256_Key_Expansion_AESNI (const unsigned char *userkey,
   unsigned char *key)
 */
 #ifndef __APPLE__
-.globl AES_256_Key_Expansion
-AES_256_Key_Expansion:
+.globl AES_256_Key_Expansion_AESNI
+AES_256_Key_Expansion_AESNI:
 #else
-.globl _AES_256_Key_Expansion
-_AES_256_Key_Expansion:
+.globl _AES_256_Key_Expansion_AESNI
+_AES_256_Key_Expansion_AESNI:
 #endif
 # parameter 1: %rdi
 # parameter 2: %rsi
@@ -1337,7 +1336,7 @@ ret
 #elif defined WOLFSSL_X86_BUILD
 
 /*
-AES_CBC_encrypt (const unsigned char *in,
+AES_CBC_encrypt_AESNI (const unsigned char *in,
 	unsigned char *out,
 	unsigned char ivec[16],
 	unsigned long length,
@@ -1345,11 +1344,11 @@ AES_CBC_encrypt (const unsigned char *in,
 	int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_encrypt
-AES_CBC_encrypt:
+.globl AES_CBC_encrypt_AESNI
+AES_CBC_encrypt_AESNI:
 #else
-.globl _AES_CBC_encrypt
-_AES_CBC_encrypt:
+.globl _AES_CBC_encrypt_AESNI
+_AES_CBC_encrypt_AESNI:
 #endif
         # parameter 1: stack[4] => %edi
         # parameter 2: stack[8] => %esi
@@ -1416,7 +1415,7 @@ _AES_CBC_encrypt:
 
 
 /*
-AES_CBC_decrypt_by4 (const unsigned char *in,
+AES_CBC_decrypt_AESNI_by4 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
@@ -1424,11 +1423,11 @@ AES_CBC_decrypt_by4 (const unsigned char *in,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_CBC_decrypt_by4
-AES_CBC_decrypt_by4:
+.globl AES_CBC_decrypt_AESNI_by4
+AES_CBC_decrypt_AESNI_by4:
 #else
-.globl _AES_CBC_decrypt_by4
-_AES_CBC_decrypt_by4:
+.globl _AES_CBC_decrypt_AESNI_by4
+_AES_CBC_decrypt_AESNI_by4:
 #endif
 # parameter 1: stack[4] => %edi
 # parameter 2: stack[8] => %esi
@@ -1614,18 +1613,18 @@ DEND_4:
         ret
 
 /*
-AES_ECB_encrypt (const unsigned char *in,
+AES_ECB_encrypt_AESNI (const unsigned char *in,
 	unsigned char *out,
 	unsigned long length,
 	const unsigned char *KS,
 	int nr)
 */
 #ifndef __APPLE__
-.globl AES_ECB_encrypt
-AES_ECB_encrypt:
+.globl AES_ECB_encrypt_AESNI
+AES_ECB_encrypt_AESNI:
 #else
-.globl _AES_ECB_encrypt
-_AES_ECB_encrypt:
+.globl _AES_ECB_encrypt_AESNI
+_AES_ECB_encrypt_AESNI:
 #endif
 # parameter 1: stack[4] => %edi
 # parameter 2: stack[8] => %esi
@@ -1791,18 +1790,18 @@ EECB_END_4:
 
 
 /*
-AES_ECB_decrypt (const unsigned char *in,
+AES_ECB_decrypt_AESNI (const unsigned char *in,
   unsigned char *out,
   unsigned long length,
   const unsigned char *KS,
   int nr)
 */
 #ifndef __APPLE__
-.globl AES_ECB_decrypt
-AES_ECB_decrypt:
+.globl AES_ECB_decrypt_AESNI
+AES_ECB_decrypt_AESNI:
 #else
-.globl _AES_ECB_decrypt
-_AES_ECB_decrypt:
+.globl _AES_ECB_decrypt_AESNI
+_AES_ECB_decrypt_AESNI:
 #endif
 # parameter 1: stack[4] => %edi
 # parameter 2: stack[8] => %esi
@@ -1969,16 +1968,16 @@ DECB_END_4:
 
 
 /*
-void AES_128_Key_Expansion(const unsigned char* userkey,
+void AES_128_Key_Expansion_AESNI(const unsigned char* userkey,
    unsigned char* key_schedule);
 */
 .align  16,0x90
 #ifndef __APPLE__
-.globl AES_128_Key_Expansion
-AES_128_Key_Expansion:
+.globl AES_128_Key_Expansion_AESNI
+AES_128_Key_Expansion_AESNI:
 #else
-.globl _AES_128_Key_Expansion
-_AES_128_Key_Expansion:
+.globl _AES_128_Key_Expansion_AESNI
+_AES_128_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax
         # parameter 2: stack[8] => %edx
@@ -2038,15 +2037,15 @@ PREPARE_ROUNDKEY_128:
 
 
 /*
-void AES_192_Key_Expansion (const unsigned char *userkey,
+void AES_192_Key_Expansion_AESNI (const unsigned char *userkey,
   unsigned char *key)
 */
 #ifndef __APPLE__
-.globl AES_192_Key_Expansion
-AES_192_Key_Expansion:
+.globl AES_192_Key_Expansion_AESNI
+AES_192_Key_Expansion_AESNI:
 #else
-.globl _AES_192_Key_Expansion
-_AES_192_Key_Expansion:
+.globl _AES_192_Key_Expansion_AESNI
+_AES_192_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax
         # parameter 2: stack[8] => %edx
@@ -2131,15 +2130,15 @@ PREPARE_ROUNDKEY_192:
 
 
 /*
-void AES_256_Key_Expansion (const unsigned char *userkey,
+void AES_256_Key_Expansion_AESNI (const unsigned char *userkey,
   unsigned char *key)
 */
 #ifndef __APPLE__
-.globl AES_256_Key_Expansion
-AES_256_Key_Expansion:
+.globl AES_256_Key_Expansion_AESNI
+AES_256_Key_Expansion_AESNI:
 #else
-.globl _AES_256_Key_Expansion
-_AES_256_Key_Expansion:
+.globl _AES_256_Key_Expansion_AESNI
+_AES_256_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax
         # parameter 2: stack[8] => %edx

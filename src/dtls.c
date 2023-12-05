@@ -868,6 +868,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
     else
 #endif
     {
+#if !defined(WOLFSSL_NO_TLS12)
         if (!ch->dtls12cookieSet) {
             ret = CreateDtls12Cookie(ssl, ch, ch->dtls12cookie);
             if (ret != 0)
@@ -876,6 +877,11 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
         }
         ret = SendHelloVerifyRequest((WOLFSSL*)ssl, ch->dtls12cookie,
                 DTLS_COOKIE_SZ);
+#else
+        WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
+        WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
+        ret = NOT_COMPILED_IN;
+#endif
     }
     return ret;
 }

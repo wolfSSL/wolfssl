@@ -2582,7 +2582,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #ifdef CIPHER_NONCE
             if (ssl->encrypt.nonce == NULL) {
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 if (ssl->encrypt.nonce != NULL) {
                     wc_MemZero_Add("EncryptTls13 nonce", ssl->encrypt.nonce,
@@ -2984,7 +2984,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
         #ifdef CIPHER_NONCE
             if (ssl->decrypt.nonce == NULL) {
                 ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 if (ssl->decrypt.nonce != NULL) {
                     wc_MemZero_Add("DecryptTls13 nonce", ssl->decrypt.nonce,
@@ -11954,7 +11954,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         && ssl->error != WC_PENDING_E
     #endif
     ) {
-        if ((ssl->error = SendBuffered(ssl)) == 0) {
+        if ((ret = SendBuffered(ssl)) == 0) {
             if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 if (advanceState) {
 #ifdef WOLFSSL_DTLS13

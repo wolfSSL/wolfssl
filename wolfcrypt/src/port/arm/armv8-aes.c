@@ -3508,7 +3508,7 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [aSz] "+r" (authInSz), [sz] "+r" (sz), [aad] "+r" (authIn)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -5271,7 +5271,7 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [aSz] "+r" (authInSz), [sz] "+r" (sz), [aad] "+r" (authIn)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -7165,7 +7165,7 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [aSz] "+r" (authInSz), [sz] "+r" (sz), [aad] "+r" (authIn)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -8878,7 +8878,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [ret] "+r" (ret)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "memory", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -10646,7 +10646,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [ret] "+r" (ret)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "memory", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -12535,7 +12535,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
           [ret] "+r" (ret)
         : [ctr] "r" (ctr), [scratch] "r" (scratch),
           [h] "m" (aes->gcm.H), [tag] "r" (authTag), [tagSz] "r" (authTagSz)
-        : "cc", "memory", "w11", "w12", "w13", "w14", "w15", "w16",
+        : "cc", "memory", "x11", "x12", "w13", "x14", "x15", "w16",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
           "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
           "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -14512,8 +14512,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
-            ((ivSz == 0) && (iv != NULL)) ||
-            ((ivSz > 0) && (iv == NULL))) {
+            ((ivSz == 0) && (iv != NULL)) || ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -14534,14 +14533,14 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     }
 
     if (ret == 0) {
-        /* Setup with IV if needed. */
-        if (iv != NULL) {
-            /* Cache the IV in AES GCM object. */
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
+        /* Set the IV passed in if it is smaller than a block. */
+        if ((iv != NULL) && (ivSz <= AES_BLOCK_SIZE)) {
+            XMEMMOVE((byte*)aes->reg, iv, ivSz);
             aes->nonceSz = ivSz;
         }
-        else if (aes->nonceSz != 0) {
-            /* Copy out the cached copy. */
+        /* No IV passed in, check for cached IV. */
+        if ((iv == NULL) && (aes->nonceSz != 0)) {
+            /* Use the cached copy. */
             iv = (byte*)aes->reg;
             ivSz = aes->nonceSz;
         }

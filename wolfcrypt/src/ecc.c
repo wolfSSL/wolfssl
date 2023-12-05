@@ -13066,7 +13066,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifndef WOLFSSL_SP_NO_256
     if (mp_count_bits(modulus) == 256) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_256(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13075,7 +13075,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifdef WOLFSSL_SP_384
     if (mp_count_bits(modulus) == 384) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_384(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13084,7 +13084,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifdef WOLFSSL_SP_521
     if (mp_count_bits(modulus) == 521) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_521(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13235,7 +13235,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
     if ((mp_count_bits(modulus) == 256) && (!mp_is_bit_set(modulus, 224))) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_sm2_256(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13244,7 +13244,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifndef WOLFSSL_SP_NO_256
     if (mp_count_bits(modulus) == 256) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_256(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13253,7 +13253,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifdef WOLFSSL_SP_384
     if (mp_count_bits(modulus) == 384) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_384(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;
@@ -13262,7 +13262,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifdef WOLFSSL_SP_521
     if (mp_count_bits(modulus) == 521) {
         int ret;
-        SAVE_VECTOR_REGISTERS(return _svr_ret);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = sp_ecc_mulmod_521(k, G, R, map, heap);
         RESTORE_VECTOR_REGISTERS();
         return ret;

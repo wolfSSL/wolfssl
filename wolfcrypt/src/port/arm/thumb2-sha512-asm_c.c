@@ -3578,7 +3578,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
         : [L_SHA512_transform_len_k] "r" (L_SHA512_transform_len_k)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
     );
 }
 

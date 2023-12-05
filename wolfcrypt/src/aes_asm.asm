@@ -47,14 +47,14 @@ ENDIF
 
 
 ;	/*
-;	AES_CBC_encrypt[const	,unsigned	char*in
+;	AES_CBC_encrypt_AESNI[const	,unsigned	char*in
 ;	unsigned	,char*out
 ;	unsigned	,char	ivec+16
 ;	unsigned	,long	length
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-AES_CBC_encrypt PROC
+AES_CBC_encrypt_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 ;#	parameter	3:	rdx
@@ -117,16 +117,16 @@ LAST:
 	mov rdi,rax
 	mov rsi,r11
 	ret
-AES_CBC_encrypt ENDP
+AES_CBC_encrypt_AESNI ENDP
 
 
-; void AES_CBC_decrypt_by4(const unsigned char* in,
+; void AES_CBC_decrypt_AESNI_by4(const unsigned char* in,
 ;                          unsigned char* out,
 ;                          unsigned char ivec[16],
 ;                          unsigned long length,
 ;                          const unsigned char* KS,
 ;                          int nr)
-AES_CBC_decrypt_by4 PROC
+AES_CBC_decrypt_AESNI_by4 PROC
 ; parameter 1: rdi
 ; parameter 2: rsi
 ; parameter 3: rdx
@@ -325,16 +325,16 @@ DEND_4:
         movdqa      xmm15, [rsp+112]
         add         rsp, 8+8*16 ; 8 = align stack , 8 xmm6-12,15 16 bytes each
         ret
-AES_CBC_decrypt_by4 ENDP
+AES_CBC_decrypt_AESNI_by4 ENDP
 
 
-; void AES_CBC_decrypt_by6(const unsigned char *in,
+; void AES_CBC_decrypt_AESNI_by6(const unsigned char *in,
 ;                          unsigned char *out,
 ;                          unsigned char ivec[16],
 ;                          unsigned long length,
 ;                          const unsigned char *KS,
 ;                          int nr)
-AES_CBC_decrypt_by6 PROC
+AES_CBC_decrypt_AESNI_by6 PROC
 ; parameter 1: rdi - in
 ; parameter 2: rsi - out
 ; parameter 3: rdx - ivec
@@ -582,16 +582,16 @@ DEND_6:
         movdqa      xmm14, [rsp+128]
         add         rsp, 8+9*16 ; 8 = align stack , 9 xmm6-14 16 bytes each
         ret
-AES_CBC_decrypt_by6 ENDP
+AES_CBC_decrypt_AESNI_by6 ENDP
 
 
-; void AES_CBC_decrypt_by8(const unsigned char *in,
+; void AES_CBC_decrypt_AESNI_by8(const unsigned char *in,
 ;                          unsigned char *out,
 ;                          unsigned char ivec[16],
 ;                          unsigned long length,
 ;                          const unsigned char *KS,
 ;                          int nr)
-AES_CBC_decrypt_by8 PROC
+AES_CBC_decrypt_AESNI_by8 PROC
 ; parameter 1: rdi - in
 ; parameter 2: rsi - out
 ; parameter 3: rdx - ivec
@@ -865,18 +865,18 @@ DEND_8:
         movdqa      xmm13, [rsp+112]
         add         rsp, 8+8*16 ; 8 = align stack , 8 xmm6-13 16 bytes each
         ret
-AES_CBC_decrypt_by8 ENDP
+AES_CBC_decrypt_AESNI_by8 ENDP
 
 
 ;	/*
-;	AES_ECB_encrypt[const	,unsigned	char*in
+;	AES_ECB_encrypt_AESNI[const	,unsigned	char*in
 ;	unsigned	,char*out
 ;	unsigned	,long	length
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-;	.	globl	AES_ECB_encrypt
-AES_ECB_encrypt PROC
+;	.	globl	AES_ECB_encrypt_AESNI
+AES_ECB_encrypt_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 ;#	parameter	3:	rdx
@@ -1054,17 +1054,17 @@ EECB_END_4:
 	movdqa xmm12, [rsp+48]
 	add rsp,8+4*16 ; 8 = align stack , 4 xmm9-12 16 bytes each
 	ret
-AES_ECB_encrypt ENDP
+AES_ECB_encrypt_AESNI ENDP
 
 ;	/*
-;	AES_ECB_decrypt[const	,unsigned	char*in
+;	AES_ECB_decrypt_AESNI[const	,unsigned	char*in
 ;	unsigned	,char*out
 ;	unsigned	,long	length
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-;	.	globl	AES_ECB_decrypt
-AES_ECB_decrypt PROC
+;	.	globl	AES_ECB_decrypt_AESNI
+AES_ECB_decrypt_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 ;#	parameter	3:	rdx
@@ -1241,17 +1241,17 @@ DECB_END_4:
 	movdqa xmm12, [rsp+48]
 	add rsp,8+4*16 ; 8 = align stack , 4 xmm9-12 16 bytes each
 	ret
-AES_ECB_decrypt ENDP
+AES_ECB_decrypt_AESNI ENDP
 
 
 
 ;	/*
-;	void	,AES_128_Key_Expansion[const	unsigned	char*userkey
+;	void	,AES_128_Key_Expansion_AESNI[const	unsigned	char*userkey
 ;	unsigned	char*key_schedule]/
 ;	*/
 ;	.	align	16,0x90
-;	.	globl	AES_128_Key_Expansion
-AES_128_Key_Expansion PROC
+;	.	globl	AES_128_Key_Expansion_AESNI
+AES_128_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 
@@ -1322,14 +1322,14 @@ PREPARE_ROUNDKEY_128:
 	pxor	xmm1,xmm3
 	pxor	xmm1,xmm2
 	ret
-AES_128_Key_Expansion ENDP
+AES_128_Key_Expansion_AESNI ENDP
 
 ;	/*
-;	void	,AES_192_Key_Expansion[const	unsigned	char*userkey
+;	void	,AES_192_Key_Expansion_AESNI[const	unsigned	char*userkey
 ;	unsigned	char*key]
 ;	*/
-;	.	globl	AES_192_Key_Expansion
-AES_192_Key_Expansion PROC
+;	.	globl	AES_192_Key_Expansion_AESNI
+AES_192_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 
@@ -1426,14 +1426,14 @@ PREPARE_ROUNDKEY_192:
 	pxor	xmm3,xmm4
 	pxor	xmm3,xmm2
 	ret
-AES_192_Key_Expansion ENDP
+AES_192_Key_Expansion_AESNI ENDP
 
 ;	/*
-;	void	,AES_256_Key_Expansion[const	unsigned	char*userkey
+;	void	,AES_256_Key_Expansion_AESNI[const	unsigned	char*userkey
 ;	unsigned	char*key]
 ;	*/
-;	.	globl	AES_256_Key_Expansion
-AES_256_Key_Expansion PROC
+;	.	globl	AES_256_Key_Expansion_AESNI
+AES_256_Key_Expansion_AESNI PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
 
@@ -1495,7 +1495,7 @@ AES_256_Key_Expansion PROC
 	mov rdi,rax
 	mov rsi,r11
 	ret
-AES_256_Key_Expansion ENDP
+AES_256_Key_Expansion_AESNI ENDP
 
 MAKE_RK256_a:
 	pshufd	xmm2,xmm2,0ffh

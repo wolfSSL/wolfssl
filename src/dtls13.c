@@ -372,8 +372,14 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                 downgraded = 1;
         }
         else {
+#if !defined(WOLFSSL_NO_TLS12)
             ret = DoHandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
                     msg->sz, msg->sz);
+#else
+            WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
+            WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
+            ret = NOT_COMPILED_IN;
+#endif
         }
 
         /* processing certificate_request triggers a connect. The error came

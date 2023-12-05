@@ -1037,7 +1037,8 @@ MP_API int sp_mul_2d(const sp_int* a, int e, sp_int* r);
 MP_API int sp_sqr(const sp_int* a, sp_int* r);
 MP_API int sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r);
 
-MP_API int sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp);
+MP_API int sp_mont_red_ex(sp_int* a, const sp_int* m, sp_int_digit mp, int ct);
+#define sp_mont_red(a, m, mp)               sp_mont_red_ex(a, m, mp, 0)
 MP_API int sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 MP_API int sp_mont_norm(sp_int* norm, const sp_int* m);
 
@@ -1085,7 +1086,8 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_div_3(a, r, rem)                 sp_div_d(a, 3, r, rem)
 #define mp_rshb(A,x)                        sp_rshb(A,x,A)
 #define mp_is_bit_set(a,b)                  sp_is_bit_set(a,(unsigned int)(b))
-#define mp_montgomery_reduce                sp_mont_red
+#define mp_montgomery_reduce(a, m, mp)      sp_mont_red_ex(a, m, mp, 0)
+#define mp_montgomery_reduce_ct(a, m, mp)   sp_mont_red_ex(a, m, mp, 1)
 #define mp_montgomery_setup                 sp_mont_setup
 #define mp_montgomery_calc_normalization    sp_mont_norm
 

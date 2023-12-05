@@ -21,7 +21,40 @@ Including the following examples:
 
  1. [ESP-IDF development framework](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/)
 
-## Setup for Linux
+## wolfSSL as an Espressif component
+
+There are various methods available for using wolfSSL as a component:
+
+* Managed Component - easiest to get started.
+* Local component directory - best for development.
+* Install locally - least flexible, but project is fully self-contained.
+
+## Espressif Managed Components
+
+Visit https://components.espressif.com/components/wolfssl/wolfssl and see the instructions. Typically:
+
+```
+idf.py add-dependency "wolfssl/wolfssl^5.6.0-stable"
+```
+
+## Standard local component:
+
+See the [template example](./examples/template/README.md). Simply created a `wolfssl` directory in the
+local project `components` directory and place the [CMakeLists.txt](./examples/template/components/CMakeLists.txt)
+file there. Then add a `components/wolfssl/include` directory and place the [user_settings.h](/examples/template/components/wolfssl/include/user_settings.h)
+file there. If wolfSSL is in a structure such as `./workspace/wolfssl` with respect to your project at `./workspace/wolfssl`,
+then the cmake file should automatically find the wolfSSL source code. Otherwise set the cmake `WOLFSSL_ROOT` variable
+in the top-level CMake file. Examples:
+
+```cmake
+    set(WOLFSSL_ROOT  "C:/some-path/wolfssl")
+    set(WOLFSSL_ROOT  "c:/workspace/wolfssl-[username]")
+    set(WOLFSSL_ROOT  "/mnt/c/somepath/wolfssl")
+```
+
+See the specific examples for additional details.
+
+## Setup for Linux (wolfSSL local copy)
 
  1. Run `setup.sh` at _/path/to_`/wolfssl/IDE/Espressif/ESP-IDF/` to deploy files into ESP-IDF tree  
  2. Find Wolfssl files at _/path/to/esp_`/esp-idf/components/wolfssl/`

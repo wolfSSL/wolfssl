@@ -137,6 +137,8 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
+    ret = wc_AesInit(&cmac->aes, heap, devId);
+
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     cmac->useSWCrypt = useSW;
     if (cmac->useSWCrypt == 1) {
@@ -144,7 +146,10 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
     }
 #endif
 
-    ret = wc_AesSetKey(&cmac->aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&cmac->aes, key, keySz, NULL, AES_ENCRYPTION);
+    }
+
     if (ret == 0) {
         byte l[AES_BLOCK_SIZE];
 

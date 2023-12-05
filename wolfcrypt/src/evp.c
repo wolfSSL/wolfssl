@@ -4672,7 +4672,7 @@ int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
 }
 #endif /* WOLFSSL_APACHE_HTTPD */
 
-#if !defined(NO_PWDBASED) && !defined(NO_SHA)
+#if !defined(NO_PWDBASED) && !defined(NO_SHA) && !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
                                                const unsigned char *salt,
                                                int saltlen, int iter,
@@ -4698,7 +4698,7 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
 }
 #endif /* !NO_PWDBASED !NO_SHA*/
 
-#if !defined(NO_PWDBASED)
+#if !defined(NO_PWDBASED) && !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
@@ -6762,6 +6762,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                             iv, ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 0);
                 if (ret != 0)
@@ -7034,6 +7038,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7058,6 +7066,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7082,6 +7094,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0){
@@ -7110,6 +7126,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7134,6 +7154,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7158,6 +7182,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0){
@@ -7186,6 +7214,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7210,6 +7242,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7234,6 +7270,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0){
@@ -7264,6 +7304,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7288,6 +7332,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0)
@@ -7312,6 +7360,10 @@ void wolfSSL_EVP_init(void)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
+                ret = wc_AesInit(&ctx->cipher.aes, NULL, INVALID_DEVID);
+                if (ret != 0)
+                    return WOLFSSL_FAILURE;
+
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, (word32)ctx->keyLen,
                     iv, AES_ENCRYPTION, 0);
                 if (ret != 0){
