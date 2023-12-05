@@ -230,8 +230,7 @@ void app_main(void)
     */
     int loops = 0;
     do {
-        /* Remove _DISABLED upon #6990 Merge:  */
-        #if defined(WOLFSSL_HW_METRICS_DISABLED)
+        #if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_HAS_METRICS)
             esp_hw_show_metrics();
         #endif
         ret = wolf_test_task();

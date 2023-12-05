@@ -255,8 +255,34 @@
     /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
     /***** END CONFIG_IDF_TARGET_ESP32S3 *****/
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+      defined(CONFIG_IDF_TARGET_ESP8684)
+    /* ESP8684 is essentially ESP32-C2 chip + flash embedded together in a
+     * single QFN 4x4 mm package. Out of released documentation, Technical
+     * Reference Manual as well as ESP-IDF Programming Guide is applicable
+     * to both ESP32-C2 and ESP8684.
+     *
+     * See: https://www.esp32.com/viewtopic.php?f=5&t=27926#:~:text=ESP8684%20is%20essentially%20ESP32%2DC2,both%20ESP32%2DC2%20and%20ESP8684. */
+
     /* wolfSSL HW Acceleration supported on ESP32-C2. Uncomment to disable: */
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */ /* to disable all SHA HW   */
+
+    /* These are defined automatically in esp32-crypt.h, here for clarity    */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384    /* no SHA384 HW on C2  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512    /* no SHA512 HW on C2  */
+
+    /* There's no AES or RSA/Math accelerator on the ESP32-C2
+     * Auto defined with NO_WOLFSSL_ESP32_CRYPT_RSA_PRI, for clarity: */
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+    /***** END CONFIG_IDF_TARGET_ESP32C2 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* wolfSSL HW Acceleration supported on ESP32-C3. Uncomment to disable: */
 
     /*  #define NO_ESP32_CRYPT                 */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */ /* to disable all SHA HW   */
@@ -304,14 +330,6 @@
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
     /***** END CONFIG_IDF_TARGET_ESP266 *****/
 
-#elif defined(CONFIG_IDF_TARGET_ESP8684)
-    /*  There's no Hardware Acceleration available on ESP8684 */
-    #define NO_ESP32_CRYPT
-    #define NO_WOLFSSL_ESP32_CRYPT_HASH
-    #define NO_WOLFSSL_ESP32_CRYPT_AES
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
-    /***** END CONFIG_IDF_TARGET_ESP8684 *****/
-
 #else
     /* Anything else encountered, disable HW accleration */
     #define NO_ESP32_CRYPT
@@ -327,6 +345,7 @@
 #define DEBUG_WOLFSSL_VERBOSE
 #define DEBUG_WOLFSSL_SHA_MUTEX
 #define WOLFSSL_ESP32_CRYPT_DEBUG
+#define WOLFSSL_ESP32_CRYPT_HASH_SHA224_DEBUG
 #define NO_RECOVER_SOFTWARE_CALC
 #define WOLFSSL_TEST_STRAY 1
 #define USE_ESP_DPORT_ACCESS_READ_BUFFER

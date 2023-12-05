@@ -23,10 +23,20 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#include "user_settings.h"
+#include "sdkconfig.h"
 
-#define TLS_SMP_TARGET_HOST             "192.168.1.125"
-#define DEFAULT_PORT                    11111
+/* See main/Kconfig.projbuild for default configuration settings */
+#ifdef CONFIG_WOLFSSL_TARGET_HOST
+    #define TLS_SMP_TARGET_HOST         CONFIG_WOLFSSL_TARGET_HOST
+#else
+    #define TLS_SMP_TARGET_HOST         "192.168.1.38"
+#endif
+
+#ifdef CONFIG_WOLFSSL_TARGET_PORT
+    #define TLS_SMP_DEFAULT_PORT        CONFIG_WOLFSSL_TARGET_PORT
+#else
+    #define TLS_SMP_DEFAULT_PORT        11111
+#endif
 
 #define TLS_SMP_CLIENT_TASK_NAME        "tls_client_example"
 #define TLS_SMP_CLIENT_TASK_WORDS       22240

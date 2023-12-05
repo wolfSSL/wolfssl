@@ -20,11 +20,11 @@
  */
 
 /* common Espressif time_helper v5.6.3.002 */
-#include "esp_idf_version.h"
 #include "sdkconfig.h"
 #include "time_helper.h"
 
 #include <esp_log.h>
+#include <esp_idf_version.h>
 
 #if defined(ESP_IDF_VERSION_MAJOR) && defined(ESP_IDF_VERSION_MINOR)
     #if (ESP_IDF_VERSION_MAJOR == 5) && (ESP_IDF_VERSION_MINOR >= 1)

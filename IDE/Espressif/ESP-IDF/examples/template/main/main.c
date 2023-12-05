@@ -38,7 +38,7 @@ void app_main(void)
     esp_ShowExtendedSystemInfo();
 #endif
 
-#ifdef WOLFSSL_HW_METRICS_DISABLED /* Remove _DISABLED upon #6990 Merge  */
+#if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_HAS_METRICS)
     esp_hw_show_metrics();
 #endif
 

@@ -92,14 +92,15 @@
 /* when you want to use SHA3 */
 #define WOLFSSL_SHA3
 
-#define HAVE_ED25519 /* ED25519 requires SHA512 */
+ /* ED25519 requires SHA512 */
+#define HAVE_ED25519
 
 #define HAVE_ECC
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
 #define HAVE_ED25519
 
- #define OPENSSL_EXTRA
+#define OPENSSL_EXTRA
 /* when you want to use pkcs7 */
 /* #define HAVE_PKCS7 */
 
@@ -159,7 +160,8 @@
 /* adjust wait-timeout count if you see timeout in RSA HW acceleration */
 #define ESP_RSA_TIMEOUT_CNT    0x249F00
 
-#define HASH_SIZE_LIMIT /* for test.c */
+/* hash limit for test.c */
+#define HASH_SIZE_LIMIT
 
 /* USE_FAST_MATH is default */
 #define USE_FAST_MATH
@@ -168,6 +170,7 @@
 /* #undef USE_FAST_MATH          */
 /* #define SP_MATH               */
 /* #define WOLFSSL_SP_MATH_ALL   */
+/* #define WOLFSSL_SP_RISCV32    */
 
 /***** Use Integer Heap Math *****/
 /* #undef USE_FAST_MATH          */
@@ -255,8 +258,34 @@
     /*  #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
     /***** END CONFIG_IDF_TARGET_ESP32S3 *****/
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+      defined(CONFIG_IDF_TARGET_ESP8684)
+    /* ESP8684 is essentially ESP32-C2 chip + flash embedded together in a
+     * single QFN 4x4 mm package. Out of released documentation, Technical
+     * Reference Manual as well as ESP-IDF Programming Guide is applicable
+     * to both ESP32-C2 and ESP8684.
+     *
+     * See: https://www.esp32.com/viewtopic.php?f=5&t=27926#:~:text=ESP8684%20is%20essentially%20ESP32%2DC2,both%20ESP32%2DC2%20and%20ESP8684. */
+
     /* wolfSSL HW Acceleration supported on ESP32-C2. Uncomment to disable: */
+    /*  #define NO_ESP32_CRYPT                 */
+    /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */ /* to disable all SHA HW   */
+
+    /* These are defined automatically in esp32-crypt.h, here for clarity    */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384    /* no SHA384 HW on C2  */
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512    /* no SHA512 HW on C2  */
+
+    /* There's no AES or RSA/Math accelerator on the ESP32-C2
+     * Auto defined with NO_WOLFSSL_ESP32_CRYPT_RSA_PRI, for clarity: */
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+    /***** END CONFIG_IDF_TARGET_ESP32C2 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* wolfSSL HW Acceleration supported on ESP32-C3. Uncomment to disable: */
 
     /*  #define NO_ESP32_CRYPT                 */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */ /* to disable all SHA HW   */
@@ -327,6 +356,7 @@
 #define DEBUG_WOLFSSL_VERBOSE
 #define DEBUG_WOLFSSL_SHA_MUTEX
 #define WOLFSSL_ESP32_CRYPT_DEBUG
+#define WOLFSSL_ESP32_CRYPT_HASH_SHA224_DEBUG
 #define NO_RECOVER_SOFTWARE_CALC
 #define WOLFSSL_TEST_STRAY 1
 #define USE_ESP_DPORT_ACCESS_READ_BUFFER
@@ -335,12 +365,16 @@
 #define ESP_DISABLE_HW_TASK_LOCK
 */
 
-#define WOLFSSL_ESPIDF_ERROR_PAUSE /* Pause in a loop rather than exit. */
+/* Pause in a loop rather than exit. */
+#define WOLFSSL_ESPIDF_ERROR_PAUSE
+
 #define WOLFSSL_HW_METRICS
 
-/* #define HASH_SIZE_LIMIT */ /* for test.c */
+/* for test.c */
+/* #define HASH_SIZE_LIMIT */
 
-/* #define NO_HW_MATH_TEST */ /* Optionall turn off HW math checks */
+/* Optionally turn off HW math checks */
+/* #define NO_HW_MATH_TEST */
 
 /* Optionally include alternate HW test library: alt_hw_test.h */
 /* When enabling, the ./components/wolfssl/CMakeLists.txt file
@@ -361,7 +395,6 @@
 /* Turn off Large Number ESP32 HW Modular Multiplication
 ** [Z = X * Y mod M] in esp_mp_mulmod()                         */
 /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD                */
-
 
 #define WOLFSSL_PUBLIC_MP /* used by benchmark */
 #define USE_CERT_BUFFERS_2048
@@ -406,3 +439,12 @@
     #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_2048
     #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
 #endif
+
+/* See settings.h for some of the possible hardening options:
+ *
+ *  #define NO_ESPIDF_DEFAULT
+ *  #define WC_NO_CACHE_RESISTANT
+ *  #define WC_AES_BITSLICED
+ *  #define HAVE_AES_ECB
+ *  #define HAVE_AES_DIRECT
+ */

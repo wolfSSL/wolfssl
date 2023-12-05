@@ -356,7 +356,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
 
     /* Fill in the server address */
     servAddr.sin_family = AF_INET; /* using IPv4      */
-    servAddr.sin_port = htons(DEFAULT_PORT); /* on DEFAULT_PORT */
+    servAddr.sin_port = htons(TLS_SMP_DEFAULT_PORT); /* on DEFAULT_PORT */
 
     if (*ch >= '1' && *ch <= '9') {
         /* Get the server IPv4 address from the command line call */
@@ -375,7 +375,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
     sprintf(buff,
             "Connecting to server....%s(port:%d)",
             TLS_SMP_TARGET_HOST,
-            DEFAULT_PORT);
+            TLS_SMP_DEFAULT_PORT);
     WOLFSSL_MSG(buff);
     printf("%s\n", buff);
 

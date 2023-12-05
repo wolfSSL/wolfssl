@@ -31,7 +31,8 @@
 #include <user_settings.h>
 #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #ifndef WOLFSSL_ESPIDF
-    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+    #warning "Problem with wolfSSL user_settings."
+    #warning "Check components/wolfssl/include"
 #endif
 
 /* this project */
@@ -162,8 +163,18 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
 
     #if defined(CONFIG_IDF_TARGET_ESP32H2)
-        ESP_LOGE(TAG, "There's no WiFi on ESP32-H2. ");
+        ESP_LOGE(TAG, "There's no WiFi on ESP32-H2.");
     #else
+        #ifdef CONFIG_EXAMPLE_WIFI_SSID
+            if (XSTRCMP(CONFIG_EXAMPLE_WIFI_SSID, "myssid") == 0) {
+                ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID is myssid.");
+                ESP_LOGW(TAG, "  Do you have a WiFi AP called myssid, or ");
+                ESP_LOGW(TAG, "  did you forget the ESP-IDF configuration?");
+            }
+        #else
+            #define CONFIG_EXAMPLE_WIFI_SSID "myssid"
+            ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID not defined.");
+        #endif
         ESP_ERROR_CHECK(esp_netif_init());
         ESP_ERROR_CHECK(esp_event_loop_create_default());
         ESP_ERROR_CHECK(example_connect());

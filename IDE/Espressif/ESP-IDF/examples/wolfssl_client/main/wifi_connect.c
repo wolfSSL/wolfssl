@@ -20,18 +20,20 @@
  */
  #include "wifi_connect.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
 #include <esp_wifi.h>
 #include <esp_log.h>
 
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/settings.h>
-#include <user_settings.h>
+#include "user_settings.h"
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/types.h>
 #ifndef WOLFSSL_ESPIDF
-    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+    #warning "Problem with wolfSSL user_settings."
+    #warning "Check components/wolfssl/include"
 #endif
 
 #if ESP_IDF_VERSION_MAJOR >= 5
@@ -166,7 +168,8 @@ static void event_handler(void* arg,
 
 int wifi_init_sta(void)
 {
-    int ret = 0;
+    int ret = ESP_OK;
+
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -208,6 +211,17 @@ int wifi_init_sta(void)
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+
+#ifdef CONFIG_EXAMPLE_WIFI_SSID
+    if (XSTRCMP(CONFIG_EXAMPLE_WIFI_SSID, "myssid") == 0) {
+        ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID is \"myssid\".");
+        ESP_LOGW(TAG, "  Do you have a WiFi AP called \"myssid\", ");
+        ESP_LOGW(TAG, "  or did you forget the ESP-IDF configuration?");
+    }
+#else
+    ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID not defined.");
+#endif
+
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");

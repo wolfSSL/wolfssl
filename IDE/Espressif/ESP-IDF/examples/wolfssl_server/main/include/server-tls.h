@@ -21,23 +21,21 @@
 #ifndef _SERVER_TLS_
 #define _SERVER_TLS_
 
-#define DEFAULT_PORT                     11111
-
-#define TLS_SMP_CLIENT_TASK_NAME         "tls_client_example"
-#define TLS_SMP_CLIENT_TASK_WORDS        10240
-#define TLS_SMP_CLIENT_TASK_PRIORITY     8
-
-#define TLS_SMP_TARGET_HOST              "192.168.25.109"
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h> /* includes wolfSSL user-settings.h */
 #include <wolfssl/ssl.h>
-#include "user_settings.h"
+#include "sdkconfig.h"
 
 #if defined(SINGLE_THREADED)
     #define WOLFSSL_ESP_TASK int
 #else
     #include "freertos/FreeRTOS.h"
     #define WOLFSSL_ESP_TASK void
+#endif
+
+#ifdef CONFIG_WOLFSSL_TARGET_PORT
+    #define TLS_SMP_DEFAULT_PORT  CONFIG_WOLFSSL_TARGET_PORT
+#else
+    #define TLS_SMP_DEFAULT_PORT  11111
 #endif
 
 typedef struct {

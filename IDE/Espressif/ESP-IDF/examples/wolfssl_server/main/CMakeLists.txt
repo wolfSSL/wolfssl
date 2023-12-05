@@ -48,7 +48,7 @@ idf_component_register(SRCS main.c
                             wifi_connect.c
                             time_helper.c
                             server-tls.c
-                       INCLUDE_DIRS "." 
+                       INCLUDE_DIRS "."
                                     "./include")
 #
 

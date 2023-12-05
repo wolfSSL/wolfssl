@@ -29,7 +29,8 @@
 #include <wolfssl/version.h>
 #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 #ifndef WOLFSSL_ESPIDF
-    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+    #warning "Problem with wolfSSL user_settings."
+    #warning "Check components/wolfssl/include"
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>

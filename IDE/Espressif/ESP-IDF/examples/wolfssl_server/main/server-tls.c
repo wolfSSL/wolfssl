@@ -279,7 +279,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
     memset(&servAddr, 0, sizeof(servAddr));
     /* Fill in the server address */
     servAddr.sin_family      = AF_INET;             /* using IPv4      */
-    servAddr.sin_port        = htons(DEFAULT_PORT); /* on DEFAULT_PORT */
+    servAddr.sin_port        = htons(TLS_SMP_DEFAULT_PORT); /* on port */
     servAddr.sin_addr.s_addr = INADDR_ANY;          /* from anywhere   */
 
     /* Bind the server socket to our port */
@@ -372,7 +372,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
 
     vTaskDelete(NULL);
 
-	return TLS_SMP_SERVER_TASK_RET;
+    return TLS_SMP_SERVER_TASK_RET;
 }
 
 #if defined(SINGLE_THREADED)
@@ -389,7 +389,7 @@ WOLFSSL_ESP_TASK tls_smp_server_init(void* args)
     int thisPort = 0;
     int ret_i = 0; /* interim return result */
     if (thisPort == 0) {
-        thisPort = DEFAULT_PORT;
+        thisPort = TLS_SMP_DEFAULT_PORT;
     }
 
 #if ESP_IDF_VERSION_MAJOR >= 4
