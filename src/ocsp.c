@@ -409,10 +409,14 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 end:
     if (ret == 0 && validated == 1) {
         WOLFSSL_MSG("New OcspResponse validated");
-    } else if ((ret == ocsp->error) && (ocspResponse->single->status->status == CERT_UNKNOWN)) {
+    }
+    else if (ret == OCSP_CERT_REVOKED) {
+        WOLFSSL_MSG("OCSP revoked");
+    }
+    else if (ret == OCSP_CERT_UNKNOWN) {
         WOLFSSL_MSG("OCSP unknown");
-        ret = OCSP_CERT_UNKNOWN;
-    } else if (ret != OCSP_CERT_REVOKED) {
+    }
+    else {
         WOLFSSL_MSG("OCSP lookup failure");
         ret = OCSP_LOOKUP_FAIL;
     }
