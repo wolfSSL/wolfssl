@@ -1305,6 +1305,14 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
 #endif
     }
 
+    if (ver > WOLFSSL_EXPORT_VERSION_4) {
+#ifdef WOLFSSL_DTLS
+        exp[idx++] = options->dtlsStateful;
+#else
+        exp[idx++] = 0;
+#endif
+    }
+
     /* version of connection */
     exp[idx++] = ssl->version.major;
     exp[idx++] = ssl->version.minor;
@@ -1315,6 +1323,13 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     switch (ver) {
         case WOLFSSL_EXPORT_VERSION_3:
             if (idx != DTLS_EXPORT_OPT_SZ_3) {
+                WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            break;
+
+        case WOLFSSL_EXPORT_VERSION_4:
+            if (idx != DTLS_EXPORT_OPT_SZ_4 && type == WOLFSSL_EXPORT_DTLS) {
                 WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
                 return DTLS_EXPORT_VER_E;
             }
@@ -1350,6 +1365,13 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     switch (ver) {
         case WOLFSSL_EXPORT_VERSION:
             if (len < DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        case WOLFSSL_EXPORT_VERSION_4:
+            if (len < DTLS_EXPORT_OPT_SZ_4) {
                 WOLFSSL_MSG("Sanity check on buffer size failed");
                 return BAD_FUNC_ARG;
             }
@@ -1488,6 +1510,17 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
 #endif
     }
 
+    /* If we had a connection established, let's assume that we can act
+     * statefully */
+    options->dtlsStateful = 1;
+    if (ver > WOLFSSL_EXPORT_VERSION_4) {
+#ifdef WOLFSSL_DTLS
+        options->dtlsStateful = exp[idx++];
+#else
+        idx++;
+#endif
+    }
+
     /* version of connection */
     if (ssl->version.major != exp[idx++] || ssl->version.minor != exp[idx++]) {
         WOLFSSL_MSG("Version mismatch ie DTLS v1 vs v1.2");
@@ -1556,7 +1589,8 @@ static int ImportPeerInfo(WOLFSSL* ssl, const byte* buf, word32 len, byte ver)
     word16 port;
     char   ip[MAX_EXPORT_IP];
 
-    if (ver != WOLFSSL_EXPORT_VERSION && ver != WOLFSSL_EXPORT_VERSION_3) {
+    if (ver != WOLFSSL_EXPORT_VERSION && ver != WOLFSSL_EXPORT_VERSION_4 &&
+            ver != WOLFSSL_EXPORT_VERSION_3) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1808,6 +1842,15 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
             case WOLFSSL_EXPORT_VERSION:
                 if (type == WOLFSSL_EXPORT_DTLS) {
                     optSz = DTLS_EXPORT_OPT_SZ;
+                }
+                else {
+                    optSz = TLS_EXPORT_OPT_SZ;
+                }
+                break;
+
+            case WOLFSSL_EXPORT_VERSION_4:
+                if (type == WOLFSSL_EXPORT_DTLS) {
+                    optSz = DTLS_EXPORT_OPT_SZ_4;
                 }
                 else {
                     optSz = TLS_EXPORT_OPT_SZ;
