@@ -17524,6 +17524,11 @@ int sp_mont_red_ex(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     if ((a == NULL) || (m == NULL) || sp_iszero(m)) {
         err = MP_VAL;
     }
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    else if ((a->sign == MP_NEG) || (m->sign == MP_NEG)) {
+        err = MP_VAL;
+    }
+#endif
     /* Ensure a has enough space for calculation. */
     else if (a->size < m->used * 2 + 1) {
         err = MP_VAL;
