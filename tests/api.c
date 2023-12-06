@@ -68148,6 +68148,7 @@ static int test_dtls13_early_data(void)
     char msg[] = "This is early data";
     char msg2[] = "This is client data";
     char msg3[] = "This is server data";
+    char msg4[] = "This is server immediate data";
     char msgBuf[50];
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -68175,6 +68176,7 @@ static int test_dtls13_early_data(void)
     ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
 #endif
 
+    /* Test 0-RTT data */
     ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, sizeof(msg),
             &written), sizeof(msg));
     ExpectIntEQ(written, sizeof(msg));
@@ -68183,6 +68185,15 @@ static int test_dtls13_early_data(void)
             &read), sizeof(msg));
     ExpectIntEQ(read, sizeof(msg));
     ExpectStrEQ(msg, msgBuf);
+
+    /* Test 0.5-RTT data */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg4, sizeof(msg4)), sizeof(msg4));
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
+    ExpectStrEQ(msg4, msgBuf);
 
     /* Complete handshake */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
@@ -68195,10 +68206,13 @@ static int test_dtls13_early_data(void)
      * parsing logic. */
     ExpectFalse(wolfSSL_is_init_finished(ssl_s));
     ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
-            &read), WOLFSSL_FAILURE);
-    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+            &read), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+
 
     /* Test bi-directional write */
     ExpectIntEQ(wolfSSL_write(ssl_c, msg2, sizeof(msg2)), sizeof(msg2));
