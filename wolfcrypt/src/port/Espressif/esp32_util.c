@@ -200,7 +200,11 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
     WOLFSSL_VERSION_PRINTF("Xthal_have_ccount = %u",
                            Xthal_have_ccount);
 #elif CONFIG_IDF_TARGET_ESP32C6
-    /* not supported at this time */
+  /* TODO find Xthal for C6 */
+#elif CONFIG_IDF_TARGET_ESP32C2
+  /* TODO find Xthal for C6 */
+#elif defined(CONFIG_IDF_TARGET_ESP8684)
+  /* TODO find Xthal for C6 */
 #elif CONFIG_IDF_TARGET_ESP32C3
     /* not supported at this time */
 #elif CONFIG_IDF_TARGET_ESP32S3
@@ -227,6 +231,9 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S2.");
     #elif defined(CONFIG_IDF_TARGET_ESP32S3)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-S3.");
+    #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+          defined(CONFIG_IDF_TARGET_ESP8684)
+        WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C2.");
     #elif defined(CONFIG_IDF_TARGET_ESP32C3)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-C3.");
     #elif defined(CONFIG_IDF_TARGET_ESP32C6)
@@ -234,7 +241,7 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
         WOLFSSL_VERSION_PRINTF("ESP32_CRYPT is enabled for ESP32-H2.");
     #else
-        /* this should have been detected & disabled in user_settins.h */
+        /* This should have been detected & disabled in user_settins.h */
         #error "ESP32_CRYPT not yet supported on this IDF TARGET"
     #endif
 
@@ -245,12 +252,12 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
     #endif
 
     #if defined(NO_WOLFSSL_ESP32_CRYPT_AES)
-        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_AES is defined!"
+        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_AES is defined! "
                                "(disabled HW AES).");
     #endif
 
     #if defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)
-        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_RSA_PRI defined!"
+        WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_RSA_PRI defined! "
                                "(disabled HW RSA)");
     #endif
 #endif
@@ -375,7 +382,7 @@ int esp_current_boot_count(void)
 }
 
 /* See macro helpers above; not_defined is macro name when *not* defined */
-static int esp_ShowMacroStatus(char* s, char* not_defined)
+static int show_macro(char* s, char* not_defined)
 {
     char hd1[] = "Macro Name                 Defined   Not Defined";
     char hd2[] = "------------------------- --------- -------------";
@@ -396,9 +403,11 @@ static int esp_ShowMacroStatus(char* s, char* not_defined)
     /* Depending on if defined, put an "x" in the appropriate column */
     if (not_defined == NULL || not_defined[0] == '\0') {
         msg[ESP_SMS_ENA_POS] = 'X';
+        msg[ESP_SMS_ENA_POS+1] = 0; /* end of line to eliminate space pad */
     }
     else {
         msg[ESP_SMS_DIS_POS] = 'X';
+        msg[ESP_SMS_DIS_POS+1] = 0; /* end of line to eliminate space pad */
     }
 
     /* do we need a header? */
@@ -414,35 +423,78 @@ static int esp_ShowMacroStatus(char* s, char* not_defined)
 }
 
 /* Show some interesting settings */
-int esp_ShowHardwareAcclerationSettings(void)
+int ShowExtendedSystemInfo_config(void)
 {
     esp_ShowMacroStatus_need_header = 1;
-    esp_ShowMacroStatus("HW_MATH_ENABLED",     STR_IFNDEF(HW_MATH_ENABLED));
-    esp_ShowMacroStatus("RSA_LOW_MEM",         STR_IFNDEF(RSA_LOW_MEM));
-    esp_ShowMacroStatus("WOLFSSL_SHA224",      STR_IFNDEF(WOLFSSL_SHA224));
-    esp_ShowMacroStatus("WOLFSSL_SHA384",      STR_IFNDEF(WOLFSSL_SHA384));
-    esp_ShowMacroStatus("WOLFSSL_SHA512",      STR_IFNDEF(WOLFSSL_SHA512));
-    esp_ShowMacroStatus("WOLFSSL_SHA3",        STR_IFNDEF(WOLFSSL_SHA3));
-    esp_ShowMacroStatus("HAVE_ED25519",        STR_IFNDEF(HAVE_ED25519));
-    esp_ShowMacroStatus("USE_FAST_MATH",       STR_IFNDEF(USE_FAST_MATH));
-    esp_ShowMacroStatus("WOLFSSL_SP_MATH_ALL", STR_IFNDEF(WOLFSSL_SP_MATH_ALL));
-    esp_ShowMacroStatus("WOLFSSL_SP_RISCV32",  STR_IFNDEF(WOLFSSL_SP_RISCV32));
-    esp_ShowMacroStatus("SP_MATH",             STR_IFNDEF(SP_MATH));
-    esp_ShowMacroStatus("WOLFSSL_HW_METRICS",  STR_IFNDEF(WOLFSSL_HW_METRICS));
 
-    #ifdef USE_FAST_MATH
-        ESP_LOGI(TAG, "USE_FAST_MATH");
-    #endif /* USE_FAST_MATH */
+    show_macro("NO_ESPIDF_DEFAULT",         STR_IFNDEF(NO_ESPIDF_DEFAULT));
 
-    #ifdef WOLFSSL_SP_MATH_ALL
-        #ifdef WOLFSSL_SP_RISCV32
-            ESP_LOGI(TAG, "WOLFSSL_SP_MATH_ALL + WOLFSSL_SP_RISCV32");
-        #else
-            ESP_LOGI(TAG, "WOLFSSL_SP_MATH_ALL");
-        #endif
-    #endif /* WOLFSSL_SP_MATH_ALL */
+    show_macro("HW_MATH_ENABLED",           STR_IFNDEF(HW_MATH_ENABLED));
+
+    /* Features */
+    show_macro("WOLFSSL_SHA224",            STR_IFNDEF(WOLFSSL_SHA224));
+    show_macro("WOLFSSL_SHA384",            STR_IFNDEF(WOLFSSL_SHA384));
+    show_macro("WOLFSSL_SHA512",            STR_IFNDEF(WOLFSSL_SHA512));
+    show_macro("WOLFSSL_SHA3",              STR_IFNDEF(WOLFSSL_SHA3));
+    show_macro("HAVE_ED25519",              STR_IFNDEF(HAVE_ED25519));
+    show_macro("HAVE_AES_ECB",              STR_IFNDEF(HAVE_AES_ECB));
+    show_macro("HAVE_AES_DIRECT",           STR_IFNDEF(HAVE_AES_DIRECT));
+
+    /* Math Library Selection */
+    show_macro("USE_FAST_MATH",             STR_IFNDEF(USE_FAST_MATH));
+    show_macro("WOLFSSL_SP_MATH_ALL",       STR_IFNDEF(WOLFSSL_SP_MATH_ALL));
+#ifdef WOLFSSL_SP_RISCV32
+    show_macro("WOLFSSL_SP_RISCV32",        STR_IFNDEF(WOLFSSL_SP_RISCV32));
+#endif
+    show_macro("SP_MATH",                   STR_IFNDEF(SP_MATH));
+
+    /* Diagnostics */
+    show_macro("WOLFSSL_HW_METRICS",        STR_IFNDEF(WOLFSSL_HW_METRICS));
+
+    /* Optimizations */
+    show_macro("RSA_LOW_MEM",               STR_IFNDEF(RSA_LOW_MEM));
+
+    /* Security Hardening */
+    show_macro("WC_NO_HARDEN",              STR_IFNDEF(WC_NO_HARDEN));
+    show_macro("TFM_TIMING_RESISTANT",      STR_IFNDEF(TFM_TIMING_RESISTANT));
+    show_macro("ECC_TIMING_RESISTANT",      STR_IFNDEF(ECC_TIMING_RESISTANT));
+
+    /* WC_NO_CACHE_RESISTANT is only important if another process can be
+     * run on the device. With embedded it is less likely to be exploitable.
+     * Timing attacks are usually by probe. So typically turn this on: */
+    show_macro("WC_NO_CACHE_RESISTANT",     STR_IFNDEF(WC_NO_CACHE_RESISTANT));
+
+    /* Side channel bit slicing */
+    show_macro("WC_AES_BITSLICED",          STR_IFNDEF(WC_AES_BITSLICED));
+
+    /* Unrolling will normally improve performance,
+     * so make sure WOLFSSL_AES_NO_UNROLL isn't defined unless you want it. */
+    show_macro("WOLFSSL_AES_NO_UNROLL",     STR_IFNDEF(WOLFSSL_AES_NO_UNROLL));
+    show_macro("TFM_TIMING_RESISTANT",      STR_IFNDEF(TFM_TIMING_RESISTANT));
+    show_macro("ECC_TIMING_RESISTANT",      STR_IFNDEF(ECC_TIMING_RESISTANT));
+    show_macro("WC_RSA_BLINDING",           STR_IFNDEF(WC_RSA_BLINDING));
+    show_macro("NO_WRITEV",                 STR_IFNDEF(NO_WRITEV));
+
+    /* Environment */
+    show_macro("FREERTOS",                  STR_IFNDEF(FREERTOS));
+    show_macro("NO_WOLFSSL_DIR",            STR_IFNDEF(NO_WOLFSSL_DIR));
+    show_macro("WOLFSSL_NO_CURRDIR",        STR_IFNDEF(WOLFSSL_NO_CURRDIR));
+    show_macro("WOLFSSL_LWIP",              STR_IFNDEF(WOLFSSL_LWIP));
 
     ESP_LOGI(TAG, "");
+#if defined(CONFIG_COMPILER_OPTIMIZATION_DEFAULT)
+    ESP_LOGI(TAG, "Compiler Optimization: Default");
+#elif defined(CONFIG_COMPILER_OPTIMIZATION_SIZE)
+    ESP_LOGI(TAG, "Compiler Optimization: Size");
+#elif defined(CONFIG_COMPILER_OPTIMIZATION_PERF)
+    ESP_LOGI(TAG, "Compiler Optimization: Performance");
+#elif defined(CONFIG_COMPILER_OPTIMIZATION_NONE)
+    ESP_LOGI(TAG, "Compiler Optimization: None");
+#else
+    ESP_LOGI(TAG, "Compiler Optimization: Unknown");
+#endif
+    ESP_LOGI(TAG, "");
+
     return ESP_OK;
 }
 /*
@@ -530,7 +582,7 @@ int ShowExtendedSystemInfo(void)
         ESP_LOGW(TAG, "Warning: ESP_RSA_MULM_BITS not defined for ESP32");
     #endif
 
-#elif  defined(CONFIG_IDF_TARGET_ESP32C2)
+#elif defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP8684)
     ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
             );
@@ -572,7 +624,7 @@ int ShowExtendedSystemInfo(void)
 #endif
     ESP_LOGI(TAG, "");
 
-    esp_ShowHardwareAcclerationSettings();
+    ShowExtendedSystemInfo_config();
     ShowExtendedSystemInfo_git();
     ShowExtendedSystemInfo_platform();
     ShowExtendedSystemInfo_thread();
@@ -726,18 +778,19 @@ int esp_hw_show_metrics(void)
     #if defined(WOLFSSL_ESP32_CRYPT)
         esp_hw_show_sha_metrics();
     #else
-        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT");
+        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT not defined, "
+                      "HW SHA hash not enabled");
     #endif
 
     #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
         esp_hw_show_mp_metrics();
     #else
-        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT_RSA_PRI not defined,"
+        ESP_LOGI(TAG, "WOLFSSL_ESP32_CRYPT_RSA_PRI not defined, "
                       "HW math not enabled");
     #endif
 
     #if defined(NO_WOLFSSL_ESP32_CRYPT_AES)
-        ESP_LOGI(TAG, "NO_WOLFSSL_ESP32_CRYPT_AES is defined,"
+        ESP_LOGI(TAG, "NO_WOLFSSL_ESP32_CRYPT_AES is defined, "
                       "HW AES not enabled");
     #else
         esp_hw_show_aes_metrics();
