@@ -1274,11 +1274,19 @@ static const char* bench_result_words3[][5] = {
     #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
 
     /* The ESP32 (both Xtensa and RISC-V have raw CPU counters). */
-    #define HAVE_GET_CYCLES
-    #define INIT_CYCLE_COUNTER do {          \
-        ESP_LOGV(TAG, "INIT_CYCLE_COUNTER"); \
-        esp_cpu_set_cycle_count(0);          \
-    } while (0);
+    #if ESP_IDF_VERSION_MAJOR >= 5
+        /* esp_cpu_set_cycle_count() introduced in ESP-IDF v5 */
+        #define HAVE_GET_CYCLES
+        #define INIT_CYCLE_COUNTER do {          \
+            ESP_LOGV(TAG, "INIT_CYCLE_COUNTER"); \
+            esp_cpu_set_cycle_count(0);          \
+        } while (0);
+    #else
+        #define HAVE_GET_CYCLES
+        #define INIT_CYCLE_COUNTER do {          \
+            ESP_LOGV(TAG, "INIT_CYCLE_COUNTER"); \
+        } while (0);
+    #endif
 
     #define BEGIN_ESP_CYCLES do {                        \
         ESP_LOGV(TAG, "BEGIN_ESP_CYCLES");               \
@@ -1494,7 +1502,11 @@ static const char* bench_result_words3[][5] = {
              * when resetting CPU cycle counter? FreeRTOS tick collison?
              *    thisVal = esp_cpu_get_cycle_count(); See also, above
              * or thisVal = xthal_get_ccount(); */
-            _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #if ESP_IDF_VERSION_MAJOR < 5
+                _esp_cpu_count_last = xthal_get_ccount();
+            #else
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #endif
         #endif
 
         /* Return the 64 bit extended total from 32 bit counter. */

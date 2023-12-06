@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<VisualGDBProjectSettings2 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<VisualGDBProjectSettings2 xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Project xsi:type="com.visualgdb.project.external.esp-idf">
     <CustomSourceDirectories>
       <Directories />
@@ -220,7 +220,7 @@
     <DebugMethod>
       <ID>openocd</ID>
       <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 15000" -f target/esp32.cfg</CommandLine>
+        <CommandLine>-f interface/ftdi/tigard.cfg -c "adapter_khz 15000" -f target/esp32.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />

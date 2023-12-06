@@ -34,8 +34,9 @@
 /* Espressif */
 #include <esp_log.h>
 #include <esp_err.h>
-#include <hal/efuse_hal.h>
-
+#if ESP_IDF_VERSION_MAJOR > 4
+    #include <hal/efuse_hal.h>
+#endif
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
 #include <wolfssl/wolfcrypt/types.h>
@@ -452,7 +453,10 @@ int esp_ShowHardwareAcclerationSettings(void)
 */
 int ShowExtendedSystemInfo(void)
 {
+#if ESP_IDF_VERSION_MAJOR > 4
     unsigned chip_rev = -1;
+#endif
+
 #ifdef HAVE_ESP_CLK
     /* esp_clk.h is private */
     int cpu_freq = 0;
@@ -470,8 +474,10 @@ int ShowExtendedSystemInfo(void)
                            "Some extended system details not available.");
 #endif /* else not HAVE_WC_INTROSPECTION */
 
+#if ESP_IDF_VERSION_MAJOR > 4
     chip_rev = efuse_hal_chip_revision();
     ESP_LOGI(TAG, "Chip revision: v%d.%d", chip_rev / 100, chip_rev % 100);
+#endif
 
 #ifdef HAVE_ESP_CLK
     cpu_freq = esp_clk_cpu_freq();
