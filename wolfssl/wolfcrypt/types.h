@@ -1169,9 +1169,36 @@ typedef struct w64wrapper {
         WC_PK_TYPE_ED25519_KEYGEN = 15,
         WC_PK_TYPE_CURVE25519_KEYGEN = 16,
         WC_PK_TYPE_RSA_GET_SIZE = 17,
-        WC_PK_TYPE_MAX = WC_PK_TYPE_RSA_GET_SIZE
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_GET_SIZE
+    #if defined(HAVE_PQC) && (defined(HAVE_DILITHIUM) || defined(HAVE_FALCON))
+        WC_PK_TYPE_PQC_SIG_KEYGEN = 18,
+        WC_PK_TYPE_PQC_SIG_SIGN = 19,
+        WC_PK_TYPE_PQC_SIG_VERIFY = 20,
+        WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY = 21,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY
+    #endif
+        WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
     };
 
+    #if defined(HAVE_PQC)
+    /* Post quantum signature algorithms */
+    enum wc_PqcSignatureType {
+        WC_PQC_SIG_TYPE_NONE = 0,
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_NONE
+    #if defined(HAVE_DILITHIUM)
+        WC_PQC_SIG_TYPE_DILITHIUM = 1,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_DILITHIUM
+    #endif
+    #if defined(HAVE_FALCON)
+        WC_PQC_SIG_TYPE_FALCON = 2,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_FALCON
+    #endif
+        WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
+    };
+    #endif
 
     /* settings detection for compile vs runtime math incompatibilities */
     enum {

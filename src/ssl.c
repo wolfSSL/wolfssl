@@ -7734,6 +7734,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
+            #ifdef WOLF_PRIVATE_KEY_ID
+                keyType = falcon_level5_sa_algo;
+            #endif
                 /* Falcon is fixed key size */
                 keySz = FALCON_MAX_KEY_SIZE;
                 if (ssl && !ssl->options.verifyNone) {
@@ -7756,6 +7759,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
+            #ifdef WOLF_PRIVATE_KEY_ID
+                keyType = dilithium_level5_sa_algo;
+            #endif
                 /* Dilithium is fixed key size */
                 keySz = DILITHIUM_MAX_KEY_SIZE;
                 if (ssl && !ssl->options.verifyNone) {
@@ -9090,6 +9096,19 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
             type = DYNAMIC_TYPE_ECC;
         }
     #endif
+    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        if ((der->keyOID == DILITHIUM_LEVEL2k) ||
+            (der->keyOID == DILITHIUM_LEVEL3k) ||
+            (der->keyOID == DILITHIUM_LEVEL5k)) {
+            type = DYNAMIC_TYPE_DILITHIUM;
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        if ((der->keyOID == FALCON_LEVEL1k) ||
+            (der->keyOID == FALCON_LEVEL5k)) {
+            type = DYNAMIC_TYPE_FALCON;
+        }
+    #endif
 
         ret = CreateDevPrivateKey(&pkey, buff, size, type,
                                   isKeyLabel, isKeyId, heap, devId);
@@ -9111,6 +9130,23 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
                                                der->publicKey, der->pubKeySize);
             }
             #endif
+            #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+            if ((der->keyOID == DILITHIUM_LEVEL2k) ||
+                (der->keyOID == DILITHIUM_LEVEL3k) ||
+                (der->keyOID == DILITHIUM_LEVEL5k)) {
+                ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
+                                            WC_PQC_SIG_TYPE_DILITHIUM,
+                                            der->publicKey, der->pubKeySize);
+            }
+            #endif
+            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            if ((der->keyOID == FALCON_LEVEL1k) ||
+                (der->keyOID == FALCON_LEVEL5k)) {
+                ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
+                                            WC_PQC_SIG_TYPE_FALCON,
+                                            der->publicKey, der->pubKeySize);
+            }
+            #endif
         }
         #else
             /* devId was set, don't check, for now */
@@ -9129,6 +9165,19 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
         #ifdef HAVE_ECC
             if (der->keyOID == ECDSAk) {
                 wc_ecc_free((ecc_key*)pkey);
+            }
+        #endif
+        #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+            if ((der->keyOID == DILITHIUM_LEVEL2k) ||
+                (der->keyOID == DILITHIUM_LEVEL3k) ||
+                (der->keyOID == DILITHIUM_LEVEL5k)) {
+                wc_dilithium_free((dilithium_key*)pkey);
+            }
+        #endif
+        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            if ((der->keyOID == FALCON_LEVEL1k) ||
+                (der->keyOID == FALCON_LEVEL5k)) {
+                wc_falcon_free((falcon_key*)pkey);
             }
         #endif
             XFREE(pkey, heap, type);

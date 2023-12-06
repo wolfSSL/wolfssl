@@ -7787,13 +7787,13 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #if defined(HAVE_PQC)
     #if defined(HAVE_FALCON)
         case DYNAMIC_TYPE_FALCON:
-            wc_falcon_init((falcon_key*)*pKey);
+            wc_falcon_init_ex((falcon_key*)*pKey, ssl->heap, ssl->devId);
             ret = 0;
             break;
     #endif /* HAVE_FALCON */
     #if defined(HAVE_DILITHIUM)
         case DYNAMIC_TYPE_DILITHIUM:
-            wc_dilithium_init((dilithium_key*)*pKey);
+            wc_dilithium_init_ex((dilithium_key*)*pKey, ssl->heap, ssl->devId);
             ret = 0;
             break;
     #endif /* HAVE_DILITHIUM */
@@ -27451,6 +27451,54 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
         }
 #endif
     }
+    else if (hsType == DYNAMIC_TYPE_DILITHIUM) {
+#if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        dilithium_key* dilithiumKey;
+
+        dilithiumKey = (dilithium_key*)XMALLOC(sizeof(dilithium_key), heap,
+                                               DYNAMIC_TYPE_DILITHIUM);
+        if (dilithiumKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_dilithium_init_label(dilithiumKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_dilithium_init_id(dilithiumKey, data, length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)dilithiumKey;
+        }
+        else {
+            XFREE(dilithiumKey, heap, DYNAMIC_TYPE_DILITHIUM);
+        }
+#endif
+    }
+    else if (hsType == DYNAMIC_TYPE_FALCON) {
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        falcon_key* falconKey;
+
+        falconKey = (falcon_key*)XMALLOC(sizeof(falcon_key), heap,
+                                         DYNAMIC_TYPE_FALCON);
+        if (falconKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_falcon_init_label(falconKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_falcon_init_id(falconKey, data, length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)falconKey;
+        }
+        else {
+            XFREE(falconKey, heap, DYNAMIC_TYPE_FALCON);
+        }
+#endif
+    }
 
     return ret;
 }
@@ -27499,6 +27547,10 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             ssl->hsType = DYNAMIC_TYPE_RSA;
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo)
             ssl->hsType = DYNAMIC_TYPE_ECC;
+        else if (ssl->buffers.keyType == falcon_level5_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_FALCON;
+        else if (ssl->buffers.keyType == dilithium_level5_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_DILITHIUM;
         ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
         if (ret != 0) {
             goto exit_dpk;
@@ -27551,6 +27603,58 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
                 /* Return the maximum signature length. */
                 *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
+            }
+    #else
+            ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else if (ssl->buffers.keyType == falcon_level5_sa_algo) {
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            if (ssl->buffers.keyLabel) {
+                ret = wc_falcon_init_label((falcon_key*)ssl->hsKey,
+                                           (char*)ssl->buffers.key->buffer,
+                                           ssl->heap, ssl->buffers.keyDevId);
+            }
+            else if (ssl->buffers.keyId) {
+                ret = wc_falcon_init_id((falcon_key*)ssl->hsKey,
+                                        ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length, ssl->heap,
+                                        ssl->buffers.keyDevId);
+            }
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minFalconKeySz) {
+                    WOLFSSL_MSG("Falcon key size too small");
+                    ERROR_OUT(FALCON_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)wc_falcon_sig_size((falcon_key*)ssl->hsKey);
+            }
+    #else
+            ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else if (ssl->buffers.keyType == dilithium_level5_sa_algo) {
+    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+            if (ssl->buffers.keyLabel) {
+                ret = wc_dilithium_init_label((dilithium_key*)ssl->hsKey,
+                                              (char*)ssl->buffers.key->buffer,
+                                              ssl->heap, ssl->buffers.keyDevId);
+            }
+            else if (ssl->buffers.keyId) {
+                ret = wc_dilithium_init_id((dilithium_key*)ssl->hsKey,
+                                        ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length, ssl->heap,
+                                        ssl->buffers.keyDevId);
+            }
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minDilithiumKeySz) {
+                    WOLFSSL_MSG("Dilithium key size too small");
+                    ERROR_OUT(DILITHIUM_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)wc_dilithium_sig_size((dilithium_key*)ssl->hsKey);
             }
     #else
             ret = NOT_COMPILED_IN;

@@ -16440,7 +16440,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_init(sigCtx->key.falcon)) < 0) {
+                    if ((ret = wc_falcon_init_ex(sigCtx->key.falcon,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_falcon_set_level(sigCtx->key.falcon, 1))
@@ -16465,7 +16466,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_init(sigCtx->key.falcon)) < 0) {
+                    if ((ret = wc_falcon_init_ex(sigCtx->key.falcon,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_falcon_set_level(sigCtx->key.falcon, 5))
@@ -16492,7 +16494,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.dilithium == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_dilithium_init(sigCtx->key.dilithium)) < 0) {
+                    if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_dilithium_set_level(
@@ -16517,7 +16520,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.dilithium == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_dilithium_init(sigCtx->key.dilithium)) < 0) {
+                    if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_dilithium_set_level(
@@ -16542,7 +16546,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.dilithium == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_dilithium_init(sigCtx->key.dilithium)) < 0) {
+                    if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_dilithium_set_level(

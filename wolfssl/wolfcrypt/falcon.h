@@ -31,6 +31,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #if defined(HAVE_PQC) && defined(HAVE_FALCON)
 
 #ifdef HAVE_LIBOQS
@@ -56,10 +60,16 @@
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
 #endif
 
-#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_PRV_KEY_SIZE
+#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_KEY_SIZE
 #define FALCON_MAX_SIG_SIZE     FALCON_LEVEL5_SIG_SIZE
 #define FALCON_MAX_PUB_KEY_SIZE FALCON_LEVEL5_PUB_KEY_SIZE
 #define FALCON_MAX_PRV_KEY_SIZE FALCON_LEVEL5_PRV_KEY_SIZE
+
+#ifdef WOLF_PRIVATE_KEY_ID
+#define FALCON_MAX_ID_LEN    32
+#define FALCON_MAX_LABEL_LEN 32
+#endif
+
 
 /* Structs */
 
@@ -67,6 +77,18 @@ struct falcon_key {
     bool pubKeySet;
     bool prvKeySet;
     byte level;
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[FALCON_MAX_ID_LEN];
+    int  idLen;
+    char label[FALCON_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
+
     byte p[FALCON_MAX_PUB_KEY_SIZE];
     byte k[FALCON_MAX_PRV_KEY_SIZE];
 };
@@ -87,6 +109,19 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 
 WOLFSSL_API
 int wc_falcon_init(falcon_key* key);
+
+WOLFSSL_API
+int wc_falcon_init_ex(falcon_key* key, void* heap, int devId);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_falcon_init_id(falcon_key* key, const unsigned char* id, int len,
+                      void* heap, int devId);
+WOLFSSL_API
+int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
+                         int devId);
+#endif
+
 WOLFSSL_API
 int wc_falcon_set_level(falcon_key* key, byte level);
 WOLFSSL_API

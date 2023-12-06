@@ -31,6 +31,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
 
 #ifdef HAVE_LIBOQS
@@ -61,10 +65,15 @@
 #define DILITHIUM_LEVEL5_PRV_KEY_SIZE (DILITHIUM_LEVEL5_PUB_KEY_SIZE+DILITHIUM_LEVEL5_KEY_SIZE)
 #endif
 
-#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_PRV_KEY_SIZE
+#define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_KEY_SIZE
 #define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL5_SIG_SIZE
 #define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
 #define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE
+
+#ifdef WOLF_PRIVATE_KEY_ID
+#define DILITHIUM_MAX_ID_LEN    32
+#define DILITHIUM_MAX_LABEL_LEN 32
+#endif
 
 /* Structs */
 
@@ -72,6 +81,18 @@ struct dilithium_key {
     bool pubKeySet;
     bool prvKeySet;
     byte level; /* 2,3 or 5 */
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[DILITHIUM_MAX_ID_LEN];
+    int  idLen;
+    char label[DILITHIUM_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
+
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE];
     byte k[DILITHIUM_MAX_PRV_KEY_SIZE];
 };
@@ -92,6 +113,19 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 
 WOLFSSL_API
 int wc_dilithium_init(dilithium_key* key);
+
+WOLFSSL_API
+int wc_dilithium_init_ex(dilithium_key* key, void* heap, int devId);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_dilithium_init_id(dilithium_key* key, const unsigned char* id, int len,
+                         void* heap, int devId);
+WOLFSSL_API
+int wc_dilithium_init_label(dilithium_key* key, const char* label, void* heap,
+                            int devId);
+#endif
+
 WOLFSSL_API
 int wc_dilithium_set_level(dilithium_key* key, byte level);
 WOLFSSL_API
