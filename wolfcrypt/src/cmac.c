@@ -223,23 +223,32 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     return ret;
 }
 
+int wc_CmacFree(Cmac* cmac)
+{
+    if (cmac == NULL)
+        return BAD_FUNC_ARG;
+#if defined(WOLFSSL_HASH_KEEP)
+    /* TODO: msg is leaked if wc_CmacFinal() is not called
+     * e.g. when multiple calls to wc_CmacUpdate() and one fails but
+     * wc_CmacFinal() not called. */
+    if (cmac->msg != NULL) {
+        XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    wc_AesFree(&cmac->aes);
+    ForceZero(cmac, sizeof(Cmac));
+    return 0;
+}
 
-int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
+int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
 {
     int ret;
     const byte* subKey;
     word32 remainder;
 
-    if (cmac == NULL)
+    if (cmac == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
-
-    if (out == NULL || outSz == NULL) {
-        if ((out == NULL) ^ (outSz == NULL))
-            return BAD_FUNC_ARG;
-        ret = 0;
-        goto out;
     }
-
     if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ) {
         return BUFFER_E;
     }
@@ -251,7 +260,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
-            goto out;
+            return ret;
         /* fall-through when unavailable */
     }
 #endif
@@ -262,8 +271,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     else {
         /* ensure we will have a valid remainder value */
         if (cmac->bufferSz > AES_BLOCK_SIZE) {
-            ret = BAD_STATE_E;
-            goto out;
+            return BAD_STATE_E;
         }
         remainder = AES_BLOCK_SIZE - cmac->bufferSz;
 
@@ -284,24 +292,18 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         XMEMCPY(out, cmac->digest, *outSz);
     }
 
-#if defined(WOLFSSL_HASH_KEEP)
-    /* TODO: msg is leaked if wc_CmacFinal() is not called
-     * e.g. when multiple calls to wc_CmacUpdate() and one fails but
-     * wc_CmacFinal() not called. */
-    if (cmac->msg != NULL) {
-        XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        cmac->msg = NULL;
-    }
-#endif
-
-out:
-
-    wc_AesFree(&cmac->aes);
-    ForceZero(cmac, sizeof(Cmac));
-
-    return ret;
+    return 0;
 }
 
+int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz) {
+    int ret;
+
+    if (cmac == NULL)
+        return BAD_FUNC_ARG;
+    ret = wc_CmacFinalNoFree(cmac, out, outSz);
+    (void)wc_CmacFree(cmac);
+    return ret;
+}
 
 int wc_AesCmacGenerate(byte* out, word32* outSz,
                        const byte* in, word32 inSz,

@@ -13266,6 +13266,7 @@ int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
     AesEax *eax = &eax_mem;
 #endif
     int ret;
+    int eaxInited = 0;
 
     if (key == NULL || out == NULL || in == NULL || nonce == NULL
                               || authTag == NULL || authIn == NULL) {
@@ -13286,6 +13287,7 @@ int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
                              authIn, authInSz)) != 0) {
         goto cleanup;
     }
+    eaxInited = 1;
 
     if ((ret = wc_AesEaxEncryptUpdate(eax, out, in, inSz, NULL, 0)) != 0) {
         goto cleanup;
@@ -13296,7 +13298,8 @@ int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
     }
 
 cleanup:
-    wc_AesEaxFree(eax);
+    if (eaxInited)
+        wc_AesEaxFree(eax);
 #if defined(WOLFSSL_SMALL_STACK)
     XFREE(eax, NULL, DYNAMIC_TYPE_AES_EAX);
 #endif
@@ -13326,6 +13329,7 @@ int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
     AesEax *eax = &eax_mem;
 #endif
     int ret;
+    int eaxInited = 0;
 
     if (key == NULL || out == NULL || in == NULL || nonce == NULL
                               || authTag == NULL || authIn == NULL) {
@@ -13347,6 +13351,7 @@ int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
 
         goto cleanup;
     }
+    eaxInited = 1;
 
     if ((ret = wc_AesEaxDecryptUpdate(eax, out, in, inSz, NULL, 0)) != 0) {
         goto cleanup;
@@ -13357,7 +13362,8 @@ int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
     }
 
 cleanup:
-    wc_AesEaxFree(eax);
+    if (eaxInited)
+        wc_AesEaxFree(eax);
 #if defined(WOLFSSL_SMALL_STACK)
     XFREE(eax, NULL, DYNAMIC_TYPE_AES_EAX);
 #endif
@@ -13380,6 +13386,9 @@ int  wc_AesEaxInit(AesEax* eax,
 {
     int ret = 0;
     word32 cmacSize;
+    int aesInited = 0;
+    int nonceCmacInited = 0;
+    int aadCmacInited = 0;
 
     if (eax == NULL || key == NULL ||  nonce == NULL) {
         return BAD_FUNC_ARG;
@@ -13388,14 +13397,16 @@ int  wc_AesEaxInit(AesEax* eax,
     XMEMSET(eax->prefixBuf, 0, sizeof(eax->prefixBuf));
 
     if ((ret = wc_AesInit(&eax->aes, NULL, INVALID_DEVID)) != 0) {
-        return ret;
+        goto out;
     }
+    aesInited = 1;
+
     if ((ret = wc_AesSetKey(&eax->aes,
                             key,
                             keySz,
                             NULL,
                             AES_ENCRYPTION)) != 0) {
-        return ret;
+        goto out;
     }
 
     /*
@@ -13409,26 +13420,27 @@ int  wc_AesEaxInit(AesEax* eax,
                            NULL)) != 0) {
         return ret;
     }
+    nonceCmacInited = 1;
 
     if ((ret = wc_CmacUpdate(&eax->nonceCmac,
                              eax->prefixBuf,
                              sizeof(eax->prefixBuf))) != 0) {
-        return ret;
+        goto out;
     }
 
     if ((ret = wc_CmacUpdate(&eax->nonceCmac, nonce, nonceSz)) != 0) {
-        return ret;
+        goto out;
     }
 
     cmacSize = AES_BLOCK_SIZE;
     if ((ret = wc_CmacFinal(&eax->nonceCmac,
                             eax->nonceCmacFinal,
                             &cmacSize)) != 0) {
-        return ret;
+        goto out;
     }
 
     if ((ret = wc_AesSetIV(&eax->aes, eax->nonceCmacFinal)) != 0) {
-        return ret;
+        goto out;
     }
 
     /*
@@ -13443,18 +13455,19 @@ int  wc_AesEaxInit(AesEax* eax,
                            keySz,
                            WC_CMAC_AES,
                            NULL)) != 0) {
-        return ret;
+        goto out;
     }
+    aadCmacInited = 1;
 
     if ((ret = wc_CmacUpdate(&eax->aadCmac,
                              eax->prefixBuf,
                              sizeof(eax->prefixBuf))) != 0) {
-        return ret;
+        goto out;
     }
 
     if (authIn != NULL) {
         if ((ret = wc_CmacUpdate(&eax->aadCmac, authIn, authInSz)) != 0) {
-            return ret;
+            goto out;
         }
     }
 
@@ -13469,13 +13482,24 @@ int  wc_AesEaxInit(AesEax* eax,
                            keySz,
                            WC_CMAC_AES,
                            NULL)) != 0) {
-        return ret;
+        goto out;
     }
 
     if ((ret = wc_CmacUpdate(&eax->ciphertextCmac,
                              eax->prefixBuf,
                              sizeof(eax->prefixBuf))) != 0) {
-        return ret;
+        goto out;
+    }
+
+out:
+
+    if (ret != 0) {
+        if (aesInited)
+            wc_AesFree(&eax->aes);
+        if (nonceCmacInited)
+            wc_CmacFree(&eax->nonceCmac);
+        if (aadCmacInited)
+            wc_CmacFree(&eax->aadCmac);
     }
 
     return ret;
@@ -13599,34 +13623,25 @@ int wc_AesEaxEncryptFinal(AesEax* eax, byte* authTag, word32 authTagSz)
     word32 cmacSize;
     int ret;
     word32 i;
-    int ciphertextCmac_finalized = 0;
-    int aadCmac_finalized = 0;
 
-    if (eax == NULL) {
+    if (eax == NULL || authTag == NULL || authTagSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
-    }
-
-    if (authTag == NULL || authTagSz > AES_BLOCK_SIZE) {
-        ret = BAD_FUNC_ARG;
-        goto out;
     }
 
     /* Complete the OMAC for the ciphertext */
     cmacSize = AES_BLOCK_SIZE;
-    ciphertextCmac_finalized = 1;
-    if ((ret = wc_CmacFinal(&eax->ciphertextCmac,
-                            eax->ciphertextCmacFinal,
-                            &cmacSize)) != 0) {
-        goto out;
+    if ((ret = wc_CmacFinalNoFree(&eax->ciphertextCmac,
+                                  eax->ciphertextCmacFinal,
+                                  &cmacSize)) != 0) {
+        return ret;
     }
 
     /* Complete the OMAC for auth data */
     cmacSize = AES_BLOCK_SIZE;
-    aadCmac_finalized = 1;
-    if ((ret = wc_CmacFinal(&eax->aadCmac,
-                            eax->aadCmacFinal,
-                            &cmacSize)) != 0) {
-        goto out;
+    if ((ret = wc_CmacFinalNoFree(&eax->aadCmac,
+                                  eax->aadCmacFinal,
+                                  &cmacSize)) != 0) {
+        return ret;
     }
 
     /*
@@ -13640,16 +13655,7 @@ int wc_AesEaxEncryptFinal(AesEax* eax, byte* authTag, word32 authTagSz)
                     ^ eax->ciphertextCmacFinal[i];
     }
 
-    ret = 0;
-
-out:
-
-    if (! ciphertextCmac_finalized)
-        (void)wc_CmacFinal(&eax->ciphertextCmac, NULL, NULL);
-    if (! aadCmac_finalized)
-        (void)wc_CmacFinal(&eax->aadCmac, NULL, NULL);
-
-    return ret;
+    return 0;
 }
 
 
@@ -13668,47 +13674,37 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
     int ret;
     word32 i;
     word32 cmacSize;
-    int ciphertextCmac_finalized = 0;
-    int aadCmac_finalized = 0;
 
 #if defined(WOLFSSL_SMALL_STACK)
-    byte *authTag = NULL;
+    byte *authTag;
 #else
     byte authTag[AES_BLOCK_SIZE];
 #endif
 
-    if (eax == NULL) {
+    if (eax == NULL || authIn == NULL || authInSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
-    }
-
-    if (authIn == NULL || authInSz > AES_BLOCK_SIZE) {
-        ret = BAD_FUNC_ARG;
-        goto out;
     }
 
     /* Complete the OMAC for the ciphertext */
     cmacSize = AES_BLOCK_SIZE;
-    ciphertextCmac_finalized = 1;
-    if ((ret = wc_CmacFinal(&eax->ciphertextCmac,
-                            eax->ciphertextCmacFinal,
-                            &cmacSize)) != 0) {
-        goto out;
+    if ((ret = wc_CmacFinalNoFree(&eax->ciphertextCmac,
+                                  eax->ciphertextCmacFinal,
+                                  &cmacSize)) != 0) {
+        return ret;
     }
 
     /* Complete the OMAC for auth data */
     cmacSize = AES_BLOCK_SIZE;
-    aadCmac_finalized = 1;
-    if ((ret = wc_CmacFinal(&eax->aadCmac,
-                            eax->aadCmacFinal,
-                            &cmacSize)) != 0) {
-        goto out;
+    if ((ret = wc_CmacFinalNoFree(&eax->aadCmac,
+                                  eax->aadCmacFinal,
+                                  &cmacSize)) != 0) {
+        return ret;
     }
 
 #if defined(WOLFSSL_SMALL_STACK)
     authTag = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (authTag == NULL) {
-        ret = MEMORY_E;
-        goto out;
+        return MEMORY_E;
     }
 #endif
 
@@ -13730,13 +13726,6 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
         ret = 0;
     }
 
-out:
-
-    if (! ciphertextCmac_finalized)
-        (void)wc_CmacFinal(&eax->ciphertextCmac, NULL, NULL);
-    if (! aadCmac_finalized)
-        (void)wc_CmacFinal(&eax->aadCmac, NULL, NULL);
-
 #if defined(WOLFSSL_SMALL_STACK)
     XFREE(authTag, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -13745,8 +13734,8 @@ out:
 }
 
 /*
- * Frees the underlying AES context. Must be called when done using the AES EAX
- * context structure
+ * Frees the underlying CMAC and AES contexts. Must be called when done using
+ * the AES EAX context structure.
  *
  * Returns 0 on success
  * Returns error code on failure
@@ -13757,6 +13746,8 @@ int wc_AesEaxFree(AesEax* eax)
         return BAD_FUNC_ARG;
     }
 
+    (void)wc_CmacFree(&eax->ciphertextCmac);
+    (void)wc_CmacFree(&eax->aadCmac);
     wc_AesFree(&eax->aes);
 
     return 0;
