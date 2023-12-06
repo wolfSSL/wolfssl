@@ -16930,7 +16930,7 @@ static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
         goto done;
     }
     ret = wc_RsaPublicKeyDecodeRaw(n, (word32)-1, e, sizeof(e), keyPub);
-#if !defined(WOLFSSL_SP_MATH) & !defined(WOLFSSL_SP_MATH_ALL)
+#if defined(USE_INTEGER_HEAP_MATH)
     if (ret != 0)
 #else
     if (ret != ASN_GETINT_E)
@@ -16944,11 +16944,12 @@ static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, (word32)-1, keyPub);
-#if !defined(WOLFSSL_SP_MATH) & !defined(WOLFSSL_SP_MATH_ALL)
-    if (ret != 0) {
+#if defined(USE_INTEGER_HEAP_MATH)
+    if (ret != 0)
 #else
-    if (ret != ASN_GETINT_E) {
+    if (ret != ASN_GETINT_E)
 #endif
+    {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
