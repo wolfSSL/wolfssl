@@ -1779,11 +1779,11 @@ enum Misc {
 
     PQC_SA_MAJOR        = 0xFE,/* Most significant byte used with PQC sig algs */
 
-    /* These values for falcon and dilithium match what OQS has defined in their OpenSSL fork. */
+    /* These values for falcon and dilithium match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
-    FALCON_LEVEL1_SA_MINOR = 0x0B,
+    FALCON_LEVEL1_SA_MINOR = 0xAE,
     FALCON_LEVEL5_SA_MAJOR = 0xFE,
-    FALCON_LEVEL5_SA_MINOR = 0x0E,
+    FALCON_LEVEL5_SA_MINOR = 0xB1,
 
     DILITHIUM_LEVEL2_SA_MAJOR = 0xFE,
     DILITHIUM_LEVEL2_SA_MINOR = 0xA0,

@@ -1136,8 +1136,8 @@ enum Key_Sum {
     ED448k            = 257, /* 1.3.101.113 */
     X448k             = 255, /* 1.3.101.111 */
     DHk               = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
-    FALCON_LEVEL1k    = 268, /* 1.3.9999.3.1 */
-    FALCON_LEVEL5k    = 271, /* 1.3.9999.3.4 */
+    FALCON_LEVEL1k    = 273, /* 1.3.9999.3.6 */
+    FALCON_LEVEL5k    = 276, /* 1.3.9999.3.9 */
     DILITHIUM_LEVEL2k = 213,    /* 1.3.6.1.4.1.2.267.7.4.4 */
     DILITHIUM_LEVEL3k = 216,    /* 1.3.6.1.4.1.2.267.7.6.5 */
     DILITHIUM_LEVEL5k = 220,    /* 1.3.6.1.4.1.2.267.7.8.7 */

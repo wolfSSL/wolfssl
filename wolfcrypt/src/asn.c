@@ -4019,11 +4019,11 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #endif /* HAVE_ED448 */
 #ifdef HAVE_PQC
 #ifdef HAVE_FALCON
-    /* Falcon Level 1: 1 3 9999 3 1 */
-    static const byte sigFalcon_Level1Oid[] = {43, 206, 15, 3, 1};
+    /* Falcon Level 1: 1 3 9999 3 6 */
+    static const byte sigFalcon_Level1Oid[] = {43, 206, 15, 3, 6};
 
-    /* Falcon Level 5: 1 3 9999 3 4 */
-    static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 4};
+    /* Falcon Level 5: 1 3 9999 3 9 */
+    static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
 #endif /* HAVE_FACON */
 #ifdef HAVE_DILITHIUM
     /* Dilithium Level 2: 1.3.6.1.4.1.2.267.7.4.4 */
@@ -4095,11 +4095,11 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #endif /* !NO_DH */
 #ifdef HAVE_PQC
 #ifdef HAVE_FALCON
-    /* Falcon Level 1: 1 3 9999 3 1 */
-    static const byte keyFalcon_Level1Oid[] = {43, 206, 15, 3, 1};
+    /* Falcon Level 1: 1 3 9999 3 6 */
+    static const byte keyFalcon_Level1Oid[] = {43, 206, 15, 3, 6};
 
-    /* Falcon Level 5: 1 3 9999 3 4 */
-    static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 4};
+    /* Falcon Level 5: 1 3 9999 3 9 */
+    static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
     /* Dilithium Level 2: 1.3.6.1.4.1.2.267.7.4.4 */
