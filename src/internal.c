@@ -27050,7 +27050,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
         #endif
         ) {
-            *length = GetPrivateKeySigSize(ssl);
+            *length = (word16)GetPrivateKeySigSize(ssl);
             return 0;
         }
         else
@@ -31582,7 +31582,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             if (ssl->buffers.key == NULL) {
             #ifdef HAVE_PK_CALLBACKS
                 if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
-                    args->length = GetPrivateKeySigSize(ssl);
+                    args->length = (word16)GetPrivateKeySigSize(ssl);
                 else
             #endif
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
@@ -33555,7 +33555,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             if (ssl->buffers.key == NULL) {
                             #ifdef HAVE_PK_CALLBACKS
                                 if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
-                                    keySz = (word32)GetPrivateKeySigSize(ssl);
+                                    keySz = (word16)GetPrivateKeySigSize(ssl);
                                 else
                             #endif
                                     ERROR_OUT(NO_PRIVATE_KEY, exit_sske);
