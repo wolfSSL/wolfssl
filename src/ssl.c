@@ -16303,6 +16303,163 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->certSetupCbArg = arg;
     }
 
+    int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+            const byte** suites, word16* suiteSz,
+            const byte** hashSigAlgo, word16* hashSigAlgoSz)
+    {
+        WOLFSSL_ENTER("wolfSSL_get_client_suites_sigalgs");
+
+        if (suites != NULL)
+            *suites = NULL;
+        if (suiteSz != NULL)
+            *suiteSz = 0;
+        if (hashSigAlgo != NULL)
+            *hashSigAlgo = NULL;
+        if (hashSigAlgoSz != NULL)
+            *hashSigAlgoSz = 0;
+
+        if (ssl != NULL && ssl->clSuites != NULL) {
+            if (suites != NULL && suiteSz != NULL) {
+                *suites = ssl->clSuites->suites;
+                *suiteSz = ssl->clSuites->suiteSz;
+            }
+            if (hashSigAlgo != NULL && hashSigAlgoSz != NULL) {
+                *hashSigAlgo = ssl->clSuites->hashSigAlgo;
+                *hashSigAlgoSz = ssl->clSuites->hashSigAlgoSz;
+            }
+            return WOLFSSL_SUCCESS;
+        }
+        return WOLFSSL_FAILURE;
+    }
+    WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
+            byte second)
+    {
+        WOLFSSL_CIPHERSUITE_INFO info;
+        info.rsaAuth = (byte)(CipherRequires(first, second, REQUIRES_RSA) ||
+                CipherRequires(first, second, REQUIRES_RSA_SIG));
+        info.eccAuth = (byte)(CipherRequires(first, second, REQUIRES_ECC) ||
+                /* Static ECC ciphers may require RSA for authentication */
+                (CipherRequires(first, second, REQUIRES_ECC_STATIC) &&
+                        !CipherRequires(first, second, REQUIRES_RSA_SIG)));
+        info.eccStatic =
+                (byte)CipherRequires(first, second, REQUIRES_ECC_STATIC);
+        info.psk = (byte)CipherRequires(first, second, REQUIRES_PSK);
+        return info;
+    }
+
+    /**
+     * @param first First byte of the hash and signature algorithm
+     * @param second Second byte of the hash and signature algorithm
+     * @param hashAlgo The enum wc_HashType of the MAC algorithm
+     * @param sigAlgo The enum Key_Sum of the authentication algorithm
+     */
+    int wolfSSL_get_sigalg_info(byte first, byte second,
+            int* hashAlgo, int* sigAlgo)
+    {
+        byte input[2];
+        byte hashType;
+        byte sigType;
+
+        if (hashAlgo == NULL || sigAlgo == NULL)
+            return BAD_FUNC_ARG;
+
+        input[0] = first;
+        input[1] = second;
+        DecodeSigAlg(input, &hashType, &sigType);
+
+        /* cast so that compiler reminds us of unimplemented values */
+        switch ((enum SignatureAlgorithm)sigType) {
+        case anonymous_sa_algo:
+            *sigAlgo = (enum Key_Sum)0;
+            break;
+        case rsa_sa_algo:
+            *sigAlgo = RSAk;
+            break;
+        case dsa_sa_algo:
+            *sigAlgo = DSAk;
+            break;
+        case ecc_dsa_sa_algo:
+            *sigAlgo = ECDSAk;
+            break;
+        case rsa_pss_sa_algo:
+            *sigAlgo = RSAPSSk;
+            break;
+        case ed25519_sa_algo:
+            *sigAlgo = ED25519k;
+            break;
+        case rsa_pss_pss_algo:
+            *sigAlgo = RSAPSSk;
+            break;
+        case ed448_sa_algo:
+            *sigAlgo = ED448k;
+            break;
+        case falcon_level1_sa_algo:
+            *sigAlgo = FALCON_LEVEL1k;
+            break;
+        case falcon_level5_sa_algo:
+            *sigAlgo = FALCON_LEVEL5k;
+            break;
+        case dilithium_level2_sa_algo:
+            *sigAlgo = DILITHIUM_LEVEL2k;
+            break;
+        case dilithium_level3_sa_algo:
+            *sigAlgo = DILITHIUM_LEVEL3k;
+            break;
+        case dilithium_level5_sa_algo:
+            *sigAlgo = DILITHIUM_LEVEL5k;
+            break;
+        case sm2_sa_algo:
+            *sigAlgo = SM2k;
+            break;
+        case invalid_sa_algo:
+        default:
+            *hashAlgo = WC_HASH_TYPE_NONE;
+            *sigAlgo = 0;
+            return BAD_FUNC_ARG;
+        }
+
+        /* cast so that compiler reminds us of unimplemented values */
+        switch((enum wc_MACAlgorithm)hashType) {
+        case no_mac:
+        case rmd_mac: /* Don't have a RIPEMD type in wc_HashType */
+            *hashAlgo = WC_HASH_TYPE_NONE;
+            break;
+        case md5_mac:
+            *hashAlgo = WC_HASH_TYPE_MD5;
+            break;
+        case sha_mac:
+            *hashAlgo = WC_HASH_TYPE_SHA;
+            break;
+        case sha224_mac:
+            *hashAlgo = WC_HASH_TYPE_SHA224;
+            break;
+        case sha256_mac:
+            *hashAlgo = WC_HASH_TYPE_SHA256;
+            break;
+        case sha384_mac:
+            *hashAlgo = WC_HASH_TYPE_SHA384;
+            break;
+        case sha512_mac:
+            *hashAlgo = WC_HASH_TYPE_SHA512;
+            break;
+        case blake2b_mac:
+            *hashAlgo = WC_HASH_TYPE_BLAKE2B;
+            break;
+        case sm3_mac:
+#ifdef WOLFSSL_SM3
+            *hashAlgo = WC_HASH_TYPE_SM3;
+#else
+            *hashAlgo = WC_HASH_TYPE_NONE;
+#endif
+            break;
+        default:
+            *hashAlgo = WC_HASH_TYPE_NONE;
+            *sigAlgo = 0;
+            return BAD_FUNC_ARG;
+        }
+        return 0;
+    }
+
     /**
      * Internal wrapper for calling certSetupCb
      * @param ssl The SSL/TLS Object

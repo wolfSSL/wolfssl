@@ -370,7 +370,7 @@
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
     defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
     defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
-    || !defined(WOLFSSL_NO_TLS12)
+    || !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -5824,8 +5824,12 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx->c_ctx, PasswordCallBack);
 #endif
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->c_ctx, caCertFile, 0),
-        WOLFSSL_SUCCESS);
+    if (ctx->c_cb.caPemFile != NULL)
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->c_ctx,
+                ctx->c_cb.caPemFile, 0), WOLFSSL_SUCCESS);
+    else
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->c_ctx,
+                caCertFile, 0), WOLFSSL_SUCCESS);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (!c_sharedCtx)
 #endif
@@ -5889,8 +5893,12 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     wolfSSL_SetIOSend(ctx->s_ctx, test_ssl_memio_write_cb);
     wolfSSL_CTX_set_verify(ctx->s_ctx, WOLFSSL_VERIFY_PEER |
         WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->s_ctx, cliCertFile, 0),
-        WOLFSSL_SUCCESS);
+    if (ctx->s_cb.caPemFile != NULL)
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->s_ctx,
+                ctx->s_cb.caPemFile, 0), WOLFSSL_SUCCESS);
+    else
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx->s_ctx,
+                cliCertFile, 0), WOLFSSL_SUCCESS);
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx->s_ctx, PasswordCallBack);
 #endif
@@ -44748,60 +44756,40 @@ static int test_wolfSSL_BIO_reset(void)
 /* test that the callback arg is correct */
 static int certCbArg = 0;
 
-static int clientCertCb(WOLFSSL* ssl, void* arg)
+static int certCb(WOLFSSL* ssl, void* arg)
 {
     if (ssl == NULL || arg != &certCbArg)
         return 0;
-    if (wolfSSL_use_certificate_file(ssl, cliCertFile,
-            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
-        return 0;
-    if (wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
-            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
-        return 0;
+    if (wolfSSL_is_server(ssl)) {
+        if (wolfSSL_use_certificate_file(ssl, svrCertFile,
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+            return 0;
+        if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+            return 0;
+    }
+    else {
+        if (wolfSSL_use_certificate_file(ssl, cliCertFile,
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+            return 0;
+        if (wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+            return 0;
+    }
     return 1;
 }
 
-static int clientCertSetupCb(WOLFSSL_CTX* ctx)
+static int certSetupCb(WOLFSSL_CTX* ctx)
 {
-    SSL_CTX_set_cert_cb(ctx, clientCertCb, &certCbArg);
+    SSL_CTX_set_cert_cb(ctx, certCb, &certCbArg);
     return TEST_SUCCESS;
 }
 
 /**
- * This is only done because test_client_nofail has no way to stop
- * certificate and key loading
+ * This is only done because test_wolfSSL_client_server_nofail_memio has no way
+ * to stop certificate and key loading
  */
-static int clientCertClearCb(WOLFSSL* ssl)
-{
-    /* Clear the loaded certs to force the callbacks to set them up */
-    SSL_certs_clear(ssl);
-    return TEST_SUCCESS;
-}
-
-static int serverCertCb(WOLFSSL* ssl, void* arg)
-{
-    if (ssl == NULL || arg != &certCbArg)
-        return 0;
-    if (wolfSSL_use_certificate_file(ssl, svrCertFile,
-            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
-        return 0;
-    if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
-            WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
-        return 0;
-    return 1;
-}
-
-static int serverCertSetupCb(WOLFSSL_CTX* ctx)
-{
-    SSL_CTX_set_cert_cb(ctx, serverCertCb, &certCbArg);
-    return TEST_SUCCESS;
-}
-
-/**
- * This is only done because test_server_nofail has no way to stop
- * certificate and key loading
- */
-static int serverCertClearCb(WOLFSSL* ssl)
+static int certClearCb(WOLFSSL* ssl)
 {
     /* Clear the loaded certs to force the callbacks to set them up */
     SSL_certs_clear(ssl);
@@ -44820,13 +44808,302 @@ static int test_wolfSSL_cert_cb(void)
     XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
     XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
-    func_cb_client.ctx_ready = clientCertSetupCb;
-    func_cb_client.ssl_ready = clientCertClearCb;
-    func_cb_server.ctx_ready = serverCertSetupCb;
-    func_cb_server.ssl_ready = serverCertClearCb;
+    func_cb_client.ctx_ready = certSetupCb;
+    func_cb_client.ssl_ready = certClearCb;
+    func_cb_server.ctx_ready = certSetupCb;
+    func_cb_server.ssl_ready = certClearCb;
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
         &func_cb_server, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+
+static const char* test_wolfSSL_cert_cb_dyn_ciphers_client_cipher = NULL;
+static const char* test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs = NULL;
+static int test_wolfSSL_cert_cb_dyn_ciphers_client_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx,
+        test_wolfSSL_cert_cb_dyn_ciphers_client_cipher), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx,
+        test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs), WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
+{
+    const byte* suites = NULL;
+    word16 suiteSz = 0;
+    const byte* hashSigAlgo = NULL;
+    word16 hashSigAlgoSz = 0;
+    word16 idx = 0;
+    int haveRSA = 0;
+    int haveECC = 0;
+
+    (void)arg;
+
+    if (wolfSSL_get_client_suites_sigalgs(ssl, &suites, &suiteSz, &hashSigAlgo,
+            &hashSigAlgoSz) != WOLFSSL_SUCCESS)
+        return 0;
+    if (suites == NULL || suiteSz == 0 || hashSigAlgo == NULL ||
+            hashSigAlgoSz == 0)
+        return 0;
+
+    for (idx = 0; idx < suiteSz; idx += 2) {
+        WOLFSSL_CIPHERSUITE_INFO info =
+                wolfSSL_get_ciphersuite_info(suites[idx], suites[idx+1]);
+
+        if (info.rsaAuth)
+            haveRSA = 1;
+        else if (info.eccAuth)
+            haveECC = 1;
+    }
+
+    if (hashSigAlgoSz > 0) {
+        /* sigalgs extension takes precedence over ciphersuites */
+        haveRSA = 0;
+        haveECC = 0;
+    }
+    for (idx = 0; idx < hashSigAlgoSz; idx += 2) {
+        int hashAlgo;
+        int sigAlgo;
+
+        if (wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+                &hashAlgo, &sigAlgo) != 0)
+            return 0;
+
+        if (sigAlgo == RSAk || sigAlgo == RSAPSSk)
+            haveRSA = 1;
+        else if (sigAlgo == ECDSAk)
+            haveECC = 1;
+    }
+
+    if (haveRSA) {
+        if (wolfSSL_use_certificate_file(ssl, svrCertFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            return 0;
+        if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            return 0;
+    }
+    else if (haveECC) {
+        if (wolfSSL_use_certificate_file(ssl, eccCertFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            return 0;
+        if (wolfSSL_use_PrivateKey_file(ssl, eccKeyFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            return 0;
+    }
+
+    return 1;
+}
+
+static int test_wolfSSL_cert_cb_dyn_ciphers_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_cert_cb(ctx, test_wolfSSL_cert_cb_dyn_ciphers_certCB, NULL);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    return TEST_SUCCESS;
+}
+
+#endif
+
+/* Testing dynamic ciphers offered by client */
+static int test_wolfSSL_cert_cb_dyn_ciphers(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+    struct {
+        method_provider client_meth;
+        const char* client_ciphers;
+        const char* client_sigalgs;
+        const char* client_ca;
+        method_provider server_meth;
+    } test_params[] = {
+#if !defined(NO_SHA256) && defined(HAVE_AESGCM)
+#ifdef WOLFSSL_TLS13
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        {wolfTLSv1_3_client_method,
+                "TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256",
+                "RSA-PSS+SHA256", caCertFile, wolfTLSv1_3_server_method},
+#endif
+#ifdef HAVE_ECC
+        {wolfTLSv1_3_client_method,
+                "TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256",
+                "ECDSA+SHA256", caEccCertFile, wolfTLSv1_3_server_method},
+#endif
+#endif
+#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_DH)
+        {wolfTLSv1_2_client_method,
+                "DHE-RSA-AES128-GCM-SHA256",
+                "RSA-PSS+SHA256", caCertFile, wolfTLSv1_2_server_method},
+#endif
+#ifdef HAVE_ECC
+        {wolfTLSv1_2_client_method,
+                "ECDHE-ECDSA-AES128-GCM-SHA256",
+                "ECDSA+SHA256", caEccCertFile, wolfTLSv1_2_server_method},
+#endif
+#endif
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(test_params)/sizeof(*test_params); i++) {
+        printf("\tTesting %s ciphers with %s sigalgs\n",
+                test_params[i].client_ciphers, test_params[i].client_sigalgs);
+
+        XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+        XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+        test_wolfSSL_cert_cb_dyn_ciphers_client_cipher =
+                test_params[i].client_ciphers;
+        test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs =
+                test_params[i].client_sigalgs;
+        func_cb_client.method = test_params[i].client_meth;
+        func_cb_client.caPemFile = test_params[i].client_ca;
+        func_cb_client.ctx_ready =
+                test_wolfSSL_cert_cb_dyn_ciphers_client_ctx_ready;
+
+        func_cb_server.ctx_ready =
+                test_wolfSSL_cert_cb_dyn_ciphers_server_ctx_ready;
+        func_cb_server.ssl_ready = certClearCb; /* Reuse from previous test */
+        func_cb_server.method = test_params[i].server_meth;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+            &func_cb_server, NULL), TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_ciphersuite_auth(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    WOLFSSL_CIPHERSUITE_INFO info;
+
+    (void)info;
+
+#ifndef WOLFSSL_NO_TLS12
+#ifdef HAVE_CHACHA
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(CHACHA_BYTE,
+            TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 1);
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+#ifndef NO_RSA
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_RSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_RSA_WITH_AES_256_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 1);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+#endif
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECC_BYTE,
+            TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 1);
+    ExpectIntEQ(info.eccStatic, 1);
+    ExpectIntEQ(info.psk, 0);
+
+    info = wolfSSL_get_ciphersuite_info(ECDHE_PSK_BYTE,
+            TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 1);
+#endif
+#endif
+
+#ifdef WOLFSSL_TLS13
+    info = wolfSSL_get_ciphersuite_info(TLS13_BYTE,
+            TLS_AES_128_GCM_SHA256);
+    ExpectIntEQ(info.rsaAuth, 0);
+    ExpectIntEQ(info.eccAuth, 0);
+    ExpectIntEQ(info.eccStatic, 0);
+    ExpectIntEQ(info.psk, 0);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_sigalg_info(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
+    word16 len = 0;
+    word16 idx = 0;
+    int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_DILITHIUM;
+
+    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
+    for (idx = 0; idx < len; idx += 2) {
+        int hashAlgo;
+        int sigAlgo;
+
+        ExpectIntEQ(wolfSSL_get_sigalg_info(hashSigAlgo[idx+0],
+                hashSigAlgo[idx+1], &hashAlgo, &sigAlgo), 0);
+
+        ExpectIntNE(hashAlgo, 0);
+        ExpectIntNE(sigAlgo, 0);
+    }
+
+    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
+            0xFFFFFFFF, &len);
+    for (idx = 0; idx < len; idx += 2) {
+        int hashAlgo;
+        int sigAlgo;
+
+        ExpectIntEQ(wolfSSL_get_sigalg_info(hashSigAlgo[idx+0],
+                hashSigAlgo[idx+1], &hashAlgo, &sigAlgo), 0);
+
+        ExpectIntNE(hashAlgo, 0);
+    }
+
 #endif
     return EXPECT_RESULT();
 }
@@ -69051,6 +69328,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_check_domain),
 #endif
     TEST_DECL(test_wolfSSL_cert_cb),
+    TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
+    TEST_DECL(test_wolfSSL_ciphersuite_auth),
+    TEST_DECL(test_wolfSSL_sigalg_info),
     /* Can't memory test as tcp_connect aborts. */
     TEST_DECL(test_wolfSSL_SESSION),
     TEST_DECL(test_wolfSSL_SESSION_expire_downgrade),

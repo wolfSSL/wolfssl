@@ -14854,3 +14854,111 @@ available size need to be provided in bufferSz.
 */
 int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+
+/*!
+    \ingroup TLS
+
+    \brief This function returns the raw list of ciphersuites and signature
+    algorithms offered by the client. The lists are only stored and returned
+    inside a callback setup with wolfSSL_CTX_set_cert_cb(). This is useful to
+    be able to dynamically load certificates and keys based on the available
+    ciphersuites and signature algorithms.
+
+    \param [in] ssl The WOLFSSL object to extract the lists from.
+    \param [out] optional suites Raw and unfiltered list of client ciphersuites
+    \param [out] optional suiteSz Size of suites in bytes
+    \param [out] optional hashSigAlgo Raw and unfiltered list of client
+                          signature algorithms
+    \param [out] optional hashSigAlgoSz Size of hashSigAlgo in bytes
+    \return WOLFSSL_SUCCESS when suites available
+    \return WOLFSSL_FAILURE when suites not available
+
+    _Example_
+    \code
+    int certCB(WOLFSSL* ssl, void* arg)
+    {
+        const byte* suites = NULL;
+        word16 suiteSz = 0;
+        const byte* hashSigAlgo = NULL;
+        word16 hashSigAlgoSz = 0;
+
+        wolfSSL_get_client_suites_sigalgs(ssl, &suites, &suiteSz, &hashSigAlgo,
+                &hashSigAlgoSz);
+
+        // Choose certificate to load based on ciphersuites and sigalgs
+    }
+
+    WOLFSSL* ctx;
+    ctx  = wolfSSL_CTX_new(wolfTLSv1_3_method_ex(NULL));
+    wolfSSL_CTX_set_cert_cb(ctx, certCB, NULL);
+    \endcode
+
+    \sa wolfSSL_get_ciphersuite_info
+    \sa wolfSSL_get_sigalg_info
+*/
+int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+        const byte** suites, word16* suiteSz,
+        const byte** hashSigAlgo, word16* hashSigAlgoSz);
+
+/*!
+    \ingroup TLS
+
+    \brief This returns information about the ciphersuite directly from the
+    raw ciphersuite bytes.
+
+    \param [in] first First byte of the ciphersuite
+    \param [in] second Second byte of the ciphersuite
+
+    \return WOLFSSL_CIPHERSUITE_INFO A struct containing information about the
+    type of authentication used in the ciphersuite.
+
+    _Example_
+    \code
+    WOLFSSL_CIPHERSUITE_INFO info =
+            wolfSSL_get_ciphersuite_info(suites[0], suites[1]);
+    if (info.rsaAuth)
+        haveRSA = 1;
+    else if (info.eccAuth)
+        haveECC = 1;
+    \endcode
+
+    \sa wolfSSL_get_client_suites_sigalgs
+    \sa wolfSSL_get_sigalg_info
+*/
+WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
+        byte second);
+
+/*!
+    \ingroup TLS
+
+    \brief This returns information about the hash and signature algorithm
+    directly from the raw ciphersuite bytes.
+
+    \param [in] first First byte of the hash and signature algorithm
+    \param [in] second Second byte of the hash and signature algorithm
+    \param [out] hashAlgo The enum wc_HashType of the MAC algorithm
+    \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
+
+    \return 0            when info was correctly set
+    \return BAD_FUNC_ARG when either input paramters are NULL or the bytes
+                         are not a recognized sigalg suite
+
+    _Example_
+    \code
+    enum wc_HashType hashAlgo;
+    enum Key_Sum sigAlgo;
+
+    wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+            &hashAlgo, &sigAlgo);
+
+    if (sigAlgo == RSAk || sigAlgo == RSAPSSk)
+        haveRSA = 1;
+    else if (sigAlgo == ECDSAk)
+        haveECC = 1;
+    \endcode
+
+    \sa wolfSSL_get_client_suites_sigalgs
+    \sa wolfSSL_get_ciphersuite_info
+*/
+int wolfSSL_get_sigalg_info(byte first, byte second,
+        int* hashAlgo, int* sigAlgo);
