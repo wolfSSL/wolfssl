@@ -2106,7 +2106,9 @@ void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx)
     if (ctx != NULL) {
         /* Deallocate dynamically allocated fields. */
         if (ctx->internal != NULL) {
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
             wc_CmacFree((Cmac*)ctx->internal);
+#endif
             XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
         }
         if (ctx->cctx != NULL) {
