@@ -15795,15 +15795,24 @@ static int test_wc_CmacFinal(void)
     ExpectIntEQ(wc_InitCmac(&cmac, key, keySz, type, NULL), 0);
     ExpectIntEQ(wc_CmacUpdate(&cmac, msg, msgSz), 0);
 
-    ExpectIntEQ(wc_CmacFinalNoFree(&cmac, mac, &macSz), 0);
-    ExpectIntEQ(XMEMCMP(mac, expMac, expMacSz), 0);
-
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     /* Pass in bad args. */
     ExpectIntEQ(wc_CmacFinalNoFree(NULL, mac, &macSz), BAD_FUNC_ARG);
     ExpectIntEQ(wc_CmacFinalNoFree(&cmac, NULL, &macSz), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_CmacFinalNoFree(&cmac, mac, &badMacSz), BUFFER_E);
 
     /* For the last call, use the API with implicit wc_CmacFree(). */
+    ExpectIntEQ(wc_CmacFinal(&cmac, mac, &macSz), 0);
+    ExpectIntEQ(XMEMCMP(mac, expMac, expMacSz), 0);
+#else /* !HAVE_FIPS || FIPS>=5.3 */
+    ExpectIntEQ(wc_CmacFinal(&cmac, mac, &macSz), 0);
+    ExpectIntEQ(XMEMCMP(mac, expMac, expMacSz), 0);
+
+    /* Pass in bad args. */
+    ExpectIntEQ(wc_CmacFinal(NULL, mac, &macSz), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_CmacFinal(&cmac, NULL, &macSz), BAD_FUNC_ARG);
     ExpectIntEQ(wc_CmacFinal(&cmac, mac, &badMacSz), BUFFER_E);
+#endif /* !HAVE_FIPS || FIPS>=5.3 */
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CmacFinal */
