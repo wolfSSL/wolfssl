@@ -14707,6 +14707,9 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
+/* date = ASN.1 raw */
+/* format = ASN_UTC_TIME or ASN_GENERALIZED_TIME */
+/* dateType = AFTER or BEFORE */
 int wc_ValidateDate(const byte* date, byte format, int dateType)
 {
     time_t ltime;
