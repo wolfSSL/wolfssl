@@ -16296,7 +16296,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->certSetupCbArg = arg;
     }
 
-    void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+    int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
             const byte** suites, word16* suiteSz,
             const byte** hashSigAlgo, word16* hashSigAlgoSz)
     {
@@ -16320,7 +16320,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 *hashSigAlgo = ssl->clSuites->hashSigAlgo;
                 *hashSigAlgoSz = ssl->clSuites->hashSigAlgoSz;
             }
+            return WOLFSSL_SUCCESS;
         }
+        return WOLFSSL_FAILURE;
     }
     WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
             byte second)
@@ -16344,7 +16346,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
      * @param hashAlgo The enum wc_HashType of the MAC algorithm
      * @param sigAlgo The enum Key_Sum of the authentication algorithm
      */
-    void wolfSSL_get_sigalg_info(byte first, byte second,
+    int wolfSSL_get_sigalg_info(byte first, byte second,
             int* hashAlgo, int* sigAlgo)
     {
         byte input[2];
@@ -16352,7 +16354,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         byte sigType;
 
         if (hashAlgo == NULL || sigAlgo == NULL)
-            return;
+            return BAD_FUNC_ARG;
 
         input[0] = first;
         input[1] = second;
@@ -16406,7 +16408,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         default:
             *hashAlgo = WC_HASH_TYPE_NONE;
             *sigAlgo = 0;
-            return;
+            return BAD_FUNC_ARG;
         }
 
         /* cast so that compiler reminds us of unimplemented values */
@@ -16446,8 +16448,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         default:
             *hashAlgo = WC_HASH_TYPE_NONE;
             *sigAlgo = 0;
-            return;
+            return BAD_FUNC_ARG;
         }
+        return 0;
     }
 
     /**

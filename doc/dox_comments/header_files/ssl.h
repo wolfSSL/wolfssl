@@ -14865,10 +14865,13 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     ciphersuites and signature algorithms.
 
     \param [in] ssl The WOLFSSL object to extract the lists from.
-    \param [out] suites Raw and unfiltered list of client ciphersuites
-    \param [out] suiteSz Size of suites in bytes
-    \param [out] hashSigAlgo Raw and unfiltered list of client signature algorithms
-    \param [out] hashSigAlgoSz Size of hashSigAlgo in bytes
+    \param [out] optional suites Raw and unfiltered list of client ciphersuites
+    \param [out] optional suiteSz Size of suites in bytes
+    \param [out] optional hashSigAlgo Raw and unfiltered list of client
+                          signature algorithms
+    \param [out] optional hashSigAlgoSz Size of hashSigAlgo in bytes
+    \return WOLFSSL_SUCCESS when suites available
+    \return WOLFSSL_FAILURE when suites not available
 
     _Example_
     \code
@@ -14893,7 +14896,7 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     \sa wolfSSL_get_ciphersuite_info
     \sa wolfSSL_get_sigalg_info
 */
-void wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
         const byte** hashSigAlgo, word16* hashSigAlgoSz);
 
@@ -14936,6 +14939,10 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \param [out] hashAlgo The enum wc_HashType of the MAC algorithm
     \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
 
+    \return 0            when info was correctly set
+    \return BAD_FUNC_ARG when either input paramters are NULL or the bytes
+                         are not a recognized sigalg suite
+
     _Example_
     \code
     enum wc_HashType hashAlgo;
@@ -14953,5 +14960,5 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \sa wolfSSL_get_client_suites_sigalgs
     \sa wolfSSL_get_ciphersuite_info
 */
-void wolfSSL_get_sigalg_info(byte first, byte second,
+int wolfSSL_get_sigalg_info(byte first, byte second,
         int* hashAlgo, int* sigAlgo);

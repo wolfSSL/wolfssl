@@ -44843,8 +44843,9 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
 
     (void)arg;
 
-    wolfSSL_get_client_suites_sigalgs(ssl, &suites, &suiteSz, &hashSigAlgo,
-            &hashSigAlgoSz);
+    if (wolfSSL_get_client_suites_sigalgs(ssl, &suites, &suiteSz, &hashSigAlgo,
+            &hashSigAlgoSz) != WOLFSSL_SUCCESS)
+        return 0;
     if (suites == NULL || suiteSz == 0 || hashSigAlgo == NULL ||
             hashSigAlgoSz == 0)
         return 0;
@@ -44868,8 +44869,9 @@ static int test_wolfSSL_cert_cb_dyn_ciphers_certCB(WOLFSSL* ssl, void* arg)
         int hashAlgo;
         int sigAlgo;
 
-        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
-                &hashAlgo, &sigAlgo);
+        if (wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
+                &hashAlgo, &sigAlgo) != 0)
+            return 0;
 
         if (sigAlgo == RSAk || sigAlgo == RSAPSSk)
             haveRSA = 1;
@@ -45081,8 +45083,8 @@ static int test_wolfSSL_sigalg_info(void)
         int hashAlgo;
         int sigAlgo;
 
-        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
-                &hashAlgo, &sigAlgo);
+        ExpectIntEQ(wolfSSL_get_sigalg_info(hashSigAlgo[idx+0],
+                hashSigAlgo[idx+1], &hashAlgo, &sigAlgo), 0);
 
         ExpectIntNE(hashAlgo, 0);
         ExpectIntNE(sigAlgo, 0);
@@ -45094,8 +45096,8 @@ static int test_wolfSSL_sigalg_info(void)
         int hashAlgo;
         int sigAlgo;
 
-        wolfSSL_get_sigalg_info(hashSigAlgo[idx+0], hashSigAlgo[idx+1],
-                &hashAlgo, &sigAlgo);
+        ExpectIntEQ(wolfSSL_get_sigalg_info(hashSigAlgo[idx+0],
+                hashSigAlgo[idx+1], &hashAlgo, &sigAlgo), 0);
 
         ExpectIntNE(hashAlgo, 0);
     }
