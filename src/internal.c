@@ -26130,13 +26130,16 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         }
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
-        if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
-            WOLFSSL_MSG("Too many ciphersuites");
-            return 0;
+        if (ctx->method->side == WOLFSSL_CLIENT_END) {
+            if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
+                WOLFSSL_MSG("Too many ciphersuites");
+                return 0;
+            }
+            suites->suites[suites->suiteSz] = CIPHER_BYTE;
+            suites->suites[suites->suiteSz+1] =
+                TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
+            suites->suiteSz += 2;
         }
-        suites->suites[suites->suiteSz] = CIPHER_BYTE;
-        suites->suites[suites->suiteSz+1] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
-        suites->suiteSz += 2;
 #endif
         suites->setSuites = 1;
     }
@@ -26274,13 +26277,16 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
             &suites->hashSigAlgoSz);
 #ifdef HAVE_RENEGOTIATION_INDICATION
-        if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
-            WOLFSSL_MSG("Too many ciphersuites");
-            return 0;
+        if (ctx->method->side == WOLFSSL_CLIENT_END) {
+            if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
+                WOLFSSL_MSG("Too many ciphersuites");
+                return 0;
+            }
+            suites->suites[suites->suiteSz] = CIPHER_BYTE;
+            suites->suites[suites->suiteSz+1] =
+                TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
+            suites->suiteSz += 2;
         }
-        suites->suites[suites->suiteSz] = CIPHER_BYTE;
-        suites->suites[suites->suiteSz+1] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
-        suites->suiteSz += 2;
 #endif
         suites->setSuites = 1;
     }
