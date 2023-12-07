@@ -3233,7 +3233,14 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     }
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData != no_early_data && (ret = wolfSSL_negotiate(ssl)) < 0) {
+    if (IsAtLeastTLSv1_3(ssl->version) &&
+            ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->options.acceptState >= TLS13_ACCEPT_FINISHED_SENT) {
+        /* We can send data without waiting on peer finished msg */
+        WOLFSSL_MSG("server sending data before receiving client finished");
+    }
+    else if (ssl->earlyData != no_early_data &&
+            (ret = wolfSSL_negotiate(ssl)) < 0) {
         ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
@@ -7779,11 +7786,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     #ifdef WOLF_PRIVATE_KEY_ID
         if (ssl != NULL) {
-            ssl->buffers.keyType = keyType;
+            ssl->buffers.keyType = (byte)keyType;
             ssl->buffers.keySz = keySz;
         }
         else if (ctx != NULL) {
-            ctx->privateKeyType = keyType;
+            ctx->privateKeyType = (byte)keyType;
             ctx->privateKeySz = keySz;
         }
     #endif

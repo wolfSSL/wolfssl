@@ -4425,9 +4425,6 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c) /* //NOLINT(misc-no-recursion) *
   /* old number of used digits in c */
   oldused = c->used;
 
-  /* sign always positive */
-  c->sign = MP_ZPOS;
-
   /* source alias */
   tmpa    = a->dp;
 
@@ -4477,6 +4474,9 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c) /* //NOLINT(misc-no-recursion) *
       */
      ix       = 1;
   }
+
+  /* sign always positive */
+  c->sign = MP_ZPOS;
 
   /* now zero to oldused */
   while (ix++ < oldused) {
