@@ -1226,6 +1226,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 }
             }
 
+            if (ret == 0)
+                ret = WOLFSSL_SUCCESS;
+            else
+                ret = WOLFSSL_FAILURE;
+
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
             if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
                               (byte*)ctx->cipher.aes.reg,
@@ -1233,12 +1238,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
             {
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 ret = WOLFSSL_FAILURE;
-            }
-            else {
-                if (ret == 0)
-                    ret = WOLFSSL_SUCCESS;
-                else
-                    ret = WOLFSSL_FAILURE;
             }
 #endif /* WOLFSSL_AESGCM_STREAM */
             if (ret == WOLFSSL_SUCCESS) {
@@ -7498,7 +7497,7 @@ void wolfSSL_EVP_init(void)
             }
 
             if (key) {
-                ret = wc_AesXtsSetKey_NoInit(&ctx->cipher.xts, key,
+                ret = wc_AesXtsSetKeyNoInit(&ctx->cipher.xts, key,
                     (word32)ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
                 if (ret != 0) {
@@ -7539,7 +7538,7 @@ void wolfSSL_EVP_init(void)
             }
 
             if (key) {
-                ret = wc_AesXtsSetKey_NoInit(&ctx->cipher.xts, key,
+                ret = wc_AesXtsSetKeyNoInit(&ctx->cipher.xts, key,
                     (word32)ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
                 if (ret != 0) {

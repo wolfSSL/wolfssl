@@ -12283,7 +12283,7 @@ int wc_AesXtsInit(XtsAes* aes, void* heap, int devId)
  *
  * return 0 on success
  */
-int wc_AesXtsSetKey_NoInit(XtsAes* aes, const byte* key, word32 len, int dir)
+int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
 {
     word32 keySz;
     int    ret = 0;
@@ -12317,7 +12317,7 @@ int wc_AesXtsSetKey_NoInit(XtsAes* aes, const byte* key, word32 len, int dir)
     return ret;
 }
 
-/* Combined call to wc_AesXtsInit() and wc_AesXtsSetKey_NoInit().
+/* Combined call to wc_AesXtsInit() and wc_AesXtsSetKeyNoInit().
  *
  * Note: is up to user to call wc_AesXtsFree when done.
  *
@@ -12326,7 +12326,6 @@ int wc_AesXtsSetKey_NoInit(XtsAes* aes, const byte* key, word32 len, int dir)
 int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
         void* heap, int devId)
 {
-    word32 keySz;
     int    ret = 0;
 
     if (aes == NULL || key == NULL) {
@@ -12337,27 +12336,10 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
     if (ret != 0)
         return ret;
 
-    keySz = len/2;
-    if (keySz != 16 && keySz != 32) {
-        WOLFSSL_MSG("Unsupported key size");
-        return WC_KEY_SIZE_E;
-    }
+    ret = wc_AesXtsSetKeyNoInit(aes, key, len, dir);
 
-    if ((ret = wc_AesSetKey(&aes->aes, key, keySz, NULL, dir)) == 0) {
-        ret = wc_AesSetKey(&aes->tweak, key + keySz, keySz, NULL,
-                AES_ENCRYPTION);
-        if (ret != 0) {
-            wc_AesFree(&aes->aes);
-        }
-#ifdef WOLFSSL_AESNI
-        if (aes->aes.use_aesni != aes->tweak.use_aesni) {
-            if (aes->aes.use_aesni)
-                aes->aes.use_aesni = 0;
-            else
-                aes->tweak.use_aesni = 0;
-        }
-#endif
-    }
+    if (ret != 0)
+        wc_AesXtsFree(aes);
 
     return ret;
 }

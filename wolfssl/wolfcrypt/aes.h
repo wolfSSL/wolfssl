@@ -623,7 +623,7 @@ WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
 
 WOLFSSL_API int wc_AesXtsInit(XtsAes* aes, void* heap, int devId);
 
-WOLFSSL_API int wc_AesXtsSetKey_NoInit(XtsAes* aes, const byte* key,
+WOLFSSL_API int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key,
          word32 len, int dir);
 
 WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,

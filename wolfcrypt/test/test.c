@@ -9485,7 +9485,7 @@ static wc_test_ret_t aes_xts_128_test(void)
     else
         aes_inited = 1;
 
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -9513,7 +9513,7 @@ static wc_test_ret_t aes_xts_128_test(void)
 
     XMEMSET(buf, 0, sizeof(buf));
 
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
@@ -9565,7 +9565,7 @@ static wc_test_ret_t aes_xts_128_test(void)
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
@@ -9629,7 +9629,7 @@ static wc_test_ret_t aes_xts_128_test(void)
 
     /* set correct key and retest */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
@@ -9645,7 +9645,7 @@ static wc_test_ret_t aes_xts_128_test(void)
 
     /* Test ciphertext stealing in-place. */
     XMEMCPY(buf, p3, sizeof(p3));
-    ret = wc_AesXtsSetKey_NoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -9658,7 +9658,7 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(c3, buf, sizeof(c3)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_AesXtsSetKey_NoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, buf, sizeof(c3), i3, sizeof(i3));
@@ -9694,7 +9694,7 @@ static wc_test_ret_t aes_xts_128_test(void)
             large_input[i] = (byte)i;
 
         for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
-            ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
@@ -9705,7 +9705,7 @@ static wc_test_ret_t aes_xts_128_test(void)
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-            ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
@@ -9851,7 +9851,7 @@ static wc_test_ret_t aes_xts_256_test(void)
         aes_inited = 1;
 
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -9865,7 +9865,7 @@ static wc_test_ret_t aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
@@ -9888,7 +9888,7 @@ static wc_test_ret_t aes_xts_256_test(void)
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
@@ -9912,7 +9912,7 @@ static wc_test_ret_t aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
@@ -10128,7 +10128,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
         aes_inited = 1;
 
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10143,7 +10143,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecryptSector(aes, buf, c1, sizeof(c1), s1);
@@ -10157,7 +10157,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
 
     /* 256 bit key tests */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncryptSector(aes, buf, p2, sizeof(p2), s2);
@@ -10171,7 +10171,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecryptSector(aes, buf, c2, sizeof(c2), s2);
@@ -10187,7 +10187,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     /* encrypt consecutive sectors test */
     XMEMSET(data, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncryptConsecutiveSectors(aes, data, p3,
@@ -10202,7 +10202,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
 
     /* decrypt consecutive sectors test */
     XMEMSET(data, 0, sizeof(buf));
-    ret = wc_AesXtsSetKey_NoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecryptConsecutiveSectors(aes, data, c3,
@@ -10275,13 +10275,13 @@ static wc_test_ret_t aes_xts_args_test(void)
     else
         aes_inited = 1;
 
-    if (wc_AesXtsSetKey_NoInit(NULL, k1, sizeof(k1), AES_ENCRYPTION) == 0)
+    if (wc_AesXtsSetKeyNoInit(NULL, k1, sizeof(k1), AES_ENCRYPTION) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    if (wc_AesXtsSetKey_NoInit(aes, NULL, sizeof(k1), AES_ENCRYPTION) == 0)
+    if (wc_AesXtsSetKeyNoInit(aes, NULL, sizeof(k1), AES_ENCRYPTION) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     /* encryption operations */
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -10300,7 +10300,7 @@ static wc_test_ret_t aes_xts_args_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     /* decryption operations */
-    ret = wc_AesXtsSetKey_NoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecryptSector(NULL, buf, c1, sizeof(c1), s1);
