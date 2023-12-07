@@ -272,6 +272,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\hash.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hmac.c" />
     <ClCompile Include="..\..\wolfcrypt\src\integer.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\pkcs7.c" />
     <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
     <ClCompile Include="..\..\src\internal.c" />
     <ClCompile Include="..\..\src\wolfio.c" />
