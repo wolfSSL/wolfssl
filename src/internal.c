@@ -15972,43 +15972,44 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (ssl->msgsReceived.got_certificate_status == 0) {
+                int csrRet = 0;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-                if (ssl->status_request) {
-                    int ret;
-
+                if (csrRet == 0 && ssl->status_request) {
                     WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
-                    if ((ret = TLSX_CSR_ForceRequest(ssl)) != 0)
-                        return ret;
+                    csrRet = TLSX_CSR_ForceRequest(ssl);
                 }
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-                if (ssl->status_request_v2) {
-                    int ret;
-
+                if (csrRet == 0 && ssl->status_request_v2) {
                     WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
-                    if ((ret = TLSX_CSR2_ForceRequest(ssl)) != 0)
-                        return ret;
+                    csrRet = TLSX_CSR2_ForceRequest(ssl);
                 }
 #endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-                                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+                if (csrRet != 0) {
+                    /* Error out if OCSP lookups are enabled and failed or if
+                     * the user requires stapling. */
+                    if (SSL_CM(ssl)->ocspEnabled || SSL_CM(ssl)->ocspMustStaple)
+                        return csrRet;
+                }
                 /* Check that a status request extension was seen as the
                  * CertificateStatus wasn't when an OCSP staple is required.
                  */
                 if (
-    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                      !ssl->status_request &&
-    #endif
-    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                      !ssl->status_request_v2 &&
-    #endif
+#endif
                                                  SSL_CM(ssl)->ocspMustStaple) {
                     WOLFSSL_ERROR_VERBOSE(OCSP_CERT_UNKNOWN);
                     return OCSP_CERT_UNKNOWN;
                 }
-                #endif
             }
+#endif
 
             break;
 #endif
@@ -23298,8 +23299,12 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (ret == 0 && response.buffer) {
                 ret = BuildCertificateStatus(ssl, status_type, &response, 1);
-
             }
+
+            /* Let's not error out the connection if we can't verify our cert */
+            if (ret == ASN_SELF_SIGNED_E || ret == ASN_NO_SIGNER_E)
+                ret = 0;
+
             if (response.buffer) {
                 XFREE(response.buffer, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 response.buffer = NULL;
@@ -23427,6 +23432,10 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     }
                 }
             }
+
+            /* Let's not error out the connection if we can't verify our cert */
+            if (ret == ASN_SELF_SIGNED_E || ret == ASN_NO_SIGNER_E)
+                ret = 0;
 
             break;
         }

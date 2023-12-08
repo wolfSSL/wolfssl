@@ -243,16 +243,18 @@ else
     OPENSSL_RESULT=$?
     echo "$OPENSSL_OUTPUT"
     fgrep -q 'self signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
-    FGREP_RESULT=$?
-    if [ $OPENSSL_RESULT -eq 0 -a $FGREP_RESULT -ne 0 ]; then
+    FGREP1_RESULT=$?
+    fgrep -q 'self-signed certificate in certificate chain' <<< "$OPENSSL_OUTPUT"
+    FGREP2_RESULT=$?
+    if [ $OPENSSL_RESULT -eq 0 -a $FGREP1_RESULT -ne 0 -a $FGREP2_RESULT -ne 0 ]; then
         printf '%s\n' "Expected verification error from s_client is missing."
         remove_single_rF "$ready_file"
         exit 1
     fi
     remove_single_rF "$ready_file"
     wait $wolf_pid
-    if [ $? -ne 1 ]; then
-        printf '%s\n' "wolfSSL server unexpected fail value"
+    if [ $? -ne 0 ]; then
+        printf '%s\n' "wolfSSL server unexpected fail"
         exit 1
     fi
 fi

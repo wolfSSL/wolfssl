@@ -3307,9 +3307,13 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             InitDecodedCert(cert, ssl->buffers.certificate->buffer,
                             ssl->buffers.certificate->length, ssl->heap);
             ret = ParseCert(cert, CERT_TYPE, 1, SSL_CM(ssl));
-            if (ret != 0 ) {
+            if (ret != 0) {
                 FreeDecodedCert(cert);
                 XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                /* Let's not error out the connection if we can't verify our
+                 * cert */
+                if (ret == ASN_SELF_SIGNED_E || ret == ASN_NO_SIGNER_E)
+                    ret = 0;
                 return ret;
             }
             ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);

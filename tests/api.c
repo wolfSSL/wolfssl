@@ -68693,6 +68693,102 @@ static int test_dtls13_early_data(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+static int test_self_signed_stapling_client_v1_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), 1);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStapling(ctx, WOLFSSL_CSR_OCSP,
+            WOLFSSL_CSR_OCSP_USE_NONCE), 1);
+    return EXPECT_RESULT();
+}
+#endif
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+static int test_self_signed_stapling_client_v2_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), 1);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(ctx, WOLFSSL_CSR2_OCSP,
+            WOLFSSL_CSR2_OCSP_USE_NONCE), 1);
+    return EXPECT_RESULT();
+}
+
+static int test_self_signed_stapling_client_v2_multi_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), 1);
+    ExpectIntEQ(wolfSSL_CTX_UseOCSPStaplingV2(ctx, WOLFSSL_CSR2_OCSP_MULTI,
+            0), 1);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+static int test_self_signed_stapling_server_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), 1);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_self_signed_stapling(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        ctx_cb client_ctx;
+        const char* tls_version;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            test_self_signed_stapling_client_v1_ctx_ready, "TLSv1_3 v1" },
+#endif
+#ifndef WOLFSSL_NO_TLS12
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+            test_self_signed_stapling_client_v1_ctx_ready, "TLSv1_2 v1" },
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+            test_self_signed_stapling_client_v2_ctx_ready, "TLSv1_2 v2" },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
+            test_self_signed_stapling_client_v2_multi_ctx_ready,
+            "TLSv1_2 v2 multi" },
+#endif
+#endif
+    };
+
+    for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
+        XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+        XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+        printf("\nTesting self-signed cert with status request: %s\n",
+                params[i].tls_version);
+
+        client_cbf.method = params[i].client_meth;
+        client_cbf.ctx_ready = params[i].client_ctx;
+
+        server_cbf.method = params[i].server_meth;
+        server_cbf.certPemFile = "certs/ca-cert.pem";
+        server_cbf.keyPemFile  = "certs/ca-key.pem";
+        server_cbf.ctx_ready = test_self_signed_stapling_server_ctx_ready;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -69886,6 +69982,7 @@ TEST_CASE testCases[] = {
     /* OCSP Stapling */
     TEST_DECL(test_wolfSSL_UseOCSPStapling),
     TEST_DECL(test_wolfSSL_UseOCSPStaplingV2),
+    TEST_DECL(test_self_signed_stapling),
 
     /* Multicast */
     TEST_DECL(test_wolfSSL_mcast),
