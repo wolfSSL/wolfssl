@@ -250,7 +250,7 @@ jobs:
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')
             # Retry up to three times
             for i in {1..3}; do
-              HWSIM_RES=0
+              HWSIM_RES=0 # Not set when command succeeds
               # Logs can grow quickly especially in debug mode
               sudo rm -rf logs
               sudo ./start.sh
