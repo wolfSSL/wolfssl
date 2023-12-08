@@ -16,6 +16,9 @@ jobs:
           configure: --enable-memcached
           install: true
 
+      - name: Bundle Docker entry point
+        run: cp wolfssl/.github/workflows/memcached.sh build-dir/bin
+
       - name: Upload built lib
         uses: actions/upload-artifact@v3
         with:
@@ -77,5 +80,28 @@ jobs:
       - name: Run memcached tests
         working-directory: ./memcached
         run: |
-          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
-          make -j$(nproc) PARALLEL=$(nproc) test_tls
+          # Retry up to three times
+          # Using docker because interrupting the tests doesn't close running
+          # background servers. They can become daemonized and then all re-runs
+          # will always fail.
+          chmod +x $GITHUB_WORKSPACE/build-dir/bin/memcached.sh
+          for i in {1..3}; do
+            echo "-------- RUNNING TESTS --------"
+            MEMCACHED_RES=0 # Not set when command succeeds
+            # Tests should usually take less than 4 minutes. If already taking
+            # 5 minutes then they are probably stuck. Interrupt and re-run.
+            time timeout -s SIGKILL 5m docker run -v /:/host \
+              -v $GITHUB_WORKSPACE/build-dir/bin/memcached.sh:/memcached.sh \
+              -e GITHUB_WORKSPACE=$GITHUB_WORKSPACE \
+              -e HOST_ROOT=/host \
+              -e LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH \
+              alpine:latest /memcached.sh || MEMCACHED_RES=$?
+
+            if [ "$MEMCACHED_RES" -eq "0" ]; then
+              break
+            fi
+          done
+          echo "test ran $i times"
+          if [ "$MEMCACHED_RES" -ne "0" ]; then
+            exit $MEMCACHED_RES
+          fi
