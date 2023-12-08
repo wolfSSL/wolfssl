@@ -49,6 +49,10 @@
  *
  * set the default devId for cryptocb to the value instead of INVALID_DEVID
  * WC_USE_DEVID=0x1234
+ *
+ * Turn on benchmark timing debugging (CPU Cycles, RTOS ticks, etc)
+ * DEBUG_WOLFSSL_BENCHMARK_TIMING
+ *
  */
 
 
@@ -226,6 +230,7 @@
 
 /* default units per second. See WOLFSSL_BENCHMARK_FIXED_UNITS_* to change */
 #define WOLFSSL_FIXED_UNIT "MB" /* may be re-set by fixed units */
+#define MILLION_VALUE 1000000.0
 
 #ifdef BENCH_MICROSECOND
     #define WOLFSSL_FIXED_TIME_UNIT "μs"
@@ -296,18 +301,44 @@
 #endif /* WOLFSSL_NO_FLOAT_FMT */
 
 #ifdef WOLFSSL_ESPIDF
-    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+    #ifdef configTICK_RATE_HZ
+        /* Define CPU clock cycles per tick of FreeRTOS clock
+         *   CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ is typically a value like 240
+         *   configTICK_RATE_HZ is typically 100 or 1000.
+         **/
+        #define CPU_TICK_CYCLES (                               \
+              (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE) \
+              / configTICK_RATE_HZ                              \
+            )
+    #endif
+    #if defined(CONFIG_IDF_TARGET_ESP32C2)
         #include "driver/gptimer.h"
         static gptimer_handle_t esp_gptimer = NULL;
         static gptimer_config_t esp_timer_config = {
                             .clk_src = GPTIMER_CLK_SRC_DEFAULT,
                             .direction = GPTIMER_COUNT_UP,
-                            .resolution_hz = CONFIG_XTAL_FREQ * 1000000,
+                            .resolution_hz = CONFIG_XTAL_FREQ * 100000,
                          };
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+          defined(CONFIG_IDF_TARGET_ESP32C6)
+        #include <esp_cpu.h>
+        #include "driver/gptimer.h"
+        #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+            #define RESOLUTION_SCALE 100
+            static gptimer_handle_t esp_gptimer = NULL;
+            static gptimer_config_t esp_timer_config = {
+                                .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+                                .direction = GPTIMER_COUNT_UP,
+                                .resolution_hz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * (MILLION_VALUE / RESOLUTION_SCALE), /* CONFIG_XTAL_FREQ = 40, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = 160  */
+                             };
+        #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+
     #elif defined(CONFIG_IDF_TARGET_ESP32) || \
           defined(CONFIG_IDF_TARGET_ESP32S2) || \
           defined(CONFIG_IDF_TARGET_ESP32S3)
         #include <xtensa/hal.h>
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+
     #else
         /* Other platform */
     #endif
@@ -1212,71 +1243,157 @@ static const char* bench_result_words3[][5] = {
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n",    \
             FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
 #elif defined(WOLFSSL_ESPIDF)
-    static THREAD_LS_T word64 begin_cycles;
-    static THREAD_LS_T word64 total_cycles;
-
-    /* the return value */
-    static THREAD_LS_T word64 _xthal_get_ccount_ex = 0;
-
-    /* the last value seen, adjusted for an overflow */
-    static THREAD_LS_T word64 _xthal_get_ccount_last = 0;
-
     /* TAG for ESP_LOGx() */
     static const char* TAG = "wolfssl_benchmark";
 
-    #define HAVE_GET_CYCLES
-    #define INIT_CYCLE_COUNTER
-    static WC_INLINE word64 get_xtensa_cycles(void);
+    static THREAD_LS_T word64 begin_cycles;
+    static THREAD_LS_T word64 begin_cycles_ticks;
+    static THREAD_LS_T word64 end_cycles;
+    static THREAD_LS_T word64 total_cycles;
 
-    /* WARNING the hal UINT xthal_get_ccount() quietly rolls over. */
-    #define BEGIN_ESP_CYCLES begin_cycles = (get_xtensa_cycles());
+    /* the return value, as a global var */
+    static THREAD_LS_T word64 _esp_get_cycle_count_ex = 0;
+
+    /* the last value seen, adjusted for an overflow, as a global var */
+    static THREAD_LS_T word64 _esp_cpu_count_last = 0;
+
+    static THREAD_LS_T TickType_t last_tickCount = 0; /* last FreeRTOS value */
+
+    /* esp_get_cpu_benchmark_cycles(void):
+     *
+     *   Architecture-independant CPU clock counter.
+     *   WARNING: the hal UINT xthal_get_ccount() quietly rolls over. */
+    static WC_INLINE word64 esp_get_cpu_benchmark_cycles(void);
+
+    /* Some vars for debugging, compare ticks to cycles */
+    #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+        static THREAD_LS_T word64 _esp_cpu_timer_last = 0;
+        static THREAD_LS_T word64 _esp_cpu_timer_diff = 0;
+        static THREAD_LS_T word64 _xthal_get_ccount_exAlt = 0;
+        static THREAD_LS_T word64 _xthal_get_ccount_exDiff = 0;
+    #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+
+    /* The ESP32 (both Xtensa and RISC-V have raw CPU counters). */
+    #if ESP_IDF_VERSION_MAJOR >= 5
+        /* esp_cpu_set_cycle_count() introduced in ESP-IDF v5 */
+        #define HAVE_GET_CYCLES
+        #define INIT_CYCLE_COUNTER do {          \
+            ESP_LOGV(TAG, "INIT_CYCLE_COUNTER"); \
+            esp_cpu_set_cycle_count(0);          \
+        } while (0);
+    #else
+        #define HAVE_GET_CYCLES
+        #define INIT_CYCLE_COUNTER do {          \
+            ESP_LOGV(TAG, "INIT_CYCLE_COUNTER"); \
+        } while (0);
+    #endif
+
+    #define BEGIN_ESP_CYCLES do {                        \
+        ESP_LOGV(TAG, "BEGIN_ESP_CYCLES");               \
+        begin_cycles = esp_get_cpu_benchmark_cycles();   \
+        begin_cycles_ticks = xTaskGetTickCount();        \
+    } while (0);
 
     /* since it rolls over, we have something that will tolerate one */
-    #define END_ESP_CYCLES                                          \
-        ESP_LOGV(TAG,"%llu - %llu",                                 \
-                     get_xtensa_cycles(),                           \
-                     begin_cycles                                   \
-                );                                                  \
-                total_cycles = (get_xtensa_cycles() - begin_cycles);
+    #define END_ESP_CYCLES                                             \
+        end_cycles = esp_get_cpu_benchmark_cycles();                   \
+        ESP_LOGV(TAG,"END_ESP_CYCLES %llu - %llu",                     \
+                     end_cycles,                                       \
+                     begin_cycles                                      \
+                );                                                     \
+        total_cycles = (end_cycles - begin_cycles);
 
     #define SHOW_ESP_CYCLES(b, n, s) \
-        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),             \
-            " %s = " FLT_FMT_PREC2 "\n",                            \
-                        bench_result_words1[lng_index][2],          \
-                        FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)) \
-                       )
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                \
+            " %s = " FLT_FMT_PREC2 "\n",                               \
+            bench_result_words1[lng_index][2],                         \
+            FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)) \
+        )
 
     #define SHOW_ESP_CYCLES_CSV(b, n, s) \
-              (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n", \
-              FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n", \
+            FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
 
-    /* xthal_get_ccount_ex() is a single-overflow-tolerant extension to
-    ** the Espressif `unsigned xthal_get_ccount()` which is known to overflow
+    #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+        /* 64 bit, unisgned, absolute difference
+         * used in CPU cycle counter debug calcs. */
+        static uint64_t esp_cycle_abs_diff(uint64_t x, uint64_t y)
+        {
+            uint64_t ret;
+            ret =  (x > y) ? (x - y) : (y - x);
+            return ret;
+        }
+    #endif
+
+    /* esp_get_cycle_count_ex() is a single-overflow-tolerant extension to
+    ** the Espressif `unsigned xthal_get_ccount()` (Xtensa) or
+    ** `esp_cpu_get_cycle_count` (RISC-V) which are known to overflow
     ** at least once during full benchmark tests.
+    **
+    ** To test timing overflow, add a delay longer than max cycles:
+    **   vTaskDelay( (const TickType_t)(configTICK_RATE_HZ * 17 * 5) );
     */
-    uint64_t xthal_get_ccount_ex()
+    uint64_t esp_get_cycle_count_ex()
     {
-        /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
+        /* reminder: unsigned long long max = 18,446,744,073,709,551,615    */
+        /*           unsigned int max       =              4,294,967,295    */
+        uint64_t thisVal = 0; /* CPU counter, "this current value" as read. */
+        uint64_t thisIncrement = 0; /* The adjusted increment amount.       */
+        uint64_t expected_diff = 0; /* FreeRTOS esimated expected CPU diff. */
+    #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+        uint32_t tickCount = 0; /* Currrent rtos tick counter.              */
+        uint32_t tickDiff = 0;  /* Tick difference from last check.         */
+        uint32_t tickBeginDiff = 0; /* Tick difference from beginning.      */
+    #endif
 
-        /* the currently observed clock counter value */
-        uint64_t thisVal = 0;
-    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-        ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisVal));
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+        defined(CONFIG_IDF_TARGET_ESP32C3) || \
+        defined(CONFIG_IDF_TARGET_ESP32C6)
+
+        #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+            uint64_t thisTimerVal = 0; /* Timer Value as alternate to compare */
+            uint64_t diffDiff = 0;     /* Difference between CPU & Timer differences:
+                                        * (current - last) */
+            ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisTimerVal));
+            thisTimerVal = thisTimerVal * RESOLUTION_SCALE;
+        #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+
+        thisVal = esp_cpu_get_cycle_count();
+
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        thisVal = esp_cpu_get_cycle_count();
     #else
-        /* reminder unsupported CONFIG_IDF_TARGET captured above */
+        /* TODO: Why doesn't esp_cpu_get_cycle_count work for Xtensa?
+         * Calling current_time(1) to reset time causes thisVal overflow,
+         * on Xtensa, but not on RISC-V architecture. See also, below */
         #ifndef __XTENSA__
             thisVal = esp_cpu_get_cycle_count();
         #else
             thisVal = xthal_get_ccount(); /* or esp_cpu_get_cycle_count(); */
         #endif
     #endif
-        /* if the current value is less than the previous value,
-        ** we likely overflowed at least once.
-        */
-        if (thisVal < _xthal_get_ccount_last)
+
+        #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
         {
-            /* Warning: we assume the return type of xthal_get_ccount()
-            ** will always be unsigned int to add UINT_MAX.
+            tickCount = xTaskGetTickCount(); /* Our local FreeRTOS tick count */
+            tickDiff = tickCount - last_tickCount; /* ticks since bench start */
+            expected_diff = CPU_TICK_CYCLES * tickDiff; /* CPU expected count */
+            ESP_LOGV(TAG, "CPU_TICK_CYCLES = %d", (int)CPU_TICK_CYCLES);
+            ESP_LOGV(TAG, "tickCount           = %lu", tickCount);
+            ESP_LOGV(TAG, "last_tickCount      = %lu", last_tickCount);
+            ESP_LOGV(TAG, "tickDiff            = %lu", tickDiff);
+            ESP_LOGV(TAG, "expected_diff1      = %llu", expected_diff);
+        }
+        #endif
+
+        /* If either thisVal is smaller than last (overflow), and/or the
+         * expected value calculated from FreeRTOS tick difference that would
+         * have never fit into an unsigned 32 bit integer anyhow... then we
+         * need to adjust thisVal to save. */
+        if ( (thisVal < _esp_cpu_count_last) || (expected_diff > UINT_MAX) )
+        {
+            /* Warning: we assume the return type of esp_cpu_get_cycle_count()
+            ** will always be unsigned int (or uint32_t) to add UINT_MAX.
             **
             ** NOTE for long duration between calls with multiple overflows:
             **
@@ -1287,26 +1404,113 @@ static const char* bench_result_words3[][5] = {
             ** as well call xthal_get_ccount_ex() with no more than one
             ** overflow CPU tick count, all will be well.
             */
-            ESP_LOGV(TAG, "Alert: Detected xthal_get_ccount overflow, "
-                          "adding %ull", UINT_MAX);
-            thisVal += (word64)UINT_MAX;
+            #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+                ESP_LOGW(TAG,
+                    "Alert: Detected xthal_get_ccount overflow at %llu, "
+                              "adding UINT_MAX.",
+                    thisVal);
+            #endif
+
+            /* double check expected diff calc */
+            #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+              expected_diff = (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE)
+                              * tickDiff / configTICK_RATE_HZ;
+              ESP_LOGI(TAG, "expected_diff2      = %llu", expected_diff);
+            #endif
+            if (expected_diff > UINT_MAX) {
+                /* The number of cycles expected from FreeRTOS ticks is
+                 * greater than the maximum size of an unsigned 32-bit
+                 * integer, meaning multiple overflows occured. */
+                #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+                    ESP_LOGW(TAG, "expected_diff > UINT_MAX (%u)", UINT_MAX);
+                #endif
+                thisVal += expected_diff; /* FreeRTOS calc to our 64 bit val */
+            }
+            else {
+                thisVal += (word64)UINT_MAX; /* add 32 bit max to our 64 bit */
+            }
+
+            #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+            {
+                tickBeginDiff = tickCount - begin_cycles_ticks;
+
+                ESP_LOGI(TAG, "begin_cycles_ticks  = %llu", begin_cycles_ticks);
+                ESP_LOGI(TAG, "tickDiff            = %lu", tickDiff);
+                ESP_LOGI(TAG, "expected_diff       = %llu", expected_diff);
+                ESP_LOGI(TAG, "tickBeginDiff       = %lu", tickBeginDiff);
+
+                ESP_LOGW(TAG, "");
+            }
+            #endif
         }
+        else {
+            #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+                ESP_LOGI(TAG, "thisVal, read CPU   = %llu", thisVal);
+            #endif
+        } /* if thisVal adjustment check */
 
-        /* adjust our actual returned value that takes into account overflow */
-        _xthal_get_ccount_ex += (thisVal - _xthal_get_ccount_last);
+        #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+            if (thisTimerVal < _esp_cpu_timer_last)
+            {
+                ESP_LOGW(TAG, "Alert: Detected xthal_get_ccountAlt overflow, "
+                              "adding %ull", UINT_MAX);
+                thisTimerVal += (word64)UINT_MAX;
+            }
+            /* Check an alternate counter using a timer */
 
-        /* all of this took some time, so reset the "last seen" value */
-    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-        ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
-                                              &_xthal_get_ccount_last));
-    #else
-        #ifndef __XTENSA__
-            thisVal = esp_cpu_get_cycle_count();
-        #else
-            thisVal = xthal_get_ccount(); /* or esp_cpu_get_cycle_count(); */
+            _esp_cpu_timer_diff      = esp_cycle_abs_diff(_esp_cpu_count_last, _esp_cpu_timer_last);
+        #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+
+        /* Adjust our actual returned value that takes into account overflow,
+         * increment 64 bit extended total by this 32 bit differential: */
+        thisIncrement = (thisVal - _esp_cpu_count_last);
+
+        #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+            ESP_LOGI(TAG, "thisIncrement       = %llu", thisIncrement);
         #endif
-    #endif
-        return _xthal_get_ccount_ex;
+
+        /* Add our adjustment, taking into account overflows (see above) */
+        _esp_get_cycle_count_ex += thisIncrement;
+
+        #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+            _xthal_get_ccount_exDiff = esp_cycle_abs_diff(_esp_get_cycle_count_ex, _xthal_get_ccount_exAlt);
+            _xthal_get_ccount_exAlt += (thisTimerVal - _esp_cpu_timer_last);
+            diffDiff                 = esp_cycle_abs_diff(_xthal_get_ccount_exDiff, _esp_cpu_timer_diff);
+        #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+
+        /* all of this took some time, so reset the "last seen" value
+         * for the next measurement. */
+        #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+            defined(CONFIG_IDF_TARGET_ESP32C3) || \
+            defined(CONFIG_IDF_TARGET_ESP32C6)
+        {
+            #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+                ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
+                                                      &_esp_cpu_timer_last));
+                ESP_LOGI(TAG, "thisVal                  = %llu", thisVal);
+                ESP_LOGI(TAG, "thisTimerVal             = %llu", thisTimerVal);
+                ESP_LOGI(TAG, "diffDiff                 = %llu", diffDiff);
+                ESP_LOGI(TAG, "_xthal_get_ccount_exDiff = %llu", _xthal_get_ccount_exDiff);
+            #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+            _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            ESP_LOGV(TAG, "_xthal_get_ccount_last   = %llu", _esp_cpu_count_last);
+        }
+        #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+            _esp_cpu_count_last = esp_cpu_get_cycle_count();
+        #else
+            /* TODO: Why doesn't esp_cpu_get_cycle_count work for Xtensa
+             * when resetting CPU cycle counter? FreeRTOS tick collison?
+             *    thisVal = esp_cpu_get_cycle_count(); See also, above
+             * or thisVal = xthal_get_ccount(); */
+            #if ESP_IDF_VERSION_MAJOR < 5
+                _esp_cpu_count_last = xthal_get_ccount();
+            #else
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #endif
+        #endif
+
+        /* Return the 64 bit extended total from 32 bit counter. */
+        return _esp_get_cycle_count_ex;
     }
 
 /* implement other architecture cycle counters here */
@@ -1919,9 +2123,10 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
     *start = current_time(1);
 
 #ifdef WOLFSSL_ESPIDF
-    ESP_LOGV(TAG, "finish total_cycles = %llu, start=" FLT_FMT,
-                   total_cycles, FLT_FMT_ARGS(*start) );
-
+    #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+        ESP_LOGI(TAG, "bench_stats_start total_cycles = %llu, start=" FLT_FMT,
+                       total_cycles, FLT_FMT_ARGS(*start) );
+    #endif
     BEGIN_ESP_CYCLES
 #else
     BEGIN_INTEL_CYCLES
@@ -1939,11 +2144,23 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 static WC_INLINE int bench_stats_check(double start)
 {
-    return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC
+    int ret = 0;
+    double this_current_time;
+    this_current_time = current_time(0); /* get the timestamp, no reset */
+#if defined(DEBUG_WOLFSSL_BENCHMARK_TIMING)
+    #if (WOLFSSL_ESPIDF)
+        ESP_LOGI(TAG, "bench_stats_check Current time %f, start %f",
+                        this_current_time, start );
+    #endif
+#endif
+
+    ret = ((this_current_time - start) < BENCH_MIN_RUNTIME_SEC
 #ifdef BENCH_MICROSECOND
             * 1000000
 #endif
            );
+
+    return ret;
 }
 
 /* return text for units and scale the value of blocks as needed */
@@ -2114,8 +2331,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
     total = current_time(0) - start;
 
-#ifdef WOLFSSL_ESPIDF
-    ESP_LOGV(TAG, "%s total_cycles = %llu", desc, total_cycles);
+#if defined(WOLFSSL_ESPIDF) && defined(DEBUG_WOLFSSL_BENCHMARK_TIMING)
+    ESP_LOGI(TAG, "%s total_cycles = %llu", desc, total_cycles);
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
@@ -2237,9 +2454,15 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
     #ifdef WOLFSSL_ESPIDF
         SHOW_ESP_CYCLES_CSV(msg, sizeof(msg), countSz);
-        ESP_LOGV(TAG, "finish total_cycles = %llu", total_cycles);
-    /* implement other cycle counters here */
+        #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+            ESP_LOGI(TAG, "bench_stats_sym_finish total_cycles = %llu",
+                           total_cycles);
+        #endif
+
+        /* implement other cycle counters here */
+
     #else
+        /* the default cycle counter is Intel */
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), (unsigned)countSz);
     #endif
     } /* if (csv_format == 1) */
@@ -11958,20 +12181,93 @@ void bench_sphincsKeySign(byte level, byte optim)
     int construct_argv();
     extern char* __argv[22];
 #endif
+
+    /* current_time(reset)
+     *
+     * Benchmark passage of time, in fractional seconds.
+     *   [reset] is non zero to adjust timer or counter to zero
+     *
+     * Use care when repeatedly calling calling. See implementation. */
     double current_time(int reset)
     {
+        double ret;
     #if ESP_IDF_VERSION_MAJOR >= 4
-        TickType_t tickCount;
+        TickType_t tickCount; /* typically 32 bit, local FreeRTOS ticks */
     #else
         portTickType tickCount;
     #endif
 
-        (void) reset;
+    #if defined(__XTENSA__)
+        (void)reset;
 
-        /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
-        tickCount = xTaskGetTickCount();
-        return (double)tickCount / 1000;
+        if (reset) {
+            /* TODO: Determine a mechanism for reset that does not interfere
+             * with freeRTOS tick. Using this code for Xtensa appears to cause
+             * RTOS tick timer to stick. See "last_tickCount unchanged".
+            ESP_LOGW(TAG, "Current_time() reset!");
+            portTICK_TYPE_ENTER_CRITICAL();
+            {
+                esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
+                _esp_cpu_count_last = xthal_get_ccount();
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            }
+            portTICK_TYPE_EXIT_CRITICAL();
+            */
+        }
+    #else
+        /* Only reset the CPU counter for RISC-V */
+        if (reset) {
+            ESP_LOGV(TAG, "current_time() reset!");
+            /* TODO: why does Espressif esp_cpu_get_cycle_count() cause
+             * unexpected rollovers in return values for Xtensa but not RISC-V?
+             * See also esp_get_cycle_count_ex() */
+            #ifdef __XTENSA__
+                _esp_cpu_count_last = xthal_get_ccount();
+            #else
+                esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #endif
+       }
+    #endif
+
+    /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
+    tickCount = xTaskGetTickCount(); /* RTOS ticks, not CPU cycles!
+      The count of ticks since vTaskStartScheduler was called,
+      typiclly in app_startup.c */
+
+    #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+        ESP_LOGV(TAG, "tickCount = %lu", tickCount);
+        if (tickCount == last_tickCount) {
+            ESP_LOGW(TAG, "last_tickCount unchanged? %lu", tickCount);
+
+        }
+        if (tickCount < last_tickCount) {
+            ESP_LOGW(TAG, "last_tickCount overflow?");
+        }
+    #endif
+
+    if (reset) {
+        #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+            ESP_LOGW(TAG, "Assign last_tickCount = %lu", tickCount);
+        #endif
+        last_tickCount = tickCount;
     }
+    else {
+        #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
+            ESP_LOGW(TAG, "No Reset last_tickCount = %lu", tickCount);
+        #endif
+    }
+
+    #if defined(configTICK_RATE_HZ) && defined(CONFIG_FREERTOS_HZ)
+        ret = (double)tickCount / configTICK_RATE_HZ;
+    #else
+        ESP_LOGW(TAG, "Warning: configTICK_RATE_HZ not defined,"
+                        "assuming 1000 Hz.");
+        ret = (double)(tickCount / 1000.0);
+    #endif /* configTICK_RATE_HZ */
+
+        return ret;
+    } /* current_time */
 
 #elif defined (WOLFSSL_TIRTOS)
 
@@ -12010,7 +12306,7 @@ void bench_sphincsKeySign(byte level, byte optim)
     {
         double time_now;
         double current_s = OS_GetTime() / 1000.0;
-        double current_us = OS_GetTime_us() / 1000000.0;
+        double current_us = OS_GetTime_us() / MILLION_VALUE;
         time_now = (double)( current_s + current_us);
 
         (void) reset;
@@ -12137,20 +12433,20 @@ void bench_sphincsKeySign(byte level, byte optim)
          * outside wolfcrypt.
          */
         return (double)rusage.ru_utime.tv_sec +
-            (double)rusage.ru_utime.tv_usec / 1000000.0;
+            (double)rusage.ru_utime.tv_usec / MILLION_VALUE;
     }
 
     static void check_for_excessive_stime(const char *desc,
                                           const char *desc_extra)
     {
         double start_utime = (double)base_rusage.ru_utime.tv_sec +
-            (double)base_rusage.ru_utime.tv_usec / 1000000.0;
+            (double)base_rusage.ru_utime.tv_usec / MILLION_VALUE;
         double start_stime = (double)base_rusage.ru_stime.tv_sec +
-            (double)base_rusage.ru_stime.tv_usec / 1000000.0;
+            (double)base_rusage.ru_stime.tv_usec / MILLION_VALUE;
         double cur_utime = (double)cur_rusage.ru_utime.tv_sec +
-            (double)cur_rusage.ru_utime.tv_usec / 1000000.0;
+            (double)cur_rusage.ru_utime.tv_usec / MILLION_VALUE;
         double cur_stime = (double)cur_rusage.ru_stime.tv_sec +
-            (double)cur_rusage.ru_stime.tv_usec / 1000000.0;
+            (double)cur_rusage.ru_stime.tv_usec / MILLION_VALUE;
         double stime_utime_ratio =
             (cur_stime - start_stime) / (cur_utime - start_utime);
         if (stime_utime_ratio > .1)
@@ -12193,9 +12489,12 @@ void bench_sphincsKeySign(byte level, byte optim)
 #if defined(HAVE_GET_CYCLES)
 
     #if defined(WOLFSSL_ESPIDF)
-        static WC_INLINE word64 get_xtensa_cycles(void)
+        /* Generic CPU cycle counter for either Xtensa or RISC-V */
+        static WC_INLINE word64 esp_get_cpu_benchmark_cycles(void)
         {
-            return xthal_get_ccount_ex();
+            /* Reminder for long duration between calls with
+             * multiple overflows will not be detected. */
+            return esp_get_cycle_count_ex();
         }
 
     /* implement other architectures here */
@@ -12398,25 +12697,18 @@ static int string_matches(const char* arg, const char* str)
 
     #endif
 {
+    /* Code for main() or wolf_benchmark_task() */
     #ifdef WOLFSSL_ESPIDF
         int argc = construct_argv();
         char** argv = (char**)__argv;
-
-    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-        ESP_ERROR_CHECK(gptimer_new_timer(&esp_timer_config, &esp_gptimer));
-        ESP_LOGI(TAG, "Enable ESP32-C3 timer ");
-        ESP_ERROR_CHECK(gptimer_enable(esp_gptimer));
-        ESP_ERROR_CHECK(gptimer_start(esp_gptimer));
-    #endif
     #elif defined(MAIN_NO_ARGS)
         int argc = 0;
         char** argv = NULL;
-
     #endif
 
     return wolfcrypt_benchmark_main(argc, argv);
 }
-#endif /* NO_MAIN_DRIVER && NO_MAIN_FUNCTION */
+#endif /* !NO_MAIN_DRIVER && !NO_MAIN_FUNCTION */
 
 int wolfcrypt_benchmark_main(int argc, char** argv)
 {
@@ -12679,12 +12971,39 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
     else
 #endif
     {
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+        defined(CONFIG_IDF_TARGET_ESP32C3) || \
+        defined(CONFIG_IDF_TARGET_ESP32C6)
+        {
+        #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+            if (esp_gptimer == NULL) {
+                ESP_ERROR_CHECK(gptimer_new_timer(&esp_timer_config,
+                                                  &esp_gptimer)     );
+            }
+            ESP_ERROR_CHECK(gptimer_enable(esp_gptimer));
+            ESP_ERROR_CHECK(gptimer_start(esp_gptimer));
+            ESP_LOGI(TAG, "Enable %s timer", CONFIG_IDF_TARGET);
+        #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+        }
+    #endif
+
     #ifdef HAVE_STACK_SIZE
         ret = StackSizeCheck(NULL, benchmark_test);
     #else
         ret = benchmark_test(NULL);
     #endif
     }
+
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+        defined(CONFIG_IDF_TARGET_ESP32C3) || \
+        defined(CONFIG_IDF_TARGET_ESP32C6)
+        {
+            #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
+                ESP_ERROR_CHECK(gptimer_stop(esp_gptimer));
+                ESP_ERROR_CHECK(gptimer_disable(esp_gptimer));
+            #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
+        }
+    #endif
 
     return ret;
 }
