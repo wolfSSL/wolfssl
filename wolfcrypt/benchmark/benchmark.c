@@ -340,7 +340,7 @@
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
 
     #else
-
+        /* Other platform */
     #endif
     #include <esp_log.h>
 #endif /* WOLFSSL_ESPIDF */

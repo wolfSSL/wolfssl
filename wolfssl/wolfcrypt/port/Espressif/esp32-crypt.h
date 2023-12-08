@@ -22,9 +22,17 @@
 
 #define __ESP32_CRYPT_H__
 
+/* WOLFSSL_USER_SETTINGS must be defined, typically in the CMakeLists.txt:
+ *
+ * set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS") */
 #include <wolfssl/wolfcrypt/settings.h> /* references user_settings.h */
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
+
+#ifndef WOLFSSL_USER_SETTINGS
+    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
+#endif
+
 #include "sdkconfig.h" /* ensure ESP-IDF settings are available everywhere */
 
 /* wolfSSL  */
@@ -71,6 +79,12 @@ enum {
 **   Settings that start with "CONFIG_" are typically defined in sdkconfig.h
 **
 ** Primary Settings:
+**
+** WC_NO_HARDEN
+**   Disables some timing resistance / side-channel attack prevention.
+**
+** NO_ESPIDF_DEFAULT
+**   When defined, disables some default definitions. See wolfcrypt/settings.h
 **
 ** NO_ESP32_CRYPT
 **   When defined, disables all hardware acceleration on the ESP32
@@ -143,11 +157,15 @@ enum {
 ** WOLFSSL_HW_METRICS
 **   Enables metric counters for calls to HW, success, fall back, oddities.
 **
+** WOLFSSL_HAS_METRICS
+**   Indicates that we actually have metrics to show. Useful for old wolfSSL
+**   libraries tested with newer examples, or when all HW turned off.
+**
 ** DEBUG_WOLFSSL
 **   Turns on development testing. Validates HW accelerated results to software
 **   - Automatically turns on WOLFSSL_HW_METRICS
 **
-** WOLFSSL_DEBUG_MUTEX
+** DEBUG_WOLFSSL_SHA_MUTEX
 **   Turns on diagnostic messages for SHA mutex. Note that given verbosity,
 **   there may be TLS timing issues encountered. Use with caution.
 **
@@ -203,10 +221,12 @@ enum {
 **
 ** CONFIG_IDF_TARGET_[SoC]
 **   CONFIG_IDF_TARGET_ESP32
-**   CONFIG_IDF_TARGET_ESP32S2
-**   CONFIG_IDF_TARGET_ESP32S3
+**   CONFIG_IDF_TARGET_ESP32C2
 **   CONFIG_IDF_TARGET_ESP32C3
 **   CONFIG_IDF_TARGET_ESP32C6
+**   CONFIG_IDF_TARGET_ESP32S2
+**   CONFIG_IDF_TARGET_ESP32S3
+**   CONFIG_IDF_TARGET_ESP32H2
 **
 ]*******************************************************************************
 ** Informative settings. Not meant to be edited:
@@ -253,6 +273,60 @@ enum {
     #endif
     #define ESP_PROHIBIT_SMALL_X FALSE
     /***** END CONFIG_IDF_TARGET_ESP32 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+      defined(CONFIG_IDF_TARGET_ESP8684)
+    /* ESP8684 is essentially ESP32-C2 chip + flash embedded together in a
+     * single QFN 4x4 mm package. Out of released documentation, Technical
+     * Reference Manual as well as ESP-IDF Programming Guide is applicable
+     * to both ESP32-C2 and ESP8684.
+     *
+     * Note there is not currently an expected CONFIG_IDF_TARGET_ESP8684.
+     * The ESP8684 is detected with CONFIG_IDF_TARGET_ESP32C2.
+     * The macro is included for clarity, and possible future rename. */
+
+    /* #define NO_ESP32_CRYPT */
+    /* #define NO_WOLFSSL_ESP32_CRYPT_HASH */
+    #define NO_WOLFSSL_ESP32_CRYPT_AES /* No AES HW */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI /* No RSA HW*/
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL /* No RSA, so no mp_mul    */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD /* No RSA, so no mp_mulmod */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD /* No RSA, no mp_exptmod  */
+
+    #include <soc/dport_access.h>
+    #include <soc/hwcrypto_reg.h>
+
+    #if ESP_IDF_VERSION_MAJOR < 5
+        #include <soc/cpu.h>
+    #endif
+
+    #if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+        #include <esp_private/periph_ctrl.h>
+    #else
+        #include <driver/periph_ctrl.h>
+    #endif
+
+    #if ESP_IDF_VERSION_MAJOR >= 4
+        /* #include <esp32/rom/ets_sys.h> */
+    #else
+        #include <rom/ets_sys.h>
+    #endif
+
+/* If for some reason there's a desire to disable specific HW on the C2: */
+/*  #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA                              */
+/*  #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA     there is SHA HW on C2    */
+/*  #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224                           */
+/*  #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224  there is SHA224 HW on C2 */
+/*  #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256                           */
+/*  #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256  there is SHA256 HW on C2 */
+
+    /* Code will fall back to SW with warning if these are removed:
+     * Note there is no SHA384/SHA512 HW on ESP32-C3 */
+    #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384
+    #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
+    /***** END CONFIG_IDF_TARGET_ESP32C2 aka CONFIG_IDF_TARGET_ESP8684 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
     #include <soc/dport_access.h>
@@ -499,7 +573,8 @@ extern "C"
         #if defined(CONFIG_IDF_TARGET_ESP32)
             #include "esp32/rom/sha.h"
             #define WC_ESP_SHA_TYPE enum SHA_TYPE
-        #elif defined(CONFIG_IDF_TARGET_ESP32C2)
+        #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+              defined(CONFIG_IDF_TARGET_ESP8684)
             #include "esp32c2/rom/sha.h"
             #define WC_ESP_SHA_TYPE SHA_TYPE
         #elif defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -686,6 +761,8 @@ extern "C"
 *******************************************************************************
 */
 #ifdef WOLFSSL_HW_METRICS
+    #define WOLFSSL_HAS_METRICS
+
     /* Allow sha256 code to keep track of SW fallback during active HW */
     WOLFSSL_LOCAL int esp_sw_sha256_count_add();
 
@@ -780,6 +857,6 @@ extern "C"
 }
 #endif
 
-#endif /* WOLFSSL_ESPIDF */
+#endif /* WOLFSSL_ESPIDF (entire contents excluded when not Espressif ESP-IDF) */
 
 #endif  /* __ESP32_CRYPT_H__ */

@@ -4051,12 +4051,16 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
   /* zero the int */
   fp_zero (a);
 
+  if (c < 0) {
+      return FP_VAL;
+  }
+
   if (c == 0) {
       return FP_OKAY;
   }
 
   /* if input b excess max, then truncate */
-  if (c > 0 && (word32)c > maxC) {
+  if ((word32)c > maxC) {
      int excess = (c - maxC);
      c -= excess;
      b += excess;

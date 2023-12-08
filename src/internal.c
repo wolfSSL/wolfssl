@@ -4236,7 +4236,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
  * hashalgo  The hash algorithm.
  * hsType    The signature type.
  */
-static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
+void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 {
     *hsType = invalid_sa_algo;
     switch (input[0]) {
@@ -4324,7 +4324,7 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
 #if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
              defined(HAVE_CURVE448) || (!defined(NO_RSA) && defined(WC_RSA_PSS))
 
-static enum wc_HashType HashAlgoToType(int hashAlgo)
+enum wc_HashType HashAlgoToType(int hashAlgo)
 {
     switch (hashAlgo) {
     #ifdef WOLFSSL_SHA512
@@ -11224,23 +11224,11 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif /* WOLFSSL_NO_TLS12 */
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
-/* cipher requirements */
-enum {
-    REQUIRES_RSA,
-    REQUIRES_DHE,
-    REQUIRES_ECC,
-    REQUIRES_ECC_STATIC,
-    REQUIRES_PSK,
-    REQUIRES_RSA_SIG,
-    REQUIRES_AEAD
-};
-
-
 
 /* Does this cipher suite (first, second) have the requirement
    an ephemeral key exchange will still require the key for signing
    the key exchange so ECDHE_RSA requires an rsa key thus rsa_kea */
-static int CipherRequires(byte first, byte second, int requirement)
+int CipherRequires(byte first, byte second, int requirement)
 {
 
     (void)requirement;
@@ -35435,6 +35423,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef OPENSSL_EXTRA
+        ssl->clSuites = clSuites;
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
             ret = CertSetupCbWrapper(ssl);
@@ -35458,7 +35447,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     out:
-
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+        ssl->clSuites = NULL;
+#endif
 #ifdef WOLFSSL_SMALL_STACK
         if (clSuites != NULL)
             XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
