@@ -309,7 +309,7 @@
           defined(CONFIG_IDF_TARGET_ESP32S3)
         #include <xtensa/hal.h>
     #else
-        #error "CONFIG_IDF_TARGET not implemented"
+        /* Other platform */
     #endif
     #include <esp_log.h>
 #endif /* WOLFSSL_ESPIDF */
@@ -1259,12 +1259,16 @@ static const char* bench_result_words3[][5] = {
         /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
 
         /* the currently observed clock counter value */
-    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         uint64_t thisVal = 0;
+    #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisVal));
     #else
         /* reminder unsupported CONFIG_IDF_TARGET captured above */
-        uint64_t thisVal = xthal_get_ccount();
+        #ifndef __XTENSA__
+            thisVal = esp_cpu_get_cycle_count();
+        #else
+            thisVal = xthal_get_ccount(); /* or esp_cpu_get_cycle_count(); */
+        #endif
     #endif
         /* if the current value is less than the previous value,
         ** we likely overflowed at least once.
@@ -1296,7 +1300,11 @@ static const char* bench_result_words3[][5] = {
         ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
                                               &_xthal_get_ccount_last));
     #else
-         _xthal_get_ccount_last = xthal_get_ccount();
+        #ifndef __XTENSA__
+            thisVal = esp_cpu_get_cycle_count();
+        #else
+            thisVal = xthal_get_ccount(); /* or esp_cpu_get_cycle_count(); */
+        #endif
     #endif
         return _xthal_get_ccount_ex;
     }
