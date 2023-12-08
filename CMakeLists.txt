@@ -377,6 +377,83 @@ if(NOT WOLFSSL_RNG)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_RNG")
 endif()
 
+# QUIC
+add_option(WOLFSSL_QUIC
+    "Enable QUIC support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_QUIC)
+    set(WOLFSSL_ALPN "yes")
+    set(WOLFSSL_OPENSSLEXTRA "yes")
+    set(WOLFSSL_AESCTR "yes")
+    set(WOLFSSL_CURVE25519 "yes")
+    set(WOLFSSL_SNI "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_QUIC" "-DHAVE_EX_DATA")
+endif()
+
+# Curl
+add_option(WOLFSSL_CURL
+    "Enable CURL support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_CURL)
+    set(WOLFSSL_MD4 "yes")
+    set(WOLFSSL_DES3 "yes")
+    set(WOLFSSL_ALPN "yes")
+    set(WOLFSSL_OPENSSLEXTRA "yes")
+    set(WOLFSSL_CRL "yes")
+    set(WOLFSSL_OCSP "yes")
+    set(WOLFSSL_OCSPSTAPLING "yes")
+    set(WOLFSSL_OCSPSTAPLING_V2 "yes")
+    set(WOLFSSL_SNI "yes")
+    set(WOLFSSL_ALT_CERT_CHAINS "yes")
+    set(WOLFSSL_IP_ALT_NAME "yes")
+    set(WOLFSSL_SESSION_TICKET "yes")
+    set(WOLFSSL_WOLFSSH "yes")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DNO_SESSION_CACHE_REF" "-DWOLFSSL_DES_ECB")
+endif()
+
+# ALPN
+add_option(WOLFSSL_ALPN
+    "Enable ALPN support (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALPN)
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ALPN" "-DHAVE_TLS_EXTENSIONS")
+endif()
+
+# altcertchains
+add_option(WOLFSSL_ALT_CERT_CHAINS
+    "Enable support for Alternate certification chains (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_ALT_CERT_CHAINS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALT_CERT_CHAINS")
+endif()
+
+# ip-alt-name
+add_option(WOLFSSL_IP_ALT_NAME
+    "Enable support for IP alternative name (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_IP_ALT_NAME)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_IP_ALT_NAME")
+endif()
+
+# wolfSSH
+add_option(WOLFSSL_WOLFSSH
+    "Enable support for wolfSSH (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_WOLFSSH)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_WOLFSSH")
+endif()
+
+if(WOLFSSL_WOLFSSH OR WOLFSSL_WPAS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PUBLIC_MP")
+endif()
+
 # TODO: - DTLS-SCTP
 #       - DTLS multicast
 #       - OpenSSH
@@ -386,14 +463,11 @@ endif()
 #       - wpa_supplicant
 #       - Fortress
 #       - libwebsockets
-#       - IP alternative name
 #       - Qt
 #       - SSL bump
 #       - sniffer
 #       - Signal
 #       - OpenSSL coexist
-#       - OpenSSL compatibility all
-#       - OpenSSL compatibility extra
 #       - Max strength
 
 # Harden, enable Timing Resistance and Blinding by default
@@ -444,7 +518,6 @@ if (WOLFSSL_OPENSSLALL)
       "-DWC_RSA_PSS" "-DWOLFSSL_PSS_LONG_SALT" "-DWOLFSSL_TICKET_HAVE_ID"
       "-DWOLFSSL_ERROR_CODE_OPENSSL" "-DWOLFSSL_CERT_NAME_ALL")
 endif()
-
 
 # TODO: - IPv6 test apps
 
@@ -527,6 +600,15 @@ if(WOLFSSL_AESGCM)
     endif()
 
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESGCM")
+endif()
+
+if(WOLFSSL_QUIC)
+    if(NOT WOLFSSL_TLS13)
+        message(FATAL_ERROR "TLS 1.3 is disabled - necessary for QUIC")
+    endif()
+    if(NOT WOLFSSL_AESGCM)
+        message(FATAL_ERROR "AES-GCM is disabled - necessary for QUIC")
+    endif()
 endif()
 
 # AES-SIV
@@ -1435,7 +1517,6 @@ endif()
 
 # TODO: - TLS extensions
 #       - Early data handshake
-#       - wolfSSH options
 #       - SCEP
 #       - Secure remote password
 #       - Indefinite length encoded messages
@@ -2232,6 +2313,7 @@ if(WOLFSSL_EXAMPLES)
         tests/suites.c
         tests/w64wrapper.c
         tests/unit.c
+        tests/quic.c
         examples/server/server.c
         examples/client/client.c)
     target_include_directories(unit_test PRIVATE
