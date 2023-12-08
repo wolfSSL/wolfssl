@@ -2,7 +2,7 @@
 
 This ESP32 example uses the [wolfSSL wolfcrypt Benchmark Application](https://github.com/wolfSSL/wolfssl/tree/master/wolfcrypt/benchmark).
 
-For general information on wolfSSL examples for Espressif, see the
+For general information on [wolfSSL examples for Espressif](../README.md), see the
 [README](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md) file.
 
 ## Espressif ESP Component Registry
@@ -33,7 +33,7 @@ The naming convention for project files is: `[project name]_IDF_[Version]_[chips
 
 
 -------- |------------- |------------- |
-ChipSet  | ESP-IDF v4.4 | ESP-IDF v5.0 |
+ChipSet  | ESP-IDF v4.4 | ESP-IDF v5.1 |
 -------- |------------- |------------- |
 ESP32    |      x       |              |
 ESP32-S2 |              |              |
@@ -84,11 +84,20 @@ git submodule update --init --recursive
 
 cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
 
-# Pick ESP-IDF install directory, this one for v5.0 in VisualGDB
-. /mnt/c/SysGCC/esp32/esp-idf/v5.0/export.sh
+# Pick ESP-IDF install directory, this one for v5.1 in VisualGDB
 
-idf.py set-target ESP32C3
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.1
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-8.4/esp-idf/v4.4.1
+WRK_IDF_PATH=~/esp/esp-idf
 
+. $WRK_IDF_PATH/export.sh
+
+# Set target SoC
+idf.py set-target esp32c3
+
+# Optionally erase
+
+# Build and flash
 idf.py build flash -p /dev/ttyS20 -b 115200 monitor
 ```
 
@@ -245,3 +254,5 @@ A 'clean` may be needed after freshly installing a new component:
 ```
 idf.py clean build  flash -p /dev/ttyS7 -b 115200 monitor
 ```
+
+See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).
