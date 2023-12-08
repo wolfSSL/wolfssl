@@ -90,7 +90,7 @@ jobs:
             MEMCACHED_RES=0 # Not set when command succeeds
             # Tests should usually take less than 4 minutes. If already taking
             # 5 minutes then they are probably stuck. Interrupt and re-run.
-            timeout 5m docker run -v /:/host \
+            time timeout -s SIGKILL 5m docker run -v /:/host \
               -v $GITHUB_WORKSPACE/build-dir/bin/memcached.sh:/memcached.sh \
               -e GITHUB_WORKSPACE=$GITHUB_WORKSPACE \
               -e HOST_ROOT=/host \
