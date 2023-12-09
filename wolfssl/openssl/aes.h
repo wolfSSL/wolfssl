@@ -33,6 +33,14 @@
 
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
+
+#if !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API) && \
+    defined(WC_AESFREE_IS_MANDATORY)
+#define WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API
+#endif
+
+#ifndef WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API
+
 #include <wolfssl/openssl/ssl.h> /* for size_t */
 
 #ifdef __cplusplus
@@ -94,6 +102,8 @@ WOLFSSL_API void wolfSSL_AES_decrypt(
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
+
+#endif /* !WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API */
 
 #endif /* NO_AES */
 

@@ -661,6 +661,82 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
 /*!
     \ingroup AES
 
+    \brief This is to initialize an AES-XTS context. It is up to user to call
+    wc_AesXtsFree on aes key when done.
+
+    \return 0 Success
+
+    \param aes   AES keys for encrypt/decrypt process
+    \param heap  heap hint to use for memory. Can be NULL
+    \param devId id to use with async crypto. Can be 0
+
+    _Example_
+    \code
+    XtsAes aes;
+
+    if(wc_AesXtsInit(&aes, NULL, 0) != 0)
+    {
+        // Handle error
+    }
+    if(wc_AesXtsSetKeyNoInit(&aes, key, sizeof(key), AES_ENCRYPTION) != 0)
+    {
+        // Handle error
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsSetKey
+    \sa wc_AesXtsSetKeyNoInit
+    \sa wc_AesXtsEncrypt
+    \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsFree
+*/
+int wc_AesXtsInit(XtsAes* aes, void* heap, int devId);
+
+
+/*!
+    \ingroup AES
+
+    \brief This is to help with setting keys to correct encrypt or decrypt type,
+    after first calling wc_AesXtsInit(). It is up to user to call wc_AesXtsFree
+    on aes key when done.
+
+    \return 0 Success
+
+    \param aes   AES keys for encrypt/decrypt process
+    \param key   buffer holding aes key | tweak key
+    \param len   length of key buffer in bytes. Should be twice that of
+    key size.
+                 i.e. 32 for a 16 byte key.
+    \param dir   direction, either AES_ENCRYPTION or AES_DECRYPTION
+
+    _Example_
+    \code
+    XtsAes aes;
+
+    if(wc_AesXtsInit(&aes, NULL, 0) != 0)
+    {
+        // Handle error
+    }
+    if(wc_AesXtsSetKeyNoInit(&aes, key, sizeof(key), AES_ENCRYPTION, NULL, 0)
+       != 0)
+    {
+        // Handle error
+    }
+    wc_AesXtsFree(&aes);
+    \endcode
+
+    \sa wc_AesXtsEncrypt
+    \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsFree
+*/
+int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key,
+         word32 len, int dir);
+
+
+/*!
+    \ingroup AES
+
     \brief This is to help with setting keys to correct encrypt or
     decrypt type. It is up to user to call wc_AesXtsFree on aes key when done.
 
@@ -686,6 +762,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     wc_AesXtsFree(&aes);
     \endcode
 
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsEncrypt
     \sa wc_AesXtsDecrypt
     \sa wc_AesXtsFree
@@ -726,6 +804,8 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
 
     \sa wc_AesXtsEncrypt
     \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
@@ -765,6 +845,8 @@ int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
 
     \sa wc_AesXtsEncrypt
     \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
@@ -805,6 +887,8 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
     \endcode
 
     \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
@@ -844,6 +928,8 @@ int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
     \endcode
 
     \sa wc_AesXtsEncrypt
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
@@ -872,6 +958,8 @@ int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
 
     \sa wc_AesXtsEncrypt
     \sa wc_AesXtsDecrypt
+    \sa wc_AesXtsInit
+    \sa wc_AesXtsSetKeyNoInit
     \sa wc_AesXtsSetKey
 */
 int wc_AesXtsFree(XtsAes* aes);

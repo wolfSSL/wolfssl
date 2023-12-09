@@ -2079,14 +2079,10 @@ WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void)
     ctx = (WOLFSSL_CMAC_CTX*)XMALLOC(sizeof(WOLFSSL_CMAC_CTX), NULL,
         DYNAMIC_TYPE_OPENSSL);
     if (ctx != NULL) {
-        /* Allocate memory for wolfSSL CMAC object. */
-        ctx->internal = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
-        if (ctx->internal == NULL) {
-            XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx = NULL;
-        }
-    }
-    if (ctx != NULL) {
+        /* Memory for wolfSSL CMAC object is allocated in
+         * wolfSSL_CMAC_Init().
+         */
+        ctx->internal = NULL;
         /* Allocate memory for EVP cipher context object. */
         ctx->cctx = wolfSSL_EVP_CIPHER_CTX_new();
         if (ctx->cctx == NULL) {
@@ -2110,9 +2106,13 @@ void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx)
     if (ctx != NULL) {
         /* Deallocate dynamically allocated fields. */
         if (ctx->internal != NULL) {
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+            wc_CmacFree((Cmac*)ctx->internal);
+#endif
             XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
         }
         if (ctx->cctx != NULL) {
+            wolfSSL_EVP_CIPHER_CTX_cleanup(ctx->cctx);
             wolfSSL_EVP_CIPHER_CTX_free(ctx->cctx);
         }
         /* Deallocate CMAC context object. */
@@ -2167,22 +2167,37 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
     /* Only AES-CBC ciphers are supported. */
     if ((ret == 1) && (cipher != EVP_AES_128_CBC) &&
             (cipher != EVP_AES_192_CBC) && (cipher != EVP_AES_256_CBC)) {
+        WOLFSSL_MSG("wolfSSL_CMAC_Init: requested cipher is unsupported");
         ret = 0;
     }
     /* Key length must match cipher. */
     if ((ret == 1) && ((int)keySz != wolfSSL_EVP_Cipher_key_length(cipher))) {
+        WOLFSSL_MSG("wolfSSL_CMAC_Init: "
+                    "supplied key size doesn't match requested cipher");
         ret = 0;
+    }
+
+    if ((ret == 1) && (ctx->internal == NULL)) {
+        /* Allocate memory for wolfSSL CMAC object. */
+        ctx->internal = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
+        if (ctx->internal == NULL)
+            ret = 0;
     }
 
     /* Initialize the wolfCrypt CMAC object. */
     if ((ret == 1) && (wc_InitCmac((Cmac*)ctx->internal, (const byte*)key,
             (word32)keySz, WC_CMAC_AES, NULL) != 0)) {
+        WOLFSSL_MSG("wolfSSL_CMAC_Init: wc_InitCmac() failed");
+        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        ctx->internal = NULL;
         ret = 0;
     }
     if (ret == 1) {
         /* Initialize the EVP cipher context object for encryption. */
         ret = wolfSSL_EVP_CipherInit(ctx->cctx, cipher, (const byte*)key, NULL,
             1);
+        if (ret != WOLFSSL_SUCCESS)
+            WOLFSSL_MSG("wolfSSL_CMAC_Init: wolfSSL_EVP_CipherInit() failed");
     }
 
     WOLFSSL_LEAVE("wolfSSL_CMAC_Init", ret);
@@ -2237,7 +2252,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Final");
 
-    /* Valiudate parameters. */
+    /* Validate parameters. */
     if (ctx == NULL) {
         ret = 0;
     }
@@ -2268,6 +2283,9 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
         else if (len != NULL) {
             *len = (size_t)len32;
         }
+
+        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        ctx->internal = NULL;
     }
 
     WOLFSSL_LEAVE("wolfSSL_CMAC_Final", ret);
@@ -2899,7 +2917,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
 
 #ifdef OPENSSL_EXTRA
 
-#ifndef NO_AES
+#if !defined(NO_AES) && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
 
 /* Sets the key into the AES key object for encryption or decryption.
  *
@@ -3408,7 +3426,7 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
     return len;
 }
 #endif /* HAVE_CTS */
-#endif /* NO_AES */
+#endif /* !NO_AES && !WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API */
 #endif /* OPENSSL_EXTRA */
 
 /*******************************************************************************

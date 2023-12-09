@@ -58,6 +58,14 @@ static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, i
     byte* key = (byte*)aes->key;
 #endif
 
+    if (aes->alFd <= 0) {
+        aes->alFd = wc_Afalg_Socket();
+        if (aes->alFd < 0) {
+            WOLFSSL_MSG("Unable to open an AF_ALG socket");
+            return WC_AFALG_SOCK_E;
+        }
+    }
+
     aes->rdFd = wc_Afalg_CreateRead(aes->alFd, type, name);
     if (aes->rdFd < 0) {
         WOLFSSL_MSG("Unable to accept and get AF_ALG read socket");

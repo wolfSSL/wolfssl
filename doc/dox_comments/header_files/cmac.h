@@ -23,6 +23,8 @@
     \sa wc_InitCmac_ex
     \sa wc_CmacUpdate
     \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
 */
 int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
@@ -55,6 +57,8 @@ int wc_InitCmac(Cmac* cmac,
     \sa wc_InitCmac_ex
     \sa wc_CmacUpdate
     \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
 */
 int wc_InitCmac_ex(Cmac* cmac,
                 const byte* key, word32 keySz,
@@ -75,13 +79,38 @@ int wc_InitCmac_ex(Cmac* cmac,
 
     \sa wc_InitCmac
     \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
 */
 int wc_CmacUpdate(Cmac* cmac,
                   const byte* in, word32 inSz);
 
+
 /*!
     \ingroup CMAC
-    \brief Generate the final result using Cipher-based Message Authentication Code
+    \brief Generate the final result using Cipher-based Message Authentication Code, deferring context cleanup.
+    \return 0 on success
+    \param cmac pointer to the Cmac structure
+    \param out pointer to return the result
+    \param outSz pointer size of output (in/out)
+
+    _Example_
+    \code
+    ret = wc_CmacFinalNoFree(cmac, out, &outSz);
+    (void)wc_CmacFree(cmac);
+    \endcode
+
+    \sa wc_InitCmac
+    \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
+*/
+int wc_CmacFinalNoFree(Cmac* cmac,
+                 byte* out, word32* outSz);
+
+/*!
+    \ingroup CMAC
+    \brief Generate the final result using Cipher-based Message Authentication Code, and clean up the context with wc_CmacFree().
     \return 0 on success
     \param cmac pointer to the Cmac structure
     \param out pointer to return the result
@@ -93,10 +122,30 @@ int wc_CmacUpdate(Cmac* cmac,
     \endcode
 
     \sa wc_InitCmac
-    \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
 */
-int wc_CmacFinal(Cmac* cmac,
-                 byte* out, word32* outSz);
+int wc_CmacFinalNoFree(Cmac* cmac);
+
+/*!
+    \ingroup CMAC
+    \brief Clean up allocations in a CMAC context.
+    \return 0 on success
+    \param cmac pointer to the Cmac structure
+
+    _Example_
+    \code
+    ret = wc_CmacFinalNoFree(cmac, out, &outSz);
+    (void)wc_CmacFree(cmac);
+    \endcode
+
+    \sa wc_InitCmac
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFinal
+    \sa wc_CmacFree
+*/
+int wc_CmacFree(Cmac* cmac);
 
 /*!
     \ingroup CMAC

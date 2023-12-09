@@ -251,6 +251,22 @@ WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
 WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
 
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleInit(void **CipherLifecycleTag,
+                                               void *heap);
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleCheck(void *CipherLifecycleTag,
+                                                int abort_p);
+WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
+                                               void *heap, int abort_p);
+#else
+#define wc_debug_CipherLifecycleInit(CipherLifecycleTag, heap) \
+        ((void)(CipherLifecycleTag), (void)(heap), 0)
+#define wc_debug_CipherLifecycleCheck(CipherLifecycleTag, abort_p) \
+        ((void)(CipherLifecycleTag), (void)(abort_p), 0)
+#define wc_debug_CipherLifecycleFree(CipherLifecycleTag, heap, abort_p) \
+        ((void)(CipherLifecycleTag), (void)(heap), (void)(abort_p), 0)
+#endif
+
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
     WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
     WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;

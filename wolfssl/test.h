@@ -2669,6 +2669,11 @@ static WC_INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
+        ret = wc_AesInit(&encCtx->aes, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            fprintf(stderr, "AesInit failed in myMacEncryptCb\n");
+            return ret;
+        }
         ret = wc_AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
         if (ret != 0) {
             fprintf(stderr, "AesSetKey failed in myMacEncryptCb\n");
@@ -2725,6 +2730,11 @@ static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
+        ret = wc_AesInit(&decCtx->aes, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            fprintf(stderr, "AesInit failed in myDecryptVerifyCb\n");
+            return ret;
+        }
         ret = wc_AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
         if (ret != 0) {
             fprintf(stderr, "AesSetKey failed in myDecryptVerifyCb\n");
@@ -2819,6 +2829,11 @@ static WC_INLINE int myEncryptMacCb(WOLFSSL* ssl, unsigned char* macOut,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
+        ret = wc_AesInit(&encCtx->aes, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            fprintf(stderr, "AesInit failed in myMacEncryptCb\n");
+            return ret;
+        }
         ret = wc_AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
         if (ret != 0) {
             fprintf(stderr, "AesSetKey failed in myMacEncryptCb\n");
@@ -2917,6 +2932,11 @@ static WC_INLINE int myVerifyDecryptCb(WOLFSSL* ssl,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
+        ret = wc_AesInit(&decCtx->aes, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            fprintf(stderr, "AesInit failed in myDecryptVerifyCb\n");
+            return ret;
+        }
         ret = wc_AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
         if (ret != 0) {
             fprintf(stderr, "AesSetKey failed in myDecryptVerifyCb\n");

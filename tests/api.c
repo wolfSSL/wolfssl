@@ -5680,7 +5680,7 @@ static int test_wolfSSL_EVP_CIPHER_CTX(void)
         return 0;
     }
 
-    static WC_INLINE int myTicketEncCbOpenSSL(WOLFSSL* ssl,
+    static int myTicketEncCbOpenSSL(WOLFSSL* ssl,
                              byte name[WOLFSSL_TICKET_NAME_SZ],
                              byte iv[WOLFSSL_TICKET_IV_SZ],
                              WOLFSSL_EVP_CIPHER_CTX *ectx,
@@ -15803,6 +15803,16 @@ static int test_wc_CmacFinal(void)
     ExpectIntEQ(wc_InitCmac(&cmac, key, keySz, type, NULL), 0);
     ExpectIntEQ(wc_CmacUpdate(&cmac, msg, msgSz), 0);
 
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    /* Pass in bad args. */
+    ExpectIntEQ(wc_CmacFinalNoFree(NULL, mac, &macSz), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_CmacFinalNoFree(&cmac, NULL, &macSz), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_CmacFinalNoFree(&cmac, mac, &badMacSz), BUFFER_E);
+
+    /* For the last call, use the API with implicit wc_CmacFree(). */
+    ExpectIntEQ(wc_CmacFinal(&cmac, mac, &macSz), 0);
+    ExpectIntEQ(XMEMCMP(mac, expMac, expMacSz), 0);
+#else /* !HAVE_FIPS || FIPS>=5.3 */
     ExpectIntEQ(wc_CmacFinal(&cmac, mac, &macSz), 0);
     ExpectIntEQ(XMEMCMP(mac, expMac, expMacSz), 0);
 
@@ -15810,6 +15820,7 @@ static int test_wc_CmacFinal(void)
     ExpectIntEQ(wc_CmacFinal(NULL, mac, &macSz), BAD_FUNC_ARG);
     ExpectIntEQ(wc_CmacFinal(&cmac, NULL, &macSz), BAD_FUNC_ARG);
     ExpectIntEQ(wc_CmacFinal(&cmac, mac, &badMacSz), BUFFER_E);
+#endif /* !HAVE_FIPS || FIPS>=5.3 */
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_CmacFinal */
@@ -16002,6 +16013,10 @@ static int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
 
     /* Set key and IV through streaming init API. */
+    wc_AesFree(aesEnc);
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     /* Encrypt/decrypt one block and AAD of one block. */
@@ -16015,6 +16030,10 @@ static int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
 
     /* Set key and IV through streaming init API. */
+    wc_AesFree(aesEnc);
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     /* No data to encrypt/decrypt one byte of AAD. */
@@ -16026,6 +16045,10 @@ static int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
 
     /* Set key and IV through streaming init API. */
+    wc_AesFree(aesEnc);
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     /* Encrypt/decrypt one byte and no AAD. */
@@ -16038,6 +16061,10 @@ static int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
 
     /* Set key and IV through streaming init API. */
+    wc_AesFree(aesEnc);
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     /* Encryption AES is one byte at a time */
@@ -16065,6 +16092,9 @@ static int test_wc_AesGcmStream(void)
     ExpectIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
 
     /* Check streaming encryption can be decrypted with one shot. */
+    wc_AesFree(aesDec);
+    ExpectIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
     ExpectIntEQ(wc_AesGcmSetKey(aesDec, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmDecrypt(aesDec, plain, out, sizeof(in), iv,
         AES_IV_SIZE, tag, AES_BLOCK_SIZE, aad, sizeof(aad)), 0);
@@ -17620,7 +17650,6 @@ static int test_wc_AesCbcEncryptDecrypt(void)
     ExpectIntEQ(wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv,
         AES_ENCRYPTION), 0);
     ExpectIntEQ(wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector)), 0);
-    wc_AesFree(&aes);
 
     /* Re init for decrypt and set flag. */
     ExpectIntEQ(wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv,
@@ -18162,13 +18191,13 @@ static int test_wc_GmacUpdate(void)
     XMEMSET(tagOut2, 0, sizeof(tagOut2));
     XMEMSET(tagOut3, 0, sizeof(tagOut3));
 
-    ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
-
 #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_GmacSetKey(&gmac, key16, sizeof(key16)), 0);
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
         tagOut, sizeof(tag1)), 0);
     ExpectIntEQ(XMEMCMP(tag1, tagOut, sizeof(tag1)), 0);
+    wc_AesFree(&gmac.aes);
 #endif
 
 #ifdef WOLFSSL_AES_192
@@ -18178,6 +18207,7 @@ static int test_wc_GmacUpdate(void)
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv2, sizeof(iv2), authIn2, sizeof(authIn2),
         tagOut2, sizeof(tag2)), 0);
     ExpectIntEQ(XMEMCMP(tagOut2, tag2, sizeof(tag2)), 0);
+    wc_AesFree(&gmac.aes);
 #endif
 
 #ifdef WOLFSSL_AES_256
@@ -18187,17 +18217,19 @@ static int test_wc_GmacUpdate(void)
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3)), 0);
     ExpectIntEQ(XMEMCMP(tag3, tagOut3, sizeof(tag3)), 0);
+    wc_AesFree(&gmac.aes);
 #endif
 
     /* Pass bad args. */
+    ExpectIntEQ(wc_AesInit(&gmac.aes, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_GmacUpdate(NULL, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3)), BAD_FUNC_ARG);
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3) - 5), BAD_FUNC_ARG);
     ExpectIntEQ(wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3, sizeof(authIn3),
         tagOut3, sizeof(tag3) + 1),  BAD_FUNC_ARG);
-
     wc_AesFree(&gmac.aes);
+
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_GmacUpdate */
@@ -42247,7 +42279,8 @@ static int test_wolfSSL_DES_ede3_cbc_encrypt(void)
 static int test_wolfSSL_AES_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB) \
+        && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     AES_KEY enc;
     AES_KEY dec;
     const byte msg[] = {
@@ -42297,7 +42330,8 @@ static int test_wolfSSL_AES_encrypt(void)
 static int test_wolfSSL_AES_ecb_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB) \
+        && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     AES_KEY aes;
     const byte msg[] =
     {
@@ -42345,7 +42379,8 @@ static int test_wolfSSL_AES_ecb_encrypt(void)
 static int test_wolfSSL_AES_cbc_encrypt(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) && \
+        !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     AES_KEY aes;
     AES_KEY* aesN = NULL;
     size_t len = 0;
@@ -42600,7 +42635,8 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
 static int test_wolfSSL_AES_cfb128_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_CFB)
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_CFB) && \
+        !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     AES_KEY aesEnc;
     AES_KEY aesDec;
     const byte msg[] = {
@@ -42692,7 +42728,7 @@ static int test_wolfSSL_CRYPTO_cts128(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) && \
-    defined(HAVE_CTS)
+    defined(HAVE_CTS) && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     byte tmp[64]; /* Largest vector size */
     /* Test vectors taken form RFC3962 Appendix B */
     const testVector vects[] = {
@@ -46553,7 +46589,8 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     for (i = 0; test_drive[i]; i++) {
 
-    ExpectIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);
+        ExpectIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);
+
         init_offset();
         test_drive_len[i] = 0;
 
@@ -46596,6 +46633,7 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
         }
 
         ret = EVP_CipherFinal(evp, outb, &outl);
+
         binary_dump(outb, outl);
 
         ret = (((test_drive_len[i] % 16) != 0) && (ret == 0)) ||
@@ -46603,6 +46641,7 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
         ExpectTrue(ret);
     }
 
+    ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(evp), WOLFSSL_SUCCESS);
 
     EVP_CIPHER_CTX_free(evp);
     evp = NULL;
@@ -48095,6 +48134,7 @@ static int test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 
         ExpectIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_key_length(ctx), key_lengths[i]);
+
         ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, key_lengths[i]),
             WOLFSSL_SUCCESS);
 
@@ -54966,6 +55006,36 @@ static int test_wolfssl_EVP_aes_gcm(void)
         ExpectIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
 
         /* modify tag*/
+        if (i == 0) {
+            /* Default uses 96-bits IV length */
+#ifdef WOLFSSL_AES_128
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL,
+                key, iv));
+#elif defined(WOLFSSL_AES_192)
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_gcm(), NULL,
+                key, iv));
+#elif defined(WOLFSSL_AES_256)
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_gcm(), NULL,
+                key, iv));
+#endif
+        }
+        else {
+#ifdef WOLFSSL_AES_128
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL,
+                NULL, NULL));
+#elif defined(WOLFSSL_AES_192)
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_gcm(), NULL,
+                NULL, NULL));
+#elif defined(WOLFSSL_AES_256)
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_gcm(), NULL,
+                NULL, NULL));
+#endif
+            /* non-default must to set the IV length first */
+            ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_IVLEN,
+                ivSz, NULL));
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
+
+        }
         tag[AES_BLOCK_SIZE-1]+=0xBB;
         ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
         ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG,
@@ -54975,6 +55045,7 @@ static int test_wolfssl_EVP_aes_gcm(void)
             ciphertxtSz));
         ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         ExpectIntEQ(0, len);
+
         ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
     }
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */

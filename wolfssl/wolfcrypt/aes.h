@@ -380,6 +380,11 @@ struct Aes {
     byte         nonceSet:1;
     byte         ctrSet:1;
 #endif
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    void *CipherLifecycleTag; /* used for dummy allocation and initialization,
+                               * trackable by sanitizers.
+                               */
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -392,6 +397,27 @@ typedef struct XtsAes {
     Aes aes;
     Aes tweak;
 } XtsAes;
+#endif
+
+#if (!defined(WC_AESFREE_IS_MANDATORY)) &&                              \
+    (defined(WC_DEBUG_CIPHER_LIFECYCLE) ||                              \
+     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) ||  \
+     defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES) ||     \
+     defined(WOLFSSL_KCAPI_AES) ||                                      \
+     (defined(WOLFSSL_DEVCRYPTO) &&                                     \
+      (defined(WOLFSSL_DEVCRYPTO_AES) ||                                \
+       defined(WOLFSSL_DEVCRYPTO_CBC))) ||                              \
+     defined(WOLF_CRYPTO_CB) ||                                         \
+     defined(WOLFSSL_IMXRT_DCP) ||                                      \
+     (defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
+      !defined(WOLFSSL_AESNI)) ||                                       \
+     (defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)) ||        \
+     (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)) ||     \
+     defined(WOLFSSL_MAXQ10XX_CRYPTO) ||                                \
+     ((defined(WOLFSSL_RENESAS_FSPSM_TLS) ||                            \
+       defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) &&                     \
+      !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)))
+#define WC_AESFREE_IS_MANDATORY
 #endif
 
 #ifdef HAVE_AESGCM
@@ -594,6 +620,11 @@ WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
 #endif /* HAVE_AES_KEYWRAP */
 
 #ifdef WOLFSSL_AES_XTS
+
+WOLFSSL_API int wc_AesXtsInit(XtsAes* aes, void* heap, int devId);
+
+WOLFSSL_API int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key,
+         word32 len, int dir);
 
 WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
          word32 len, int dir, void* heap, int devId);
