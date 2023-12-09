@@ -54,23 +54,23 @@ SECTIONS
         . = ALIGN(4);
     } > FLASH
 
-    /* Custom section for wolfCrypt and LibC to prevent FIPS hash from changing 
+    /* Custom section for wolfCrypt and LibC to prevent FIPS hash from changing
         when application code changes are made */
     .wolfCryptNonFIPS_text :
     {
         . = ALIGN(4);
-        KEEP(*wolf*src*.o(.text .text*))
         lib_a* ( .text .text*)
+        *wolf*src*.o(.text .text*)
         . = ALIGN(4);
     } > FLASH
     .wolfCryptNonFIPS_rodata :
     {
         . = ALIGN(4);
-        KEEP(*wolf*src*.o(.rodata .rodata*))
         lib_a* (.rodata .rodata*)
+        *wolf*src*.o(.rodata .rodata*)
         . = ALIGN(4);
     } > FLASH
-    
+
 	.sys    : { *(.sys*) }    > FLASH
     .text   : { *(.text*) }   > FLASH
     .rodata : { *(.text*) }   > FLASH
