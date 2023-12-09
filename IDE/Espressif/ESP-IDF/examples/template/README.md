@@ -1,6 +1,9 @@
 # wolfSSL Template Project
 
-This is an example minimally viable wolfSSL template to get started with your own project.
+This is an example of a minimally viable wolfSSL template to get started with your own project.
+
+For general information on [wolfSSL examples for Espressif](../README.md), see the
+[README](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md) file.
 
 ### Prerequisites
 
@@ -63,5 +66,7 @@ For examples, see:
 - [wolfssl-examples](https://github.com/wolfSSL/wolfssl-examples/tree/master/ESP32)
 - [wolfssh-examples](https://github.com/wolfSSL/wolfssh-examples/tree/main/Espressif)
 
+
+See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).
 
 

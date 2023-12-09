@@ -2,7 +2,8 @@
 
 This is the ESP32 Version of the [wolfSSL wolfcrypt test application](https://github.com/wolfSSL/wolfssl/tree/master/wolfcrypt/test).
 
-<!-- This file is included in the ESP Registry. There should be no relative URL links. -->
+For general information on [wolfSSL examples for Espressif](../README.md), see the
+[README](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md) file.
 
 ## ESP Registry
 
@@ -18,7 +19,7 @@ idf.py -b 115200 flash monitor
 
 ## VisualGDB
 
-Open the VisualGDB Visual Studio Project file in the [VisualGDB directory]() and click the "Start" button.
+Open the VisualGDB Visual Studio Project file in the [VisualGDB directory](./VisualGDB/README.md) and click the "Start" button.
 No wolfSSL setup is needed. You may need to adjust your specific COM port. The default is `COM20`.
 
 ## ESP-IDF Commandline
@@ -170,3 +171,5 @@ I (136548) wolfcrypt_test: Exiting main with return code:  0
 
 I (136548) wolfssl_test: wolf_test_task complete success result code = 0
 ```
+
+See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).
