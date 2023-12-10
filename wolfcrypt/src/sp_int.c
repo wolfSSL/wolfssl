@@ -7031,7 +7031,7 @@ int sp_mod_d(const sp_int* a, sp_int_digit d, sp_int_digit* r)
 
 #if defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 /* Divides a by 2 and stores in r: r = a >> 1
  *
  * @param  [in]   a  SP integer to divide.
@@ -19254,7 +19254,7 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_PRIME_GEN */
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *

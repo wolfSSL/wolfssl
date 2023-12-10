@@ -1067,7 +1067,7 @@ MP_API int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap);
 MP_API int sp_prime_is_prime(const sp_int* a, int t, int* result);
 MP_API int sp_prime_is_prime_ex(const sp_int* a, int t, int* result,
     WC_RNG* rng);
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
 MP_API int sp_gcd(const sp_int* a, const sp_int* b, sp_int* r);
 #endif
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
