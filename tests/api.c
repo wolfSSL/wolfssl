@@ -8771,8 +8771,8 @@ static int test_wolfSSL_CTX_add_session_ext(
         /* connection 1 - first connection */
         fprintf(stderr, "\tconnect: %s: j=%d\n", param->tls_version, j);
 
-        XMEMSET(&client_cb, 0, sizeof(callback_functions));
-        XMEMSET(&server_cb, 0, sizeof(callback_functions));
+        XMEMSET(&client_cb, 0, sizeof(client_cb));
+        XMEMSET(&server_cb, 0, sizeof(server_cb));
         client_cb.method  = param->client_meth;
         server_cb.method  = param->server_meth;
 
