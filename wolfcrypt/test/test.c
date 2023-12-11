@@ -9358,7 +9358,8 @@ static wc_test_ret_t aes_key_size_test(void)
     return ret;
 }
 
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+
 /* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
 #ifdef WOLFSSL_AES_128
 static wc_test_ret_t aes_xts_128_test(void)
@@ -9435,8 +9436,6 @@ static wc_test_ret_t aes_xts_128_test(void)
         0x77, 0x8a, 0xe8, 0xb4, 0x3c, 0xb9, 0x8d, 0x5a
     };
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)
-
     WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -9461,8 +9460,6 @@ static wc_test_ret_t aes_xts_128_test(void)
         0xA0, 0x85, 0xD2, 0x69, 0x6E, 0x87, 0x0A, 0xBF,
         0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
     };
-
-#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
@@ -9641,8 +9638,6 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(p2, buf, sizeof(p2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)
-
     /* Test ciphertext stealing in-place. */
     XMEMCPY(buf, p3, sizeof(p3));
     ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
@@ -9670,10 +9665,7 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(p3, buf, sizeof(p3)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
-
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) &&     \
     !defined(WOLFSSL_AFALG)
     {
     #define LARGE_XTS_SZ        1024
@@ -9726,7 +9718,6 @@ static wc_test_ret_t aes_xts_128_test(void)
     #endif
     }
 #endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
-        * (!HAVE_FIPS || FIPS_VERSION_GE(5,3)) &&
         * !WOLFSSL_AFALG
         */
 
@@ -10332,7 +10323,7 @@ static wc_test_ret_t aes_xts_args_test(void)
     return ret;
 }
 #endif /* WOLFSSL_AES_128 */
-#endif /* WOLFSSL_AES_XTS */
+#endif /* WOLFSSL_AES_XTS && (!HAVE_FIPS || FIPS_VERSION_GE(5,3)) */
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 static wc_test_ret_t aes_cbc_test(void)
@@ -11706,7 +11697,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
         goto out;
 #endif
 
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
     ret = aes_xts_128_test();
     if (ret != 0)
