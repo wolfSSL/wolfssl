@@ -1499,6 +1499,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 #ifdef WOLF_CRYPTO_CB
     sha256->devId = devId;
 #endif
+    (void)devId;
 
     return InitSha256(sha256);
 }
