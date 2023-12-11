@@ -30233,6 +30233,20 @@ int wolfSSL_select_next_proto(unsigned char **out, unsigned char *outLen,
     return OPENSSL_NPN_NO_OVERLAP;
 }
 
+void wolfSSL_set_alpn_select_cb(WOLFSSL *ssl,
+                                int (*cb) (WOLFSSL *ssl,
+                                           const unsigned char **out,
+                                           unsigned char *outlen,
+                                           const unsigned char *in,
+                                           unsigned int inlen,
+                                           void *arg), void *arg)
+{
+    if (ssl != NULL) {
+        ssl->alpnSelect = cb;
+        ssl->alpnSelectArg = arg;
+    }
+}
+
 void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
                                     int (*cb) (WOLFSSL *ssl,
                                                const unsigned char **out,
