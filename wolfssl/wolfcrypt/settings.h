@@ -297,7 +297,7 @@
     #if FIPS_VERSION_LT(2,0)
         #define WC_RNG RNG
     #else
-        #ifndef WOLFSSL_STM32L4
+        #ifndef NO_OLD_RNGNAME
             #define RNG WC_RNG
         #endif
     #endif
