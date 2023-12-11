@@ -14726,12 +14726,14 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     (void)tmpTime;
 
     ltime = wc_Time(0);
+#ifndef NO_TIME_SIGNED_CHECK
     if (sizeof(ltime) == sizeof(word32) && (int)ltime < 0){
         /* A negative response here could be due to a 32-bit time_t
          * where the year is 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
         return 0;
     }
+#endif
 
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
     if (dateType == BEFORE) {

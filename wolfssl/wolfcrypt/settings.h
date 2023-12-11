@@ -986,6 +986,9 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_HAVE_SP_ECC
         #define SP_WORD_SIZE 32
         #define WOLFSSL_HAVE_SP_RSA
+        #ifndef NO_DH
+            #define WOLFSSL_HAVE_SP_DH
+        #endif
         #define WOLFSSL_SP_4096
     #endif
     #define TFM_TIMING_RESISTANT
@@ -993,25 +996,37 @@ extern void uITRON4_free(void *p) ;
     #define WC_RSA_BLINDING
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
-    #define NO_SIG_WRAPPER
     #define NO_MAIN_DRIVER
-    #define USE_CERT_BUFFERS_2048
-    #define NO_ERROR_STRINGS
-    /* Uncomment this setting if your toolchain does not offer time.h header */
-    /* #define USER_TIME */
+    #ifndef NO_CRYPT_TEST
+        #define USE_CERT_BUFFERS_2048
+    #endif
+    #ifndef DEBUG_WOLFSSL
+        #define NO_ERROR_STRINGS
+    #endif
+
     #define HAVE_ECC
     #define HAVE_ALPN
     #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
     #define HAVE_TLS_EXTENSIONS
-    #define HAVE_AESGCM
     #define HAVE_SUPPORTED_CURVES
+
+    #define HAVE_AESGCM
+
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
     #elif !defined(__GNUC__)
         /* Suppress the sslpro warning */
         #pragma diag_suppress=11
     #endif
+
+    /* Uncomment this setting if your toolchain does not offer time.h header */
+    /* #define USER_TIME */
     #include <ti/sysbios/hal/Seconds.h>
+    #if defined(__ti__) && !defined(USER_TIME)
+        /* TI internal time() offsets by 2208988800 (1990 -> 1970),
+         * which overflows signed 32-bit */
+        #define NO_TIME_SIGNED_CHECK
+    #endif
 #endif
 
 #ifdef EBSNET
