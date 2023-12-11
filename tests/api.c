@@ -438,6 +438,7 @@ typedef struct testVector {
 typedef int (*ctx_cb)(WOLFSSL_CTX* ctx);
 typedef int (*ssl_cb)(WOLFSSL* ssl);
 typedef int (*test_cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+typedef int (*hs_cb)(WOLFSSL_CTX **ctx, WOLFSSL **ssl);
 
 typedef struct test_ssl_cbf {
     method_provider method;
@@ -445,6 +446,7 @@ typedef struct test_ssl_cbf {
     ssl_cb ssl_ready;
     ssl_cb on_result;
     ssl_cb on_cleanup;
+    hs_cb  on_handshake;
     WOLFSSL_CTX* ctx;
     const char* caPemFile;
     const char* certPemFile;
@@ -6156,6 +6158,14 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
         ExpectIntEQ(client_on_handshake(test_ctx.c_ctx, test_ctx.c_ssl),
             TEST_SUCCESS);
     }
+    if (client_cb->on_handshake != NULL) {
+        ExpectIntEQ(client_cb->on_handshake(&test_ctx.c_ctx, &test_ctx.c_ssl),
+            TEST_SUCCESS);
+    }
+    if (server_cb->on_handshake != NULL) {
+        ExpectIntEQ(server_cb->on_handshake(&test_ctx.s_ctx, &test_ctx.s_ssl),
+            TEST_SUCCESS);
+    }
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
     msg_len = wolfSSL_get_peer_finished(test_ctx.s_ssl, server_side_msg2,
@@ -8761,8 +8771,8 @@ static int test_wolfSSL_CTX_add_session_ext(
         /* connection 1 - first connection */
         fprintf(stderr, "\tconnect: %s: j=%d\n", param->tls_version, j);
 
-        XMEMSET(&client_cb, 0, sizeof(callback_functions));
-        XMEMSET(&server_cb, 0, sizeof(callback_functions));
+        XMEMSET(&client_cb, 0, sizeof(client_cb));
+        XMEMSET(&server_cb, 0, sizeof(server_cb));
         client_cb.method  = param->client_meth;
         server_cb.method  = param->server_meth;
 
@@ -9329,7 +9339,6 @@ static int test_wolfSSL_dtls_export(void)
 
     return EXPECT_RESULT();
 }
-
 
 #if defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_NO_TLS12)
 #ifdef WOLFSSL_TLS13
@@ -10213,6 +10222,114 @@ static int test_wolfSSL_SNI_GetFromBuffer(void)
 #endif /* HAVE_SNI */
 
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
+
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Dummy peer functions to satisfy the exporter/importer */
+static int test_wolfSSL_dtls_export_peers_get_peer(WOLFSSL* ssl, char* ip,
+        int* ipSz, unsigned short* port, int* fam)
+{
+    (void)ssl;
+    ip[0] = -1;
+    *ipSz = 1;
+    *port = 1;
+    *fam = 2;
+    return 1;
+}
+
+static int test_wolfSSL_dtls_export_peers_set_peer(WOLFSSL* ssl, char* ip,
+        int ipSz, unsigned short port, int fam)
+{
+    (void)ssl;
+    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+        return 0;
+    return 1;
+}
+
+static int test_wolfSSL_dtls_export_peers_on_handshake(WOLFSSL_CTX **ctx,
+        WOLFSSL **ssl)
+{
+    EXPECT_DECLS;
+    unsigned char* sessionBuf = NULL;
+    unsigned int sessionSz = 0;
+    void* ioWriteCtx = wolfSSL_GetIOWriteCtx(*ssl);
+    void* ioReadCtx = wolfSSL_GetIOReadCtx(*ssl);
+
+    wolfSSL_CTX_SetIOGetPeer(*ctx, test_wolfSSL_dtls_export_peers_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(*ctx, test_wolfSSL_dtls_export_peers_set_peer);
+    ExpectIntGE(wolfSSL_dtls_export(*ssl, NULL, &sessionSz), 0);
+    ExpectNotNull(sessionBuf =
+        (unsigned char*)XMALLOC(sessionSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGE(wolfSSL_dtls_export(*ssl, sessionBuf, &sessionSz), 0);
+    wolfSSL_free(*ssl);
+    *ssl = NULL;
+    ExpectNotNull(*ssl = wolfSSL_new(*ctx));
+    ExpectIntGE(wolfSSL_dtls_import(*ssl, sessionBuf, sessionSz), 0);
+    wolfSSL_SetIOWriteCtx(*ssl, ioWriteCtx);
+    wolfSSL_SetIOReadCtx(*ssl, ioReadCtx);
+
+    XFREE(sessionBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_dtls_export_peers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+    size_t i, j;
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* dtls_version;
+    } params[] = {
+#ifndef NO_OLD_TLS
+        {wolfDTLSv1_client_method, wolfDTLSv1_server_method, "1.0"},
+#endif
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
+        /* TODO DTLS 1.3 exporting not supported
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
+#endif
+         */
+    };
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        for (j = 0; j <= 0b11; j++) {
+            XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+            XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+            printf("\n\tTesting DTLS %s connection;", params[i].dtls_version);
+
+            client_cbf.method = params[i].client_meth;
+            server_cbf.method = params[i].server_meth;
+
+            if (j & 0b01) {
+                client_cbf.on_handshake =
+                        test_wolfSSL_dtls_export_peers_on_handshake;
+                printf(" With client export;");
+            }
+            if (j & 0b10) {
+                server_cbf.on_handshake =
+                        test_wolfSSL_dtls_export_peers_on_handshake;
+                printf(" With server export;");
+            }
+
+            printf("\n");
+
+            ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+                &server_cbf, NULL), TEST_SUCCESS);
+            if (!EXPECT_SUCCESS())
+                break;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_UseTrustedCA(void)
 {
@@ -69705,6 +69822,7 @@ TEST_CASE testCases[] = {
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
+    TEST_DECL(test_wolfSSL_dtls_export_peers),
     TEST_DECL(test_wolfSSL_SetMinVersion),
     TEST_DECL(test_wolfSSL_CTX_SetMinVersion),
 
