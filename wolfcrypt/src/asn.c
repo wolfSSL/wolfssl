@@ -316,15 +316,13 @@ static const char* TagString(byte tag)
 
 /* Calculates the minimum number of bytes required to encode the value.
  *
- * Only support up to 2^24-1.
- *
  * @param [in] value  Value to be encoded.
  * @return  Number of bytes to encode value.
  */
 static word32 BytePrecision(word32 value)
 {
     word32 i;
-    for (i = (word32)sizeof(value) - 1; i; --i)
+    for (i = (word32)sizeof(value); i; --i)
         if (value >> ((i - 1) * WOLFSSL_BIT_SIZE))
             break;
 
@@ -3139,46 +3137,35 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
      defined(HAVE_PKCS12)
 /* Set small integer, 32 bits or less. DER encoding with no leading 0s
  * returns total amount written including ASN tag and length byte on success */
-int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
+int SetShortInt(byte* output, word32* inOutIdx, word32 number, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
-    int    len = 0;
+    word32 len;
     int    i;
-    byte ar[MAX_LENGTH_SZ];
 
-    /* check for room for type and length bytes */
-    if ((idx + 2) > maxIdx)
+    if (number == 0)
+        len = 1;
+    else
+        len = BytePrecision(number);
+
+    /* check for room for type and length bytes. */
+    if ((idx + 2 + len) > maxIdx)
         return BUFFER_E;
 
-    input[idx++] = ASN_INTEGER;
-    idx++; /* place holder for length byte */
-    if (MAX_LENGTH_SZ + idx > maxIdx)
+    /* check that MAX_SHORT_SZ allows this size of ShortInt. */
+    if (2 + len > MAX_SHORT_SZ)
         return ASN_PARSE_E;
 
-    /* find first non zero byte */
-    XMEMSET(ar, 0, MAX_LENGTH_SZ);
-    c32toa(number, ar);
-    for (i = 0; i < MAX_LENGTH_SZ; i++) {
-        if (ar[i] != 0) {
-            break;
-        }
-    }
+    output[idx++] = ASN_INTEGER;
+    output[idx++] = (byte)len;
 
-    /* handle case of 0 */
-    if (i == MAX_LENGTH_SZ) {
-        input[idx++] = 0; len++;
-    }
+    for (i = (int)len - 1; i >= 0; --i)
+        output[idx++] = (byte)(number >> (i * WOLFSSL_BIT_SIZE));
 
-    for (; i < MAX_LENGTH_SZ && idx < maxIdx; i++) {
-        input[idx++] = ar[i]; len++;
-    }
-
-    /* jump back to beginning of input buffer using unaltered inOutIdx value
-     * and set number of bytes for integer, then update the index value */
-    input[*inOutIdx + 1] = (byte)len;
+    len = idx - *inOutIdx;
     *inOutIdx = idx;
 
-    return len + 2; /* size of integer bytes plus ASN TAG and length byte */
+    return (int)len;
 }
 #endif /* !WOLFSSL_ASN_TEMPLATE || HAVE_PKCS8 || HAVE_PKCS12 */
 #endif /* !NO_PWDBASED */
