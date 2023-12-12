@@ -433,14 +433,18 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                                 mode | ((mode== AES_CFG_MODE_CCM) ? (L | M) : 0 )));
     ROM_AESIVSet(AES_BASE, aes->reg);
     ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen-8);
-    ret = ROM_AESDataProcessAuth(AES_BASE, (unsigned int*)in_a, (unsigned int *)out_a, inSz,
-                           (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
+    ret = ROM_AESDataProcessAuth(AES_BASE,
+        (unsigned int*)in_a, (unsigned int *)out_a, inSz,
+        (unsigned int*)authIn_a, authInSz,
+        (unsigned int *)tmpTag);
     if (ret == false) {
         XMEMSET(out, 0, inSz);
         XMEMSET(authTag, 0, authTagSz);
+        ret = AES_GCM_AUTH_E;
     } else {
         XMEMCPY(out, out_a, inSz);
         XMEMCPY(authTag, tmpTag, authTagSz);
+        ret = 0;
     }
 
 exit:
@@ -448,7 +452,7 @@ exit:
     if (out_save)   XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (nonce_save) XFREE(nonce_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return 0;
+    return ret;
 }
 
 static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
@@ -524,9 +528,10 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                            (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
     if ((ret == false) || (XMEMCMP(authTag, tmpTag, authTagSz) != 0)) {
         XMEMSET(out, 0, inSz);
-        ret = false;
+        ret = AES_GCM_AUTH_E;
     } else {
         XMEMCPY(out, out_a, inSz);
+        ret = 0;
     }
 
 exit:
@@ -535,7 +540,7 @@ exit:
     if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (nonce_save) XFREE(nonce_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return ret==true ? 0 : 1;
+    return ret;
 }
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
