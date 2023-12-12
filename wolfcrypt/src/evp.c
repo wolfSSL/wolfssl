@@ -146,14 +146,16 @@ static const struct s_ent {
     #endif
     #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef WOLFSSL_AES_XTS
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
         static const char EVP_AES_128_XTS[] = "AES-128-XTS";
     #endif
     #ifdef WOLFSSL_AES_256
         static const char EVP_AES_256_XTS[] = "AES-256-XTS";
     #endif
-    #endif /* WOLFSSL_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS &&
+              (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
     #ifdef WOLFSSL_AES_CFB
     #ifdef WOLFSSL_AES_128
@@ -330,7 +332,7 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case AES_192_OFB_TYPE: return 24;
       case AES_256_OFB_TYPE: return 32;
   #endif
-  #if defined(WOLFSSL_AES_XTS)
+  #if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
       /* Two keys for XTS. */
       case AES_128_XTS_TYPE: return 16 * 2;
       case AES_256_XTS_TYPE: return 32 * 2;
@@ -632,7 +634,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesCfbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     case AES_128_XTS_TYPE:
     case AES_256_XTS_TYPE:
         if (ctx->enc)
@@ -1703,7 +1705,7 @@ int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     case AES_192_OFB_TYPE:
     case AES_256_OFB_TYPE:
 #endif
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     case AES_128_XTS_TYPE:
     case AES_256_XTS_TYPE:
 #endif
@@ -1831,7 +1833,7 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return AES_256_ECB_TYPE;
     #endif
 #endif /*HAVE_AES_CBC */
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
     else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_AES_128_XTS))
         return AES_128_XTS_TYPE;
@@ -1997,7 +1999,8 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_256_OFB_TYPE:
             return 1;
     #endif
-    #if defined(WOLFSSL_AES_XTS)
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
         case AES_128_XTS_TYPE:
         case AES_256_XTS_TYPE:
             return 1;
@@ -2106,7 +2109,8 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_256_OFB_TYPE:
             return WOLFSSL_EVP_CIPH_OFB_MODE;
     #endif
-    #if defined(WOLFSSL_AES_XTS)
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
         case AES_128_XTS_TYPE:
         case AES_256_XTS_TYPE:
             return WOLFSSL_EVP_CIPH_XTS_MODE;
@@ -4852,7 +4856,8 @@ static const struct cipher{
     #endif
     #endif
 
-    #ifdef WOLFSSL_AES_XTS
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
     {AES_128_XTS_TYPE, EVP_AES_128_XTS, NID_aes_128_xts},
     #endif
@@ -5565,7 +5570,8 @@ void wolfSSL_EVP_init(void)
     #endif /* WOLFSSL_AES_256 */
     #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef WOLFSSL_AES_XTS
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void)
     {
@@ -5581,7 +5587,8 @@ void wolfSSL_EVP_init(void)
         return EVP_AES_256_XTS;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* WOLFSSL_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS &&
+              (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
     #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
@@ -6135,7 +6142,8 @@ void wolfSSL_EVP_init(void)
                     wc_AesFree(&ctx->cipher.aes);
                     ctx->flags &= ~WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
                     break;
-    #ifdef WOLFSSL_AES_XTS
+    #if defined(WOLFSSL_AES_XTS) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
                 case AES_128_XTS_TYPE:
                 case AES_256_XTS_TYPE:
                     wc_AesXtsFree(&ctx->cipher.xts);
@@ -7465,7 +7473,8 @@ void wolfSSL_EVP_init(void)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* WOLFSSL_AES_OFB */
-    #ifdef WOLFSSL_AES_XTS
+        #if defined(WOLFSSL_AES_XTS) && \
+            (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_XTS_TYPE ||
             (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_AES_128_XTS))) {
@@ -7548,7 +7557,8 @@ void wolfSSL_EVP_init(void)
             }
         }
         #endif /* WOLFSSL_AES_256 */
-    #endif /* WOLFSSL_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS &&
+              (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 #endif /* NO_AES */
     #if defined(HAVE_ARIA)
         if (ctx->cipherType == ARIA_128_GCM_TYPE ||
@@ -8210,7 +8220,7 @@ void wolfSSL_EVP_init(void)
                     ret = (int)len;
                 break;
 #endif /* WOLFSSL_AES_OFB */
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
             case AES_128_XTS_TYPE:
             case AES_256_XTS_TYPE:
                 WOLFSSL_MSG("AES XTS");
@@ -8223,7 +8233,7 @@ void wolfSSL_EVP_init(void)
                 if (ret == 0)
                     ret = (int)len;
                 break;
-#endif /* WOLFSSL_AES_XTS */
+#endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
 #if defined(HAVE_AESGCM) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
     || FIPS_VERSION_GE(2,0))
@@ -9309,12 +9319,12 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES OFB");
             return AES_BLOCK_SIZE;
 #endif /* WOLFSSL_AES_OFB */
-#ifdef WOLFSSL_AES_XTS
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
         case AES_128_XTS_TYPE:
         case AES_256_XTS_TYPE:
             WOLFSSL_MSG("AES XTS");
             return AES_BLOCK_SIZE;
-#endif /* WOLFSSL_AES_XTS */
+#endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 #ifdef HAVE_ARIA
         case ARIA_128_GCM_TYPE :
         case ARIA_192_GCM_TYPE :
@@ -9438,7 +9448,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return AES_BLOCK_SIZE;
     #endif
 #endif
-#ifdef WOLFSSL_AES_XTS
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
     #ifdef WOLFSSL_AES_128
     if (XSTRCMP(name, EVP_AES_128_XTS) == 0)
         return AES_BLOCK_SIZE;
@@ -9448,7 +9458,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     if (XSTRCMP(name, EVP_AES_256_XTS) == 0)
         return AES_BLOCK_SIZE;
     #endif /* WOLFSSL_AES_256 */
-#endif /* WOLFSSL_AES_XTS */
+#endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
 
 #endif
 #ifdef HAVE_ARIA
