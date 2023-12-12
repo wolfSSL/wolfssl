@@ -8395,16 +8395,24 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     /* I am the client, the ciphertext is in keyShareEntry->ke */
     findEccPqc(&ecc_group, &oqs_group, keyShareEntry->group);
 
+    ret = wc_ecc_init_ex(&eccpubkey, ssl->heap, ssl->devId);
+    if (ret != 0) {
+        WOLFSSL_MSG("Memory allocation error.");
+        return MEMORY_E;
+    }
+
     ret = kyber_id2type(oqs_group, &type);
     if (ret != 0) {
+        wc_ecc_free(&eccpubkey);
         WOLFSSL_MSG("Invalid OQS algorithm specified.");
         return BAD_FUNC_ARG;
     }
-    if (ret == 0) {
-        ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
-        if (ret != 0) {
-            WOLFSSL_MSG("Error creating Kyber KEM");
-        }
+
+    ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
+    if (ret != 0) {
+        wc_ecc_free(&eccpubkey);
+        WOLFSSL_MSG("Error creating Kyber KEM");
+        return MEMORY_E;
     }
 
     if (ret == 0) {
@@ -8427,12 +8435,6 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             break;
         default:
             break;
-        }
-
-        ret = wc_ecc_init_ex(&eccpubkey, ssl->heap, ssl->devId);
-        if (ret != 0) {
-            WOLFSSL_MSG("Memory allocation error.");
-            ret = MEMORY_E;
         }
     }
     if (ret == 0) {
@@ -8892,13 +8894,19 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        ret = wc_ecc_init_ex(&eccpubkey, ssl->heap, ssl->devId);
-        if (ret != 0) {
-            WOLFSSL_MSG("Could not do ECC public key initialization.");
-            ret = MEMORY_E;
-        }
+    ret = wc_ecc_init_ex(&eccpubkey, ssl->heap, ssl->devId);
+    if (ret != 0) {
+        WOLFSSL_MSG("Could not do ECC public key initialization.");
+        return MEMORY_E;
     }
+
+    ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
+    if (ret != 0) {
+        wc_ecc_free(&eccpubkey);
+        WOLFSSL_MSG("Error creating Kyber KEM");
+        return MEMORY_E;
+    }
+
     if (ret == 0) {
         ecc_kse = (KeyShareEntry*)XMALLOC(sizeof(*ecc_kse), ssl->heap,
             DYNAMIC_TYPE_TLSX);
@@ -8915,19 +8923,9 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     if (ret == 0 && ecc_group != 0) {
         ecc_kse->group = ecc_group;
         ret = TLSX_KeyShare_GenEccKey(ssl, ecc_kse);
-        if (ret != 0) {
-            /* No message, TLSX_KeyShare_GenEccKey() will do it. */
-            return ret;
-        }
-        ret = 0;
+        /* No message, TLSX_KeyShare_GenEccKey() will do it. */
     }
 
-    if (ret == 0) {
-        ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
-        if (ret != 0) {
-            WOLFSSL_MSG("Error creating Kyber KEM");
-        }
-    }
     if (ret == 0) {
         ret = wc_KyberKey_PublicKeySize(kem, &pubSz);
     }
