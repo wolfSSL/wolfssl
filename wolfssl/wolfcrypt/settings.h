@@ -297,7 +297,7 @@
     #if FIPS_VERSION_LT(2,0)
         #define WC_RNG RNG
     #else
-        #ifndef NO_OLD_RNGNAME
+        #ifndef RNG
             #define RNG WC_RNG
         #endif
     #endif
