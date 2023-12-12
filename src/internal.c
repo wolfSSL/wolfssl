@@ -10718,6 +10718,8 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     return 0;
 }
 
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+
 int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
 {
 #ifdef WOLFSSL_QUIC
@@ -10952,6 +10954,8 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
     return 0;
 }
 
+#endif /* WOLFSSL_DISABLE_EARLY_SANITY_CHECKS */
+
 /**
  * This check is performed as soon as the handshake message type becomes known.
  * These checks can not be delayed and need to be performed when the msg is
@@ -10967,8 +10971,9 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
  */
 int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 {
-    byte version_negotiated = 0;
     int ret = 0;
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+    byte version_negotiated = 0;
 
     WOLFSSL_ENTER("EarlySanityCheckMsgReceived");
 
@@ -10995,6 +11000,11 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
         SendAlert(ssl, alert_fatal, unexpected_message);
 
     WOLFSSL_LEAVE("EarlySanityCheckMsgReceived", ret);
+#else
+    (void)ssl;
+    (void)type;
+    (void)msgSz;
+#endif
 
     return ret;
 }
@@ -17568,11 +17578,13 @@ int DtlsMsgDrain(WOLFSSL* ssl)
             item->ready && ret == 0) {
         word32 idx = 0;
 
+    #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
         ret = MsgCheckEncryption(ssl, item->type, item->encrypted);
         if (ret != 0) {
             SendAlert(ssl, alert_fatal, unexpected_message);
             break;
         }
+    #endif
 
     #ifdef WOLFSSL_NO_TLS12
         ret = DoTls13HandShakeMsgType(ssl, item->fullMsg, &idx, item->type,

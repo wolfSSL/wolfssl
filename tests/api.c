@@ -67471,7 +67471,11 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         }
 
         ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+#else
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), BUFFER_ERROR);
+#endif
 
         wolfSSL_free(ssl_c);
         ssl_c = NULL;

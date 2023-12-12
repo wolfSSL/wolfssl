@@ -363,11 +363,13 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         if (!msg->ready)
             break;
 
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
         ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
         if (ret != 0) {
             SendAlert(ssl, alert_fatal, unexpected_message);
             break;
         }
+#endif
 
         /* We may have DTLS <=1.2 msgs stored from before we knew which version
          * we were going to use. Interpret correctly. */
