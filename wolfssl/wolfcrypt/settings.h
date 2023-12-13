@@ -3151,6 +3151,10 @@ extern void uITRON4_free(void *p) ;
 #error "ConnectionID is supported for DTLSv1.3 only"
 #endif
 
+#if defined(WOLFSSL_QUIC) && defined(WOLFSSL_CALLBACKS)
+    #error WOLFSSL_QUIC is incompatible with WOLFSSL_CALLBACKS.
+#endif
+
 /* RSA Key Checking is disabled by default unless WOLFSSL_RSA_KEY_CHECK is
  *   defined or FIPS v2 3389, FIPS v5 or later.
  * Not allowed for:
