@@ -297,7 +297,11 @@
     #if FIPS_VERSION_LT(2,0)
         #define WC_RNG RNG
     #else
-        #ifndef NO_OLD_RNGNAME
+        /* RNG needs to be defined to WC_RNG anytime another library on the
+         * system or other set of headers included by wolfSSL already defines
+         * RNG. Examples are:
+         * wolfEngine, wolfProvider and potentially other use-cases */
+        #ifndef RNG
             #define RNG WC_RNG
         #endif
     #endif
