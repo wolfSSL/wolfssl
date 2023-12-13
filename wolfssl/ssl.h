@@ -1695,7 +1695,7 @@ WOLFSSL_API int wolfSSL_OCSP_parse_url(char* url, char** host, char** port,
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(const WOLFSSL_BIO_METHOD* method);
 #else
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD* method);
 #endif
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_vfree(WOLFSSL_BIO* bio);
