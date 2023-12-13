@@ -99,7 +99,7 @@
 #define CURVE25519_SMALL
 #define HAVE_ED25519
 
-/* Optional OPENSSL compatibility *
+/* Optional OPENSSL compatibility */
 #define OPENSSL_EXTRA
 /* when you want to use pkcs7 */
 /* #define HAVE_PKCS7 */
