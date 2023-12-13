@@ -2708,14 +2708,18 @@ static void* benchmarks_do(void* args)
         bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        if (bench_plain == NULL)
+        if (bench_plain == NULL) {
+            XFCLOSE(file);
             goto exit;
+        }
 
         if ((size_t)XFREAD(bench_plain, 1, rawSz, file)
                 != (size_t)rawSz) {
             XFCLOSE(file);
             goto exit;
         }
+
+        XFCLOSE(file);
     }
     else {
         XMEMSET(bench_plain, 0, (size_t)bench_buf_size);
@@ -2751,14 +2755,18 @@ static void* benchmarks_do(void* args)
         bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16*2,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        if (bench_cipher == NULL)
+        if (bench_cipher == NULL) {
+            XFCLOSE(file);
             goto exit;
+        }
 
         if ((size_t)XFREAD(bench_cipher, 1, rawSz, file)
                 != (size_t)rawSz) {
             XFCLOSE(file);
             goto exit;
         }
+
+        XFCLOSE(file);
     }
     else {
         XMEMSET(bench_cipher, 0, (size_t)bench_buf_size);
