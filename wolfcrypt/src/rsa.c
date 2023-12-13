@@ -2495,7 +2495,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
 {
     int    ret = 0;
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
-    mp_digit mp;
+    mp_digit mp = 0;
     DECL_MP_INT_SIZE_DYN(rnd, mp_bitsused(&key->n), RSA_MAX_SIZE);
     DECL_MP_INT_SIZE_DYN(rndi, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
