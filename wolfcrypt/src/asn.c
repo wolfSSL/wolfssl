@@ -5747,7 +5747,8 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
      *
      * These hacks will hopefully disappear when new standardized OIDs appear.
      */
-    if (memcmp(&input[idx], sigSphincsFast_Level3Oid,
+    if (idx + (word32)sizeof(sigSphincsFast_Level3Oid) < (word32)length &&
+            XMEMCMP(&input[idx], sigSphincsFast_Level3Oid,
                sizeof(sigSphincsFast_Level3Oid)) == 0) {
         found_collision = SPHINCS_FAST_LEVEL3k;
     }
