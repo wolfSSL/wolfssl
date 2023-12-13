@@ -45183,30 +45183,34 @@ static int test_wolfSSL_cert_cb_dyn_ciphers(void)
 #endif
     };
     size_t i;
+    size_t testCount = sizeof(test_params)/sizeof(*test_params);
 
-    for (i = 0; i < sizeof(test_params)/sizeof(*test_params); i++) {
-        printf("\tTesting %s ciphers with %s sigalgs\n",
-                test_params[i].client_ciphers, test_params[i].client_sigalgs);
+    if (testCount > 0) {
+        for (i = 0; i < testCount; i++) {
+            printf("\tTesting %s ciphers with %s sigalgs\n",
+                    test_params[i].client_ciphers,
+                    test_params[i].client_sigalgs);
 
-        XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
-        XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+            XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+            XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
 
-        test_wolfSSL_cert_cb_dyn_ciphers_client_cipher =
-                test_params[i].client_ciphers;
-        test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs =
-                test_params[i].client_sigalgs;
-        func_cb_client.method = test_params[i].client_meth;
-        func_cb_client.caPemFile = test_params[i].client_ca;
-        func_cb_client.ctx_ready =
-                test_wolfSSL_cert_cb_dyn_ciphers_client_ctx_ready;
+            test_wolfSSL_cert_cb_dyn_ciphers_client_cipher =
+                    test_params[i].client_ciphers;
+            test_wolfSSL_cert_cb_dyn_ciphers_client_sigalgs =
+                    test_params[i].client_sigalgs;
+            func_cb_client.method = test_params[i].client_meth;
+            func_cb_client.caPemFile = test_params[i].client_ca;
+            func_cb_client.ctx_ready =
+                    test_wolfSSL_cert_cb_dyn_ciphers_client_ctx_ready;
 
-        func_cb_server.ctx_ready =
-                test_wolfSSL_cert_cb_dyn_ciphers_server_ctx_ready;
-        func_cb_server.ssl_ready = certClearCb; /* Reuse from previous test */
-        func_cb_server.method = test_params[i].server_meth;
+            func_cb_server.ctx_ready =
+                    test_wolfSSL_cert_cb_dyn_ciphers_server_ctx_ready;
+            func_cb_server.ssl_ready = certClearCb; /* Reuse from prev test */
+            func_cb_server.method = test_params[i].server_meth;
 
-        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
-            &func_cb_server, NULL), TEST_SUCCESS);
+            ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+                &func_cb_server, NULL), TEST_SUCCESS);
+        }
     }
 #endif
     return EXPECT_RESULT();
