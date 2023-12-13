@@ -32504,7 +32504,7 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         }
     }
 
-    if (curveSz) {
+    if ((ret == 0) && (curveSz)) {
         *curveSz = curve->size;
     }
 

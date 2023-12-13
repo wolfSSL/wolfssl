@@ -11825,6 +11825,10 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
     }
 #endif
 
+#ifndef WOLFSSL_SMALL_STACK
+    XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
+#endif
+
     switch (pkcs7->state) {
         case WC_PKCS7_START:
         case WC_PKCS7_INFOSET_START:
@@ -11855,6 +11859,9 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             if (decryptedKey == NULL) {
                 ret = MEMORY_E;
                 break;
+            }
+            else {
+                XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
             }
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->key = decryptedKey;
