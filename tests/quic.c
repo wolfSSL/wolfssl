@@ -543,10 +543,11 @@ static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t 
 {
     QuicTestContext *ctx = (QuicTestContext*)wolfSSL_get_app_data(ssl);
 
+    AssertNotNull(ctx);
+
     if (ctx->verbose) {
         printf("[%s] send_alert: level=%d, err=%d\n", ctx->name, level, err);
     }
-    AssertNotNull(ctx);
     ctx->alert_level = level;
     ctx->alert = alert;
     return 1;
@@ -558,6 +559,8 @@ static int ctx_session_ticket_cb(WOLFSSL* ssl,
                                  void* cb_ctx)
 {
     QuicTestContext *ctx = (QuicTestContext*)wolfSSL_get_app_data(ssl);
+
+    AssertNotNull(ctx);
 
     (void)cb_ctx;
     if (ticketSz < 0 || (size_t)ticketSz > sizeof(ctx->ticket)) {
@@ -1534,6 +1537,8 @@ static int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session)
     byte *data;
     int ret = 0;
     int sz;
+
+    AssertNotNull(ctx);
 
     sz = wolfSSL_i2d_SSL_SESSION(session, NULL);
     if (sz <= 0) {

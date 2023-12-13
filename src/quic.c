@@ -950,8 +950,18 @@ cleanup:
 
 const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_aead(WOLFSSL* ssl)
 {
-    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
-    const WOLFSSL_EVP_CIPHER* evp_cipher;
+    WOLFSSL_CIPHER* cipher = NULL;
+    const WOLFSSL_EVP_CIPHER* evp_cipher = NULL;
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    cipher = wolfSSL_get_current_cipher(ssl);
+
+    if (cipher == NULL) {
+        return NULL;
+    }
 
     switch (cipher->cipherSuite) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
@@ -997,8 +1007,18 @@ static int evp_cipher_eq(const WOLFSSL_EVP_CIPHER* c1,
 
 const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
 {
-    WOLFSSL_CIPHER* cipher = wolfSSL_get_current_cipher(ssl);
-    const WOLFSSL_EVP_CIPHER* evp_cipher;
+    WOLFSSL_CIPHER* cipher = NULL;
+    const WOLFSSL_EVP_CIPHER* evp_cipher = NULL;
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    cipher = wolfSSL_get_current_cipher(ssl);
+
+    if (cipher == NULL) {
+        return NULL;
+    }
 
     switch (cipher->cipherSuite) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
