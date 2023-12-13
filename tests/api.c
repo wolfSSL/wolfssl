@@ -68772,6 +68772,12 @@ static int test_dtls13_early_data(void)
 
     ExpectTrue(wolfSSL_session_reused(ssl_c));
     ExpectTrue(wolfSSL_session_reused(ssl_s));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }
