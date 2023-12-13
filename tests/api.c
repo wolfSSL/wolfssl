@@ -10670,6 +10670,60 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_ALPN_FreePeerProtocol(ssl, &clist));
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+
+/* ALPN select callback, success with spdy/2 */
+static int select_ALPN_spdy2(WOLFSSL *ssl, const unsigned char **out,
+    unsigned char *outlen, const unsigned char *in,
+    unsigned int inlen, void *arg)
+{
+    /* spdy/2 */
+    const char proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x32};
+
+    (void)ssl;
+    (void)arg;
+
+    /* adding +1 since LEN byte comes first */
+    if (inlen < sizeof(proto) + 1) {
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    if (XMEMCMP(in + 1, proto, sizeof(proto)) == 0) {
+        *out = in + 1;
+        *outlen = (unsigned char)sizeof(proto);
+        return SSL_TLSEXT_ERR_OK;
+    }
+
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
+/* ALPN select callback, force failure */
+static int select_ALPN_failure(WOLFSSL *ssl, const unsigned char **out,
+    unsigned char *outlen, const unsigned char *in,
+    unsigned int inlen, void *arg)
+{
+    (void)ssl;
+    (void)out;
+    (void)outlen;
+    (void)in;
+    (void)inlen;
+    (void)arg;
+
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
+static void use_ALPN_spdy2_callback(WOLFSSL* ssl)
+{
+    wolfSSL_set_alpn_select_cb(ssl, select_ALPN_spdy2, NULL);
+}
+
+static void use_ALPN_failure_callback(WOLFSSL* ssl)
+{
+    wolfSSL_set_alpn_select_cb(ssl, select_ALPN_failure, NULL);
+}
+#endif /* OPENSSL_ALL | NGINX | HAPROXY | LIGHTY | QUIC */
+
 static int test_wolfSSL_UseALPN_connection(void)
 {
     int res = TEST_SKIPPED;
@@ -10724,6 +10778,30 @@ static int test_wolfSSL_UseALPN_connection(void)
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all;     client_cb.on_result = NULL;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_unknown; server_cb.on_result = verify_ALPN_FATAL_ERROR_on_client;
     test_wolfSSL_client_server(&client_cb, &server_cb);
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+
+    /* WOLFSSL-level ALPN select callback tests */
+    /* Callback: success (one protocol, spdy/2) */
+    client_cb.ctx_ready = NULL;
+    client_cb.ssl_ready = use_ALPN_one;
+    client_cb.on_result = verify_ALPN_matching_spdy2;
+    server_cb.ctx_ready = NULL;
+    server_cb.ssl_ready = use_ALPN_spdy2_callback;
+    server_cb.on_result = verify_ALPN_matching_spdy2;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
+
+    /* Callback: failure (one client protocol, spdy/2) */
+    client_cb.ctx_ready = NULL;
+    client_cb.ssl_ready = use_ALPN_one;
+    client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL;
+    server_cb.ssl_ready = use_ALPN_failure_callback;
+    server_cb.on_result = verify_ALPN_FATAL_ERROR_on_client;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
+
+#endif /* OPENSSL_ALL | NGINX | HAPROXY | LIGHTY */
 
     res = TEST_RES_CHECK(1);
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */

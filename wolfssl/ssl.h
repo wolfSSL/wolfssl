@@ -5025,6 +5025,13 @@ WOLFSSL_API int wolfSSL_select_next_proto(unsigned char **out,
         const unsigned char *in, unsigned int inlen,
         const unsigned char *client,
         unsigned int client_len);
+WOLFSSL_API void wolfSSL_set_alpn_select_cb(WOLFSSL *ssl,
+        int (*cb) (WOLFSSL *ssl,
+            const unsigned char **out,
+            unsigned char *outlen,
+            const unsigned char *in,
+            unsigned int inlen,
+            void *arg), void *arg);
 WOLFSSL_API void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
         int (*cb) (WOLFSSL *ssl,
             const unsigned char **out,
