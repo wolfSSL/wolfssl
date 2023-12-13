@@ -363,6 +363,14 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         if (!msg->ready)
             break;
 
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+        ret = MsgCheckEncryption(ssl, msg->type, msg->encrypted);
+        if (ret != 0) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+            break;
+        }
+#endif
+
         /* We may have DTLS <=1.2 msgs stored from before we knew which version
          * we were going to use. Interpret correctly. */
         if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -1621,6 +1629,13 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         &messageLength, &fragOff, &fragLength, size);
     if (ret != 0)
         return PARSE_ERROR;
+
+    /* Need idx + fragLength as we don't advance the inputBuffer idx value */
+    ret = EarlySanityCheckMsgReceived(ssl, handshakeType, idx + fragLength);
+    if (ret != 0) {
+        WOLFSSL_ERROR(ret);
+        return ret;
+    }
 
     if (ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->options.acceptState < TLS13_ACCEPT_FIRST_REPLY_DONE) {

@@ -547,7 +547,7 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
     return ret;
 }
 
-int IsEncryptionOn(WOLFSSL* ssl, int isSend)
+int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
     #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
@@ -4688,7 +4688,7 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 #endif /* !NO_CERTS */
 
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-static word32 MacSize(WOLFSSL* ssl)
+static word32 MacSize(const WOLFSSL* ssl)
 {
 #ifdef HAVE_TRUNCATED_HMAC
     word32 digestSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
@@ -8972,7 +8972,8 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 }
 
 int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
-               word32 fragOffset, word32 fragSz, void* heap, word32 totalLen)
+               word32 fragOffset, word32 fragSz, void* heap, word32 totalLen,
+               byte encrypted)
 {
     word32 fragOffsetEnd = fragOffset + fragSz;
 
@@ -8993,11 +8994,13 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
             WOLFSSL_ERROR_VERBOSE(SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
         }
+        msg->encrypted = msg->encrypted && encrypted;
     }
     else {
         msg->type = type;
         msg->epoch = epoch;
         msg->seq = seq;
+        msg->encrypted = encrypted;
     }
 
     if (msg->fragBucketList == NULL) {
@@ -9118,6 +9121,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
      */
 
     DtlsMsg* head = ssl->dtls_rx_msg_list;
+    byte encrypted = ssl->keys.decryptedCur == 1;
     WOLFSSL_ENTER("DtlsMsgStore");
 
     if (head != NULL) {
@@ -9126,7 +9130,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
             cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur != NULL) {
                 if (DtlsMsgSet(cur, seq, epoch, data, type,
-                                       fragOffset, fragSz, heap, dataSz) < 0) {
+                             fragOffset, fragSz, heap, dataSz, encrypted) < 0) {
                     DtlsMsgDelete(cur, heap);
                 }
                 else {
@@ -9138,13 +9142,13 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         else {
             /* If this fails, the data is just dropped. */
             DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz);
+                    fragSz, heap, dataSz, encrypted);
         }
     }
     else {
         head = DtlsMsgNew(dataSz, 0, heap);
         if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz) < 0) {
+                    fragSz, heap, dataSz, encrypted) < 0) {
             DtlsMsgDelete(head, heap);
             head = NULL;
         }
@@ -10712,6 +10716,297 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     }
 
     return 0;
+}
+
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+
+int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
+{
+#ifdef WOLFSSL_QUIC
+    /* QUIC protects messages outside of the TLS scope */
+    if (WOLFSSL_IS_QUIC(ssl) && IsAtLeastTLSv1_3(ssl->version))
+        return 0;
+#endif
+    /* Verify which messages always have to be encrypted */
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        switch ((enum HandShakeType)type) {
+            case client_hello:
+            case server_hello:
+            case hello_verify_request:
+            case hello_retry_request:
+            case change_cipher_hs:
+                if (encrypted) {
+                    WOLFSSL_MSG("Message can not be encrypted");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case hello_request:
+            case session_ticket:
+            case end_of_early_data:
+            case encrypted_extensions:
+            case certificate:
+            case server_key_exchange:
+            case certificate_request:
+            case server_hello_done:
+            case certificate_verify:
+            case client_key_exchange:
+            case finished:
+            case certificate_status:
+            case key_update:
+                if (!encrypted) {
+                    WOLFSSL_MSG("Message always has to be encrypted");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case message_hash:
+            case no_shake:
+            default:
+                WOLFSSL_MSG("Unknown message type");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+        }
+    }
+    else {
+        switch ((enum HandShakeType)type) {
+            case client_hello:
+                if ((IsSCR(ssl) || ssl->options.handShakeDone) && !encrypted) {
+                    WOLFSSL_MSG("Message has to be encrypted for SCR");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case server_hello:
+            case hello_verify_request:
+            case hello_retry_request:
+            case certificate:
+            case server_key_exchange:
+            case certificate_request:
+            case server_hello_done:
+            case certificate_verify:
+            case client_key_exchange:
+            case certificate_status:
+            case session_ticket:
+            case change_cipher_hs:
+                if (IsSCR(ssl)) {
+                    if (!encrypted) {
+                        WOLFSSL_MSG("Message has to be encrypted during SCR");
+                        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                        return OUT_OF_ORDER_E;
+                    }
+                }
+                else if (encrypted) {
+                    WOLFSSL_MSG("Message can not be encrypted in regular "
+                                "handshake");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case hello_request:
+            case finished:
+                if (!encrypted) {
+                    WOLFSSL_MSG("Message always has to be encrypted");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case key_update:
+            case encrypted_extensions:
+            case end_of_early_data:
+            case message_hash:
+            case no_shake:
+            default:
+                WOLFSSL_MSG("Unknown message type");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+        }
+    }
+    return 0;
+}
+
+static WC_INLINE int isLastMsg(const WOLFSSL* ssl, word32 msgSz)
+{
+    word32 extra = 0;
+    if (IsEncryptionOn(ssl, 0)) {
+        extra = ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead)
+            extra += MacSize(ssl);
+#endif
+    }
+    return (ssl->buffers.inputBuffer.idx - ssl->curStartIdx) + msgSz + extra
+            == ssl->curSize;
+}
+
+/* Check if the msg is the last msg in a record. This is also an easy way
+ * to check that a record doesn't span different key boundaries. */
+static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
+        byte version_negotiated, word32 msgSz)
+{
+    if (version_negotiated) {
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            switch ((enum HandShakeType)type) {
+                case hello_request:
+                case client_hello:
+                case server_hello:
+                case hello_verify_request:
+                case hello_retry_request:
+                case finished:
+                case end_of_early_data:
+                    if (!isLastMsg(ssl, msgSz)) {
+                        WOLFSSL_MSG("Message type is not last in record");
+                        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                        return OUT_OF_ORDER_E;
+                    }
+                    break;
+                case session_ticket:
+                case encrypted_extensions:
+                case certificate:
+                case server_key_exchange:
+                case certificate_request:
+                case certificate_verify:
+                case client_key_exchange:
+                case certificate_status:
+                case key_update:
+                case change_cipher_hs:
+                    break;
+                case server_hello_done:
+                case message_hash:
+                case no_shake:
+                default:
+                    WOLFSSL_MSG("Unknown message type");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+            }
+        }
+        else {
+            switch ((enum HandShakeType)type) {
+                case hello_request:
+                case client_hello:
+                case hello_verify_request:
+                    if (!isLastMsg(ssl, msgSz)) {
+                        WOLFSSL_MSG("Message type is not last in record");
+                        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                        return OUT_OF_ORDER_E;
+                    }
+                    break;
+                case server_hello:
+                case session_ticket:
+                case end_of_early_data:
+                case certificate:
+                case server_key_exchange:
+                case certificate_request:
+                case server_hello_done:
+                case certificate_verify:
+                case client_key_exchange:
+                case finished:
+                case certificate_status:
+                case change_cipher_hs:
+                    break;
+                case hello_retry_request:
+                case encrypted_extensions:
+                case key_update:
+                case message_hash:
+                case no_shake:
+                default:
+                    WOLFSSL_MSG("Unknown message type");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+            }
+        }
+    }
+    else {
+        switch ((enum HandShakeType)type) {
+            case hello_request:
+            case client_hello:
+            case hello_verify_request:
+                if (!isLastMsg(ssl, msgSz)) {
+                    WOLFSSL_MSG("Message type is not last in record");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                break;
+            case server_hello:
+            case session_ticket:
+            case end_of_early_data:
+            case hello_retry_request:
+            case encrypted_extensions:
+            case certificate:
+            case server_key_exchange:
+            case certificate_request:
+            case server_hello_done:
+            case certificate_verify:
+            case client_key_exchange:
+            case finished:
+            case certificate_status:
+            case key_update:
+            case change_cipher_hs:
+                break;
+            case message_hash:
+            case no_shake:
+            default:
+                WOLFSSL_MSG("Unknown message type");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+        }
+    }
+    return 0;
+}
+
+#endif /* WOLFSSL_DISABLE_EARLY_SANITY_CHECKS */
+
+/**
+ * This check is performed as soon as the handshake message type becomes known.
+ * These checks can not be delayed and need to be performed when the msg is
+ * received and not when it is processed (fragmentation may cause messages to
+ * be processed at a later time). This function CAN NOT be called on stored
+ * messages as it relies on the state of the WOLFSSL object right after
+ * receiving the message.
+ *
+ * @param ssl   The current connection
+ * @param type  The enum HandShakeType of the current message
+ * @param msgSz Size of the current message
+ * @return
+ */
+int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
+{
+    int ret = 0;
+#ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+    byte version_negotiated = 0;
+
+    WOLFSSL_ENTER("EarlySanityCheckMsgReceived");
+
+#ifdef WOLFSSL_DTLS
+    /* Version has only been negotiated after we either send or process a
+     * ServerHello message */
+    if (ssl->options.dtls)
+        version_negotiated = ssl->options.serverState >= SERVER_HELLO_COMPLETE;
+    else
+#endif
+        version_negotiated = 1;
+
+    if (version_negotiated)
+        ret = MsgCheckEncryption(ssl, type, ssl->keys.decryptedCur == 1);
+
+    if (ret == 0)
+        ret = MsgCheckBoundary(ssl, type, version_negotiated, msgSz);
+
+    if (ret != 0
+#ifdef WOLFSSL_DTLS
+            && ssl->options.dtls && ssl->options.dtlsStateful
+#endif
+            )
+        SendAlert(ssl, alert_fatal, unexpected_message);
+
+    WOLFSSL_LEAVE("EarlySanityCheckMsgReceived", ret);
+#else
+    (void)ssl;
+    (void)type;
+    (void)msgSz;
+#endif
+
+    return ret;
 }
 
 #ifdef WOLFSSL_DTLS13
@@ -15785,7 +16080,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     return 0;
 }
 
-
 /* Make sure no duplicates, no fast forward, or other problems; 0 on success */
 static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 {
@@ -16650,6 +16944,12 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             return PARSE_ERROR;
         }
 
+        ret = EarlySanityCheckMsgReceived(ssl, type, size);
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
+        }
+
         if (size > MAX_HANDSHAKE_SZ) {
             WOLFSSL_MSG("Handshake message too large");
             WOLFSSL_ERROR_VERBOSE(HANDSHAKE_SIZE_ERROR);
@@ -16671,6 +16971,13 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                totalSz) != 0) {
             WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
             return PARSE_ERROR;
+        }
+
+        ret = EarlySanityCheckMsgReceived(ssl, type,
+                min(inputLength - HANDSHAKE_HEADER_SZ, size));
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
         }
 
         /* Cap the maximum size of a handshake message to something reasonable.
@@ -16710,6 +17017,13 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * record. */
         if (inputLength > pendSz)
             inputLength = pendSz;
+
+        ret = EarlySanityCheckMsgReceived(ssl, ssl->arrays->pendingMsgType,
+                inputLength);
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
+        }
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->error != WC_PENDING_E)
@@ -17265,6 +17579,14 @@ int DtlsMsgDrain(WOLFSSL* ssl)
             item->ready && ret == 0) {
         word32 idx = 0;
 
+    #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
+        ret = MsgCheckEncryption(ssl, item->type, item->encrypted);
+        if (ret != 0) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+            break;
+        }
+    #endif
+
     #ifdef WOLFSSL_NO_TLS12
         ret = DoTls13HandShakeMsgType(ssl, item->fullMsg, &idx, item->type,
                                       item->sz, item->sz);
@@ -17312,6 +17634,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                &size, &fragOffset, &fragSz, totalSz) != 0) {
         WOLFSSL_ERROR(PARSE_ERROR);
         return PARSE_ERROR;
+    }
+
+    ret = EarlySanityCheckMsgReceived(ssl, type, fragSz);
+    if (ret != 0) {
+        WOLFSSL_ERROR(ret);
+        return ret;
     }
 
     /* Cap the maximum size of a handshake message to something reasonable.
@@ -20271,7 +20599,6 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
     int    ret = 0, type = internal_error, readSz;
     int    atomicUser = 0;
-    word32 startIdx = 0;
 #if defined(WOLFSSL_DTLS)
     int    used;
 #endif
@@ -20563,7 +20890,8 @@ default:
             ssl->keys.padSz = 0;
 
             ssl->options.processReply = verifyEncryptedMessage;
-            startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
+            /* in case > 1 msg per record */
+            ssl->curStartIdx = ssl->buffers.inputBuffer.idx;
             FALL_THROUGH;
 
         /* verify digest of encrypted message */
@@ -20907,7 +21235,7 @@ default:
                 /* For TLS v1.1 the block size and explicit IV are added to idx,
                  * so it needs to be included in this limit check */
                 if ((ssl->curSize - ssl->keys.padSz -
-                        (ssl->buffers.inputBuffer.idx - startIdx) -
+                        (ssl->buffers.inputBuffer.idx - ssl->curStartIdx) -
                         MacSize(ssl) > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
@@ -20929,7 +21257,7 @@ default:
              * so it needs to be included in this limit check */
             if (!IsAtLeastTLSv1_3(ssl->version)
                     && ssl->curSize - ssl->keys.padSz -
-                        (ssl->buffers.inputBuffer.idx - startIdx)
+                        (ssl->buffers.inputBuffer.idx - ssl->curStartIdx)
                             > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
                     && ssl->buffers.inputBuffer.length !=
@@ -21333,7 +21661,8 @@ default:
                 return ret;
             }
             /* more messages per record */
-            else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
+            else if ((ssl->buffers.inputBuffer.idx - ssl->curStartIdx)
+                    < ssl->curSize) {
                 WOLFSSL_MSG("More messages in record");
 
                 ssl->options.processReply = runProcessingOneMessage;
