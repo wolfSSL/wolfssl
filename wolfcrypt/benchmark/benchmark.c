@@ -12287,7 +12287,7 @@ void bench_sphincsKeySign(byte level, byte optim)
     * Use care when repeatedly calling calling. See implementation. */
     double current_time(int reset)
     {
-    	portTickType tickCount;
+        portTickType tickCount;
         /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
         tickCount = xTaskGetTickCount();
         return (double)tickCount / 1000;
