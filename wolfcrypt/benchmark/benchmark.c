@@ -12190,7 +12190,6 @@ void bench_sphincsKeySign(byte level, byte optim)
     /* prototype definition */
     int construct_argv();
     extern char* __argv[22];
-#endif
 
     /* current_time(reset)
      *
@@ -12277,7 +12276,24 @@ void bench_sphincsKeySign(byte level, byte optim)
     #endif /* configTICK_RATE_HZ */
 
         return ret;
+
     } /* current_time */
+#else
+    /* current_time(reset)
+    *
+    * Benchmark passage of time, in fractional seconds.
+    *   [reset] is non zero to adjust timer or counter to zero
+    *
+    * Use care when repeatedly calling calling. See implementation. */
+    double current_time(int reset)
+    {
+        portTickType tickCount;
+        /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
+        tickCount = xTaskGetTickCount();
+        return (double)tickCount / 1000;
+    }
+#endif
+
 
 #elif defined (WOLFSSL_TIRTOS)
 
