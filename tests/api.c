@@ -45495,6 +45495,8 @@ static int test_wolfSSL_SESSION(void)
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl); ssl = NULL;
 
+    CloseSocket(sockfd);
+
     join_thread(serverThread);
 
     FreeTcpReady(&ready);

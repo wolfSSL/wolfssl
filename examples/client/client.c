@@ -3700,6 +3700,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
                                WOLFSSL_CSR_OCSP_USE_NONCE) != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl); ssl = NULL;
+                    CloseSocket(sockfd);
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("UseCertificateStatusRequest failed");
                 }
@@ -3711,6 +3712,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
                                                            != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl); ssl = NULL;
+                    CloseSocket(sockfd);
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("UseCertificateStatusRequest failed");
                 }
@@ -3720,6 +3722,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     WOLFSSL_CSR2_OCSP_MULTI, 0)
                                                            != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl); ssl = NULL;
+                    CloseSocket(sockfd);
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("UseCertificateStatusRequest failed");
                 }
@@ -3748,6 +3751,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
         wolfSSL_free(ssl); ssl = NULL;
+        CloseSocket(sockfd);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("error in setting fd");
     }
@@ -3763,6 +3767,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (doSTARTTLS) {
         if (StartTLS_Init(&sockfd) != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error during STARTTLS protocol");
         }
@@ -3776,17 +3781,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't enable crl check");
         }
         if (wolfSSL_LoadCRL(ssl, crlPemDir, WOLFSSL_FILETYPE_PEM, 0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load crl, check crlfile and date validity");
         }
         if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't set crl callback");
         }
@@ -3796,6 +3804,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (scr) {
         if (wolfSSL_UseSecureRenegotiation(ssl) != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't enable secure renegotiation");
         }
@@ -3948,6 +3957,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         size = wolfSSL_get_client_random(NULL, NULL, 0);
         if (size == 0) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error getting client random buffer size");
         }
@@ -3955,6 +3965,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rnd == NULL) {
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error creating client random buffer");
         }
@@ -3963,6 +3974,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (size == 0) {
             XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free(ssl); ssl = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error getting client random buffer");
         }
@@ -4001,6 +4013,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (XSTRCMP(starttlsProt, "smtp") == 0) {
             if (SMTP_Shutdown(ssl, wc_shutdown) != WOLFSSL_SUCCESS) {
                 wolfSSL_free(ssl); ssl = NULL;
+                CloseSocket(sockfd);
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("error closing STARTTLS connection");
             }
@@ -4115,6 +4128,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         LOG_ERROR("wolfSSL_Rehandshake error %d, %s\n", err,
                             wolfSSL_ERR_error_string(err, buffer));
                         wolfSSL_free(ssl); ssl = NULL;
+                        CloseSocket(sockfd);
                         wolfSSL_CTX_free(ctx); ctx = NULL;
                         err_sys("non-blocking wolfSSL_Rehandshake failed");
                     }
@@ -4145,6 +4159,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         printf("err = %d, %s\n", err,
                                         wolfSSL_ERR_error_string(err, buffer));
                         wolfSSL_free(ssl); ssl = NULL;
+                        CloseSocket(sockfd);
                         wolfSSL_CTX_free(ctx); ctx = NULL;
                         err_sys("wolfSSL_Rehandshake failed");
                     }
@@ -4174,6 +4189,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         printf("err = %d, %s\n", err,
                                         wolfSSL_ERR_error_string(err, buffer));
                         wolfSSL_free(ssl); ssl = NULL;
+                        CloseSocket(sockfd);
                         wolfSSL_CTX_free(ctx); ctx = NULL;
                         err_sys("wolfSSL_SecureResume failed");
                     }
@@ -4210,6 +4226,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             if (exitWithRet) {
                 ((func_args*)args)->return_code = err;
                 wolfSSL_free(ssl); ssl = NULL;
+                CloseSocket(sockfd);
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 goto exit;
             }
@@ -4229,6 +4246,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
         wolfSSL_free(ssl); ssl = NULL;
+        CloseSocket(sockfd);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         goto exit;
     }
@@ -4346,6 +4364,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, sslResume);
         if (wolfSSL_set_fd(sslResume, sockfd) != WOLFSSL_SUCCESS) {
             wolfSSL_free(sslResume); sslResume = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error in setting fd");
         }
@@ -4366,6 +4385,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (scr) {
             if (wolfSSL_UseSecureRenegotiation(sslResume) != WOLFSSL_SUCCESS) {
                 wolfSSL_free(sslResume); sslResume = NULL;
+                CloseSocket(sockfd);
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("can't enable secure renegotiation");
             }
@@ -4440,6 +4460,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             LOG_ERROR("wolfSSL_connect resume error %d, %s\n", err,
                 wolfSSL_ERR_error_string(err, buffer));
             wolfSSL_free(sslResume); sslResume = NULL;
+            CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("wolfSSL_connect resume failed");
         }
@@ -4488,6 +4509,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     LOG_ERROR("err = %d, %s\n", err,
                                     wolfSSL_ERR_error_string(err, buffer));
                     wolfSSL_free(sslResume); sslResume = NULL;
+                    CloseSocket(sockfd);
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("wolfSSL_Rehandshake failed");
                 }
@@ -4502,6 +4524,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     LOG_ERROR("err = %d, %s\n", err,
                                     wolfSSL_ERR_error_string(err, buffer));
                     wolfSSL_free(sslResume); sslResume = NULL;
+                    CloseSocket(sockfd);
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("wolfSSL_SecureResume failed");
                 }

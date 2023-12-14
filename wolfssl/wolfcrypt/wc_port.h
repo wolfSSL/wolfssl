@@ -307,6 +307,9 @@
 #if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
+#ifdef WOLFSSL_PTHREADS
+    #define WOLFSSL_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+#endif
 
 #ifndef WOLFSSL_NO_ATOMICS
 #ifdef HAVE_C___ATOMIC
