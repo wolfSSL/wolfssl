@@ -968,12 +968,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_MAIN_DRIVER
 #endif
 
-#ifdef WOLFSSL_TI_CRYPT
-    #define NO_GCM_ENCRYPT_EXTRA
-    #define NO_PUBLIC_GCM_SET_IV
-    #define NO_PUBLIC_CCM_SET_NONCE
-#endif
-
 #ifdef WOLFSSL_TIRTOS
     #define SIZEOF_LONG_LONG 8
     #define NO_WRITEV
@@ -983,13 +977,20 @@ extern void uITRON4_free(void *p) ;
      * specified in user_settings.
      */
     #ifndef USE_FAST_MATH
-        #define WOLFSSL_HAVE_SP_ECC
         #define SP_WORD_SIZE 32
-        #define WOLFSSL_HAVE_SP_RSA
+        #define WOLFSSL_HAVE_SP_ECC
+        #ifndef NO_RSA
+            #define WOLFSSL_HAVE_SP_RSA
+        #endif
         #ifndef NO_DH
             #define WOLFSSL_HAVE_SP_DH
         #endif
-        #define WOLFSSL_SP_4096
+        #if !defined(NO_RSA) || !defined(NO_DH)
+            /* DH/RSA 2048, 3072 and 4096 */
+            #if defined(SP_INT_MAX_BITS) && SP_INT_MAX_BITS >= 4096
+                #define WOLFSSL_SP_4096
+            #endif
+        #endif
     #endif
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
