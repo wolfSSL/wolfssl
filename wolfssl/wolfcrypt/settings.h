@@ -1026,7 +1026,7 @@ extern void uITRON4_free(void *p) ;
     #if defined(__ti__) && !defined(USER_TIME)
         /* TI internal time() offsets by 2208988800 (1990 -> 1970),
          * which overflows signed 32-bit */
-        #define NO_TIME_SIGNED_CHECK
+        #define NO_TIME_SIGNEDNESS_CHECK
     #endif
 #endif
 

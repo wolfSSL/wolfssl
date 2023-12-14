@@ -99,6 +99,7 @@ ASN Options:
  * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
  *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
+ * NO_TIME_SIGNEDNESS_CHECK: Disabled the time_t signedness check.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -14726,7 +14727,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     (void)tmpTime;
 
     ltime = wc_Time(0);
-#ifndef NO_TIME_SIGNED_CHECK
+#ifndef NO_TIME_SIGNEDNESS_CHECK
     if (sizeof(ltime) == sizeof(word32) && (int)ltime < 0){
         /* A negative response here could be due to a 32-bit time_t
          * where the year is 2038 or later. */
