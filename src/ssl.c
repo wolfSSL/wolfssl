@@ -1265,8 +1265,12 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 
 /* prevent multiple mutex initializations */
 static volatile WOLFSSL_GLOBAL int initRefCount = 0;
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex = WOLFSSL_MUTEX_INITIALIZER;
+#else
 static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex;   /* init ref count mutex */
 static WOLFSSL_GLOBAL int count_mutex_valid = 0;
+#endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
    WOLFSSL_METHOD pointer passed in is given to ctx to manage.
@@ -6258,6 +6262,7 @@ int wolfSSL_Init(void)
         }
     #endif
 #endif
+#ifndef WOLFSSL_MUTEX_INITIALIZER
         if (ret == WOLFSSL_SUCCESS) {
             if (wc_InitMutex(&count_mutex) != 0) {
                 WOLFSSL_MSG("Bad Init Mutex count");
@@ -6267,6 +6272,7 @@ int wolfSSL_Init(void)
                 count_mutex_valid = 1;
             }
         }
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
         /* OpenSSL registers cleanup using atexit */
         if ((ret == WOLFSSL_SUCCESS) && (atexit(AtExitCleanup) != 0)) {
@@ -13378,21 +13384,30 @@ int wolfSSL_Cleanup(void)
 
     WOLFSSL_ENTER("wolfSSL_Cleanup");
 
-    if (initRefCount == 0)
-        return ret;  /* possibly no init yet, but not failure either way */
-
-    if ((count_mutex_valid == 1) && (wc_LockMutex(&count_mutex) != 0)) {
-        WOLFSSL_MSG("Bad Lock Mutex count");
-        ret = BAD_MUTEX_E;
-    }
-
-    release = initRefCount-- == 1;
-    if (initRefCount < 0)
-        initRefCount = 0;
-
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (count_mutex_valid == 1) {
-        wc_UnLockMutex(&count_mutex);
+#endif
+        if (wc_LockMutex(&count_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex count");
+            return BAD_MUTEX_E;
+        }
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     }
+#endif
+
+    if (initRefCount > 0) {
+        --initRefCount;
+        if (initRefCount == 0)
+            release = 1;
+    }
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    if (count_mutex_valid == 1) {
+#endif
+        wc_UnLockMutex(&count_mutex);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    }
+#endif
 
     if (!release)
         return ret;
@@ -13442,11 +13457,13 @@ int wolfSSL_Cleanup(void)
     #endif
 #endif /* !NO_SESSION_CACHE */
 
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if ((count_mutex_valid == 1) && (wc_FreeMutex(&count_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
             ret = BAD_MUTEX_E;
     }
     count_mutex_valid = 0;
+#endif
 
 #ifdef OPENSSL_EXTRA
     wolfSSL_RAND_Cleanup();
@@ -14339,6 +14356,8 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
 {
     int error = -1;
     word32 clientRow = 0, clientIdx = 0;
+    ClientSession* ret = NULL;
+
     (void)useTicket;
     if (side == WOLFSSL_CLIENT_END
             && row != INVALID_SESSION_ROW
@@ -14392,6 +14411,8 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
                 ClientCache[clientRow].nextIdx %= CLIENT_SESSIONS_PER_ROW;
             }
 
+            ret = &ClientCache[clientRow].Clients[clientIdx];
+
             wc_UnLockMutex(&clisession_mutex);
         }
         else {
@@ -14402,10 +14423,8 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
     else {
         WOLFSSL_MSG("Skipping client cache");
     }
-    if (error == 0)
-        return &ClientCache[clientRow].Clients[clientIdx];
-    else
-        return NULL;
+
+    return ret;
 }
 #endif /* !NO_CLIENT_CACHE */
 
