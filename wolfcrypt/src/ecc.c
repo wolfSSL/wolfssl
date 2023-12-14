@@ -95,7 +95,7 @@ Possible ECC enable options:
  * WOLFSSL_ECC_GEN_REJECT_SAMPLING
  *                      Enables generation of scalar (private key and ECDSA
  *                      nonce) to be performed using reject sampling algorithm.
- *                      Use this when CPU state can be closely observered by
+ *                      Use this when CPU state can be closely observed by
  *                      attacker.
  *                                                              default: off
  */
