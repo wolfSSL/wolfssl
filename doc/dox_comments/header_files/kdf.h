@@ -4,7 +4,7 @@
 
     \brief This function derives keys using SRTP KDF algorithm.
 
-    \return 0 Returned upon successful key derviation.
+    \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key or salt is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
     \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
@@ -57,7 +57,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     \brief This function derives keys using SRTCP KDF algorithm.
 
-    \return 0 Returned upon successful key derviation.
+    \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key or salt is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
     \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
@@ -109,7 +109,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     \brief This function derives a key with label using SRTP KDF algorithm.
 
-    \return 0 Returned upon successful key derviation.
+    \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key, salt or outKey is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
     \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
@@ -156,7 +156,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     \brief This function derives key with label using SRTCP KDF algorithm.
 
-    \return 0 Returned upon successful key derviation.
+    \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key, salt or outKey is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
     \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
