@@ -344,6 +344,7 @@ int  fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c);
 MP_API int  mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c);
 MP_API int  mp_cmp_mag (mp_int * a, mp_int * b);
 MP_API int  mp_cmp (mp_int * a, mp_int * b);
+#define mp_cmp_ct(a, b, n) mp_cmp(a, b)
 MP_API int  mp_cmp_d(mp_int * a, mp_digit b);
 MP_API int  mp_set (mp_int * a, mp_digit b);
 MP_API int  mp_is_bit_set (mp_int * a, mp_digit b);

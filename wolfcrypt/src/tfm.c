@@ -4863,6 +4863,12 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
   return MP_OKAY;
 }
 
+int mp_mod_2d(fp_int* a, int b, fp_int* c)
+{
+  fp_mod_2d(a, b, c);
+  return MP_OKAY;
+}
+
 /* copy (src = a) to (dst = b) */
 void fp_copy(const fp_int *a, fp_int *b)
 {

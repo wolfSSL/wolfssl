@@ -4780,7 +4780,7 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 
 /* Determine when mp_add_d is required. */
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    !defined(NO_DSA) || (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(OPENSSL_EXTRA)
 #define WOLFSSL_SP_ADD_D
@@ -5327,8 +5327,8 @@ int sp_abs(const sp_int* a, sp_int* r)
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Compare absolute value of two multi-precision numbers.
  *
- * @param  [in]  a  SP integer.
- * @param  [in]  b  SP integer.
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
  *
  * @return  MP_GT when a is greater than b.
  * @return  MP_LT when a is less than b.
@@ -5373,8 +5373,8 @@ static int _sp_cmp_abs(const sp_int* a, const sp_int* b)
  *
  * Pointers are compared such that NULL is less than not NULL.
  *
- * @param  [in]  a  SP integer.
- * @param  [in]  b  SP integer.
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
  *
  * @return  MP_GT when a is greater than b.
  * @return  MP_LT when a is less than b.
@@ -5413,8 +5413,8 @@ int sp_cmp_mag(const sp_int* a, const sp_int* b)
  *
  * Assumes a and b are not NULL.
  *
- * @param  [in]  a  SP integer.
- * @param  [in]  a  SP integer.
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
  *
  * @return  MP_GT when a is greater than b.
  * @return  MP_LT when a is less than b.
@@ -5457,8 +5457,8 @@ static int _sp_cmp(const sp_int* a, const sp_int* b)
  *
  * Pointers are compared such that NULL is less than not NULL.
  *
- * @param  [in]  a  SP integer.
- * @param  [in]  a  SP integer.
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
  *
  * @return  MP_GT when a is greater than b.
  * @return  MP_LT when a is less than b.
@@ -5489,6 +5489,80 @@ int sp_cmp(const sp_int* a, const sp_int* b)
     return ret;
 }
 #endif
+
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING)
+/* Compare two multi-precision numbers in constant time.
+ *
+ * Assumes a and b are not NULL.
+ * Assumes a and b are positive.
+ *
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
+ * @param [in] n  Number of digits to compare.
+ *
+ * @return  MP_GT when a is greater than b.
+ * @return  MP_LT when a is less than b.
+ * @return  MP_EQ when a is equals b.
+ */
+static int _sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
+{
+    int ret = MP_EQ;
+    int i;
+    int mask = -1;
+
+    for (i = n - 1; i >= 0; i--) {
+        sp_int_digit ad = a->dp[i] & ((sp_int_digit)0 - (i < (int)a->used));
+        sp_int_digit bd = b->dp[i] & ((sp_int_digit)0 - (i < (int)b->used));
+
+        ret |= mask & ((0 - (ad < bd)) & MP_LT);
+        mask &= 0 - (ret == MP_EQ);
+        ret |= mask & ((0 - (ad > bd)) & MP_GT);
+        mask &= 0 - (ret == MP_EQ);
+    }
+
+    return ret;
+}
+
+/* Compare two multi-precision numbers in constant time.
+ *
+ * Pointers are compared such that NULL is less than not NULL.
+ * Assumes a and b are positive.
+ * Assumes a and b have n digits set at sometime.
+ *
+ * @param [in] a  SP integer.
+ * @param [in] b  SP integer.
+ * @param [in] n  Number of digits to compare.
+ *
+ * @return  MP_GT when a is greater than b.
+ * @return  MP_LT when a is less than b.
+ * @return  MP_EQ when a is equals b.
+ */
+int sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
+{
+    int ret;
+
+    /* Check pointers first. Both NULL returns equal. */
+    if (a == b) {
+        ret = MP_EQ;
+    }
+    /* Nothing is smaller than something. */
+    else if (a == NULL) {
+        ret = MP_LT;
+    }
+    /* Something is larger than nothing. */
+    else if (b == NULL) {
+        ret = MP_GT;
+    }
+    else
+    {
+        /* Compare values - a and b are not NULL. */
+        ret = _sp_cmp_ct(a, b, n);
+    }
+
+    return ret;
+}
+#endif /* HAVE_ECC && !WC_NO_RNG && WOLFSSL_ECC_GEN_REJECT_SAMPLING */
 
 /*************************
  * Bit check/set functions
@@ -7673,10 +7747,6 @@ int sp_submod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 }
 #endif /* WOLFSSL_SP_MATH_ALL */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)) || \
-    (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
-     defined(OPENSSL_ALL))
 /* Constant time clamping/
  *
  * @param [in, out] a  SP integer to clamp.
@@ -7693,7 +7763,6 @@ static void sp_clamp_ct(sp_int* a)
     }
     a->used = used;
 }
-#endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Add two value and reduce: r = (a + b) % m
@@ -14362,7 +14431,8 @@ int sp_div_2d(const sp_int* a, int e, sp_int* r, sp_int* rem)
 }
 #endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_ECC)
 /* The bottom e bits: r = a & ((1 << e) - 1)
  *
  * @param  [in]   a  SP integer to reduce.
@@ -14432,7 +14502,7 @@ int sp_mod_2d(const sp_int* a, int e, sp_int* r)
 
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY)) || HAVE_ECC */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
     !defined(NO_DH))) || defined(OPENSSL_ALL)
@@ -17780,7 +17850,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     #endif /* LITTLE_ENDIAN_ORDER */
         }
 #endif
-        sp_clamp(a);
+        sp_clamp_ct(a);
     }
 
     return err;

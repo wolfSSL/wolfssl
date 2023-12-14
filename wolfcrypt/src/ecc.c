@@ -92,6 +92,12 @@ Possible ECC enable options:
  *                      Enables implementations that protect data that is in
  *                      encrypted memory.
  *                                                              default: off
+ * WOLFSSL_ECC_GEN_REJECT_SAMPLING
+ *                      Enables generation of scalar (private key and ECDSA
+ *                      nonce) to be performed using reject sampling algorithm.
+ *                      Use this when CPU state can be closely observed by
+ *                      attacker.
+ *                                                              default: off
  */
 
 /*
@@ -5135,6 +5141,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
 #ifndef WC_NO_RNG
+#ifndef WOLFSSL_ECC_GEN_REJECT_SAMPLING
     int err;
     byte buf[ECC_MAXSIZE_GEN];
 
@@ -5176,6 +5183,54 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 #endif
 
     return err;
+#else
+    int err;
+    byte buf[ECC_MAXSIZE_GEN];
+    int bits;
+
+    if ((rng == NULL) || (size < 0) || (size + 8 > ECC_MAXSIZE_GEN) ||
+            (k == NULL) || (order == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Get actual bit count of order. */
+    bits = mp_count_bits(order);
+    size = (bits + 7) >> 3;
+
+    /* generate number in range of order through rejection sampling. */
+    /* see section A.2.2 and A.4.2 in FIPS 186-5 */
+    do {
+        /* A.2.2 step 3: make up random string */
+        err = wc_RNG_GenerateBlock(rng, buf, (word32)size);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ecc_gen_k buf", buf, size);
+    #endif
+        /* Generated multiple of 8 bits but now make it size of order. */
+        if ((bits & 0x7) > 0) {
+            buf[0] &= (1 << (bits & 0x7)) - 1;
+        }
+
+        /* A.2.2 step 4: convert to integer. */
+        /* A.4.2 step 3: Convert the bit string to integer x. */
+        if (err == 0) {
+            err = mp_read_unsigned_bin(k, buf, (word32)size);
+        }
+
+        /* A.4.2 step 4, 5: x must be in range [1, n-1] */
+        if ((err == MP_OKAY) && !mp_iszero(k) &&
+                (mp_cmp_ct(k, order, order->used) == MP_LT)) {
+            break;
+        }
+    }
+    while (err == MP_OKAY);
+
+    ForceZero(buf, ECC_MAXSIZE_GEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(buf, ECC_MAXSIZE_GEN);
+#endif
+
+    return err;
+#endif
 #else
     (void)rng;
     (void)size;
