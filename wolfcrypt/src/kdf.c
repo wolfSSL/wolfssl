@@ -1006,6 +1006,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 #else
     Aes aes[1];
 #endif
+    int aes_inited = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1031,6 +1032,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     }
     if (ret == 0) {
+        aes_inited = 1;
         ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     }
 
@@ -1056,8 +1058,8 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
             WC_SRTP_LABEL_SALT, key3, key3Sz, aes);
     }
 
-    /* AES object memset so can always free. */
-    wc_AesFree(aes);
+    if (aes_inited)
+        wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
 #endif
@@ -1099,6 +1101,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 #else
     Aes aes[1];
 #endif
+    int aes_inited = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1124,6 +1127,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     }
     if (ret == 0) {
+        aes_inited = 1;
         ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     }
 
@@ -1149,8 +1153,8 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
             WC_SRTCP_LABEL_SALT, key3, key3Sz, aes);
     }
 
-    /* AES object memset so can always free. */
-    wc_AesFree(aes);
+    if (aes_inited)
+        wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
 #endif
@@ -1189,6 +1193,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 #else
     Aes aes[1];
 #endif
+    int aes_inited = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1215,6 +1220,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     }
     if (ret == 0) {
+        aes_inited = 1;
         ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     }
 
@@ -1229,8 +1235,8 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             outKeySz, aes);
     }
 
-    /* AES object memset so can always free. */
-    wc_AesFree(aes);
+    if (aes_inited)
+        wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
 #endif
@@ -1270,6 +1276,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 #else
     Aes aes[1];
 #endif
+    int aes_inited = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1296,6 +1303,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     }
     if (ret == 0) {
+        aes_inited = 1;
         ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     }
 
@@ -1310,8 +1318,8 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             outKeySz, aes);
     }
 
-    /* AES object memset so can always free. */
-    wc_AesFree(aes);
+    if (aes_inited)
+        wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
 #endif
