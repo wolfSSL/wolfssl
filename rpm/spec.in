@@ -49,7 +49,6 @@ fi
 %install
 %{__rm} -rf %{buildroot}
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
-mkdir -p $RPM_BUILD_ROOT/
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
 %{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.a
 
