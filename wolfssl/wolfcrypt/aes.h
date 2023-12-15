@@ -407,7 +407,6 @@ typedef struct XtsAes {
      (defined(WOLFSSL_DEVCRYPTO) &&                                     \
       (defined(WOLFSSL_DEVCRYPTO_AES) ||                                \
        defined(WOLFSSL_DEVCRYPTO_CBC))) ||                              \
-     defined(WOLF_CRYPTO_CB) ||                                         \
      defined(WOLFSSL_IMXRT_DCP) ||                                      \
      (defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
       !defined(WOLFSSL_AESNI)) ||                                       \
