@@ -25678,7 +25678,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 
         ret = wc_SRTCP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt,
             tv[i].saltSz, tv[i].kdfIdx, tv[i].index_c, WC_SRTCP_LABEL_SALT,
-            keyS, tv[i].kaSz);
+            keyS, tv[i].ksSz);
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
         if (XMEMCMP(keyS, tv[i].ks_c, tv[i].ksSz) != 0)
@@ -25806,7 +25806,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     if (idx != -1)
         return WC_TEST_RET_ENC_NC;
     for (i = 0; i < 32; i++) {
-        word32 kdr = 1 << i;
+        word32 kdr = 1U << i;
         idx = wc_SRTP_KDF_kdr_to_idx(kdr);
         if (idx != i)
             return WC_TEST_RET_ENC_NC;

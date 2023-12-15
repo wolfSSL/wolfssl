@@ -2240,15 +2240,19 @@ static int DtlsSrtpSelProfiles(word16* id, const char* profile_str)
     do {
         current = next;
         next = XSTRSTR(current, ":");
-        current_length = (!next) ? (word32)XSTRLEN(current)
-                                 : (word32)(next - current);
+        if (next) {
+            current_length = (word32)(next - current);
+            ++next; /* ++ needed to skip ':' */
+        } else {
+            current_length = (word32)XSTRLEN(current);
+        }
         if (current_length < length)
             length = current_length;
         profile = DtlsSrtpFindProfile(current, current_length, 0);
         if (profile != NULL) {
             *id |= (1 << profile->id); /* selected bit based on ID */
         }
-    } while (next != NULL && next++); /* ++ needed to skip ':' */
+    } while (next != NULL);
     return WOLFSSL_SUCCESS;
 }
 

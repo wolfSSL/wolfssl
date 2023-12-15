@@ -1478,8 +1478,10 @@ typedef struct WOLFSSL_SRTP_PROTECTION_PROFILE {
 } WOLFSSL_SRTP_PROTECTION_PROFILE;
 
 /* Compatibility API's for SRTP */
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char*);
-WOLFSSL_API int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char*);
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx,
+                                                const char* profile_str);
+WOLFSSL_API int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl,
+                                const char* wolfSSL_set_tlsext_use_srtp);
 WOLFSSL_API const WOLFSSL_SRTP_PROTECTION_PROFILE*
                 wolfSSL_get_selected_srtp_profile(WOLFSSL* ssl);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)*
@@ -1487,7 +1489,7 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)*
 
 /* Non standard API for getting the SRTP session keys using KDF */
 WOLFSSL_API int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
-    unsigned char*, size_t*);
+    unsigned char* out, size_t* olen);
 #endif /* WOLFSSL_SRTP */
 
 WOLFSSL_API int  wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
