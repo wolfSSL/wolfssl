@@ -14409,19 +14409,19 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
             }
             if (error == 0) {
                 WOLFSSL_MSG("Adding client cache entry");
+
+                ret = &ClientCache[clientRow].Clients[clientIdx];
+
                 if (ClientCache[clientRow].totalCount < CLIENT_SESSIONS_PER_ROW)
                     ClientCache[clientRow].totalCount++;
                 ClientCache[clientRow].nextIdx++;
                 ClientCache[clientRow].nextIdx %= CLIENT_SESSIONS_PER_ROW;
             }
 
-            ret = &ClientCache[clientRow].Clients[clientIdx];
-
             wc_UnLockMutex(&clisession_mutex);
         }
         else {
             WOLFSSL_MSG("Hash session or lock failed");
-            error = -1;
         }
     }
     else {
