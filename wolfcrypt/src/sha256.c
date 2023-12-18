@@ -1260,6 +1260,8 @@ static int InitSha256(wc_Sha256* sha256)
             int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
+            /* mark that fallback was used so the user can act accordingly */
+            sha256->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif
@@ -1510,6 +1512,8 @@ static int InitSha256(wc_Sha256* sha256)
             ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
+            /* mark that fallback was used so the user can act accordingly */
+            sha256->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif

@@ -89,6 +89,7 @@ struct curve25519_key {
 #if defined(WOLF_CRYPTO_CB)
     void* devCtx;
     int devId;
+    byte cryptoCbSWFallback;
 #endif
 
 #ifdef WOLFSSL_SE050

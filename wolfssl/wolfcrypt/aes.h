@@ -284,6 +284,7 @@ struct Aes {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx;
+    byte cryptoCbSWFallback;
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
     byte id[AES_MAX_ID_LEN];

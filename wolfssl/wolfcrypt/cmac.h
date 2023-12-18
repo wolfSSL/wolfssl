@@ -56,6 +56,7 @@ struct Cmac {
 #ifdef WOLF_CRYPTO_CB
     int devId;
     void* devCtx;
+    byte cryptoCbSWFallback;
     #ifdef WOLFSSL_CAAM
     byte ctx[32]; /* hold state for save and return */
     word32 blackKey;

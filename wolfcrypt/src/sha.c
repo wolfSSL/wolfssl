@@ -601,6 +601,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         ret = 0; /* reset ret */
+        /* mark that fallback was used so the user can act accordingly */
+        sha->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -819,6 +821,8 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        sha->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

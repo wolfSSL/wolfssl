@@ -127,6 +127,8 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
                 type, unused);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        cmac->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #else
@@ -195,6 +197,8 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
                 NULL, NULL, 0, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        cmac->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
         ret = 0; /* reset error code */
     }
@@ -261,6 +265,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        cmac->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

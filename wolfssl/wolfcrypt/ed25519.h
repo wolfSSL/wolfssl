@@ -105,6 +105,7 @@ struct ed25519_key {
 #if defined(WOLF_CRYPTO_CB)
     void* devCtx;
     int devId;
+    byte cryptoCbSWFallback;
 #endif
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA

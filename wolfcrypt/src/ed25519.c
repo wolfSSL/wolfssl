@@ -247,6 +247,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
         ret = wc_CryptoCb_Ed25519Gen(rng, keySz, key);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+
+        /* mark that fallback was used so the user can act accordingly */
+        key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -317,6 +320,8 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
             context, contextLen);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -773,6 +778,8 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
             type, context, contextLen);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

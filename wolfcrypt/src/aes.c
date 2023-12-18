@@ -5488,6 +5488,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
             if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                 return crypto_cb_ret;
+            /* mark that fallback was used so the user can act accordingly */
+            aes->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif
@@ -5657,6 +5659,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
             if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                 return crypto_cb_ret;
+            /* mark that fallback was used so the user can act accordingly */
+            aes->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif
@@ -6045,6 +6049,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 int crypto_cb_ret = wc_CryptoCb_AesCtrEncrypt(aes, out, in, sz);
                 if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
                     return crypto_cb_ret;
+                /* mark that fallback was used so the user can act accordingly */
+                aes->cryptoCbSWFallback = 1;
                 /* fall-through when unavailable */
             }
         #endif
@@ -8294,6 +8300,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                       authTagSz, authIn, authInSz);
         if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
             return crypto_cb_ret;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -8858,6 +8866,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                       authTag, authTagSz, authIn, authInSz);
         if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
             return crypto_cb_ret;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -10751,6 +10761,8 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                                       authTag, authTagSz, authIn, authInSz);
         if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
             return crypto_cb_ret;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -10893,6 +10905,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             authTag, authTagSz, authIn, authInSz);
         if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
             return crypto_cb_ret;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -11393,6 +11407,8 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         ret = 0;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -11444,6 +11460,8 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         ret = 0;
+        /* mark that fallback was used so the user can act accordingly */
+        aes->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

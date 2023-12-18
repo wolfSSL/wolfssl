@@ -163,6 +163,7 @@ struct Hmac {
     int     devId;
     void*   devCtx;
     const byte* keyRaw;
+    byte cryptoCbSWFallback;
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
     byte    id[HMAC_MAX_ID_LEN];

@@ -507,6 +507,7 @@ struct ecc_key {
 #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     void* devCtx;
     int devId;
+    byte cryptoCbSWFallback;
 #endif
 #if defined(HAVE_PKCS11)
     byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */

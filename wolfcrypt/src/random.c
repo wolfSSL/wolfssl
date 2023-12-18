@@ -1790,6 +1790,8 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = wc_CryptoCb_RandomBlock(rng, output, sz);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        rng->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -2552,6 +2554,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        os->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -3661,6 +3665,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             ret = wc_CryptoCb_RandomSeed(os, output, sz);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
+            /* mark that fallback was used so the user can act accordingly */
+            os->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
             ret = 0; /* reset error code */
         }

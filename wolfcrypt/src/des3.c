@@ -1604,6 +1604,8 @@
             int ret = wc_CryptoCb_Des3Encrypt(des, out, in, sz);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
+            /* mark that fallback was used so the user can act accordingly */
+            des->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif
@@ -1655,6 +1657,8 @@
             int ret = wc_CryptoCb_Des3Decrypt(des, out, in, sz);
             if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
+            /* mark that fallback was used so the user can act accordingly */
+            des->cryptoCbSWFallback = 1;
             /* fall-through when unavailable */
         }
     #endif

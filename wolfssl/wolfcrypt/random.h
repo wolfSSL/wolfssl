@@ -149,6 +149,7 @@ struct OS_Seed {
     #endif
     #if defined(WOLF_CRYPTO_CB)
         int devId;
+        byte cryptoCbSWFallback;
     #endif
 };
 
@@ -184,6 +185,7 @@ struct WC_RNG {
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
+    byte cryptoCbSWFallback;
 #endif
 };
 

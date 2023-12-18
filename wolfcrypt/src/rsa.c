@@ -3127,9 +3127,11 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
         #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        else
+            key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable and try using software */
-        #endif
-        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        #else
         if (ret == CRYPTOCB_UNAVAILABLE) {
             return NO_VALID_DEVID;
         }
@@ -4759,9 +4761,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (err != CRYPTOCB_UNAVAILABLE)
             goto out;
+        /* mark that fallback was used so the user can act accordingly */
+        else
+            key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
-        #endif
-        #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+        #else
         if (err == CRYPTOCB_UNAVAILABLE)
             err = NO_VALID_DEVID;
             goto out;

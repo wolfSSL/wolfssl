@@ -893,6 +893,8 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
         int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        sha512->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -1111,6 +1113,8 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
             XMEMCPY(hash, localHash, digestSz);
             return ret;
         }
+        /* mark that fallback was used so the user can act accordingly */
+        sha512->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -1354,6 +1358,8 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
         int ret = wc_CryptoCb_Sha384Hash(sha384, data, len, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        sha384->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -1406,6 +1412,8 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
         ret = wc_CryptoCb_Sha384Hash(sha384, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        sha384->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

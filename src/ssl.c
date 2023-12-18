@@ -9116,12 +9116,20 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
                 ) {
                 ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey,
                                                der->publicKey, der->pubKeySize);
+            #ifndef WOLF_CRYPTO_CB_ONLY_RSA
+                /* mark that fallback was used so the user can act accordingly */
+                ((RsaKey*)pkey)->cryptoCbSWFallback = 1;
+            #endif
             }
             #endif
             #ifdef HAVE_ECC
             if (der->keyOID == ECDSAk) {
                 ret = wc_CryptoCb_EccCheckPrivKey((ecc_key*)pkey,
                                                der->publicKey, der->pubKeySize);
+            #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+                /* mark that fallback was used so the user can act accordingly */
+                ((ecc_key*)pkey)->cryptoCbSWFallback = 1;
+            #endif
             }
             #endif
         }
@@ -9155,7 +9163,22 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
         ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    if (ret == CRYPTOCB_UNAVAILABLE)
+    if (
+        ret == CRYPTOCB_UNAVAILABLE
+#if !defined(NO_RSA) && defined(WOLF_CRYPTO_CB_ONLY_RSA)
+        /* don't try software for rsa if WOLF_CRYPTO_CB_ONLY_RSA */
+        && (der->keyOID != RSAk
+#ifdef WC_RSA_PSS
+        /* same applies to PSS if compiled */
+        || der->keyOID == RSAPSSk
+#endif
+        )
+#endif
+#if defined(HAVE_ECC) && defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        /* don't try software for ecc if WOLF_CRYPTO_CB_ONLY_ECC */
+        && der->keyOID != ECDSAk
+#endif
+    )
 #endif /* WOLF_PRIVATE_KEY_ID */
     {
         ret = wc_CheckPrivateKeyCert(buff, size, der);

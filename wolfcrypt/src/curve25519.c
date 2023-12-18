@@ -232,6 +232,8 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         ret = wc_CryptoCb_Curve25519Gen(rng, keysize, key);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
@@ -293,6 +295,9 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
             endian);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        private_key->cryptoCbSWFallback = 1;
+        public_key->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif

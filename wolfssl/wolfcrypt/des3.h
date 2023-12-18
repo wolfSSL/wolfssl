@@ -111,6 +111,7 @@ struct Des3 {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx;
+    byte cryptoCbSWFallback;
 #endif
     void* heap;
 };

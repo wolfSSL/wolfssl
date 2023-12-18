@@ -668,6 +668,8 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        hmac->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
         ret = 0; /* reset error code */
     }
@@ -777,6 +779,8 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* mark that fallback was used so the user can act accordingly */
+        hmac->cryptoCbSWFallback = 1;
         /* fall-through when unavailable */
     }
 #endif
