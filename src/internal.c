@@ -37155,7 +37155,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int decryptRet = WOLFSSL_TICKET_RET_REJECT;
         int ret;
-        InternalTicket* it;
+        InternalTicket* it = NULL;
 #ifdef WOLFSSL_TLS13
         InternalTicket staticIt;
         const WOLFSSL_SESSION* sess = NULL;
