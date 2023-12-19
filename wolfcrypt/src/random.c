@@ -311,7 +311,7 @@ enum {
 
 typedef struct DRBG_internal DRBG_internal;
 
-static int wc_RNG_HealthTestLocal(int reseed);
+static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId);
 
 /* Hash Derivation Function */
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
@@ -1619,7 +1619,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (nonceSz == 0)
         seedSz = MAX_SEED_SZ;
 
-    if (wc_RNG_HealthTestLocal(0) == 0) {
+    if (wc_RNG_HealthTestLocal(0, rng->heap, devId) == 0) {
     #ifndef WOLFSSL_SMALL_STACK
         byte seed[MAX_SEED_SZ];
     #else
@@ -1830,7 +1830,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
     if (ret == DRBG_NEED_RESEED) {
-        if (wc_RNG_HealthTestLocal(1) == 0) {
+        int devId = INVALID_DEVID;
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+        devId = rng->devId;
+    #endif
+        if (wc_RNG_HealthTestLocal(1, rng->heap, devId) == 0) {
         #ifndef WOLFSSL_SMALL_STACK
             byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
             ret = DRBG_SUCCESS;
@@ -2083,7 +2087,7 @@ const FLASH_QUALIFIER byte outputB_data[] = {
 };
 
 
-static int wc_RNG_HealthTestLocal(int reseed)
+static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -2102,17 +2106,17 @@ static int wc_RNG_HealthTestLocal(int reseed)
 
     if (reseed) {
 #ifdef WOLFSSL_USE_FLASHMEM
-        byte* seedA = (byte*)XMALLOC(sizeof(seedA_data), NULL,
+        byte* seedA = (byte*)XMALLOC(sizeof(seedA_data), heap,
                              DYNAMIC_TYPE_TMP_BUFFER);
-        byte* reseedSeedA = (byte*)XMALLOC(sizeof(reseedSeedA_data), NULL,
+        byte* reseedSeedA = (byte*)XMALLOC(sizeof(reseedSeedA_data), heap,
                              DYNAMIC_TYPE_TMP_BUFFER);
-        byte* outputA = (byte*)XMALLOC(sizeof(outputA_data), NULL,
+        byte* outputA = (byte*)XMALLOC(sizeof(outputA_data), heap,
                              DYNAMIC_TYPE_TMP_BUFFER);
 
         if (!seedA || !reseedSeedA || !outputA) {
-            XFREE(seedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(reseedSeedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(outputA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seedA, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(reseedSeedA, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputA, heap, DYNAMIC_TYPE_TMP_BUFFER);
             ret = MEMORY_E;
         }
         else {
@@ -2124,9 +2128,11 @@ static int wc_RNG_HealthTestLocal(int reseed)
         const byte* reseedSeedA = reseedSeedA_data;
         const byte* outputA = outputA_data;
 #endif
-        ret = wc_RNG_HealthTest(1, seedA, sizeof(seedA_data),
-                                reseedSeedA, sizeof(reseedSeedA_data),
-                                check, RNG_HEALTH_TEST_CHECK_SIZE);
+        ret = wc_RNG_HealthTest_ex(1, NULL, 0,
+                                   seedA, sizeof(seedA_data),
+                                   reseedSeedA, sizeof(reseedSeedA_data),
+                                   check, RNG_HEALTH_TEST_CHECK_SIZE,
+                                   heap, devId);
         if (ret == 0) {
             if (ConstantCompare(check, outputA,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
@@ -2142,14 +2148,14 @@ static int wc_RNG_HealthTestLocal(int reseed)
     }
     else {
 #ifdef WOLFSSL_USE_FLASHMEM
-        byte* seedB = (byte*)XMALLOC(sizeof(seedB_data), NULL,
+        byte* seedB = (byte*)XMALLOC(sizeof(seedB_data), heap,
                              DYNAMIC_TYPE_TMP_BUFFER);
-        byte* outputB = (byte*)XMALLOC(sizeof(outputB_data), NULL,
+        byte* outputB = (byte*)XMALLOC(sizeof(outputB_data), heap,
                                DYNAMIC_TYPE_TMP_BUFFER);
 
         if (!seedB || !outputB) {
-            XFREE(seedB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(outputB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seedB, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputB, heap, DYNAMIC_TYPE_TMP_BUFFER);
             ret = MEMORY_E;
         }
         else {
@@ -2159,9 +2165,11 @@ static int wc_RNG_HealthTestLocal(int reseed)
         const byte* seedB = seedB_data;
         const byte* outputB = outputB_data;
 #endif
-        ret = wc_RNG_HealthTest(0, seedB, sizeof(seedB_data),
-                                NULL, 0,
-                                check, RNG_HEALTH_TEST_CHECK_SIZE);
+        ret = wc_RNG_HealthTest_ex(0, NULL, 0,
+                                   seedB, sizeof(seedB_data),
+                                   NULL, 0,
+                                   check, RNG_HEALTH_TEST_CHECK_SIZE,
+                                   heap, devId);
         if (ret == 0) {
             if (ConstantCompare(check, outputB,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
@@ -2174,11 +2182,11 @@ static int wc_RNG_HealthTestLocal(int reseed)
          * byte 32, feed them into the health test separately. */
         if (ret == 0) {
             ret = wc_RNG_HealthTest_ex(0,
-                                    seedB + 32, sizeof(seedB_data) - 32,
-                                    seedB, 32,
-                                    NULL, 0,
-                                    check, RNG_HEALTH_TEST_CHECK_SIZE,
-                                    NULL, INVALID_DEVID);
+                                       seedB + 32, sizeof(seedB_data) - 32,
+                                       seedB, 32,
+                                       NULL, 0,
+                                       check, RNG_HEALTH_TEST_CHECK_SIZE,
+                                       heap, devId);
             if (ret == 0) {
                 if (ConstantCompare(check, outputB, sizeof(outputB_data)) != 0)
                     ret = -1;
@@ -2186,8 +2194,8 @@ static int wc_RNG_HealthTestLocal(int reseed)
         }
 
 #ifdef WOLFSSL_USE_FLASHMEM
-            XFREE(seedB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(outputB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seedB, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputB, heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
 #endif
     }

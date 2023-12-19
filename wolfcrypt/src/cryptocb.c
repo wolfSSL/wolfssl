@@ -1446,7 +1446,8 @@ int wc_CryptoCb_DefaultDevID(void)
 #elif defined(WC_USE_DEVID)
     ret = WC_USE_DEVID;
 #else
-    ret = INVALID_DEVID;
+    /* try first available */
+    ret = wc_CryptoCb_GetDevIdAtIndex(0);
 #endif
 
     return ret;

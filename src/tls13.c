@@ -1142,6 +1142,7 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
             ssl->heap, ssl->devId);
     #else
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
+        (void)ssl;
     #endif
     }
     return ret;
