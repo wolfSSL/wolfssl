@@ -265,11 +265,11 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz,
 
     WOLFSSL_ENTER("AriaVerify");
 
+    *res = 0; /* Default to invalid signature */
+
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
-
-    *res = 0; /* Default to invalid signature */
 
     if (rv == MC_OK)
         rv = wc_AriaInit();
