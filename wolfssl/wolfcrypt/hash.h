@@ -170,6 +170,9 @@ WOLFSSL_API int wc_HashGetBlockSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     const byte* data, word32 data_len,
     byte* hash, word32 hash_len);
+WOLFSSL_API int wc_Hash_ex(enum wc_HashType hash_type,
+    const byte* data, word32 data_len,
+    byte* hash, word32 hash_len, void* heap, int devId);
 
 /* generic hash operation wrappers */
 WOLFSSL_API int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type,
@@ -191,26 +194,36 @@ WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>
 WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Md5Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif
 
 #ifndef NO_SHA
 #include <wolfssl/wolfcrypt/sha.h>
 WOLFSSL_API int wc_ShaHash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_ShaHash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif
 
 #ifdef WOLFSSL_SHA224
 #include <wolfssl/wolfcrypt/sha256.h>
 WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sha224Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif /* defined(WOLFSSL_SHA224) */
 
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sha256Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif
 
 #ifdef WOLFSSL_SHA384
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha384Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sha384Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif /* defined(WOLFSSL_SHA384) */
 
 #ifdef WOLFSSL_SHA512
@@ -218,6 +231,12 @@ WOLFSSL_API int wc_Sha384Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha512Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha512_224Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha512_256Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sha512Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
+WOLFSSL_API int wc_Sha512_224Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
+WOLFSSL_API int wc_Sha512_256Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3
@@ -226,18 +245,32 @@ WOLFSSL_API int wc_Sha3_224Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha3_256Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha3_384Hash(const byte* data, word32 len, byte* hash);
 WOLFSSL_API int wc_Sha3_512Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sha3_224Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
+WOLFSSL_API int wc_Sha3_256Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
+WOLFSSL_API int wc_Sha3_384Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
+WOLFSSL_API int wc_Sha3_512Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #ifdef WOLFSSL_SHAKE128
 WOLFSSL_API int wc_Shake128Hash(const byte* data, word32 len, byte* hash,
     word32 hashLen);
+WOLFSSL_API int wc_Shake128Hash_ex(const byte* data, word32 len, byte* hash,
+    word32 hashLen, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_SHAKE256
 WOLFSSL_API int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
     word32 hashLen);
+WOLFSSL_API int wc_Shake256Hash_ex(const byte* data, word32 len, byte* hash,
+    word32 hashLen, void* heap, int devId);
 #endif
 #endif /* WOLFSSL_SHA3 */
 
 #ifdef WOLFSSL_SM3
 WOLFSSL_API int wc_Sm3Hash(const byte* data, word32 len, byte* hash);
+WOLFSSL_API int wc_Sm3Hash_ex(const byte* data, word32 len, byte* hash,
+    void* heap, int devId);
 #endif
 
 #endif /* !NO_HASH_WRAPPER */
