@@ -185,8 +185,8 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
 
     MC_APIMODE gApimode = MC_MODE_KCMV;
     MC_ALGORITHM mcAlg = {MC_ALGID_NONE, NULL, 0};
-    byte keyAsn1[ARIA_KEYASN1_MAXSZ];
-    word32 keyAsn1Sz=(word32)sizeof(keyAsn1);
+    byte keyarr[ARIA_KEYASN1_MAXSZ];
+    word32 keySz=(word32)sizeof(keyarr);
 
     WOLFSSL_ENTER("AriaSign");
 
@@ -204,13 +204,13 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_EccPrivateKeyToDer(key,keyAsn1,keyAsn1Sz);
+        int ret = wc_EccPrivateKeyToDer(key,keyarr,keySz);
         if (ret < 0) { rv = ret; }
-        else { keyAsn1Sz = ret; }
+        else { keySz = ret; }
     }
 
-    WOLFSSL_MSG_EX("AriaSign key(%d):",keyAsn1Sz);
-    WOLFSSL_BUFFER(keyAsn1,keyAsn1Sz);
+    WOLFSSL_MSG_EX("AriaSign key(%d):",keySz);
+    WOLFSSL_BUFFER(keyarr,keySz);
 
     WOLFSSL_MSG_EX("AriaSign rv=%d",rv);
 
@@ -230,7 +230,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
     }
 
     if (rv == MC_OK)
-        rv = MC_CreateObject(hSession, keyAsn1, keyAsn1Sz, &hPrikey);
+        rv = MC_CreateObject(hSession, keyarr, keySz, &hPrikey);
     WOLFSSL_MSG_EX("AriaSign CreateObject rv=%d",rv);
 
     if (rv == MC_OK)
