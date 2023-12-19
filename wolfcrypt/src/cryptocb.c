@@ -186,16 +186,18 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         }
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
-            GetCipherTypeStr(info->cipher.type), info->cipher.type);
+        printf("Crypto CB: %s %s (%d) (%p ctx)\n", GetAlgoTypeStr(info->algo_type),
+            GetCipherTypeStr(info->cipher.type), info->cipher.type, info->cipher.ctx);
     }
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
-        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
-            GetHashTypeStr(info->hash.type), info->hash.type);
+        printf("Crypto CB: %s %s (%d) (%p ctx) %s\n", GetAlgoTypeStr(info->algo_type),
+            GetHashTypeStr(info->hash.type), info->hash.type, info->hash.ctx,
+            (info->hash.in != NULL) ? "Update" : "Final");
     }
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
-        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
-            GetHashTypeStr(info->hmac.macType), info->hmac.macType);
+        printf("Crypto CB: %s %s (%d) (%p ctx) %s\n", GetAlgoTypeStr(info->algo_type),
+            GetHashTypeStr(info->hmac.macType), info->hmac.macType, info->hmac.hmac,
+            (info->hmac.in != NULL) ? "Update" : "Final");
     }
 #ifdef WOLF_CRYPTO_CB_CMD
     else if (info->algo_type == WC_ALGO_TYPE_NONE) {
