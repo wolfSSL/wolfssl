@@ -5189,7 +5189,8 @@ typedef struct MsgsReceived {
 typedef struct HS_Hashes {
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
-#ifndef NO_SHA
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                          defined(WOLFSSL_ALLOW_TLS_SHA1))
     wc_Sha          hashSha;            /* sha hash of handshake msgs */
 #endif
 #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
