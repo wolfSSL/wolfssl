@@ -544,13 +544,11 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha256->hSession), MC_ALGID_SHA256);
                 }
 
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.in != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     ret = wc_AriaShaUpdate(info->hash.sha256->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.digest != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     MC_UINT digestSz = 32;
                     ret = wc_AriaShaFinal(info->hash.sha256->hSession,
                                         info->hash.digest, &digestSz);
@@ -573,13 +571,11 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha384->hSession), MC_ALGID_SHA384);
                 }
 
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.in != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     ret = wc_AriaShaUpdate(info->hash.sha384->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.digest != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     MC_UINT digestSz = 48;
                     ret = wc_AriaShaFinal(info->hash.sha384->hSession,
                                         info->hash.digest, &digestSz);
