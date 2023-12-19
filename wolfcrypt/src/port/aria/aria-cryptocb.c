@@ -204,7 +204,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_BuildEccKeyDer(key,keyAsn1,&keyAsn1Sz,0,0);
+        int ret = wc_EccPrivateKeyToDer(key,keyAsn1,keyAsn1Sz);
         if (ret < 0) { rv = ret; }
         else { keyAsn1Sz = ret; }
     }
