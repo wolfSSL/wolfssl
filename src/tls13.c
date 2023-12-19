@@ -225,10 +225,18 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 #endif
     (void)ssl;
     PRIVATE_KEY_UNLOCK();
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
+                                     protocol, protocolLen,
+                                     label, labelLen,
+                                     info, infoLen, digest,
+                                     ssl->heap, ssl->devId);
+#else
     ret = wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                      protocol, protocolLen,
                                      label, labelLen,
                                      info, infoLen, digest);
+#endif
     PRIVATE_KEY_LOCK();
     return ret;
 }
@@ -266,10 +274,18 @@ PRAGMA_GCC_DIAG_PUSH
 PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     (void)ssl;
     (void)side;
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    return wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
+                                      protocol, protocolLen,
+                                      label, labelLen,
+                                      info, infoLen, digest,
+                                      ssl->heap, ssl->devId);
+#else
     return wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
+#endif
 PRAGMA_GCC_DIAG_POP
 }
 #endif /* !HAVE_FIPS || !wc_Tls13_HKDF_Expand_Label */
@@ -302,7 +318,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
         case sha256_mac:
-            ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, ssl->devId);
             if (ret == 0) {
                     ret = wc_Sha256Update(&digest.sha256, msg, msgLen);
                 if (ret == 0)
@@ -315,7 +331,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sha384Update(&digest.sha384, msg, msgLen);
                 if (ret == 0)
@@ -328,7 +344,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_TLS13_SHA512
         case sha512_mac:
-            ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sha512Update(&digest.sha512, msg, msgLen);
                 if (ret == 0)
@@ -341,7 +357,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_SM3
         case sm3_mac:
-            ret = wc_InitSm3(&digest.sm3, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSm3(&digest.sm3, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sm3Update(&digest.sm3, msg, msgLen);
                 if (ret == 0)
@@ -1108,8 +1124,8 @@ static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret, int side)
 }
 
 
-static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int saltLen,
-                                 byte* ikm, int ikmLen, int digest)
+static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
+                              int saltLen, byte* ikm, int ikmLen, int digest)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -1121,8 +1137,12 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int sal
     else
 #endif
     {
-        (void)ssl;
+    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_Tls13_HKDF_Extract_ex(prk, salt, saltLen, ikm, ikmLen, digest,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
+    #endif
     }
     return ret;
 }
@@ -4786,17 +4806,29 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
         }
     }
     /* extract clientRandomInner with a key of all zeros */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+            ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk);
+    #endif
+        PRIVATE_KEY_LOCK();
+    }
     /* tls expand with the confirmation label */
-    if (ret == 0)
-        ret = wc_Tls13_HKDF_Expand_Label(acceptConfirmation,
-            ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize, tls13ProtocolLabel,
-            TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
-            ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
-            digestType);
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+        ret = Tls13HKDFExpandKeyLabel(ssl,
+            acceptConfirmation, ECH_ACCEPT_CONFIRMATION_SZ,
+            expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
+            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
+        PRIVATE_KEY_LOCK();
+    }
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
         ret = XMEMCMP(acceptConfirmation,
@@ -4913,21 +4945,27 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     /* extract clientRandom with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
+    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk);
+    #endif
         PRIVATE_KEY_LOCK();
     }
 
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = wc_Tls13_HKDF_Expand_Label(
+        ret = Tls13HKDFExpandKeyLabel(ssl,
             output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
-            ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize, tls13ProtocolLabel,
-            TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
-            ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
-            digestType);
+                ECH_ACCEPT_CONFIRMATION_SZ,
+            expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
+            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
 

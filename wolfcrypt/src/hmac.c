@@ -1195,8 +1195,8 @@ int wolfSSL_GetHmacMaxSize(void)
      * out      The pseudorandom key with the length that of the hash.
      * returns 0 on success, otherwise failure.
      */
-    int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
-                        const byte* inKey, word32 inKeySz, byte* out)
+    int wc_HKDF_Extract_ex(int type, const byte* salt, word32 saltSz,
+        const byte* inKey, word32 inKeySz, byte* out, void* heap, int devId)
     {
         byte   tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
     #ifdef WOLFSSL_SMALL_STACK
@@ -1228,7 +1228,7 @@ int wolfSSL_GetHmacMaxSize(void)
             saltSz    = hashSz;
         }
 
-        ret = wc_HmacInit(myHmac, NULL, INVALID_DEVID);
+        ret = wc_HmacInit(myHmac, heap, devId);
         if (ret == 0) {
             ret = wc_HmacSetKey(myHmac, type, localSalt, saltSz);
             if (ret == 0)
@@ -1244,6 +1244,13 @@ int wolfSSL_GetHmacMaxSize(void)
         return ret;
     }
 
+    int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
+                        const byte* inKey, word32 inKeySz, byte* out)
+    {
+        return wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, out, NULL,
+            INVALID_DEVID);
+    }
+
     /* HMAC-KDF-Expand.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
      *
@@ -1255,8 +1262,9 @@ int wolfSSL_GetHmacMaxSize(void)
      * out      The output keying material.
      * returns 0 on success, otherwise failure.
      */
-    int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
-                       const byte* info, word32 infoSz, byte* out, word32 outSz)
+    int wc_HKDF_Expand_ex(int type, const byte* inKey, word32 inKeySz,
+                       const byte* info, word32 infoSz, byte* out, word32 outSz,
+                       void* heap, int devId)
     {
         byte   tmp[WC_MAX_DIGEST_SIZE];
     #ifdef WOLFSSL_SMALL_STACK
@@ -1289,7 +1297,7 @@ int wolfSSL_GetHmacMaxSize(void)
         }
     #endif
 
-        ret = wc_HmacInit(myHmac, NULL, INVALID_DEVID);
+        ret = wc_HmacInit(myHmac, heap, devId);
         if (ret != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(myHmac, NULL, DYNAMIC_TYPE_HMAC);
@@ -1332,6 +1340,13 @@ int wolfSSL_GetHmacMaxSize(void)
     #endif
 
         return ret;
+    }
+
+    int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
+                       const byte* info, word32 infoSz, byte* out, word32 outSz)
+    {
+        return wc_HKDF_Expand_ex(type, inKey, inKeySz, info, infoSz, out, outSz,
+            NULL, INVALID_DEVID);
     }
 
     /* HMAC-KDF.

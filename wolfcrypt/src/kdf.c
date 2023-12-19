@@ -362,8 +362,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
      * digest   The type of digest to use.
      * returns 0 on success, otherwise failure.
      */
-    int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt, word32 saltLen,
-                                 byte* ikm, word32 ikmLen, int digest)
+    int wc_Tls13_HKDF_Extract_ex(byte* prk, const byte* salt, word32 saltLen,
+        byte* ikm, word32 ikmLen, int digest, void* heap, int devId)
     {
         int ret;
         word32 len = 0;
@@ -410,7 +410,15 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         WOLFSSL_BUFFER(ikm, ikmLen);
 #endif
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        ret = wc_HKDF_Extract_ex(digest, salt, saltLen, ikm, ikmLen, prk, heap,
+            devId);
+#else
         ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
+        (void)heap;
+        (void)devId;
+#endif
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  PRK");
@@ -418,6 +426,13 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif
 
         return ret;
+    }
+
+    int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt, word32 saltLen,
+                                 byte* ikm, word32 ikmLen, int digest)
+    {
+        return wc_Tls13_HKDF_Extract_ex(prk, salt, saltLen, ikm, ikmLen, digest,
+            NULL, INVALID_DEVID);
     }
 
     /* Expand data using HMAC, salt and label and info.
@@ -435,12 +450,12 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
      * digest       The type of digest to use.
      * returns 0 on success, otherwise failure.
      */
-    int wc_Tls13_HKDF_Expand_Label(byte* okm, word32 okmLen,
+    int wc_Tls13_HKDF_Expand_Label_ex(byte* okm, word32 okmLen,
                                  const byte* prk, word32 prkLen,
                                  const byte* protocol, word32 protocolLen,
                                  const byte* label, word32 labelLen,
                                  const byte* info, word32 infoLen,
-                                 int digest)
+                                 int digest, void* heap, int devId)
     {
         int    ret = 0;
         word32 idx = 0;
@@ -494,7 +509,15 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         WOLFSSL_MSG_EX("  Digest %d", digest);
 #endif
 
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        ret = wc_HKDF_Expand_ex(digest, prk, prkLen, data, idx, okm, okmLen,
+            heap, devId);
+#else
         ret = wc_HKDF_Expand(digest, prk, prkLen, data, idx, okm, okmLen);
+        (void)heap;
+        (void)devId;
+#endif
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  OKM");
@@ -510,6 +533,18 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return ret;
+    }
+
+    int wc_Tls13_HKDF_Expand_Label(byte* okm, word32 okmLen,
+                                 const byte* prk, word32 prkLen,
+                                 const byte* protocol, word32 protocolLen,
+                                 const byte* label, word32 labelLen,
+                                 const byte* info, word32 infoLen,
+                                 int digest)
+    {
+        return wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen, protocol,
+            protocolLen, label, labelLen, info, infoLen, digest,
+            NULL, INVALID_DEVID);
     }
 
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
