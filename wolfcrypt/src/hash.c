@@ -1337,18 +1337,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     #else
         wc_Sha sha[1];
     #endif
-        int devId = INVALID_DEVID;
 
     #ifdef WOLFSSL_SMALL_STACK
         sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha == NULL)
             return MEMORY_E;
-    #endif
-
-    #ifdef WOLF_CRYPTO_CB
-        /* only use devId if its not an empty hash */
-        if (data != NULL && len > 0)
-            devId = wc_CryptoCb_GetDevIdAtIndex(0);
     #endif
 
         if ((ret = wc_InitSha_ex(sha, heap, devId)) != 0) {
@@ -1429,19 +1422,12 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     #else
         wc_Sha256 sha256[1];
     #endif
-        int devId = INVALID_DEVID;
 
     #ifdef WOLFSSL_SMALL_STACK
         sha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (sha256 == NULL)
             return MEMORY_E;
-    #endif
-
-    #ifdef WOLF_CRYPTO_CB
-        /* only use devId if its not an empty hash */
-        if (data != NULL && len > 0)
-            devId = wc_CryptoCb_GetDevIdAtIndex(0);
     #endif
 
         if ((ret = wc_InitSha256_ex(sha256, heap, devId)) != 0) {
