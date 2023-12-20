@@ -1771,6 +1771,24 @@ WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
 
 
 WOLFSSL_ABI
+WC_RNG* wc_rng_new_ex(byte* nonce, word32 nonceSz, void* heap, int devId)
+{
+    WC_RNG* rng;
+
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
+    if (rng) {
+        int error = _InitRng(rng, nonce, nonceSz, heap, devId) != 0;
+        if (error) {
+            XFREE(rng, heap, DYNAMIC_TYPE_RNG);
+            rng = NULL;
+        }
+    }
+
+    return rng;
+}
+
+
+WOLFSSL_ABI
 void wc_rng_free(WC_RNG* rng)
 {
     if (rng) {
@@ -3777,6 +3795,28 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(NO_DEV_RANDOM)
 
+    /* Allow bare-metal targets to use cryptoCb as seed provider */
+    #if defined(WOLF_CRYPTO_CB)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = WC_HW_E;
+
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (os->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_RandomSeed(os, output, sz);
+            if (ret == CRYPTOCB_UNAVAILABLE) {
+                ret = WC_HW_E;
+            }
+        }
+
+        return ret;
+    }
+
+    #else /* defined(WOLF_CRYPTO_CB)*/
+
     #error "you need to write an os specific wc_GenerateSeed() here"
 
     /*
@@ -3785,6 +3825,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
     */
+
+   #endif  /* !defined(WOLF_CRYPTO_CB) */
 
 #else
 

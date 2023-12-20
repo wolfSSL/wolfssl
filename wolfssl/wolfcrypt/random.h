@@ -206,6 +206,7 @@ WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap);
+WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new_ex(byte* nonce, word32 nonceSz, void* heap, int devId);
 WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 

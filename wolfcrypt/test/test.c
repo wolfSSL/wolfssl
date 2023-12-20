@@ -15282,7 +15282,7 @@ static wc_test_ret_t random_rng_test(void)
     {
         byte nonce[8] = { 0 };
         /* Test dynamic RNG. */
-        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
+        rng = wc_rng_new_ex(nonce, (word32)sizeof(nonce), HEAP_HINT, devId);
         if (rng == NULL)
             return WC_TEST_RET_ENC_ERRNO;
 
