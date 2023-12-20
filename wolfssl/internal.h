@@ -2377,8 +2377,8 @@ typedef struct TLSX TLSX;
 WOLFSSL_LOCAL int MatchSuite_ex(const WOLFSSL* ssl, Suites* peerSuites,
                                 CipherSuite* cs, TLSX* extensions);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
-WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX* ctx, Suites* suites,
-                                 const char* list);
+WOLFSSL_LOCAL int  SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl,
+        Suites* suites, const char* list);
 WOLFSSL_LOCAL int  SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites,
                                           const byte* list, const int listSz);
 WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);

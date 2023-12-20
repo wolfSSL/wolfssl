@@ -1478,11 +1478,12 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
         return ssl;
 
     ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
-    if (ssl)
+    if (ssl) {
         if ( (ret = InitSSL(ssl, ctx, 0)) < 0) {
             FreeSSL(ssl, ctx->heap);
             ssl = 0;
         }
+    }
 
     WOLFSSL_LEAVE("wolfSSL_new", ret);
     (void)ret;
@@ -11837,8 +11838,8 @@ static int CheckcipherList(const char* list)
  *
  * returns WOLFSSL_SUCCESS on success and sets the cipher suite list
  */
-static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
-        const char* list)
+static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+        Suites* suites, const char* list)
 {
     int     ret = 0;
     int     listattribute = 0;
@@ -11863,7 +11864,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
        /* list has mixed(pre-TLSv13 and TLSv13) suites
         * update cipher suites the same as before
         */
-        return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
+        return (SetCipherList(ctx, ssl, suites, list)) ? WOLFSSL_SUCCESS :
         WOLFSSL_FAILURE;
     }
     else if (listattribute == 1) {
@@ -11877,7 +11878,8 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         * simulate set_ciphersuites() compatibility layer API
         */
         tls13Only = 1;
-        if (!IsAtLeastTLSv1_3(ctx->method->version)) {
+        if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version)) ||
+                (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version))) {
             /* Silently ignore TLS 1.3 ciphers if we don't support it. */
             return WOLFSSL_SUCCESS;
         }
@@ -11903,7 +11905,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         XMEMCPY(suitesCpy, suites->suites, suites->suiteSz);
     suitesCpySz = suites->suiteSz;
 
-    ret = SetCipherList(ctx, suites, list);
+    ret = SetCipherList(ctx, ssl, suites, list);
     if (ret != 1) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11967,9 +11969,9 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
         return WOLFSSL_FAILURE;
 
 #ifdef OPENSSL_EXTRA
-    return wolfSSL_parse_cipher_list(ctx, ctx->suites, list);
+    return wolfSSL_parse_cipher_list(ctx, NULL, ctx->suites, list);
 #else
-    return (SetCipherList(ctx, ctx->suites, list)) ?
+    return (SetCipherList(ctx, NULL, ctx->suites, list)) ?
         WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 #endif
 }
@@ -12003,9 +12005,9 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
         return WOLFSSL_FAILURE;
 
 #ifdef OPENSSL_EXTRA
-    return wolfSSL_parse_cipher_list(ssl->ctx, ssl->suites, list);
+    return wolfSSL_parse_cipher_list(NULL, ssl, ssl->suites, list);
 #else
-    return (SetCipherList(ssl->ctx, ssl->suites, list)) ?
+    return (SetCipherList(NULL, ssl, ssl->suites, list)) ?
         WOLFSSL_SUCCESS :
         WOLFSSL_FAILURE;
 #endif

@@ -26198,7 +26198,8 @@ ciphersuites introduced through the "bulk" ciphersuites.
 
 @return true on success, else false.
 */
-int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
+int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
+        const char* list)
 {
     int       ret              = 0;
     int       idx              = 0;
@@ -26216,10 +26217,23 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
 
-    if (suites == NULL || list == NULL) {
+    ProtocolVersion version;
+    int privateKeySz = 0;
+    byte side;
+#ifdef HAVE_ANON
+    byte haveAnon = 0;
+#endif
+
+    if (suites == NULL || list == NULL || (ctx == NULL && ssl == NULL)) {
         WOLFSSL_MSG("SetCipherList parameter error");
         return 0;
     }
+
+    version = ctx != NULL ? ctx->method->version : ssl->version;
+#ifndef NO_CERTS
+    privateKeySz = (int)(ctx != NULL ? ctx->privateKeySz : ssl->buffers.keySz);
+#endif
+    side = (byte)(ctx != NULL ? ctx->method->side : ssl->options.side);
 
     if (next[0] == 0 || XSTRCMP(next, "ALL") == 0 ||
         XSTRCMP(next, "DEFAULT") == 0 || XSTRCMP(next, "HIGH") == 0) {
@@ -26227,14 +26241,14 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 #ifndef NO_RSA
         haveRSA = 1;
 #endif
-        InitSuites(suites, ctx->method->version,
+        InitSuites(suites, version,
 #ifndef NO_CERTS
-                ctx->privateKeySz,
+                privateKeySz,
 #else
                 0,
 #endif
                 haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 1, 1, 0, 0,
-                ctx->method->side);
+                side);
         return 1; /* wolfSSL default */
     }
 
@@ -26312,7 +26326,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             else
                 haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
-            ctx->haveAnon = (haveSig & SIG_ANON) == SIG_ANON;
+            haveAnon = (haveSig & SIG_ANON) == SIG_ANON;
         #endif
             haveRSA = 1;
             haveDH = 1;
@@ -26337,7 +26351,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             /* Disable static, anonymous, and null ciphers */
             haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
-            ctx->haveAnon = 0;
+            haveAnon = 0;
         #endif
             haveRSA = 1;
             haveDH = 1;
@@ -26359,7 +26373,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             else
                 haveSig &= ~SIG_ANON;
         #ifdef HAVE_ANON
-            ctx->haveAnon = allowing;
+            haveAnon = allowing;
         #endif
             if (allowing) {
                 /* Allow RSA by default. */
@@ -26474,7 +26488,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
-                if (ctx->method->version.major == DTLS_MAJOR) {
+                if (version.major == DTLS_MAJOR) {
                     if (XSTRSTR(name, "RC4"))
                     {
                         WOLFSSL_MSG("Stream ciphers not supported with DTLS");
@@ -26591,14 +26605,14 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     if (ret) {
         int keySz = 0;
     #ifndef NO_CERTS
-        keySz = ctx->privateKeySz;
+        keySz = privateKeySz;
     #endif
     #ifdef OPENSSL_EXTRA
         if (callInitSuites) {
             suites->setSuites = 0; /* Force InitSuites */
             suites->hashSigAlgoSz = 0; /* Force InitSuitesHashSigAlgo call
                                         * inside InitSuites */
-            InitSuites(suites, ctx->method->version, keySz, (word16)haveRSA,
+            InitSuites(suites, version, keySz, (word16)haveRSA,
                        (word16)havePSK, (word16)haveDH,
                        (word16)((haveSig & SIG_ECDSA) != 0),
                        (word16)haveECC, (word16)haveStaticRSA,
@@ -26606,7 +26620,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                        (word16)((haveSig & SIG_FALCON) != 0),
                        (word16)((haveSig & SIG_DILITHIUM) != 0),
                        (word16)((haveSig & SIG_ANON) != 0),
-                       (word16)haveNull, ctx->method->side);
+                       (word16)haveNull, side);
             /* Restore user ciphers ahead of defaults */
             XMEMMOVE(suites->suites + idx, suites->suites,
                     min(suites->suiteSz, WOLFSSL_MAX_SUITE_SZ-idx));
@@ -26621,7 +26635,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         }
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
-        if (ctx->method->side == WOLFSSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (suites->suiteSz > WOLFSSL_MAX_SUITE_SZ - 2) {
                 WOLFSSL_MSG("Too many ciphersuites");
                 return 0;
@@ -26635,7 +26649,14 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         suites->setSuites = 1;
     }
 
-    (void)ctx;
+#ifdef HAVE_ANON
+    if (ret == 1) {
+        if (ctx != NULL)
+            ((WOLFSSL_CTX*)ctx)->haveAnon = haveAnon || haveSig | SIG_ANON;
+        else
+            ((WOLFSSL*)ssl)->options.haveAnon = haveAnon || haveSig | SIG_ANON;
+    }
+#endif
 
     return ret;
 }
