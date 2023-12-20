@@ -128,9 +128,11 @@ static void test_SrpInit(void)
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(NULL, SRP_TYPE_TEST_DEFAULT,
                                          SRP_CLIENT_SIDE));
+    /* // NOLINTBEGIN(clang-analyzer-optin.core.EnumCastOutOfRange) */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, (SrpType)255, SRP_CLIENT_SIDE));
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT,
                                          (SrpSide)255));
+    /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
 
     /* success */
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));

@@ -16393,7 +16393,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* cast so that compiler reminds us of unimplemented values */
         switch ((enum SignatureAlgorithm)sigType) {
         case anonymous_sa_algo:
-            *sigAlgo = (enum Key_Sum)0;
+            *sigAlgo = ANONk;
             break;
         case rsa_sa_algo:
             *sigAlgo = RSAk;

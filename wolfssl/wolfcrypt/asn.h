@@ -1124,6 +1124,7 @@ enum Block_Sum {
 
 
 enum Key_Sum {
+    ANONk             = 0,
     DSAk              = 515,
     RSAk              = 645,
     RSAPSSk           = 654,
