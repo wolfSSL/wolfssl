@@ -122,48 +122,48 @@ enum {
 /* Sha digest */
 struct wc_Sha {
 #ifdef FREESCALE_LTC_SHA
-        ltc_hash_ctx_t ctx;
+    ltc_hash_ctx_t ctx;
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
-        SE050_HASH_Context se050Ctx;
+    SE050_HASH_Context se050Ctx;
 #elif defined(STM32_HASH)
-        STM32_HASH_Context stmCtx;
+    STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-        wc_silabs_sha_t silabsCtx;
+    wc_silabs_sha_t silabsCtx;
 #elif defined(WOLFSSL_IMXRT_DCP)
-        dcp_handle_t handle;
-        dcp_hash_ctx_t ctx;
+    dcp_handle_t handle;
+    dcp_hash_ctx_t ctx;
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
-        psa_hash_operation_t psa_ctx;
+    psa_hash_operation_t psa_ctx;
 #else
-        word32  buffLen;   /* in bytes          */
-        word32  loLen;     /* length in bytes   */
-        word32  hiLen;     /* length in bytes   */
-        word32  buffer[WC_SHA_BLOCK_SIZE  / sizeof(word32)];
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
+    word32  buffer[WC_SHA_BLOCK_SIZE  / sizeof(word32)];
     #ifdef WOLFSSL_PIC32MZ_HASH
-        word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
+    word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
     #else
-        word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
+    word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
-        void*   heap;
-    #ifdef WOLFSSL_PIC32MZ_HASH
-        hashUpdCache cache; /* cache for updates */
-    #endif
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        WC_ASYNC_DEV asyncDev;
-    #endif /* WOLFSSL_ASYNC_CRYPT */
-    #ifdef WOLF_CRYPTO_CB
-        int    devId;
-        void*  devCtx; /* generic crypto callback context */
-    #endif
-    #ifdef WOLFSSL_IMXRT1170_CAAM
-        caam_hash_ctx_t ctx;
-        caam_handle_t hndl;
-    #endif
-    #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
-        byte*  msg;
-        word32 used;
-        word32 len;
-    #endif
+    void*   heap;
+#endif
+#ifdef WOLFSSL_PIC32MZ_HASH
+    hashUpdCache cache; /* cache for updates */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+    void*  devCtx; /* generic crypto callback context */
+#endif
+#ifdef WOLFSSL_IMXRT1170_CAAM
+    caam_hash_ctx_t ctx;
+    caam_handle_t hndl;
+#endif
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    byte*  msg;
+    word32 used;
+    word32 len;
 #endif
 #if defined(WOLFSSL_ESP32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
