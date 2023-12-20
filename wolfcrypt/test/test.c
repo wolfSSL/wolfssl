@@ -20075,7 +20075,8 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)
+#if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
+    !defined(HAVE_INTEL_QA)
     /* Make p even */
     key->p.dp[0] &= (mp_digit)-2;
     if (ret != 0)
@@ -20107,7 +20108,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
 
     /* Getting here means success - set ret to 0. */
     ret = 0;
-#endif
+#endif /* (SP DH or Fast Math) and not Intel QuickAssist */
 
 done:
 
