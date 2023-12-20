@@ -22,6 +22,10 @@
 #ifndef EXT_KYBER_H
 #define EXT_KYBER_H
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/kyber.h>
 
@@ -56,6 +60,12 @@ struct KyberKey {
      * Note we don't save the variant (SHAKE vs AES) as that is decided at
      * configuration time. */
     int type;
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+
     byte priv[EXT_KYBER_MAX_PRIV_SZ];
     byte pub[EXT_KYBER_MAX_PUB_SZ];
 };

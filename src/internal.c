@@ -27462,7 +27462,8 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
         }
 
         if (label) {
-            ret = wc_dilithium_init_label(dilithiumKey, (char*)data, heap, devId);
+            ret = wc_dilithium_init_label(dilithiumKey, (char*)data,
+                                          heap, devId);
         }
         else if (id) {
             ret = wc_dilithium_init_id(dilithiumKey, data, length, heap, devId);
@@ -27654,7 +27655,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_dilithium_sig_size((dilithium_key*)ssl->hsKey);
+                *length = (word16)wc_dilithium_sig_size(
+                                    (dilithium_key*)ssl->hsKey);
             }
     #else
             ret = NOT_COMPILED_IN;

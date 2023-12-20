@@ -1170,11 +1170,18 @@ typedef struct w64wrapper {
         WC_PK_TYPE_CURVE25519_KEYGEN = 16,
         WC_PK_TYPE_RSA_GET_SIZE = 17,
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_GET_SIZE
+    #if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_KYBER)
+        WC_PK_TYPE_PQC_KEM_KEYGEN = 18,
+        WC_PK_TYPE_PQC_KEM_ENCAPS = 19,
+        WC_PK_TYPE_PQC_KEM_DECAPS = 20,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_KEM_DECAPS
+    #endif
     #if defined(HAVE_PQC) && (defined(HAVE_DILITHIUM) || defined(HAVE_FALCON))
-        WC_PK_TYPE_PQC_SIG_KEYGEN = 18,
-        WC_PK_TYPE_PQC_SIG_SIGN = 19,
-        WC_PK_TYPE_PQC_SIG_VERIFY = 20,
-        WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY = 21,
+        WC_PK_TYPE_PQC_SIG_KEYGEN = 21,
+        WC_PK_TYPE_PQC_SIG_SIGN = 22,
+        WC_PK_TYPE_PQC_SIG_VERIFY = 23,
+        WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY = 24,
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY
     #endif
@@ -1182,6 +1189,18 @@ typedef struct w64wrapper {
     };
 
     #if defined(HAVE_PQC)
+    /* Post quantum KEM algorithms */
+    enum wc_PqcKemType {
+        WC_PQC_KEM_TYPE_NONE = 0,
+        #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_NONE
+    #if defined(WOLFSSL_HAVE_KYBER)
+        WC_PQC_KEM_TYPE_KYBER = 1,
+        #undef _WC_PQC_KEM_TYPE_MAX
+        #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_KYBER
+    #endif
+        WC_PQC_KEM_TYPE_MAX = _WC_PQC_KEM_TYPE_MAX
+    };
+
     /* Post quantum signature algorithms */
     enum wc_PqcSignatureType {
         WC_PQC_SIG_TYPE_NONE = 0,

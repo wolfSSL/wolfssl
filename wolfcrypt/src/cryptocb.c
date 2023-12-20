@@ -785,6 +785,129 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
 }
 #endif /* HAVE_ED25519 */
 
+#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_KYBER)
+int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
+{
+    int devId = INVALID_DEVID;
+
+    if (key == NULL)
+        return devId;
+
+    /* get devId */
+#if defined(WOLFSSL_HAVE_KYBER)
+    if (type == WC_PQC_KEM_TYPE_KYBER) {
+        devId = ((KyberKey*) key)->devId;
+    }
+#endif
+
+    return devId;
+}
+
+int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type, int keySize, void* key)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_KEYGEN;
+        cryptoInfo.pk.pqc_kem_kg.rng = rng;
+        cryptoInfo.pk.pqc_kem_kg.size = keySize;
+        cryptoInfo.pk.pqc_kem_kg.key = key;
+        cryptoInfo.pk.pqc_kem_kg.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
+    byte* sharedSecret, word32 sharedSecretLen, WC_RNG* rng, int type,
+    void* key)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_ENCAPS;
+        cryptoInfo.pk.pqc_encaps.ciphertext = ciphertext;
+        cryptoInfo.pk.pqc_encaps.ciphertextLen = ciphertextLen;
+        cryptoInfo.pk.pqc_encaps.sharedSecret = sharedSecret;
+        cryptoInfo.pk.pqc_encaps.sharedSecretLen = sharedSecretLen;
+        cryptoInfo.pk.pqc_encaps.rng = rng;
+        cryptoInfo.pk.pqc_encaps.key = key;
+        cryptoInfo.pk.pqc_encaps.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
+    byte* sharedSecret, word32 sharedSecretLen, int type, void* key)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_DECAPS;
+        cryptoInfo.pk.pqc_decaps.ciphertext = ciphertext;
+        cryptoInfo.pk.pqc_decaps.ciphertextLen = ciphertextLen;
+        cryptoInfo.pk.pqc_decaps.sharedSecret = sharedSecret;
+        cryptoInfo.pk.pqc_decaps.sharedSecretLen = sharedSecretLen;
+        cryptoInfo.pk.pqc_decaps.key = key;
+        cryptoInfo.pk.pqc_decaps.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_PQC && WOLFSSL_HAVE_KYBER */
+
 #if defined(HAVE_PQC) && (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))
 int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 {
