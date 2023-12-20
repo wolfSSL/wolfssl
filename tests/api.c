@@ -29064,7 +29064,9 @@ static int test_wc_SignatureGetSize_ecc(void)
     ExpectIntGT(wc_SignatureGetSize(sig_type, &ecc, key_len), 0);
 
     /* Test bad args */
+    /* // NOLINTBEGIN(clang-analyzer-optin.core.EnumCastOutOfRange) */
     sig_type = (enum wc_SignatureType) 100;
+    /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &ecc, key_len), BAD_FUNC_ARG);
     sig_type = WC_SIGNATURE_TYPE_ECC;
     ExpectIntEQ(wc_SignatureGetSize(sig_type, NULL, key_len), 0);
@@ -29129,7 +29131,9 @@ static int test_wc_SignatureGetSize_rsa(void)
     ExpectIntGT(wc_SignatureGetSize(sig_type, &rsa_key, key_len), 0);
 
     /* Test bad args */
+    /* // NOLINTBEGIN(clang-analyzer-optin.core.EnumCastOutOfRange) */
     sig_type = (enum wc_SignatureType)100;
+    /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len), BAD_FUNC_ARG);
     sig_type = WC_SIGNATURE_TYPE_RSA;
     #ifndef HAVE_USER_RSA
