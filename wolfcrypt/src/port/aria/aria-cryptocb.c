@@ -204,7 +204,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_EccPrivateKeyToDer(key,keyarr,keySz);
+        int ret = wc_EccPrivateKeyToDer(key, keyarr, keySz);
         if (ret < 0) { rv = ret; }
         else { keySz = ret; }
     }
@@ -265,11 +265,11 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz,
 
     WOLFSSL_ENTER("AriaVerify");
 
-    *res = 0; /* Default to invalid signature */
-
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    *res = 0; /* Default to invalid signature */
 
     if (rv == MC_OK)
         rv = wc_AriaInit();
@@ -281,7 +281,7 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz,
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_EccPublicKeyToDer(key,keyarr,keySz,0);
+        int ret = wc_EccPublicKeyToDer(key, keyarr, keySz, 0);
         if (ret < 0) { rv = ret; }
         else { keySz = ret; }
     }
