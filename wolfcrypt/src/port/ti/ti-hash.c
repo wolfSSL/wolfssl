@@ -62,8 +62,10 @@
 #define SHAMD5_ALGO_SHA224 4
 #endif
 
-static int hashInit(wolfssl_TI_Hash *hash) {
-    if (!wolfSSL_TI_CCMInit())return 1;
+static int hashInit(wolfssl_TI_Hash *hash)
+{
+    if (!wolfSSL_TI_CCMInit())
+        return 1;
     hash->used = 0;
     hash->msg  = 0;
     hash->len  = 0;
@@ -115,8 +117,13 @@ static int hashGetHash(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 
     return 0;
 }
 
-static int hashCopy(wolfssl_TI_Hash *src, wolfssl_TI_Hash *dst) {
-    XMEMCPY(dst, src, sizeof(wolfssl_TI_Hash));
+static int hashCopy(wolfssl_TI_Hash *src, wolfssl_TI_Hash *dst)
+{
+    /* only copy hash, zero the rest of the struct to avoid double-free */
+    dst->msg = NULL;
+    dst->used = 0;
+    dst->len = 0;
+    XMEMCPY(dst->hash, src->hash, sizeof(dst->hash));
     return 0;
 }
 
@@ -194,11 +201,12 @@ WOLFSSL_API int wc_Md5GetHash(Md5* md5, byte* hash)
     return hashGetHash((wolfssl_TI_Hash *)md5, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE);
 }
 
-WOLFSSL_API int wc_Md5Copy(Md5* src, Md5* dst) {
+WOLFSSL_API int wc_Md5Copy(Md5* src, Md5* dst)
+{
 	return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
 }
 
-WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte*hash)
+WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte* hash)
 {
     return hashHash(data, len, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE);
 }
@@ -239,11 +247,12 @@ WOLFSSL_API int wc_ShaGetHash(Sha* sha, byte* hash)
     return hashGetHash(sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE);
 }
 
-WOLFSSL_API int wc_ShaCopy(Sha* src, Sha* dst) {
+WOLFSSL_API int wc_ShaCopy(Sha* src, Sha* dst)
+{
 	return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
 }
 
-WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte*hash)
+WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte* hash)
 {
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE);
 }
@@ -284,7 +293,12 @@ WOLFSSL_API int wc_Sha224GetHash(Sha224* sha224, byte* hash)
     return hashGetHash(sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE);
 }
 
-WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte*hash)
+WOLFSSL_API int wc_Sha224Copy(Sha224* src, Sha224* dst)
+{
+    return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
+}
+
+WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
 {
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE);
 }
@@ -326,7 +340,12 @@ WOLFSSL_API int wc_Sha256GetHash(Sha256* sha256, byte* hash)
     return hashGetHash(sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE);
 }
 
-WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte*hash)
+WOLFSSL_API int wc_Sha256Copy(Sha256* src, Sha256* dst)
+{
+    return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
+}
+
+WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 {
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE);
 }
