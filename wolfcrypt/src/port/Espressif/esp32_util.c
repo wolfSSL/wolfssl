@@ -592,9 +592,10 @@ int ShowExtendedSystemInfo(void)
     ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
             );
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-    ESP_LOGI(TAG, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = %u MHz",
-                   CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) && \
+      defined(CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ)
+    ESP_LOGI(TAG, "CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ
             );
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
