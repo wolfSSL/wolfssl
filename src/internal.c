@@ -4644,7 +4644,8 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
-    #ifndef NO_SHA
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         case sha_mac:
             ssl->options.dontFreeDigest = 1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
@@ -22028,7 +22029,7 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
 #endif /* !NO_MD5 && !NO_OLD_TLS */
 
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                              defined(WOLFSSL_ALLOW_TLS_SHA1))
+                          defined(WOLFSSL_ALLOW_TLS_SHA1))
 static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
 {
     int ret;

@@ -4176,7 +4176,8 @@ typedef struct Hashes {
     #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         byte md5[WC_MD5_DIGEST_SIZE];
     #endif
-    #if !defined(NO_SHA)
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         byte sha[WC_SHA_DIGEST_SIZE];
     #endif
     #ifndef NO_SHA256
