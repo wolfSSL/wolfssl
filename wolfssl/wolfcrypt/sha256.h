@@ -164,7 +164,7 @@ struct wc_Sha256 {
 #elif defined(STM32_HASH_SHA2)
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-  wc_silabs_sha_t silabsCtx;
+    wc_silabs_sha_t silabsCtx;
 #elif defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
     dcp_hash_ctx_t ctx;
