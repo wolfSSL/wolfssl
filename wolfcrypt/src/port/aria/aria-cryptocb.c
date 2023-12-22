@@ -185,8 +185,8 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
 
     MC_APIMODE gApimode = MC_MODE_KCMV;
     MC_ALGORITHM mcAlg = {MC_ALGID_NONE, NULL, 0};
-    byte keyAsn1[ARIA_KEYASN1_MAXSZ];
-    word32 keyAsn1Sz=(word32)sizeof(keyAsn1);
+    byte keyarr[ARIA_KEYASN1_MAXSZ];
+    word32 keySz=(word32)sizeof(keyarr);
 
     WOLFSSL_ENTER("AriaSign");
 
@@ -204,13 +204,13 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_BuildEccKeyDer(key,keyAsn1,&keyAsn1Sz,0,0);
+        int ret = wc_EccPrivateKeyToDer(key, keyarr, keySz);
         if (ret < 0) { rv = ret; }
-        else { keyAsn1Sz = ret; }
+        else { keySz = ret; }
     }
 
-    WOLFSSL_MSG_EX("AriaSign key(%d):",keyAsn1Sz);
-    WOLFSSL_BUFFER(keyAsn1,keyAsn1Sz);
+    WOLFSSL_MSG_EX("AriaSign key(%d):",keySz);
+    WOLFSSL_BUFFER(keyarr,keySz);
 
     WOLFSSL_MSG_EX("AriaSign rv=%d",rv);
 
@@ -230,7 +230,7 @@ int wc_AriaSign(byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key)
     }
 
     if (rv == MC_OK)
-        rv = MC_CreateObject(hSession, keyAsn1, keyAsn1Sz, &hPrikey);
+        rv = MC_CreateObject(hSession, keyarr, keySz, &hPrikey);
     WOLFSSL_MSG_EX("AriaSign CreateObject rv=%d",rv);
 
     if (rv == MC_OK)
@@ -281,7 +281,7 @@ int wc_AriaVerify(byte* sig, word32 sigSz, byte* hash, word32 hashSz,
         rv = MC_SetApiMode(hSession, gApimode);
 
     if (rv == MC_OK) {
-        int ret = wc_EccPublicKeyToDer(key,keyarr,keySz,0);
+        int ret = wc_EccPublicKeyToDer(key, keyarr, keySz, 0);
         if (ret < 0) { rv = ret; }
         else { keySz = ret; }
     }
@@ -544,13 +544,11 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha256->hSession), MC_ALGID_SHA256);
                 }
 
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.in != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     ret = wc_AriaShaUpdate(info->hash.sha256->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.digest != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     MC_UINT digestSz = 32;
                     ret = wc_AriaShaFinal(info->hash.sha256->hSession,
                                         info->hash.digest, &digestSz);
@@ -573,13 +571,11 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha384->hSession), MC_ALGID_SHA384);
                 }
 
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.in != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     ret = wc_AriaShaUpdate(info->hash.sha384->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if (((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
-                    && (info->hash.digest != NULL)) {
+                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
                     MC_UINT digestSz = 48;
                     ret = wc_AriaShaFinal(info->hash.sha384->hSession,
                                         info->hash.digest, &digestSz);
