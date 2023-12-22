@@ -15762,10 +15762,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        verify = GET_VERIFY_SETTING_CTX(ctx);
-        if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS &
-                 WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
+        #if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
             verify = VERIFY_SKIP_DATE;
+        #else
+            verify = GET_VERIFY_SETTING_CTX(ctx);
+        #endif
 
         if (format == WOLFSSL_FILETYPE_PEM)
             return ProcessChainBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
