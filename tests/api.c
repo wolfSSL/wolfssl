@@ -27684,6 +27684,14 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 {
     int ret = -1;
 
+    (void)cekSz;
+    (void)cek;
+    (void)outSz;
+    (void)keyIdSz;
+    (void)direction;
+    (void)orginKey; /* used with KAKRI */
+    (void)orginKeySz;
+
     if (out == NULL)
         return BAD_FUNC_ARG;
 
@@ -27715,15 +27723,6 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
             WOLFSSL_MSG("Unsupported key wrap algorithm in example");
             return BAD_KEYWRAP_ALG_E;
     };
-
-    (void)cekSz;
-    (void)cek;
-    (void)outSz;
-    (void)keyIdSz;
-    (void)direction;
-    (void)orginKey; /* used with KAKRI */
-    (void)orginKeySz;
-    return ret;
 }
 #endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && !NO_AES_256 */
 
