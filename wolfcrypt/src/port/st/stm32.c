@@ -595,7 +595,7 @@ static int stm32_getabs_from_mp_int(uint8_t *dst, const mp_int *a, int sz,
     #else
         *abs_sign = 1; /* default to negative */
     #endif
-        res = mp_abs(a, &x);
+        res = mp_abs((mp_int*)a, &x);
         if (res == MP_OKAY)
             res = stm32_get_from_mp_int(dst, &x, sz);
         mp_clear(&x);
