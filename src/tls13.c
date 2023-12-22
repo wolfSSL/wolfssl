@@ -241,7 +241,6 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
     return ret;
 }
 
-#if !defined(HAVE_FIPS) || !defined(wc_Tls13_HKDF_Expand_Label)
 /* Same as above, but pass in the side we are expanding for.
  *
  * side      The side (WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END).
@@ -253,8 +252,9 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                    const byte* info, word32 infoLen,
                                    int digest, int side)
 {
+    int ret;
 #if defined(HAVE_PK_CALLBACKS)
-    int ret = NOT_COMPILED_IN;
+    ret = NOT_COMPILED_IN;
     if (ssl->ctx && ssl->ctx->HKDFExpandLabelCb) {
         ret = ssl->ctx->HKDFExpandLabelCb(okm, okmLen, prk, prkLen,
                                          protocol, protocolLen,
@@ -262,33 +262,38 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                          info, infoLen,
                                          digest, side);
     }
-
     if (ret != NOT_COMPILED_IN)
         return ret;
 #endif
 
-/* hash buffer may not be fully initialized, but the sending length won't
- * extend beyond the initialized span.
- */
+    /* Hash buffer may not be fully initialized, but the sending length won't
+     * extend beyond the initialized span. */
 PRAGMA_GCC_DIAG_PUSH
 PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-    (void)ssl;
-    (void)side;
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
-    return wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
+    ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest,
                                       ssl->heap, ssl->devId);
+
+#elif defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
+    ret = wc_Tls13_HKDF_Expand_Label_fips(okm, okmLen, prk, prkLen,
+                                      protocol, protocolLen,
+                                      label, labelLen,
+                                      info, infoLen, digest);
 #else
-    return wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
+    ret = wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
 #endif
 PRAGMA_GCC_DIAG_POP
+    (void)ssl;
+    (void)side;
+    return ret;
 }
-#endif /* !HAVE_FIPS || !wc_Tls13_HKDF_Expand_Label */
+
 
 /* Derive a key from a message.
  *
@@ -493,26 +498,16 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     /* hash buffer may not be fully initialized, but the sending length won't
      * extend beyond the initialized span.
      */
-    PRAGMA_GCC_DIAG_PUSH
-    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     PRIVATE_KEY_UNLOCK();
-    #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
-    (void)side;
-    ret = wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
-                             protocol, protocolLen, label, labelLen,
-                             hash, hashOutSz, digestAlg);
-    #else
     ret = Tls13HKDFExpandKeyLabel(ssl, output, outputLen, secret, hashSz,
                                   protocol, protocolLen, label, labelLen,
                                   hash, hashOutSz, digestAlg, side);
-    #endif
     PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("TLS 1.3 derived key", output, outputLen);
 #endif
     return ret;
-    PRAGMA_GCC_DIAG_POP
 }
 
 /* Convert TLS mac ID to a hash algorithm ID
