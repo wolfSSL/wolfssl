@@ -1455,8 +1455,8 @@ exit:
 
     return args.return_code;
 #else
-    return NOT_COMPILED_IN;
     (void)argc;
     (void)argv;
+    return NOT_COMPILED_IN;
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 }

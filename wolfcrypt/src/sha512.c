@@ -452,32 +452,36 @@ static int InitSha512_256(wc_Sha512* sha512)
             }
             else
         #endif
-            if (1) {
+            {
                 Transform_Sha512_p = Transform_Sha512_AVX2;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_Len;
                 Transform_Sha512_is_vectorized = 1;
             }
-        #ifdef HAVE_INTEL_RORX
-            else {
-                Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
-                Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
-                Transform_Sha512_is_vectorized = 1;
-            }
-        #endif
         }
         else
     #endif
     #if defined(HAVE_INTEL_AVX1)
         if (IS_INTEL_AVX1(intel_flags)) {
-            Transform_Sha512_p = Transform_Sha512_AVX1;
-            Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
-            Transform_Sha512_is_vectorized = 1;
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
+                Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
+                Transform_Sha512_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                Transform_Sha512_p = Transform_Sha512_AVX1;
+                Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
+                Transform_Sha512_is_vectorized = 1;
+            }
         }
         else
     #endif
         {
             Transform_Sha512_p = _Transform_Sha512;
-            Transform_Sha512_is_vectorized = 1;
+            Transform_Sha512_Len_p = NULL;
+            Transform_Sha512_is_vectorized = 0;
         }
 
         transform_check = 1;
