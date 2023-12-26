@@ -356,7 +356,7 @@ static int InitSha256(wc_Sha256* sha256)
         intel_flags = cpuid_get_flags();
 
     #ifdef HAVE_INTEL_AVX2
-        if (1 && IS_INTEL_AVX2(intel_flags)) {
+        if (IS_INTEL_AVX2(intel_flags)) {
         #ifdef HAVE_INTEL_RORX
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha256_p = Transform_Sha256_AVX2_RORX;
@@ -365,27 +365,29 @@ static int InitSha256(wc_Sha256* sha256)
             }
             else
         #endif
-            if (1)
             {
                 Transform_Sha256_p = Transform_Sha256_AVX2;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_Len;
                 Transform_Sha256_is_vectorized = 1;
             }
-        #ifdef HAVE_INTEL_RORX
-            else {
-                Transform_Sha256_p = Transform_Sha256_AVX1_RORX;
-                Transform_Sha256_Len_p = Transform_Sha256_AVX1_RORX_Len;
-                Transform_Sha256_is_vectorized = 1;
-            }
-        #endif
         }
         else
     #endif
     #ifdef HAVE_INTEL_AVX1
         if (IS_INTEL_AVX1(intel_flags)) {
-            Transform_Sha256_p = Transform_Sha256_AVX1;
-            Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
-            Transform_Sha256_is_vectorized = 1;
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                Transform_Sha256_p = Transform_Sha256_AVX1_RORX;
+                Transform_Sha256_Len_p = Transform_Sha256_AVX1_RORX_Len;
+                Transform_Sha256_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                Transform_Sha256_p = Transform_Sha256_AVX1;
+                Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
+                Transform_Sha256_is_vectorized = 1;
+            }
         }
         else
     #endif

@@ -30338,9 +30338,9 @@ int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
     }
     if (curve_id >= 32) {
         /* 0 is for invalid and 1-14 aren't used otherwise. */
-        return (ssl->disabledCurves & (1 << (curve_id - 32))) != 0;
+        return (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
     }
-    return (ssl->disabledCurves & (1 << curve_id)) != 0;
+    return (ssl->disabledCurves & (1U << curve_id)) != 0;
 }
 
 #if (defined(HAVE_ECC) || \

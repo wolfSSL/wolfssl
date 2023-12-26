@@ -6139,9 +6139,15 @@ WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_LOCAL int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
-                                            word16 named_curve);
+                                            word16 curve_id);
 #else
-#define wolfSSL_curve_is_disabled(ssl, c)   ((void)(ssl), (void)(c), 0)
+static WC_INLINE int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
+                                               word16 curve_id)
+{
+    (void)ssl;
+    (void)curve_id;
+    return 0;
+}
 #endif
 
 WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
