@@ -21166,7 +21166,8 @@ default:
                     word16 i = (word16)(ssl->buffers.inputBuffer.idx +
                                  ssl->curSize - ssl->specs.aead_mac_size);
 
-                    if (i > ssl->buffers.inputBuffer.length) {
+                    /* check i isn't too big and won't wrap around on --i */
+                    if (i > ssl->buffers.inputBuffer.length || i == 0) {
                         WOLFSSL_ERROR(BUFFER_ERROR);
                         return BUFFER_ERROR;
                     }
