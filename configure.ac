@@ -5420,65 +5420,6 @@ then
     esac
 fi
 
-
-# USER CRYPTO
-ENABLED_USER_CRYPTO="no"
-ENABLED_USER_RSA="no"
-AC_DEFINE([BUILD_USER_RSA], [], [User RSA is being defined])
-trycryptodir=""
-AC_ARG_WITH([user-crypto],
-    [AS_HELP_STRING([--with-user-crypto=PATH],[Path to USER_CRYPTO install (default /usr/local)])],
-    [
-        CPPFLAGS="$CPPFLAGS -DHAVE_USER_CRYPTO"
-        LIBS="$LIBS -lusercrypto"
-
-        if test "x$withval" != "xno" ; then
-            trycryptodir=$withval
-        fi
-        if test "x$withval" = "xyes" ; then
-            trycryptodir="/usr/local"
-        fi
-
-        LDFLAGS="$LDFLAGS -L$trycryptodir/lib"
-        CPPFLAGS="$CPPFLAGS -I$trycryptodir/include"
-
-        #Look for RSA Init function in usercrypto lib
-        AC_CHECK_LIB([usercrypto], [wc_InitRsaKey], [user_rsa_linked=yes], [user_rsa_linked=no])
-
-       if test "x$user_rsa_linked" = "xyes" ; then
-            AC_MSG_NOTICE([User user_rsa.h being used])
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_RSA"
-            ENABLED_USER_RSA=yes
-            ENABLED_USER_CRYPTO=yes
-       fi
-
-
-        #Display check and find result of link attempts
-        AC_MSG_CHECKING([for USER_CRYPTO])
-        if test "x$ENABLED_USER_CRYPTO" = "xno" ; then
-            AC_MSG_RESULT([no])
-            AC_MSG_ERROR([USER_CRYPTO not found. Either move to /usr/include and /usr/lib or
-                    Specify its path using --with-user-crypto=/dir/])
-        else
-            AC_MSG_RESULT([yes])
-            # Check if .la is available if not then rely on exported path
-            if test -e $trycryptodir/lib/libusercrypto.la
-            then
-                LIB_ADD="$trycryptodir/lib/libusercrypto.la $LIB_ADD"
-            else
-                LIB_ADD="-lusercrypto $LIB_ADD"
-            fi
-            AM_LDFLAGS="$AM_LDFLAGS -L$trycryptodir/lib"
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_CRYPTO"
-        fi
-    ]
-)
-
-if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
-then
-    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto possibility of using code in fips boundary.])
-fi
-
 # Whitewood netRandom client library
 ENABLED_WNR="no"
 trywnrdir=""
@@ -7795,171 +7736,6 @@ fi
 # End - Single Precision option handling                                       #
 ################################################################################
 
-# Fast RSA using Intel IPP
-ippdir="${srcdir}/IPP"
-ipplib="lib" # if autoconf guesses 32bit system changes lib directory
-fastRSA_found=no
-abs_path=`pwd`
-
-# set up variables used
-IPPLIBS=
-IPPHEADERS=
-IPPLINK=
-
-AC_ARG_ENABLE([fast-rsa],
-    [AS_HELP_STRING([--enable-fast-rsa],[Enable RSA using Intel IPP (default: disabled)])],
-    [ ENABLED_FAST_RSA=$enableval ],
-    [ ENABLED_FAST_RSA=no ],
-    )
-
-# Fast RSA does not support RSA-PSS
-if test "$ENABLED_RSAPSS" = "yes"; then
-    ENABLED_FAST_RSA=no
-fi
-
-if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
-
-    if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-        ipplib="lib_32" # 32 bit OS detected
-    fi
-
-#   Use static IPP Libraries
-if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
-    case $host_os in
-    *darwin*)
-        ipplib="$ipplib/mac_static"
-        AC_MSG_ERROR([Issue with static linking to libippcp.a on Mac.
-                Dynamic IPP libraries supported on Mac])
-        break;;
-
-    *linux*)
-        ipplib="$ipplib/linux_static"
-        break;;
-    *)
-        ENABLED_FAST_RSA=no
-    esac
-
-    if test -e $srcdir/IPP/$ipplib/libippcore.a && test -e $srcdir/IPP/$ipplib/libippcp.a
-    then
-        :
-    else
-        ENABLED_FAST_RSA=no
-    fi
-    AC_CHECK_HEADERS([IPP/include/ipp.h IPP/include/ippcp.h], [AM_CPPFLAGS="-I$srcdir/IPP/include $AM_CPPFLAGS"], [ENABLED_FAST_RSA=no])
-    LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_STATIC_ADD"
-    if test "$ENABLED_FAST_RSA" = "no"; then
-        AC_MSG_ERROR([Could not find fast rsa libraries])
-    fi
-else
-
-#   Check for and use bundled IPP libraries
-if test "$ENABLED_FAST_RSA" = "yes"; then
-    AC_MSG_NOTICE([Using local IPP crypto library])
-
-    AC_CHECK_HEADER([$abs_path/IPP/include/ippcp.h],
-    [
-        # build and default locations on linux and mac
-        STORE_LDFLAGS=${LDFLAGS}
-        STORE_CPPFLAGS=${CPPFLAGS}
-
-        # using LDFLAGS instead of AM_ temporarily to test link to library
-        LDFLAGS="-L$ippdir/$ipplib -lippcp -lippcore"
-        CPPFLAGS="-I$ippdir/include"
-        AC_CHECK_HEADERS([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [fastRSA_found=yes], [fastRSA_found=no])], [fastRSA_found=no])
-        name="$ippdir/$ipplib/libippcp"
-        case $host_os in
-        *darwin*)
-            # check file existence and conditionally set variables
-            if test -e $abs_path/IPP/$ipplib/libippcp.dylib
-            then
-                IPPLIBS="${name}.dylib ${name}-9.0.dylib ${name}e9-9.0.dylib ${name}g9-9.0.dylib ${name}h9-9.0.dylib ${name}k0-9.0.dylib ${name}l9-9.0.dylib ${name}n8-9.0.dylib ${name}p8-9.0.dylib ${name}s8-9.0.dylib ${name}y8-9.0.dylib IPP/lib/libippcore.dylib IPP/lib/libippcore-9.0.dylib"
-                IPPLINK="mkdir -p src/.libs && ln -f ${name}.dylib src/.libs/libippcp.dylib && ln -f ${srcdir}/${name}-9.0.dylib src/.libs/libippcp-9.0.dylib && ln -f ${srcdir}/${name}e9-9.0.dylib src/.libs/libippcpe9-9.0.dylib && ln -f ${srcdir}/${name}g9-9.0.dylib src/.libs/libippcpg9-9.0.dylib && ln -f ${srcdir}/${name}h9-9.0.dylib src/.libs/libippcph9-9.0.dylib && ln -f ${srcdir}/${name}k0-9.0.dylib src/.libs/libippcpk0-9.0.dylib && ln -f ${srcdir}/${name}l9-9.0.dylib src/.libs/libippcpl9-9.0.dylib && ln -f ${srcdir}/${name}n8-9.0.dylib src/.libs/libippcpn8-9.0.dylib && ln -f ${srcdir}/${name}p8-9.0.dylib src/.libs/libippcpp8-9.0.dylib && ln -f ${srcdir}/${name}s8-9.0.dylib src/.libs/libippcps8-9.0.dylib && ln -f ${srcdir}/${name}y8-9.0.dylib src/.libs/libippcpy8-9.0.dylib && ln -f ${srcdir}/IPP/lib/libippcore.dylib src/.libs/libippcore.dylib && ln -f ${srcdir}/IPP/lib/libippcore-9.0.dylib src/.libs/libippcore-9.0.dylib"
-            else
-                fastRSA_found=no
-            fi
-            break;;
-
-        *linux*)
-            # check file existence and conditionally set variables
-            if test -e $abs_path/IPP/$ipplib/libippcp.so.9.0
-            then
-                if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-                    IPPLIBS="${name}.so.9.0 ${name}g9.so.9.0 ${name}h9.so.9.0 ${name}p8.so.9.0 ${name}px.so.9.0 ${name}s8.so.9.0 ${name}.so ${name}w7.so.9.0 IPP/$ipplib/libippcore.so IPP/$ipplib/libippcore.so.9.0"
-                    IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}g9.so.9.0 src/.libs/libippcpg9.so.9.0 && ln -f ${name}h9.so.9.0 src/.libs/libippcph9.so.9.0 && ln -f ${name}p8.so.9.0 src/.libs/libippcpp8.so.9.0 && ln -f ${name}px.so.9.0 src/.libs/libippcppx.so.9.0 && ln -f ${name}s8.so.9.0 src/.libs/libippcps8.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}w7.so.9.0 src/.libs/libippcpw7.so.9.0 && ln -f IPP/$ipplib/libippcore.so src/.libs/libippcore.so && ln -f IPP/$ipplib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
-                else
-                    IPPLIBS="${name}.so.9.0 ${name}e9.so.9.0 ${name}k0.so.9.0 ${name}l9.so.9.0 ${name}m7.so.9.0 ${name}mx.so.9.0 ${name}.so ${name}n8.so.9.0 ${name}y8.so.9.0 IPP/lib/libippcore.so IPP/lib/libippcore.so.9.0"
-                    IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}e9.so.9.0 src/.libs/libippcpe9.so.9.0 && ln -f ${name}k0.so.9.0 src/.libs/libippcpk0.so.9.0 && ln -f ${name}l9.so.9.0 src/.libs/libippcpl9.so.9.0 && ln -f ${name}m7.so.9.0 src/.libs/libippcpm7.so.9.0 && ln -f ${name}mx.so.9.0 src/.libs/libippcpmx.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}n8.so.9.0 src/.libs/libippcpn8.so.9.0 && ln -f ${name}y8.so.9.0 src/.libs/libippcpy8.so.9.0 && ln -f IPP/lib/libippcore.so src/.libs/libippcore.so && ln -f IPP/lib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
-                fi
-            else
-                fastRSA_found=no
-            fi
-            break;;
-        *)
-            fastRSA_found=no
-        esac
-
-        if test "$fastRSA_found" = "yes"; then
-            # was successful so add tested LDFLAGS to AM_ flags
-            AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
-            AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
-            IPPHEADERS="${srcdir}/IPP/include/*.h"
-        fi
-
-        # restore LDFLAGS to user set
-        LDFLAGS=${STORE_LDFLAGS}
-        CPPFLAGS=${STORE_CPPFLAGS}
-    ], [fastRSA_found=no])
-fi
-
-# Don't cache the result so it can be checked
-AS_UNSET([ac_cv_header_ippcp_h])
-AS_UNSET([ac_cv_header_ipp_h])
-AS_UNSET([ac_cv_lib_ippcp_ippsRSAEncrypt_PKCSv15]);
-
-#   Check link and see if user has pre-existing IPP Libraries if not using local
-if test "$ENABLED_FAST_RSA" = "yes" && test "$fastRSA_found" = "no"; then
-    AC_MSG_NOTICE([Checking if IPP crypto library installed])
-    AC_CHECK_HEADER([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15],
-        [
-            fastRSA_found=yes
-            AM_LDFLAGS="${AM_LDFLAGS} -lippcore -lippcp"
-        ], [ fastRSA_found=no])
-    ], [fastRSA_found=no])
-
-    # Error out on not finding libraries
-    if test "$fastRSA_found" = "no"; then
-        AC_MSG_ERROR([Could not find fast rsa libraries])
-    fi
-fi
-fi # end of if for shared library
-else # if user rsa is set than do not use fast rsa option
-    if test "$ENABLED_FAST_RSA" = "yes"; then
-        AC_MSG_ERROR([Could not use fast rsa libraries with user crypto or fips])
-    fi
-fi # end of if for user rsa crypto or fips
-
-#   End result of checking for IPP Libraries
-AC_MSG_CHECKING([for fast RSA])
-if test "$ENABLED_FAST_RSA" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FAST_RSA -DHAVE_USER_RSA"
-    # add in user crypto header that uses Intel IPP
-    AM_CPPFLAGS="$AM_CPPFLAGS -I$srcdir/wolfcrypt/user-crypto/include"
-    if test "$enable_shared" = "yes"; then
-        LIBS="$LIBS -lippcore -lippcp"
-        LIB_ADD="-lippcp -lippcore $LIB_ADD"
-    else
-        LIB_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_ADD"
-    fi
-    AC_MSG_RESULT([yes])
-else
-    AC_MSG_RESULT([no])
-fi
-
-AC_SUBST([IPPLIBS])
-AC_SUBST([IPPHEADERS])
-AC_SUBST([IPPLINK])
-
-
 # static memory use
 AC_ARG_ENABLE([staticmemory],
     [AS_HELP_STRING([--enable-staticmemory],[Enable static memory use (default: disabled)])],
@@ -9123,9 +8899,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_FASTMATH" = "yes"; then
         AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (exceeds stack limit).])
     fi
-    if test "$ENABLED_FAST_RSA" = "yes"; then
-        AC_MSG_ERROR([--enable-fastrsa is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_LIBZ_RSA" = "yes"; then
         AC_MSG_ERROR([--with-libz is incompatible with --enable-linuxkm.])
     fi
@@ -9243,8 +9016,6 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
-AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBLMS],[test "x$ENABLED_LIBLMS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBXMSS],[test "x$ENABLED_LIBXMSS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
@@ -9290,7 +9061,6 @@ AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENAB
 AM_COND_IF([BUILD_SP], [INCLUDE_SP_INT="yes"])
 AM_COND_IF([BUILD_SP_INT], [INCLUDE_SP_INT="yes"])
 AC_SUBST([INCLUDE_SP_INT])
-AM_CONDITIONAL([BUILD_FAST_RSA],[test "x$ENABLED_FAST_RSA" = "xyes"])
 AM_CONDITIONAL([BUILD_MCAPI],[test "x$ENABLED_MCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_WOLFEVENT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
@@ -9780,8 +9550,6 @@ echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
-echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
-echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Asynchronous Crypto:        $ENABLED_ASYNCCRYPT"
 echo "   * Asynchronous Crypto (sim):  $ENABLED_ASYNCCRYPT_SW"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
