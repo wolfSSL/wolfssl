@@ -353,14 +353,6 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
     /* Extract data using HMAC, salt and input.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-     *
-     * prk      The generated pseudorandom key.
-     * salt     The salt.
-     * saltLen  The length of the salt.
-     * ikm      The input keying material.
-     * ikmLen   The length of the input keying material.
-     * digest   The type of digest to use.
-     * returns 0 on success, otherwise failure.
      */
     int wc_Tls13_HKDF_Extract_ex(byte* prk, const byte* salt, word32 saltLen,
         byte* ikm, word32 ikmLen, int digest, void* heap, int devId)
@@ -436,20 +428,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     }
 
     /* Expand data using HMAC, salt and label and info.
-     * TLS v1.3 defines this function.
-     *
-     * okm          The generated pseudorandom key - output key material.
-     * okmLen       The length of generated pseudorandom key -
-     *              output key material.
-     * prk          The salt - pseudo-random key.
-     * prkLen       The length of the salt - pseudo-random key.
-     * protocol     The TLS protocol label.
-     * protocolLen  The length of the TLS protocol label.
-     * info         The information to expand.
-     * infoLen      The length of the information.
-     * digest       The type of digest to use.
-     * returns 0 on success, otherwise failure.
-     */
+     * TLS v1.3 defines this function. */
     int wc_Tls13_HKDF_Expand_Label_ex(byte* okm, word32 okmLen,
                                  const byte* prk, word32 prkLen,
                                  const byte* protocol, word32 protocolLen,
@@ -556,24 +535,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     /* Expand data using HMAC, salt and label and info.
-     * TLS v1.3 defines this function.
-     *
-     * okm          The generated pseudorandom key - output key material.
-     * okmLen       The length of generated pseudorandom key -
-     *              output key material.
-     * prk          The salt - pseudo-random key.
-     * prkLen       The length of the salt - pseudo-random key.
-     * protocol     The TLS protocol label.
-     * protocolLen  The length of the TLS protocol label.
-     * info         The information to expand.
-     * infoLen      The length of the information.
-     * digest       The type of digest to use.
-     *
-     * This functions is very similar to wc_Tls13_HKDF_Expand_Label() but it
-     * allocate memory if the stack space usually used isn't enough.
-     *
-     * returns 0 on success, otherwise failure.
-     */
+     * TLS v1.3 defines this function. */
     int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
         const byte* prk, word32 prkLen, const byte* protocol,
         word32 protocolLen, const byte* label, word32 labelLen,

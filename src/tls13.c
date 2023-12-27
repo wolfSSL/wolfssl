@@ -187,21 +187,7 @@ static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash);
 #endif
 
 /* Expand data using HMAC, salt and label and info.
- * TLS v1.3 defines this function. Use callback if available.
- *
- * ssl          The SSL/TLS object.
- * okm          The generated pseudorandom key - output key material.
- * okmLen       The length of generated pseudorandom key -
- *              output key material.
- * prk          The salt - pseudo-random key.
- * prkLen       The length of the salt - pseudo-random key.
- * protocol     The TLS protocol label.
- * protocolLen  The length of the TLS protocol label.
- * info         The information to expand.
- * infoLen      The length of the information.
- * digest       The type of digest to use.
- * returns 0 on success, otherwise failure.
- */
+ * TLS v1.3 defines this function. Use callback if available. */
 static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                 const byte* prk, word32 prkLen,
                                 const byte* protocol, word32 protocolLen,
@@ -241,9 +227,8 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
     return ret;
 }
 
-/* Same as above, but pass in the side we are expanding for.
- *
- * side      The side (WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END).
+/* Same as above, but pass in the side we are expanding for:
+ * side: either WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END.
  */
 static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                    const byte* prk, word32 prkLen,

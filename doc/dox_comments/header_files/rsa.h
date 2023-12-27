@@ -56,7 +56,7 @@ int  wc_InitRsaKey(RsaKey* key, void* heap);
     \param heap pointer to a heap identifier, for use with memory overrides,
     allowing custom handling of memory allocation. This heap will be the
     default used when allocating memory for use with this RSA object
-    \param devId ID to use with hardware device
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
@@ -1377,7 +1377,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     \ingroup RSA
 
     \brief Convert RSA Public key to DER format. Writes to output, and
-    returns count of bytes written. If with_header is 0 then only the 
+    returns count of bytes written. If with_header is 0 then only the
     ( seq + n + e) is returned in ASN.1 DER format and will exclude the header.
 
     \return >0 Success, number of bytes written.
