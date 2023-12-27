@@ -213,18 +213,27 @@ extern ${variable.value} ${variable.name};
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-/* 1=Fast (stack)
- * 2=Normal (heap)
- * 3=Single Precision C (only common curves/key sizes)
- * 4=Single Precision ASM Cortex-M3+
- * 5=Single Precision ASM Cortex-M0 (Generic Thumb)
- * 6=Single Precision C all small
- * 7=Single Precision C all big
+/* 1=Fast (stack)                      (tfm.c)
+ * 2=Normal (heap)                     (integer.c)
+ * 3-5=Single Precision: only common curves/key sizes:
+ *                   (ECC 256/384/521 and RSA/DH 2048/3072/4096)
+ *   3=Single Precision C              (sp_c32.c)
+ *   4=Single Precision ASM Cortex-M3+ (sp_cortexm.c)
+ *   5=Single Precision ASM Cortex-M0  (sp_armthumb.c)
+ * 6=Wolf multi-precision C small      (sp_int.c)
+ * 7=Wolf multi-precision C big        (sp_int.c)
  */
+
 #if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH == 1
     /* fast (stack) math - tfm.c */
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+
+    #if !defined(NO_RSA) || !defined(NO_DH)
+        /* Maximum math bits (Max DH/RSA key bits * 2) */
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     4096
+    #endif
 
     /* Optimizations (TFM_ARM, TFM_ASM or none) */
     //#define TFM_NO_ASM
@@ -240,19 +249,26 @@ extern ${variable.value} ${variable.name};
     #endif
     #if defined(WOLF_CONF_RSA) && WOLF_CONF_RSA == 1
         #define WOLFSSL_HAVE_SP_RSA
+        //#define WOLFSSL_SP_NO_2048
+        //#define WOLFSSL_SP_NO_3072
+        //#define WOLFSSL_SP_4096
     #endif
     #if defined(WOLF_CONF_DH) && WOLF_CONF_DH == 1
         #define WOLFSSL_HAVE_SP_DH
     #endif
     #if defined(WOLF_CONF_ECC) && WOLF_CONF_ECC == 1
         #define WOLFSSL_HAVE_SP_ECC
+        //#define WOLFSSL_SP_NO_256
+        //#define WOLFSSL_SP_384
+        //#define WOLFSSL_SP_521
     #endif
     #if WOLF_CONF_MATH == 6 || WOLF_CONF_MATH == 7
         #define WOLFSSL_SP_MATH_ALL /* use sp_int.c multi precision math */
+        //#define WOLFSSL_SP_ARM_THUMB /* enable ARM Thumb ASM speedups */
     #else
         #define WOLFSSL_SP_MATH    /* disable non-standard curves / key sizes */
     #endif
-    #define SP_WORD_SIZE 32
+    #define SP_WORD_SIZE 32 /* force 32-bit mode */
 
     /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
@@ -331,12 +347,6 @@ extern ${variable.value} ${variable.name};
 /* RSA */
 #undef NO_RSA
 #if defined(WOLF_CONF_RSA) && WOLF_CONF_RSA == 1
-    #ifdef USE_FAST_MATH
-        /* Maximum math bits (Max RSA key bits * 2) */
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     4096
-    #endif
-
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
@@ -390,8 +400,8 @@ extern ${variable.value} ${variable.name};
     //#define HAVE_COMP_KEY
 
     #ifdef USE_FAST_MATH
-        #ifdef NO_RSA
-            /* Custom fastmath size if not using RSA */
+        #if defined(NO_RSA) && defined(NO_DH)
+            /* Custom fastmath size if not using RSA/DH */
             /* MAX = ROUND32(ECC BITS) * 2 */
             #define FP_MAX_BITS     (256 * 2)
         #else
