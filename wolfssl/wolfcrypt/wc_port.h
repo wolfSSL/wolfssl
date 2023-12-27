@@ -1180,15 +1180,22 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
+#ifdef WOLF_C99
+    /* use alternate keyword for compatibility with -std=c99 */
+    #define XASM_VOLATILE(a) __asm__ volatile(a)
+#else
+    #define XASM_VOLATILE(a) asm volatile(a)
+#endif
+
 #ifndef WOLFSSL_NO_FENCE
     #if defined (__i386__) || defined(__x86_64__)
-        #define XFENCE() asm volatile("lfence")
+        #define XFENCE() XASM_VOLATILE("lfence")
     #elif defined (__arm__) || defined(__aarch64__)
-        #define XFENCE() asm volatile("isb")
+        #define XFENCE() XASM_VOLATILE("isb")
     #elif defined(__riscv)
-        #define XFENCE() asm volatile("fence")
+        #define XFENCE() XASM_VOLATILE("fence")
     #elif defined(__PPC__)
-        #define XFENCE() asm volatile("isync; sync")
+        #define XFENCE() XASM_VOLATILE("isync; sync")
     #else
         #define XFENCE() do{}while(0)
     #endif
