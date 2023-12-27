@@ -485,17 +485,23 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         data[idx++] = (byte)okmLen;
         /* Length of protocol | label. */
         data[idx++] = (byte)(protocolLen + labelLen);
-        /* Protocol */
-        XMEMCPY(&data[idx], protocol, protocolLen);
-        idx += protocolLen;
-        /* Label */
-        XMEMCPY(&data[idx], label, labelLen);
-        idx += labelLen;
+        if (protocolLen > 0) {
+            /* Protocol */
+            XMEMCPY(&data[idx], protocol, protocolLen);
+            idx += protocolLen;
+        }
+        if (labelLen > 0) {
+            /* Label */
+            XMEMCPY(&data[idx], label, labelLen);
+            idx += labelLen;
+        }
         /* Length of hash of messages */
         data[idx++] = (byte)infoLen;
-        /* Hash of messages */
-        XMEMCPY(&data[idx], info, infoLen);
-        idx += infoLen;
+        if (infoLen > 0) {
+            /* Hash of messages */
+            XMEMCPY(&data[idx], info, infoLen);
+            idx += infoLen;
+        }
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("wc_Tls13_HKDF_Expand_Label data", data, idx);

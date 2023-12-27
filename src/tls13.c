@@ -266,10 +266,6 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
         return ret;
 #endif
 
-    /* Hash buffer may not be fully initialized, but the sending length won't
-     * extend beyond the initialized span. */
-PRAGMA_GCC_DIAG_PUSH
-PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
@@ -288,7 +284,6 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
                                       label, labelLen,
                                       info, infoLen, digest);
 #endif
-PRAGMA_GCC_DIAG_POP
     (void)ssl;
     (void)side;
     return ret;
@@ -490,14 +485,21 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if (outputLen == -1)
+    if (outputLen == -1) {
         outputLen = hashSz;
-    if (includeMsgs)
+    }
+    if (includeMsgs) {
         hashOutSz = hashSz;
+    }
+    else {
+        /* Appease static analyzers by making sure hash is cleared, since it is
+         * passed into expand key label where older wc_Tls13_HKDF_Expand_Label
+         * will unconditionally try to call a memcpy on it, however length will
+         * always be 0. */
+        XMEMSET(hash, 0, sizeof(hash));
+        hashOutSz = 0;
+    }
 
-    /* hash buffer may not be fully initialized, but the sending length won't
-     * extend beyond the initialized span.
-     */
     PRIVATE_KEY_UNLOCK();
     ret = Tls13HKDFExpandKeyLabel(ssl, output, outputLen, secret, hashSz,
                                   protocol, protocolLen, label, labelLen,
