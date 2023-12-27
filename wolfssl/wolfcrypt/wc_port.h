@@ -1180,6 +1180,22 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
+#ifndef WOLFSSL_NO_FENCE
+    #if defined (__i386__) || defined(__x86_64__)
+        #define XFENCE() asm volatile("lfence")
+    #elif defined (__arm__) || defined(__aarch64__)
+        #define XFENCE() asm volatile("isb")
+    #elif defined(__riscv)
+        #define XFENCE() asm volatile("fence")
+    #elif defined(__PPC__)
+        #define XFENCE() asm volatile("isync; sync")
+    #else
+        #define XFENCE() do{}while(0)
+    #endif
+#else
+    #define XFENCE() do{}while(0)
+#endif
+
 
     /* AFTER user_settings.h is loaded,
     ** determine if POSIX multi-threaded: HAVE_PTHREAD  */
