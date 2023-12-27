@@ -10378,6 +10378,8 @@ static int SendTls13EndOfEarlyData(WOLFSSL* ssl)
     if (!ssl->options.groupMessages)
         ret = SendBuffered(ssl);
 
+    ssl->earlyData = done_early_data;
+
     WOLFSSL_LEAVE("SendTls13EndOfEarlyData", ret);
     WOLFSSL_END(WC_FUNC_END_OF_EARLY_DATA_SEND);
 

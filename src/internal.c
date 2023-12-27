@@ -23985,7 +23985,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData != no_early_data) {
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->earlyData != no_early_data &&
+            ssl->earlyData != done_early_data) {
         if (ssl->options.handShakeState == HANDSHAKE_DONE) {
             WOLFSSL_MSG("handshake complete, trying to send early data");
             ssl->error = BUILD_MSG_ERROR;
@@ -24079,7 +24081,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
                 return ssl->error = BAD_STATE_E;
 
 #ifdef WOLFSSL_EARLY_DATA
-            isEarlyData = ssl->earlyData != no_early_data;
+            isEarlyData = ssl->options.side == WOLFSSL_CLIENT_END &&
+                    ssl->earlyData != no_early_data &&
+                    ssl->earlyData != done_early_data;
 #endif
 
             if (isEarlyData) {
@@ -24247,7 +24251,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData != no_early_data) {
+    if (ssl->earlyData > early_data_ext && ssl->earlyData < done_early_data) {
     }
     else
 #endif

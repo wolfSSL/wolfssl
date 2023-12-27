@@ -68693,102 +68693,161 @@ static int test_tls13_pq_groups(void)
     return EXPECT_RESULT();
 }
 
-static int test_dtls13_early_data(void)
+static int test_tls13_early_data(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET)
-    struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    WOLFSSL_SESSION *sess = NULL;
     int written = 0;
     int read = 0;
+    size_t i;
+    int splitEarlyData;
     char msg[] = "This is early data";
     char msg2[] = "This is client data";
     char msg3[] = "This is server data";
     char msg4[] = "This is server immediate data";
     char msgBuf[50];
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+        int isUdp;
+    } params[] = {
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+                "TLS 1.3", 0 },
+#endif
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
+                "DTLS 1.3", 1 },
+#endif
+    };
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
+        for (splitEarlyData = 0; splitEarlyData < 2; splitEarlyData++) {
+            struct test_memio_ctx test_ctx;
+            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+            WOLFSSL_SESSION *sess = NULL;
 
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
-    /* Get a ticket so that we can do 0-RTT on the next connection */
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+            fprintf(stderr, "\tEarly data with %s\n", params[i].tls_version);
 
-    wolfSSL_free(ssl_c);
-    ssl_c = NULL;
-    wolfSSL_free(ssl_s);
-    ssl_s = NULL;
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+
+            /* Get a ticket so that we can do 0-RTT on the next connection */
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            /* Make sure we read the ticket */
+            ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+            wolfSSL_free(ssl_c);
+            ssl_c = NULL;
+            wolfSSL_free(ssl_s);
+            ssl_s = NULL;
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    params[i].client_meth, params[i].server_meth), 0);
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_DTLS13
+            if (params[i].isUdp) {
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
-    ExpectIntEQ(wolfSSL_dtls13_no_hrr_on_resume(ssl_s, 1), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_dtls13_no_hrr_on_resume(ssl_s, 1), WOLFSSL_SUCCESS);
 #else
-    /* Let's test this but we generally don't recommend turning off the
-     * cookie exchange */
-    ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+                /* Let's test this but we generally don't recommend turning off the
+                 * cookie exchange */
+                ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+#endif
+            }
 #endif
 
-    /* Test 0-RTT data */
-    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, sizeof(msg),
-            &written), sizeof(msg));
-    ExpectIntEQ(written, sizeof(msg));
+            /* Test 0-RTT data */
+            ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, sizeof(msg),
+                    &written), sizeof(msg));
+            ExpectIntEQ(written, sizeof(msg));
 
-    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
-            &read), sizeof(msg));
-    ExpectIntEQ(read, sizeof(msg));
-    ExpectStrEQ(msg, msgBuf);
+            if (splitEarlyData) {
+                ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, sizeof(msg),
+                        &written), sizeof(msg));
+                ExpectIntEQ(written, sizeof(msg));
+            }
 
-    /* Test 0.5-RTT data */
-    ExpectIntEQ(wolfSSL_write(ssl_s, msg4, sizeof(msg4)), sizeof(msg4));
+            /* Read first 0-RTT data (if split otherwise entire data) */
+            ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
+                    &read), sizeof(msg));
+            ExpectIntEQ(read, sizeof(msg));
+            ExpectStrEQ(msg, msgBuf);
 
-    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
+            /* Test 0.5-RTT data */
+            ExpectIntEQ(wolfSSL_write(ssl_s, msg4, sizeof(msg4)), sizeof(msg4));
 
-    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
-    ExpectStrEQ(msg4, msgBuf);
+            if (splitEarlyData) {
+                /* Read second 0-RTT data */
+                ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
+                        &read), sizeof(msg));
+                ExpectIntEQ(read, sizeof(msg));
+                ExpectStrEQ(msg, msgBuf);
+            }
 
-    /* Complete handshake */
-    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-    /* Use wolfSSL_is_init_finished to check if handshake is complete. Normally
-     * a user would loop until it is true but here we control both sides so we
-     * just assert the expected value. wolfSSL_read_early_data does not provide
-     * handshake status to us with non-blocking IO and we can't use
-     * wolfSSL_accept as TLS layer may return ZERO_RETURN due to early data
-     * parsing logic. */
-    ExpectFalse(wolfSSL_is_init_finished(ssl_s));
-    ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
-            &read), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+            if (params[i].isUdp) {
+                ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
 
-    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+                /* Read server 0.5-RTT data */
+                ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
+                ExpectStrEQ(msg4, msgBuf);
 
-    ExpectTrue(wolfSSL_is_init_finished(ssl_s));
+                /* Complete handshake */
+                ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+                /* Use wolfSSL_is_init_finished to check if handshake is complete. Normally
+                 * a user would loop until it is true but here we control both sides so we
+                 * just assert the expected value. wolfSSL_read_early_data does not provide
+                 * handshake status to us with non-blocking IO and we can't use
+                 * wolfSSL_accept as TLS layer may return ZERO_RETURN due to early data
+                 * parsing logic. */
+                ExpectFalse(wolfSSL_is_init_finished(ssl_s));
+                ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
+                        &read), 0);
+                ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
+                ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
 
-    /* Test bi-directional write */
-    ExpectIntEQ(wolfSSL_write(ssl_c, msg2, sizeof(msg2)), sizeof(msg2));
-    ExpectIntEQ(wolfSSL_read(ssl_s, msgBuf, sizeof(msgBuf)), sizeof(msg2));
-    ExpectStrEQ(msg2, msgBuf);
-    ExpectIntEQ(wolfSSL_write(ssl_s, msg3, sizeof(msg3)), sizeof(msg3));
-    ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg3));
-    ExpectStrEQ(msg3, msgBuf);
+                ExpectFalse(wolfSSL_is_init_finished(ssl_s));
+                ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
+                        &read), 0);
 
-    ExpectTrue(wolfSSL_session_reused(ssl_c));
-    ExpectTrue(wolfSSL_session_reused(ssl_s));
+                ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
-    wolfSSL_SESSION_free(sess);
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
+                /* Read server 0.5-RTT data */
+                ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
+                ExpectStrEQ(msg4, msgBuf);
+            }
+
+            /* Test bi-directional write */
+            ExpectIntEQ(wolfSSL_write(ssl_c, msg2, sizeof(msg2)), sizeof(msg2));
+            ExpectIntEQ(wolfSSL_read(ssl_s, msgBuf, sizeof(msgBuf)), sizeof(msg2));
+            ExpectStrEQ(msg2, msgBuf);
+            ExpectIntEQ(wolfSSL_write(ssl_s, msg3, sizeof(msg3)), sizeof(msg3));
+            ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg3));
+            ExpectStrEQ(msg3, msgBuf);
+
+            ExpectTrue(wolfSSL_session_reused(ssl_c));
+            ExpectTrue(wolfSSL_session_reused(ssl_s));
+
+            wolfSSL_SESSION_free(sess);
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -70188,7 +70247,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls13_frag_ch_pq),
     TEST_DECL(test_dtls_empty_keyshare_with_cookie),
     TEST_DECL(test_tls13_pq_groups),
-    TEST_DECL(test_dtls13_early_data),
+    TEST_DECL(test_tls13_early_data),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
