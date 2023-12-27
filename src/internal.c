@@ -4644,7 +4644,8 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
-    #ifndef NO_SHA
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         case sha_mac:
             ssl->options.dontFreeDigest = 1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
@@ -6839,8 +6840,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     }
     XMEMSET(ssl->hsHashes, 0, sizeof(HS_Hashes));
 
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
     ret = wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
@@ -6848,7 +6848,8 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
-#ifndef NO_SHA
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                          defined(WOLFSSL_ALLOW_TLS_SHA1))
     ret = wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
@@ -6856,7 +6857,6 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
-#endif /* !NO_OLD_TLS */
 #ifndef NO_SHA256
     ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
     if (ret != 0)
@@ -6896,14 +6896,13 @@ int InitHandshakeHashes(WOLFSSL* ssl)
 void FreeHandshakeHashes(WOLFSSL* ssl)
 {
     if (ssl->hsHashes) {
-#ifndef NO_OLD_TLS
-    #ifndef NO_MD5
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         wc_Md5Free(&ssl->hsHashes->hashMd5);
     #endif
-    #ifndef NO_SHA
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         wc_ShaFree(&ssl->hsHashes->hashSha);
     #endif
-#endif /* !NO_OLD_TLS */
     #ifndef NO_SHA256
         wc_Sha256Free(&ssl->hsHashes->hashSha256);
     #endif
@@ -9836,14 +9835,13 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
     }
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
-#ifndef NO_OLD_TLS
-    #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hsHashes->hashSha, data, sz);
-    #endif
-    #ifndef NO_MD5
-        wc_Md5Update(&ssl->hsHashes->hashMd5, data, sz);
-    #endif
-#endif /* NO_OLD_TLS */
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                          defined(WOLFSSL_ALLOW_TLS_SHA1))
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, data, sz);
+#endif
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+    wc_Md5Update(&ssl->hsHashes->hashMd5, data, sz);
+#endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
@@ -11454,7 +11452,7 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ret == 0)
         ret = wc_Md5Update(md5, sender, SIZEOF_SENDER);
     if (ret == 0)
-        ret = wc_Md5Update(md5, ssl->arrays->masterSecret,SECRET_LEN);
+        ret = wc_Md5Update(md5, ssl->arrays->masterSecret, SECRET_LEN);
     if (ret == 0)
         ret = wc_Md5Update(md5, PAD1, PAD_MD5);
     if (ret == 0)
@@ -11464,7 +11462,7 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ret == 0) {
         ret = wc_InitMd5_ex(md5, ssl->heap, ssl->devId);
         if (ret == 0) {
-            ret = wc_Md5Update(md5, ssl->arrays->masterSecret,SECRET_LEN);
+            ret = wc_Md5Update(md5, ssl->arrays->masterSecret, SECRET_LEN);
             if (ret == 0)
                 ret = wc_Md5Update(md5, PAD2, PAD_MD5);
             if (ret == 0)
@@ -11500,7 +11498,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ret == 0)
         ret = wc_ShaUpdate(sha, sender, SIZEOF_SENDER);
     if (ret == 0)
-        ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret,SECRET_LEN);
+        ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret, SECRET_LEN);
     if (ret == 0)
         ret = wc_ShaUpdate(sha, PAD1, PAD_SHA);
     if (ret == 0)
@@ -11510,7 +11508,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ret == 0) {
         ret = wc_InitSha_ex(sha, ssl->heap, ssl->devId);
         if (ret == 0) {
-            ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret,SECRET_LEN);
+            ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret, SECRET_LEN);
             if (ret == 0)
                 ret = wc_ShaUpdate(sha, PAD2, PAD_SHA);
             if (ret == 0)
@@ -21992,7 +21990,8 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
     int ret;
     byte md5_result[WC_MD5_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    wc_Md5* md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Md5* md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), ssl->heap,
+        DYNAMIC_TYPE_HASHCTX);
 #else
     wc_Md5  md5[1];
 #endif
@@ -22000,7 +21999,7 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
     /* make md5 inner */
     ret = wc_Md5Copy(&ssl->hsHashes->hashMd5, md5); /* Save current position */
     if (ret == 0)
-        ret = wc_Md5Update(md5, ssl->arrays->masterSecret,SECRET_LEN);
+        ret = wc_Md5Update(md5, ssl->arrays->masterSecret, SECRET_LEN);
     if (ret == 0)
         ret = wc_Md5Update(md5, PAD1, PAD_MD5);
     if (ret == 0)
@@ -22030,13 +22029,14 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
 #endif /* !NO_MD5 && !NO_OLD_TLS */
 
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                              defined(WOLFSSL_ALLOW_TLS_SHA1))
+                          defined(WOLFSSL_ALLOW_TLS_SHA1))
 static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
 {
     int ret;
     byte sha_result[WC_SHA_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    wc_Sha* sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Sha* sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), ssl->heap,
+        DYNAMIC_TYPE_HASHCTX);
 #else
     wc_Sha  sha[1];
 #endif
@@ -22044,7 +22044,7 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
     /* make sha inner */
     ret = wc_ShaCopy(&ssl->hsHashes->hashSha, sha); /* Save current position */
     if (ret == 0)
-        ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret,SECRET_LEN);
+        ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret, SECRET_LEN);
     if (ret == 0)
         ret = wc_ShaUpdate(sha, PAD1, PAD_SHA);
     if (ret == 0)
@@ -22054,7 +22054,7 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
     if (ret == 0) {
         ret = wc_InitSha_ex(sha, ssl->heap, ssl->devId);
         if (ret == 0) {
-            ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret,SECRET_LEN);
+            ret = wc_ShaUpdate(sha, ssl->arrays->masterSecret, SECRET_LEN);
             if (ret == 0)
                 ret = wc_ShaUpdate(sha, PAD2, PAD_SHA);
             if (ret == 0)
@@ -22085,7 +22085,8 @@ int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
         if (ret != 0)
             return ret;
     #endif
-    #if !defined(NO_SHA)
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         ret = wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
         if (ret != 0)
             return ret;
@@ -34935,7 +34936,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef NO_SHA
         wc_ShaUpdate(&ssl->hsHashes->hashSha, input + idx, sz);
 #endif
-#endif
+#endif /* !NO_OLD_TLS */
 #ifndef NO_SHA256
         if (IsAtLeastTLSv1_2(ssl)) {
             int shaRet = wc_Sha256Update(&ssl->hsHashes->hashSha256,

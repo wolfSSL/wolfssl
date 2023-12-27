@@ -187,21 +187,7 @@ static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash);
 #endif
 
 /* Expand data using HMAC, salt and label and info.
- * TLS v1.3 defines this function. Use callback if available.
- *
- * ssl          The SSL/TLS object.
- * okm          The generated pseudorandom key - output key material.
- * okmLen       The length of generated pseudorandom key -
- *              output key material.
- * prk          The salt - pseudo-random key.
- * prkLen       The length of the salt - pseudo-random key.
- * protocol     The TLS protocol label.
- * protocolLen  The length of the TLS protocol label.
- * info         The information to expand.
- * infoLen      The length of the information.
- * digest       The type of digest to use.
- * returns 0 on success, otherwise failure.
- */
+ * TLS v1.3 defines this function. Use callback if available. */
 static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                 const byte* prk, word32 prkLen,
                                 const byte* protocol, word32 protocolLen,
@@ -225,18 +211,24 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 #endif
     (void)ssl;
     PRIVATE_KEY_UNLOCK();
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
+                                     protocol, protocolLen,
+                                     label, labelLen,
+                                     info, infoLen, digest,
+                                     ssl->heap, ssl->devId);
+#else
     ret = wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                      protocol, protocolLen,
                                      label, labelLen,
                                      info, infoLen, digest);
+#endif
     PRIVATE_KEY_LOCK();
     return ret;
 }
 
-#if !defined(HAVE_FIPS) || !defined(wc_Tls13_HKDF_Expand_Label)
-/* Same as above, but pass in the side we are expanding for.
- *
- * side      The side (WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END).
+/* Same as above, but pass in the side we are expanding for:
+ * side: either WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END.
  */
 static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                    const byte* prk, word32 prkLen,
@@ -245,8 +237,9 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                    const byte* info, word32 infoLen,
                                    int digest, int side)
 {
+    int ret;
 #if defined(HAVE_PK_CALLBACKS)
-    int ret = NOT_COMPILED_IN;
+    ret = NOT_COMPILED_IN;
     if (ssl->ctx && ssl->ctx->HKDFExpandLabelCb) {
         ret = ssl->ctx->HKDFExpandLabelCb(okm, okmLen, prk, prkLen,
                                          protocol, protocolLen,
@@ -254,25 +247,33 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                          info, infoLen,
                                          digest, side);
     }
-
     if (ret != NOT_COMPILED_IN)
         return ret;
 #endif
 
-/* hash buffer may not be fully initialized, but the sending length won't
- * extend beyond the initialized span.
- */
-PRAGMA_GCC_DIAG_PUSH
-PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-    (void)ssl;
-    (void)side;
-    return wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
+                                      protocol, protocolLen,
+                                      label, labelLen,
+                                      info, infoLen, digest,
+                                      ssl->heap, ssl->devId);
+
+#elif defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
+    ret = wc_Tls13_HKDF_Expand_Label_fips(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
-PRAGMA_GCC_DIAG_POP
+#else
+    ret = wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
+                                      protocol, protocolLen,
+                                      label, labelLen,
+                                      info, infoLen, digest);
+#endif
+    (void)ssl;
+    (void)side;
+    return ret;
 }
-#endif /* !HAVE_FIPS || !wc_Tls13_HKDF_Expand_Label */
+
 
 /* Derive a key from a message.
  *
@@ -302,7 +303,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
         case sha256_mac:
-            ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, ssl->devId);
             if (ret == 0) {
                     ret = wc_Sha256Update(&digest.sha256, msg, msgLen);
                 if (ret == 0)
@@ -315,7 +316,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sha384Update(&digest.sha384, msg, msgLen);
                 if (ret == 0)
@@ -328,7 +329,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_TLS13_SHA512
         case sha512_mac:
-            ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sha512Update(&digest.sha512, msg, msgLen);
                 if (ret == 0)
@@ -341,7 +342,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
 #endif
 #ifdef WOLFSSL_SM3
         case sm3_mac:
-            ret = wc_InitSm3(&digest.sm3, ssl->heap, INVALID_DEVID);
+            ret = wc_InitSm3(&digest.sm3, ssl->heap, ssl->devId);
             if (ret == 0) {
                 ret = wc_Sm3Update(&digest.sm3, msg, msgLen);
                 if (ret == 0)
@@ -469,34 +470,31 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if (outputLen == -1)
+    if (outputLen == -1) {
         outputLen = hashSz;
-    if (includeMsgs)
+    }
+    if (includeMsgs) {
         hashOutSz = hashSz;
+    }
+    else {
+        /* Appease static analyzers by making sure hash is cleared, since it is
+         * passed into expand key label where older wc_Tls13_HKDF_Expand_Label
+         * will unconditionally try to call a memcpy on it, however length will
+         * always be 0. */
+        XMEMSET(hash, 0, sizeof(hash));
+        hashOutSz = 0;
+    }
 
-    /* hash buffer may not be fully initialized, but the sending length won't
-     * extend beyond the initialized span.
-     */
-    PRAGMA_GCC_DIAG_PUSH
-    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
     PRIVATE_KEY_UNLOCK();
-    #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
-    (void)side;
-    ret = wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
-                             protocol, protocolLen, label, labelLen,
-                             hash, hashOutSz, digestAlg);
-    #else
     ret = Tls13HKDFExpandKeyLabel(ssl, output, outputLen, secret, hashSz,
                                   protocol, protocolLen, label, labelLen,
                                   hash, hashOutSz, digestAlg, side);
-    #endif
     PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("TLS 1.3 derived key", output, outputLen);
 #endif
     return ret;
-    PRAGMA_GCC_DIAG_POP
 }
 
 /* Convert TLS mac ID to a hash algorithm ID
@@ -1108,8 +1106,8 @@ static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret, int side)
 }
 
 
-static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int saltLen,
-                                 byte* ikm, int ikmLen, int digest)
+static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
+                              int saltLen, byte* ikm, int ikmLen, int digest)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -1121,8 +1119,14 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int sal
     else
 #endif
     {
-        (void)ssl;
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_Tls13_HKDF_Extract_ex(prk, salt, saltLen, ikm, ikmLen, digest,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
+        (void)ssl;
+    #endif
     }
     return ret;
 }
@@ -4786,17 +4790,30 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
         }
     }
     /* extract clientRandomInner with a key of all zeros */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+            ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk);
+    #endif
+        PRIVATE_KEY_LOCK();
+    }
     /* tls expand with the confirmation label */
-    if (ret == 0)
-        ret = wc_Tls13_HKDF_Expand_Label(acceptConfirmation,
-            ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize, tls13ProtocolLabel,
-            TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
-            ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
-            digestType);
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
+        ret = Tls13HKDFExpandKeyLabel(ssl,
+            acceptConfirmation, ECH_ACCEPT_CONFIRMATION_SZ,
+            expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
+            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
+        PRIVATE_KEY_LOCK();
+    }
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
         ret = XMEMCMP(acceptConfirmation,
@@ -4913,21 +4930,28 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     /* extract clientRandom with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+            ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
+            ssl->heap, ssl->devId);
+    #else
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk);
+    #endif
         PRIVATE_KEY_LOCK();
     }
 
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = wc_Tls13_HKDF_Expand_Label(
+        ret = Tls13HKDFExpandKeyLabel(ssl,
             output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
-            ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize, tls13ProtocolLabel,
-            TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
-            ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
-            digestType);
+                ECH_ACCEPT_CONFIRMATION_SZ,
+            expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
+            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
 

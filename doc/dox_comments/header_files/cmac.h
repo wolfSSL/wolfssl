@@ -40,7 +40,7 @@ int wc_InitCmac(Cmac* cmac,
     \param type Always WC_CMAC_AES = 1
     \param unused not used, exists for potential future use around compatibility
     \param heap pointer to the heap hint used for dynamic allocation. Typically used with our static memory option. Can be NULL.
-    \param devId ID to use with async hardware. Set to INVALID_DEVID if not using async hardware.
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code

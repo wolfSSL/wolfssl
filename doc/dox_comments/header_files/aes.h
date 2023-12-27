@@ -668,13 +668,13 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
 
     \param aes   AES keys for encrypt/decrypt process
     \param heap  heap hint to use for memory. Can be NULL
-    \param devId id to use with async crypto. Can be 0
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
     XtsAes aes;
 
-    if(wc_AesXtsInit(&aes, NULL, 0) != 0)
+    if(wc_AesXtsInit(&aes, NULL, INVALID_DEVID) != 0)
     {
         // Handle error
     }
@@ -749,13 +749,13 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key,
                  i.e. 32 for a 16 byte key.
     \param dir   direction, either AES_ENCRYPTION or AES_DECRYPTION
     \param heap  heap hint to use for memory. Can be NULL
-    \param devId id to use with async crypto. Can be 0
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
     XtsAes aes;
 
-    if(wc_AesXtsSetKey(&aes, key, sizeof(key), AES_ENCRYPTION, NULL, 0) != 0)
+    if(wc_AesXtsSetKey(&aes, key, sizeof(key), AES_ENCRYPTION, NULL, INVALID_DEVID) != 0)
     {
         // Handle error
     }
@@ -974,7 +974,7 @@ int wc_AesXtsFree(XtsAes* aes);
 
     \param aes aes structure in to initialize
     \param heap heap hint to use for malloc / free if needed
-    \param devId ID to use with async hardware
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
@@ -1455,7 +1455,7 @@ WOLFSSL_API int  wc_AesEaxEncryptUpdate(AesEax* eax, byte* out,
     This argument should be NULL if not used
     \param authInSz size in bytes of the input authentication data
 
-    
+
     _Example_
     \code
     AesEax eax;
@@ -1571,8 +1571,8 @@ WOLFSSL_API int  wc_AesEaxAuthDataUpdate(AesEax* eax,
 
 /*!
     \ingroup AES
-    \brief This function finalizes the encrypt AEAD operation, producing an auth 
-    tag over the current authentication stream. \c eax must have been previously 
+    \brief This function finalizes the encrypt AEAD operation, producing an auth
+    tag over the current authentication stream. \c eax must have been previously
     initialized with a call to \ref wc_AesEaxInit. When done using the \c AesEax
     context structure, make sure to free it using \ref wc_AesEaxFree.
 
@@ -1632,10 +1632,10 @@ WOLFSSL_API int wc_AesEaxEncryptFinal(AesEax* eax,
 
 /*!
     \ingroup AES
-    \brief This function finalizes the decrypt AEAD operation, finalizing the 
+    \brief This function finalizes the decrypt AEAD operation, finalizing the
     auth tag computation and checking it for validity against the user supplied
-    tag. \c eax must have been previously initialized with a call to 
-    \ref wc_AesEaxInit. When done using the \c AesEax context structure, make 
+    tag. \c eax must have been previously initialized with a call to
+    \ref wc_AesEaxInit. When done using the \c AesEax context structure, make
     sure to free it using \ref wc_AesEaxFree.
 
     \return 0 if data is authenticated successfully

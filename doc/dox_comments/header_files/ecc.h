@@ -572,8 +572,8 @@ int wc_ecc_init(ecc_key* key);
     \return MEMORY_E Returned if there is an error allocating memory
 
     \param key pointer to the ecc_key object to initialize
-    \param devId ID to use with async hardware
     \param heap pointer to a heap identifier
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
@@ -1968,7 +1968,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 /*!
     \ingroup ECC
 
-    \brief Enable ECC support for non-blocking operations. Supported for 
+    \brief Enable ECC support for non-blocking operations. Supported for
         Single Precision (SP) math with the following build options:
             WOLFSSL_SP_NONBLOCK
             WOLFSSL_SP_SMALL
@@ -1978,7 +1978,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \return 0 Returned upon successfully setting the callback context the input message
 
     \param key pointer to the ecc_key object
-    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP 
+    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP
 
     _Example_
     \code
@@ -1998,7 +1998,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     &key
                 );
 
-                // TODO: Real-time work can be called here 
+                // TODO: Real-time work can be called here
             } while (ret == FP_WOULDBLOCK);
         }
         wc_ecc_free(&key);

@@ -296,6 +296,7 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } des3;
         #endif
+            void* ctx;
 #if HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
@@ -326,6 +327,7 @@ typedef struct wc_CryptoInfo {
         #ifdef WOLFSSL_SHA512
             wc_Sha512* sha512;
         #endif
+            void* ctx;
 #if HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif

@@ -49462,13 +49462,13 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         /* set devId to invalid, so software is used */
         info->hmac.hmac->devId = INVALID_DEVID;
 
-        if (info->hash.in != NULL) {
+        if (info->hmac.in != NULL) {
             ret = wc_HmacUpdate(
                 info->hmac.hmac,
                 info->hmac.in,
                 info->hmac.inSz);
         }
-        else if (info->hash.digest != NULL) {
+        else if (info->hmac.digest != NULL) {
             ret = wc_HmacFinal(
                 info->hmac.hmac,
                 info->hmac.digest);
