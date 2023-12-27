@@ -1939,7 +1939,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     int wc_Shake128Hash(const byte* data, word32 len, byte* hash,
                         word32 hashLen)
     {
-        return wc_Shake128Hash_ex(data, len, hash, hashLen, NULL, INVALID_DEVID);
+        return wc_Shake128Hash_ex(data, len, hash, hashLen,
+            NULL, INVALID_DEVID);
     }
 #endif /* WOLFSSL_SHAKE_128 */
 
@@ -1990,7 +1991,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
                         word32 hashLen)
     {
-        return wc_Shake256Hash_ex(data, len, hash, hashLen, NULL, INVALID_DEVID);
+        return wc_Shake256Hash_ex(data, len, hash, hashLen,
+            NULL, INVALID_DEVID);
     }
 #endif /* WOLFSSL_SHAKE_256 */
 #endif /* WOLFSSL_SHA3 */

@@ -77,7 +77,8 @@ enum {
 };
 
 WOLFSSL_LOCAL int wc_Tls13_HKDF_Extract_ex(byte* prk, const byte* salt,
-    word32 saltLen, byte* ikm, word32 ikmLen, int digest, void* heap, int devId);
+    word32 saltLen, byte* ikm, word32 ikmLen, int digest,
+    void* heap, int devId);
 
 WOLFSSL_API int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt,
                           word32 saltLen, byte* ikm, word32 ikmLen, int digest);

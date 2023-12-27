@@ -1134,7 +1134,8 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
     else
 #endif
     {
-    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
         ret = wc_Tls13_HKDF_Extract_ex(prk, salt, saltLen, ikm, ikmLen, digest,
             ssl->heap, ssl->devId);
     #else
@@ -4806,7 +4807,8 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     /* extract clientRandomInner with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
         ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
@@ -4943,7 +4945,8 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     /* extract clientRandom with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-    #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+    #if !defined(HAVE_FIPS) || \
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
         ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
