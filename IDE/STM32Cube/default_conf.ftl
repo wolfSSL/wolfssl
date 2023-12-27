@@ -226,6 +226,12 @@ extern ${variable.value} ${variable.name};
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
 
+    #if !defined(NO_RSA) || !defined(NO_DH)
+        /* Maximum math bits (Max DH/RSA key bits * 2) */
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     4096
+    #endif
+
     /* Optimizations (TFM_ARM, TFM_ASM or none) */
     //#define TFM_NO_ASM
     //#define TFM_ASM
@@ -331,12 +337,6 @@ extern ${variable.value} ${variable.name};
 /* RSA */
 #undef NO_RSA
 #if defined(WOLF_CONF_RSA) && WOLF_CONF_RSA == 1
-    #ifdef USE_FAST_MATH
-        /* Maximum math bits (Max RSA key bits * 2) */
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     4096
-    #endif
-
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
@@ -390,8 +390,8 @@ extern ${variable.value} ${variable.name};
     //#define HAVE_COMP_KEY
 
     #ifdef USE_FAST_MATH
-        #ifdef NO_RSA
-            /* Custom fastmath size if not using RSA */
+        #if defined(NO_RSA) && defined(NO_DH)
+            /* Custom fastmath size if not using RSA/DH */
             /* MAX = ROUND32(ECC BITS) * 2 */
             #define FP_MAX_BITS     (256 * 2)
         #else
