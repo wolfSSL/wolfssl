@@ -636,11 +636,19 @@
 #ifdef WOLFSSL_TRACK_MEMORY
     #include <wolfssl/wolfcrypt/memory.h>
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
-    #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) wolfSSL_Free(_xp);})
+    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+        #define XFREE(p, h, t)       ({(void)(h); (void)(t); wolfSSL_Free(p);})
+    #else
+        #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) wolfSSL_Free(_xp);})
+    #endif
     #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); wolfSSL_Realloc(p, n);})
 #else
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); malloc(s);})
-    #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) free(_xp);})
+    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+        #define XFREE(p, h, t)       ({(void)(h); (void)(t); free(p);})
+    #else
+        #define XFREE(p, h, t)       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
+    #endif
     #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
 #endif
 

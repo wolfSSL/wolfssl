@@ -251,17 +251,20 @@ ECC Curve Sizes:
 #else
 #define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
 #endif
-#if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
-    (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
-#define ECC_KEY_MAX_BITS(key)                                       \
-    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8)))
-#else
-/* Add one bit for cases when order is a bit greater than prime. */
-#define ECC_KEY_MAX_BITS(key)                                       \
-    ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
-        ((unsigned)((key)->dp->size * 8 + 1)))
-#endif
+
+static WC_MAYBE_UNUSED WC_INLINE word32 ECC_KEY_MAX_BITS(const ecc_key *key) {
+    if (((key) == NULL) || ((key)->dp == NULL))
+        return MAX_ECC_BITS_USE;
+    else {
+    #if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
+            (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
+        return (word32)((key)->dp->size * 8);
+    #else
+        /* Add one bit for cases when order is a bit greater than prime. */
+        return (word32)((key)->dp->size * 8 + 1);
+    #endif
+    }
+}
 
 /* forward declarations */
 static int  wc_ecc_new_point_ex(ecc_point** point, void* heap);
@@ -7263,10 +7266,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        pubkey = (ecc_key*)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_ECC);
        if (pubkey == NULL)
            err = MEMORY_E;
+       else
    #endif
-
+       {
        /* don't use async for key, since we don't support async return here */
-       if (err == MP_OKAY) {
            err = wc_ecc_init_ex(pubkey, key->heap, INVALID_DEVID);
            if (err == MP_OKAY) {
               err = ecc_sign_hash_sw(key, pubkey, rng, curve, e, r, s);

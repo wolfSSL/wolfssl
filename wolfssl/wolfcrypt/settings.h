@@ -1193,7 +1193,12 @@ extern void uITRON4_free(void *p) ;
     #if !defined(XMALLOC_OVERRIDE) && !defined(XMALLOC_USER)
         #define XMALLOC_OVERRIDE
         #define XMALLOC(s, h, t)    ((void)(h), (void)(t), (void *)_mem_alloc_system((s)))
-        #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+        #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+            #define XFREE(p, h, t)      {(void)(h); (void)(t); _mem_free(p);}
+        #else
+            #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+        #endif
+
         /* Note: MQX has no realloc, using fastmath above */
     #endif
     #ifdef USE_FAST_MATH
@@ -1224,7 +1229,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     #define XMALLOC(s, h, t)    ((void)(h), (void)(t), (void *)_mem_alloc_system((s)))
-    #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+        #define XFREE(p, h, t)      {(void)(h); (void)(t); _mem_free(p);}
+    #else
+        #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+    #endif
     #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
 
     #define MQX_FILE_PTR FILE *

@@ -23944,8 +23944,11 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
                 ssl->keys.sequence_number_lo);
     }
 
-    if (w64GTE(seq, limit))
+    if (w64GTE(seq, limit)) { /* cppcheck-suppress uninitvar
+                               * (false positive from cppcheck-2.13.0)
+                               */
         return Tls13UpdateKeys(ssl); /* Need to generate new keys */
+    }
 
     return 0;
 }
@@ -35828,7 +35831,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef OPENSSL_EXTRA
-        ssl->clSuites = clSuites;
+        ssl->clSuites = clSuites; /* cppcheck-suppress autoVariables
+                                   */
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
             ret = CertSetupCbWrapper(ssl);
