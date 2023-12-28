@@ -35832,6 +35832,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef OPENSSL_EXTRA
         ssl->clSuites = clSuites; /* cppcheck-suppress autoVariables
+                                   *
+                                   * (suppress warning that ssl, a persistent
+                                   * non-local allocation, has its ->clSuites
+                                   * set to clSuites, a local stack allocation.
+                                   * we clear this assignment before returning.)
                                    */
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)

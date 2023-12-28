@@ -356,7 +356,7 @@ typedef struct w64wrapper {
                 #define WC_INLINE inline
             #endif
         #else
-            #define WC_INLINE
+            #define WC_INLINE WC_MAYBE_UNUSED
         #endif
     #else
         #define WC_INLINE WC_MAYBE_UNUSED
