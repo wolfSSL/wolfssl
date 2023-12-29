@@ -9641,7 +9641,7 @@ static void bench_xmss_sign_verify(const char * params)
 
     ret = wc_XmssKey_GetPubLen(&key, &pkSz);
     if (pkSz != XMSS_SHA256_PUBLEN) {
-        fprintf(stderr, "error: xmss pub len: got %d, expected %d\n", pkSz,
+        fprintf(stderr, "error: xmss pub len: got %u, expected %d\n", pkSz,
                 XMSS_SHA256_PUBLEN);
         goto exit_xmss_sign_verify;
     }

@@ -212,7 +212,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
         int ret;
         char tmpBuf[80];
 
-        ret = XSNPRINTF(tmpBuf, sizeof(tmpBuf), format, args);
+        ret = XVSNPRINTF(tmpBuf, sizeof(tmpBuf), format, args);
         printf(tmpBuf);
 
     return ret;

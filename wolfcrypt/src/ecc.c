@@ -251,16 +251,27 @@ ECC Curve Sizes:
 #else
 #define MAX_ECC_BITS_USE    MAX_ECC_BITS_NEEDED
 #endif
+
 #if !defined(WOLFSSL_CUSTOM_CURVES) && (ECC_MIN_KEY_SZ > 160) && \
     (!defined(HAVE_ECC_KOBLITZ) || (ECC_MIN_KEY_SZ > 224))
+
 #define ECC_KEY_MAX_BITS(key)                                       \
     ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
         ((unsigned)((key)->dp->size * 8)))
+#define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
+    (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
+        ((unsigned)((key)->dp->size * 8)))
+
 #else
+
 /* Add one bit for cases when order is a bit greater than prime. */
 #define ECC_KEY_MAX_BITS(key)                                       \
     ((((key) == NULL) || ((key)->dp == NULL)) ? MAX_ECC_BITS_USE :  \
         ((unsigned)((key)->dp->size * 8 + 1)))
+#define ECC_KEY_MAX_BITS_NONULLCHECK(key)                           \
+    (((key)->dp == NULL) ? MAX_ECC_BITS_USE :                       \
+        ((unsigned)((key)->dp->size * 8 + 1)))
+
 #endif
 
 /* forward declarations */
@@ -3479,12 +3490,12 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
    XMEMSET(key, 0, sizeof(*key));
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SMALL_STACK)
-   NEW_MP_INT_SIZE(key->t1, ECC_KEY_MAX_BITS(key), heap, DYNAMIC_TYPE_ECC);
-   NEW_MP_INT_SIZE(key->t2, ECC_KEY_MAX_BITS(key), heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(key->t1, ECC_KEY_MAX_BITS_NONULLCHECK(key), heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(key->t2, ECC_KEY_MAX_BITS_NONULLCHECK(key), heap, DYNAMIC_TYPE_ECC);
 #ifdef ALT_ECC_SIZE
-   NEW_MP_INT_SIZE(key->x, ECC_KEY_MAX_BITS(key), heap, DYNAMIC_TYPE_ECC);
-   NEW_MP_INT_SIZE(key->y, ECC_KEY_MAX_BITS(key), heap, DYNAMIC_TYPE_ECC);
-   NEW_MP_INT_SIZE(key->z, ECC_KEY_MAX_BITS(key), heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(key->x, ECC_KEY_MAX_BITS_NONULLCHECK(key), heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(key->y, ECC_KEY_MAX_BITS_NONULLCHECK(key), heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(key->z, ECC_KEY_MAX_BITS_NONULLCHECK(key), heap, DYNAMIC_TYPE_ECC);
 #endif
    if (key->t1 == NULL || key->t2 == NULL
 #ifdef ALT_ECC_SIZE
@@ -3494,20 +3505,20 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
        err = MEMORY_E;
    }
    if (err == 0) {
-       err = INIT_MP_INT_SIZE(key->t1, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(key->t1, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
    if (err == 0) {
-       err = INIT_MP_INT_SIZE(key->t2, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(key->t2, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
 #ifdef ALT_ECC_SIZE
    if (err == 0) {
-       err = INIT_MP_INT_SIZE(key->x, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(key->x, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
    if (err == 0) {
-       err = INIT_MP_INT_SIZE(key->y, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(key->y, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
    if (err == 0) {
-       err = INIT_MP_INT_SIZE(key->z, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(key->z, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
 #endif
 #else
@@ -6575,12 +6586,12 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     err = wc_ecc_sign_hash_async(in, inlen, out, outlen, rng, key);
 #else
 
-    NEW_MP_INT_SIZE(r, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+    NEW_MP_INT_SIZE(r, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (r == NULL)
         return MEMORY_E;
 #endif
-    NEW_MP_INT_SIZE(s, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+    NEW_MP_INT_SIZE(s, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (s == NULL) {
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
@@ -6588,13 +6599,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 #endif
 
-    err = INIT_MP_INT_SIZE(r, ECC_KEY_MAX_BITS(key));
+    err = INIT_MP_INT_SIZE(r, ECC_KEY_MAX_BITS_NONULLCHECK(key));
     if (err != 0) {
         FREE_MP_INT_SIZE(s, key->heap, DYNAMIC_TYPE_ECC);
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
         return err;
     }
-    err = INIT_MP_INT_SIZE(s, ECC_KEY_MAX_BITS(key));
+    err = INIT_MP_INT_SIZE(s, ECC_KEY_MAX_BITS_NONULLCHECK(key));
     if (err != 0) {
         FREE_MP_INT_SIZE(s, key->heap, DYNAMIC_TYPE_ECC);
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
@@ -6719,16 +6730,16 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 {
     int err = MP_OKAY;
     int loop_check = 0;
-    DECL_MP_INT_SIZE_DYN(b, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
+    DECL_MP_INT_SIZE_DYN(b, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
 
-    NEW_MP_INT_SIZE(b, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+    NEW_MP_INT_SIZE(b, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (b == NULL)
         err = MEMORY_E;
 #endif
 
     if (err == MP_OKAY) {
-        err = INIT_MP_INT_SIZE(b, ECC_KEY_MAX_BITS(key));
+        err = INIT_MP_INT_SIZE(b, ECC_KEY_MAX_BITS_NONULLCHECK(key));
     }
 
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -7122,7 +7133,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    }
    e = key->e;
 #else
-   NEW_MP_INT_SIZE(e_lcl, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(e_lcl, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
    if (e_lcl == NULL) {
       return MEMORY_E;
@@ -7133,7 +7144,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    /* get the hash and load it as a bignum into 'e' */
    /* init the bignums */
-   if ((err = INIT_MP_INT_SIZE(e, ECC_KEY_MAX_BITS(key))) != MP_OKAY) {
+   if ((err = INIT_MP_INT_SIZE(e, ECC_KEY_MAX_BITS_NONULLCHECK(key))) != MP_OKAY) {
       FREE_MP_INT_SIZE(e_lcl, key->heap, DYNAMIC_TYPE_ECC);
       return err;
    }
@@ -7263,10 +7274,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        pubkey = (ecc_key*)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_ECC);
        if (pubkey == NULL)
            err = MEMORY_E;
+       else
    #endif
-
+       {
        /* don't use async for key, since we don't support async return here */
-       if (err == MP_OKAY) {
            err = wc_ecc_init_ex(pubkey, key->heap, INVALID_DEVID);
            if (err == MP_OKAY) {
               err = ecc_sign_hash_sw(key, pubkey, rng, curve, e, r, s);
@@ -8299,25 +8310,25 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     r = key->r;
     s = key->s;
 #else
-    NEW_MP_INT_SIZE(r, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+    NEW_MP_INT_SIZE(r, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (r == NULL)
         return MEMORY_E;
 #endif
-    NEW_MP_INT_SIZE(s, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+    NEW_MP_INT_SIZE(s, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (s == NULL) {
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
 #endif
-    err = INIT_MP_INT_SIZE(r, ECC_KEY_MAX_BITS(key));
+    err = INIT_MP_INT_SIZE(r, ECC_KEY_MAX_BITS_NONULLCHECK(key));
     if (err != 0) {
         FREE_MP_INT_SIZE(s, key->heap, DYNAMIC_TYPE_ECC);
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
         return err;
     }
-    err = INIT_MP_INT_SIZE(s, ECC_KEY_MAX_BITS(key));
+    err = INIT_MP_INT_SIZE(s, ECC_KEY_MAX_BITS_NONULLCHECK(key));
     if (err != 0) {
         FREE_MP_INT_SIZE(s, key->heap, DYNAMIC_TYPE_ECC);
         FREE_MP_INT_SIZE(r, key->heap, DYNAMIC_TYPE_ECC);
@@ -8618,9 +8629,9 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    ecc_point  lcl_mG;
    ecc_point  lcl_mQ;
 #endif
-   DECL_MP_INT_SIZE_DYN(w, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
+   DECL_MP_INT_SIZE_DYN(w, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
-   DECL_MP_INT_SIZE_DYN(e_lcl, ECC_KEY_MAX_BITS(key), MAX_ECC_BITS_USE);
+   DECL_MP_INT_SIZE_DYN(e_lcl, ECC_KEY_MAX_BITS_NONULLCHECK(key), MAX_ECC_BITS_USE);
 #endif
    mp_int*    e;
    mp_int*    v = NULL;      /* Will be w. */
@@ -8636,7 +8647,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
    err = mp_init(e);
 #else
-   NEW_MP_INT_SIZE(e_lcl, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(e_lcl, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
    if (e_lcl == NULL) {
        return MEMORY_E;
@@ -8644,7 +8655,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #endif
    e = e_lcl;
 
-   err = INIT_MP_INT_SIZE(e, ECC_KEY_MAX_BITS(key));
+   err = INIT_MP_INT_SIZE(e, ECC_KEY_MAX_BITS_NONULLCHECK(key));
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_CAVIUM_V */
    if (err != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -8706,7 +8717,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
-   NEW_MP_INT_SIZE(w, ECC_KEY_MAX_BITS(key), key->heap, DYNAMIC_TYPE_ECC);
+   NEW_MP_INT_SIZE(w, ECC_KEY_MAX_BITS_NONULLCHECK(key), key->heap, DYNAMIC_TYPE_ECC);
 #ifdef MP_INT_SIZE_CHECK_NULL
    if (w == NULL) {
        err = MEMORY_E;
@@ -8719,7 +8730,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
        v = w;
    }
    if (err == MP_OKAY) {
-       err = INIT_MP_INT_SIZE(w, ECC_KEY_MAX_BITS(key));
+       err = INIT_MP_INT_SIZE(w, ECC_KEY_MAX_BITS_NONULLCHECK(key));
    }
 
    /* allocate points */
