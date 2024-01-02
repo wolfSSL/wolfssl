@@ -12947,7 +12947,7 @@ static const byte rdnChoice[] = {
 static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 {
     int ret = 0;
-    size_t nameSz;
+    size_t nameSz = 0;
     char tmpName[WOLFSSL_MAX_IPSTR] = {0};
     unsigned char* ip;
 
@@ -26980,8 +26980,8 @@ static int EncodeName(EncodedName* name, const char* nameStr,
     int ret = 0;
     int sz = 0;
     const byte* oid;
-    word32 oidSz;
-    word32 nameSz;
+    word32 oidSz = 0;
+    word32 nameSz = 0;
 
     /* Validate input parameters. */
     if ((name == NULL) || (nameStr == NULL)) {
@@ -27758,7 +27758,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                             int forRequest)
 {
     DECL_ASNSETDATA(dataASN, certExtsASN_Length);
-    int sz;
+    int sz = 0;
     int ret = 0;
     int i = 0;
     static const byte bcOID[]   = { 0x55, 0x1d, 0x13 };
@@ -35073,7 +35073,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspRespDataASN_Length);
     int ret = 0;
     byte version;
-    word32 dateSz, idx = *ioIndex;
+    word32 dateSz = 0;
+    word32 idx = *ioIndex;
     OcspEntry* single = NULL;
 
     WOLFSSL_ENTER("DecodeResponseData");

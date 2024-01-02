@@ -33006,7 +33006,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve448_test(void)
 #ifdef HAVE_CURVE448_KEY_EXPORT
     byte    exportBuf[CURVE448_KEY_SIZE];
 #endif
-    word32  x;
+    word32  x = 0;
     curve448_key userA, userB, pubKey;
 
 #if defined(HAVE_CURVE448_SHARED_SECRET) && \

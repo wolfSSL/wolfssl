@@ -4280,8 +4280,8 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
         word32* idxIn, int degenerate, byte** signedAttrib, int* signedAttribSz)
 {
     int ret = 0;
-    int length;
-    int version;
+    int length = 0;
+    int version = 0;
     word32 sigOID = 0, hashOID = 0;
     word32 idx = *idxIn, localIdx;
     byte tag;

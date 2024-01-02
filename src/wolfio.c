@@ -1409,6 +1409,9 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             word32 bigPort = 0;
             i = 0;
             cur++;
+
+            XMEMSET(port, 0, sizeof(port));
+
             while (i < 6 && cur < urlSz && url[cur] != 0 && url[cur] != '/') {
                 port[i] = url[cur];
                 i++; cur++;
