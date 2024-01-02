@@ -4705,7 +4705,7 @@ static int test_wolfSSL_EVP_PKEY_print_public(void)
     WOLFSSL_EVP_PKEY* pkey = NULL;
     char line[256] = { 0 };
     char line1[256] = { 0 };
-    int i;
+    int i = 0;
 
     /* test error cases */
     ExpectIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
@@ -25739,7 +25739,7 @@ static int test_ToTraditional(void)
      defined(OPENSSL_EXTRA_X509_SMALL)) && !defined(NO_FILESYSTEM)
     XFILE  f = XBADFILE;
     byte   input[TWOK_BUF];
-    word32 sz;
+    word32 sz = 0;
 
     ExpectTrue((f = XFOPEN("./certs/server-keyPkcs8.der", "rb")) != XBADFILE);
     ExpectTrue((sz = (word32)XFREAD(input, 1, sizeof(input), f)) > 0);
@@ -28151,10 +28151,10 @@ static int test_wc_PKCS7_EncodeEncryptedData(void)
     byte        decoded[TWOK_BUF];
     word32      tmpWrd32 = 0;
     int         tmpInt = 0;
-    int         decodedSz;
+    int         decodedSz = 0;
     int         encryptedSz = 0;
-    int         testSz;
-    int         i;
+    int         testSz = 0;
+    int         i = 0;
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
@@ -28766,7 +28766,7 @@ static int test_wc_PKCS7_signed_enveloped(void)
         word32 idx = 0;
         byte digest[MAX_SEQ_SZ + MAX_ALGO_SZ + MAX_OCTET_STR_SZ +
             WC_MAX_DIGEST_SIZE];
-        int  digestSz;
+        int  digestSz = 0;
 
         ExpectIntEQ(wc_InitRsaKey(&rKey, HEAP_HINT), 0);
         ExpectIntEQ(wc_RsaPrivateKeyDecode(key, &idx, &rKey, keySz), 0);
@@ -29680,7 +29680,7 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
     const byte* p = NULL;
     byte* p2 = NULL;
     byte* reEncoded = NULL;
-    int reEncodedSz;
+    int reEncodedSz = 0;
 
     static const byte zeroDer[] = {
         0x02, 0x01, 0x00
@@ -31026,8 +31026,8 @@ static int test_wolfSSL_ASN1_TIME_diff_compare(void)
     ASN1_TIME* closeToTime = NULL;
     ASN1_TIME* toTime = NULL;
     ASN1_TIME* invalidTime = NULL;
-    int daysDiff;
-    int secsDiff;
+    int daysDiff = 0;
+    int secsDiff = 0;
 
     ExpectNotNull((fromTime = ASN1_TIME_new()));
     /* Feb 22, 2003, 21:15:15 */
@@ -31218,6 +31218,8 @@ static int test_wolfSSL_ASN1_TIME_to_tm(void)
     ASN1_TIME asnTime;
     struct tm tm;
     time_t testTime = 1683926567; /* Fri May 12 09:22:47 PM UTC 2023 */
+
+    XMEMSET(&tm, 0, sizeof(struct tm));
 
     XMEMSET(&asnTime, 0, sizeof(ASN1_TIME));
     ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "000222211515Z"), 1);
@@ -31626,7 +31628,7 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EC_KEY *eckey = NULL;
     EVP_PKEY *key = NULL;
-    size_t len;
+    size_t len = 0;
     unsigned char *der = NULL;
     DPP_BOOTSTRAPPING_KEY *bootstrap = NULL;
     const unsigned char *in = ecc_clikey_der_256;
@@ -31950,7 +31952,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
      defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
      defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))) && \
     !defined(NO_BIO) && !defined(NO_RSA)
-    int memSz;
+    int memSz = 0;
     byte* mem = NULL;
     BIO* bio = NULL;
     BIO* membio = NULL;
@@ -32113,7 +32115,7 @@ static int test_wolfSSL_X509_INFO_multiple_info(void)
      * to group objects together. */
     ExpectNotNull(concatBIO = BIO_new(BIO_s_mem()));
     for (curFile = files; EXPECT_SUCCESS() && *curFile != NULL; curFile++) {
-        int fileLen;
+        int fileLen = 0;
         ExpectNotNull(fileBIO = BIO_new_file(*curFile, "rb"));
         ExpectIntGT(fileLen = wolfSSL_BIO_get_len(fileBIO), 0);
         if (EXPECT_SUCCESS()) {
@@ -32459,7 +32461,7 @@ static int test_wc_KeyPemToDer(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    int ret;
+    int ret = 0;
     const byte cert_buf[] = \
     "-----BEGIN PRIVATE KEY-----\n"
     "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDMG5KgWxP002pA\n"
@@ -32830,7 +32832,7 @@ static int test_wolfSSL_certs(void)
     ASN1_STRING* asn1_str = NULL;
     AUTHORITY_KEYID* akey = NULL;
     BASIC_CONSTRAINTS* bc = NULL;
-    int crit;
+    int crit = 0;
 
 #ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = SSL_CTX_new(SSLv23_server_method()));
@@ -33342,7 +33344,7 @@ static int test_wolfSSL_PEM_read_PrivateKey(void)
     RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
     unsigned char* sig = NULL;
-    size_t sigLen;
+    size_t sigLen = 0;
     const unsigned char tbs[] = {0, 1, 2, 3, 4, 5, 6, 7};
     size_t tbsLen = sizeof(tbs);
 
@@ -33417,7 +33419,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
         const char* fname = "./certs/server-key.pem";
         const char* fname_rsa_p8 = "./certs/server-keyPkcs8.pem";
 
-        size_t sz;
+        size_t sz = 0;
         byte* buf = NULL;
         EVP_PKEY* pkey2 = NULL;
         EVP_PKEY* pkey3 = NULL;
@@ -62375,7 +62377,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
-    int  ret;
+    int  ret = 0;
     int  err = 0;
 
     if (!args)

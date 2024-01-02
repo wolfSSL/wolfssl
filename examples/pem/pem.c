@@ -294,8 +294,8 @@ static int FindPem(char* data, word32 offset, word32 len, word32* start,
     word32* end, int* type)
 {
     int ret = 0;
-    word32 i;
-    word32 type_off;
+    word32 i = 0;
+    word32 type_off = 0;
     char str[PEM_TYPE_MAX_LEN];
 
     /* Find header. */
