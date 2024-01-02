@@ -627,7 +627,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     /* calls to hardened crypto */
     XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup,
                 (word32*)iv, aes->keyInit);
-    XSecure_AesDecryptData(&(aes->xilAes), out, in, sz, tag);
+    ret = XSecure_AesDecryptData(&(aes->xilAes), out, in, sz, tag);
 
     /* account for additional data */
     if (authIn != NULL && authInSz > 0) {
@@ -637,6 +637,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
             return ret;
         xorbuf(tag, scratch, AES_GCM_AUTH_SZ);
         if (ConstantCompare(authTag, tag, authTagSz) != 0) {
+            return AES_GCM_AUTH_E;
+        }
+    }
+    else {
+        /* if no aad then check the result of the initial tag passed in */
+        if (ret != XST_SUCCESS) {
             return AES_GCM_AUTH_E;
         }
     }
