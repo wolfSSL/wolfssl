@@ -19301,6 +19301,7 @@ static int DecodeKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
 
     /* Clear dynamic data and set where to store extended key usage. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
+    XMEMSET(keyUsage, 0, sizeof(keyUsage));
     GetASN_Buffer(&dataASN[KEYUSAGEASN_IDX_STR], keyUsage, &keyUsageSz);
     /* Parse key usage. */
     ret = GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
