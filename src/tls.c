@@ -186,6 +186,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         return MEMORY_E;
 #endif
 
+    XMEMSET(handshake_hash, 0, HSHASH_SZ);
     ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
     if (ret == 0) {
         if (XSTRNCMP((const char*)sender, (const char*)kTlsClientStr,

@@ -37602,8 +37602,10 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 mimeType == MIME_PARAM)) && pos >= 1) {
                 mimeStatus = MIME_BODYVAL;
                 end = pos-1;
-                if (nameAttr != NULL)
+                if (nameAttr != NULL) {
                     XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+                    nameAttr = NULL;
+                }
                 ret = wc_MIME_header_strip(curLine, &nameAttr, start, end);
                 if (ret) {
                     goto error;

@@ -11173,7 +11173,7 @@ err:
         pemSz = (int)(l - i);
 
         /* check calculated length */
-        if (pemSz > MAX_WOLFSSL_FILE_SIZE || pemSz < 0) {
+        if (pemSz > MAX_WOLFSSL_FILE_SIZE || pemSz <= 0) {
             WOLFSSL_MSG("PEM_read_X509_ex file size error");
             return NULL;
         }
