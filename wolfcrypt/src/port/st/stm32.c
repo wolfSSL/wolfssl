@@ -595,7 +595,7 @@ static int stm32_getabs_from_mp_int(uint8_t *dst, const mp_int *a, int sz,
     #else
         *abs_sign = 1; /* default to negative */
     #endif
-        res = mp_abs(a, &x);
+        res = mp_abs((mp_int*)a, &x);
         if (res == MP_OKAY)
             res = stm32_get_from_mp_int(dst, &x, sz);
         mp_clear(&x);
@@ -638,9 +638,42 @@ static int stm32_get_from_hexstr(const char* hex, uint8_t* dst, int sz)
     return stm32_getabs_from_hexstr(hex, dst, sz, NULL);
 }
 
-
 /* STM32 PKA supports up to 640-bit numbers */
 #define STM32_MAX_ECC_SIZE (80)
+
+#ifdef WOLFSSL_STM32_PKA_V2
+/* find curve based on prime/modulus and return order/coefB */
+static int stm32_get_curve_params(mp_int* modulus,
+    uint8_t* order, uint8_t* coefB)
+{
+    int res, i, found = 0;
+    mp_int modulusChk;
+    res = mp_init(&modulusChk);
+    if (res != MP_OKAY)
+        return res;
+    for (i = 0; ecc_sets[i].size != 0 && ecc_sets[i].name != NULL; i++) {
+        const ecc_set_type* curve = &ecc_sets[i];
+        /* match based on curve prime */
+        if ((res = mp_read_radix(&modulusChk, curve->prime, MP_RADIX_HEX)) ==
+                MP_OKAY && (mp_cmp(modulus, &modulusChk) == MP_EQ))
+        {
+            found = 1;
+            if (order) {
+                res = stm32_get_from_hexstr(curve->order, order, curve->size);
+            }
+            if (coefB) {
+                res = stm32_get_from_hexstr(curve->Bf, coefB, curve->size);
+            }
+            break;
+        }
+    }
+    mp_clear(&modulusChk);
+    if (!found && res == MP_OKAY) {
+        res = MP_RANGE;
+    }
+    return res;
+}
+#endif /* WOLFSSL_STM32_PKA_V2 */
 
 
 /**
@@ -706,8 +739,19 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifdef WOLFSSL_STM32_PKA_V2
     XMEMSET(order, 0, sizeof(order));
     XMEMSET(coefB, 0, sizeof(coefB));
-    if (res == MP_OKAY && o != NULL)
-        res = stm32_get_from_mp_int(order, o, szModulus);
+    if (res == MP_OKAY) {
+        if (o != NULL) {
+            /* use provided order and get coefB */
+            res = stm32_get_from_mp_int(order, o, szModulus);
+            if (res == MP_OKAY) {
+                res = stm32_get_curve_params(modulus, NULL, coefB);
+            }
+        }
+        else {
+            /* get order and coefB for matching prime */
+            res = stm32_get_curve_params(modulus, order, coefB);
+        }
+    }
 #endif
     if (res != MP_OKAY)
         return res;

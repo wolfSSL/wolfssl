@@ -356,7 +356,7 @@ typedef struct w64wrapper {
                 #define WC_INLINE inline
             #endif
         #else
-            #define WC_INLINE
+            #define WC_INLINE WC_MAYBE_UNUSED
         #endif
     #else
         #define WC_INLINE WC_MAYBE_UNUSED
@@ -1399,6 +1399,10 @@ typedef struct w64wrapper {
         #ifndef HAVE_SELFTEST
             #define WOLFSSL_THREAD_NO_JOIN
         #endif
+    #elif defined(FREERTOS) && defined(WOLFSSL_ESPIDF)
+        typedef void*          THREAD_RETURN;
+        typedef pthread_t      THREAD_TYPE;
+        #define WOLFSSL_THREAD
     #elif defined(FREERTOS)
         typedef unsigned int   THREAD_RETURN;
         typedef TaskHandle_t   THREAD_TYPE;

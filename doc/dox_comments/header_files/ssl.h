@@ -1063,12 +1063,12 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
     argument specifies the format type of the file - SSL_FILETYPE_ASN1or
     SSL_FILETYPE_PEM.  Please see the examples for proper usage.
 
-    If using an external key store and do not have the private key you can 
-    instead provide the public key and register the crypro callback to handle 
-    the signing. For this you can build with either build with crypto callbacks 
+    If using an external key store and do not have the private key you can
+    instead provide the public key and register the crypro callback to handle
+    the signing. For this you can build with either build with crypto callbacks
     or PK callbacks. To enable crypto callbacks use --enable-cryptocb
-    or WOLF_CRYPTO_CB and register a crypto callback using 
-    wc_CryptoCb_RegisterDevice and set the associated devId using 
+    or WOLF_CRYPTO_CB and register a crypto callback using
+    wc_CryptoCb_RegisterDevice and set the associated devId using
     wolfSSL_CTX_SetDevId.
 
     \return SSL_SUCCESS upon success.
@@ -1554,12 +1554,12 @@ int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format);
     The format argument specifies the format type of the file -
     SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
 
-    If using an external key store and do not have the private key you can 
-    instead provide the public key and register the crypro callback to handle 
-    the signing. For this you can build with either build with crypto callbacks 
+    If using an external key store and do not have the private key you can
+    instead provide the public key and register the crypro callback to handle
+    the signing. For this you can build with either build with crypto callbacks
     or PK callbacks. To enable crypto callbacks use --enable-cryptocb or
-    WOLF_CRYPTO_CB and register a crypto callback using 
-    wc_CryptoCb_RegisterDevice and set the associated devId using 
+    WOLF_CRYPTO_CB and register a crypto callback using
+    wc_CryptoCb_RegisterDevice and set the associated devId using
     wolfSSL_SetDevId.
 
     \return SSL_SUCCESS upon success.
@@ -3041,7 +3041,7 @@ int  wolfSSL_library_init(void);
     \return BAD_FUNC_ARG if ssl is NULL.
 
     \param ssl pointer to a SSL object, created with wolfSSL_new().
-    \param devId ID to use with async hardware
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
@@ -3064,7 +3064,7 @@ int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
     \return BAD_FUNC_ARG if ssl is NULL.
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
-    \param devId ID to use with async hardware
+    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
 
     _Example_
     \code
@@ -6246,7 +6246,7 @@ int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to);
     \brief This function sets the timeout value for SSL sessions, in seconds,
     for the specified SSL context.
 
-    \return the previous timeout value, if WOLFSSL_ERROR_CODE_OPENSSL is 
+    \return the previous timeout value, if WOLFSSL_ERROR_CODE_OPENSSL is
     \return defined on success. If not defined, SSL_SUCCESS will be returned.
     \return BAD_FUNC_ARG will be returned when the input context (ctx) is null.
 
@@ -7755,7 +7755,7 @@ int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     The buffer is provided by the in argument of size sz. format specifies
     the format type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
     More than one CA certificate may be loaded per buffer as long as the
-    format is in PEM.  The _ex version was added in PR 2413 and supports 
+    format is in PEM.  The _ex version was added in PR 2413 and supports
     additional arguments for userChain and flags.
 
     \return SSL_SUCCESS upon success
@@ -14421,7 +14421,7 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsign
  \param keySz key size pointer
  \sa wolfSSL_CTX_set_ephemeral_key
  */
-int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
@@ -14434,7 +14434,7 @@ int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
  \param keySz key size pointer
  \sa wolfSSL_set_ephemeral_key
  */
-int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 
 /*!
@@ -14504,18 +14504,18 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
 int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
 
 /*!
- \ingroup Setup 
- \brief  In case this function is called in a client side, set certificate types 
+ \ingroup Setup
+ \brief  In case this function is called in a client side, set certificate types
  that can be sent to its peer. In case called in a server side,
  set certificate types that can be acceptable from its peer. Put cert types in the
  buffer with prioritised order. To reset the settings to default, pass NULL
- for the buffer or pass zero for len. By default, certificate type is only X509. 
+ for the buffer or pass zero for len. By default, certificate type is only X509.
  In case both side intend to send or accept "Raw public key" cert,
  WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
 
  \return WOLFSSL_SUCCESS if cert types set successfully
  \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
-  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or 
+  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or
   a duplicate value is found in buf.
 
  \param ctx  WOLFSSL_CTX object pointer
@@ -14540,18 +14540,18 @@ int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
 int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
 
 /*!
- \ingroup Setup 
- \brief  In case this function is called in a server side, set certificate types 
+ \ingroup Setup
+ \brief  In case this function is called in a server side, set certificate types
  that can be sent to its peer. In case called in a client side,
  set certificate types that can be acceptable from its peer. Put cert types in the
  buffer with prioritised order. To reset the settings to default, pass NULL
- for the buffer or pass zero for len. By default, certificate type is only X509. 
+ for the buffer or pass zero for len. By default, certificate type is only X509.
  In case both side intend to send or accept "Raw public key" cert,
  WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
 
  \return WOLFSSL_SUCCESS if cert types set successfully
  \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
-  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or 
+  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or
   a duplicate value is found in buf.
 
  \param ctx  WOLFSSL_CTX object pointer
@@ -14576,18 +14576,18 @@ int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
 int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
 
 /*!
- \ingroup Setup 
- \brief  In case this function is called in a client side, set certificate types 
+ \ingroup Setup
+ \brief  In case this function is called in a client side, set certificate types
  that can be sent to its peer. In case called in a server side,
  set certificate types that can be acceptable from its peer. Put cert types in the
  buffer with prioritised order. To reset the settings to default, pass NULL
- for the buffer or pass zero for len. By default, certificate type is only X509. 
+ for the buffer or pass zero for len. By default, certificate type is only X509.
  In case both side intend to send or accept "Raw public key" cert,
  WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
 
  \return WOLFSSL_SUCCESS if cert types set successfully
  \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
-  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or 
+  cert type, buf size exceed MAX_CLIENT_CERT_TYPE_CNT was specified or
   a duplicate value is found in buf.
 
  \param ssl  WOLFSSL object pointer
@@ -14612,18 +14612,18 @@ int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
 int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
 
 /*!
- \ingroup Setup 
- \brief  In case this function is called in a server side, set certificate types 
+ \ingroup Setup
+ \brief  In case this function is called in a server side, set certificate types
  that can be sent to its peer. In case called in a client side,
  set certificate types that can be acceptable from its peer. Put cert types in the
  buffer with prioritised order. To reset the settings to default, pass NULL
- for the buffer or pass zero for len. By default, certificate type is only X509. 
+ for the buffer or pass zero for len. By default, certificate type is only X509.
  In case both side intend to send or accept "Raw public key" cert,
  WOLFSSL_CERT_TYPE_RPK should be included in the buffer to set.
 
  \return WOLFSSL_SUCCESS if cert types set successfully
  \return BAD_FUNC_ARG if NULL was passed for ctx, illegal value was specified as
-  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or 
+  cert type, buf size exceed MAX_SERVER_CERT_TYPE_CNT was specified or
   a duplicate value is found in buf.
 
  \param ctx  WOLFSSL_CTX object pointer
@@ -14648,17 +14648,17 @@ int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
 int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
 
 /*!
- \ingroup SSL 
- \brief  This function returns the result of the client certificate type 
+ \ingroup SSL
+ \brief  This function returns the result of the client certificate type
  negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
-  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is 
+  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is
   returned as the certificate type.
 
  \return WOLFSSL_SUCCESS if a negotiated certificate type could be got
  \return BAD_FUNC_ARG if NULL was passed for ctx or tp
  \param ssl  WOLFSSL object pointer
- \param tp  A buffer where a certificate type is to be returned. One of three 
- certificate types will be returned: WOLFSSL_CERT_TYPE_RPK, 
+ \param tp  A buffer where a certificate type is to be returned. One of three
+ certificate types will be returned: WOLFSSL_CERT_TYPE_RPK,
  WOLFSSL_CERT_TYPE_X509 or WOLFSSL_CERT_TYPE_UNKNOWN.
 
     _Example_
@@ -14679,17 +14679,17 @@ int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
 int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
- \ingroup SSL 
- \brief  This function returns the result of the server certificate type 
+ \ingroup SSL
+ \brief  This function returns the result of the server certificate type
  negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as
-  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is 
+  a return value if no negotiation occurs and WOLFSSL_CERT_TYPE_UNKNOWN is
   returned as the certificate type.
 
  \return WOLFSSL_SUCCESS if a negotiated certificate type could be got
  \return BAD_FUNC_ARG if NULL was passed for ctx or tp
  \param ssl  WOLFSSL object pointer
- \param tp  A buffer where a certificate type is to be returned. One of three 
- certificate types will be returned: WOLFSSL_CERT_TYPE_RPK, 
+ \param tp  A buffer where a certificate type is to be returned. One of three
+ certificate types will be returned: WOLFSSL_CERT_TYPE_RPK,
  WOLFSSL_CERT_TYPE_X509 or WOLFSSL_CERT_TYPE_UNKNOWN.
     _Example_
  \code

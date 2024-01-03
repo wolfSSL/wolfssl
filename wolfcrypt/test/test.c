@@ -212,7 +212,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
         int ret;
         char tmpBuf[80];
 
-        ret = XSNPRINTF(tmpBuf, sizeof(tmpBuf), format, args);
+        ret = XVSNPRINTF(tmpBuf, sizeof(tmpBuf), format, args);
         printf(tmpBuf);
 
     return ret;
@@ -15413,7 +15413,7 @@ static int simple_mem_test(int sz)
 static wc_test_ret_t const_byte_ptr_test(const byte* in, word32 *outJ)
 {
     wc_test_ret_t ret = 0;
-    volatile word32 j = -1; /* must be volatile to properly detect error */
+    volatile word32 j = (word32)-1; /* must be volatile to properly detect error */
 
     ret = (wc_test_ret_t)*in; /* accessed *in value. */
     (void)ret;
@@ -20075,7 +20075,8 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)
+#if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
+    !defined(HAVE_INTEL_QA)
     /* Make p even */
     key->p.dp[0] &= (mp_digit)-2;
     if (ret != 0)
@@ -20107,7 +20108,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
 
     /* Getting here means success - set ret to 0. */
     ret = 0;
-#endif
+#endif /* (SP DH or Fast Math) and not Intel QuickAssist */
 
 done:
 
@@ -33005,7 +33006,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve448_test(void)
 #ifdef HAVE_CURVE448_KEY_EXPORT
     byte    exportBuf[CURVE448_KEY_SIZE];
 #endif
-    word32  x;
+    word32  x = 0;
     curve448_key userA, userB, pubKey;
 
 #if defined(HAVE_CURVE448_SHARED_SECRET) && \
@@ -49461,13 +49462,13 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         /* set devId to invalid, so software is used */
         info->hmac.hmac->devId = INVALID_DEVID;
 
-        if (info->hash.in != NULL) {
+        if (info->hmac.in != NULL) {
             ret = wc_HmacUpdate(
                 info->hmac.hmac,
                 info->hmac.in,
                 info->hmac.inSz);
         }
-        else if (info->hash.digest != NULL) {
+        else if (info->hmac.digest != NULL) {
             ret = wc_HmacFinal(
                 info->hmac.hmac,
                 info->hmac.digest);

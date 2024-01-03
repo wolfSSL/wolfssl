@@ -5610,7 +5610,8 @@ Signer* GetCAByName(void* vp, byte* hash)
 /* add a trusted peer cert to linked list */
 int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 {
-    int ret, row;
+    int ret = 0;
+    int row = 0;
     TrustedPeerCert* peerCert;
     DecodedCert* cert;
     DerBuffer*   der = *pDer;
@@ -9948,7 +9949,7 @@ static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,
     word32 idx = 0, algId;
     word16 pkcs8HeaderSz = 0;
     WOLFSSL_EVP_PKEY* local;
-    int opt;
+    int opt = 0;
 
     (void)opt;
 
@@ -10281,7 +10282,7 @@ int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der, long derSz)
 
 int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
 {
-    long idx;
+    long idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_use_certificate");
     if (x509 != NULL && ssl != NULL && x509->derCert != NULL) {
@@ -10527,7 +10528,7 @@ WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp)
 int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
                                  int derSz)
 {
-    long idx;
+    long idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_use_certificate_ASN1");
     if (der != NULL && ssl != NULL) {
@@ -11736,9 +11737,14 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
     if (suites->suiteSz > 0) {
         suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
-        if (suitesCpy == NULL)
+        if (suitesCpy == NULL) {
             return WOLFSSL_FAILURE;
+        }
+
+        XMEMSET(suitesCpy, 0, suites->suiteSz);
     }
+#else
+        XMEMSET(suitesCpy, 0, sizeof(suitesCpy));
 #endif
 
     if (suites->suiteSz > 0)
@@ -14409,19 +14415,19 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
             }
             if (error == 0) {
                 WOLFSSL_MSG("Adding client cache entry");
+
+                ret = &ClientCache[clientRow].Clients[clientIdx];
+
                 if (ClientCache[clientRow].totalCount < CLIENT_SESSIONS_PER_ROW)
                     ClientCache[clientRow].totalCount++;
                 ClientCache[clientRow].nextIdx++;
                 ClientCache[clientRow].nextIdx %= CLIENT_SESSIONS_PER_ROW;
             }
 
-            ret = &ClientCache[clientRow].Clients[clientIdx];
-
             wc_UnLockMutex(&clisession_mutex);
         }
         else {
             WOLFSSL_MSG("Hash session or lock failed");
-            error = -1;
         }
     }
     else {
@@ -15762,10 +15768,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        verify = GET_VERIFY_SETTING_CTX(ctx);
-        if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS &
-                 WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
+        #if (WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
             verify = VERIFY_SKIP_DATE;
+        #else
+            verify = GET_VERIFY_SETTING_CTX(ctx);
+        #endif
 
         if (format == WOLFSSL_FILETYPE_PEM)
             return ProcessChainBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
@@ -16393,7 +16400,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* cast so that compiler reminds us of unimplemented values */
         switch ((enum SignatureAlgorithm)sigType) {
         case anonymous_sa_algo:
-            *sigAlgo = (enum Key_Sum)0;
+            *sigAlgo = ANONk;
             break;
         case rsa_sa_algo:
             *sigAlgo = RSAk;
@@ -23150,7 +23157,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     WOLFSSL_SESSION* s = NULL;
     int ret = 0;
 #if defined(HAVE_EXT_CACHE)
-    int idx;
+    int idx = 0;
     byte* data;
 #ifdef SESSION_CERTS
     int j;
@@ -24528,7 +24535,7 @@ static int populate_groups(int* groups, int max_count, char *list)
 int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
 {
     int groups[WOLFSSL_MAX_GROUP_COUNT];
-    int count;
+    int count = 0;
 
     if (!ctx || !list) {
         return WOLFSSL_FAILURE;
@@ -24545,7 +24552,7 @@ int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
 int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
 {
     int groups[WOLFSSL_MAX_GROUP_COUNT];
-    int count;
+    int count = 0;
 
     if (!ssl || !list) {
         return WOLFSSL_FAILURE;
@@ -24769,7 +24776,7 @@ byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 /* Get peer's wolfSSL X509 certificate at index (idx) */
 WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 {
-    int          ret;
+    int          ret = 0;
     WOLFSSL_X509* x509 = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert* cert = NULL;
@@ -28309,6 +28316,7 @@ static int wolfSSL_SESSION_print_ticket(WOLFSSL_BIO* bio,
 
     for (i = 0; i < sz;) {
         char asc[16];
+        XMEMSET(asc, 0, sizeof(asc));
 
         if (sz - i < 16) {
             if (wolfSSL_BIO_printf(bio, "%s%04X -", tab, tag + (sz - i)) <= 0)
@@ -30337,9 +30345,9 @@ int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
     }
     if (curve_id >= 32) {
         /* 0 is for invalid and 1-14 aren't used otherwise. */
-        return (ssl->disabledCurves & (1 << (curve_id - 32))) != 0;
+        return (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
     }
-    return (ssl->disabledCurves & (1 << curve_id)) != 0;
+    return (ssl->disabledCurves & (1U << curve_id)) != 0;
 }
 
 #if (defined(HAVE_ECC) || \

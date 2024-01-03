@@ -267,8 +267,10 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
         ret = BUFFER_E;
 
 #if defined(HAVE_PKCS11)
-    XMEMSET(key, 0, sizeof(RsaKey));
-    key->isPkcs11 = 1;
+    if (ret == 0) {
+        XMEMSET(key, 0, sizeof(RsaKey));
+        key->isPkcs11 = 1;
+    }
 #endif
 
     if (ret == 0)
@@ -302,8 +304,10 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
     }
 
 #if defined(HAVE_PKCS11)
-    XMEMSET(key, 0, sizeof(RsaKey));
-    key->isPkcs11 = 1;
+    if (ret == 0) {
+        XMEMSET(key, 0, sizeof(RsaKey));
+        key->isPkcs11 = 1;
+    }
 #endif
 
     if (ret == 0)

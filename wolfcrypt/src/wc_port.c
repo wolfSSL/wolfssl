@@ -131,6 +131,12 @@
     #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
 #endif
 
+#if defined(FREERTOS) && defined(WOLFSSL_ESPIDF)
+    #include <freertos/FreeRTOS.h>
+    #include <freertos/task.h>
+    /* The Espressif-specific platform include: */
+    #include <pthread.h>
+#endif
 
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
@@ -3436,6 +3442,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #ifndef SINGLE_THREADED
 
+/* Environment-specific multi-thread implementation check  */
 #if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
@@ -3734,7 +3741,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #endif /* WOLFSSL_COND */
 
-#elif defined(WOLFSSL_PTHREADS)
+#elif defined(WOLFSSL_PTHREADS) || \
+     (defined(FREERTOS) && defined(WOLFSSL_ESPIDF))
 
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
@@ -3748,18 +3756,18 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
-#ifdef WOLFSSL_THREAD_NO_JOIN
-    int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb, void* arg)
-    {
-        THREAD_TYPE thread;
-        int ret;
-        XMEMSET(&thread, 0, sizeof(thread));
-        ret = wolfSSL_NewThread(&thread, cb, arg);
-        if (ret == 0)
-            ret = pthread_detach(thread);
-        return ret;
-    }
-#endif
+    #ifdef WOLFSSL_THREAD_NO_JOIN
+        int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb, void* arg)
+        {
+            THREAD_TYPE thread;
+            int ret;
+            XMEMSET(&thread, 0, sizeof(thread));
+            ret = wolfSSL_NewThread(&thread, cb, arg);
+            if (ret == 0)
+                ret = pthread_detach(thread);
+            return ret;
+        }
+    #endif
 
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
@@ -3947,6 +3955,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     #endif /* __MACH__ */
 #endif /* WOLFSSL_COND */
 
-#endif
+#endif /* Environment check */
 
-#endif /* SINGLE_THREADED */
+#endif /* not SINGLE_THREADED */

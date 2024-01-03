@@ -210,8 +210,16 @@ WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
 
 #ifdef HAVE_HKDF
 
+WOLFSSL_API int wc_HKDF_Extract_ex(int type, const byte* salt, word32 saltSz,
+                                const byte* inKey, word32 inKeySz, byte* out,
+                                void* heap, int devId);
+
 WOLFSSL_API int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
                                 const byte* inKey, word32 inKeySz, byte* out);
+
+WOLFSSL_API int wc_HKDF_Expand_ex(int type, const byte* inKey, word32 inKeySz,
+                               const byte* info, word32 infoSz,
+                               byte* out, word32 outSz, void* heap, int devId);
 WOLFSSL_API int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
                                const byte* info, word32 infoSz,
                                byte* out, word32 outSz);

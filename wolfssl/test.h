@@ -110,7 +110,9 @@
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
-    #include <sys/types.h>
+    #if !defined(__ti__) /* conflicts with sys/socket.h */
+        #include <sys/types.h>
+    #endif
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <ti/sysbios/knl/Task.h>
@@ -1284,7 +1286,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
         #elif defined(WOLFSSL_TIRTOS)
-            struct hostent* entry = DNSGetHostByName(peer);
+            struct hostent* entry = (struct hostent*)DNSGetHostByName(peer);
         #elif defined(WOLFSSL_VXWORKS)
             struct hostent* entry = (struct hostent*)hostGetByName((char*)peer);
         #else

@@ -99,6 +99,7 @@ ASN Options:
  * WOLFSSL_ALLOW_ENCODING_CA_FALSE: Allow encoding BasicConstraints CA:FALSE
  *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
+ * NO_TIME_SIGNEDNESS_CHECK: Disabled the time_t signedness check.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -12946,7 +12947,7 @@ static const byte rdnChoice[] = {
 static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 {
     int ret = 0;
-    size_t nameSz;
+    size_t nameSz = 0;
     char tmpName[WOLFSSL_MAX_IPSTR] = {0};
     unsigned char* ip;
 
@@ -14717,12 +14718,14 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     (void)tmpTime;
 
     ltime = wc_Time(0);
+#ifndef NO_TIME_SIGNEDNESS_CHECK
     if (sizeof(ltime) == sizeof(word32) && (int)ltime < 0){
         /* A negative response here could be due to a 32-bit time_t
          * where the year is 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
         return 0;
     }
+#endif
 
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
     if (dateType == BEFORE) {
@@ -19298,6 +19301,7 @@ static int DecodeKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
 
     /* Clear dynamic data and set where to store extended key usage. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
+    XMEMSET(keyUsage, 0, sizeof(keyUsage));
     GetASN_Buffer(&dataASN[KEYUSAGEASN_IDX_STR], keyUsage, &keyUsageSz);
     /* Parse key usage. */
     ret = GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
@@ -26976,8 +26980,8 @@ static int EncodeName(EncodedName* name, const char* nameStr,
     int ret = 0;
     int sz = 0;
     const byte* oid;
-    word32 oidSz;
-    word32 nameSz;
+    word32 oidSz = 0;
+    word32 nameSz = 0;
 
     /* Validate input parameters. */
     if ((name == NULL) || (nameStr == NULL)) {
@@ -27754,7 +27758,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                             int forRequest)
 {
     DECL_ASNSETDATA(dataASN, certExtsASN_Length);
-    int sz;
+    int sz = 0;
     int ret = 0;
     int i = 0;
     static const byte bcOID[]   = { 0x55, 0x1d, 0x13 };
@@ -35069,7 +35073,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspRespDataASN_Length);
     int ret = 0;
     byte version;
-    word32 dateSz, idx = *ioIndex;
+    word32 dateSz = 0;
+    word32 idx = *ioIndex;
     OcspEntry* single = NULL;
 
     WOLFSSL_ENTER("DecodeResponseData");

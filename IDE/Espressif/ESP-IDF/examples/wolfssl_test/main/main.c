@@ -36,6 +36,10 @@
 #include <wolfcrypt/test/test.h>
 #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 
+/* set to 0 for one benchmark,
+** set to 1 for continuous benchmark loop */
+#define TEST_LOOP 0
+
 /*
 ** the wolfssl component can be installed in either:
 **
@@ -190,7 +194,10 @@ void app_main(void)
 #if defined(NO_ESP32_CRYPT)
     ESP_LOGI(TAG, "NO_ESP32_CRYPT defined! HW acceleration DISABLED.");
 #else
-    #if defined(CONFIG_IDF_TARGET_ESP32C3)
+    #if defined(CONFIG_IDF_TARGET_ESP32C2)
+        ESP_LOGI(TAG, "ESP32_CRYPT is enabled for ESP32-C2.");
+
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
         ESP_LOGI(TAG, "ESP32_CRYPT is enabled for ESP32-C3.");
 
     #elif defined(CONFIG_IDF_TARGET_ESP32S2)
@@ -239,8 +246,11 @@ void app_main(void)
 
         loops++;
     }
-    while (ret == 0);
-    ESP_LOGI(TAG, "loops = %d", loops);
+    while (TEST_LOOP && (ret == 0));
+
+#if defined TEST_LOOP && (TEST_LOOP == 1)
+    ESP_LOGI(TAG, "Test loops completed: %d", loops);
+#endif
 
     /* note wolfCrypt_Cleanup() should always be called when finished.
     ** This is called at the end of wolf_test_task();
@@ -266,8 +276,12 @@ void app_main(void)
                                         - (uxTaskGetStackHighWaterMark(NULL)));
 #endif
 
+#ifdef WOLFSSL_ESPIDF_EXIT_MESSAGE
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_EXIT_MESSAGE);
+#else
     ESP_LOGI(TAG, "\n\nDone!\n\n"
                   "If running from idf.py monitor, press twice: Ctrl+]");
+#endif
 
     /* done */
     while (1) {

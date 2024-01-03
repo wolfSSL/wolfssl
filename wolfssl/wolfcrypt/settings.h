@@ -972,12 +972,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_MAIN_DRIVER
 #endif
 
-#ifdef WOLFSSL_TI_CRYPT
-    #define NO_GCM_ENCRYPT_EXTRA
-    #define NO_PUBLIC_GCM_SET_IV
-    #define NO_PUBLIC_CCM_SET_NONCE
-#endif
-
 #ifdef WOLFSSL_TIRTOS
     #define SIZEOF_LONG_LONG 8
     #define NO_WRITEV
@@ -987,35 +981,57 @@ extern void uITRON4_free(void *p) ;
      * specified in user_settings.
      */
     #ifndef USE_FAST_MATH
-        #define WOLFSSL_HAVE_SP_ECC
         #define SP_WORD_SIZE 32
-        #define WOLFSSL_HAVE_SP_RSA
-        #define WOLFSSL_SP_4096
+        #define WOLFSSL_HAVE_SP_ECC
+        #ifndef NO_RSA
+            #define WOLFSSL_HAVE_SP_RSA
+        #endif
+        #ifndef NO_DH
+            #define WOLFSSL_HAVE_SP_DH
+        #endif
+        #if !defined(NO_RSA) || !defined(NO_DH)
+            /* DH/RSA 2048, 3072 and 4096 */
+            #if defined(SP_INT_MAX_BITS) && SP_INT_MAX_BITS >= 4096
+                #define WOLFSSL_SP_4096
+            #endif
+        #endif
     #endif
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
-    #define NO_SIG_WRAPPER
     #define NO_MAIN_DRIVER
-    #define USE_CERT_BUFFERS_2048
-    #define NO_ERROR_STRINGS
-    /* Uncomment this setting if your toolchain does not offer time.h header */
-    /* #define USER_TIME */
+    #ifndef NO_CRYPT_TEST
+        #define USE_CERT_BUFFERS_2048
+    #endif
+    #ifndef DEBUG_WOLFSSL
+        #define NO_ERROR_STRINGS
+    #endif
+
     #define HAVE_ECC
     #define HAVE_ALPN
     #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
     #define HAVE_TLS_EXTENSIONS
-    #define HAVE_AESGCM
     #define HAVE_SUPPORTED_CURVES
+
+    #define HAVE_AESGCM
+
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
     #elif !defined(__GNUC__)
         /* Suppress the sslpro warning */
         #pragma diag_suppress=11
     #endif
+
+    /* Uncomment this setting if your toolchain does not offer time.h header */
+    /* #define USER_TIME */
     #include <ti/sysbios/hal/Seconds.h>
+    #if defined(__ti__) && !defined(USER_TIME)
+        /* TI internal time() offsets by 2208988800 (1990 -> 1970),
+         * which overflows signed 32-bit */
+        #define NO_TIME_SIGNEDNESS_CHECK
+    #endif
 #endif
 
 #ifdef EBSNET
@@ -1177,7 +1193,12 @@ extern void uITRON4_free(void *p) ;
     #if !defined(XMALLOC_OVERRIDE) && !defined(XMALLOC_USER)
         #define XMALLOC_OVERRIDE
         #define XMALLOC(s, h, t)    ((void)(h), (void)(t), (void *)_mem_alloc_system((s)))
-        #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+        #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+            #define XFREE(p, h, t)      {(void)(h); (void)(t); _mem_free(p);}
+        #else
+            #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+        #endif
+
         /* Note: MQX has no realloc, using fastmath above */
     #endif
     #ifdef USE_FAST_MATH
@@ -1208,7 +1229,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     #define XMALLOC(s, h, t)    ((void)(h), (void)(t), (void *)_mem_alloc_system((s)))
-    #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+        #define XFREE(p, h, t)      {(void)(h); (void)(t); _mem_free(p);}
+    #else
+        #define XFREE(p, h, t)      {void* xp = (p); (void)(h); (void)(t); if ((xp)) _mem_free((xp));}
+    #endif
     #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
 
     #define MQX_FILE_PTR FILE *

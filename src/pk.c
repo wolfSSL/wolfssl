@@ -7626,7 +7626,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     int err = 0;
     byte* der = NULL;
     word32 derSz;
-    DhKey* key;
+    DhKey* key = NULL;
 
     (void)heap;
 
@@ -8306,7 +8306,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
     int generator, void (*callback) (int, int, void *))
 {
     int ret = 1;
-    DhKey* key;
+    DhKey* key = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRng = NULL;
 #else
