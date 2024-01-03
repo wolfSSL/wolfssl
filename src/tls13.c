@@ -4743,7 +4743,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     int digestType;
     int digestSize;
     HS_Hashes* tmpHashes;
-    HS_Hashes* acceptHashes;
+    HS_Hashes* acceptHashes = NULL;
     byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
@@ -4752,11 +4752,12 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
     XMEMSET(acceptConfirmation, 0, sizeof(acceptConfirmation));
+    /* store so we can restore regardless of the outcome */
+    tmpHashes = ssl->hsHashes;
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
     if (ret == 0) {
         /* swap hsHashes to acceptHashes */
-        tmpHashes = ssl->hsHashes;
         ssl->hsHashes = acceptHashes;
         /* hash up to the last 8 bytes */
         ret = HashRaw(ssl, input, acceptOffset);
@@ -4824,11 +4825,9 @@ static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = Tls13HKDFExpandKeyLabel(ssl,
-            acceptConfirmation, ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize,
-            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
-            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+        ret = Tls13HKDFExpandKeyLabel(ssl, acceptConfirmation,
+            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
             transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
@@ -4876,18 +4875,19 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     int digestType;
     int digestSize;
     HS_Hashes* tmpHashes;
-    HS_Hashes* acceptHashes;
+    HS_Hashes* acceptHashes = NULL;
     byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
     XMEMSET(zeros, 0, sizeof(zeros));
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
+    /* store so we can restore regardless of the outcome */
+    tmpHashes = ssl->hsHashes;
     /* copy ech hashes to accept */
     ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
     if (ret == 0) {
         /* swap hsHashes to acceptHashes */
-        tmpHashes = ssl->hsHashes;
         ssl->hsHashes = acceptHashes;
         /* hash up to the acceptOffset */
         ret = HashRaw(ssl, output, acceptOffset);
@@ -4954,20 +4954,19 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = Tls13HKDFExpandKeyLabel(ssl,
-            output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
-                ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize,
-            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
-            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
+        ret = Tls13HKDFExpandKeyLabel(ssl, output + acceptOffset,
+            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
             transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
-    /* free hsHashesEch if this is the last ech involved message */
-    if (msgType != hello_retry_request) {
-        FreeHandshakeHashes(ssl);
-        ssl->hsHashesEch = NULL;
-        ssl->options.echAccepted = 1;
+    if (ret == 0) {
+        /* free hsHashesEch if this is the last ech involved message */
+        if (msgType != hello_retry_request) {
+            FreeHandshakeHashes(ssl);
+            ssl->hsHashesEch = NULL;
+            ssl->options.echAccepted = 1;
+        }
     }
     ssl->hsHashes = tmpHashes;
     return ret;
