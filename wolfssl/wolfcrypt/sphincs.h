@@ -41,6 +41,7 @@
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
+#include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
 #endif
 
 #ifdef __cplusplus
@@ -99,7 +100,7 @@ struct sphincs_key {
 
 WOLFSSL_API
 int wc_sphincs_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
-                        sphincs_key* key);
+                        sphincs_key* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_sphincs_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           word32 msgLen, int* res, sphincs_key* key);

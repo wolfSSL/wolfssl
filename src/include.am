@@ -835,6 +835,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sphincs.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_kyber.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/liboqs/liboqs.c
 endif
 
 if BUILD_LIBLMS

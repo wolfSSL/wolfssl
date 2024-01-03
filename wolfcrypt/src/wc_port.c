@@ -127,6 +127,10 @@
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
+#if defined(HAVE_LIBOQS)
+    #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
+#endif
+
 #if defined(FREERTOS) && defined(WOLFSSL_ESPIDF)
     #include <freertos/FreeRTOS.h>
     #include <freertos/task.h>
@@ -391,6 +395,12 @@ int wolfCrypt_Init(void)
             return ret;
         }
         rpcmem_init();
+#endif
+
+#if defined(HAVE_LIBOQS)
+        if ((ret = wolfSSL_liboqsInit()) != 0) {
+            return ret;
+        }
 #endif
     }
     initRefCount++;
