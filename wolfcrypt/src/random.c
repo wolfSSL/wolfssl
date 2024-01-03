@@ -809,6 +809,26 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
     );
     return cnt;
 }
+#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__MICROBLAZE__)
+
+#define LPD_SCNTR_BASE_ADDRESS 0xFF250000
+
+/* Get the high resolution time counter.
+ * Collect ticks from LPD_SCNTR
+ * @return  64-bit tick count.
+ */
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    word64 cnt;
+    word32 *ptr;
+
+    ptr = (word32*)LPD_SCNTR_BASE_ADDRESS;
+    cnt = *(ptr+1);
+    cnt = cnt << 32;
+    cnt |= *ptr;
+
+    return cnt;
+}
 #elif !defined(ENTROPY_MEMUSE_THREAD) && (_POSIX_C_SOURCE >= 199309L)
 /* Get the high resolution time counter.
  *
@@ -3514,6 +3534,26 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);
      */
+
+#elif defined(__MICROBLAZE__)
+    #warning weak source of entropy
+    #define LPD_SCNTR_BASE_ADDRESS 0xFF250000
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32* cnt;
+        word32 i;
+
+        /* using current time with srand */
+        cnt = (word32*)LPD_SCNTR_BASE_ADDRESS;
+        srand(*cnt | *(cnt+1));
+
+        for (i = 0; i < sz; i++)
+            output[i] = rand();
+
+        (void)os;
+        return 0;
+    }
 
 #elif defined(WOLFSSL_ZEPHYR)
 
