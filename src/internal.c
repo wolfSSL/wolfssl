@@ -24251,7 +24251,8 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData > early_data_ext && ssl->earlyData < done_early_data) {
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+          ssl->earlyData > early_data_ext && ssl->earlyData < done_early_data) {
     }
     else
 #endif
