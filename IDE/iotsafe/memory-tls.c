@@ -146,9 +146,12 @@ static int client_loop(void)
     #if (IOTSAFE_ID_SIZE == 1)
     byte cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id, serv_cert_id;
     byte ca_cert_id;
-    #else
+    #elif (IOTSAFE_ID_SIZE == 2)
     word16 cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id, serv_cert_id;
     word16 ca_cert_id;
+    #else
+    word32 cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id, serv_cert_id;
+    word32 ca_cert_id;
     #endif
     cert_file_id = CRT_CLIENT_FILE_ID;
     privkey_id = PRIVKEY_ID;
