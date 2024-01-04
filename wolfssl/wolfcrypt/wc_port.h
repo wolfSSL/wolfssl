@@ -1183,8 +1183,12 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifdef WOLF_C99
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_VOLATILE(a) __asm__ volatile(a)
-#else
+#elif defined(__IAR_SYSTEMS_ICC__)
     #define XASM_VOLATILE(a) asm volatile(a)
+#elif defined(__KEIL__)
+    #define XASM_VOLATILE(a) __asm volatile(a)
+#else
+    #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
 
 #ifndef WOLFSSL_NO_FENCE
