@@ -21162,19 +21162,14 @@ default:
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    word16 i;
-                    word32 boundsCheck = (ssl->buffers.inputBuffer.idx +
+                    word32 i = (ssl->buffers.inputBuffer.idx +
                         ssl->curSize - ssl->specs.aead_mac_size);
                     /* check that the end of the logical length doesn't extend
                      * past the real buffer */
-                    if (boundsCheck > ssl->buffers.inputBuffer.length ||
-                        boundsCheck == 0) {
+                    if (i > ssl->buffers.inputBuffer.length || i == 0) {
                         WOLFSSL_ERROR(BUFFER_ERROR);
                         return BUFFER_ERROR;
                     }
-
-                    /* end of plaintext */
-                    i = (word16)(boundsCheck);
 
                     /* Remove padding from end of plain text. */
                     for (--i; i > ssl->buffers.inputBuffer.idx; i--) {
