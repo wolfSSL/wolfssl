@@ -21160,11 +21160,11 @@ default:
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    /* end of plaintext */
-                    word16 i = (word16)(ssl->buffers.inputBuffer.idx +
-                                 ssl->curSize - ssl->specs.aead_mac_size);
-
-                    if (i > ssl->buffers.inputBuffer.length) {
+                    word32 i = (ssl->buffers.inputBuffer.idx +
+                        ssl->curSize - ssl->specs.aead_mac_size);
+                    /* check that the end of the logical length doesn't extend
+                     * past the real buffer */
+                    if (i > ssl->buffers.inputBuffer.length || i == 0) {
                         WOLFSSL_ERROR(BUFFER_ERROR);
                         return BUFFER_ERROR;
                     }
