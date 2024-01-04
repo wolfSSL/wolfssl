@@ -49,12 +49,12 @@
 
 
 /* Size of a polynomial vector based on dimensions. */
-#define KYBER_POLY_VEC_SZ(k) (k * KYBER_POLY_SIZE)
+#define KYBER_POLY_VEC_SZ(k) ((k) * KYBER_POLY_SIZE)
 /* Size of a compressed polynomial based on bits per coefficient. */
-#define KYBER_POLY_COMPRESSED_SZ(b) (b * (KYBER_N / 8))
+#define KYBER_POLY_COMPRESSED_SZ(b) ((b) * (KYBER_N / 8))
 /* Size of a compressed vector polynomial based on dimensions and bits per
  * coefficient. */
-#define KYBER_POLY_VEC_COMPRESSED_SZ(k, b) (k * (b * (KYBER_N / 8)))
+#define KYBER_POLY_VEC_COMPRESSED_SZ(k, b) ((k) * ((b) * (KYBER_N / 8)))
 
 
 /* Kyber-512 parameters */

@@ -197,7 +197,7 @@ int wc_falcon_init(falcon_key* key)
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(key));
+    ForceZero(key, sizeof(*key));
     return 0;
 }
 
@@ -250,7 +250,7 @@ int wc_falcon_get_level(falcon_key* key, byte* level)
 void wc_falcon_free(falcon_key* key)
 {
     if (key != NULL) {
-        ForceZero(key, sizeof(key));
+        ForceZero(key, sizeof(*key));
     }
 }
 

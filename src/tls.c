@@ -7722,7 +7722,8 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
         ret = wc_KyberKey_EncodePrivateKey(kem, privKey, privSz);
     }
     if (ret == 0) {
-        XMEMCPY(pubKey, ecc_kse->pubKey, ecc_kse->pubKeyLen);
+        if (ecc_kse->pubKeyLen > 0)
+            XMEMCPY(pubKey, ecc_kse->pubKey, ecc_kse->pubKeyLen);
         kse->pubKey = pubKey;
         kse->pubKeyLen = ecc_kse->pubKeyLen + pubSz;
         pubKey = NULL;
@@ -9010,7 +9011,8 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         keyShareEntry->keLen = outlen + ssSz;
         sharedSecret = NULL;
 
-        XMEMCPY(ciphertext, ecc_kse->pubKey, ecc_kse->pubKeyLen);
+        if (ecc_kse->pubKeyLen > 0)
+            XMEMCPY(ciphertext, ecc_kse->pubKey, ecc_kse->pubKeyLen);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = (word32)(ecc_kse->pubKeyLen + ctSz);
         ciphertext = NULL;

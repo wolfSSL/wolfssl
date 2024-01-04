@@ -125,7 +125,7 @@ int wc_sphincs_import_private_key(const byte* priv, word32 privSz,
                                   sphincs_key* key);
 
 WOLFSSL_API
-int wc_sphincs_export_public(sphincs_key*, byte* out, word32* outLen);
+int wc_sphincs_export_public(sphincs_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_sphincs_export_private_only(sphincs_key* key, byte* out, word32* outLen);
 WOLFSSL_API

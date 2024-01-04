@@ -243,7 +243,7 @@ int wc_sphincs_init(sphincs_key* key)
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(key));
+    ForceZero(key, sizeof(*key));
     return 0;
 }
 
@@ -308,7 +308,7 @@ int wc_sphincs_get_level_and_optim(sphincs_key* key, byte* level, byte* optim)
 void wc_sphincs_free(sphincs_key* key)
 {
     if (key != NULL) {
-        ForceZero(key, sizeof(key));
+        ForceZero(key, sizeof(*key));
     }
 }
 
@@ -857,7 +857,7 @@ int wc_Sphincs_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {
@@ -905,7 +905,7 @@ int wc_Sphincs_PublicKeyDecode(const byte* input, word32* inOutIdx,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {
@@ -960,7 +960,7 @@ int wc_Sphincs_PublicKeyToDer(sphincs_key* key, byte* output, word32 inLen,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {

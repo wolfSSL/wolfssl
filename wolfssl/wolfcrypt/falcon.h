@@ -105,7 +105,7 @@ int wc_falcon_import_private_key(const byte* priv, word32 privSz,
                                  falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_export_public(falcon_key*, byte* out, word32* outLen);
+int wc_falcon_export_public(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API
