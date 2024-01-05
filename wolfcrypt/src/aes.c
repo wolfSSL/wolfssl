@@ -2889,7 +2889,7 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd(void)
     }
     return x;
 }
-#endif
+#endif /* !WOLFSSL_AES_SMALL_TABLES */
 
 /* load Td Table4 into cache by cache line stride */
 static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
@@ -2906,7 +2906,7 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
     return 0;
 #endif
 }
-#endif
+#endif /* !WC_NO_CACHE_RESISTANT */
 
 /* Decrypt a block using AES.
  *
@@ -3161,7 +3161,7 @@ static void AesDecryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 }
 #endif
 
-#else
+#else /* WC_AES_BITSLICED */
 
 /* http://cs-www.cs.yale.edu/homes/peralta/CircuitStuff/Sinv.txt */
 static void bs_inv_sub_bytes(bs_word u[8])
@@ -3501,7 +3501,7 @@ static void AesDecryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 }
 #endif
 
-#endif
+#endif /* !WC_AES_BITSLICED */
 
 #if !defined(WC_AES_BITSLICED) || defined(WOLFSSL_AES_DIRECT)
 /* Software AES - ECB Decrypt */
@@ -11410,7 +11410,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     else
 #endif
     {
-#ifndef WOLFSSL_ARMASM
+#ifdef NEED_AES_TABLES
         AesEncryptBlocks_C(aes, in, out, sz);
 #else
         word32 i;
@@ -11461,7 +11461,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     else
 #endif
     {
-#ifndef WOLFSSL_ARMASM
+#ifdef NEED_AES_TABLES
         AesDecryptBlocks_C(aes, in, out, sz);
 #else
         word32 i;
