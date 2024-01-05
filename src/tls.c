@@ -545,6 +545,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
         byte handshake_hash[HSHASH_SZ];
     #endif
 
+        XMEMSET(handshake_hash, 0, HSHASH_SZ);
         ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
         if (ret == 0) {
             ret = _MakeTlsExtendedMasterSecret(
