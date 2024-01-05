@@ -2499,6 +2499,10 @@ struct CRL_Entry {
     word32  tbsSz;
     word32  signatureSz;
     word32  signatureOID;
+#ifdef WC_RSA_PSS
+    word32  sigParamsIndex;         /* start of signature parameters    */
+    word32  sigParamsLength;        /* length of signature parameters   */
+#endif
 #if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];

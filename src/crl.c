@@ -337,7 +337,11 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
     }
 
     ret = VerifyCRL_Signature(&sigCtx, crle->toBeSigned, crle->tbsSz,
-            crle->signature, crle->signatureSz, crle->signatureOID, ca,
+            crle->signature, crle->signatureSz, crle->signatureOID,
+
+            /* @TODO RSA PSS params */ NULL, 0,
+
+            ca,
             crl->heap);
 
     if (ret == 0)

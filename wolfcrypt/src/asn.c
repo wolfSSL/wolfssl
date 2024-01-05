@@ -36611,7 +36611,8 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 
 int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         word32 tbsSz, const byte* signature, word32 sigSz,
-                        word32 signatureOID, Signer *ca, void* heap)
+                        word32 signatureOID, const byte* sigParams,
+                        int sigParamsSz, Signer *ca, void* heap)
 {
     /* try to confirm/verify signature */
 #ifndef IGNORE_KEY_EXTENSIONS
@@ -36625,7 +36626,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
     if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
-                         signatureOID, NULL, 0, NULL) != 0) {
+                         signatureOID, sigParams, sigParamsSz, NULL) != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
         WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
         return ASN_CRL_CONFIRM_E;
@@ -36644,7 +36645,8 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
  * @return  ASN_CRL_NO_SIGNER_E when no signer found.
  * @return  ASN_CRL_CONFIRM_E when signature did not verify.
  */
-static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
+static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* sigParams,
+    int sigParamsSz, const byte* buff, void* cm)
 {
     int ret = 0;
     Signer* ca = NULL;
@@ -36688,7 +36690,7 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
         /* Verify CRL signature with CA. */
         ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, ca, dcrl->heap);
+           dcrl->signatureOID, sigParams, sigParamsSz, ca, dcrl->heap);
     }
 
     return ret;
@@ -37085,6 +37087,9 @@ static const ASNItem crlASN[] = {
 /* TBS_SIGALGO_OID    */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
 /* TBS_SIGALGO_NULL   */                { 3, ASN_TAG_NULL, 0, 0, 1 },
                                                /* issuer */
+#ifdef WC_RSA_PSS
+/* TBS_SIGALGO_P_SEQ  */                { 3, ASN_SEQUENCE, 1, 0, 2 },
+#endif
 /* TBS_ISSUER         */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                /* thisUpdate */
 /* TBS_THISUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 2 },
@@ -37101,6 +37106,9 @@ static const ASNItem crlASN[] = {
 /* SIGALGO            */        { 1, ASN_SEQUENCE, 1, 1, 0 },
 /* SIGALGO_OID        */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* SIGALGO_NULL       */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+#ifdef WC_RSA_PSS
+/* SIGALGO_PARAMS     */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+#endif
                                            /* signatureValue */
 /* SIGNATURE          */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
@@ -37111,6 +37119,9 @@ enum {
     CRLASN_IDX_TBS_SIGALGO,
     CRLASN_IDX_TBS_SIGALGO_OID,
     CRLASN_IDX_TBS_SIGALGO_NULL,
+#ifdef WC_RSA_PSS
+    CRLASN_IDX_TBS_SIGALGO_PARAMS,
+#endif
     CRLASN_IDX_TBS_ISSUER,
     CRLASN_IDX_TBS_THISUPDATE_UTC,
     CRLASN_IDX_TBS_THISUPDATE_GT,
@@ -37122,6 +37133,9 @@ enum {
     CRLASN_IDX_SIGALGO,
     CRLASN_IDX_SIGALGO_OID,
     CRLASN_IDX_SIGALGO_NULL,
+#ifdef WC_RSA_PSS
+    CRLASN_IDX_SIGALGO_PARAMS,
+#endif
     CRLASN_IDX_SIGNATURE,
 };
 
@@ -37209,7 +37223,7 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     WOLFSSL_MSG("Found CRL issuer CA");
     ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, ca, dcrl->heap);
+           dcrl->signatureOID, sigParam, sigParamsSz, ca, dcrl->heap);
 
 end:
     return ret;
@@ -37222,6 +37236,12 @@ end:
     /* Size of buffer for date. */
     word32 lastDateSz = MAX_DATE_SIZE;
     word32 nextDateSz = MAX_DATE_SIZE;
+    const byte* sigParams = NULL;
+    int   sigParamsSz = 0;
+#ifdef WC_RSA_PSS
+    const byte* tbsParams = NULL;
+    int   tbsParamsSz = 0;
+#endif
 
     /* When NO_ASN_TIME is defined, verify not used. */
     (void)verify;
@@ -37274,11 +37294,54 @@ end:
         dcrl->certBegin = dataASN[CRLASN_IDX_TBS].offset;
         /* Store index of signature. */
         dcrl->sigIndex = dataASN[CRLASN_IDX_SIGALGO].offset;
+
+    #ifdef WC_RSA_PSS
+        /* get TBS and Signature parameters for PSS */
+        if (dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS].tag != 0) {
+            tbsParams =
+                GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
+                    buff);
+            tbsParamsSz =
+                GetASNItem_Length(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
+                    buff);
+        }
+        if (dataASN[CRLASN_IDX_SIGALGO_PARAMS].tag != 0) {
+            sigParams =
+                GetASNItem_Addr(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
+                    buff);
+            sigParamsSz =
+                GetASNItem_Length(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
+                    buff);
+            dcrl->sigParamsIndex =
+                dataASN[CRLASN_IDX_SIGALGO_PARAMS].offset;
+            dcrl->sigParamsLength = sigParamsSz;
+        }
+    #endif
+
         /* Store address and length of signature data. */
         GetASN_GetRef(&dataASN[CRLASN_IDX_SIGNATURE], &dcrl->signature,
                 &dcrl->sigLength);
         /* Get the signature OID. */
         dcrl->signatureOID = dataASN[CRLASN_IDX_SIGALGO_OID].data.oid.sum;
+
+    #ifdef WC_RSA_PSS
+        /* Sanity check on parameters found */
+        if (tbsParamsSz != sigParamsSz) {
+            WOLFSSL_MSG("CRL TBS and signature parameter sizes mismatch");
+            ret = ASN_PARSE_E;
+        }
+        else if ((tbsParamsSz > 0) &&
+          (dataASN[CRLASN_IDX_TBS_SIGALGO_OID].data.oid.sum != CTC_RSASSAPSS)) {
+            WOLFSSL_MSG("CRL unexpected signature parameters found");
+            ret = ASN_PARSE_E;
+        }
+        else if ((tbsParamsSz > 0) &&
+                 (XMEMCMP(tbsParams, sigParams, tbsParamsSz) != 0)) {
+            WOLFSSL_MSG("CRL TBS and signature parameter mismatch");
+            ret = ASN_PARSE_E;
+        }
+    #endif
+
         /* Get the format/tag of the last and next date. */
         dcrl->lastDateFormat = (dataASN[CRLASN_IDX_TBS_THISUPDATE_UTC].tag != 0)
                 ? dataASN[CRLASN_IDX_TBS_THISUPDATE_UTC].tag
@@ -37331,7 +37394,7 @@ end:
     }
     if (ret == 0) {
         /* Find signer and verify signature. */
-        ret = PaseCRL_CheckSignature(dcrl, buff, cm);
+        ret = PaseCRL_CheckSignature(dcrl, sigParams, sigParamsSz, buff, cm);
     }
 
     FREE_ASNGETDATA(dataASN, dcrl->heap);
