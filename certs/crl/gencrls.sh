@@ -56,6 +56,10 @@ echo "Step 3"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 check_result $?
 
+echo "Step 3 RSA-PSS"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl_rsapss.pem -keyfile ../rsapss/root-rsapss-priv.pem -cert ../rsapss/root-rsapss.pem
+check_result $?
+
 # metadata
 echo "Step 4"
 openssl crl -in crl.pem -text > tmp
