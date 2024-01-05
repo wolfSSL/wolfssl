@@ -33,6 +33,7 @@ implementations for Post-Quantum cryptography algorithms.
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
@@ -50,9 +51,24 @@ static int liboqs_init = 0;
 
 static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
 {
-    int ret = wc_RNG_GenerateBlock(liboqsCurrentRNG, buffer, (word32)numOfBytes);
-    if (ret != 0) {
-        // ToDo: liboqs exits programm if RNG fails, not sure what to do here
+    int ret;
+    word32 numOfBytes_word32;
+
+    while (numOfBytes > 0) {
+        numOfBytes_word32 = (word32)numOfBytes;
+        numOfBytes -= numOfBytes_word32;
+        ret = wc_RNG_GenerateBlock(liboqsCurrentRNG, buffer,
+                                   numOfBytes_word32);
+        if (ret != 0) {
+            /* ToDo: liboqs exits programm if RNG fails,
+             * not sure what to do here
+             */
+            WOLFSSL_MSG_EX(
+                "wc_RNG_GenerateBlock(..., %u) failed with ret %d "
+                "in wolfSSL_liboqsGetRandomData().", numOfBytes_word32, ret
+                );
+            abort();
+        }
     }
 }
 

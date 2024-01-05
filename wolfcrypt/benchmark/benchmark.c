@@ -12939,7 +12939,9 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             /* Both bench_pq_asym_opt and bench_pq_asym_opt2 are looking for
              * -pq, so we need to do a special case for -pq since optMatched
              * was set to 1 just above. */
-            if (string_matches(argv[1], bench_pq_asym_opt[0].str)) {
+            if ((bench_pq_asym_opt[0].str != NULL) &&
+                string_matches(argv[1], bench_pq_asym_opt[0].str))
+            {
                 bench_pq_asym_algs2 |= bench_pq_asym_opt2[0].val;
                 bench_all = 0;
                 optMatched = 1;

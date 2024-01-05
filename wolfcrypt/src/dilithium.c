@@ -205,7 +205,7 @@ int wc_dilithium_init(dilithium_key* key)
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(key));
+    ForceZero(key, sizeof(*key));
     return 0;
 }
 
@@ -258,7 +258,7 @@ int wc_dilithium_get_level(dilithium_key* key, byte* level)
 void wc_dilithium_free(dilithium_key* key)
 {
     if (key != NULL) {
-        ForceZero(key, sizeof(key));
+        ForceZero(key, sizeof(*key));
     }
 }
 
