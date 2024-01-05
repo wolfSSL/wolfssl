@@ -13486,7 +13486,7 @@ void wolfSSL_set_psk_client_cs_callback(WOLFSSL* ssl,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-               ssl->options.haveAnon, TRUE, ssl->options.side);
+               ssl->options.useAnon, TRUE, ssl->options.side);
 }
 
 /* Set the PSK callback that returns the cipher suite for a client to use
@@ -13539,7 +13539,7 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-               ssl->options.haveAnon, TRUE, ssl->options.side);
+               ssl->options.useAnon, TRUE, ssl->options.side);
 }
 
 /* Set the PSK callback that returns the cipher suite for a server to use
@@ -13589,7 +13589,7 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-               ssl->options.haveAnon, TRUE, ssl->options.side);
+               ssl->options.useAnon, TRUE, ssl->options.side);
 }
 
 /* Get name of first supported cipher suite that uses the hash indicated.

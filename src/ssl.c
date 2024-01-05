@@ -3069,7 +3069,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.haveAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, ssl->options.side);
     }
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
@@ -5330,7 +5330,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-               ssl->options.haveAnon, TRUE, ssl->options.side);
+               ssl->options.useAnon, TRUE, ssl->options.side);
     return WOLFSSL_SUCCESS;
 }
 #endif /* !leanpsk */
@@ -7951,7 +7951,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                    havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.haveAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, ssl->options.side);
     }
     else if (ctx && resetSuites) {
         word16 havePSK = 0;
@@ -7975,7 +7975,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                    ctx->haveECC, TRUE, ctx->haveStaticECC,
                    ctx->haveFalconSig, ctx->haveDilithiumSig,
 #ifdef HAVE_ANON
-                   ctx->haveAnon,
+                   ctx->useAnon,
 #else
                    FALSE,
 #endif
@@ -13107,7 +13107,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         (void)havePSK;
 
         #ifdef HAVE_ANON
-            haveAnon = ssl->options.haveAnon;
+            haveAnon = ssl->options.useAnon;
         #endif
         (void)haveAnon;
 
@@ -15706,7 +15706,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.haveAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, ssl->options.side);
     }
     #ifdef OPENSSL_EXTRA
     /**
@@ -15763,7 +15763,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.haveAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, ssl->options.side);
     }
 
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
@@ -15854,7 +15854,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ctx == NULL)
             return WOLFSSL_FAILURE;
 
-        ctx->haveAnon = 1;
+        ctx->useAnon = 1;
 
         return WOLFSSL_SUCCESS;
     }
@@ -21971,7 +21971,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.haveAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, ssl->options.side);
     }
 
     return ssl->options.mask;

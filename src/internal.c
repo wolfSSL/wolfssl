@@ -1254,7 +1254,7 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     exp[idx++] = 0;
 #endif
 #ifdef HAVE_ANON
-    exp[idx++] = options->haveAnon;
+    exp[idx++] = options->useAnon;
 #else
     exp[idx++] = 0;
 #endif
@@ -1459,7 +1459,7 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     idx++;
 #endif
 #ifdef HAVE_ANON
-    options->haveAnon = exp[idx++];     /* User wants to allow Anon suites */
+    options->useAnon = exp[idx++];     /* User wants to allow Anon suites */
 #else
     idx++;
 #endif
@@ -6409,7 +6409,7 @@ void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
     havePSK = ctx->havePSK;
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
-    haveAnon = ctx->haveAnon;
+    haveAnon = ctx->useAnon;
 #endif /* HAVE_ANON*/
 #ifndef NO_CERTS
     keySz = ctx->privateKeySz;
@@ -6442,7 +6442,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
 #endif /* NO_PSK */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
 #ifdef HAVE_ANON
-    haveAnon = (byte)ssl->options.haveAnon;
+    haveAnon = (byte)ssl->options.useAnon;
 #endif /* HAVE_ANON*/
 #ifdef WOLFSSL_MULTICAST
     haveMcast = (byte)ssl->options.haveMcast;
@@ -6472,7 +6472,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
                 havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                 ssl->options.haveECC, ssl->options.haveStaticECC,
                 ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                ssl->options.haveAnon, ssl->options.side);
+                ssl->options.useAnon, ssl->options.side);
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -6692,7 +6692,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 #ifdef HAVE_ANON
-    ssl->options.haveAnon = ctx->haveAnon;
+    ssl->options.useAnon = ctx->useAnon;
 #endif
 #ifndef NO_DH
     ssl->options.minDhKeySz = ctx->minDhKeySz;
@@ -26220,9 +26220,6 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
     ProtocolVersion version;
     int privateKeySz = 0;
     byte side;
-#ifdef HAVE_ANON
-    byte haveAnon = 0;
-#endif
 
     if (suites == NULL || list == NULL || (ctx == NULL && ssl == NULL)) {
         WOLFSSL_MSG("SetCipherList parameter error");
@@ -26325,9 +26322,6 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
                 haveSig |= SIG_ANON;
             else
                 haveSig &= ~SIG_ANON;
-        #ifdef HAVE_ANON
-            haveAnon = (haveSig & SIG_ANON) == SIG_ANON;
-        #endif
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
@@ -26350,9 +26344,6 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
         if (XSTRCMP(name, "HIGH") == 0 && allowing) {
             /* Disable static, anonymous, and null ciphers */
             haveSig &= ~SIG_ANON;
-        #ifdef HAVE_ANON
-            haveAnon = 0;
-        #endif
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
@@ -26372,9 +26363,6 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
                 haveSig |= SIG_ANON;
             else
                 haveSig &= ~SIG_ANON;
-        #ifdef HAVE_ANON
-            haveAnon = allowing;
-        #endif
             if (allowing) {
                 /* Allow RSA by default. */
                 if (!haveECC)
@@ -26648,15 +26636,6 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
 #endif
         suites->setSuites = 1;
     }
-
-#ifdef HAVE_ANON
-    if (ret == 1) {
-        if (ctx != NULL)
-            ((WOLFSSL_CTX*)ctx)->haveAnon = haveAnon || haveSig | SIG_ANON;
-        else
-            ((WOLFSSL*)ssl)->options.haveAnon = haveAnon || haveSig | SIG_ANON;
-    }
-#endif
 
     return ret;
 }
@@ -35344,7 +35323,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveDH, ssl->options.haveECDSAsig,
                        ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                        ssl->options.haveFalconSig,
-                       ssl->options.haveDilithiumSig, ssl->options.haveAnon,
+                       ssl->options.haveDilithiumSig, ssl->options.useAnon,
                        TRUE, ssl->options.side);
         }
 
@@ -35735,7 +35714,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveDH, ssl->options.haveECDSAsig,
                        ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                        ssl->options.haveFalconSig,
-                       ssl->options.haveDilithiumSig, ssl->options.haveAnon,
+                       ssl->options.haveDilithiumSig, ssl->options.useAnon,
                        TRUE, ssl->options.side);
         }
 
@@ -35813,7 +35792,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            ssl->options.haveDH, ssl->options.haveECDSAsig,
                            ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                            ssl->options.haveFalconSig,
-                           ssl->options.haveDilithiumSig, ssl->options.haveAnon,
+                           ssl->options.haveDilithiumSig, ssl->options.useAnon,
                            TRUE, ssl->options.side);
             }
         }
