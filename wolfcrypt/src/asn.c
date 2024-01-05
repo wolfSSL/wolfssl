@@ -17225,7 +17225,7 @@ exit_cs:
     return ret;
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 int wc_ConfirmAltSignature(
     const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
@@ -17259,7 +17259,7 @@ int wc_ConfirmAltSignature(
 #endif
     return ret;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 
@@ -20367,7 +20367,7 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
 }
 #endif /* WOLFSSL_SUBJ_INFO_ACC */
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 /* The subject alternative public key is an extension that holds the same thing
  * as a subject public key. */
 static const ASNItem subjAltPubKeyInfoASN[] = {
@@ -20517,7 +20517,7 @@ static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
     WOLFSSL_LEAVE("DecodeAltSigVal", ret);
     return ret;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Macro to check if bit is set, if not sets and return success.
     Otherwise returns failure */
@@ -20766,7 +20766,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
                 return ASN_PARSE_E;
             break;
     #endif
-    #ifdef WOLFSSL_X9_146
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
         case SUBJ_ALT_PUB_KEY_INFO_OID:
             VERIFY_AND_SET_OID(cert->extSapkiSet);
             if (DecodeSubjAltPubKeyInfo(&input[idx], length, cert) < 0)
@@ -20782,7 +20782,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
             if (DecodeAltSigVal(&input[idx], length, cert) < 0)
                 return ASN_PARSE_E;
             break;
-    #endif /* WOLFSSL_X9_146 */
+    #endif /* WOLFSSL_DUAL_ALG_CERTS */
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
@@ -23902,7 +23902,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
     #endif
         case RSA_TYPE:
         case PRIVATEKEY_TYPE:
-    #ifdef WOLFSSL_X9_146
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
         case ALT_PRIVATEKEY_TYPE:
     #endif
             if (header) *header = BEGIN_RSA_PRIV;
@@ -24413,7 +24413,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         }
 
         if (type == PRIVATEKEY_TYPE
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             || type == ALT_PRIVATEKEY_TYPE
 #endif
            ) {
@@ -24490,7 +24490,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     if (!headerEnd) {
 #ifdef OPENSSL_EXTRA
         if ((type == PRIVATEKEY_TYPE)
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             || (type == ALT_PRIVATEKEY_TYPE)
 #endif
            ) {
@@ -24573,7 +24573,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     if (keyFormat) {
         /* keyFormat is Key_Sum enum */
         if (type == PRIVATEKEY_TYPE
-        #ifdef WOLFSSL_X9_146
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
             || type == ALT_PRIVATEKEY_TYPE
         #endif
            ) {
@@ -27856,7 +27856,7 @@ static const ASNItem static_certExtsASN[] = {
 /* CRLINFO_SEQ   */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* CRLINFO_OID   */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* CRLINFO_STR   */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 /* SAPKI_SEQ     */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* SAPKI_OID     */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* SAPKI_STR     */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
@@ -27866,7 +27866,7 @@ static const ASNItem static_certExtsASN[] = {
 /* ALTSIGVAL_SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* ALTSIGVAL_OID */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* ALTSIGVAL_STR */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 /* CUSTOM_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* CUSTOM_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* CUSTOM_STR    */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
@@ -27910,7 +27910,7 @@ enum {
     CERTEXTSASN_IDX_CRLINFO_SEQ,
     CERTEXTSASN_IDX_CRLINFO_OID,
     CERTEXTSASN_IDX_CRLINFO_STR,
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     CERTEXTSASN_IDX_SAPKI_SEQ,
     CERTEXTSASN_IDX_SAPKI_OID,
     CERTEXTSASN_IDX_SAPKI_STR,
@@ -27920,7 +27920,7 @@ enum {
     CERTEXTSASN_IDX_ALTSIGVAL_SEQ,
     CERTEXTSASN_IDX_ALTSIGVAL_OID,
     CERTEXTSASN_IDX_ALTSIGVAL_STR,
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
     CERTEXTSASN_IDX_CUSTOM_SEQ,
     CERTEXTSASN_IDX_CUSTOM_OID,
     CERTEXTSASN_IDX_CUSTOM_STR,
@@ -27959,11 +27959,11 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     static const byte nsCertOID[] = { 0x60, 0x86, 0x48, 0x01,
                                       0x86, 0xF8, 0x42, 0x01, 0x01 };
     static const byte crlInfoOID[] = { 0x55, 0x1D, 0x1F };
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     static const byte sapkiOID[] = { 0x55, 0x1d, 0x48 };
     static const byte altSigAlgOID[] = { 0x55, 0x1d, 0x49 };
     static const byte altSigValOID[] = { 0x55, 0x1d, 0x4a };
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -28196,7 +28196,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     CERTEXTSASN_IDX_CRLINFO_STR);
         }
 
-    #ifdef WOLFSSL_X9_146
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
         if (cert->sapkiDer != NULL) {
             /* Set subject alternative public key info OID and data. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SAPKI_OID], sapkiOID,
@@ -28238,7 +28238,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ALTSIGVAL_SEQ,
                     CERTEXTSASN_IDX_ALTSIGVAL_STR);
         }
-    #endif /* WOLFSSL_X9_146 */
+    #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CUSTOM_OID)
         /* encode a custom oid and value */
@@ -29580,7 +29580,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        (byte)cert->version);
         SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_SERIAL], cert->serial,
                 (word32)cert->serialSz);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         if (cert->sigType == 0) {
             /* sigOID being 0 indicates preTBS. Do not encode signature. */
             dataASN[X509CERTASN_IDX_TBS_ALGOID_SEQ].noOut = 1;
@@ -29591,7 +29591,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
 
         } else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
         {
             SetASN_OID(&dataASN[X509CERTASN_IDX_TBS_ALGOID_OID],
                        (word32)cert->sigType, oidSigType);
@@ -30875,7 +30875,7 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     return sigSz;
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                          word32 bufSz, int keyType, void* key, WC_RNG* rng)
 {
@@ -30989,7 +30989,7 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     certSignCtx->sig = NULL;
     return ret;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
                    int keyType, void* key, WC_RNG* rng)

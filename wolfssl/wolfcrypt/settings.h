@@ -317,21 +317,21 @@
 #endif
 
 /* ---------------------------------------------------------------------------
- * X9.146 Required Features.
+ * Dual Algorithm Certificate Required Features.
  * ---------------------------------------------------------------------------
  */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-    #error "X9.146 support requires the ASN.1 template feature."
+    #error "Dual alg cert support requires the ASN.1 template feature."
 #endif
 
 #ifdef NO_RSA
-    #error "Need RSA or else X9.146 example will not work."
+    #error "Need RSA or else dual alg cert example will not work."
 #endif
 
 #ifndef HAVE_ECC
-    #error "Need ECDSA or else X9.146 example will not work."
+    #error "Need ECDSA or else dual alg cert example will not work."
 #endif
 
 #undef WOLFSSL_CERT_GEN
@@ -348,7 +348,7 @@
 
 #undef OPENSSL_EXTRA
 #define OPENSSL_EXTRA
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* ---------------------------------------------------------------------------
  * OpenSSL compat layer

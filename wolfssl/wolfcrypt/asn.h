@@ -1226,7 +1226,7 @@ enum Extensions_Sum {
                                         RFC 5958  - Asymmetric Key Packages */
     FASCN_OID = 419, /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
     UPN_OID   = 265, /* 1.3.6.1.4.1.311.20.2.3 UPN */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     SUBJ_ALT_PUB_KEY_INFO_OID = 186, /* 2.5.29.72 subject alt public key info */
     ALT_SIG_ALG_OID           = 187, /* 2.5.29.73 alt sig alg */
     ALT_SIG_VAL_OID           = 188  /* 2.5.29.74 alt sig val */
@@ -1935,11 +1935,11 @@ struct DecodedCert {
 #ifdef WOLFSSL_SUBJ_INFO_ACC
     byte extSubjInfoAccSet : 1;
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte extSapkiSet : 1;
     byte extAltSigAlgSet : 1;
     byte extAltSigValSet : 1;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif
@@ -1953,7 +1953,7 @@ struct DecodedCert {
     && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
     int sapkiLen;
@@ -1965,7 +1965,7 @@ struct DecodedCert {
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -2015,12 +2015,12 @@ struct Signer {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     word32 cm_idx;
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     /* The Subject Alternative Public Key Info (SAPKI) will NOT be cached.
      * Caching of it is NOT SUPPORTED yet. */
     byte *sapkiDer;
     int sapkiLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     Signer* next;
 };
@@ -2132,13 +2132,13 @@ WOLFSSL_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int wc_ConfirmAltSignature(
     const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
     const byte* sig, word32 sigSz, word32 sigOID,
     void *heap);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
 WOLFSSL_LOCAL int wc_CertGetPubKey(const byte* cert, word32 certSz,

@@ -514,7 +514,7 @@ typedef struct Cert {
     byte     issRaw[sizeof(CertName)];   /* raw issuer info */
     byte     sbjRaw[sizeof(CertName)];   /* raw subject info */
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     /* These will not point to managed buffers. They will point to buffers that
      * are managed by others. No cleanup neccessary. */
     /* Subject Alternative Public Key Info */
@@ -526,7 +526,7 @@ typedef struct Cert {
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
     char     unstructuredName[CTC_NAME_SIZE];
@@ -586,7 +586,7 @@ WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
                                WC_RNG* rng);
 WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_API int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                                      word32 bufSz, int keyType, void* key,
                                      WC_RNG* rng);
@@ -960,7 +960,7 @@ WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
                                     byte* fascn, word32* fascnSz);
 #endif /* WOLFSSL_FPKI */
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_API int GeneratePreTBS(struct DecodedCert* cert, byte *der, int derSz);
 #endif
 

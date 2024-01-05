@@ -7785,7 +7785,7 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
     }
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 /* These match up with what the OQS team has defined. */
 #define HYBRID_SA_MAJOR 0xFE
 #define HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR    0xA1
@@ -7832,7 +7832,7 @@ static WC_INLINE void EncodeDualSigAlg(byte sigAlg, byte altSigAlg,
         output[0] = HYBRID_SA_MAJOR;
     }
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Decode the signature algorithm.
  *
@@ -7926,7 +7926,7 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
     return ret;
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 /* Decode the hybrid signature algorithm.
  *
  * input     The encoded signature algorithm.
@@ -7983,7 +7983,7 @@ static WC_INLINE int DecodeTls13HybridSigAlg(byte* input, byte* hashAlg,
 
     return 0;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Get the hash of the messages so far.
  *
@@ -8638,7 +8638,7 @@ typedef struct Scv13Args {
     byte   sigAlgo;
     byte*  sigData;
     word16 sigDataSz;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte   altSigAlgo;
     word16 altSigLen;    /* Only used in the case of both native and alt. */
 #endif 
@@ -8784,7 +8784,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
             }
             else {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
                     *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
@@ -8806,7 +8806,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.weOwnKey = 1;
                     ssl->buffers.weOwnAltKey = 0;
                 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodePrivateKey(ssl, &args->length);
                 if (ret != 0)
                     goto exit_scv;
@@ -8889,7 +8889,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ERROR_OUT(ALGO_ID_E, exit_scv);
             }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->peerSigSpec == NULL) {
                 /* The peer did not respond. We didn't send CKS or they don't
                  * support it. Either way, we do not need to handle dual
@@ -8929,7 +8929,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(ALGO_ID_E, exit_scv);
                 }
             } else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo,
                              args->verify);
 
@@ -9055,7 +9055,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     );
                 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
                     *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -9079,7 +9079,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                                  ssl->rng);
                     }
                 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 args->length = (word16)sig->length;
             }
         #endif /* HAVE_ECC */
@@ -9140,7 +9140,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.key
                 );
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 /* In the case of RSA, we need to do the CKS both case here
                  * BEFORE args->sigData is overwritten!! We keep the sig
                  * separate and then append later so we don't interfere with the
@@ -9167,7 +9167,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                                  ssl->rng);
                     }
                 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
                 if (ret == 0) {
                     args->length = (word16)args->sigLen;
@@ -9184,10 +9184,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 goto exit_scv;
             }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             /* Add in length of the alt sig which will be appended to the sig */
             args->length += args->altSigLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
             /* Add signature length. */
             c16toa(args->length, args->verify + HASH_SIG_SIZE);
@@ -9412,7 +9412,7 @@ typedef struct Dcv13Args {
 
     byte*  sigData;
     word16 sigDataSz;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte   altSigAlgo;
     byte*  altSigData;
     word16 altSigDataSz;
@@ -9429,7 +9429,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
         XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     if (args && args->altSigData != NULL) {
         XFREE(args->altSigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->altSigData = NULL;
@@ -9528,7 +9528,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->peerSigSpec == NULL) {
                 /* The peer did not respond. We didn't send CKS or they don't
                  * support it. Either way, we do not need to handle dual
@@ -9544,17 +9544,17 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ssl->sigSpec == NULL ||
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_NATIVE ||
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodeTls13SigAlg(input + args->idx, &args->hashAlgo,
                                         &args->sigAlgo);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             } else {
                 ret = DecodeTls13HybridSigAlg(input + args->idx,
                                               &args->hashAlgo,
                                               &args->sigAlgo,
                                               &args->altSigAlgo);
             }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
             if (ret < 0)
                 goto exit_dcv;
@@ -9573,7 +9573,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             if (!wolfSSL_is_server(ssl) &&
                 (ssl->sigSpec != NULL) &&
                 (*ssl->sigSpec != WOLFSSL_CKS_SIGSPEC_NATIVE)) {
@@ -9722,7 +9722,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
                 }
             }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
             /* Check for public key of required type. */
             /* Assume invalid unless signature algo matches the key provided */
@@ -9799,7 +9799,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
 
             sig->length = args->sz;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             if (!wolfSSL_is_server(ssl) &&
                 ssl->sigSpec != NULL &&
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -9902,7 +9902,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
 
                 CreateSigData(ssl, sigData, &sigDataSz, 1);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (!wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
                     *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -9911,7 +9911,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->altSigDataSz = sigDataSz;
                 }
                 else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 {
                     args->sigData = sigData;
                     args->sigDataSz = sigDataSz;
@@ -10027,7 +10027,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 byte *sigData = args->sigData;
                 word32 sigDataSz = args->sigDataSz;
                 WOLFSSL_MSG("Doing Falcon peer cert verify");
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (!wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
                     *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -10041,7 +10041,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         sigDataSz = args->altSigDataSz;
                     }
                 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = wc_falcon_verify_msg(sigIn, sigInLen,
                                            sigData, sigDataSz,
                                            &res, ssl->peerFalconKey);
@@ -10049,14 +10049,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if ((ret >= 0) && (res == 1)) {
                     /* CLIENT/SERVER: data verified with public key from
                      * certificate. */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                     if (!wolfSSL_is_server(ssl) &&
                         ssl->sigSpec != NULL &&
                         *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
                         args->altPeerAuthGood = 1;
                     }
                     else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                         ssl->options.peerAuthGood = 1;
 
                     FreeKey(ssl, DYNAMIC_TYPE_FALCON,
@@ -10073,7 +10073,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 byte *sigData = args->sigData;
                 word32 sigDataSz = args->sigDataSz;
                 WOLFSSL_MSG("Doing Dilithium peer cert verify");
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (!wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
                     *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
@@ -10087,7 +10087,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         sigDataSz = args->altSigDataSz;
                     }
                 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = wc_dilithium_verify_msg(sigIn, sigInLen,
                                               sigData, sigDataSz,
                                               &res, ssl->peerDilithiumKey);
@@ -10095,14 +10095,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if ((ret >= 0) && (res == 1)) {
                     /* CLIENT/SERVER: data verified with public key from
                      * certificate. */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                     if (!wolfSSL_is_server(ssl) &&
                         ssl->sigSpec != NULL &&
                         *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
                         args->altPeerAuthGood = 1;
                     }
                     else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                         ssl->options.peerAuthGood = 1;
 
                     FreeKey(ssl, DYNAMIC_TYPE_DILITHIUM,
@@ -10146,14 +10146,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
         case TLS_ASYNC_FINALIZE:
         {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
             if (!wolfSSL_is_server(ssl) &&
                 ssl->options.peerAuthGood &&
                 ssl->sigSpec != NULL &&
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
                 ssl->options.peerAuthGood = args->altPeerAuthGood;
             }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
             ssl->options.havePeerVerify = 1;
 
             /* Set final index */
@@ -13037,7 +13037,7 @@ int wolfSSL_NoKeyShares(WOLFSSL* ssl)
 }
 #endif
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 int wolfSSL_UseCKS(WOLFSSL* ssl, byte *sigSpec, word16 sigSpecSz)
 {
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->ctx->method->version) ||
@@ -13059,7 +13059,7 @@ int wolfSSL_CTX_UseCKS(WOLFSSL_CTX* ctx, byte *sigSpec, word16 sigSpecSz)
     ctx->sigSpecSz = sigSpecSz;
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Do not send a ticket after TLS v1.3 handshake for resumption.
  *

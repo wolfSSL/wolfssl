@@ -970,7 +970,7 @@ static const char* server_usage_msg[][65] = {
 #ifdef HAVE_SUPPORTED_CURVES
         "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
@@ -1164,7 +1164,7 @@ static const char* server_usage_msg[][65] = {
 #ifdef HAVE_SUPPORTED_CURVES
         "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
@@ -1329,7 +1329,7 @@ static void Usage(void)
 #ifdef HAVE_SUPPORTED_CURVES
     printf("%s", msg[++msgId]);     /* --onlyPskDheKe */
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     printf("%s", msg[++msgId]);     /* --altPrivKey */
 #endif
     printf("%s", msg[++msgId]);     /* Examples repo link */
@@ -1448,7 +1448,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         {"crl-dir", 1, 265},
 #endif
         {"quieter", 0, 266},
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         { "altPrivKey", 1, 267},
 #endif
         { 0, 0, 0 }
@@ -2337,7 +2337,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             quieter = 1;
             break;
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         case 267:
             altPrivKey = myoptarg;
             break;
@@ -2720,14 +2720,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key file, "
                        "check file and run from wolfSSL home dir");
-        #ifdef WOLFSSL_X9_146
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
         if ((altPrivKey != NULL) &&
             wolfSSL_CTX_use_AltPrivateKey_file(ctx, altPrivKey,
                                                WOLFSSL_FILETYPE_PEM)
                                                != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load alt private key file, "
                        "check file and run from wolfSSL home dir");
-        #endif /* WOLFSSL_X9_146 */
+        #endif /* WOLFSSL_DUAL_ALG_CERTS */
     #else
         /* loads private key file using buffer API */
         load_buffer(ctx, ourKey, WOLFSSL_KEY);

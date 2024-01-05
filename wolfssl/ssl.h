@@ -1056,10 +1056,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_certificate_file(
     WOLFSSL_CTX* ctx, const char* file, int format);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(
     WOLFSSL_CTX* ctx, const char* file, int format);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_API int wolfSSL_CTX_use_AltPrivateKey_file(
     WOLFSSL_CTX* ctx, const char* file, int format);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 #ifndef NO_CERTS
@@ -4011,7 +4011,7 @@ WOLFSSL_API int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group);
 WOLFSSL_API int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 #endif
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 #define WOLFSSL_CKS_SIGSPEC_NATIVE      0x0001
 #define WOLFSSL_CKS_SIGSPEC_ALTERNATIVE 0x0002
 #define WOLFSSL_CKS_SIGSPEC_BOTH        0x0003
@@ -4020,7 +4020,7 @@ WOLFSSL_API int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_UseCKS(WOLFSSL* ssl, byte *sigSpec, word16 sigSpecSz);
 WOLFSSL_API int wolfSSL_CTX_UseCKS(WOLFSSL_CTX* ctx, byte *sigSpec,
                                    word16 sigSpecSz);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Secure Renegotiation */
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)

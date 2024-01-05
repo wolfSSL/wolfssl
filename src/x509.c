@@ -7523,7 +7523,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     return derSz;
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 int GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     int ret = 0;
     WOLFSSL_X509 *x = NULL;
@@ -7559,7 +7559,7 @@ int GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
 
     return ret;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 #ifndef NO_BIO
 /**
@@ -9967,7 +9967,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             cert->crlInfoSz = x509->rawCRLInfoSz;
         }
 
-    #ifdef WOLFSSL_X9_146
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
         /* We point to instance in x509 so DON'T need to be free'd. */
         cert->sapkiDer = x509->sapkiDer;
         cert->sapkiLen = x509->sapkiLen;
@@ -9975,7 +9975,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         cert->altSigAlgLen = x509->altSigAlgLen;
         cert->altSigValDer = x509->altSigValDer;
         cert->altSigValLen = x509->altSigValLen;
-    #endif /* WOLFSSL_X9_146 */
+    #endif /* WOLFSSL_DUAL_ALG_CERTS */
     #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef WOLFSSL_CERT_REQ

@@ -5880,10 +5880,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             signer->pubKeySize     = cert->pubKeySize;
         }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         signer->sapkiDer = cert->sapkiDer;
         signer->sapkiLen = cert->sapkiLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
         if (cert->subjectCNStored) {
             signer->nameLen        = cert->subjectCNLen;
@@ -6896,7 +6896,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 ret = FALCON_KEY_SIZE_E;
             }
             if (ssl) {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (type == ALT_PRIVATEKEY_TYPE) {
                     if (*keyFormat == FALCON_LEVEL1k) {
                         ssl->buffers.altKeyType = falcon_level1_sa_algo;
@@ -6907,7 +6907,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ssl->buffers.altKeySz = *keySz;
                 }
                 else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 {
                     if (*keyFormat == FALCON_LEVEL1k) {
                         ssl->buffers.keyType = falcon_level1_sa_algo;
@@ -6919,7 +6919,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
             else {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (type == ALT_PRIVATEKEY_TYPE) {
                     if (*keyFormat == FALCON_LEVEL1k) {
                         ctx->altPrivateKeyType = falcon_level1_sa_algo;
@@ -6930,7 +6930,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ctx->altPrivateKeySz = *keySz;
                 }
                 else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 {
                     if (*keyFormat == FALCON_LEVEL1k) {
                         ctx->privateKeyType = falcon_level1_sa_algo;
@@ -6998,7 +6998,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 ret = DILITHIUM_KEY_SIZE_E;
             }
             if (ssl) {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (type == ALT_PRIVATEKEY_TYPE) {
                     if (*keyFormat == DILITHIUM_LEVEL2k) {
                         ssl->buffers.altKeyType = dilithium_level2_sa_algo;
@@ -7012,7 +7012,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ssl->buffers.altKeySz = *keySz;
                 }
                 else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 {
                     if (*keyFormat == DILITHIUM_LEVEL2k) {
                         ssl->buffers.keyType = dilithium_level2_sa_algo;
@@ -7027,7 +7027,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
             else {
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (type == ALT_PRIVATEKEY_TYPE) {
                     if (*keyFormat == DILITHIUM_LEVEL2k) {
                         ctx->altPrivateKeyType = dilithium_level2_sa_algo;
@@ -7041,7 +7041,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ctx->altPrivateKeySz = *keySz;
                 }
                 else
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 {
                     if (*keyFormat == DILITHIUM_LEVEL2k) {
                         ctx->privateKeyType = dilithium_level2_sa_algo;
@@ -7375,7 +7375,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
         }
     }
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     else if (type == ALT_PRIVATEKEY_TYPE) {
         if (ssl != NULL) {
              /* Make sure previous is free'd */
@@ -7403,7 +7403,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
         }
     }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
     else {
         FreeDer(&der);
         return WOLFSSL_BAD_CERTTYPE;
@@ -7413,9 +7413,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* No operation, just skip the next section */
     }
     else if ((type == PRIVATEKEY_TYPE)
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
              || (type == ALT_PRIVATEKEY_TYPE)
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
             ) {
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
                 &keyFormat, heap, devId, type);
@@ -8965,7 +8965,7 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
     return WOLFSSL_FAILURE;
 }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 int wolfSSL_CTX_use_AltPrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
                                        int format)
 {
@@ -8978,7 +8978,7 @@ int wolfSSL_CTX_use_AltPrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
 
     return WOLFSSL_FAILURE;
 }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif /* NO_FILESYSTEM */
 
 
@@ -16228,14 +16228,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->buffers.weOwnKey = 0;
         }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
         if (ssl->buffers.weOwnAltKey) {
             WOLFSSL_MSG("Unloading alt key");
             ForceZero(ssl->buffers.altKey->buffer, ssl->buffers.altKey->length);
             FreeDer(&ssl->buffers.altKey);
             ssl->buffers.weOwnAltKey = 0;
         }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
         return WOLFSSL_SUCCESS;
     }
@@ -27393,11 +27393,11 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     ssl->buffers.keyLabel = 0;
     ssl->buffers.keySz    = 0;
     ssl->buffers.keyDevId = 0;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ssl->buffers.weOwnAltKey)
         FreeDer(&ssl->buffers.altKey);
     ssl->buffers.altKey   = NULL;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 }
 #endif
 
@@ -28198,11 +28198,11 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
     ssl->options.haveFalconSig    = ctx->haveFalconSig;
     ssl->options.haveDilithiumSig = ctx->haveDilithiumSig;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     ssl->buffers.altKey     = ctx->altPrivateKey;
     ssl->buffers.altKeySz   = ctx->altPrivateKeySz;
     ssl->buffers.altKeyType = ctx->altPrivateKeyType;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif
 
 #ifdef WOLFSSL_SESSION_ID_CTX

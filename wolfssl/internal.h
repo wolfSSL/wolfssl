@@ -2175,7 +2175,7 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        void* heap, int devId);
 #endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word16* length);
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
@@ -2851,7 +2851,7 @@ typedef enum {
     #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS         = 0x0039, /* RFC 9001, ch. 8.2 */
     #endif
-    #ifdef WOLFSSL_X9_146
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
     TLSX_CKS                        = 0xff92, /* X9.146; ff indcates personal
                                                * use and 92 is hex for 146. */
     #endif
@@ -3382,7 +3382,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
         const byte* input, word16 length, TLSX** extensions);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input,
                                  word16 length, TLSX** extensions);
 WOLFSSL_LOCAL int TLSX_CKS_Set(WOLFSSL* ssl, TLSX** extensions);
@@ -3568,11 +3568,11 @@ struct WOLFSSL_CTX {
     int         privateKeySz;
     int         privateKeyDevId;
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*  altPrivateKey;
     byte        altPrivateKeyType;
     int         altPrivateKeySz;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
     WOLFSSL_EVP_PKEY* privateKeyPKey;
 #endif
@@ -3949,7 +3949,7 @@ struct WOLFSSL_CTX {
 #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
     byte doAppleNativeCertValidationFlag:1;
 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte *sigSpec;
     word16 sigSpecSz;
 #endif
@@ -4521,7 +4521,7 @@ typedef struct Buffers {
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnCertChain;        /* SSL own cert chain flag */
     byte            weOwnKey;              /* SSL own key flag */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte            weOwnAltKey;           /* SSL own alt key flag */
 #endif
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
@@ -4540,7 +4540,7 @@ typedef struct Buffers {
     byte            keyLabel:1;            /* Key data is a label not data */
     int             keySz;                 /* Size of RSA key */
     int             keyDevId;              /* Device Id for key */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*      altKey;                /* WOLFSSL_CTX owns, unless we own */
     byte            altKeyType;            /* Type of key: dilithium, falcon */
     int             altKeySz;              /* Size of key */
@@ -5123,7 +5123,7 @@ struct WOLFSSL_X509 {
     byte            notBeforeData[CTC_DATE_SIZE];
     byte            notAfterData[CTC_DATE_SIZE];
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
     int sapkiLen;
@@ -5133,7 +5133,7 @@ struct WOLFSSL_X509 {
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 
 
@@ -5500,7 +5500,7 @@ struct WOLFSSL {
                                          * allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
     WOLFSSL_CIPHER  cipher;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     void*           hsAltKey;           /* Handshake key (dilithium, falcon)
                                          * allocated from heap */
     word32          hsAltType;          /* Type of Handshake key (hsAltKey) */
@@ -5926,7 +5926,7 @@ struct WOLFSSL {
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
     SSLSnifferSecretCb snifferSecretCb;
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     byte *sigSpec;         /* This pointer never owns the memory. */
     word16 sigSpecSz;
     byte *peerSigSpec;     /* This pointer always owns the memory. */

@@ -2585,12 +2585,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         ForceZero(ctx->privateKey->buffer, ctx->privateKey->length);
     }
     FreeDer(&ctx->privateKey);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ctx->altPrivateKey != NULL && ctx->altPrivateKey->buffer != NULL) {
         ForceZero(ctx->altPrivateKey->buffer, ctx->altPrivateKey->length);
     }
     FreeDer(&ctx->altPrivateKey);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
     wolfSSL_EVP_PKEY_free(ctx->privateKeyPKey);
 #endif
@@ -4581,11 +4581,11 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->altNames = NULL;
     }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
     XFREE(x509->altSigAlgDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
     XFREE(x509->altSigValDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         wolfSSL_RefFree(&x509->ref);
@@ -6760,11 +6760,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.keyLabel = ctx->privateKeyLabel;
     ssl->buffers.keySz    = ctx->privateKeySz;
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     ssl->buffers.altKey     = ctx->altPrivateKey;
     ssl->buffers.altKeySz   = ctx->altPrivateKeySz;
     ssl->buffers.altKeyType = ctx->altPrivateKeyType;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
@@ -7570,10 +7570,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     defined(WOLFSSL_SSLKEYLOGFILE) && defined(WOLFSSL_TLS13)
     (void)wolfSSL_set_tls13_secret_cb(ssl, tls13ShowSecrets, NULL);
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     ssl->sigSpec = ctx->sigSpec;
     ssl->sigSpecSz = ctx->sigSpecSz;
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
     return 0;
 }
 
@@ -7954,9 +7954,9 @@ void FreeKeyExchange(WOLFSSL* ssl)
 
     /* Free handshake key */
     FreeKey(ssl, ssl->hsType, &ssl->hsKey);
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     FreeKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 #ifndef NO_DH
     /* Free temp DH key */
@@ -8325,7 +8325,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_CTX_free(ssl->initial_ctx);
     ssl->initial_ctx = NULL;
 #endif
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     XFREE(ssl->peerSigSpec, ssl->heap, DYNAMIC_TYPE_TLSX);
 #endif
 }
@@ -12961,7 +12961,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->pkCurveOID = dCert->pkCurveOID;
 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Copy over alternative sig and pubkey. In this case we will allocate new
      * buffers for them as we have no knowledge of when the DecodedCert is
      * freed. */
@@ -12982,7 +12982,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     } else {
         ret = MEMORY_E;
     }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     return ret;
 }
@@ -13930,7 +13930,7 @@ PRAGMA_GCC_DIAG_POP
         alreadySigner = AlreadySigner(SSL_CM(ssl), subjectHash);
     }
 
-#ifdef WOLFSSL_X9_146
+#ifdef WOLFSSL_DUAL_ALG_CERTS
     if ((ret == 0) && (args->dCert->sapkiDer != NULL)) {
 #ifdef WOLFSSL_SMALL_STACK
         byte *der = XMALLOC(MAX_CERT_VERIFY_SZ, ssl->heap, DYNAMIC_TYPE_DCERT);
@@ -13963,7 +13963,7 @@ PRAGMA_GCC_DIAG_POP
             }
         }
     }
-#endif /* WOLFSSL_X9_146 */
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     /* get signature check failures from above */
@@ -28018,7 +28018,7 @@ exit_dpk:
     return ret;
 }
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_X9_146)
+#if defined(HAVE_PQC) && defined(WOLFSSL_DUAL_ALG_CERTS)
 /* This is just like the above, but only consider Falcon and Dilthium and
  * only for the alternative key; not the native key. */
 int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
@@ -28130,7 +28130,7 @@ exit_dapk:
 
     return ret;
 }
-#endif /* HAVE_PQC && WOLFSSL_X9_146 */
+#endif /* HAVE_PQC && WOLFSSL_DUAL_ALG_CERTS */
 #endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)

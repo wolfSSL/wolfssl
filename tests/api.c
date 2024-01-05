@@ -835,16 +835,16 @@ static int test_wolfSSL_Method_Allocators(void)
     return EXPECT_RESULT();
 }
 
-#if defined(WOLFSSL_X9_146) && !defined(NO_FILESYSTEM)
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && !defined(NO_FILESYSTEM)
 /*----------------------------------------------------------------------------*
- | X9.146 Tests
+ | Dual algorithm Certificate Tests
  *----------------------------------------------------------------------------*/
 #define LARGE_TEMP_SZ 4096
 
 /* To better understand this, please see the X9.146 example in wolfssl-examples
  * repo. */
-static int do_X9_146_root_certgen(byte **out, char *caKeyFile, char *sapkiFile,
-                                  char *altPrivFile)
+static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
+                                    char *sapkiFile, char *altPrivFile)
 {
     EXPECT_DECLS;
     FILE* file = NULL;
@@ -940,10 +940,10 @@ static int do_X9_146_root_certgen(byte **out, char *caKeyFile, char *sapkiFile,
     return outSz;
 }
 
-static int do_X9_146_server_certgen(byte **out, char *caKeyFile,
-                                    char *sapkiFile, char *altPrivFile,
-                                    char *serverKeyFile,
-                                    byte *caCertBuf, int caCertSz)
+static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
+                                      char *sapkiFile, char *altPrivFile,
+                                      char *serverKeyFile,
+                                      byte *caCertBuf, int caCertSz)
 {
     EXPECT_DECLS;
     FILE* file = NULL;
@@ -1053,10 +1053,10 @@ static int do_X9_146_server_certgen(byte **out, char *caKeyFile,
     return outSz;
 }
 
-static int do_X9_146_tls13_connection(byte *caCert, word32 caCertSz,
-                                      byte *serverCert, word32 serverCertSz,
-                                      byte *serverKey, word32 serverKeySz,
-                                      int negative_test)
+static int do_dual_alg_tls13_connection(byte *caCert, word32 caCertSz,
+                                        byte *serverCert, word32 serverCertSz,
+                                        byte *serverKey, word32 serverKeySz,
+                                        int negative_test)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -1083,7 +1083,7 @@ static int do_X9_146_tls13_connection(byte *caCert, word32 caCertSz,
     return EXPECT_RESULT();
 }
 
-static int test_x9_146_support(void)
+static int test_dual_alg_support(void)
 {
     EXPECT_DECLS;
     /* Root CA and server keys will be the same. This is only appropriate for
@@ -1102,14 +1102,14 @@ static int test_x9_146_support(void)
     ExpectIntEQ(load_file(keyFile, &serverKey, &serverKeySz), 0);
 
     /* Base normal case. */
-    rootSz = do_X9_146_root_certgen(&root, keyFile, sapkiFile, altPrivFile);
+    rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, altPrivFile);
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
-    serverSz = do_X9_146_server_certgen(&server, keyFile, sapkiFile,
+    serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
                                         altPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
-    ExpectIntEQ(do_X9_146_tls13_connection(root, rootSz,
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 0),
                 TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1117,16 +1117,16 @@ static int test_x9_146_support(void)
 
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
-     * call to do_X9_146_tls13_connection(). Its expecting a failed connection
+     * call to do_dual_alg_tls13_connection(). Its expecting a failed connection
      * because the signature won't verify. */
-    rootSz = do_X9_146_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
+    rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
-    serverSz = do_X9_146_server_certgen(&server, keyFile, sapkiFile,
-                                        wrongPrivFile, keyFile, root, rootSz);
+    serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
+                                          wrongPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
-    ExpectIntEQ(do_X9_146_tls13_connection(root, rootSz,
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 1),
                 TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1137,11 +1137,11 @@ static int test_x9_146_support(void)
     return EXPECT_RESULT();
 }
 #else
-static int test_x9_146_support(void)
+static int test_dual_alg_support(void)
 {
     return TEST_SKIPPED;
 }
-#endif /* WOLFSSL_X9_146 && !NO_FILESYSTEM */
+#endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_FILESYSTEM */
 
 /*----------------------------------------------------------------------------*
  | Context
@@ -69554,7 +69554,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_Init),
 
-    TEST_DECL(test_x9_146_support),
+    TEST_DECL(test_dual_alg_support),
 
     /*********************************
      * OpenSSL compatibility API tests
