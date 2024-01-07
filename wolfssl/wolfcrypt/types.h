@@ -1237,87 +1237,57 @@ typedef struct w64wrapper {
           #ifndef WOLFSSL_USE_ALIGN
               #define WOLFSSL_USE_ALIGN
           #endif
-    #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM || USE_INTEL_SPEEDUP || WOLFSSL_AFALG_XILINX */
+    #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM || USE_INTEL_SPEEDUP || \
+            * WOLFSSL_AFALG_XILINX */
 
+    /* Helpers for memory alignment */
+    #ifndef XALIGNED
+        #if defined(__GNUC__) || defined(__llvm__) || \
+              defined(__IAR_SYSTEMS_ICC__)
+            #define XALIGNED(x) __attribute__ ( (aligned (x)))
+        #elif defined(__KEIL__)
+            #define XALIGNED(x) __align(x)
+        #elif defined(_MSC_VER)
+            /* disable align warning, we want alignment ! */
+            #pragma warning(disable: 4324)
+            #define XALIGNED(x) __declspec (align (x))
+        #else
+            #define XALIGNED(x) /* null expansion */
+        #endif
+    #endif
+
+    /* Only use alignment in wolfSSL/wolfCrypt if WOLFSSL_USE_ALIGN is set */
     #ifdef WOLFSSL_USE_ALIGN
-        #if !defined(ALIGN16)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
-                defined(__llvm__)
-                #define ALIGN16 __attribute__ ( (aligned (16)))
-            #elif defined(_MSC_VER)
-                /* disable align warning, we want alignment ! */
-                #pragma warning(disable: 4324)
-                #define ALIGN16 __declspec (align (16))
-            #else
-                #define ALIGN16
-            #endif
-        #endif /* !ALIGN16 */
-
-        #if !defined (ALIGN32)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
-                defined(__llvm__)
-                #define ALIGN32 __attribute__ ( (aligned (32)))
-            #elif defined(_MSC_VER)
-                /* disable align warning, we want alignment ! */
-                #pragma warning(disable: 4324)
-                #define ALIGN32 __declspec (align (32))
-            #else
-                #define ALIGN32
-            #endif
-        #endif /* !ALIGN32 */
-
-        #if !defined(ALIGN64)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
-                defined(__llvm__)
-                #define ALIGN64 __attribute__ ( (aligned (64)))
-            #elif defined(_MSC_VER)
-                /* disable align warning, we want alignment ! */
-                #pragma warning(disable: 4324)
-                #define ALIGN64 __declspec (align (64))
-            #else
-                #define ALIGN64
-            #endif
-        #endif /* !ALIGN64 */
-
-        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
-            defined(__llvm__)
-            #define ALIGN128 __attribute__ ( (aligned (128)))
-        #elif defined(_MSC_VER)
-            /* disable align warning, we want alignment ! */
-            #pragma warning(disable: 4324)
-            #define ALIGN128 __declspec (align (128))
+        /* For IAR ARM the maximum variable alignment on stack is 8-bytes.
+         * Variables declared outside stack (like static globals) can have
+         * higher alignment. */
+        #if defined(__ICCARM__)
+            #define WOLFSSL_ALIGN(x) XALIGNED(8)
         #else
-            #define ALIGN128
+            #define WOLFSSL_ALIGN(x) XALIGNED(x)
         #endif
-
-        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)  || \
-            defined(__llvm__)
-            #define ALIGN256 __attribute__ ( (aligned (256)))
-        #elif defined(_MSC_VER)
-            /* disable align warning, we want alignment ! */
-            #pragma warning(disable: 4324)
-            #define ALIGN256 __declspec (align (256))
-        #else
-            #define ALIGN256
-        #endif
-
     #else
-        #ifndef ALIGN16
-            #define ALIGN16
-        #endif
-        #ifndef ALIGN32
-            #define ALIGN32
-        #endif
-        #ifndef ALIGN64
-            #define ALIGN64
-        #endif
-        #ifndef ALIGN128
-            #define ALIGN128
-        #endif
-        #ifndef ALIGN256
-            #define ALIGN256
-        #endif
-    #endif /* WOLFSSL_USE_ALIGN */
+        #define WOLFSSL_ALIGN(x) /* null expansion */
+    #endif
+
+    #ifndef ALIGN8
+        #define ALIGN8   WOLFSSL_ALIGN(8)
+    #endif
+    #ifndef ALIGN16
+        #define ALIGN16  WOLFSSL_ALIGN(16)
+    #endif
+    #ifndef ALIGN32
+        #define ALIGN32  WOLFSSL_ALIGN(32)
+    #endif
+    #ifndef ALIGN64
+        #define ALIGN64  WOLFSSL_ALIGN(64)
+    #endif
+    #ifndef ALIGN128
+        #define ALIGN128 WOLFSSL_ALIGN(128)
+    #endif
+    #ifndef ALIGN256
+        #define ALIGN256 WOLFSSL_ALIGN(256)
+    #endif
 
     #if !defined(PEDANTIC_EXTENSION)
         #if defined(__GNUC__)
