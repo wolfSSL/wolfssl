@@ -350,6 +350,8 @@ static int my_preempt_count(void) {
     return preempt_count();
 }
 
+#if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_COMMERCIAL_LICENSE)
+
 /* ditto for fpregs_lock/fpregs_unlock */
 #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
 static void my_fpregs_lock(void) {
@@ -359,7 +361,10 @@ static void my_fpregs_lock(void) {
 static void my_fpregs_unlock(void) {
     fpregs_unlock();
 }
-#endif
+
+#endif /* WOLFSSL_LINUXKM_SIMD_X86 && WOLFSSL_COMMERCIAL_LICENSE */
+
+#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
