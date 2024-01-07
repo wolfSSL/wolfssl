@@ -80,6 +80,25 @@ struct wc_thread_fpu_count_ent {
     unsigned int fpu_state;
 };
 struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_states = NULL;
+
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wnested-externs"
+/* avoid dependence on "alternatives_patched" and "xfd_validate_state()". */
+#undef CONFIG_X86_DEBUG_FPU
+#include "../kernel/fpu/internal.h"
+#include "../kernel/fpu/xstate.h"
+#pragma GCC diagnostic pop
+
+static union wc_linuxkm_fpu_savebuf {
+    byte buf[1024]; /* must be 64-byte-aligned */
+    struct fpstate fpstate;
+} *wc_linuxkm_fpu_savebufs = NULL;
+
+#endif /* WOLFSSL_COMMERCIAL_LICENSE */
+
 #define WC_FPU_COUNT_MASK 0x7fffffffU
 #define WC_FPU_SAVED_MASK 0x80000000U
 
@@ -111,7 +130,37 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
         return MEMORY_E;
     }
 
-    memset(wc_linuxkm_fpu_states, 0, wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
+    memset(wc_linuxkm_fpu_states, 0, wc_linuxkm_fpu_states_n_tracked
+           * sizeof(wc_linuxkm_fpu_states[0]));
+
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+    wc_linuxkm_fpu_savebufs = (union wc_linuxkm_fpu_savebuf *)malloc(
+        wc_linuxkm_fpu_states_n_tracked * sizeof(*wc_linuxkm_fpu_savebufs));
+    if (! wc_linuxkm_fpu_savebufs) {
+        pr_err("allocation of %lu bytes for "
+               "wc_linuxkm_fpu_savebufs failed.\n",
+               WC_LINUXKM_ROUND_UP_P_OF_2(wc_linuxkm_fpu_states_n_tracked)
+               * sizeof(*wc_linuxkm_fpu_savebufs));
+        free(wc_linuxkm_fpu_states);
+        wc_linuxkm_fpu_states = NULL;
+        return MEMORY_E;
+    }
+    if ((uintptr_t)wc_linuxkm_fpu_savebufs
+        & (WC_LINUXKM_ROUND_UP_P_OF_2(sizeof(*wc_linuxkm_fpu_savebufs)) - 1))
+    {
+        pr_err("allocation of %lu bytes for "
+               "wc_linuxkm_fpu_savebufs allocated with wrong alignment 0x%lx.\n",
+               WC_LINUXKM_ROUND_UP_P_OF_2(wc_linuxkm_fpu_states_n_tracked)
+               * sizeof(*wc_linuxkm_fpu_savebufs),
+               (uintptr_t)wc_linuxkm_fpu_savebufs);
+        free(wc_linuxkm_fpu_savebufs);
+        wc_linuxkm_fpu_savebufs = NULL;
+        free(wc_linuxkm_fpu_states);
+        wc_linuxkm_fpu_states = NULL;
+        return MEMORY_E;
+    }
+
+#endif
 
     return 0;
 }
@@ -141,11 +190,17 @@ void free_wolfcrypt_linuxkm_fpu_states(void) {
         }
     }
 
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+    free(wc_linuxkm_fpu_savebufs);
+    wc_linuxkm_fpu_savebufs = NULL;
+#endif
     free(wc_linuxkm_fpu_states);
     wc_linuxkm_fpu_states = NULL;
 }
 
-/* lock-(mostly)-free thread-local storage facility for tracking recursive fpu pushing/popping */
+/* lock-(mostly)-free thread-local storage facility for tracking recursive fpu
+ * pushing/popping
+ */
 static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) {
     struct wc_thread_fpu_count_ent *i, *i_endptr, *i_empty;
     pid_t my_pid = task_pid_nr(current), i_pid;
@@ -194,7 +249,16 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) 
     }
 }
 
-static void wc_linuxkm_fpu_state_free(struct wc_thread_fpu_count_ent *ent) {
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+static struct fpstate *wc_linuxkm_fpstate_buf_from_fpu_state(
+    struct wc_thread_fpu_count_ent *state)
+{
+    size_t i = (size_t)(state - wc_linuxkm_fpu_states) / sizeof(*state);
+    return &wc_linuxkm_fpu_savebufs[i].fpstate;
+}
+#endif
+
+static void wc_linuxkm_fpu_state_release(struct wc_thread_fpu_count_ent *ent) {
     if (ent->fpu_state != 0) {
         static int warned_nonzero_fpu_state = 0;
         if (! warned_nonzero_fpu_state) {
@@ -228,25 +292,39 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
     }
 
     if (irq_fpu_usable()) {
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-        /* inhibit migration, which gums up the algorithm in kernel_fpu_{begin,end}(). */
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+        struct fpstate *fpstate = wc_linuxkm_fpstate_buf_from_fpu_state(pstate);
+        fpregs_lock();
+        fpstate->xfeatures = ~0UL;
+        os_xsave(fpstate);
+#else /* !WOLFSSL_COMMERCIAL_LICENSE */
+#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+        /* inhibit migration, which gums up the algorithm in
+         * kernel_fpu_{begin,end}().
+         */
         migrate_disable();
 #endif
         kernel_fpu_begin();
-        pstate->fpu_state = 1U; /* set msb 0 to trigger kernel_fpu_end() at cleanup. */
+#endif /* !WOLFSSL_COMMERCIAL_LICENSE */
+        /* set msb 0 to trigger kernel_fpu_end() at cleanup. */
+        pstate->fpu_state = 1U;
     } else if (in_nmi() || (hardirq_count() > 0) || (softirq_count() > 0)) {
         static int warned_fpu_forbidden = 0;
         if (! warned_fpu_forbidden)
             pr_err("save_vector_registers_x86 called from IRQ handler.\n");
-        wc_linuxkm_fpu_state_free(pstate);
+        wc_linuxkm_fpu_state_release(pstate);
         return EPERM;
     } else {
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
+    !defined(WOLFSSL_COMMERCIAL_LICENSE)
         migrate_disable();
 #endif
         /* assume already safely in_kernel_fpu. */
+        /* set msb 1 to inhibit kernel_fpu_end() at cleanup. */
         pstate->fpu_state =
-            WC_FPU_SAVED_MASK + 1U; /* set msb 1 to inhibit kernel_fpu_end() at cleanup. */
+            WC_FPU_SAVED_MASK + 1U;
     }
 
     return 0;
@@ -265,15 +343,23 @@ void restore_vector_registers_x86(void)
         return;
     }
 
-    if (pstate->fpu_state == 0U)
+    if (pstate->fpu_state == 0U) {
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+        struct fpstate *fpstate = wc_linuxkm_fpstate_buf_from_fpu_state(pstate);
+        os_xrstor(fpstate, fpstate->xfeatures);
+        fpregs_unlock();
+#else
         kernel_fpu_end();
-    else
+#endif
+    } else
         pstate->fpu_state = 0U;
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
+    !defined(WOLFSSL_COMMERCIAL_LICENSE)
     migrate_enable();
 #endif
 
-    wc_linuxkm_fpu_state_free(pstate);
+    wc_linuxkm_fpu_state_release(pstate);
 
     return;
 }
