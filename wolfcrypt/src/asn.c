@@ -24489,9 +24489,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     if (!headerEnd) {
 #ifdef OPENSSL_EXTRA
-        if ((type == PRIVATEKEY_TYPE)
+        if (type == PRIVATEKEY_TYPE
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-            || (type == ALT_PRIVATEKEY_TYPE)
+            || type == ALT_PRIVATEKEY_TYPE
 #endif
            ) {
             /* see if there is a -----BEGIN * PRIVATE KEY----- header */
