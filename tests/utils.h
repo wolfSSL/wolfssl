@@ -278,13 +278,13 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
     byte *caCert, int caCertSz, byte *serverCert, int serverCertSz,
     byte *serverKey, int serverKeySz)
 {
+    int ret;
     (void)caCert;
     (void)caCertSz;
     (void)serverCert;
     (void)serverCertSz;
     (void)serverKey;
     (void)serverKeySz;
-    int ret;
 
     if (ctx_c != NULL && *ctx_c == NULL) {
         *ctx_c = wolfSSL_CTX_new(method_c());
