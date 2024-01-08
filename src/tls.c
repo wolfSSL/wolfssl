@@ -9501,7 +9501,6 @@ static int TLSX_UseCKS(TLSX** extensions, WOLFSSL* ssl, void* heap)
     /* If it is already present, do nothing. */
     if (extension == NULL) {
         /* The data required is in the ssl struct, so push it in. */
-        // try replace ssl with NULL.  Should be fine.
         ret = TLSX_Push(extensions, TLSX_CKS, (void*)ssl, heap);
     }
 

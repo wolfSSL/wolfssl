@@ -20426,8 +20426,10 @@ static int DecodeSubjAltPubKeyInfo(const byte* input, int sz, DecodedCert* cert)
     }
 
     if (ret == 0) {
-        cert->sapkiDer = (byte *)input;//dataASN[ALT_SPUBKEYINFO_SEQ].data.u8;
-        cert->sapkiLen = sz;//dataASN[ALT_SPUBKEYINFO_SEQ].length;
+        /* dataASN[ALT_SPUBKEYINFO_SEQ].data.u8 */
+        cert->sapkiDer = (byte *)input;
+        /* dataASN[ALT_SPUBKEYINFO_SEQ].length */
+        cert->sapkiLen = sz;
         cert->sapkiOID = dataASN[ALT_SPUBKEYINFO_ALGO_OID].data.oid.sum;
     }
 
