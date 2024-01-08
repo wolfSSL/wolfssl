@@ -7412,9 +7412,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (done == 1) {
         /* No operation, just skip the next section */
     }
-    else if ((type == PRIVATEKEY_TYPE)
+    else if (type == PRIVATEKEY_TYPE
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-             || (type == ALT_PRIVATEKEY_TYPE)
+             || type == ALT_PRIVATEKEY_TYPE
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
             ) {
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
