@@ -29900,6 +29900,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     if ((args->idx - args->begin) + length > size) {
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
                     }
+                    ssl->ecdhCurveOID = curveOid;
 
                 #ifdef HAVE_CURVE25519
                     if (ssl->ecdhCurveOID == ECC_X25519_OID) {
