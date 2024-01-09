@@ -138,6 +138,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
         crle->signatureSz = dcrl->sigLength;
         crle->signatureOID = dcrl->signatureOID;
+        crle->sigParamsSz = dcrl->sigParamsLength;
         crle->toBeSigned = (byte*)XMALLOC(crle->tbsSz, heap,
                                           DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->toBeSigned == NULL)
@@ -148,6 +149,20 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
             XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
             crle->toBeSigned = NULL;
             return -1;
+        }
+
+        if (dcrl->sigParamsLength > 0) {
+            crle->sigParams = (byte*)XMALLOC(crle->sigParamsSz, heap,
+                                             DYNAMIC_TYPE_CRL_ENTRY);
+            if (crle->sigParams== NULL) {
+                XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
+                crle->toBeSigned = NULL;
+                XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
+                crle->signature = NULL;
+                return -1;
+            }
+            XMEMCPY(crle->sigParams, buff + dcrl->sigParamsIndex,
+                crle->sigParamsSz);
         }
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
         XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
@@ -206,6 +221,8 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
         XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
     if (crle->toBeSigned != NULL)
         XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
+    if (crle->sigParams != NULL)
+        XFREE(crle->sigParams, heap, DYNAMIC_TYPE_CRL_ENTRY);
 #if defined(OPENSSL_EXTRA)
     if (crle->issuer != NULL) {
         FreeX509Name(crle->issuer);
@@ -338,16 +355,19 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
 
     ret = VerifyCRL_Signature(&sigCtx, crle->toBeSigned, crle->tbsSz,
             crle->signature, crle->signatureSz, crle->signatureOID,
+        #ifdef WC_RSA_PSS
+            crle->sigParams, crle->sigParamsSz,
+        #else
+            NULL, 0,
+        #endif
+            ca, crl->heap);
 
-            /* @TODO RSA PSS params */ NULL, 0,
-
-            ca,
-            crl->heap);
-
-    if (ret == 0)
+    if (ret == 0) {
         crle->verified = 1;
-    else
+    }
+    else {
         crle->verified = ret;
+    }
 
     return ret;
 }
@@ -739,11 +759,15 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
                                           DYNAMIC_TYPE_CRL_ENTRY);
         dupl->signature = (byte*)XMALLOC(dupl->signatureSz, heap,
                                          DYNAMIC_TYPE_CRL_ENTRY);
-        if (dupl->toBeSigned == NULL || dupl->signature == NULL) {
+        dupl->sigParams = (byte*)XMALLOC(dupl->sigParamsSz, heap,
+                                         DYNAMIC_TYPE_CRL_ENTRY);
+        if (dupl->toBeSigned == NULL || dupl->signature == NULL ||
+                dupl->sigParams == NULL) {
             CRL_Entry_free(dupl, heap);
             return NULL;
         }
         XMEMCPY(dupl->toBeSigned, ent->toBeSigned, dupl->tbsSz);
+        XMEMCPY(dupl->sigParams, ent->sigParams, dupl->sigParamsSz);
         XMEMCPY(dupl->signature, ent->signature, dupl->signatureSz);
     }
     else {
@@ -751,6 +775,10 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
         dupl->tbsSz = 0;
         dupl->signature = NULL;
         dupl->signatureSz = 0;
+#ifdef WC_RSA_PSS
+        dupl->sigParams = NULL;
+        dupl->sigParamsSz = 0;
+#endif
 #if !defined(NO_SKID) && !defined(NO_ASN)
         dupl->extAuthKeyIdSet = 0;
 #endif

@@ -3046,7 +3046,7 @@ static int test_wolfSSL_CertManagerCRL(void)
     const char* crl2     = "./certs/crl/crl2.pem";
 #ifdef WC_RSA_PSS
     const char* crl_rsapss = "./certs/crl/crl_rsapss.pem";
-    const char* ca_rsapss  = "certs/rsapss/root-rsapss.pem";
+    const char* ca_rsapss  = "certs/rsapss/ca-rsapss.pem";
 #endif
     const unsigned char crl_buff[] = {
         0x30, 0x82, 0x02, 0x04, 0x30, 0x81, 0xed, 0x02,
@@ -54537,6 +54537,9 @@ static int test_wolfSSL_X509_load_crl_file(void)
         "./certs/crl/caEccCrl.pem",
         "./certs/crl/eccCliCRL.pem",
         "./certs/crl/eccSrvCRL.pem",
+    #ifdef WC_RSA_PSS
+        "./certs/crl/crl_rsapss.pem",
+    #endif
         ""
     };
     char der[][100] = {
@@ -54552,6 +54555,10 @@ static int test_wolfSSL_X509_load_crl_file(void)
 
     ExpectIntEQ(X509_LOOKUP_load_file(lookup, "certs/ca-cert.pem",
         X509_FILETYPE_PEM), 1);
+#ifdef WC_RSA_PSS
+    ExpectIntEQ(X509_LOOKUP_load_file(lookup, "certs/rsapss/ca-rsapss.pem",
+        X509_FILETYPE_PEM), 1);
+#endif
     ExpectIntEQ(X509_LOOKUP_load_file(lookup, "certs/server-revoked-cert.pem",
         X509_FILETYPE_PEM), 1);
     if (store) {
@@ -54572,6 +54579,11 @@ static int test_wolfSSL_X509_load_crl_file(void)
         ExpectIntEQ(wolfSSL_CertManagerVerify(store->cm,
             "certs/server-revoked-cert.pem", WOLFSSL_FILETYPE_PEM),
             CRL_CERT_REVOKED);
+#ifdef WC_RSA_PSS
+        ExpectIntEQ(wolfSSL_CertManagerVerify(store->cm,
+            "certs/rsapss/server-rsapss-cert.pem", WOLFSSL_FILETYPE_PEM),
+            CRL_CERT_REVOKED);
+#endif
     }
     /* once feeing store */
     X509_STORE_free(store);
