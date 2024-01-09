@@ -978,7 +978,8 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     ExpectIntEQ(wc_InitRng(&rng), 0);
     XMEMSET(serverKeyBuf, 0, serverKeySz);
     ExpectNotNull(file = fopen(serverKeyFile, "rb"));
-    ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file), 0);
+    ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file),
+                0);
     fclose(file);
     ExpectIntEQ(wc_InitRsaKey_ex(&serverKey, NULL, INVALID_DEVID), 0);
     idx = 0;

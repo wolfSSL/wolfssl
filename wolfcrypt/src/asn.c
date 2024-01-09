@@ -20371,24 +20371,25 @@ static int DecodeSubjInfoAcc(const byte* input, word32 sz, DecodedCert* cert)
 /* The subject alternative public key is an extension that holds the same thing
  * as a subject public key. */
 static const ASNItem subjAltPubKeyInfoASN[] = {
-                                               /* subjectPublicKeyInfo SubjectPublicKeyInfo */
-/* ALT_SPUBKEYINFO_SEQ          */             { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                               /* algorithm          AlgorithmIdentifier */
-                                               /* AlgorithmIdentifier ::= SEQUENCE */
-/* ALT_SPUBKEYINFO_ALGO_SEQ     */                 { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                               /* Algorithm    OBJECT IDENTIFIER */
-/* ALT_SPUBKEYINFO_ALGO_OID     */                     { 2, ASN_OBJECT_ID, 0, 0, 0 },
-                                               /* parameters   ANY defined by algorithm OPTIONAL */
-/* ALT_SPUBKEYINFO_ALGO_NULL    */                     { 2, ASN_TAG_NULL, 0, 0, 1 },
-/* ALT_SPUBKEYINFO_ALGO_CURVEID */                     { 2, ASN_OBJECT_ID, 0, 0, 1 },
+                           /* subjectPublicKeyInfo SubjectPublicKeyInfo */
+/* ALT_SPUBKEYINFO_SEQ          */      { 0, ASN_SEQUENCE, 1, 1, 0 },
+                           /* algorithm          AlgorithmIdentifier */
+                           /* AlgorithmIdentifier ::= SEQUENCE */
+/* ALT_SPUBKEYINFO_ALGO_SEQ     */         { 1, ASN_SEQUENCE, 1, 1, 0 },
+                          /* Algorithm    OBJECT IDENTIFIER */
+/* ALT_SPUBKEYINFO_ALGO_OID     */             { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                           /* parameters   ANY defined by algorithm OPTIONAL */
+/* ALT_SPUBKEYINFO_ALGO_NULL    */             { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* ALT_SPUBKEYINFO_ALGO_CURVEID */             { 2, ASN_OBJECT_ID, 0, 0, 1 },
 #ifdef WC_RSA_PSS
-/* ALT_SPUBKEYINFO_ALGO_P_SEQ   */                     { 2, ASN_SEQUENCE, 1, 0, 1 },
+/* ALT_SPUBKEYINFO_ALGO_P_SEQ   */             { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
-                                               /* subjectPublicKey   BIT STRING */
-/* ALT_SPUBKEYINFO_PUBKEY       */                 { 1, ASN_BIT_STRING, 0, 0, 0 }
+                           /* subjectPublicKey   BIT STRING */
+/* ALT_SPUBKEYINFO_PUBKEY       */          { 1, ASN_BIT_STRING, 0, 0, 0 }
 };
 
-#define subjAltPubKeyInfoASN_Length (sizeof(subjAltPubKeyInfoASN) / sizeof(ASNItem))
+#define subjAltPubKeyInfoASN_Length (sizeof(subjAltPubKeyInfoASN) / \
+                                     sizeof(ASNItem))
 
 enum {
     ALT_SPUBKEYINFO_SEQ = 0,
@@ -20441,12 +20442,12 @@ static int DecodeSubjAltPubKeyInfo(const byte* input, int sz, DecodedCert* cert)
 /* The alternative signature algorithm extension holds the same thing as a
  * as a signature algorithm identifier. */
 static const ASNItem altSigAlgASN[] = {
-                                       /* AltSigAlg            AlgorithmIdentifier */
-                                       /* AlgorithmIdentifier ::= SEQUENCE */
+                          /* AltSigAlg            AlgorithmIdentifier */
+                          /* AlgorithmIdentifier ::= SEQUENCE */
 /* ALTSIG_ALGOID_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-                                       /* Algorithm    OBJECT IDENTIFIER */
+                          /* Algorithm    OBJECT IDENTIFIER */
 /* ALTSIG_ALGOID_OID                */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                                       /* parameters   ANY defined by algorithm OPTIONAL */
+                          /* parameters   ANY defined by algorithm OPTIONAL */
 /* ALTSIG_ALGOID_PARAMS_NULL        */     { 1, ASN_TAG_NULL, 0, 0, 1 },
 #ifdef WC_RSA_PSS
 /* ALTSIG_ALGOID_PARAMS             */     { 1, ASN_SEQUENCE, 1, 0, 1 },
