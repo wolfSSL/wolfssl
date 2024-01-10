@@ -7804,28 +7804,28 @@ static WC_INLINE void EncodeDualSigAlg(byte sigAlg, byte altSigAlg,
     output[1] = 0x0;
 
     if (sigAlg == ecc_dsa_sa_algo && altSigAlg == dilithium_level2_sa_algo) {
-	output[1] = HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR;
+        output[1] = HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR;
     }
     else if (sigAlg == rsa_pss_sa_algo &&
              altSigAlg == dilithium_level2_sa_algo) {
-	output[1] = HYBRID_RSA3072_DILITHIUM_LEVEL2_SA_MINOR;
+        output[1] = HYBRID_RSA3072_DILITHIUM_LEVEL2_SA_MINOR;
     }
     else if (sigAlg == ecc_dsa_sa_algo &&
              altSigAlg == dilithium_level3_sa_algo) {
-	output[1] = HYBRID_P384_DILITHIUM_LEVEL3_SA_MINOR;
+        output[1] = HYBRID_P384_DILITHIUM_LEVEL3_SA_MINOR;
     }
     else if (sigAlg == ecc_dsa_sa_algo &&
              altSigAlg == dilithium_level5_sa_algo) {
-	output[1] = HYBRID_P521_DILITHIUM_LEVEL5_SA_MINOR;
+        output[1] = HYBRID_P521_DILITHIUM_LEVEL5_SA_MINOR;
     }
     else if (sigAlg == ecc_dsa_sa_algo && altSigAlg == falcon_level1_sa_algo) {
-	output[1] = HYBRID_P256_FALCON_LEVEL1_SA_MINOR;
+        output[1] = HYBRID_P256_FALCON_LEVEL1_SA_MINOR;
     }
     else if (sigAlg == rsa_pss_sa_algo && altSigAlg == falcon_level1_sa_algo) {
-	output[1] = HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR;
+        output[1] = HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR;
     }
     else if (sigAlg == ecc_dsa_sa_algo && altSigAlg == falcon_level5_sa_algo) {
-	output[1] = HYBRID_P521_FALCON_LEVEL5_SA_MINOR;
+        output[1] = HYBRID_P521_FALCON_LEVEL5_SA_MINOR;
     }
 
     if (output[1] != 0x0) {
@@ -8641,7 +8641,7 @@ typedef struct Scv13Args {
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     byte   altSigAlgo;
     word16 altSigLen;    /* Only used in the case of both native and alt. */
-#endif 
+#endif
 } Scv13Args;
 
 static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
