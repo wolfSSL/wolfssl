@@ -23487,28 +23487,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_pkey1_test(void)
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
     cliKeySz = (long)sizeof_client_key_der_1024;
 
-    x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_1024,
-            sizeof_client_cert_der_1024, SSL_FILETYPE_ASN1);
+    x509 = wolfSSL_X509_load_certificate_buffer_ex(client_cert_der_1024,
+            sizeof_client_cert_der_1024, SSL_FILETYPE_ASN1, HEAP_HINT);
     keyLenBits = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
     cliKeySz = (long)sizeof_client_key_der_2048;
 
-    x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_2048,
-            sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1);
+    x509 = wolfSSL_X509_load_certificate_buffer_ex(client_cert_der_2048,
+            sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1, HEAP_HINT);
 #elif defined(USE_CERT_BUFFERS_3072)
     XMEMCPY(tmp, client_key_der_3072, sizeof_client_key_der_3072);
     cliKeySz = (long)sizeof_client_key_der_3072;
 
-    x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_3072,
-            sizeof_client_cert_der_3072, SSL_FILETYPE_ASN1);
+    x509 = wolfSSL_X509_load_certificate_buffer_ex(client_cert_der_3072,
+            sizeof_client_cert_der_3072, SSL_FILETYPE_ASN1, HEAP_HINT);
     keyLenBits = 3072;
 #elif defined(USE_CERT_BUFFERS_4096)
     XMEMCPY(tmp, client_key_der_4096, sizeof_client_key_der_4096);
     cliKeySz = (long)sizeof_client_key_der_4096;
 
-    x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_4096,
-            sizeof_client_cert_der_4096, SSL_FILETYPE_ASN1);
+    x509 = wolfSSL_X509_load_certificate_buffer_ex(client_cert_der_4096,
+            sizeof_client_cert_der_4096, SSL_FILETYPE_ASN1, HEAP_HINT);
     keyLenBits = 4096;
 #else
     {

@@ -42,23 +42,29 @@
 
 #ifdef OPENSSL_EXTRA
 
-WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
+WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap)
 {
     WOLFSSL_X509_STORE_CTX* ctx;
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_new");
 
-    ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(sizeof(WOLFSSL_X509_STORE_CTX), NULL,
+    ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(sizeof(WOLFSSL_X509_STORE_CTX), heap,
                                     DYNAMIC_TYPE_X509_CTX);
     if (ctx != NULL) {
         ctx->param = NULL;
+        ctx->heap = heap;
         if (wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
                 WOLFSSL_SUCCESS) {
-            XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
+            XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
             ctx = NULL;
         }
     }
 
     return ctx;
+}
+
+WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
+{
+    return wolfSSL_X509_STORE_CTX_new_ex(NULL);
 }
 
 
@@ -75,8 +81,8 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         ctx->current_cert = x509;
         #else
         if(x509 != NULL){
-            ctx->current_cert = wolfSSL_X509_d2i(NULL, x509->derCert->buffer,
-                    x509->derCert->length);
+            ctx->current_cert = wolfSSL_X509_d2i_ex(NULL, x509->derCert->buffer,
+                    x509->derCert->length, ctx->heap);
             if(ctx->current_cert == NULL)
                 return WOLFSSL_FAILURE;
         } else
@@ -133,7 +139,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         if (ctx->param == NULL) {
             ctx->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           NULL, DYNAMIC_TYPE_OPENSSL);
+                           ctx->heap, DYNAMIC_TYPE_OPENSSL);
             if (ctx->param == NULL){
                 WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
                 return WOLFSSL_FAILURE;
@@ -156,11 +162,11 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 #endif
 
         if (ctx->param != NULL) {
-            XFREE(ctx->param, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
             ctx->param = NULL;
         }
 
-        XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
+        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_X509_CTX);
     }
 }
 
@@ -172,7 +178,7 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
     if (ctx != NULL) {
 
         if (ctx->param != NULL) {
-            XFREE(ctx->param, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
             ctx->param = NULL;
         }
 
@@ -505,7 +511,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
         int i;
         WOLFSSL_X509_CHAIN* c = ctx->sesChain;
         WOLFSSL_STACK*     sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK),
-                                    NULL, DYNAMIC_TYPE_X509);
+                                    ctx->heap, DYNAMIC_TYPE_X509);
 
         if (sk == NULL) {
             return NULL;
@@ -640,7 +646,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
     }
 
     if (err == 0) {
-        filteredCerts = wolfSSL_sk_X509_new_null();
+        filteredCerts = wolfSSL_sk_X509_new_null_ex(ctx->heap);
         if (filteredCerts == NULL) {
             err = 1;
         }
@@ -730,17 +736,18 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
     defined(WOLFSSL_WPAS_SMALL)
-WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new_ex(void* heap)
 {
     int ret;
     WOLFSSL_X509_STORE* store = NULL;
     WOLFSSL_ENTER("wolfSSL_X509_STORE_new");
 
-    if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
+    if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), heap,
                                     DYNAMIC_TYPE_X509_STORE)) == NULL)
         goto err_exit;
 
     XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE));
+    store->heap = heap;
     store->isDynamic = 1;
 
     wolfSSL_RefInit(&store->ref, &ret);
@@ -765,12 +772,12 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 
     if ((store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+                           heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         goto err_exit;
     }
     XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
     if ((store->lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
-                           NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+                           heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("store->lookup.dir memory allocation error");
         goto err_exit;
     }
@@ -790,6 +797,11 @@ err_exit:
     wolfSSL_X509_STORE_free(store);
 
     return NULL;
+}
+
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
+{
+    return wolfSSL_X509_STORE_new_ex(NULL);
 }
 
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
@@ -821,7 +833,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
             if (store->param != NULL) {
-                XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
+                XFREE(store->param, store->heap, DYNAMIC_TYPE_OPENSSL);
                 store->param = NULL;
             }
 
@@ -832,11 +844,11 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
                 }
 #endif
                 wc_FreeMutex(&store->lookup.dirs->lock);
-                XFREE(store->lookup.dirs, NULL, DYNAMIC_TYPE_OPENSSL);
+                XFREE(store->lookup.dirs, store->heap, DYNAMIC_TYPE_OPENSSL);
                 store->lookup.dirs = NULL;
             }
 #endif
-            XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
+            XFREE(store, store->heap, DYNAMIC_TYPE_X509_STORE);
         }
     }
 }
@@ -1035,7 +1047,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         return WOLFSSL_FAILURE;
 
     /* tmp ctx for setting our cert manager */
-    ctx = wolfSSL_CTX_new(cm_pick_method());
+    ctx = wolfSSL_CTX_new(cm_pick_method(str->heap));
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
@@ -1172,7 +1184,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         return NULL;
     }
 
-    sk = wolfSSL_sk_X509_new_null();
+    sk = wolfSSL_sk_X509_new_null_ex(s->heap);
 
     if (sk == NULL) {
         return NULL;
@@ -1182,25 +1194,25 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         /* get certificate buffer */
         cert = &s->certs[certIdx];
 
-        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), s->heap, DYNAMIC_TYPE_DCERT);
 
         if (dCert == NULL) {
             goto error;
         }
         XMEMSET(dCert, 0, sizeof(DecodedCert));
 
-        InitDecodedCert(dCert, cert->buffer, cert->length, NULL);
+        InitDecodedCert(dCert, cert->buffer, cert->length, s->heap);
 
         /* Parse Certificate */
         if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, NULL)){
             goto error;
         }
-        x509 = wolfSSL_X509_new();
+        x509 = wolfSSL_X509_new_ex(s->heap);
 
         if (x509 == NULL) {
             goto error;
         }
-        InitX509(x509, 1, NULL);
+        InitX509(x509, 1, s->heap);
 
         if (CopyDecodedToX509(x509, dCert) == 0) {
 
@@ -1216,7 +1228,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         found = 1;
 
         FreeDecodedCert(dCert);
-        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+        XFREE(dCert, s->heap, DYNAMIC_TYPE_DCERT);
         dCert = NULL;
     }
 
@@ -1229,7 +1241,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
 error:
     if (dCert) {
         FreeDecodedCert(dCert);
-        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+        XFREE(dCert, s->heap, DYNAMIC_TYPE_DCERT);
     }
 
     if (sk)
@@ -1269,7 +1281,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 #endif
     }
 
-    if ((ret = wolfSSL_sk_X509_OBJECT_new()) == NULL) {
+    if ((ret = wolfSSL_sk_X509_OBJECT_new_ex(store->heap)) == NULL) {
         WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_new error");
         goto err_cleanup;
     }
@@ -1278,7 +1290,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     cert_stack = wolfSSL_CertManagerGetCerts(store->cm);
     /* wolfSSL_sk_X509_pop checks for NULL */
     while ((x509 = wolfSSL_sk_X509_pop(cert_stack)) != NULL) {
-        WOLFSSL_X509_OBJECT* obj = wolfSSL_X509_OBJECT_new();
+        WOLFSSL_X509_OBJECT* obj = wolfSSL_X509_OBJECT_new_ex(store->heap);
         if (obj == NULL) {
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
@@ -1296,7 +1308,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 
 #ifdef HAVE_CRL
     if (store->cm->crl != NULL) {
-        WOLFSSL_X509_OBJECT* obj = wolfSSL_X509_OBJECT_new();
+        WOLFSSL_X509_OBJECT* obj = wolfSSL_X509_OBJECT_new_ex(store->heap);
         if (obj == NULL) {
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;

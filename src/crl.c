@@ -118,8 +118,8 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->nextDateAsn1.type = crle->nextDateFormat;
 
     crle->issuer = NULL;
-    wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
-                          dcrl->issuerSz);
+    wolfSSL_d2i_X509_NAME_ex(&crle->issuer, (unsigned char**)&dcrl->issuer,
+                          dcrl->issuerSz, heap);
     if (crle->issuer == NULL) {
         return WOLFSSL_FAILURE;
     }

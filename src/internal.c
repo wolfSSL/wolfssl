@@ -12698,7 +12698,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             x509->key.pubKeyOID = dCert->keyOID;
 
             if (!x509->key.algor) {
-                x509->key.algor = wolfSSL_X509_ALGOR_new();
+                x509->key.algor = wolfSSL_X509_ALGOR_new_ex(x509->heap);
             } else {
                 wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
             }
@@ -13692,7 +13692,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                     return BAD_MUTEX_E;
                 }
                 if (ph == NULL) {
-                    ph = wolfSSL_BY_DIR_HASH_new();
+                    ph = wolfSSL_BY_DIR_HASH_new(store->heap);
                     if (ph == NULL) {
                         WOLFSSL_MSG("failed to allocate hash stack");
                         ret = WOLFSSL_FAILURE;
@@ -39508,7 +39508,7 @@ int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe)
 
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 /* create an instance of WOLFSSL_BY_DIR_HASH structure */
-WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
+WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void* heap)
 {
     WOLFSSL_BY_DIR_HASH* dir_hash;
 
@@ -39518,6 +39518,7 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
         DYNAMIC_TYPE_OPENSSL);
     if (dir_hash) {
         XMEMSET(dir_hash, 0, sizeof(WOLFSSL_BY_DIR_HASH));
+        dir_hash->heap = heap;
     }
     return dir_hash;
 }
@@ -39527,7 +39528,7 @@ void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash)
     if (dir_hash == NULL)
         return;
 
-    XFREE(dir_hash, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(dir_hash, dir_hash->heap, DYNAMIC_TYPE_OPENSSL);
 }
 /* create an instance of WOLFSSL_STACK for STACK_TYPE_BY_DIR_hash */
 WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void)

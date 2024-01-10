@@ -1943,11 +1943,16 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
  * @return  New WOLFSSL_ASN1_OBJECT stack on success.
  * @return  NULL when dynamic memory allocation fails.
  */
-WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void)
+WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj_ex(void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_sk_new_asn1_obj");
 
-    return wolfssl_sk_new_type(STACK_TYPE_OBJ);
+    return wolfssl_sk_new_type_ex(STACK_TYPE_OBJ, heap);
+}
+
+WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void)
+{
+    return wolfSSL_sk_new_asn1_obj_ex(NULL);
 }
 
 /* Dispose of WOLFSL_ASN1_OBJECT stack.
@@ -2023,7 +2028,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJECT_pop(
  * @return  New ASN.1 STRING object on success.
  * @return  NULL when dynamic memory allocation fails.
  */
-WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new_ex(void* heap)
 {
     WOLFSSL_ASN1_STRING* asn1;
 
@@ -2031,13 +2036,19 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_new");
 #endif
 
-    asn1 = (WOLFSSL_ASN1_STRING*)XMALLOC(sizeof(WOLFSSL_ASN1_STRING), NULL,
+    asn1 = (WOLFSSL_ASN1_STRING*)XMALLOC(sizeof(WOLFSSL_ASN1_STRING), heap,
         DYNAMIC_TYPE_OPENSSL);
     if (asn1 != NULL) {
         XMEMSET(asn1, 0, sizeof(WOLFSSL_ASN1_STRING));
+        asn1->heap = heap;
     }
 
     return asn1;
+}
+
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
+{
+    return wolfSSL_ASN1_STRING_new_ex(NULL);
 }
 
 /* Create a new ASN.1 STRING object.
@@ -2046,7 +2057,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
  * @return  New ASN.1 STRING object on success.
  * @return  NULL when dynamic memory allocation fails.
  */
-WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new_ex(int type, void* heap)
 {
     WOLFSSL_ASN1_STRING* asn1;
 
@@ -2054,12 +2065,17 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type_new");
 #endif
 
-    asn1 = wolfSSL_ASN1_STRING_new();
+    asn1 = wolfSSL_ASN1_STRING_new_ex(heap);
     if (asn1 != NULL) {
         asn1->type = type;
     }
 
     return asn1;
+}
+
+WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
+{
+    return wolfSSL_ASN1_STRING_type_new_ex(type, NULL);
 }
 
 /* Dispose of ASN.1 STRING object.
@@ -2076,7 +2092,7 @@ void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1)
     if (asn1 != NULL) {
         /* Dispose of dynamic data. */
         if ((asn1->length > 0) && asn1->isDynamic) {
-            XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(asn1->data, asn1->heap, DYNAMIC_TYPE_OPENSSL);
         }
     }
     /* Dispose of ASN.1 STRING object. */
@@ -2129,7 +2145,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_dup(WOLFSSL_ASN1_STRING* asn1)
     }
     else {
         /* Create a new ASN.1 STRING object. */
-        dupl = wolfSSL_ASN1_STRING_new();
+        dupl = wolfSSL_ASN1_STRING_new_ex(asn1->heap);
         if (dupl == NULL) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_new error");
         }
@@ -2637,7 +2653,7 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
                 asn_out->type = MBSTRING_UTF8;
                 /* Dispose of any dynamic data already in asn_out. */
                 if (asn_out->isDynamic) {
-                    XFREE(asn_out->data, NULL, DYNAMIC_TYPE_OPENSSL);
+                    XFREE(asn_out->data, asn_out->heap, DYNAMIC_TYPE_OPENSSL);
                     asn_out->data = NULL;
                 }
                 /* Make ASN.1 STRING into UTF8 buffer. */
@@ -2656,7 +2672,7 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
                     if (asn_out->length == 0) {
                         /* Dispose of data if canonicalization removes all
                          * characters. */
-                        XFREE(asn_out->data, NULL, DYNAMIC_TYPE_OPENSSL);
+                        XFREE(asn_out->data, asn_out->heap, DYNAMIC_TYPE_OPENSSL);
                         asn_out->data = NULL;
                         asn_out->isDynamic = 0;
                     }

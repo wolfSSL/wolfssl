@@ -2099,6 +2099,7 @@ WOLFSSL_LOCAL int wolfSSL_session_import_internal(WOLFSSL* ssl, const byte* buf,
 struct WOLFSSL_BY_DIR_HASH {
     unsigned long hash_value;
     int last_suffix;
+    void* heap;
 };
 
 struct WOLFSSL_BY_DIR_entry {
@@ -2110,6 +2111,7 @@ struct WOLFSSL_BY_DIR_entry {
 struct WOLFSSL_BY_DIR {
     WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *dir_entry;
     wolfSSL_Mutex    lock; /* dir list lock */
+    void* heap;
 };
 
 /* wolfSSL method type */
@@ -6485,7 +6487,7 @@ WOLFSSL_LOCAL int LoadCertByIssuer(WOLFSSL_X509_STORE* store,
                                            X509_NAME* issuer, int Type);
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void* heap);
 WOLFSSL_LOCAL void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash);
 WOLFSSL_LOCAL WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void);
 WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_find(
@@ -6702,6 +6704,7 @@ WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk, WOLF_STACK_TYPE type);
 WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
+WOLFSSL_STACK* wolfssl_sk_new_type_ex(WOLF_STACK_TYPE type, void* heap);
 #endif
 
 #ifdef __cplusplus

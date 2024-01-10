@@ -211,6 +211,9 @@ WOLFSSL_API
 WOLFSSL_X509 *wolfSSL_PEM_read_X509(XFILE fp, WOLFSSL_X509 **x,
                                           wc_pem_password_cb *cb, void *u);
 WOLFSSL_API
+WOLFSSL_X509 *wolfSSL_PEM_read_X509_ex(XFILE fp, WOLFSSL_X509 **x,
+                                  wc_pem_password_cb *cb, void *u, void* heap);
+WOLFSSL_API
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **x,
                                           wc_pem_password_cb *cb, void *u);
 
@@ -228,6 +231,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_write_bio                   wolfSSL_PEM_write_bio
 
 #define PEM_read_X509                   wolfSSL_PEM_read_X509
+#define PEM_read_X509_ex                wolfSSL_PEM_read_X509_ex
 #define PEM_read_PrivateKey             wolfSSL_PEM_read_PrivateKey
 #define PEM_write_X509                  wolfSSL_PEM_write_X509
 #define PEM_write_bio_PrivateKey        wolfSSL_PEM_write_bio_PrivateKey
