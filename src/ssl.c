@@ -24171,7 +24171,7 @@ static int pem_write_pubkey(WOLFSSL_EVP_PKEY* key, void* heap, byte** derBuf,
     }
 
     switch (key->type) {
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
         case EVP_PKEY_RSA:
             if ((sz = wolfSSL_RSA_To_Der(key->rsa, &buf, 1, heap))
                     < 0) {
@@ -24179,7 +24179,7 @@ static int pem_write_pubkey(WOLFSSL_EVP_PKEY* key, void* heap, byte** derBuf,
                 break;
             }
             break;
-#endif /* WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA */
+#endif /* WOLFSSL_KEY_GEN && !NO_RSA */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
         defined(WOLFSSL_CERT_GEN))
         case EVP_PKEY_DSA:
@@ -26834,7 +26834,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     }
 
     switch (pkey->type) {
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     case EVP_PKEY_RSA:
         WOLFSSL_MSG("populating RSA key");
         if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS)
@@ -27489,8 +27489,7 @@ int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz,
 }
 
 
-#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 /* Adds the rsa private key to the user ctx.
 Returns WOLFSSL_SUCCESS if no error, returns WOLFSSL_FAILURE otherwise.*/
 int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
@@ -27528,7 +27527,7 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
     XFREE(maxDerBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* NO_RSA && !HAVE_FAST_RSA */
+#endif /* WOLFSSL_KEY_GEN && !NO_RSA */
 
 
 #ifndef NO_BIO

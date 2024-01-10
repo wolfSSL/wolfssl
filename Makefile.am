@@ -168,7 +168,6 @@ include Docker/include.am
 
 include src/include.am
 include support/include.am
-include wolfcrypt/user-crypto/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am

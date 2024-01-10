@@ -58,11 +58,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #define NO_RSA_BOUNDS_CHECK
 #endif
 
-/* allow for user to plug in own crypto */
-#if !defined(HAVE_FIPS) && (defined(HAVE_USER_RSA) || defined(HAVE_FAST_RSA))
-    #include "user_rsa.h"
-#else
-
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -449,8 +444,6 @@ WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** ou
                                    int bits, void* heap);
 
 WOLFSSL_LOCAL int wc_hash2mgf(enum wc_HashType hType);
-
-#endif /* HAVE_USER_RSA */
 
 #ifdef __cplusplus
     } /* extern "C" */

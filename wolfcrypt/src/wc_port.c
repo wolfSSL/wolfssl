@@ -36,12 +36,6 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-/* IPP header files for library initialization */
-#ifdef HAVE_FAST_RSA
-    #include <ipp.h>
-    #include <ippcp.h>
-#endif
-
 #ifdef FREESCALE_LTC_TFM
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
@@ -235,20 +229,6 @@ int wolfCrypt_Init(void)
         if (ret != 0) {
             WOLFSSL_MSG("Hw crypt mutex init failed");
             return ret;
-        }
-    #endif
-
-    /* if defined have fast RSA then initialize Intel IPP */
-    #ifdef HAVE_FAST_RSA
-        WOLFSSL_MSG("Attempting to use optimized IPP Library");
-        if ((ret = ippInit()) != ippStsNoErr) {
-            /* possible to get a CPU feature support status on optimized IPP
-              library but still use default library and see competitive speeds */
-            WOLFSSL_MSG("Warning when trying to set up optimization");
-            WOLFSSL_MSG(ippGetStatusString(ret));
-            WOLFSSL_MSG("Using default fast IPP library");
-            ret = 0;
-            (void)ret; /* suppress not read warning */
         }
     #endif
 

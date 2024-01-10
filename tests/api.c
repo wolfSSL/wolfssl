@@ -234,10 +234,6 @@
 
     #define FOURK_BUF 4096
     #define GEN_BUF  294
-
-    #ifndef USER_CRYPTO_ERROR
-        #define USER_CRYPTO_ERROR (-101) /* error returned by IPP lib. */
-    #endif
 #endif
 
 #ifndef NO_SIG_WRAPPER
@@ -18685,11 +18681,7 @@ static int test_wc_InitRsaKey(void)
     ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
 
     /* Test bad args. */
-#ifndef HAVE_USER_RSA
     ExpectIntEQ(wc_InitRsaKey(NULL, HEAP_HINT), BAD_FUNC_ARG);
-#else
-    ExpectIntEQ(wc_InitRsaKey(NULL, HEAP_HINT), USER_CRYPTO_ERROR);
-#endif
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
 #endif
@@ -18726,7 +18718,7 @@ static int test_wc_RsaPrivateKeyDecode(void)
     }
 
     ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes), 0);
-#ifndef HAVE_USER_RSA
+
     /* Test bad args. */
     ExpectIntEQ(wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes),
         BAD_FUNC_ARG);
@@ -18734,15 +18726,6 @@ static int test_wc_RsaPrivateKeyDecode(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, NULL, (word32)bytes),
         BAD_FUNC_ARG);
-#else
-    /* Test bad args. User RSA. */
-    ExpectIntEQ(wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, NULL, &key, (word32)bytes),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPrivateKeyDecode(tmp, &idx, NULL, (word32)bytes),
-        USER_CRYPTO_ERROR);
-#endif
 
     XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
@@ -18789,7 +18772,7 @@ static int test_wc_RsaPublicKeyDecode(void)
     }
 
     ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, &idx, &keyPub, (word32)bytes), 0);
-#ifndef HAVE_USER_RSA
+
     /* Pass in bad args. */
     ExpectIntEQ(wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes),
         BAD_FUNC_ARG);
@@ -18797,15 +18780,6 @@ static int test_wc_RsaPublicKeyDecode(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes),
         BAD_FUNC_ARG);
-#else
-    /* Pass in bad args. */
-    ExpectIntEQ(wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes),
-        USER_CRYPTO_ERROR);
-#endif
 
     DoExpectIntEQ(wc_FreeRsaKey(&keyPub), 0);
 
@@ -18854,7 +18828,7 @@ static int test_wc_RsaPublicKeyDecodeRaw(void)
 
     ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
     ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, &key), 0);
-#ifndef HAVE_USER_RSA
+
     /* Pass in bad args. */
     ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, &key),
        BAD_FUNC_ARG);
@@ -18862,15 +18836,7 @@ static int test_wc_RsaPublicKeyDecodeRaw(void)
        BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, NULL),
        BAD_FUNC_ARG);
-#else
-    /* Pass in bad args. User RSA. */
-    ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, &key),
-       USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, &key),
-       USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, NULL),
-       USER_CRYPTO_ERROR);
-#endif
+
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
 #endif
@@ -18879,7 +18845,7 @@ static int test_wc_RsaPublicKeyDecodeRaw(void)
 } /* END test_wc_RsaPublicKeyDecodeRaw */
 
 
-#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* In FIPS builds, wc_MakeRsaKey() will return an error if it cannot find
      * a probable prime in 5*(modLen/2) attempts. In non-FIPS builds, it keeps
      * trying until it gets a probable prime. */
@@ -18929,7 +18895,6 @@ static int test_wc_MakeRsaKey(void)
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng), 0);
     DoExpectIntEQ(wc_FreeRsaKey(&genKey), 0);
 
-#ifndef HAVE_USER_RSA
     /* Test bad args. */
     ExpectIntEQ(MAKE_RSA_KEY(NULL, bits, WC_RSA_EXPONENT, &rng), BAD_FUNC_ARG);
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, NULL),
@@ -18938,17 +18903,6 @@ static int test_wc_MakeRsaKey(void)
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, 2, &rng), BAD_FUNC_ARG);
     /* e & 1 == 0 */
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, 6, &rng), BAD_FUNC_ARG);
-#else
-    /* Test bad args. */
-    ExpectIntEQ(MAKE_RSA_KEY(NULL, bits, WC_RSA_EXPONENT, &rng),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, NULL),
-        USER_CRYPTO_ERROR);
-    /* e < 3 */
-    ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, 2, &rng), USER_CRYPTO_ERROR);
-    /* e & 1 == 0 */
-    ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, 6, &rng), USER_CRYPTO_ERROR);
-#endif /* HAVE_USER_RSA */
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
@@ -19351,7 +19305,7 @@ static int test_wc_RsaKeyToDer(void)
     ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng), 0);
 
     ExpectIntGT(wc_RsaKeyToDer(&genKey, der, derSz), 0);
-#ifndef HAVE_USER_RSA
+
     /* Pass good/bad args. */
     ExpectIntEQ(wc_RsaKeyToDer(NULL, der, FOURK_BUF), BAD_FUNC_ARG);
     /* Get just the output length */
@@ -19363,19 +19317,6 @@ static int test_wc_RsaKeyToDer(void)
         /* Put back to Private Key */
         genKey.type = 1;
     #endif
-#else
-    /* Pass good/bad args. */
-    ExpectIntEQ(wc_RsaKeyToDer(NULL, der, FOURK_BUF), USER_CRYPTO_ERROR);
-    /* Get just the output length */
-    ExpectIntGT(wc_RsaKeyToDer(&genKey, NULL, 0), 0);
-    /* Try Public Key. */
-    genKey.type = 0;
-    ExpectIntEQ(wc_RsaKeyToDer(&genKey, der, FOURK_BUF), USER_CRYPTO_ERROR);
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        /* Put back to Private Key */
-        genKey.type = 1;
-    #endif
-#endif
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRsaKey(&genKey), 0);
@@ -19402,9 +19343,7 @@ static int test_wc_RsaKeyToPublicDer(void)
     int    bits = 2048;
     word32 derLen = 294;
 #endif
-#ifndef HAVE_USER_RSA
     int    ret;
-#endif
 
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
@@ -19422,16 +19361,10 @@ static int test_wc_RsaKeyToPublicDer(void)
     ExpectIntGT(wc_RsaKeyToPublicDer_ex(&key, NULL, derLen, 0), 0);
     ExpectIntGT(wc_RsaKeyToPublicDer_ex(&key, der, derLen, 0), 0);
 
-#ifndef HAVE_USER_RSA
     /* Pass in bad args. */
     ExpectIntEQ(wc_RsaKeyToPublicDer(NULL, der, derLen), BAD_FUNC_ARG);
     ExpectIntLT(ret = wc_RsaKeyToPublicDer(&key, der, -1), 0);
     ExpectTrue((ret == BUFFER_E) || (ret == BAD_FUNC_ARG));
-#else
-    /* Pass in bad args. */
-    ExpectIntEQ(wc_RsaKeyToPublicDer(NULL, der, derLen), USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaKeyToPublicDer(&key, der, -1), USER_CRYPTO_ERROR);
-#endif
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
@@ -19507,8 +19440,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)\
-        && !defined(WC_NO_RSA_OAEP) && !defined(HAVE_USER_RSA)\
-        && !defined(NO_SHA256)
+        && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256)
     RsaKey  key;
     WC_RNG  rng;
     const char inStr[] = TEST_STRING;
@@ -19605,7 +19537,7 @@ static int test_wc_RsaSSL_SignVerify(void)
     /* Sign. */
     ExpectIntEQ(wc_RsaSSL_Sign(in, inLen, out, outSz, &key, &rng), (int)outSz);
     idx = (int)outSz;
-#ifndef HAVE_USER_RSA
+
     /* Test bad args. */
     ExpectIntEQ(wc_RsaSSL_Sign(NULL, inLen, out, outSz, &key, &rng),
         BAD_FUNC_ARG);
@@ -19615,21 +19547,10 @@ static int test_wc_RsaSSL_SignVerify(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaSSL_Sign(in, inLen, out, outSz, NULL, &rng),
         BAD_FUNC_ARG);
-#else
-    /* Test bad args. */
-    ExpectIntEQ(wc_RsaSSL_Sign(NULL, inLen, out, outSz, &key, &rng),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Sign(in, 0, out, outSz, &key, &rng),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Sign(in, inLen, NULL, outSz, &key, &rng),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Sign(in, inLen, out, outSz, NULL, &rng),
-        USER_CRYPTO_ERROR);
-#endif
 
     /* Verify. */
     ExpectIntEQ(wc_RsaSSL_Verify(out, idx, plain, plainSz, &key), (int)inLen);
-#ifndef HAVE_USER_RSA
+
     /* Pass bad args. */
     ExpectIntEQ(wc_RsaSSL_Verify(NULL, idx, plain, plainSz, &key),
         BAD_FUNC_ARG);
@@ -19639,17 +19560,6 @@ static int test_wc_RsaSSL_SignVerify(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaSSL_Verify(out, idx, plain, plainSz, NULL),
         BAD_FUNC_ARG);
-#else
-    /* Pass bad args. */
-    ExpectIntEQ(wc_RsaSSL_Verify(NULL, idx, plain, plainSz, &key),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Verify(out, 0, plain, plainSz, &key),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Verify(out, idx, NULL, plainSz, &key),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaSSL_Verify(out, idx, plain, plainSz, NULL),
-        USER_CRYPTO_ERROR);
-#endif
 
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(out, NULL);
@@ -19689,11 +19599,7 @@ static int test_wc_RsaEncryptSize(void)
     ExpectIntEQ(wc_RsaEncryptSize(&key), 256);
 
     /* Pass in bad arg. */
-#ifndef HAVE_USER_RSA
     ExpectIntEQ(wc_RsaEncryptSize(NULL), BAD_FUNC_ARG);
-#else
-    ExpectIntEQ(wc_RsaEncryptSize(NULL), 0);
-#endif
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -19730,7 +19636,7 @@ static int test_wc_RsaFlattenPublicKey(void)
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
     ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, &eSz, n, &nSz), 0);
-#ifndef HAVE_USER_RSA
+
     /* Pass bad args. */
     ExpectIntEQ(wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz),
         BAD_FUNC_ARG);
@@ -19742,19 +19648,6 @@ static int test_wc_RsaFlattenPublicKey(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, &eSz, n, NULL),
         BAD_FUNC_ARG);
-#else
-    /* Pass bad args. */
-    ExpectIntEQ(wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaFlattenPublicKey(&key, NULL, &eSz, n, &nSz),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, NULL, n, &nSz),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, &eSz, NULL, &nSz),
-        USER_CRYPTO_ERROR);
-    ExpectIntEQ(wc_RsaFlattenPublicKey(&key, e, &eSz, n, NULL),
-        USER_CRYPTO_ERROR);
-#endif
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -29135,11 +29028,7 @@ static int test_wc_SignatureGetSize_rsa(void)
     /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len), BAD_FUNC_ARG);
     sig_type = WC_SIGNATURE_TYPE_RSA;
-    #ifndef HAVE_USER_RSA
-        ExpectIntEQ(wc_SignatureGetSize(sig_type, NULL, key_len), BAD_FUNC_ARG);
-    #else
-        ExpectIntEQ(wc_SignatureGetSize(sig_type, NULL, key_len), 0);
-    #endif
+    ExpectIntEQ(wc_SignatureGetSize(sig_type, NULL, key_len), BAD_FUNC_ARG);
     key_len = (word32)0;
     ExpectIntEQ(wc_SignatureGetSize(sig_type, &rsa_key, key_len), BAD_FUNC_ARG);
 
@@ -32842,16 +32731,16 @@ static int test_wolfSSL_certs(void)
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(SSL_CTX_check_private_key(ctx), SSL_FAILURE);
     #endif
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(SSL_CTX_check_private_key(ctx), SSL_SUCCESS);
     #endif
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
@@ -32868,7 +32757,7 @@ static int test_wolfSSL_certs(void)
         WOLFSSL_FILETYPE_PEM));
     ExpectIntEQ(SSL_use_certificate(ssl, x509ext), WOLFSSL_SUCCESS);
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     /* with loading in a new cert the check on private key should now fail */
     ExpectIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
@@ -33129,16 +33018,16 @@ static int test_wolfSSL_private_keys(void)
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
     /* Have to load a cert before you can check the private key against that
      * certificates public key! */
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_FAILURE);
     #endif
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
     #endif
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
@@ -33151,7 +33040,7 @@ static int test_wolfSSL_private_keys(void)
     ExpectIntEQ(SSL_use_RSAPrivateKey_ASN1(ssl,
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     /* Should mismatch now that a different private key loaded */
     ExpectIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
@@ -33159,7 +33048,7 @@ static int test_wolfSSL_private_keys(void)
     ExpectIntEQ(SSL_use_PrivateKey_ASN1(0, ssl,
                 (unsigned char*)server_key,
                 sizeof_server_key_der_2048), WOLFSSL_SUCCESS);
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     /* After loading back in DER format of original key, should match */
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
@@ -33169,7 +33058,7 @@ static int test_wolfSSL_private_keys(void)
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     /* Should mismatch now that a different private key loaded */
     ExpectIntNE(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
     #endif
@@ -33177,7 +33066,7 @@ static int test_wolfSSL_private_keys(void)
     ExpectIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx,
                 (unsigned char*)server_key,
                 sizeof_server_key_der_2048), WOLFSSL_SUCCESS);
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     /* After loading back in DER format of original key, should match */
     ExpectIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
     #endif
@@ -33231,7 +33120,7 @@ static int test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
     SSL_free(ssl);
@@ -33264,7 +33153,7 @@ static int test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
     SSL_free(ssl);
@@ -33275,7 +33164,7 @@ static int test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
@@ -33297,7 +33186,7 @@ static int test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
     SSL_free(ssl);
@@ -33308,7 +33197,7 @@ static int test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #if !defined(NO_CHECK_PRIVATE_KEY)
     ExpectIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
@@ -33668,8 +33557,7 @@ static int test_wolfSSL_PEM_PrivateKey(void)
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
         !defined(NO_RSA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM) && \
-        !defined(NO_MD5) && defined(WOLFSSL_KEY_GEN) && \
-        !defined(HAVE_USER_RSA) && !defined(NO_RSA)
+        !defined(NO_MD5) && defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     {
         XFILE f = XBADFILE;
         wc_pem_password_cb* passwd_cb = NULL;
@@ -33782,7 +33670,7 @@ static int test_wolfSSL_PEM_file_RSAKey(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && \
-    !defined(HAVE_USER_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     RSA* rsa = NULL;
     XFILE fp = XBADFILE;
 
@@ -33811,7 +33699,7 @@ static int test_wolfSSL_PEM_file_RSAPrivateKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_USER_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_FILESYSTEM) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
     RSA* rsa = NULL;
     XFILE f = NULL;
@@ -33870,7 +33758,7 @@ static int test_wolfSSL_PEM_bio_RSAKey(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && \
-    !defined(HAVE_USER_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     RSA* rsa = NULL;
     BIO* bio = NULL;
 
@@ -33945,7 +33833,7 @@ static int test_wolfSSL_PEM_bio_RSAPrivateKey(void)
     ExpectNotNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
     ExpectIntEQ(RSA_size(rsa), 256);
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     ExpectNull(rsa_dup = RSAPublicKey_dup(NULL));
     /* Test duplicating empty key. */
     ExpectNotNull(rsa_dup = RSA_new());
@@ -34926,8 +34814,7 @@ static int test_wolfSSL_EVP_MD_hmac_signing(void)
 static int test_wolfSSL_EVP_MD_rsa_signing(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-    defined(USE_CERT_BUFFERS_2048)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
     WOLFSSL_EVP_PKEY* privKey = NULL;
     WOLFSSL_EVP_PKEY* pubKey = NULL;
     WOLFSSL_EVP_PKEY_CTX* keyCtx = NULL;
@@ -35144,7 +35031,6 @@ static int test_wolfSSL_CTX_add_extra_chain_cert(void)
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(clientFile,
         WOLFSSL_FILETYPE_PEM));
 
-#if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
     /* additional test of getting EVP_PKEY key size from X509
      * Do not run with user RSA because wolfSSL_RSA_size is not currently
      * allowed with user RSA */
@@ -35181,7 +35067,6 @@ static int test_wolfSSL_CTX_add_extra_chain_cert(void)
         pkey = NULL;
 #endif /* HAVE_ECC */
     }
-#endif /* !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) */
 
     ExpectIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
@@ -46074,8 +45959,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
 
-#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     {
         RSA* rsa = NULL;
         /* Tests bad parameters */
@@ -46115,7 +45999,7 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
         RSA_free(rsa);
     }
-#endif /* !HAVE_FAST_RSA && WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA*/
+#endif /* WOLFSSL_KEY_GEN && !NO_RSA */
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);
@@ -47753,7 +47637,6 @@ static int test_wolfSSL_CTX_ctrl(void)
     ExpectIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
 #endif
 
-#if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
     /* additional test of getting EVP_PKEY key size from X509
      * Do not run with user RSA because wolfSSL_RSA_size is not currently
      * allowed with user RSA */
@@ -47787,7 +47670,6 @@ static int test_wolfSSL_CTX_ctrl(void)
         EVP_PKEY_free(pkey);
 #endif /* HAVE_ECC */
     }
-#endif /* !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) */
 
     /* Tests should fail with passed in NULL pointer */
     ExpectIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_EXTRA_CHAIN_CERT, 0, NULL),
@@ -51427,8 +51309,7 @@ static int test_wc_ecc_get_curve_id_from_params(void)
 static int test_wolfSSL_EVP_PKEY_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
@@ -51536,7 +51417,7 @@ static int test_wolfSSL_EVP_PKEY_encrypt(void)
 }
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     #ifndef TEST_WOLFSSL_EVP_PKEY_SIGN_VERIFY
         #define TEST_WOLFSSL_EVP_PKEY_SIGN_VERIFY
@@ -51564,7 +51445,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     WOLFSSL_RSA* rsa = NULL;
 #endif
@@ -51614,7 +51495,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     switch (keyType) {
         case EVP_PKEY_RSA:
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
         {
             ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
@@ -51651,7 +51532,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
     ExpectIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     if (keyType == EVP_PKEY_RSA)
         ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
@@ -51672,7 +51553,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
     ExpectNotNull(ctx_verify = EVP_PKEY_CTX_new(pkey, NULL));
     ExpectIntEQ(EVP_PKEY_verify_init(ctx_verify), WOLFSSL_SUCCESS);
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     if (keyType == EVP_PKEY_RSA)
         ExpectIntEQ(
@@ -51688,7 +51569,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify(int keyType)
         WOLFSSL_FAILURE);
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     if (keyType == EVP_PKEY_RSA) {
     #if defined(WC_RSA_NO_PADDING) || defined(WC_RSA_DIRECT)
@@ -51757,7 +51638,7 @@ static int test_wolfSSL_EVP_PKEY_sign_verify_rsa(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     ExpectIntEQ(test_wolfSSL_EVP_PKEY_sign_verify(EVP_PKEY_RSA), TEST_SUCCESS);
 #endif
@@ -56543,7 +56424,7 @@ static int test_wolfSSL_X509_print(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(XSNPRINTF)
+   !defined(NO_RSA) && defined(XSNPRINTF)
     X509 *x509 = NULL;
     BIO *bio = NULL;
 #if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
@@ -56650,8 +56531,7 @@ static int test_wolfSSL_BIO_get_len(void)
 static int test_wolfSSL_RSA(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-    defined(WOLFSSL_KEY_GEN)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RSA* rsa = NULL;
     const BIGNUM *n;
     const BIGNUM *e;
@@ -56816,8 +56696,7 @@ static int test_wolfSSL_RSA(void)
 static int test_wolfSSL_RSA_DER(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA) && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && defined(OPENSSL_EXTRA)
     RSA *rsa = NULL;
     int i;
     const unsigned char *buff = NULL;
@@ -56905,8 +56784,8 @@ static int test_wolfSSL_RSA_print(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-   !defined(HAVE_FAST_RSA) && !defined(NO_BIO) && defined(XFPRINTF)
+   !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+   !defined(NO_BIO) && defined(XFPRINTF)
     BIO *bio = NULL;
     WOLFSSL_RSA* rsa = NULL;
 
@@ -57033,7 +56912,7 @@ static int test_wolfSSL_RSA_sign_sha3(void)
 static int test_wolfSSL_RSA_get0_key(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa = NULL;
     const BIGNUM* n = NULL;
     const BIGNUM* e = NULL;
@@ -57085,7 +56964,7 @@ static int test_wolfSSL_RSA_get0_key(void)
 static int test_wolfSSL_RSA_meth(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa = NULL;
     RSA_METHOD *rsa_meth = NULL;
 
@@ -57153,8 +57032,7 @@ static int test_wolfSSL_RSA_meth(void)
 static int test_wolfSSL_RSA_verify(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && \
-    !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 #ifndef NO_BIO
     XFILE fp = XBADFILE;
     RSA *pKey = NULL;
@@ -57234,7 +57112,7 @@ static int test_wolfSSL_RSA_verify(void)
 static int test_wolfSSL_RSA_sign(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa;
     unsigned char hash[SHA256_DIGEST_LENGTH];
 #ifdef USE_CERT_BUFFERS_1024
@@ -57291,7 +57169,7 @@ static int test_wolfSSL_RSA_sign(void)
 static int test_wolfSSL_RSA_sign_ex(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa = NULL;
     unsigned char hash[SHA256_DIGEST_LENGTH];
 #ifdef USE_CERT_BUFFERS_1024
@@ -57379,7 +57257,7 @@ static int test_wolfSSL_RSA_sign_ex(void)
 static int test_wolfSSL_RSA_public_decrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa;
     unsigned char msg[SHA256_DIGEST_LENGTH];
 #ifdef USE_CERT_BUFFERS_1024
@@ -57554,7 +57432,7 @@ static int test_wolfSSL_RSA_public_decrypt(void)
 static int test_wolfSSL_RSA_private_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA *rsa;
     unsigned char msg[SHA256_DIGEST_LENGTH];
 #ifdef USE_CERT_BUFFERS_1024
@@ -57714,7 +57592,7 @@ static int test_wolfSSL_RSA_private_encrypt(void)
 static int test_wolfSSL_RSA_public_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA* rsa = NULL;
     const unsigned char msg[2048/8] = { 0 };
     unsigned char encMsg[2048/8];
@@ -57743,7 +57621,7 @@ static int test_wolfSSL_RSA_public_encrypt(void)
 static int test_wolfSSL_RSA_private_decrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA* rsa = NULL;
     unsigned char msg[2048/8];
     const unsigned char encMsg[2048/8] = { 0 };
@@ -57908,8 +57786,7 @@ static int test_wolfSSL_RSA_To_Der(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_TEST_STATIC_BUILD
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && \
-    defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     RSA* rsa;
 #ifdef USE_CERT_BUFFERS_1024
     const unsigned char* privDer = client_key_der_1024;
@@ -57992,7 +57869,7 @@ static int test_wolfSSL_PEM_write_RSA_PUBKEY(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+    defined(WOLFSSL_KEY_GEN)
     RSA* rsa = NULL;
 
     ExpectIntEQ(wolfSSL_PEM_write_RSA_PUBKEY(XBADFILE, NULL), 0);
@@ -58007,7 +57884,7 @@ static int test_wolfSSL_PEM_write_RSAPrivateKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_USER_RSA) && (defined(WOLFSSL_PEM_TO_DER) || \
+    (defined(WOLFSSL_PEM_TO_DER) || \
     defined(WOLFSSL_DER_TO_PEM)) && !defined(NO_FILESYSTEM)
     RSA* rsa = NULL;
 #ifdef USE_CERT_BUFFERS_1024
@@ -58053,8 +57930,7 @@ static int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_USER_RSA) && (defined(WOLFSSL_PEM_TO_DER) || \
-    defined(WOLFSSL_DER_TO_PEM))
+    (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
     RSA* rsa = NULL;
 #ifdef USE_CERT_BUFFERS_1024
     const unsigned char* privDer = client_key_der_1024;

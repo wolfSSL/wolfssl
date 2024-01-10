@@ -3186,7 +3186,6 @@ extern void uITRON4_free(void *p) ;
  *   RSA public only, CAVP selftest, fast RSA, user RSA, QAT or CryptoCell */
 #if (defined(WOLFSSL_RSA_KEY_CHECK) || (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0))) && \
     !defined(WOLFSSL_NO_RSA_KEY_CHECK) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) && \
     !defined(HAVE_INTEL_QA) && !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(HAVE_SELFTEST)
 

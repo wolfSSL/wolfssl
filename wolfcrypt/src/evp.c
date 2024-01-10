@@ -2273,7 +2273,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     if (ctx == NULL) return NULL;
     XMEMSET(ctx, 0, sizeof(WOLFSSL_EVP_PKEY_CTX));
     ctx->pkey = pkey;
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
     ctx->md = NULL;
 #endif
@@ -2774,7 +2774,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     (void)len;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA:
         if (out == NULL) {
             if (ctx->pkey->rsa == NULL) {
@@ -2877,7 +2877,7 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     (void)len;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA:
         if (out == NULL) {
             if (ctx->pkey->rsa == NULL) {
@@ -2958,7 +2958,7 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return ret;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_SIGN;
             ret = WOLFSSL_SUCCESS;
@@ -3006,7 +3006,7 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     (void)tbslen;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA: {
         unsigned int usiglen = (unsigned int)*siglen;
         if (!sig) {
@@ -3120,7 +3120,7 @@ int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return WOLFSSL_FAILURE;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_VERIFY;
             return WOLFSSL_SUCCESS;
@@ -3162,7 +3162,7 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         return WOLFSSL_FAILURE;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA:
         return wolfSSL_RSA_verify_ex(WC_HASH_TYPE_NONE, tbs,
             (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
@@ -3358,8 +3358,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     }
 
     switch (pkey->type) {
-#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
         case EVP_PKEY_RSA:
             pkey->rsa = wolfSSL_RSA_generate_key(ctx->nbits, WC_RSA_EXPONENT,
                 NULL, NULL);
@@ -3892,7 +3891,7 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         return ret;
 
     switch (pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA: {
         int nid;
         const WOLFSSL_EVP_MD *ctxmd;
@@ -3988,7 +3987,7 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     (void)siglen;
 
     switch (pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
     case EVP_PKEY_RSA: {
         int nid;
         const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
@@ -4461,7 +4460,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     else {
         /* Sign the digest. */
         switch (ctx->pctx->pkey->type) {
-    #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    #if !defined(NO_RSA)
         case EVP_PKEY_RSA: {
             unsigned int sigSz = (unsigned int)*siglen;
             int nid;
@@ -4564,7 +4563,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     else {
         /* Verify the signature with the digest. */
         switch (ctx->pctx->pkey->type) {
-    #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    #if !defined(NO_RSA)
         case EVP_PKEY_RSA: {
             int nid;
             const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
@@ -8510,7 +8509,7 @@ static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
 }
 
 #ifndef NO_RSA
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN)
 static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 {
     int ret = 0;
@@ -8668,12 +8667,12 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
         }
     }
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+#if defined(WOLFSSL_KEY_GEN)
     if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
         return WOLFSSL_FAILURE;
     }
-#endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
+#endif /* WOLFSSL_KEY_GEN */
 
 #ifdef WC_RSA_BLINDING
     if (key->ownRng == 0) {

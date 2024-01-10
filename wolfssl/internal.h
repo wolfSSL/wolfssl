@@ -6417,10 +6417,8 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 /* Set*Internal and Set*External functions */
 WOLFSSL_LOCAL int SetDsaInternal(WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int SetDsaExternal(WOLFSSL_DSA* dsa);
-#ifndef HAVE_USER_RSA
 WOLFSSL_LOCAL int SetRsaExternal(WOLFSSL_RSA* rsa);
 WOLFSSL_LOCAL int SetRsaInternal(WOLFSSL_RSA* rsa);
-#endif
 
 typedef enum elem_set {
     ELEMENT_P   = 0x01,
@@ -6647,7 +6645,7 @@ WOLFSSL_LOCAL int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif
 #endif
 
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA)
 WOLFSSL_LOCAL int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf,
     int publicKey, void* heap);
 #endif

@@ -16405,87 +16405,45 @@ static wc_test_ret_t rsa_flatten_test(RsaKey* key)
 
     /* Parameter Validation testing. */
     ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != BAD_FUNC_ARG)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_RsaFlattenPublicKey(key, NULL, &eSz, n, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != BAD_FUNC_ARG)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_RsaFlattenPublicKey(key, e, NULL, n, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != BAD_FUNC_ARG)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, NULL, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != BAD_FUNC_ARG)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, NULL);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != BAD_FUNC_ARG)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
+
     eSz = 0;
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != RSA_BUFFER_E)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
+
     eSz = sizeof(e);
     nSz = 0;
     ret = wc_RsaFlattenPublicKey(key, e, &eSz, n, &nSz);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#else
     if (ret != RSA_BUFFER_E)
-#endif
         return WC_TEST_RET_ENC_EC(ret);
 
     return 0;
 }
 #endif /* NO_ASN */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
+#if !defined(HAVE_FIPS) && !defined(NO_ASN) \
     && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static wc_test_ret_t rsa_export_key_test(RsaKey* key)
 {
@@ -16560,7 +16518,7 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
 
     return 0;
 }
-#endif /* !HAVE_FIPS && !USER_RSA && !NO_ASN */
+#endif /* !HAVE_FIPS && !NO_ASN && !WOLFSSL_RSA_VERIFY_ONLY */
 
 #ifndef NO_SIG_WRAPPER
 static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
@@ -16622,12 +16580,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
         return WC_TEST_RET_ENC_EC(ret);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, NULL);
-#ifdef HAVE_USER_RSA
-    /* Implementation using IPP Libraries returns:
-     *     -101 = USER_CRYPTO_ERROR
-     */
-    if (ret == 0)
-#elif defined(WOLFSSL_AFALG_XILINX_RSA) || defined(WOLFSSL_XILINX_CRYPT)
+#if defined(WOLFSSL_AFALG_XILINX_RSA) || defined(WOLFSSL_XILINX_CRYPT)
     /* blinding / rng handled with hardware acceleration */
     if (ret != 0)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -16845,7 +16798,7 @@ static wc_test_ret_t rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte
 }
 #endif
 
-#if !defined(HAVE_USER_RSA) && !defined(NO_ASN)
+#if !defined(NO_ASN)
 static wc_test_ret_t rsa_decode_test(RsaKey* keyPub)
 {
     wc_test_ret_t ret;
@@ -18537,8 +18490,7 @@ exit_rsa:
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
-     (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS) || \
       (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
       && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
@@ -18942,7 +18894,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     XMEMSET(keypub, 0, sizeof *keypub);
 #endif
 
-#if !defined(HAVE_USER_RSA) && !defined(NO_ASN)
+#if !defined(NO_ASN)
     ret = rsa_decode_test(key);
     if (ret != 0)
         ERROR_OUT(ret, exit_rsa);
@@ -19206,19 +19158,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
-        (!defined(HAVE_FIPS) || \
+    #if (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) \
          && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
     ret = rsa_oaep_padding_test(key, &rng);
     if (ret != 0)
         return ret;
 
-    #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
+    #endif /* !HAVE_FIPS */
     #endif /* WC_NO_RSA_OAEP && !WC_NO_RNG */
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
+#if !defined(HAVE_FIPS) && !defined(NO_ASN) \
     && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = rsa_export_key_test(key);
     if (ret != 0)
@@ -23225,7 +23176,7 @@ static void show(const char *title, const char *p, unsigned int s) {
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_pkey0_test(void)
 {
     wc_test_ret_t ret = 0;
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(NO_SHA)
+#if !defined(NO_RSA) && !defined(NO_SHA)
     byte*   prvTmp;
     byte*   pubTmp;
     int prvBytes;
@@ -23453,8 +23404,7 @@ openssl_pkey0_test_done:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_pkey1_test(void)
 {
     wc_test_ret_t ret = 0;
-#if !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-    !defined(NO_SHA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA)
     EVP_PKEY_CTX* dec = NULL;
     EVP_PKEY_CTX* enc = NULL;
     EVP_PKEY* pubKey  = NULL;
@@ -23649,7 +23599,7 @@ openssl_pkey1_test_done:
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_evpSig_test(void)
 {
-#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA) && !defined(NO_SHA)
     byte*   prvTmp;
     byte*   pubTmp;
     int prvBytes;

@@ -37,20 +37,6 @@ src_libwolfssl@LIBSUFFIX@_la_LIBADD = $(LIBM) $(LIB_ADD) $(LIB_STATIC_ADD)
 src_libwolfssl@LIBSUFFIX@_la_CFLAGS = -DBUILDING_WOLFSSL $(AM_CFLAGS) -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(EXTRA_CFLAGS)\""
 src_libwolfssl@LIBSUFFIX@_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
 
-# install the packaged IPP libraries
-if BUILD_FAST_RSA
-
-# Link needed IPP libraries
-noinst_SCRIPTS+=IPP_links
-IPP_links:
-	@$(IPPLINK)
-
-ippdir = $(libdir)
-ipp_DATA = $(IPPLIBS)
-
-include_HEADERS+=$(IPPHEADERS)
-endif # BUILD_FAST_RSA
-
 if BUILD_FIPS
 
 if BUILD_FIPS_V2
@@ -370,16 +356,10 @@ if BUILD_ASYNCCRYPT
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/async.c
 endif
 
-if !BUILD_USER_RSA
 if BUILD_RSA
-if BUILD_FAST_RSA
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/user-crypto/src/rsa.c
-else
 if !BUILD_FIPS_CURRENT
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rsa.c
 endif !BUILD_FIPS_CURRENT
-endif
-endif
 endif
 
 if BUILD_RC2

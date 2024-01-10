@@ -2875,7 +2875,7 @@ const char* GetSigName(int oid) {
 #if !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_CERTS) || \
    (!defined(NO_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || \
-        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA))))
+        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))))
 /* Set the DER/BER encoding of the ASN.1 INTEGER header.
  *
  * When output is NULL, calculate the header length only.
@@ -2924,7 +2924,7 @@ int SetASNInt(int len, byte firstByte, byte* output)
 #if !defined(NO_DSA) || defined(HAVE_ECC) || (defined(WOLFSSL_CERT_GEN) && \
     !defined(NO_RSA)) || ((defined(WOLFSSL_KEY_GEN) || \
     (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || \
-    defined(OPENSSL_EXTRA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
+    defined(OPENSSL_EXTRA)) && !defined(NO_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
  * The number is assumed to be positive.
  *
@@ -2960,41 +2960,6 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
     return idx;
 }
 #endif
-
-#if !defined(NO_RSA) && defined(HAVE_USER_RSA) && \
-    (defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA))
-/* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int from
- * an RSA key.
- * The number is assumed to be positive.
- *
- * n       Multi-precision integer to encode.
- * output  Buffer to write into.
- * returns BUFFER_E when the data is too long for the buffer.
- *         MP_TO_E when encoding the integer fails.
- *         Otherwise, the number of bytes added to the buffer.
- */
-static int SetASNIntRSA(void* n, byte* output)
-{
-    int idx = 0;
-    int leadingBit;
-    int length;
-
-    leadingBit = wc_Rsa_leading_bit(n);
-    length = wc_Rsa_unsigned_bin_size(n);
-    idx = SetASNInt(length, leadingBit ? 0x80 : 0x00, output);
-    if ((idx + length) > MAX_RSA_INT_SZ)
-        return BUFFER_E;
-
-    if (output) {
-        int err = wc_Rsa_to_unsigned_bin(n, output + idx, length);
-        if (err != MP_OKAY)
-            return MP_TO_E;
-    }
-    idx += length;
-
-    return idx;
-}
-#endif /* !NO_RSA && HAVE_USER_RSA && WOLFSSL_CERT_GEN */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -3316,7 +3281,7 @@ static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
 #endif /* (ECC || !NO_DSA) && !WOLFSSL_ASN_TEMPLATE */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || !defined(NO_DSA)
+#if !defined(NO_RSA) || !defined(NO_DSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -3445,7 +3410,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 
 /* RSA (with CertGen or KeyGen) OR ECC OR ED25519 OR ED448 (with CertGen or
  * KeyGen) */
-#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+#if (!defined(NO_RSA) && \
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
       defined(OPENSSL_EXTRA))) || \
     (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)) || \
@@ -6336,7 +6301,6 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
 }
 #endif /* WC_RSA_PSS */
 
-#ifndef HAVE_USER_RSA
 #if defined(WOLFSSL_ASN_TEMPLATE) || (!defined(NO_CERTS) && \
     (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)))
@@ -6674,8 +6638,6 @@ int wc_RsaPrivateKeyValidate(const byte* input, word32* inOutIdx, int* keySz,
 {
     return _RsaPrivateKeyDecode(input, inOutIdx, NULL, keySz, inSz);
 }
-
-#endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -7221,12 +7183,6 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
 
             if ((ret = wc_RsaPublicKeyDecode(pubKey, &keyIdx, b,
                     pubKeySz)) == 0) {
-                /* limit for user RSA crypto because of RsaKey
-                 * dereference. */
-            #if defined(HAVE_USER_RSA)
-                WOLFSSL_MSG("Cannot verify RSA pair with user RSA");
-                ret = 1; /* return first RSA cert as match */
-            #else
                 /* both keys extracted successfully now check n and e
                  * values are the same. This is dereferencing RsaKey */
                 if (mp_cmp(&(a->n), &(b->n)) != MP_EQ ||
@@ -7236,7 +7192,6 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 }
                 else
                     ret = 1;
-            #endif
             }
             else {
                 WOLFSSL_ERROR_VERBOSE(ret);
@@ -9231,7 +9186,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
 #ifndef NO_RSA
 
-#ifndef HAVE_USER_RSA
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 /* This function is to retrieve key position information in a cert.*
  * The information will be used to call TSIP TLS-linked API for    *
@@ -9583,7 +9537,6 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     return ret;
 }
-#endif /* HAVE_USER_RSA */
 #endif /* !NO_RSA */
 
 #ifndef NO_DH
@@ -25137,7 +25090,7 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
     defined(WOLFSSL_KCAPI_RSA) || \
-    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)))
+    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))))
 /* USER RSA ifdef portions used instead of refactor in consideration for
    possible fips build */
 /* Encode a public RSA key to output.
@@ -25172,19 +25125,13 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         return BAD_FUNC_ARG;
     }
 
-#ifdef HAVE_USER_RSA
-    nSz = SetASNIntRSA(key->n, NULL);
-#else
     nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, NULL);
-#endif
+
     if (nSz < 0)
         return nSz;
 
-#ifdef HAVE_USER_RSA
-    eSz = SetASNIntRSA(key->e, NULL);
-#else
     eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, NULL);
-#endif
+
     if (eSz < 0)
         return eSz;
     seqSz = SetSequence((word32)(nSz + eSz), seq);
@@ -25225,18 +25172,10 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
     XMEMCPY(output + idx, seq, seqSz);
     idx += seqSz;
     /* n */
-#ifdef HAVE_USER_RSA
-    nSz = SetASNIntRSA(key->n, output + idx);
-#else
     nSz = SetASNIntMP(&key->n, nSz, output + idx);
-#endif
     idx += (word32)nSz;
     /* e */
-#ifdef HAVE_USER_RSA
-    eSz = SetASNIntRSA(key->e, output + idx);
-#else
     eSz = SetASNIntMP(&key->e, eSz, output + idx);
-#endif
     idx += (word32)eSz;
 
     return (int)idx;
@@ -25264,13 +25203,8 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         dataASN[RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ].noOut = 1;
     #endif
         /* Set public key mp_ints. */
-    #ifdef HAVE_USER_RSA
-        SetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N], key->n);
-        SetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E], key->e);
-    #else
         SetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N], &key->n);
         SetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E], &key->e);
-    #endif
         /* Calculate size of RSA public key. */
         ret = SizeASN_Items(rsaPublicKeyASN + o, dataASN + o,
                             (int)rsaPublicKeyASN_Length - o, &sz);
@@ -25339,11 +25273,11 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
 }
 
 #endif /* !NO_RSA && (WOLFSSL_CERT_GEN || WOLFSSL_KCAPI_RSA ||
-            ((OPENSSL_EXTRA || WOLFSSL_KEY_GEN) && !HAVE_USER_RSA))) */
+            ((OPENSSL_EXTRA || WOLFSSL_KEY_GEN))) */
 
 #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)) && \
-     !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+     !defined(NO_RSA)
 
 /* Encode private RSA key in DER format.
  *
@@ -25482,7 +25416,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #endif
 }
 
-#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -38644,8 +38578,7 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
 #endif /* !NO_ASN */
 
 /* Functions that parse, but are not using ASN.1 */
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-    (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH))
+#if !defined(NO_RSA) && (!defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH))
 /* import RSA public key elements (n, e) into RsaKey structure (key) */
 /* this function does not use any ASN.1 parsing */
 int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
@@ -38696,7 +38629,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 
     return 0;
 }
-#endif /* !NO_RSA && !HAVE_USER_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
+#endif /* !NO_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
 
 
 #ifdef WOLFSSL_SEP

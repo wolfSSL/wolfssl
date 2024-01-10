@@ -286,23 +286,6 @@ mqx/wolfcrypt_benchmark/.settings
 mqx/wolfcrypt_benchmark/.cwGeneratedFileSetLog
 mqx/wolfcrypt_benchmark/SaAnalysispointsManager.apconfig
 
-# User Crypto example build
-wolfcrypt/user-crypto/aclocal.m4
-wolfcrypt/user-crypto/config.guess
-wolfcrypt/user-crypto/autom4te.cache
-wolfcrypt/user-crypto/config.log
-wolfcrypt/user-crypto/config.status
-wolfcrypt/user-crypto/config.sub
-wolfcrypt/user-crypto/depcomp
-wolfcrypt/user-crypto/install-sh
-wolfcrypt/user-crypto/libtool
-wolfcrypt/user-crypto/ltmain.sh
-wolfcrypt/user-crypto/m4
-wolfcrypt/user-crypto/missing
-wolfcrypt/user-crypto/Makefile.in
-wolfcrypt/user-crypto/lib/libusercrypto.*
-*.hzs
-
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
 
