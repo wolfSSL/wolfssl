@@ -19774,6 +19774,7 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 #ifdef HAVE_SESSION_TICKET
     if (session->ticketLenAlloc > 0) {
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
+        session->ticketLenAlloc = 0;
     }
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
