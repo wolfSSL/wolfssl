@@ -316,7 +316,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
     }
 
     if (ret == NULL) {
-        ret = wolfSSL_X509_EXTENSION_new_ex(ex->heap);
+        ret = wolfSSL_X509_EXTENSION_new_ex(obj->heap);
         if (ret == NULL) {
             err = 1;
         }
