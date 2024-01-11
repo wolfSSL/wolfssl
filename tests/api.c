@@ -49540,15 +49540,15 @@ static int test_wolfSSL_X509V3_EXT_nconf(void)
                      | XKU_OCSP_SIGN;
 
     for (i = 0; i < ext_names_count; i++) {
-        ExpectNotNull(ext = X509V3_EXT_nconf(NULL, NULL, ext_names[i],
-            ext_values[i]));
+        ExpectNotNull(ext = wolfSSL_X509V3_EXT_nconf_ex(NULL, NULL,
+            ext_names[i], ext_values[i], HEAP_HINT));
         X509_EXTENSION_free(ext);
         ext = NULL;
     }
 
     for (i = 0; i < ext_nids_count; i++) {
-        ExpectNotNull(ext = X509V3_EXT_nconf_nid(NULL, NULL, ext_nids[i],
-            ext_values[i]));
+        ExpectNotNull(ext = wolfSSL_X509V3_EXT_nconf_nid_ex(NULL, NULL,
+            ext_nids[i], ext_values[i], HEAP_HINT));
         X509_EXTENSION_free(ext);
         ext = NULL;
     }

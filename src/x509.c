@@ -2871,8 +2871,8 @@ err_cleanup:
  *              newly created extension object.
  * @return WOLFSSL_X509_EXTENSION* on success or NULL on failure.
  */
-WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
-        WOLFSSL_X509V3_CTX *ctx, int nid, const char *value)
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid_ex(WOLFSSL_CONF* conf,
+        WOLFSSL_X509V3_CTX *ctx, int nid, const char *value, void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_nconf_nid");
 
@@ -2886,7 +2886,13 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
                     "conf or ctx parameters");
     }
 
-    return createExtFromStr(nid, value, ctx->x509->heap);
+    return createExtFromStr(nid, value, heap);
+}
+
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
+        WOLFSSL_X509V3_CTX *ctx, int nid, const char *value)
+{
+    return wolfSSL_X509V3_EXT_nconf_nid_ex(conf, ctx, nid, value, NULL);
 }
 
 /**
@@ -2899,8 +2905,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
  *              newly created extension object.
  * @return WOLFSSL_X509_EXTENSION* on success or NULL on failure.
  */
-WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
-        WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value)
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_ex(WOLFSSL_CONF *conf,
+        WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value,
+        void* heap)
 {
     const WOLFSSL_ObjectInfo* info = wolfssl_object_info;
     size_t i;
@@ -2919,11 +2926,17 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
 
     for (i = 0; i < wolfssl_object_info_sz; i++, info++) {
         if (XSTRCMP(info->sName, sName) == 0)
-            return createExtFromStr(info->nid, value, ctx->x509->heap);
+            return createExtFromStr(info->nid, value, heap);
     }
 
     WOLFSSL_MSG("value didn't match any known NID");
     return NULL;
+}
+
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
+        WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value)
+{
+    return wolfSSL_X509V3_EXT_nconf_ex(conf, ctx, sName, value, NULL);
 }
 
 static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,

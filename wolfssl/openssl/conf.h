@@ -77,8 +77,14 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
 
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
         WOLFSSL_X509V3_CTX *ctx, int nid, const char *value);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid_ex(
+    WOLFSSL_CONF* conf, WOLFSSL_X509V3_CTX *ctx, int nid, const char *value,
+    void* heap);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
         WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_ex(
+    WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx, const char *sName,
+    const char *value, void* heap);
 
 #define sk_CONF_VALUE_new               wolfSSL_sk_CONF_VALUE_new
 #define sk_CONF_VALUE_free              wolfSSL_sk_CONF_VALUE_free
