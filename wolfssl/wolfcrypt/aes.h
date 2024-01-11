@@ -85,10 +85,14 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
 #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
 #include <xsecure_aesclient.h>
-#define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_AES_USER_KEY_0
+#if !defined(WOLFSSL_XILINX_AES_KEY_SRC)
+    #define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_AES_USER_KEY_0
+#endif
 #else /* versal */
 #include <xsecure_aes.h>
-#define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_CSU_AES_KEY_SRC_KUP
+#if !defined(WOLFSSL_XILINX_AES_KEY_SRC)
+    #define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_CSU_AES_KEY_SRC_KUP
+#endif
 #endif /* !versal */
 #endif /* WOLFSSL_XILINX_CRYPT */
 

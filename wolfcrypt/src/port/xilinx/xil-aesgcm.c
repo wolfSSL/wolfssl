@@ -135,7 +135,9 @@ int wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup)
     aes->xKeySize =
             len == AES_128_KEY_SIZE ? XSECURE_AES_KEY_SIZE_128 :
                                       XSECURE_AES_KEY_SIZE_256;
-    XMEMCPY(aes->keyInit, key, len);
+    if (key != NULL) {
+        XMEMCPY(aes->keyInit, key, len);
+    }
 
     return 0;
 }
@@ -478,7 +480,12 @@ int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup)
 {
     XCsuDma_Config* con;
 
-    if (aes == NULL || key == NULL) {
+    if (aes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (kup == XSECURE_CSU_AES_KEY_SRC_KUP && key == NULL) {
+        WOLFSSL_MSG("Expecting key buffer passed in if using KUP");
         return BAD_FUNC_ARG;
     }
 
@@ -501,7 +508,9 @@ int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup)
 
     aes->keylen = len;
     aes->kup    = kup;
-    XMEMCPY((byte*)(aes->keyInit), key, len);
+    if (key != NULL) {
+        XMEMCPY((byte*)(aes->keyInit), key, len);
+    }
 
     return 0;
 }
@@ -538,18 +547,26 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
             return BAD_FUNC_ARG;
         }
 
+    #ifndef NO_WOLFSSL_XILINX_TAG_MALLOC
         tmp = (byte*)XMALLOC(sz + AES_GCM_AUTH_SZ, aes->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             return MEMORY_E;
         }
+    #else
+        /* if NO_WOLFSSL_XILINX_TAG_MALLOC is defined than it is assumed that
+         * out buffer is large enough to hold both the cipher out and tag */
+        tmp = out;
+    #endif
 
         XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup, (word32*)iv,
             aes->keyInit);
         XSecure_AesEncryptData(&(aes->xilAes), tmp, in, sz);
-        XMEMCPY(out, tmp, sz);
         XMEMCPY(authTag, tmp + sz, authTagSz);
+    #ifndef NO_WOLFSSL_XILINX_TAG_MALLOC
+        XMEMCPY(out, tmp, sz);
         XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     /* handle completing tag with any additional data */
@@ -610,7 +627,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     /* calls to hardened crypto */
     XSecure_AesInitialize(&(aes->xilAes), &(aes->dma), aes->kup,
                 (word32*)iv, aes->keyInit);
-    XSecure_AesDecryptData(&(aes->xilAes), out, in, sz, tag);
+    ret = XSecure_AesDecryptData(&(aes->xilAes), out, in, sz, tag);
 
     /* account for additional data */
     if (authIn != NULL && authInSz > 0) {
@@ -620,6 +637,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
             return ret;
         xorbuf(tag, scratch, AES_GCM_AUTH_SZ);
         if (ConstantCompare(authTag, tag, authTagSz) != 0) {
+            return AES_GCM_AUTH_E;
+        }
+    }
+    else {
+        /* if no aad then check the result of the initial tag passed in */
+        if (ret != XST_SUCCESS) {
             return AES_GCM_AUTH_E;
         }
     }

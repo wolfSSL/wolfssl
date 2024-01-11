@@ -881,6 +881,9 @@ endif
 
 endif !BUILD_CRYPTONLY
 
+if BUILD_XILINX
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/xilinx/xil-aesgcm.c
+endif
 
 endif !BUILD_FIPS_RAND
 
@@ -888,3 +891,4 @@ if BUILD_ARIA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-crypt.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-cryptocb.c
 endif
+

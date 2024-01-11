@@ -1844,7 +1844,10 @@ extern void uITRON4_free(void *p) ;
     #if !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
         #define NO_DEV_RANDOM
     #endif
+    #undef  NO_WOLFSSL_DIR
     #define NO_WOLFSSL_DIR
+
+    #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 #endif
 
