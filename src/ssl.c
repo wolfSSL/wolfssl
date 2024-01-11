@@ -19774,6 +19774,8 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 #ifdef HAVE_SESSION_TICKET
     if (session->ticketLenAlloc > 0) {
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
+        session->ticket = session->staticTicket;
+        session->ticketLen = 0;
         session->ticketLenAlloc = 0;
     }
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
@@ -19781,6 +19783,8 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     if (session->ticketNonce.data != session->ticketNonce.dataStatic) {
         XFREE(session->ticketNonce.data, session->heap,
             DYNAMIC_TYPE_SESSION_TICK);
+        session->ticketNonce.data = session->ticketNonce.dataStatic;
+        session->ticketNonce.len = 0;
     }
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
