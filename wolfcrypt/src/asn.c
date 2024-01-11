@@ -36722,8 +36722,24 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
         dcrl->version++;
     }
 
-    if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0)
+    if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0) {
         return ASN_PARSE_E;
+    }
+#ifdef WC_RSA_PSS
+    else if (oid == CTC_RSASSAPSS) {
+        word32 tmpSz;
+        int len;
+
+        tmpSz = idx;
+        dcrl->sigParamsIndex = idx;
+        if (GetSequence(buf, &idx, &len, sz) < 0) {
+            dcrl->sigParamsIndex = 0;
+            return ASN_PARSE_E;
+        }
+        idx += len;
+        dcrl->sigParamsLength = idx - tmpSz;
+    }
+#endif
 
     checkIdx = idx;
     if (GetSequence(buf, &checkIdx, &length, sz) < 0) {
@@ -37153,6 +37169,10 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     int          ret = 0;
     int          len;
     word32       idx = 0;
+#ifdef WC_RSA_PSS
+    const byte* sigParams = NULL;
+    int sigParamsSz = 0;
+#endif
 
     WOLFSSL_MSG("ParseCRL");
 
@@ -37182,8 +37202,24 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
 
     idx = dcrl->sigIndex;
 
-    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, oidSigType, sz) < 0)
+    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, oidSigType, sz) < 0) {
         return ASN_PARSE_E;
+    }
+#ifdef WC_RSA_PSS
+    else if (dcrl->signatureOID == CTC_RSASSAPSS) {
+        word32 tmpSz;
+        const byte* params;
+
+        tmpSz = idx;
+        params = buff + idx;
+        if (GetSequence(buff, &idx, &len, sz) < 0) {
+            return ASN_PARSE_E;
+        }
+        idx += len;
+        sigParams = params;
+        sigParamsSz = idx - tmpSz;
+    }
+#endif
 
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)
         return ASN_PARSE_E;
@@ -37223,7 +37259,7 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     WOLFSSL_MSG("Found CRL issuer CA");
     ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, sigParam, sigParamsSz, ca, dcrl->heap);
+           dcrl->signatureOID, sigParams, sigParamsSz, ca, dcrl->heap);
 
 end:
     return ret;
