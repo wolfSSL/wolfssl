@@ -140,7 +140,7 @@ marvell-linux-selftest)
 linuxv5)
   FIPS_OPTION='v5'
   FIPS_FILES=(
-    'wolfcrypt/src/fips.c:WCv5.0-RC12'
+    'wolfcrypt/src/fips.c:WCv5.2.0.1-RC01'
     'wolfcrypt/src/fips_test.c:WCv5.0-RC12'
     'wolfcrypt/src/wolfcrypt_first.c:WCv5.0-RC12'
     'wolfcrypt/src/wolfcrypt_last.c:WCv5.0-RC12'
