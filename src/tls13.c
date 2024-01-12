@@ -8928,7 +8928,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 if (args->verify[0] == 0) {
                     ERROR_OUT(ALGO_ID_E, exit_scv);
                 }
-            } else
+            }
+            else
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
                 EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo,
                              args->verify);
@@ -9548,7 +9549,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ret = DecodeTls13SigAlg(input + args->idx, &args->hashAlgo,
                                         &args->sigAlgo);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-            } else {
+            }
+            else {
                 ret = DecodeTls13HybridSigAlg(input + args->idx,
                                               &args->hashAlgo,
                                               &args->sigAlgo,
@@ -9694,7 +9696,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     else {
                         ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
                     }
-                } else if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                }
+                else if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
                     /* Use alternative public key to figure out the expected
                      * alt sig size. We only support Post-quantum key as SAPKI.
                      */
@@ -9813,7 +9816,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
                 if (args->sigAlgo == rsa_pss_sa_algo) {
                     sig->length = 384;
-                } else if (args->sigAlgo == ecc_dsa_sa_algo) {
+                }
+                else if (args->sigAlgo == ecc_dsa_sa_algo) {
                     word32 tmpIdx = args->idx;
                     sig->length = wc_SignatureGetSize(WC_SIGNATURE_TYPE_ECC,
                                       ssl->peerEccDsaKey,
@@ -9824,7 +9828,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     }
                     /* We have to increment by the size of the header. */
                     sig->length += tmpIdx - args->idx;
-                } else {
+                }
+                else {
                     ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
                 }
             }

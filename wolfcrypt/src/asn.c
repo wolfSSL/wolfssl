@@ -28207,8 +28207,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SAPKI_STR], cert->sapkiDer,
                     cert->sapkiLen);
         }
-        else
-        {
+        else {
             /* Don't write out subject alternative public key info. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_SAPKI_SEQ,
                     CERTEXTSASN_IDX_SAPKI_STR);
@@ -28221,8 +28220,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_ALTSIGALG_STR],
                     cert->altSigAlgDer, cert->altSigAlgLen);
         }
-        else
-        {
+        else {
             /* Don't write out alternative signature algorithm. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ALTSIGALG_SEQ,
                     CERTEXTSASN_IDX_ALTSIGALG_STR);
@@ -28235,8 +28233,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_ALTSIGVAL_STR],
                     cert->altSigValDer, cert->altSigValLen);
         }
-        else
-        {
+        else {
             /* Don't write out alternative signature value. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ALTSIGVAL_SEQ,
                     CERTEXTSASN_IDX_ALTSIGVAL_STR);
@@ -29593,7 +29590,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS].noOut = 1;
     #endif
 
-        } else
+        }
+        else
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
         {
             SetASN_OID(&dataASN[X509CERTASN_IDX_TBS_ALGOID_OID],
@@ -30902,36 +30900,40 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 
     XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
-    if (keyType == RSA_TYPE)
-        rsaKey = (RsaKey*)key;
-    else if (keyType == ECC_TYPE)
-        eccKey = (ecc_key*)key;
-    else if (keyType == ED25519_TYPE)
-        ed25519Key = (ed25519_key*)key;
-    else if (keyType == ED448_TYPE)
-        ed448Key = (ed448_key*)key;
-    else if (keyType == FALCON_LEVEL1_TYPE)
-        falconKey = (falcon_key*)key;
-    else if (keyType == FALCON_LEVEL5_TYPE)
-        falconKey = (falcon_key*)key;
-    else if (keyType == DILITHIUM_LEVEL2_TYPE)
-        dilithiumKey = (dilithium_key*)key;
-    else if (keyType == DILITHIUM_LEVEL3_TYPE)
-        dilithiumKey = (dilithium_key*)key;
-    else if (keyType == DILITHIUM_LEVEL5_TYPE)
-        dilithiumKey = (dilithium_key*)key;
-    else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
-        sphincsKey = (sphincs_key*)key;
-    else if (keyType == SPHINCS_FAST_LEVEL3_TYPE)
-        sphincsKey = (sphincs_key*)key;
-    else if (keyType == SPHINCS_FAST_LEVEL5_TYPE)
-        sphincsKey = (sphincs_key*)key;
-    else if (keyType == SPHINCS_SMALL_LEVEL1_TYPE)
-        sphincsKey = (sphincs_key*)key;
-    else if (keyType == SPHINCS_SMALL_LEVEL3_TYPE)
-        sphincsKey = (sphincs_key*)key;
-    else if (keyType == SPHINCS_SMALL_LEVEL5_TYPE)
-        sphincsKey = (sphincs_key*)key;
+    switch (keyType):
+    {
+        case RSA_TYPE:
+            rsaKey = (RsaKey*)key;
+            break;
+        case ECC_TYPE:
+            eccKey = (ecc_key*)key;
+            break;
+        case ED25519_TYPE:
+            ed25519Key = (ed25519_key*)key;
+            break;
+        case ED448_TYPE:
+            ed448Key = (ed448_key*)key;
+            break;
+        case FALCON_LEVEL1_TYPE:
+        case FALCON_LEVEL5_TYPE:
+            falconKey = (falcon_key*)key;
+            break;
+        case DILITHIUM_LEVEL2_TYPE:
+        case DILITHIUM_LEVEL3_TYPE:
+        case DILITHIUM_LEVEL5_TYPE:
+            dilithiumKey = (dilithium_key*)key;
+            break;
+        case SPHINCS_FAST_LEVEL1_TYPE:
+        case SPHINCS_FAST_LEVEL3_TYPE:
+        case SPHINCS_FAST_LEVEL5_TYPE:
+        case SPHINCS_SMALL_LEVEL1_TYPE:
+        case SPHINCS_SMALL_LEVEL3_TYPE:
+        case SPHINCS_SMALL_LEVEL5_TYPE:
+            sphincsKey = (sphincs_key*)key;
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
 
     /* locate ctx */
     if (rsaKey) {

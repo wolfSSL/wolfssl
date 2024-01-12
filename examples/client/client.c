@@ -3562,10 +3562,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     /* Set preference for verfication of both the native and alternative chains.
      */
     byte cks_order[3] = {
-                         WOLFSSL_CKS_SIGSPEC_BOTH,
-                         WOLFSSL_CKS_SIGSPEC_ALTERNATIVE,
-                         WOLFSSL_CKS_SIGSPEC_NATIVE,
-                        };
+        WOLFSSL_CKS_SIGSPEC_BOTH,
+        WOLFSSL_CKS_SIGSPEC_ALTERNATIVE,
+        WOLFSSL_CKS_SIGSPEC_NATIVE,
+    };
 
     if (!wolfSSL_UseCKS(ssl, cks_order, sizeof(cks_order))) {
         wolfSSL_CTX_free(ctx); ctx = NULL;

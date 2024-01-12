@@ -7535,7 +7535,8 @@ int GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     x = wolfSSL_X509_new();
     if (x == NULL) {
         ret = MEMORY_E;
-    } else {
+    }
+    else {
         ret = CopyDecodedToX509(x, cert);
     }
 

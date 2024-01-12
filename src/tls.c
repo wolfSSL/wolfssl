@@ -9482,10 +9482,8 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
 /* Writes the CKS objects of a list in a buffer. */
 static word16 CKS_WRITE(WOLFSSL* ssl, byte* output)
 {
-    int offset = 0;
     XMEMCPY(output + offset, ssl->sigSpec, ssl->sigSpecSz);
-    offset += ssl->sigSpecSz;
-    return offset;
+    return ssl->sigSpecSz;
 }
 
 static int TLSX_UseCKS(TLSX** extensions, WOLFSSL* ssl, void* heap)
@@ -9530,19 +9528,23 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
     (void) extensions;
     int ret;
     int i, j;
+
+    /* Validating the input. */
     if (length == 0)
         return BUFFER_ERROR;
     for (i = 0; i < length; i++) {
-        if ((input[i] != WOLFSSL_CKS_SIGSPEC_NATIVE) &&
-            (input[i] != WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) &&
-            (input[i] != WOLFSSL_CKS_SIGSPEC_BOTH) &&
-            (input[i] != WOLFSSL_CKS_SIGSPEC_EXTERNAL))
-            return BUFFER_ERROR;
-
-        if (input[i] == WOLFSSL_CKS_SIGSPEC_EXTERNAL) {
-            return WOLFSSL_NOT_IMPLEMENTED;
+        switch (input[i])
+        {
+            case WOLFSSL_CKS_SIGSPEC_NATIVE:
+            case WOLFSSL_CKS_SIGSPEC_ALTERNATIVE:
+            case WOLFSSL_CKS_SIGSPEC_BOTH:
+                /* These are all valid values; do nothing */
+                break;
+            case WOLFSSL_CKS_SIGSPEC_EXTERNAL:
+            default:
+                /* All other values (including external) are not. */
+                return WOLFSSL_NOT_IMPLEMENTED;
         }
-
     }
 
     /* Extension data is valid, but if we are the server and we don't have an
@@ -14427,7 +14429,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("CKS extension received");
                 if (!IsAtLeastTLSv1_3(ssl->version) ||
                     (msgType != client_hello &&
-                    msgType != encrypted_extensions)) {
+                     msgType != encrypted_extensions)) {
                         WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                         return EXT_NOT_ALLOWED;
                 }

@@ -12979,7 +12979,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->sapkiLen = dCert->sapkiLen;
         x509->altSigAlgLen = dCert->altSigAlgLen;
         x509->altSigValLen = dCert->altSigValLen;
-    } else {
+    }
+    else {
         ret = MEMORY_E;
     }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -13932,14 +13933,14 @@ PRAGMA_GCC_DIAG_POP
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if ((ret == 0) && (args->dCert->sapkiDer != NULL)) {
-#ifdef WOLFSSL_SMALL_STACK
+#ifndef WOLFSSL_SMALL_STACK
+        byte der[MAX_CERT_VERIFY_SZ];
+#else
         byte *der = XMALLOC(MAX_CERT_VERIFY_SZ, ssl->heap, DYNAMIC_TYPE_DCERT);
         if (der == NULL) {
             ret = MEMORY_E;
         }
-#else
-        byte der[MAX_CERT_VERIFY_SZ];
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* ! WOLFSSL_SMALL_STACK */
 
         if (ret == 0) {
             ret = GeneratePreTBS(args->dCert, der, MAX_CERT_VERIFY_SZ);
@@ -13950,7 +13951,8 @@ PRAGMA_GCC_DIAG_POP
                     args->dCert->sapkiOID,
                     args->dCert->altSigValDer, args->dCert->altSigValLen,
                     args->dCert->altSigAlgOID, ssl->heap);
-            } else {
+            }
+            else {
                 ret = -1;
             }
 
