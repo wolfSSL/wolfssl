@@ -7764,28 +7764,42 @@ int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 #endif /* WOLFSSL_CERT_REQ */
 
 #if !defined(NO_FILESYSTEM)
-static void *wolfSSL_d2i_X509_fp_ex2(XFILE file, void **x509, int type,
+#ifdef WOLFSSL_CERT_REQ
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp_ex(XFILE fp, WOLFSSL_X509 **req,
     void* heap)
 {
-    void *newx509 = NULL;
+    return wolfSSL_d2i_X509_fp_ex(fp, req, CERTREQ_TYPE, heap);
+}
+
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp(XFILE fp, WOLFSSL_X509 **req)
+{
+    return wolfSSL_d2i_X509_REQ_fp_ex(fp, req, NULL);
+}
+#endif /* WOLFSSL_CERT_REQ */
+
+WOLFSSL_X509* wolfSSL_d2i_X509_fp_ex(XFILE fp, WOLFSSL_X509** x509, int type, void* heap)
+{
+    WOLFSSL_X509* newx509 = NULL;
     byte *fileBuffer = NULL;
     long sz = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
 
     /* init variable */
     if (x509)
         *x509 = NULL;
 
     /* argument check */
-    if (file == XBADFILE) {
+    if (fp == XBADFILE) {
         return NULL;
     }
 
     /* determine file size */
-    if (XFSEEK(file, 0, XSEEK_END) != 0) {
+    if (XFSEEK(fp, 0, XSEEK_END) != 0) {
         return NULL;
     }
-    sz = XFTELL(file);
-    if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+    sz = XFTELL(fp);
+    if (XFSEEK(fp, 0, XSEEK_SET) != 0) {
         return NULL;
     }
 
@@ -7796,27 +7810,29 @@ static void *wolfSSL_d2i_X509_fp_ex2(XFILE file, void **x509, int type,
 
     fileBuffer = (byte *)XMALLOC(sz, heap, DYNAMIC_TYPE_FILE);
     if (fileBuffer != NULL) {
-        if ((long)XFREAD(fileBuffer, 1, sz, file) != sz) {
+        if ((long)XFREAD(fileBuffer, 1, sz, fp) != sz) {
             WOLFSSL_MSG("File read failed");
             goto err_exit;
         }
         if (type == CERT_TYPE) {
-            newx509 = (void *)wolfSSL_X509_d2i_ex(NULL, fileBuffer, (int)sz, heap);
+            newx509 = (WOLFSSL_X509*)wolfSSL_X509_d2i_ex(NULL, fileBuffer,
+                (int)sz, heap);
         }
     #ifdef HAVE_CRL
         else if (type == CRL_TYPE) {
-            newx509 = (void *)wolfSSL_d2i_X509_CRL_ex(NULL, fileBuffer, (int)sz,
-                heap);
+            newx509 = (WOLFSSL_X509*)wolfSSL_d2i_X509_CRL_ex(NULL, fileBuffer,
+                (int)sz, heap);
         }
     #endif
     #ifdef WOLFSSL_CERT_REQ
         else if (type == CERTREQ_TYPE) {
-             newx509 = (void *)wolfSSL_X509_REQ_d2i_ex(NULL, fileBuffer, (int)sz, heap);
+             newx509 = (WOLFSSL_X509*)wolfSSL_X509_REQ_d2i_ex(NULL, fileBuffer,
+                (int)sz, heap);
         }
     #endif
     #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
         else if (type == PKCS12_TYPE) {
-            if ((newx509 = wc_PKCS12_new()) == NULL) {
+            if ((newx509 = (WOLFSSL_X509*)wc_PKCS12_new()) == NULL) {
                 goto err_exit;
             }
             if (wc_d2i_PKCS12(fileBuffer, (int)sz, (WC_PKCS12*)newx509) < 0) {
@@ -7852,30 +7868,9 @@ _exit:
     return newx509;
 }
 
-#ifdef WOLFSSL_CERT_REQ
-WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp_ex(XFILE fp, WOLFSSL_X509 **req,
-    void* heap)
+WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509** x509)
 {
-    return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex2(fp, (void **)req,
-                                                  CERTREQ_TYPE, heap);
-}
-
-WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp(XFILE fp, WOLFSSL_X509 **req)
-{
-    return wolfSSL_d2i_X509_REQ_fp_ex(fp, req, NULL);
-}
-#endif /* WOLFSSL_CERT_REQ */
-
-WOLFSSL_X509 *wolfSSL_d2i_X509_fp_ex(XFILE fp, WOLFSSL_X509 **x509, void* heap)
-{
-    WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
-    return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex2(fp, (void **)x509, CERT_TYPE,
-        heap);
-}
-
-WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
-{
-    return wolfSSL_d2i_X509_fp_ex(fp, x509, NULL);
+    return wolfSSL_d2i_X509_fp_ex(fp, x509, CERT_TYPE, NULL);
 }
 
 /* load certificate or CRL file, and add it to the STORE           */
@@ -8046,13 +8041,13 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
 WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp_ex(XFILE fp, WOLFSSL_X509_CRL **crl, void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp_ex");
-    return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex2(fp, (void **)crl, CRL_TYPE, heap);
+    return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (WOLFSSL_X509**)crl, CRL_TYPE, heap);
 }
 
 WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
-    return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex2(fp, (void **)crl, CRL_TYPE, NULL);
+    return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (WOLFSSL_X509**)crl, CRL_TYPE, NULL);
 }
 
 /* Read CRL file, and add it to store and corresponding cert manager     */

@@ -276,7 +276,6 @@ struct WOLFSSL_ASN1_OTHERNAME {
 
 struct WOLFSSL_GENERAL_NAME {
     int type;
-    void* heap;
     union {
         char* ptr;
         WOLFSSL_ASN1_OTHERNAME* otherName;
@@ -294,17 +293,17 @@ struct WOLFSSL_GENERAL_NAME {
         WOLFSSL_ASN1_OBJECT* rid;
         WOLFSSL_ASN1_TYPE* other;
     } d; /* dereference */
+    void* heap;
 };
 
 struct WOLFSSL_DIST_POINT_NAME {
     int type;
-    void* heap;
-
     /* name 'name.fullname' needs to remain the same, in some ports the elements
      * of the structure are accessed directly */
     union {
         WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* fullname;
     } name;
+    void* heap;
 };
 
 struct WOLFSSL_DIST_POINT {
@@ -679,12 +678,12 @@ typedef enum {
 
 typedef struct WOLFSSL_X509_OBJECT {
     WOLFSSL_X509_LOOKUP_TYPE type;
-    void* heap;
     union {
         char* ptr;
         WOLFSSL_X509 *x509;
         WOLFSSL_X509_CRL* crl;           /* stunnel dereference */
     } data;
+    void* heap;
 } WOLFSSL_X509_OBJECT;
 
 #define WOLFSSL_ASN1_BOOLEAN                int
@@ -4433,8 +4432,8 @@ WOLFSSL_API int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
 #if !defined(NO_FILESYSTEM)
 WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_fp(XFILE fp,
                                                WOLFSSL_X509** x509);
-WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_fp_ex(XFILE fp,
-                                               WOLFSSL_X509** x509, void* heap);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_fp_ex(XFILE fp, WOLFSSL_X509** x509,
+                                                          int type, void* heap);
 #endif
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio,

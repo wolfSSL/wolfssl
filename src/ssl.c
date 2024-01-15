@@ -35220,8 +35220,8 @@ WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp,
         WOLFSSL_X509_PKCS12 **pkcs12)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_PKCS12_fp");
-    return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex2(fp, (void **)pkcs12,
-        PKCS12_TYPE, NULL);
+    return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp,
+        (WOLFSSL_X509**)pkcs12, PKCS12_TYPE, NULL);
 }
 #endif /* !NO_FILESYSTEM */
 
