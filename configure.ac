@@ -9584,6 +9584,8 @@ echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
 echo ""
 echo "---"
 
+echo "./configure flags: $(./config.status --config)"
+
 fi # $silent != yes
 
 ################################################################################
