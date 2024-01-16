@@ -2548,6 +2548,10 @@ struct DecodedCRL {
     word32  sigIndex;                /* offset to start of signature     */
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
+#ifdef WC_RSA_PSS
+    word32  sigParamsIndex;          /* start of signature parameters    */
+    word32  sigParamsLength;         /* length of signature parameters   */
+#endif
     byte*   signature;               /* pointer into raw source, not owned */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
@@ -2574,8 +2578,8 @@ WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);
 WOLFSSL_LOCAL int VerifyCRL_Signature(SignatureCtx* sigCtx,
                                       const byte* toBeSigned, word32 tbsSz,
                                       const byte* signature, word32 sigSz,
-                                      word32 signatureOID, Signer *ca,
-                                      void* heap);
+                                      word32 signatureOID, const byte* sigParams,
+                                      int sigParamsSz, Signer *ca, void* heap);
 WOLFSSL_LOCAL int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl,
                            const byte* buff, word32 sz, int verify, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);

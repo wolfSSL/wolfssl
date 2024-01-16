@@ -202,4 +202,21 @@ echo "Step 26"
 openssl crl -in crl.pem -inform PEM -out crl.der -outform DER
 openssl crl -in crl2.pem -inform PEM -out crl2.der -outform DER
 
+# clear state for RSA-PSS revoke
+cp blank.index.txt demoCA/index.txt
+
+echo "Step 27 RSA-PSS revoke"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../rsapss/server-rsapss.pem -keyfile ../rsapss/ca-rsapss-priv.pem -cert ../rsapss/ca-rsapss.pem
+check_result $?
+
+echo "Step 28 RSA-PSS"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl_rsapss.pem -keyfile ../rsapss/ca-rsapss-priv.pem -cert ../rsapss/ca-rsapss.pem
+check_result $?
+
+# metadata
+echo "Step 29"
+openssl crl -in crl_rsapss.pem -text > tmp
+check_result $?
+mv tmp crl_rsapss.pem
+
 exit 0

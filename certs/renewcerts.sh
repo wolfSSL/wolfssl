@@ -838,6 +838,7 @@ run_renewcerts(){
     cd ./crl || { echo "Failed to switch to dir ./crl"; exit 1; }
     echo "changed directory: cd/crl"
     echo ""
+    # has dependency on rsapss generation (rsapss should be ran first)
     ./gencrls.sh
     check_result $? "gencrls.sh"
     echo "ran ./gencrls.sh"
