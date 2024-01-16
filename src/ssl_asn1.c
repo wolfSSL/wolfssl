@@ -2094,9 +2094,10 @@ void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1)
         if ((asn1->length > 0) && asn1->isDynamic) {
             XFREE(asn1->data, asn1->heap, DYNAMIC_TYPE_OPENSSL);
         }
+
+        /* Dispose of ASN.1 STRING object. */
+        XFREE(asn1, asn1->heap, DYNAMIC_TYPE_OPENSSL);
     }
-    /* Dispose of ASN.1 STRING object. */
-    XFREE(asn1, asn1->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
 /* Copy an ASN.1 STRING object from src into dest.
