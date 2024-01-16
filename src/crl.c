@@ -763,24 +763,23 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
                                           DYNAMIC_TYPE_CRL_ENTRY);
         dupl->signature = (byte*)XMALLOC(dupl->signatureSz, heap,
                                          DYNAMIC_TYPE_CRL_ENTRY);
-#ifdef WC_RSA_PSS
+    #ifdef WC_RSA_PSS
         dupl->sigParams = (byte*)XMALLOC(dupl->sigParamsSz, heap,
                                          DYNAMIC_TYPE_CRL_ENTRY);
-#endif
-        if (dupl->toBeSigned == NULL || dupl->signature == NULL) {
+    #endif
+        if (dupl->toBeSigned == NULL || dupl->signature == NULL
+        #ifdef WC_RSA_PSS
+            || dupl->sigParams == NULL
+        #endif
+        ) {
             CRL_Entry_free(dupl, heap);
             return NULL;
         }
         XMEMCPY(dupl->toBeSigned, ent->toBeSigned, dupl->tbsSz);
         XMEMCPY(dupl->signature, ent->signature, dupl->signatureSz);
-
-#ifdef WC_RSA_PSS
-        if (dupl->sigParams == NULL) {
-            CRL_Entry_free(dupl, heap);
-            return NULL;
-        }
+    #ifdef WC_RSA_PSS
         XMEMCPY(dupl->sigParams, ent->sigParams, dupl->sigParamsSz);
-#endif
+    #endif
     }
     else {
         dupl->toBeSigned = NULL;

@@ -3046,7 +3046,7 @@ static int test_wolfSSL_CertManagerCRL(void)
     const char* crl2     = "./certs/crl/crl2.pem";
 #ifdef WC_RSA_PSS
     const char* crl_rsapss = "./certs/crl/crl_rsapss.pem";
-    const char* ca_rsapss  = "certs/rsapss/ca-rsapss.pem";
+    const char* ca_rsapss  = "./certs/rsapss/ca-rsapss.pem";
 #endif
     const unsigned char crl_buff[] = {
         0x30, 0x82, 0x02, 0x04, 0x30, 0x81, 0xed, 0x02,
