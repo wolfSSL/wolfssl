@@ -34,6 +34,7 @@
         <li>\ref Camellia</li>
         <li>\ref ChaCha</li>
         <li>\ref ChaCha20Poly1305</li>
+        <li>\ref CMAC</li>
         <li>\ref Crypto Callbacks</li>
         <li>\ref Curve25519</li>
         <li>\ref Curve448</li>

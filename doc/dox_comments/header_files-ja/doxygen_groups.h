@@ -6,6 +6,7 @@
     \defgroup Camellia Algorithms - Camellia
     \defgroup ChaCha Algorithms - ChaCha
     \defgroup ChaCha20Poly1305 Algorithms - ChaCha20_Poly1305
+  　\defgroup CMAC Algorithm - CMAC
     \defgroup Crypto Callbacks - CryptoCb
     \defgroup Curve25519 Algorithms - Curve25519
     \defgroup Curve448 Algorithms - Curve448
