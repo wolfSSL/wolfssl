@@ -16,6 +16,7 @@ GIT="${GIT:-git -c advice.detachedHead=false}"
 TEST_DIR="${TEST_DIR:-XXX-fips-test}"
 FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
+MAKECHECK=${MAKECHECK:-yes}
 FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
 
 Usage() {
@@ -39,7 +40,9 @@ usageText
 }
 
 while [ "$1" ]; do
-  if [ "$1" = 'keep' ]; then KEEP='yes'; else FLAVOR="$1"; fi
+  if [ "$1" = 'keep' ]; then KEEP='yes';
+  elif [ "$1" = 'nomakecheck' ]; then MAKECHECK='no';
+  else FLAVOR="$1"; fi
   shift
 done
 
@@ -359,10 +362,11 @@ then
     fi
 fi
 
-if ! $MAKE check
-then
-    echo 'fips-check: Test failed. Debris left for analysis.'
-    exit 3
+if [ "$MAKECHECK" = "yes" ]; then
+    if ! $MAKE check; then
+        echo 'fips-check: Test failed. Debris left for analysis.'
+        exit 3
+    fi
 fi
 
 # Clean up
