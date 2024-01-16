@@ -68852,6 +68852,54 @@ static int test_self_signed_stapling(void)
     return EXPECT_RESULT();
 }
 
+static int test_tls_multi_handshakes_one_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int newRecIdx = RECORD_HEADER_SZ;
+    int idx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLS_client_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Combine server handshake msgs into one record */
+    while (idx < test_ctx.c_len) {
+        word16 recLen;
+
+        ato16(((RecordLayerHeader*)(test_ctx.c_buff + idx))->length, &recLen);
+        idx += RECORD_HEADER_SZ;
+
+        XMEMMOVE(test_ctx.c_buff + newRecIdx, test_ctx.c_buff + idx,
+                (size_t)recLen);
+
+        newRecIdx += recLen;
+        idx += recLen;
+    }
+    c16toa(newRecIdx - RECORD_HEADER_SZ,
+            ((RecordLayerHeader*)test_ctx.c_buff)->length);
+    test_ctx.c_len = newRecIdx;
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -70152,6 +70200,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_empty_keyshare_with_cookie),
     TEST_DECL(test_tls13_pq_groups),
     TEST_DECL(test_tls13_early_data),
+    TEST_DECL(test_tls_multi_handshakes_one_record),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
