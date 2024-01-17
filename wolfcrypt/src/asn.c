@@ -30900,7 +30900,7 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 
     XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
-    switch (keyType):
+    switch (keyType)
     {
         case RSA_TYPE:
             rsaKey = (RsaKey*)key;

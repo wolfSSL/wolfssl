@@ -9482,7 +9482,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
 /* Writes the CKS objects of a list in a buffer. */
 static word16 CKS_WRITE(WOLFSSL* ssl, byte* output)
 {
-    XMEMCPY(output + offset, ssl->sigSpec, ssl->sigSpecSz);
+    XMEMCPY(output, ssl->sigSpec, ssl->sigSpecSz);
     return ssl->sigSpecSz;
 }
 

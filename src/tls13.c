@@ -9439,6 +9439,73 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
 }
 
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
+ * dilithium public key. Convert it into a usable public key. */
+static int decodeDilithiumKey(WOLFSSL* ssl, int level)
+{
+    int keyRet;
+    word32 tmpIdx = 0;
+
+    if (ssl->peerDilithiumKeyPresent)
+        return INVALID_PARAMETER;
+
+    keyRet = AllocKey(ssl, DYNAMIC_TYPE_DILITHIUM,
+                      (void**)&ssl->peerDilithiumKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    ssl->peerDilithiumKeyPresent = 1;
+    keyRet = wc_dilithium_init(ssl->peerDilithiumKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_dilithium_set_level(ssl->peerDilithiumKey, level);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_Dilithium_PublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+                                          ssl->peerDilithiumKey,
+                                          ssl->peerCert.sapkiLen);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    return 0;
+}
+
+/* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
+ * falcon public key. Convert it into a usable public key. */
+static int decodeFalconKey(WOLFSSL* ssl, int level)
+{
+    int keyRet;
+    word32 tmpIdx = 0;
+
+    if (ssl->peerFalconKeyPresent)
+        return INVALID_PARAMETER;
+
+    keyRet = AllocKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    ssl->peerFalconKeyPresent = 1;
+    keyRet = wc_falcon_init(ssl->peerFalconKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_falcon_set_level(ssl->peerFalconKey, level);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_Falcon_PublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+                                       ssl->peerFalconKey,
+                                       ssl->peerCert.sapkiLen);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    return 0;
+}
+#endif
+
 /* handle processing TLS v1.3 certificate_verify (15) */
 /* Parse and handle a TLS v1.3 CertificateVerify message.
  *
@@ -9579,100 +9646,36 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             if (!wolfSSL_is_server(ssl) &&
                 (ssl->sigSpec != NULL) &&
                 (*ssl->sigSpec != WOLFSSL_CKS_SIGSPEC_NATIVE)) {
-                word16 sa;
-                int keyRet;
-                word32 tmpIdx = 0;
 
-                /* ssl->peerCert->sapkiDer is the alternative public key.
-                 * Convert it into a usable public key. */
+                word16 sa;
                 if (args->altSigAlgo == 0)
                     sa = args->sigAlgo;
                 else
                     sa = args->altSigAlgo;
 
-                switch (sa) {
-                case dilithium_level2_sa_algo:
-                case dilithium_level3_sa_algo:
-                case dilithium_level5_sa_algo:
-                    if (ssl->peerDilithiumKeyPresent)
-                        ERROR_OUT(INVALID_PARAMETER, exit_dcv);
-                    keyRet = AllocKey(ssl, DYNAMIC_TYPE_DILITHIUM,
-                                    (void**)&ssl->peerDilithiumKey);
-                    if (keyRet != 0) {
-                        ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                    }
-                    ssl->peerDilithiumKeyPresent = 1;
-                    keyRet = wc_dilithium_init(ssl->peerDilithiumKey);
-                    break;
-                case falcon_level1_sa_algo:
-                case falcon_level5_sa_algo:
-                    if (ssl->peerFalconKeyPresent)
-                        ERROR_OUT(INVALID_PARAMETER, exit_dcv);
-                    keyRet = AllocKey(ssl, DYNAMIC_TYPE_FALCON,
-                                    (void**)&ssl->peerFalconKey);
-                    if (keyRet != 0) {
-                        ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                    }
-                    ssl->peerFalconKeyPresent = 1;
-                    keyRet = wc_falcon_init(ssl->peerFalconKey);
-                    break;
-                default:
-                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                    break;
-                }
-
-                if (keyRet != 0) {
-                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                }
-
                 switch(sa) {
                 case dilithium_level2_sa_algo:
-                    keyRet = wc_dilithium_set_level(ssl->peerDilithiumKey, 2);
+                    ret = decodeDilithiumKey(ssl, 2);
                     break;
                 case dilithium_level3_sa_algo:
-                    keyRet = wc_dilithium_set_level(ssl->peerDilithiumKey, 3);
+                    ret = decodeDilithiumKey(ssl, 3);
                     break;
                 case dilithium_level5_sa_algo:
-                    keyRet = wc_dilithium_set_level(ssl->peerDilithiumKey, 5);
+                    ret = decodeDilithiumKey(ssl, 5);
                     break;
                 case falcon_level1_sa_algo:
-                    keyRet = wc_falcon_set_level(ssl->peerFalconKey, 1);
+                    ret = decodeFalconKey(ssl, 1);
                     break;
                 case falcon_level5_sa_algo:
-                    keyRet = wc_falcon_set_level(ssl->peerFalconKey, 5);
+                    ret = decodeFalconKey(ssl, 5);
                     break;
                 default:
                     ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
                     break;
                 }
 
-                if (keyRet != 0) {
-                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                }
-
-                switch(sa) {
-                case dilithium_level2_sa_algo:
-                case dilithium_level3_sa_algo:
-                case dilithium_level5_sa_algo:
-                    keyRet = wc_Dilithium_PublicKeyDecode(
-                                 ssl->peerCert.sapkiDer, &tmpIdx,
-                                 ssl->peerDilithiumKey, ssl->peerCert.sapkiLen);
-                    break;
-                case falcon_level1_sa_algo:
-                case falcon_level5_sa_algo:
-                    keyRet = wc_Falcon_PublicKeyDecode(ssl->peerCert.sapkiDer,
-                                                       &tmpIdx,
-                                                       ssl->peerFalconKey,
-                                                       ssl->peerCert.sapkiLen);
-                    break;
-                default:
-                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                    break;
-                }
-
-                if (keyRet != 0) {
-                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                }
+                if (ret != 0)
+                    ERROR_OUT(ret, exit_dcv);
 
                 if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
                     /* Now swap in the alternative. We only support hybrid certs
@@ -9705,21 +9708,22 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     case dilithium_level2_sa_algo:
                     case dilithium_level3_sa_algo:
                     case dilithium_level5_sa_algo:
-                        keyRet = wc_dilithium_sig_size(ssl->peerDilithiumKey);
+                        ret = wc_dilithium_sig_size(ssl->peerDilithiumKey);
                         break;
                     case falcon_level1_sa_algo:
                     case falcon_level5_sa_algo:
-                        keyRet = wc_falcon_sig_size(ssl->peerFalconKey);
+                        ret = wc_falcon_sig_size(ssl->peerFalconKey);
                         break;
                     default:
                         ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
                         break;
                     }
 
-                    if (keyRet <= 0) {
+                    if (ret <= 0) {
                         ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
                     }
-                    args->altSignatureSz = keyRet;
+                    args->altSignatureSz = ret;
+                    ret = 0;
                 }
                 else {
                     ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
