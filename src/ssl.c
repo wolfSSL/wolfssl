@@ -18758,13 +18758,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("wolfSSL_get_peer_certificate");
         if (ssl != NULL) {
             if (ssl->peerCert.issuer.sz)
-                ret = wolfSSL_X509_dup_ex(&ssl->peerCert, ssl->heap);
+                ret = wolfSSL_X509_dup(&ssl->peerCert);
 #ifdef SESSION_CERTS
             else if (ssl->session->chain.count > 0) {
                 if (DecodeToX509(&ssl->peerCert,
                         ssl->session->chain.certs[0].buffer,
                         ssl->session->chain.certs[0].length) == 0) {
-                    ret = wolfSSL_X509_dup_ex(&ssl->peerCert, ssl->heap);
+                    ret = wolfSSL_X509_dup(&ssl->peerCert);
                 }
             }
 #endif

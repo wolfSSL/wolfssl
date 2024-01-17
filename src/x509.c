@@ -13419,7 +13419,7 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(KEEP_PEER_CERT)
-WOLFSSL_X509* wolfSSL_X509_dup_ex(WOLFSSL_X509 *x, void* heap)
+WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 {
     WOLFSSL_ENTER("wolfSSL_X509_dup");
 
@@ -13434,12 +13434,7 @@ WOLFSSL_X509* wolfSSL_X509_dup_ex(WOLFSSL_X509 *x, void* heap)
     }
 
     return wolfSSL_X509_d2i_ex(NULL, x->derCert->buffer, x->derCert->length,
-        heap);
-}
-
-WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
-{
-    return wolfSSL_X509_dup_ex(x, NULL);
+        x->heap);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
