@@ -31740,7 +31740,7 @@ static int test_wolfSSL_X509_NAME(void)
         XFCLOSE(f);
 
     c = buf;
-    ExpectNotNull(x509 = wolfSSL_X509_d2i(NULL, c, bytes));
+    ExpectNotNull(x509 = wolfSSL_X509_d2i_ex(NULL, c, bytes, HEAP_HINT));
 
     /* test cmp function */
     ExpectNotNull(a = X509_get_issuer_name(x509));
@@ -36869,8 +36869,8 @@ static int test_wolfSSL_X509_NID(void)
     /* ------ PARSE ORIGINAL SELF-SIGNED CERTIFICATE ------ */
 
     /* convert cert from DER to internal WOLFSSL_X509 struct */
-    ExpectNotNull(cert = wolfSSL_X509_d2i(&cert, client_cert_der_2048,
-            sizeof_client_cert_der_2048));
+    ExpectNotNull(cert = wolfSSL_X509_d2i_ex(&cert, client_cert_der_2048,
+            sizeof_client_cert_der_2048, HEAP_HINT));
 
     /* ------ EXTRACT CERTIFICATE ELEMENTS ------ */
 

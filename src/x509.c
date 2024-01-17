@@ -7582,7 +7582,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
 #endif
     }
     else {
-        localX509 = wolfSSL_X509_d2i(NULL, mem, size);
+        localX509 = wolfSSL_X509_d2i_ex(NULL, mem, size, bio->heap);
     }
     if (localX509 == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_d2i error");
@@ -13315,7 +13315,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 #endif
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
-    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, NULL);
+    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
     if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0
             && !cert->selfSigned) {
     #ifndef NO_SKID
@@ -13337,8 +13337,8 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* populate issuer with Signer DER */
-    if (wolfSSL_X509_d2i(issuer, ca->derCert->buffer,
-            ca->derCert->length) == NULL)
+    if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
+            ca->derCert->length, cm->heap) == NULL)
         return WOLFSSL_FAILURE;
 #else
     /* Create an empty certificate as CA doesn't have a certificate. */
@@ -13804,7 +13804,7 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
 
     /* not checking ctx->x509 for null first since app won't have initialized
      * this X509V3_CTX before this function call */
-    ctx->x509 = wolfSSL_X509_new();
+    ctx->x509 = wolfSSL_X509_new_ex(issuer->heap);
     if (!ctx->x509)
         return;
 
