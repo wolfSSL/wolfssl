@@ -305,15 +305,9 @@ fi
 
 pushd "$TEST_DIR" || exit 2
 
-# Start from FIPS 140-2 cert3389
-OLDDATE="Tue Jan 9 13:29:37 2018 -0800"
-if ! $GIT clone --filter=blob:none --no-checkout --shallow-since="$OLDDATE" "$FIPS_REPO" fips; then
+if ! $GIT clone --filter=blob:none --no-checkout "$FIPS_REPO" fips; then
     echo "fips-check: Couldn't check out FIPS repository."
     exit 1
-else
-    pushd fips || exit 2
-    git checkout || exit 3
-    popd || exit 2
 fi
 
 checkout_files "${WOLFCRYPT_FILES[@]}" || exit 3
