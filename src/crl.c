@@ -778,7 +778,9 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
         XMEMCPY(dupl->toBeSigned, ent->toBeSigned, dupl->tbsSz);
         XMEMCPY(dupl->signature, ent->signature, dupl->signatureSz);
     #ifdef WC_RSA_PSS
-        XMEMCPY(dupl->sigParams, ent->sigParams, dupl->sigParamsSz);
+        if (dupl->sigParamsSz > 0) {
+            XMEMCPY(dupl->sigParams, ent->sigParams, dupl->sigParamsSz);
+        }
     #endif
     }
     else {
