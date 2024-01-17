@@ -13936,7 +13936,8 @@ PRAGMA_GCC_DIAG_POP
 #ifndef WOLFSSL_SMALL_STACK
         byte der[MAX_CERT_VERIFY_SZ];
 #else
-        byte *der = XMALLOC(MAX_CERT_VERIFY_SZ, ssl->heap, DYNAMIC_TYPE_DCERT);
+        byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, ssl->heap,
+                                   DYNAMIC_TYPE_DCERT);
         if (der == NULL) {
             ret = MEMORY_E;
         }

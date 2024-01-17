@@ -9556,7 +9556,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
     }
 
     /* Copy as the lifetime of input seems to be ephemeral. */
-    ssl->peerSigSpec = XMALLOC(length, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->peerSigSpec = (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_TLSX);
     if (ssl->peerSigSpec == NULL) {
         return BUFFER_ERROR;
     }
