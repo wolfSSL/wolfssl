@@ -3593,7 +3593,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
 }
 
 static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
-                                        const byte* in, int len, int req)
+                                  const byte* in, int len, int req, void* heap)
 {
     WOLFSSL_X509 *newX509 = NULL;
     int type = req ? CERTREQ_TYPE : CERT_TYPE;
@@ -3620,12 +3620,12 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
             return NULL;
     #endif
 
-        InitDecodedCert(cert, (byte*)in, len, NULL);
+        InitDecodedCert(cert, (byte*)in, len, heap);
     #ifdef WOLFSSL_CERT_REQ
         cert->isCSR = (byte)req;
     #endif
         if (ParseCertRelative(cert, type, 0, NULL) == 0) {
-            newX509 = wolfSSL_X509_new();
+            newX509 = wolfSSL_X509_new_ex(heap);
             if (newX509 != NULL) {
                 if (CopyDecodedToX509(newX509, cert) != 0) {
                     wolfSSL_X509_free(newX509);
@@ -3659,16 +3659,22 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
     return isCA;
 }
 
+WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
+    void* heap)
+{
+    return d2i_X509orX509REQ(x509, in, len, 0, heap);
+}
+
 WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 {
-    return d2i_X509orX509REQ(x509, in, len, 0);
+    return wolfSSL_X509_d2i_ex(x509, in, len, NULL);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
         const unsigned char* in, int len)
 {
-    return d2i_X509orX509REQ(x509, in, len, 1);
+    return d2i_X509orX509REQ(x509, in, len, 1, NULL);
 }
 #endif
 
@@ -5319,17 +5325,22 @@ WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
  * fail
  */
-WOLFSSL_X509* wolfSSL_X509_new(void)
+WOLFSSL_X509* wolfSSL_X509_new_ex(void* heap)
 {
     WOLFSSL_X509* x509;
 
-    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
     if (x509 != NULL) {
-        InitX509(x509, 1, NULL);
+        InitX509(x509, 1, heap);
     }
 
     return x509;
+}
+
+WOLFSSL_X509* wolfSSL_X509_new(void)
+{
+    return wolfSSL_X509_new_ex(NULL);
 }
 
 WOLFSSL_ABI
@@ -13408,7 +13419,7 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(KEEP_PEER_CERT)
-WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
+WOLFSSL_X509* wolfSSL_X509_dup_ex(WOLFSSL_X509 *x, void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_X509_dup");
 
@@ -13422,7 +13433,13 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
         return NULL;
     }
 
-    return wolfSSL_X509_d2i(NULL, x->derCert->buffer, x->derCert->length);
+    return wolfSSL_X509_d2i_ex(NULL, x->derCert->buffer, x->derCert->length,
+        heap);
+}
+
+WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
+{
+    return wolfSSL_X509_dup_ex(x, NULL);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
