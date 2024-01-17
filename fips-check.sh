@@ -305,7 +305,7 @@ fi
 
 pushd "$TEST_DIR" || exit 2
 
-if ! $GIT clone --filter=blob:none --no-checkout "$FIPS_REPO" fips; then
+if ! $GIT clone "$FIPS_REPO" fips; then
     echo "fips-check: Couldn't check out FIPS repository."
     exit 1
 fi
