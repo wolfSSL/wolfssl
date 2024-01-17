@@ -7524,7 +7524,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-int GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
+int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     int ret = 0;
     WOLFSSL_X509 *x = NULL;
 

@@ -961,7 +961,8 @@ WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
 #endif /* WOLFSSL_FPKI */
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-WOLFSSL_API int GeneratePreTBS(struct DecodedCert* cert, byte *der, int derSz);
+WOLFSSL_API int wc_GeneratePreTBS(struct DecodedCert* cert, byte *der,
+                                  int derSz);
 #endif
 
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \

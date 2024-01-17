@@ -12965,12 +12965,12 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     /* Copy over alternative sig and pubkey. In this case we will allocate new
      * buffers for them as we have no knowledge of when the DecodedCert is
      * freed. */
-    x509->sapkiDer = XMALLOC(dCert->sapkiLen, x509->heap,
-                             DYNAMIC_TYPE_X509_EXT);
-    x509->altSigAlgDer = XMALLOC(dCert->altSigAlgLen, x509->heap,
-                                 DYNAMIC_TYPE_X509_EXT);
-    x509->altSigValDer = XMALLOC(dCert->altSigValLen, x509->heap,
-                                 DYNAMIC_TYPE_X509_EXT);
+    x509->sapkiDer = (byte*)XMALLOC(dCert->sapkiLen, x509->heap,
+                                    DYNAMIC_TYPE_X509_EXT);
+    x509->altSigAlgDer = (byte*)XMALLOC(dCert->altSigAlgLen, x509->heap,
+                                        DYNAMIC_TYPE_X509_EXT);
+    x509->altSigValDer = (byte*)XMALLOC(dCert->altSigValLen, x509->heap,
+                                        DYNAMIC_TYPE_X509_EXT);
     if ((x509->sapkiDer != NULL) && (x509->altSigAlgDer != NULL) &&
         (x509->altSigValDer != NULL)) {
         XMEMCPY(x509->sapkiDer, dCert->sapkiDer, dCert->sapkiLen);
@@ -13943,7 +13943,7 @@ PRAGMA_GCC_DIAG_POP
 #endif /* ! WOLFSSL_SMALL_STACK */
 
         if (ret == 0) {
-            ret = GeneratePreTBS(args->dCert, der, MAX_CERT_VERIFY_SZ);
+            ret = wc_GeneratePreTBS(args->dCert, der, MAX_CERT_VERIFY_SZ);
 
             if (ret > 0) {
                 ret = wc_ConfirmAltSignature(der, ret,
@@ -13952,10 +13952,6 @@ PRAGMA_GCC_DIAG_POP
                     args->dCert->altSigValDer, args->dCert->altSigValLen,
                     args->dCert->altSigAlgOID, ssl->heap);
             }
-            else {
-                ret = -1;
-            }
-
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(der, ssl->heap, DYNAMIC_TYPE_DCERT);
 #endif /* WOLFSSL_SMALL_STACK */

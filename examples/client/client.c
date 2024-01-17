@@ -3559,17 +3559,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    /* Set preference for verfication of both the native and alternative chains.
+    /* Set our preference for verfication to be for both the native and
+     * alternative chains. Ultimately, its the server's choice.
      */
-    byte cks_order[3] = {
-        WOLFSSL_CKS_SIGSPEC_BOTH,
-        WOLFSSL_CKS_SIGSPEC_ALTERNATIVE,
-        WOLFSSL_CKS_SIGSPEC_NATIVE,
-    };
+    {
+        byte cks_order[3] = {
+            WOLFSSL_CKS_SIGSPEC_BOTH,
+            WOLFSSL_CKS_SIGSPEC_ALTERNATIVE,
+            WOLFSSL_CKS_SIGSPEC_NATIVE,
+        };
 
-    if (!wolfSSL_UseCKS(ssl, cks_order, sizeof(cks_order))) {
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        err_sys("unable to set the CKS order.");
+        if (!wolfSSL_UseCKS(ssl, cks_order, sizeof(cks_order))) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("unable to set the CKS order.");
+        }
     }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 

@@ -7796,8 +7796,7 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 #define HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR    0x0D
 #define HYBRID_P521_FALCON_LEVEL5_SA_MINOR       0x0F
 
-static WC_INLINE void EncodeDualSigAlg(byte sigAlg, byte altSigAlg,
-                                       byte* output)
+static void EncodeDualSigAlg(byte sigAlg, byte altSigAlg, byte* output)
 {
     /* Initialize output to error indicator. */
     output[0] = 0x0;
@@ -9817,9 +9816,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * have variable length signatures (Falcon). That is why we
                  * don't do:
                  *   sig->length -= args->altSignatureSz; */
-
+                #define RSA3072_SIG_LEN 384
                 if (args->sigAlgo == rsa_pss_sa_algo) {
-                    sig->length = 384;
+                    sig->length = RSA3072_SIG_LEN;
                 }
                 else if (args->sigAlgo == ecc_dsa_sa_algo) {
                     word32 tmpIdx = args->idx;

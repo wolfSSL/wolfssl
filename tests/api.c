@@ -922,7 +922,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
 
     XMEMSET(preTbsBuf, 0, preTbsSz);
-    ExpectIntGT(preTbsSz = GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
+    ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
     XMEMSET(altSigValBuf, 0, altSigValSz);
     ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
                 CTC_SHA256wECDSA, preTbsBuf, preTbsSz, ECC_TYPE, &altCaKey,
@@ -1034,7 +1034,7 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     wc_InitDecodedCert(&preTBS, scratchBuf, scratchSz, 0);
     ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
     XMEMSET(preTbsBuf, 0, preTbsSz);
-    ExpectIntGT(preTbsSz = GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
+    ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
     XMEMSET(altSigValBuf, 0, altSigValSz);
     ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
                 CTC_SHA256wECDSA, preTbsBuf, preTbsSz, ECC_TYPE, &altCaKey,

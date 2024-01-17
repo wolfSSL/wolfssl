@@ -9560,7 +9560,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (ssl->peerSigSpec == NULL) {
         return BUFFER_ERROR;
     }
-    memcpy(ssl->peerSigSpec, input, length);
+    XMEMCPY(ssl->peerSigSpec, input, length);
     ssl->peerSigSpecSz = length;
 
     /* If there is no preference set, use theirs... */
