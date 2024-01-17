@@ -1194,7 +1194,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifndef WOLFSSL_NO_FENCE
     #if defined (__i386__) || defined(__x86_64__)
         #define XFENCE() XASM_VOLATILE("lfence")
-    #elif defined (__arm__) || defined(__aarch64__)
+    #elif (defined (__arm__) && (__ARM_ARCH > 6)) || defined(__aarch64__)
         #define XFENCE() XASM_VOLATILE("isb")
     #elif defined(__riscv)
         #define XFENCE() XASM_VOLATILE("fence")
