@@ -29895,6 +29895,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     if ((curveOid = CheckCurveId(b)) < 0) {
                         ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
                     }
+                    ssl->ecdhCurveOID = curveOid;
 
                     length = input[args->idx++];
                     if ((args->idx - args->begin) + length > size) {
