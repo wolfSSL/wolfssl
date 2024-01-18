@@ -298,7 +298,7 @@ function copy_fips_files() {
     done
 }
 
-if ! $GIT clone . "$TEST_DIR"; then
+if ! $GIT clone --depth 1 . "$TEST_DIR"; then
     echo "fips-check: Couldn't duplicate current working directory."
     exit 1
 fi
