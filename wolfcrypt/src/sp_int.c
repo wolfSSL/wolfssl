@@ -17135,16 +17135,19 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     bits = sp_count_bits(m);
 
     /* Adding numbers into m->used * 2 digits - zero out unused digits. */
-    if (!ct) {
-        for (i = a->used; i < m->used * 2; i++) {
-            a->dp[i] = 0;
-        }
-    }
-    else {
+#ifndef WOLFSSL_NO_CT_OPS
+    if (ct) {
         for (i = 0; i < m->used * 2; i++) {
             a->dp[i] &=
                 (sp_int_digit)
                 (sp_int_sdigit)ctMaskIntGTE((int)(a->used-1), (int)i);
+        }
+    }
+    else
+#endif /* !WOLFSSL_NO_CT_OPS */
+    {
+        for (i = a->used; i < m->used * 2; i++) {
+            a->dp[i] = 0;
         }
     }
 
@@ -17260,16 +17263,19 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     bits = sp_count_bits(m);
     mask = ((sp_int_digit)1 << (bits & (SP_WORD_SIZE - 1))) - 1;
 
-    if (!ct) {
-        for (i = a->used; i < m->used * 2; i++) {
-            a->dp[i] = 0;
-        }
-    }
-    else {
+#ifndef WOLFSSL_NO_CT_OPS
+    if (ct) {
         for (i = 0; i < m->used * 2; i++) {
             a->dp[i] &=
                 (sp_int_digit)
                 (sp_int_sdigit)ctMaskIntGTE((int)(a->used-1), (int)i);
+        }
+    }
+    else
+#endif
+    {
+        for (i = a->used; i < m->used * 2; i++) {
+            a->dp[i] = 0;
         }
     }
 
