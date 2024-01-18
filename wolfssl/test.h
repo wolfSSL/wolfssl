@@ -656,6 +656,13 @@ int rem_dir(const char* dirName);
 int rem_file(const char* fileName);
 int copy_file(const char* in, const char* out);
 
+#if defined(__MACH__) || defined(__FreeBSD__)
+    int link_file(const char* in, const char* out);
+    #define STAGE_FILE(x,y) link_file((x),(y))
+#else
+    #define STAGE_FILE(x,y) copy_file((x),(y))
+#endif
+
 void signal_ready(tcp_ready* ready);
 
 /* wolfSSL */
