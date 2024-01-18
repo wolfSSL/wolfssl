@@ -155,6 +155,12 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
 int test_memio_setup(struct test_memio_ctx *ctx,
     WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
     method_provider method_c, method_provider method_s);
+int test_memio_setup_ex(struct test_memio_ctx *ctx,
+    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
+    method_provider method_c, method_provider method_s,
+    byte *caCert, int caCertSz, byte *serverCert, int serverCertSz,
+    byte *serverKey, int serverKeySz);
+
 
 static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
     void *ctx)
@@ -273,18 +279,32 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
     return 0;
 }
 
-int test_memio_setup(struct test_memio_ctx *ctx,
+int test_memio_setup_ex(struct test_memio_ctx *ctx,
     WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
-    method_provider method_c, method_provider method_s)
+    method_provider method_c, method_provider method_s,
+    byte *caCert, int caCertSz, byte *serverCert, int serverCertSz,
+    byte *serverKey, int serverKeySz)
 {
     int ret;
+    (void)caCert;
+    (void)caCertSz;
+    (void)serverCert;
+    (void)serverCertSz;
+    (void)serverKey;
+    (void)serverKeySz;
 
     if (ctx_c != NULL && *ctx_c == NULL) {
         *ctx_c = wolfSSL_CTX_new(method_c());
         if (*ctx_c == NULL)
             return -1;
 #ifndef NO_CERTS
-        ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
+        if (caCert == NULL) {
+            ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
+        }
+        else {
+            ret = wolfSSL_CTX_load_verify_buffer(*ctx_c, caCert, (long)caCertSz,
+                                                 WOLFSSL_FILETYPE_ASN1);
+        }
         if (ret != WOLFSSL_SUCCESS)
             return -1;
 #endif /* NO_CERTS */
@@ -302,15 +322,28 @@ int test_memio_setup(struct test_memio_ctx *ctx,
         if (*ctx_s == NULL)
             return -1;
 #ifndef NO_CERTS
-        ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
-            WOLFSSL_FILETYPE_PEM);
+        if (serverKey == NULL) {
+            ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
+                WOLFSSL_FILETYPE_PEM);
+        }
+        else {
+            ret = wolfSSL_CTX_use_PrivateKey_buffer(*ctx_s, serverKey,
+                (long)serverKeySz, WOLFSSL_FILETYPE_ASN1);
+        }
         if (ret != WOLFSSL_SUCCESS)
             return- -1;
-        ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
-                                               WOLFSSL_FILETYPE_PEM);
+
+        if (serverCert == NULL) {
+            ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
+                                                   WOLFSSL_FILETYPE_PEM);
+        }
+        else {
+            ret = wolfSSL_CTX_use_certificate_chain_buffer_format(*ctx_s,
+                serverCert, (long)serverCertSz, WOLFSSL_FILETYPE_ASN1);
+        }
         if (ret != WOLFSSL_SUCCESS)
             return -1;
-#endif
+#endif /* NO_CERTS */
         wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
         wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
         if (ctx->s_ciphers != NULL) {
@@ -339,6 +372,14 @@ int test_memio_setup(struct test_memio_ctx *ctx,
     }
 
     return 0;
+}
+
+int test_memio_setup(struct test_memio_ctx *ctx,
+    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
+    method_provider method_c, method_provider method_s)
+{
+    return test_memio_setup_ex(ctx, ctx_c, ctx_s, ssl_c, ssl_s, method_c,
+                               method_s, NULL, 0, NULL, 0, NULL, 0);
 }
 #endif
 

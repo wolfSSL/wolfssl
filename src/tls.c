@@ -1326,6 +1326,10 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
         case TLSX_ECH: /* 0xfe0d */
             return 65;
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+        case TLSX_CKS:
+            return 66;
+#endif
         default:
             if (type > 62) {
                 /* This message SHOULD only happens during the adding of
@@ -9474,6 +9478,121 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     return ret;
 }
 
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Writes the CKS objects of a list in a buffer. */
+static word16 CKS_WRITE(WOLFSSL* ssl, byte* output)
+{
+    XMEMCPY(output, ssl->sigSpec, ssl->sigSpecSz);
+    return ssl->sigSpecSz;
+}
+
+static int TLSX_UseCKS(TLSX** extensions, WOLFSSL* ssl, void* heap)
+{
+    int ret = 0;
+    TLSX* extension;
+
+    if (extensions == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    extension = TLSX_Find(*extensions, TLSX_CKS);
+    /* If it is already present, do nothing. */
+    if (extension == NULL) {
+        /* The data required is in the ssl struct, so push it in. */
+        ret = TLSX_Push(extensions, TLSX_CKS, (void*)ssl, heap);
+    }
+
+    return ret;
+}
+
+int TLSX_CKS_Set(WOLFSSL* ssl, TLSX** extensions)
+{
+    int ret;
+    TLSX* extension;
+    /* Push new KeyShare extension. This will also free the old one */
+    ret = TLSX_Push(extensions, TLSX_CKS, NULL, ssl->heap);
+    if (ret != 0)
+        return ret;
+    /* Extension got pushed to head */
+    extension = *extensions;
+    /* Need ssl->sigSpecSz during extension length calculation. */
+    extension->data = ssl;
+    /* Set extension to be in response. */
+    extension->resp = 1;
+    return ret;
+}
+
+int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                   TLSX** extensions)
+{
+    (void) extensions;
+    int ret;
+    int i, j;
+
+    /* Validating the input. */
+    if (length == 0)
+        return BUFFER_ERROR;
+    for (i = 0; i < length; i++) {
+        switch (input[i])
+        {
+            case WOLFSSL_CKS_SIGSPEC_NATIVE:
+            case WOLFSSL_CKS_SIGSPEC_ALTERNATIVE:
+            case WOLFSSL_CKS_SIGSPEC_BOTH:
+                /* These are all valid values; do nothing */
+                break;
+            case WOLFSSL_CKS_SIGSPEC_EXTERNAL:
+            default:
+                /* All other values (including external) are not. */
+                return WOLFSSL_NOT_IMPLEMENTED;
+        }
+    }
+
+    /* Extension data is valid, but if we are the server and we don't have an
+     * alt private key, do not respond with CKS extension. */
+    if (wolfSSL_is_server(ssl) && ssl->buffers.altKey == NULL) {
+        ssl->sigSpec = NULL;
+        ssl->sigSpecSz = 0;
+        return 0;
+    }
+
+    /* Copy as the lifetime of input seems to be ephemeral. */
+    ssl->peerSigSpec = (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_TLSX);
+    if (ssl->peerSigSpec == NULL) {
+        return BUFFER_ERROR;
+    }
+    XMEMCPY(ssl->peerSigSpec, input, length);
+    ssl->peerSigSpecSz = length;
+
+    /* If there is no preference set, use theirs... */
+    if (ssl->sigSpec == NULL) {
+        ret = wolfSSL_UseCKS(ssl, ssl->peerSigSpec, 1);
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap);
+            TLSX_SetResponse(ssl, TLSX_CKS);
+        }
+        return ret;
+    }
+
+    /* ...otherwise, prioritize our preference. */
+    for (i = 0; i < ssl->sigSpecSz; i++) {
+        for (j = 0; j < length; j++) {
+            if (ssl->sigSpec[i] == input[j]) {
+                /* Got the match, set to this one. */
+                ret = wolfSSL_UseCKS(ssl, &ssl->peerSigSpec[i], 1);
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap);
+                    TLSX_SetResponse(ssl, TLSX_CKS);
+                }
+                return ret;
+            }
+        }
+    }
+
+    /* No match found. Cannot continue. */
+    return MATCH_SUITE_ERROR;
+}
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
 /* Server side KSE processing */
 int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     byte cipherSuite0, byte cipherSuite, KeyShareEntry** kse, byte* searched)
@@ -12006,7 +12125,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
         list = extension->next;
 
         switch (extension->type) {
-
 #if defined(HAVE_RPK)
             case TLSX_CLIENT_CERTIFICATE_TYPE:
                 WOLFSSL_MSG("Client Certificate Type extension free");
@@ -12169,6 +12287,12 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
                 break;
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            case TLSX_CKS:
+                WOLFSSL_MSG("CKS extension free");
+                /* nothing to do */
+                break;
+#endif
             default:
                 break;
         }
@@ -12209,7 +12333,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
         switch (extension->type) {
-
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            case TLSX_CKS:
+                length += ((WOLFSSL*)extension->data)->sigSpecSz ;
+                break;
+#endif
 #ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 /* SNI only sends the name on the request. */
@@ -12400,6 +12528,13 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* extension data should be written internally. */
         switch (extension->type) {
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            case TLSX_CKS:
+                WOLFSSL_MSG("CKS extension to write");
+                offset += CKS_WRITE(((WOLFSSL*)extension->data),
+                                    output + offset);
+                break;
+#endif
 #ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 if (isRequest) {
@@ -12906,6 +13041,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             WOLFSSL_MSG("Adding DTLS SRTP extension");
             if ((ret = TLSX_UseSRTP(&ssl->extensions, ssl->dtlsSrtpProfiles,
                                                                 ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+#endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+        if ((IsAtLeastTLSv1_3(ssl->version)) && (ssl->sigSpec != NULL)) {
+            WOLFSSL_MSG("Adding CKS extension");
+            if ((ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap)) != 0) {
                 return ret;
             }
         }
@@ -13653,6 +13796,10 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         #endif
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
+            TURN_ON(semaphore,
+                    TLSX_ToSemaphore(TLSX_CKS));
+        #endif
         }
     #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -13747,7 +13894,6 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
 
     return ret;
 }
-
 #endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
@@ -14278,7 +14424,19 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 ret = EC_PARSE(ssl, input + offset, size, isRequest,
                         &ssl->extensions);
                 break;
-
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            case TLSX_CKS:
+                WOLFSSL_MSG("CKS extension received");
+                if (!IsAtLeastTLSv1_3(ssl->version) ||
+                    (msgType != client_hello &&
+                     msgType != encrypted_extensions)) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                }
+                ret = TLSX_CKS_Parse(ssl, (byte *)(input + offset), size,
+                                     &ssl->extensions);
+            break;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
             case TLSX_EC_POINT_FORMATS:
                 WOLFSSL_MSG("Point Formats extension received");
             #ifdef WOLFSSL_DEBUG_TLS

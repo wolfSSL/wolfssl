@@ -896,6 +896,11 @@ int wc_Sphincs_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    ret = wc_sphincs_import_public(input, inSz, key);
+    if (ret == 0) {
+        return 0;
+    }
+
     if ((key->level == 1) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL1k;
     }

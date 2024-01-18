@@ -117,6 +117,7 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/kdf.h>
+#include <wolfssl/wolfcrypt/signature.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -7784,6 +7785,54 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
     }
 }
 
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* These match up with what the OQS team has defined. */
+#define HYBRID_SA_MAJOR 0xFE
+#define HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR    0xA1
+#define HYBRID_RSA3072_DILITHIUM_LEVEL2_SA_MINOR 0xA2
+#define HYBRID_P384_DILITHIUM_LEVEL3_SA_MINOR    0xA4
+#define HYBRID_P521_DILITHIUM_LEVEL5_SA_MINOR    0xA6
+#define HYBRID_P256_FALCON_LEVEL1_SA_MINOR       0x0C
+#define HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR    0x0D
+#define HYBRID_P521_FALCON_LEVEL5_SA_MINOR       0x0F
+
+static void EncodeDualSigAlg(byte sigAlg, byte altSigAlg, byte* output)
+{
+    /* Initialize output to error indicator. */
+    output[0] = 0x0;
+    output[1] = 0x0;
+
+    if (sigAlg == ecc_dsa_sa_algo && altSigAlg == dilithium_level2_sa_algo) {
+        output[1] = HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR;
+    }
+    else if (sigAlg == rsa_pss_sa_algo &&
+             altSigAlg == dilithium_level2_sa_algo) {
+        output[1] = HYBRID_RSA3072_DILITHIUM_LEVEL2_SA_MINOR;
+    }
+    else if (sigAlg == ecc_dsa_sa_algo &&
+             altSigAlg == dilithium_level3_sa_algo) {
+        output[1] = HYBRID_P384_DILITHIUM_LEVEL3_SA_MINOR;
+    }
+    else if (sigAlg == ecc_dsa_sa_algo &&
+             altSigAlg == dilithium_level5_sa_algo) {
+        output[1] = HYBRID_P521_DILITHIUM_LEVEL5_SA_MINOR;
+    }
+    else if (sigAlg == ecc_dsa_sa_algo && altSigAlg == falcon_level1_sa_algo) {
+        output[1] = HYBRID_P256_FALCON_LEVEL1_SA_MINOR;
+    }
+    else if (sigAlg == rsa_pss_sa_algo && altSigAlg == falcon_level1_sa_algo) {
+        output[1] = HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR;
+    }
+    else if (sigAlg == ecc_dsa_sa_algo && altSigAlg == falcon_level5_sa_algo) {
+        output[1] = HYBRID_P521_FALCON_LEVEL5_SA_MINOR;
+    }
+
+    if (output[1] != 0x0) {
+        output[0] = HYBRID_SA_MAJOR;
+    }
+}
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
@@ -7875,6 +7924,65 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
 
     return ret;
 }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Decode the hybrid signature algorithm.
+ *
+ * input     The encoded signature algorithm.
+ * hashalgo  The hash algorithm.
+ * hsType    The signature type.
+ * returns INVALID_PARAMETER if not recognized and 0 otherwise.
+ */
+static WC_INLINE int DecodeTls13HybridSigAlg(byte* input, byte* hashAlg,
+                                             byte *sigAlg, byte *altSigAlg)
+{
+
+    if (input[0] != HYBRID_SA_MAJOR) {
+        return INVALID_PARAMETER;
+    }
+
+    if (input[1] == HYBRID_P256_DILITHIUM_LEVEL2_SA_MINOR) {
+        *sigAlg = ecc_dsa_sa_algo;
+        *hashAlg = 4; /* WC_HASH_TYPE_SHA? Reviewer? */
+        *altSigAlg = dilithium_level2_sa_algo;
+    }
+    else if (input[1] == HYBRID_RSA3072_DILITHIUM_LEVEL2_SA_MINOR) {
+        *sigAlg = rsa_pss_sa_algo;
+        *hashAlg = 4;
+        *altSigAlg = dilithium_level2_sa_algo;
+    }
+    else if (input[1] == HYBRID_P384_DILITHIUM_LEVEL3_SA_MINOR) {
+        *sigAlg = ecc_dsa_sa_algo;
+        *hashAlg = 5;
+        *altSigAlg = dilithium_level3_sa_algo;
+    }
+    else if (input[1] == HYBRID_P521_DILITHIUM_LEVEL5_SA_MINOR) {
+        *sigAlg = ecc_dsa_sa_algo;
+        *hashAlg = 6;
+        *altSigAlg = dilithium_level5_sa_algo;
+    }
+    else if (input[1] == HYBRID_P256_FALCON_LEVEL1_SA_MINOR) {
+        *sigAlg = ecc_dsa_sa_algo;
+        *hashAlg = 4;
+        *altSigAlg = falcon_level1_sa_algo;
+    }
+    else if (input[1] == HYBRID_RSA3072_FALCON_LEVEL1_SA_MINOR) {
+        *sigAlg = rsa_pss_sa_algo;
+        *hashAlg = 4;
+        *altSigAlg = falcon_level1_sa_algo;
+    }
+    else if (input[1] == HYBRID_P521_FALCON_LEVEL5_SA_MINOR) {
+        *sigAlg = ecc_dsa_sa_algo;
+        *hashAlg = 6;
+        *altSigAlg = falcon_level5_sa_algo;
+    }
+    else {
+        return INVALID_PARAMETER;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Get the hash of the messages so far.
  *
@@ -8529,6 +8637,10 @@ typedef struct Scv13Args {
     byte   sigAlgo;
     byte*  sigData;
     word16 sigDataSz;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    byte   altSigAlgo;
+    word16 altSigLen;    /* Only used in the case of both native and alt. */
+#endif
 } Scv13Args;
 
 static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
@@ -8671,6 +8783,29 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
             }
             else {
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                if (wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
+                    /* In the case of alternative, we swap in the alt. */
+                    if (ssl->ctx->altPrivateKey == NULL) {
+                        ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+                    }
+                    ssl->buffers.keyType = ssl->buffers.altKeyType;
+                    ssl->buffers.keySz = ssl->buffers.altKeySz;
+                    /* If we own it, free key before overriding it. */
+                    if (ssl->buffers.weOwnKey) {
+                        FreeDer(&ssl->buffers.key);
+                    }
+
+                    /* Transfer ownership. ssl->ctx always owns the alt private
+                     * key. */
+                    ssl->buffers.key = ssl->ctx->altPrivateKey;
+                    ssl->ctx->altPrivateKey = NULL;
+                    ssl->buffers.weOwnKey = 1;
+                    ssl->buffers.weOwnAltKey = 0;
+                }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodePrivateKey(ssl, &args->length);
                 if (ret != 0)
                     goto exit_scv;
@@ -8752,7 +8887,51 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else {
                 ERROR_OUT(ALGO_ID_E, exit_scv);
             }
-            EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo, args->verify);
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (ssl->peerSigSpec == NULL) {
+                /* The peer did not respond. We didn't send CKS or they don't
+                 * support it. Either way, we do not need to handle dual
+                 * key/sig case. */
+                ssl->sigSpec = NULL;
+                ssl->sigSpecSz = 0;
+            }
+
+            if (wolfSSL_is_server(ssl) &&
+                ssl->sigSpec != NULL &&
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                /* The native was already decoded. Now we need to do the
+                 * alternative. Note that no swap was done because this case is
+                 * both native and alternative, not just alternative. */
+                if (ssl->ctx->altPrivateKey == NULL) {
+                    ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+                }
+
+                if (ssl->buffers.altKeyType == falcon_level1_sa_algo ||
+                    ssl->buffers.altKeyType == falcon_level5_sa_algo ||
+                    ssl->buffers.altKeyType == dilithium_level2_sa_algo ||
+                    ssl->buffers.altKeyType == dilithium_level3_sa_algo ||
+                    ssl->buffers.altKeyType == dilithium_level5_sa_algo) {
+                    args->altSigAlgo = ssl->buffers.altKeyType;
+                }
+                else {
+                    ERROR_OUT(ALGO_ID_E, exit_scv);
+                }
+                /* After this call, args->altSigLen has the length we need for
+                 * the alternative signature. */
+                ret = DecodeAltPrivateKey(ssl, &args->altSigLen);
+                if (ret != 0)
+                    goto exit_scv;
+
+                EncodeDualSigAlg(args->sigAlgo, args->altSigAlgo, args->verify);
+                if (args->verify[0] == 0) {
+                    ERROR_OUT(ALGO_ID_E, exit_scv);
+                }
+            }
+            else
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo,
+                             args->verify);
 
             if (args->sigData == NULL) {
                 if (ssl->hsType == DYNAMIC_TYPE_RSA) {
@@ -8831,6 +9010,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 }
                 sig->length = ED448_SIG_SIZE;
             }
+
         #endif /* HAVE_ED448 */
         #if defined(HAVE_PQC)
             #if defined(HAVE_FALCON)
@@ -8874,6 +9054,32 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 #endif
                     );
                 }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                if (wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    if (ssl->hsAltType == DYNAMIC_TYPE_DILITHIUM) {
+                        /* note the + sig->length; we are appending. */
+                        ret = wc_dilithium_sign_msg(
+                                  args->sigData, args->sigDataSz,
+                                  args->verify + HASH_SIG_SIZE +
+                                  VERIFY_HEADER + sig->length,
+                                  (word32*)&args->altSigLen,
+                                  (dilithium_key*)ssl->hsAltKey, ssl->rng);
+
+                    }
+                    else if (ssl->hsAltType == DYNAMIC_TYPE_FALCON) {
+                        /* note the sig->length; we are appending. */
+                        ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
+                                                 args->verify + HASH_SIG_SIZE +
+                                                 VERIFY_HEADER + sig->length,
+                                                 (word32*)&args->altSigLen,
+                                                 (falcon_key*)ssl->hsAltKey,
+                                                 ssl->rng);
+                    }
+                }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
                 args->length = (word16)sig->length;
             }
         #endif /* HAVE_ECC */
@@ -8933,6 +9139,36 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                /* In the case of RSA, we need to do the CKS both case here
+                 * BEFORE args->sigData is overwritten!! We keep the sig
+                 * separate and then append later so we don't interfere with the
+                 * checks below. */
+                if (wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    if (ssl->hsAltType == DYNAMIC_TYPE_DILITHIUM) {
+                        /* note the + args->sigLen; we are appending. */
+                        ret = wc_dilithium_sign_msg(args->sigData,
+                                  args->sigDataSz,
+                                  args->verify + HASH_SIG_SIZE + VERIFY_HEADER +
+                                  args->sigLen,
+                                  (word32*)&args->altSigLen,
+                                  (dilithium_key*)ssl->hsAltKey, ssl->rng);
+                    }
+                    else if (ssl->hsAltType == DYNAMIC_TYPE_FALCON) {
+                        /* note the + args->sigLen; we are appending. */
+                        ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
+                                                 args->verify + HASH_SIG_SIZE +
+                                                 VERIFY_HEADER + args->sigLen,
+                                                 (word32*)&args->altSigLen,
+                                                 (falcon_key*)ssl->hsAltKey,
+                                                 ssl->rng);
+                    }
+                }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
                 if (ret == 0) {
                     args->length = (word16)args->sigLen;
 
@@ -8947,6 +9183,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ret != 0) {
                 goto exit_scv;
             }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            /* Add in length of the alt sig which will be appended to the sig */
+            args->length += args->altSigLen;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
             /* Add signature length. */
             c16toa(args->length, args->verify + HASH_SIG_SIZE);
@@ -9171,6 +9412,13 @@ typedef struct Dcv13Args {
 
     byte*  sigData;
     word16 sigDataSz;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    byte   altSigAlgo;
+    byte*  altSigData;
+    word16 altSigDataSz;
+    word16 altSignatureSz;
+    byte   altPeerAuthGood;
+#endif
 } Dcv13Args;
 
 static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
@@ -9181,9 +9429,81 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
         XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
-
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (args && args->altSigData != NULL) {
+        XFREE(args->altSigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+        args->altSigData = NULL;
+    }
+#endif
     (void)ssl;
 }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+/* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
+ * dilithium public key. Convert it into a usable public key. */
+static int decodeDilithiumKey(WOLFSSL* ssl, int level)
+{
+    int keyRet;
+    word32 tmpIdx = 0;
+
+    if (ssl->peerDilithiumKeyPresent)
+        return INVALID_PARAMETER;
+
+    keyRet = AllocKey(ssl, DYNAMIC_TYPE_DILITHIUM,
+                      (void**)&ssl->peerDilithiumKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    ssl->peerDilithiumKeyPresent = 1;
+    keyRet = wc_dilithium_init(ssl->peerDilithiumKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_dilithium_set_level(ssl->peerDilithiumKey, level);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_Dilithium_PublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+                                          ssl->peerDilithiumKey,
+                                          ssl->peerCert.sapkiLen);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    return 0;
+}
+
+/* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
+ * falcon public key. Convert it into a usable public key. */
+static int decodeFalconKey(WOLFSSL* ssl, int level)
+{
+    int keyRet;
+    word32 tmpIdx = 0;
+
+    if (ssl->peerFalconKeyPresent)
+        return INVALID_PARAMETER;
+
+    keyRet = AllocKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    ssl->peerFalconKeyPresent = 1;
+    keyRet = wc_falcon_init(ssl->peerFalconKey);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_falcon_set_level(ssl->peerFalconKey, level);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    keyRet = wc_Falcon_PublicKeyDecode(ssl->peerCert.sapkiDer, &tmpIdx,
+                                       ssl->peerFalconKey,
+                                       ssl->peerCert.sapkiLen);
+    if (keyRet != 0)
+        return PEER_KEY_ERROR;
+
+    return 0;
+}
+#endif
 
 /* handle processing TLS v1.3 certificate_verify (15) */
 /* Parse and handle a TLS v1.3 CertificateVerify message.
@@ -9274,8 +9594,36 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
-            ret = DecodeTls13SigAlg(input + args->idx, &args->hashAlgo,
-                                                                &args->sigAlgo);
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (ssl->peerSigSpec == NULL) {
+                /* The peer did not respond. We didn't send CKS or they don't
+                 * support it. Either way, we do not need to handle dual
+                 * key/sig case. */
+                ssl->sigSpec = NULL;
+                ssl->sigSpecSz = 0;
+            }
+
+            /* If no CKS extension or either native or alternative, then just
+             * get a normal sigalgo.  But if BOTH, then get the native and alt
+             * sig algos. */
+            if (wolfSSL_is_server(ssl) ||
+                ssl->sigSpec == NULL ||
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_NATIVE ||
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                ret = DecodeTls13SigAlg(input + args->idx, &args->hashAlgo,
+                                        &args->sigAlgo);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            }
+            else {
+                ret = DecodeTls13HybridSigAlg(input + args->idx,
+                                              &args->hashAlgo,
+                                              &args->sigAlgo,
+                                              &args->altSigAlgo);
+            }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
             if (ret < 0)
                 goto exit_dcv;
             args->idx += OPAQUE16_LEN;
@@ -9292,6 +9640,95 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                                        args->sz > ENCRYPT_LEN) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (!wolfSSL_is_server(ssl) &&
+                (ssl->sigSpec != NULL) &&
+                (*ssl->sigSpec != WOLFSSL_CKS_SIGSPEC_NATIVE)) {
+
+                word16 sa;
+                if (args->altSigAlgo == 0)
+                    sa = args->sigAlgo;
+                else
+                    sa = args->altSigAlgo;
+
+                switch(sa) {
+                case dilithium_level2_sa_algo:
+                    ret = decodeDilithiumKey(ssl, 2);
+                    break;
+                case dilithium_level3_sa_algo:
+                    ret = decodeDilithiumKey(ssl, 3);
+                    break;
+                case dilithium_level5_sa_algo:
+                    ret = decodeDilithiumKey(ssl, 5);
+                    break;
+                case falcon_level1_sa_algo:
+                    ret = decodeFalconKey(ssl, 1);
+                    break;
+                case falcon_level5_sa_algo:
+                    ret = decodeFalconKey(ssl, 5);
+                    break;
+                default:
+                    ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
+                    break;
+                }
+
+                if (ret != 0)
+                    ERROR_OUT(ret, exit_dcv);
+
+                if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
+                    /* Now swap in the alternative. We only support hybrid certs
+                     * where native is RSA or ECC so check that either of those
+                     * are present and then remove it. */
+                    if (ssl->peerRsaKeyPresent &&
+                        ssl->peerEccDsaKeyPresent) {
+                        /* They shouldn't both be present. */
+                        ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
+                    }
+                    else if (ssl->peerRsaKeyPresent) {
+                        FreeKey(ssl, DYNAMIC_TYPE_RSA,
+                                (void**)&ssl->peerRsaKey);
+                        ssl->peerRsaKeyPresent = 0;
+                    }
+                    else if (ssl->peerEccDsaKeyPresent) {
+                        FreeKey(ssl, DYNAMIC_TYPE_ECC,
+                                (void**)&ssl->peerEccDsaKey);
+                        ssl->peerEccDsaKeyPresent = 0;
+                    }
+                    else {
+                        ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
+                    }
+                }
+                else if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    /* Use alternative public key to figure out the expected
+                     * alt sig size. We only support Post-quantum key as SAPKI.
+                     */
+                    switch(sa) {
+                    case dilithium_level2_sa_algo:
+                    case dilithium_level3_sa_algo:
+                    case dilithium_level5_sa_algo:
+                        ret = wc_dilithium_sig_size(ssl->peerDilithiumKey);
+                        break;
+                    case falcon_level1_sa_algo:
+                    case falcon_level5_sa_algo:
+                        ret = wc_falcon_sig_size(ssl->peerFalconKey);
+                        break;
+                    default:
+                        ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
+                        break;
+                    }
+
+                    if (ret <= 0) {
+                        ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
+                    }
+                    args->altSignatureSz = ret;
+                    ret = 0;
+                }
+                else {
+                    ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
+                }
+            }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
             /* Check for public key of required type. */
             /* Assume invalid unless signature algo matches the key provided */
@@ -9367,14 +9804,48 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ERROR_OUT(SIG_VERIFY_E, exit_dcv);
             }
 
-            sig->buffer = (byte*)XMALLOC(args->sz, ssl->heap,
+            sig->length = args->sz;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (!wolfSSL_is_server(ssl) &&
+                ssl->sigSpec != NULL &&
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                /* If its RSA, we only hybridize with RSA3072 which has a sig
+                 * size of 384. For ECC, this is actually encoded as an RFC5912
+                 * formatted signature which means we can use the ASN APIs to
+                 * figure out the length. Note that some post-quantum sig algs
+                 * have variable length signatures (Falcon). That is why we
+                 * don't do:
+                 *   sig->length -= args->altSignatureSz; */
+                #define RSA3072_SIG_LEN 384
+                if (args->sigAlgo == rsa_pss_sa_algo) {
+                    sig->length = RSA3072_SIG_LEN;
+                }
+                else if (args->sigAlgo == ecc_dsa_sa_algo) {
+                    word32 tmpIdx = args->idx;
+                    sig->length = wc_SignatureGetSize(WC_SIGNATURE_TYPE_ECC,
+                                      ssl->peerEccDsaKey,
+                                      sizeof(*ssl->peerEccDsaKey));
+                    if (GetSequence(input, &tmpIdx, (int*)&sig->length,
+                                    args->sz) < 0) {
+                        ERROR_OUT(SIG_VERIFY_E, exit_dcv);
+                    }
+                    /* We have to increment by the size of the header. */
+                    sig->length += tmpIdx - args->idx;
+                }
+                else {
+                    ERROR_OUT(WOLFSSL_NOT_IMPLEMENTED, exit_dcv);
+                }
+            }
+#endif
+
+            sig->buffer = (byte*)XMALLOC(sig->length, ssl->heap,
                                          DYNAMIC_TYPE_SIGNATURE);
+
             if (sig->buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_dcv);
             }
-            sig->length = args->sz;
-            XMEMCPY(sig->buffer, input + args->idx, args->sz);
 
+            XMEMCPY(sig->buffer, input + args->idx, sig->length);
         #ifdef HAVE_ECC
             if (ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Doing ECC peer cert verify");
@@ -9430,29 +9901,29 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
        #endif
        #ifdef HAVE_PQC
-            if (ssl->peerFalconKeyPresent) {
-                WOLFSSL_MSG("Doing Falcon peer cert verify");
-
-                args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
+            if (ssl->peerFalconKeyPresent || ssl->peerDilithiumKeyPresent) {
+                word16 sigDataSz;
+                byte *sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
                                                         DYNAMIC_TYPE_SIGNATURE);
-                if (args->sigData == NULL) {
+                if (sigData == NULL) {
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
 
-                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
-                ret = 0;
-            }
-
-            if (ssl->peerDilithiumKeyPresent) {
-                WOLFSSL_MSG("Doing Dilithium peer cert verify");
-
-                args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-                if (args->sigData == NULL) {
-                    ERROR_OUT(MEMORY_E, exit_dcv);
+                CreateSigData(ssl, sigData, &sigDataSz, 1);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                if (!wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    /* In this case (BOTH), the pq sig is the alternative. */
+                    args->altSigData = sigData;
+                    args->altSigDataSz = sigDataSz;
                 }
-
-                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                else
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                {
+                    args->sigData = sigData;
+                    args->sigDataSz = sigDataSz;
+                }
                 ret = 0;
             }
        #endif
@@ -9492,7 +9963,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 else
             #endif
                 {
-                    ret = EccVerify(ssl, input + args->idx, args->sz,
+                    ret = EccVerify(ssl, input + args->idx, sig->length,
                         args->sigData, args->sigDataSz,
                         ssl->peerEccDsaKey,
                     #ifdef HAVE_PK_CALLBACKS
@@ -9559,15 +10030,43 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #if defined(HAVE_PQC) && defined(HAVE_FALCON)
             if (ssl->peerFalconKeyPresent) {
                 int res = 0;
+                byte *sigIn = input + args->idx;
+                word32 sigInLen = args->sz;
+                byte *sigData = args->sigData;
+                word32 sigDataSz = args->sigDataSz;
                 WOLFSSL_MSG("Doing Falcon peer cert verify");
-                ret = wc_falcon_verify_msg(input + args->idx, args->sz,
-                                    args->sigData, args->sigDataSz,
-                                    &res, ssl->peerFalconKey);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                if (!wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    /* Note: + sig->length; we are skipping the native sig. */
+                    sigIn = input + args->idx + sig->length;
+                    sigInLen = args->sz - sig->length;
+
+                    /* For RSA, something different was verified. */
+                    if (ssl->peerRsaKeyPresent) {
+                        sigData = args->altSigData;
+                        sigDataSz = args->altSigDataSz;
+                    }
+                }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                ret = wc_falcon_verify_msg(sigIn, sigInLen,
+                                           sigData, sigDataSz,
+                                           &res, ssl->peerFalconKey);
 
                 if ((ret >= 0) && (res == 1)) {
                     /* CLIENT/SERVER: data verified with public key from
                      * certificate. */
-                    ssl->options.peerAuthGood = 1;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                    if (!wolfSSL_is_server(ssl) &&
+                        ssl->sigSpec != NULL &&
+                        *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                        args->altPeerAuthGood = 1;
+                    }
+                    else
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                        ssl->options.peerAuthGood = 1;
+
                     FreeKey(ssl, DYNAMIC_TYPE_FALCON,
                                                    (void**)&ssl->peerFalconKey);
                     ssl->peerFalconKeyPresent = 0;
@@ -9577,15 +10076,43 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
             if (ssl->peerDilithiumKeyPresent) {
                 int res = 0;
+                byte *sigIn = input + args->idx;
+                word32 sigInLen = args->sz;
+                byte *sigData = args->sigData;
+                word32 sigDataSz = args->sigDataSz;
                 WOLFSSL_MSG("Doing Dilithium peer cert verify");
-                ret = wc_dilithium_verify_msg(input + args->idx, args->sz,
-                                              args->sigData, args->sigDataSz,
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                if (!wolfSSL_is_server(ssl) &&
+                    ssl->sigSpec != NULL &&
+                    *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                    /* Go backwards from the end of the signature the size of
+                     * the alt sig to find the beginning of the alt sig. */
+                    sigIn = input + args->idx + args->sz - args->altSignatureSz;
+                    sigInLen = args->altSignatureSz;
+                    /* For RSA, something different was verified. */
+                    if (ssl->peerRsaKeyPresent) {
+                        sigData = args->altSigData;
+                        sigDataSz = args->altSigDataSz;
+                    }
+                }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                ret = wc_dilithium_verify_msg(sigIn, sigInLen,
+                                              sigData, sigDataSz,
                                               &res, ssl->peerDilithiumKey);
 
                 if ((ret >= 0) && (res == 1)) {
                     /* CLIENT/SERVER: data verified with public key from
                      * certificate. */
-                    ssl->options.peerAuthGood = 1;
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+                    if (!wolfSSL_is_server(ssl) &&
+                        ssl->sigSpec != NULL &&
+                        *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                        args->altPeerAuthGood = 1;
+                    }
+                    else
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+                        ssl->options.peerAuthGood = 1;
+
                     FreeKey(ssl, DYNAMIC_TYPE_DILITHIUM,
                             (void**)&ssl->peerDilithiumKey);
                     ssl->peerDilithiumKeyPresent = 0;
@@ -9627,6 +10154,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
         case TLS_ASYNC_FINALIZE:
         {
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+            if (!wolfSSL_is_server(ssl) &&
+                ssl->options.peerAuthGood &&
+                ssl->sigSpec != NULL &&
+                *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_BOTH) {
+                ssl->options.peerAuthGood = args->altPeerAuthGood;
+            }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
             ssl->options.havePeerVerify = 1;
 
             /* Set final index */
@@ -12509,6 +13044,30 @@ int wolfSSL_NoKeyShares(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 #endif
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+int wolfSSL_UseCKS(WOLFSSL* ssl, byte *sigSpec, word16 sigSpecSz)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->ctx->method->version) ||
+        sigSpec == NULL || sigSpecSz == 0)
+        return BAD_FUNC_ARG;
+
+    ssl->sigSpec = sigSpec;
+    ssl->sigSpecSz = sigSpecSz;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CTX_UseCKS(WOLFSSL_CTX* ctx, byte *sigSpec, word16 sigSpecSz)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version) ||
+        sigSpec == NULL || sigSpecSz == 0)
+        return BAD_FUNC_ARG;
+
+    ctx->sigSpec = sigSpec;
+    ctx->sigSpecSz = sigSpecSz;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* Do not send a ticket after TLS v1.3 handshake for resumption.
  *

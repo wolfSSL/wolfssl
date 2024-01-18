@@ -932,7 +932,11 @@ enum Misc_ASN {
     MIN_DATE_SIZE       =  12,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
-#ifndef NO_RSA
+#ifdef HAVE_SPHINCS
+    MAX_ENCODED_SIG_SZ  = 51200,
+#elif defined(HAVE_PQC)
+    MAX_ENCODED_SIG_SZ  = 5120;
+#elif !defined(NO_RSA)
 #ifdef WOLFSSL_HAPROXY
     MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
 #else
@@ -1221,7 +1225,12 @@ enum Extensions_Sum {
     AKEY_PACKAGE_OID          = 1048, /* 2.16.840.1.101.2.1.2.78.5
                                         RFC 5958  - Asymmetric Key Packages */
     FASCN_OID = 419, /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
-    UPN_OID   = 265  /* 1.3.6.1.4.1.311.20.2.3 UPN */
+    UPN_OID   = 265, /* 1.3.6.1.4.1.311.20.2.3 UPN */
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    SUBJ_ALT_PUB_KEY_INFO_OID = 186, /* 2.5.29.72 subject alt public key info */
+    ALT_SIG_ALG_OID           = 187, /* 2.5.29.73 alt sig alg */
+    ALT_SIG_VAL_OID           = 188  /* 2.5.29.74 alt sig val */
+#endif
 };
 
 enum CertificatePolicy_Sum {
@@ -1926,6 +1935,11 @@ struct DecodedCert {
 #ifdef WOLFSSL_SUBJ_INFO_ACC
     byte extSubjInfoAccSet : 1;
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    byte extSapkiSet : 1;
+    byte extAltSigAlgSet : 1;
+    byte extAltSigValSet : 1;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif
@@ -1939,6 +1953,19 @@ struct DecodedCert {
     && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    /* Subject Alternative Public Key Info */
+    byte *sapkiDer;
+    int sapkiLen;
+    word32 sapkiOID;
+    /* Alternative Signature Algorithm */
+    byte *altSigAlgDer;
+    int altSigAlgLen;
+    word32 altSigAlgOID;
+    /* Alternative Signature Value */
+    byte *altSigValDer;
+    int altSigValLen;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -1988,6 +2015,13 @@ struct Signer {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     word32 cm_idx;
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    /* The Subject Alternative Public Key Info (SAPKI) will NOT be cached.
+     * Caching of it is NOT SUPPORTED yet. */
+    byte *sapkiDer;
+    int sapkiLen;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
     Signer* next;
 };
 
@@ -2098,6 +2132,13 @@ WOLFSSL_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+WOLFSSL_LOCAL int wc_ConfirmAltSignature(
+    const byte* buf, word32 bufSz,
+    const byte* key, word32 keySz, word32 keyOID,
+    const byte* sig, word32 sigSz, word32 sigOID,
+    void *heap);
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
 WOLFSSL_LOCAL int wc_CertGetPubKey(const byte* cert, word32 certSz,
@@ -2240,7 +2281,7 @@ WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output);
 WOLFSSL_LOCAL word32 SetImplicit(byte tag,byte number,word32 len,byte* output);
 WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
-WOLFSSL_LOCAL word32 SetAlgoID(int algoOID,byte* output,int type,int curveSz);
+WOLFSSL_API word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz);

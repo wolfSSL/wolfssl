@@ -8097,6 +8097,12 @@ AC_ARG_ENABLE([sys-ca-certs],
     [ ENABLED_SYS_CA_CERTS=yes ]
     )
 
+AC_ARG_ENABLE([dual-alg-certs],
+    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (default: disabled)])],
+    [ ENABLED_DUAL_ALG_CERTS=$enableval ],
+    [ ENABLED_DUAL_ALG_CERTS=no ]
+    )
+
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
@@ -8461,6 +8467,9 @@ AS_IF([test "x$ENABLED_ASN" = "xno"],
 
 AS_IF([test "x$ENABLED_SYS_CA_CERTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SYS_CA_CERTS"])
+
+AS_IF([test "x$ENABLED_DUAL_ALG_CERTS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DUAL_ALG_CERTS"])
 
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
@@ -9579,6 +9588,7 @@ echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
+echo "   * Dual alg cert support:      $ENABLED_DUAL_ALG_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
