@@ -8419,7 +8419,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
+    ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
     if (ret != 0) {
         wc_ecc_free(&eccpubkey);
         WOLFSSL_MSG("Error creating Kyber KEM");
@@ -8911,7 +8911,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
+    ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
     if (ret != 0) {
         wc_ecc_free(&eccpubkey);
         WOLFSSL_MSG("Error creating Kyber KEM");

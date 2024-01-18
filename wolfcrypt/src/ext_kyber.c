@@ -101,10 +101,15 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
 
         /* Keep type for parameters. */
         key->type = type;
+
+#ifdef WOLF_CRYPTO_CB
+        key->devCtx = NULL;
+        key->devId = devId;
+#endif
     }
 
-    (void)devId;
     (void)heap;
+    (void)devId;
 
     return ret;
 }
@@ -312,12 +317,24 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     OQS_KEM *kem = NULL;
 #endif
 
-    (void)rng;
-
     /* Validate parameter. */
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_KYBER,
+                                        key->type, key);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
 
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
@@ -327,12 +344,6 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
         }
     }
 
-    if (ret == 0) {
-        algName = OQS_ID2name(key->type);
-        if (algName == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-    }
     if (ret == 0) {
         kem = OQS_KEM_new(algName);
         if (kem == NULL) {
@@ -403,6 +414,9 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
+#ifdef WOLF_CRYPTO_CB
+    word32 ctlen = 0;
+#endif
 #ifdef HAVE_LIBOQS
     const char * algName = NULL;
     OQS_KEM *kem = NULL;
@@ -414,6 +428,24 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     if ((key == NULL) || (ct == NULL) || (ss == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+        ret = wc_KyberKey_CipherTextSize(key, &ctlen);
+    }
+    if ((ret == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && (key->devId != INVALID_DEVID)
+    #endif
+    ) {
+        ret = wc_CryptoCb_PqcEncapsulate(ct, ctlen, ss, KYBER_SS_SZ, rng,
+                                         WC_PQC_KEM_TYPE_KYBER, key);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
 
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
@@ -508,6 +540,21 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     if ((ret == 0) && (len != ctlen)) {
         ret = BUFFER_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if ((ret == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && (key->devId != INVALID_DEVID)
+    #endif
+    ) {
+        ret = wc_CryptoCb_PqcDecapsulate(ct, ctlen, ss, KYBER_SS_SZ,
+                                         WC_PQC_KEM_TYPE_KYBER, key);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
 
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
