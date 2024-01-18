@@ -327,7 +327,7 @@ static int test_crl_monitor(void)
         if (i % 2 == 0) {
             /* succeed on even rounds */
             sprintf(buf, "%s/%s", tmpDir, "crl.pem");
-            if (copy_file("certs/crl/crl.pem", buf) != 0) {
+            if (STAGE_FILE("certs/crl/crl.pem", buf) != 0) {
                 fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
                 goto cleanup;
             }
@@ -350,7 +350,7 @@ static int test_crl_monitor(void)
         else {
             /* fail on odd rounds */
             sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
-            if (copy_file("certs/crl/crl.revoked", buf) != 0) {
+            if (STAGE_FILE("certs/crl/crl.revoked", buf) != 0) {
                 fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
                 goto cleanup;
             }

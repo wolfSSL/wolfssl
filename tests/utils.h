@@ -111,6 +111,13 @@ cleanup:
         XFCLOSE(outFile);
     return ret;
 }
+
+#if defined(__MACH__) || defined(__FreeBSD__)
+int link_file(const char* in, const char* out)
+{
+    return link(in, out);
+}
+#endif
 #endif /* !NO_FILESYSTEM */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
