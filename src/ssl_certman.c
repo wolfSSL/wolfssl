@@ -876,8 +876,8 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
         ret = WOLFSSL_FATAL_ERROR;
     }
     /* Create temporary WOLFSSL_CTX. */
-    if ((ret == WOLFSSL_SUCCESS) && ((tmp = wolfSSL_CTX_new(cm_pick_method(cm->heap)))
-            == NULL)) {
+    if ((ret == WOLFSSL_SUCCESS) && ((tmp =
+        wolfSSL_CTX_new_ex(cm_pick_method(cm->heap), cm->heap)) == NULL)) {
         WOLFSSL_MSG("CTX new failed");
         ret = WOLFSSL_FATAL_ERROR;
     }

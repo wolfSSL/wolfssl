@@ -1036,7 +1036,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         return WOLFSSL_FAILURE;
 
     /* tmp ctx for setting our cert manager */
-    ctx = wolfSSL_CTX_new(cm_pick_method(str->cm->heap));
+    ctx = wolfSSL_CTX_new_ex(cm_pick_method(str->cm->heap), str->cm->heap);
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
