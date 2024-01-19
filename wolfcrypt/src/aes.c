@@ -11103,6 +11103,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     aes->heap = heap;
+    aes->rounds = 0;
 
 #ifdef WOLF_CRYPTO_CB
     aes->devId = devId;

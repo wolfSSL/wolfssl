@@ -11489,8 +11489,13 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             return MEMORY_E;
         }
 
-        FlattenAttributes(pkcs7, flatAuthAttribs, authAttribs,
+        ret = FlattenAttributes(pkcs7, flatAuthAttribs, authAttribs,
                           authAttribsCount);
+        if (ret != 0) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ret;
+        }
 
         authAttribsSetSz = SetImplicit(ASN_SET, 1, authAttribsSz,
                                        authAttribSet);
@@ -11825,10 +11830,6 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
     }
 #endif
 
-#ifndef WOLFSSL_SMALL_STACK
-    XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
-#endif
-
     switch (pkcs7->state) {
         case WC_PKCS7_START:
         case WC_PKCS7_INFOSET_START:
@@ -11867,6 +11868,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             pkcs7->stream->key = decryptedKey;
         #endif
         #endif
+            XMEMSET(decryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
             FALL_THROUGH;
 
         case WC_PKCS7_DECRYPT_KTRI:

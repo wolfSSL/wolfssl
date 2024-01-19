@@ -34558,9 +34558,11 @@ static int test_wolfSSL_tmp_dh(void)
     BIO_free(bio);
     DSA_free(dsa);
     DH_free(dh);
+    dh = NULL;
 #if defined(WOLFSSL_DH_EXTRA) && \
     (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
     DH_free(dh2);
+    dh2 = NULL;
 #endif
     SSL_free(ssl);
     SSL_CTX_free(ctx);
@@ -47143,6 +47145,7 @@ static int test_wolfSSL_PEM_read_DHparams(void)
         XFCLOSE(fp);
 
     DH_free(dh);
+    dh = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -47901,7 +47904,9 @@ static int test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
 
     EVP_PKEY_free(pkey);
     DH_free(setDh);
+    setDh = NULL;
     DH_free(dh);
+    dh = NULL;
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH */
@@ -48071,6 +48076,7 @@ static int test_wolfSSL_CTX_ctrl(void)
     BIO_free(bio);
     DSA_free(dsa);
     DH_free(dh);
+    dh = NULL;
 #endif
 #endif
 #ifdef HAVE_ECC
@@ -48317,6 +48323,7 @@ static int test_wolfSSL_EVP_PKEY_keygen(void)
 
         ASN1_INTEGER_free(asn1int);
         DH_free(dh);
+        dh = NULL;
         XFREE(derBuffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         EVP_PKEY_free(pkey);
@@ -48405,6 +48412,7 @@ static int test_wolfSSL_EVP_PKEY_copy_parameters(void)
     ExpectIntEQ(BN_cmp(g1, g2), 0);
 
     DH_free(dh);
+    dh = NULL;
     EVP_PKEY_free(copy);
     EVP_PKEY_free(params);
 #endif
@@ -49150,7 +49158,9 @@ static int test_wolfSSL_EVP_PKEY_param_check(void)
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     DH_free(setDh);
+    setDh = NULL;
     DH_free(dh);
+    dh = NULL;
 #endif
 #endif
     return EXPECT_RESULT();
@@ -58430,6 +58440,7 @@ static int test_wolfSSL_DH(void)
     ExpectNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     ExpectIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
     DH_free(dh);
+    dh = NULL;
 #endif
 #endif /* !HAVE_FIPS || (HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2) */
 #endif /* OPENSSL_ALL */
@@ -58584,6 +58595,7 @@ static int test_wolfSSL_DH(void)
     ExpectIntEQ(wolfSSL_DH_up_ref(dh), WOLFSSL_SUCCESS);
     DH_free(dh); /* decrease ref count */
     DH_free(dh); /* free WOLFSSL_DH */
+    dh = NULL;
     q = NULL;
 
     ExpectNull((dh = DH_new_by_nid(NID_sha1)));
@@ -58593,16 +58605,19 @@ static int test_wolfSSL_DH(void)
 #ifdef HAVE_FFDHE_2048
     ExpectNotNull((dh = DH_new_by_nid(NID_ffdhe2048)));
     DH_free(dh);
+    dh = NULL;
     q = NULL;
 #endif
 #ifdef HAVE_FFDHE_3072
     ExpectNotNull((dh = DH_new_by_nid(NID_ffdhe3072)));
     DH_free(dh);
+    dh = NULL;
     q = NULL;
 #endif
 #ifdef HAVE_FFDHE_4096
     ExpectNotNull((dh = DH_new_by_nid(NID_ffdhe4096)));
     DH_free(dh);
+    dh = NULL;
     q = NULL;
 #endif
 #else
@@ -58802,6 +58817,7 @@ static int test_wolfSSL_DH_check(void)
     ExpectIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     ExpectIntEQ(codes, DH_CHECK_P_NOT_PRIME);
     DH_free(dh);
+    dh = NULL;
 #endif
 #endif /* !NO_DH  && !NO_DSA */
 #endif
@@ -59287,6 +59303,7 @@ static int test_wolfSSL_i2d_DHparams(void)
     ExpectIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 268);
 
     DH_free(dh);
+    dh = NULL;
 
     *buf = 0;
 #endif
@@ -59316,6 +59333,7 @@ static int test_wolfSSL_i2d_DHparams(void)
     ExpectIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 396);
 
     DH_free(dh);
+    dh = NULL;
 #endif
 
     dh = DH_new();
@@ -59323,6 +59341,7 @@ static int test_wolfSSL_i2d_DHparams(void)
     pt2 = buf;
     ExpectIntEQ(wolfSSL_i2d_DHparams(dh, &pt2), 0);
     DH_free(dh);
+    dh = NULL;
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH && (HAVE_FFDHE_2048 || HAVE_FFDHE_3072) */
 #endif
