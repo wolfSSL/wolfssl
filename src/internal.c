@@ -26198,8 +26198,8 @@ ciphersuites introduced through the "bulk" ciphersuites.
 
 @return true on success, else false.
 */
-int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
-        const char* list)
+static int ParseCipherList(Suites* suites,
+        const char* list, ProtocolVersion version, int privateKeySz, byte side)
 {
     int       ret              = 0;
     int       idx              = 0;
@@ -26217,20 +26217,10 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
 
-    ProtocolVersion version;
-    int privateKeySz = 0;
-    byte side;
-
-    if (suites == NULL || list == NULL || (ctx == NULL && ssl == NULL)) {
+    if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherList parameter error");
         return 0;
     }
-
-    version = ctx != NULL ? ctx->method->version : ssl->version;
-#ifndef NO_CERTS
-    privateKeySz = (int)(ctx != NULL ? ctx->privateKeySz : ssl->buffers.keySz);
-#endif
-    side = (byte)(ctx != NULL ? ctx->method->side : ssl->options.side);
 
     if (next[0] == 0 || XSTRCMP(next, "ALL") == 0 ||
         XSTRCMP(next, "DEFAULT") == 0 || XSTRCMP(next, "HIGH") == 0) {
@@ -26638,6 +26628,41 @@ int SetCipherList(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl, Suites* suites,
     }
 
     return ret;
+}
+
+int SetCipherList_ex(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl,
+        Suites* suites, const char* list)
+{
+    ProtocolVersion version;
+    int privateKeySz = 0;
+    byte side;
+
+    if (ctx != NULL) {
+        version = ctx->method->version;
+#ifndef NO_CERTS
+        privateKeySz = ctx->privateKeySz;
+#endif
+        side = ctx->method->side;
+    }
+    else if (ssl != NULL) {
+        version = ssl->version;
+#ifndef NO_CERTS
+        privateKeySz = ssl->buffers.keySz;
+#endif
+        side = (byte)ssl->options.side;
+    }
+    else {
+        WOLFSSL_MSG("SetCipherList_ex parameter error");
+        return 0;
+    }
+
+    return ParseCipherList(suites, list, version, privateKeySz, side);
+}
+
+int SetCipherList(const WOLFSSL_CTX* ctx, Suites* suites,
+                                 const char* list)
+{
+    return SetCipherList_ex(ctx, NULL, suites, list);
 }
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
