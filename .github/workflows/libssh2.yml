@@ -1,0 +1,58 @@
+name: libssh2 Tests
+
+on:
+  workflow_call:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          check: false # config is already tested in many other PRB's
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: wolf-install-libssh2
+          path: build-dir
+          retention-days: 1
+
+  libssh2_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 1.11.0 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 8
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v3
+        with:
+          name: wolf-install-libssh2
+          path: build-dir
+
+      - name: Build and test libssh2
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: libssh2/libssh2
+          ref: libssh2-${{ matrix.ref }}
+          path: libssh2
+          configure: --with-crypto=wolfssl --with-libwolfssl-prefix=$GITHUB_WORKSPACE/build-dir
+          check: true
+
+      - name: Confirm libssh2 built with wolfSSL
+        working-directory: ./libssh2
+        run: ldd src/.libs/libssh2.so | grep wolfssl
