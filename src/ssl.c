@@ -32878,7 +32878,7 @@ int wolfSSL_RAND_seed(const void* seed, int len)
  */
 const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 {
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XGETENV)
     char* rt;
 
     WOLFSSL_ENTER("wolfSSL_RAND_file_name");
@@ -32888,7 +32888,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
     }
 
     XMEMSET(fname, 0, len);
-    /* if access to stdlib.h */
+
     if ((rt = XGETENV("RANDFILE")) != NULL) {
         if (len > XSTRLEN(rt)) {
             XMEMCPY(fname, rt, XSTRLEN(rt));
@@ -32901,7 +32901,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
     /* $RANDFILE was not set or is too large, check $HOME */
     if (rt == NULL) {
-        char ap[] = "/.rnd";
+        const char ap[] = "/.rnd";
 
         WOLFSSL_MSG("Environment variable RANDFILE not set");
         if ((rt = XGETENV("HOME")) == NULL) {
@@ -32909,7 +32909,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             return NULL;
         }
 
-        if (len > XSTRLEN(rt) +  XSTRLEN(ap)) {
+        if (len > XSTRLEN(rt) + XSTRLEN(ap)) {
             fname[0] = '\0';
             XSTRNCAT(fname, rt, len);
             XSTRNCAT(fname, ap, len - XSTRLEN(rt));
@@ -32923,9 +32923,9 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
     return fname;
 #else
-    /* no filesystem defined */
     WOLFSSL_ENTER("wolfSSL_RAND_file_name");
-    WOLFSSL_MSG("No filesystem feature enabled, not compiled in");
+    WOLFSSL_MSG("RAND_file_name requires filesystem and getenv support, "
+                "not compiled in");
     (void)fname;
     (void)len;
     return NULL;
