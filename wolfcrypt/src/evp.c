@@ -8118,8 +8118,12 @@ void wolfSSL_EVP_init(void)
 
         WOLFSSL_ENTER("wolfSSL_EVP_Cipher");
 
-        if (ctx == NULL || ((src == NULL || dst == NULL) &&
-            (TRUE
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad argument.");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (TRUE
         #ifdef HAVE_AESGCM
             && ctx->cipherType != AES_128_GCM_TYPE &&
              ctx->cipherType != AES_192_GCM_TYPE &&
@@ -8141,9 +8145,15 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_SM4_CCM
             && ctx->cipherType != SM4_CCM_TYPE
         #endif
-            ))) {
-            WOLFSSL_MSG("Bad argument.");
-            return WOLFSSL_FATAL_ERROR;
+            ) {
+            /* Not an AEAD cipher */
+            /* No-op for none AEAD ciphers */
+            if (src == NULL && dst == NULL && len == 0)
+                return 0;
+            if (src == NULL || dst == NULL) {
+                WOLFSSL_MSG("Bad argument.");
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
 
         if (ctx->cipherType == WOLFSSL_EVP_CIPH_TYPE_INIT) {
