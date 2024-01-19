@@ -489,7 +489,8 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+    !defined(NO_STDIO_FILESYSTEM)
     /* if not find entry in the CRL list, it looks at the folder that sets  */
     /* by LOOKUP_ctrl because user would want to use hash_dir.              */
     /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */

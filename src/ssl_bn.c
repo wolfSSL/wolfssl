@@ -2303,7 +2303,8 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int checks,
  * Print APIs
  ******************************************************************************/
 
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+    defined(XFPRINTF)
 /* Print big number to file pointer.
  *
  * Return code compliant with OpenSSL.

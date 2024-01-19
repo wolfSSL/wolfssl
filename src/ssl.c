@@ -35385,7 +35385,7 @@ void wolfSSL_PKCS12_PBE_add(void)
     WOLFSSL_ENTER("wolfSSL_PKCS12_PBE_add");
 }
 
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp,
         WOLFSSL_X509_PKCS12 **pkcs12)
 {

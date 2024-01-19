@@ -11589,6 +11589,7 @@ static int test_wolfSSL_PKCS12(void)
                    * Password Key
                    */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12) && !defined(NO_BIO)
     byte buf[6000];
@@ -37684,6 +37685,7 @@ static int test_wolfSSL_BN(void)
     ExpectIntLT(BN_cmp(a, c), 0);
     ExpectIntGT(BN_cmp(c, b), 0);
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     ExpectIntEQ(BN_print_fp(XBADFILE, NULL), 0);
     ExpectIntEQ(BN_print_fp(XBADFILE, &emptyBN), 0);
     ExpectIntEQ(BN_print_fp(stderr, NULL), 0);
@@ -37691,6 +37693,7 @@ static int test_wolfSSL_BN(void)
     ExpectIntEQ(BN_print_fp(XBADFILE, a), 0);
 
     ExpectIntEQ(BN_print_fp(stderr, a), 1);
+#endif
 
     BN_clear(a);
 
@@ -43330,7 +43333,8 @@ static int test_wolfSSL_OBJ(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN) && \
     !defined(HAVE_FIPS) && !defined(NO_SHA) && defined(WOLFSSL_CERT_EXT) && \
-    defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     ASN1_OBJECT *obj = NULL;
     ASN1_OBJECT *obj2 = NULL;
     char buf[50];
@@ -54718,7 +54722,7 @@ static int test_wolfSSL_X509_load_crl_file(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_RSA) && !defined(NO_BIO)
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_BIO)
     int i;
     char pem[][100] = {
         "./certs/crl/crl.pem",
@@ -57120,6 +57124,7 @@ static int test_wolfSSL_RSA_print(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_STDIO_FILESYSTEM) && \
    !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
    !defined(NO_BIO) && defined(XFPRINTF)
     BIO *bio = NULL;
@@ -59831,7 +59836,8 @@ static int test_wolfSSL_EC_POINT(void)
     /* check bn2hex */
     hexStr = BN_bn2hex(k);
     ExpectStrEQ(hexStr, kTest);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+     defined(XFPRINTF)
     BN_print_fp(stderr, k);
     fprintf(stderr, "\n");
 #endif
@@ -59839,7 +59845,8 @@ static int test_wolfSSL_EC_POINT(void)
 
     hexStr = BN_bn2hex(Gx);
     ExpectStrEQ(hexStr, kGx);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+     defined(XFPRINTF)
     BN_print_fp(stderr, Gx);
     fprintf(stderr, "\n");
 #endif
@@ -59847,7 +59854,8 @@ static int test_wolfSSL_EC_POINT(void)
 
     hexStr = BN_bn2hex(Gy);
     ExpectStrEQ(hexStr, kGy);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+     defined(XFPRINTF)
     BN_print_fp(stderr, Gy);
     fprintf(stderr, "\n");
 #endif
