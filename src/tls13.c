@@ -9882,8 +9882,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
 
-                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
-                ret = 0;
+                ret = CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                if (ret < 0)
+                    goto exit_dcv;
             }
         #endif
         #ifdef HAVE_ED448
@@ -9896,8 +9897,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
 
-                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
-                ret = 0;
+                ret = CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                if (ret < 0)
+                    goto exit_dcv;
             }
        #endif
        #ifdef HAVE_PQC
@@ -9909,7 +9911,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
 
-                CreateSigData(ssl, sigData, &sigDataSz, 1);
+                ret = CreateSigData(ssl, sigData, &sigDataSz, 1);
+                if (ret < 0) {
+                    goto exit_dcv;
+                }
+
 #ifdef WOLFSSL_DUAL_ALG_CERTS
                 if (!wolfSSL_is_server(ssl) &&
                     ssl->sigSpec != NULL &&
