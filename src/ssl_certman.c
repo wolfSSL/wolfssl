@@ -42,33 +42,33 @@
  * @return  A TLS method on success.
  * @return  NULL when no TLS method built into wolfSSL.
  */
-static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void)
+static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void* heap)
 {
     #ifndef NO_WOLFSSL_CLIENT
         #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_SSLV3)
-            return wolfSSLv3_client_method();
+            return wolfSSLv3_client_method_ex(heap);
         #elif !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
-            return wolfTLSv1_client_method();
+            return wolfTLSv1_client_method_ex(heap);
         #elif !defined(NO_OLD_TLS)
-            return wolfTLSv1_1_client_method();
+            return wolfTLSv1_1_client_method_ex(heap);
         #elif !defined(WOLFSSL_NO_TLS12)
-            return wolfTLSv1_2_client_method();
+            return wolfTLSv1_2_client_method_ex(heap);
         #elif defined(WOLFSSL_TLS13)
-            return wolfTLSv1_3_client_method();
+            return wolfTLSv1_3_client_method_ex(heap);
         #else
             return NULL;
         #endif
     #elif !defined(NO_WOLFSSL_SERVER)
         #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_SSLV3)
-            return wolfSSLv3_server_method();
+            return wolfSSLv3_server_method_ex(heap);
         #elif !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
-            return wolfTLSv1_server_method();
+            return wolfTLSv1_server_method_ex(heap);
         #elif !defined(NO_OLD_TLS)
-            return wolfTLSv1_1_server_method();
+            return wolfTLSv1_1_server_method_ex(heap);
         #elif !defined(WOLFSSL_NO_TLS12)
-            return wolfTLSv1_2_server_method();
+            return wolfTLSv1_2_server_method_ex(heap);
         #elif defined(WOLFSSL_TLS13)
-            return wolfTLSv1_3_server_method();
+            return wolfTLSv1_3_server_method_ex(heap);
         #else
             return NULL;
         #endif
@@ -513,8 +513,8 @@ int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
         ret = WOLFSSL_FATAL_ERROR;
     }
     /* Allocate a temporary WOLFSSL_CTX to load with. */
-    if ((ret == WOLFSSL_SUCCESS) && ((tmp = wolfSSL_CTX_new(cm_pick_method()))
-            == NULL)) {
+    if ((ret == WOLFSSL_SUCCESS) && ((tmp =
+        wolfSSL_CTX_new_ex(cm_pick_method(cm->heap), cm->heap)) == NULL)) {
         WOLFSSL_MSG("CTX new failed");
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -876,8 +876,8 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
         ret = WOLFSSL_FATAL_ERROR;
     }
     /* Create temporary WOLFSSL_CTX. */
-    if ((ret == WOLFSSL_SUCCESS) && ((tmp = wolfSSL_CTX_new(cm_pick_method()))
-            == NULL)) {
+    if ((ret == WOLFSSL_SUCCESS) && ((tmp =
+        wolfSSL_CTX_new_ex(cm_pick_method(cm->heap), cm->heap)) == NULL)) {
         WOLFSSL_MSG("CTX new failed");
         ret = WOLFSSL_FATAL_ERROR;
     }

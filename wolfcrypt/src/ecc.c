@@ -6071,6 +6071,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_HEAP_TEST
+    (void)heap;
     key->heap = (void*)WOLFSSL_HEAP_TEST;
 #else
     key->heap = heap;

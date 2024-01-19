@@ -3593,7 +3593,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
 }
 
 static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
-                                        const byte* in, int len, int req)
+                                  const byte* in, int len, int req, void* heap)
 {
     WOLFSSL_X509 *newX509 = NULL;
     int type = req ? CERTREQ_TYPE : CERT_TYPE;
@@ -3620,12 +3620,12 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
             return NULL;
     #endif
 
-        InitDecodedCert(cert, (byte*)in, len, NULL);
+        InitDecodedCert(cert, (byte*)in, len, heap);
     #ifdef WOLFSSL_CERT_REQ
         cert->isCSR = (byte)req;
     #endif
         if (ParseCertRelative(cert, type, 0, NULL) == 0) {
-            newX509 = wolfSSL_X509_new();
+            newX509 = wolfSSL_X509_new_ex(heap);
             if (newX509 != NULL) {
                 if (CopyDecodedToX509(newX509, cert) != 0) {
                     wolfSSL_X509_free(newX509);
@@ -3659,16 +3659,22 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
     return isCA;
 }
 
+WOLFSSL_X509* wolfSSL_X509_d2i_ex(WOLFSSL_X509** x509, const byte* in, int len,
+    void* heap)
+{
+    return d2i_X509orX509REQ(x509, in, len, 0, heap);
+}
+
 WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 {
-    return d2i_X509orX509REQ(x509, in, len, 0);
+    return wolfSSL_X509_d2i_ex(x509, in, len, NULL);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
         const unsigned char* in, int len)
 {
-    return d2i_X509orX509REQ(x509, in, len, 1);
+    return d2i_X509orX509REQ(x509, in, len, 1, NULL);
 }
 #endif
 
@@ -5319,17 +5325,22 @@ WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
  * fail
  */
-WOLFSSL_X509* wolfSSL_X509_new(void)
+WOLFSSL_X509* wolfSSL_X509_new_ex(void* heap)
 {
     WOLFSSL_X509* x509;
 
-    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
     if (x509 != NULL) {
-        InitX509(x509, 1, NULL);
+        InitX509(x509, 1, heap);
     }
 
     return x509;
+}
+
+WOLFSSL_X509* wolfSSL_X509_new(void)
+{
+    return wolfSSL_X509_new_ex(NULL);
 }
 
 WOLFSSL_ABI
@@ -7610,7 +7621,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
 #endif
     }
     else {
-        localX509 = wolfSSL_X509_d2i(NULL, mem, size);
+        localX509 = wolfSSL_X509_d2i_ex(NULL, mem, size, bio->heap);
     }
     if (localX509 == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_d2i error");
@@ -13353,7 +13364,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 #endif
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
-    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, NULL);
+    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
     if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0
             && !cert->selfSigned) {
     #ifndef NO_SKID
@@ -13375,8 +13386,8 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* populate issuer with Signer DER */
-    if (wolfSSL_X509_d2i(issuer, ca->derCert->buffer,
-            ca->derCert->length) == NULL)
+    if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
+            ca->derCert->length, cm->heap) == NULL)
         return WOLFSSL_FAILURE;
 #else
     /* Create an empty certificate as CA doesn't have a certificate. */
@@ -13471,7 +13482,8 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
         return NULL;
     }
 
-    return wolfSSL_X509_d2i(NULL, x->derCert->buffer, x->derCert->length);
+    return wolfSSL_X509_d2i_ex(NULL, x->derCert->buffer, x->derCert->length,
+        x->heap);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
@@ -13841,7 +13853,7 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
 
     /* not checking ctx->x509 for null first since app won't have initialized
      * this X509V3_CTX before this function call */
-    ctx->x509 = wolfSSL_X509_new();
+    ctx->x509 = wolfSSL_X509_new_ex(issuer->heap);
     if (!ctx->x509)
         return;
 

@@ -19031,7 +19031,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     sk = wolfSSL_sk_X509_new_null();
     i = ssl->session->chain.count-1;
     for (; i >= 0; i--) {
-        x509 = wolfSSL_X509_new();
+        x509 = wolfSSL_X509_new_ex(ssl->heap);
         if (x509 == NULL) {
             WOLFSSL_MSG("Error Creating X509");
             wolfSSL_sk_X509_pop_free(sk, NULL);
@@ -19399,9 +19399,10 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
                 return NULL;
             }
             #ifndef WOLFSSL_X509_STORE_CERTS
-            ssl->ourCert = wolfSSL_X509_d2i(NULL,
+            ssl->ourCert = wolfSSL_X509_d2i_ex(NULL,
                                               ssl->buffers.certificate->buffer,
-                                              ssl->buffers.certificate->length);
+                                              ssl->buffers.certificate->length,
+                                              ssl->heap);
             #endif
         }
         return ssl->ourCert;
@@ -19414,9 +19415,10 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
                     return NULL;
                 }
                 #ifndef WOLFSSL_X509_STORE_CERTS
-                ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
+                ssl->ctx->ourCert = wolfSSL_X509_d2i_ex(NULL,
                                                ssl->ctx->certificate->buffer,
-                                               ssl->ctx->certificate->length);
+                                               ssl->ctx->certificate->length,
+                                               ssl->heap);
                 #endif
                 ssl->ctx->ownOurCert = 1;
             }
@@ -19436,9 +19438,9 @@ WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx)
                 return NULL;
             }
             #ifndef WOLFSSL_X509_STORE_CERTS
-            ctx->ourCert = wolfSSL_X509_d2i(NULL,
+            ctx->ourCert = wolfSSL_X509_d2i_ex(NULL,
                                            ctx->certificate->buffer,
-                                           ctx->certificate->length);
+                                           ctx->certificate->length, ctx->heap);
             #endif
             ctx->ownOurCert = 1;
         }
@@ -26396,7 +26398,8 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
         #else
-        ctx->ourCert = wolfSSL_X509_d2i(NULL, x->derCert->buffer,x->derCert->length);
+        ctx->ourCert = wolfSSL_X509_d2i_ex(NULL, x->derCert->buffer,
+            x->derCert->length, ctx->heap);
         if(ctx->ourCert == NULL){
             return WOLFSSL_FAILURE;
         }
@@ -30242,8 +30245,8 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** ch
         idx += 3;
 
         /* Create a new X509 from DER encoded data. */
-        node->data.x509 = wolfSSL_X509_d2i(NULL, ctx->certChain->buffer + idx,
-            length);
+        node->data.x509 = wolfSSL_X509_d2i_ex(NULL,
+            ctx->certChain->buffer + idx, length, ctx->heap);
         if (node->data.x509 == NULL) {
             XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Return as much of the chain as we created. */
@@ -33969,8 +33972,8 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         return p7->certs;
 
     for (i = 0; i < MAX_PKCS7_CERTS && p7->pkcs7.cert[i]; i++) {
-        WOLFSSL_X509* x509 = wolfSSL_X509_d2i(NULL, p7->pkcs7.cert[i],
-            p7->pkcs7.certSz[i]);
+        WOLFSSL_X509* x509 = wolfSSL_X509_d2i_ex(NULL, p7->pkcs7.cert[i],
+            p7->pkcs7.certSz[i], pkcs7->heap);
         if (!ret)
             ret = wolfSSL_sk_X509_new_null();
         if (x509) {

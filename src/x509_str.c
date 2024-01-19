@@ -63,7 +63,8 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 
 
 int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
-     WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509, WOLF_STACK_OF(WOLFSSL_X509)* sk)
+     WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509,
+     WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
     int ret = 0;
     (void)sk;
@@ -75,8 +76,8 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         ctx->current_cert = x509;
         #else
         if(x509 != NULL){
-            ctx->current_cert = wolfSSL_X509_d2i(NULL, x509->derCert->buffer,
-                    x509->derCert->length);
+            ctx->current_cert = wolfSSL_X509_d2i_ex(NULL, x509->derCert->buffer,
+                    x509->derCert->length, x509->heap);
             if(ctx->current_cert == NULL)
                 return WOLFSSL_FAILURE;
         } else
@@ -1035,7 +1036,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         return WOLFSSL_FAILURE;
 
     /* tmp ctx for setting our cert manager */
-    ctx = wolfSSL_CTX_new(cm_pick_method());
+    ctx = wolfSSL_CTX_new_ex(cm_pick_method(str->cm->heap), str->cm->heap);
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
