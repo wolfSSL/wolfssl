@@ -648,13 +648,6 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm);
      }
 
-#ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
-    }
-#endif
-
     (void)fatal;
 
 #ifndef NO_WOLFSSL_CM_VERIFY
@@ -701,6 +694,13 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* Dispose of allocated callback args. */
         XFREE(args, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
+    }
+#endif
+
+#ifdef HAVE_CRL
+    if ((ret == 0) && cm->crlEnabled) {
+        /* Check for a CRL for the CA and check validity of certificate. */
+        ret = CheckCertCRL(cm->crl, cert);
     }
 #endif
 
