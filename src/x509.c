@@ -13848,35 +13848,50 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
 {
     int ret = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
-    if (!ctx)
-        return;
+    if (!ctx) {
+        ret = WOLFSSL_FAILURE;
+        WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called with null ctx.");
+    }
 
-    /* not checking ctx->x509 for null first since app won't have initialized
-     * this X509V3_CTX before this function call */
-    ctx->x509 = wolfSSL_X509_new_ex(issuer->heap);
-    if (!ctx->x509)
-        return;
+    if (ret == WOLFSSL_SUCCESS && (ctx->x509 != NULL)) {
+        ret = WOLFSSL_FAILURE;
+        WOLFSSL_MSG("wolfSSL_X509V3_set_ctx() called "
+                    "with ctx->x509 already allocated.");
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ctx->x509 = wolfSSL_X509_new_ex(
+            (issuer && issuer->heap) ? issuer->heap :
+            (subject && subject->heap) ? subject->heap :
+            (req && req->heap) ? req->heap :
+            NULL);
+        if (!ctx->x509) {
+            ret = WOLFSSL_FAILURE;
+            WOLFSSL_MSG("wolfSSL_X509_new_ex() failed "
+                        "in wolfSSL_X509V3_set_ctx().");
+        }
+    }
 
     /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
-    if (issuer)
+    if (ret == WOLFSSL_SUCCESS && issuer)
         ret = wolfSSL_X509_set_issuer_name(ctx->x509,&issuer->issuer);
 
-    if (subject && ret == WOLFSSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS && subject)
         ret = wolfSSL_X509_set_subject_name(ctx->x509,&subject->subject);
 
-    if (req && ret == WOLFSSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS && req) {
         WOLFSSL_MSG("req not implemented.");
     }
 
-    if (crl && ret == WOLFSSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS && crl) {
         WOLFSSL_MSG("crl not implemented.");
     }
 
-    if (flag && ret == WOLFSSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS && flag) {
         WOLFSSL_MSG("flag not implemented.");
     }
 
-    if (!ret) {
+    if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Error setting WOLFSSL_X509V3_CTX parameters.");
     }
 }
