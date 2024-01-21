@@ -2339,7 +2339,7 @@ struct Suites {
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
-    byte   setSuites;               /* user set suites from default */
+    byte   setSuites:1;             /* user set suites from default */
 };
 
 typedef struct CipherSuite {
@@ -2377,7 +2377,9 @@ typedef struct TLSX TLSX;
 WOLFSSL_LOCAL int MatchSuite_ex(const WOLFSSL* ssl, Suites* peerSuites,
                                 CipherSuite* cs, TLSX* extensions);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
-WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX* ctx, Suites* suites,
+WOLFSSL_LOCAL int  SetCipherList_ex(const WOLFSSL_CTX* ctx, const WOLFSSL* ssl,
+        Suites* suites, const char* list);
+WOLFSSL_LOCAL int  SetCipherList(const WOLFSSL_CTX* ctx, Suites* suites,
                                  const char* list);
 WOLFSSL_LOCAL int  SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites,
                                           const byte* list, const int listSz);
@@ -3762,7 +3764,7 @@ struct WOLFSSL_CTX {
     word32          maxEarlyDataSz;
 #endif
 #ifdef HAVE_ANON
-    byte        haveAnon;               /* User wants to allow Anon suites */
+    byte        useAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wc_pem_password_cb* passwd_cb;
@@ -4698,7 +4700,7 @@ struct Options {
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
-    word16            haveAnon:1;       /* User wants to allow Anon suites */
+    word16            useAnon:1;       /* User wants to allow Anon suites */
 #ifdef HAVE_SESSION_TICKET
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
