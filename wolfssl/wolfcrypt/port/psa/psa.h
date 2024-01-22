@@ -44,13 +44,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* PSA implementation takes over the Sha struct and Sha functions implementation
-   completely. Devoiding the struct of the DevId field and hooks to make
-   crypto_cb work. */
-#if !defined(WOLFSSL_PSA_NO_HASH) && defined(WOLF_CRYPTO_CB)
-#error "WOLFSSL PSA is not supported with WOLF_CRYPTO_CB"
-#endif
-
 #if defined(WOLFSSL_HAVE_PSA)
 
 #include <psa/crypto.h>
