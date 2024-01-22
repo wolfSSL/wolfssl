@@ -10997,18 +10997,11 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 {
     int ret = 0;
 #ifndef WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
-    byte version_negotiated = 0;
-
-    WOLFSSL_ENTER("EarlySanityCheckMsgReceived");
-
-#ifdef WOLFSSL_DTLS
     /* Version has only been negotiated after we either send or process a
      * ServerHello message */
-    if (ssl->options.dtls)
-        version_negotiated = ssl->options.serverState >= SERVER_HELLO_COMPLETE;
-    else
-#endif
-        version_negotiated = 1;
+    byte version_negotiated = ssl->options.serverState >= SERVER_HELLO_COMPLETE;
+
+    WOLFSSL_ENTER("EarlySanityCheckMsgReceived");
 
     if (version_negotiated)
         ret = MsgCheckEncryption(ssl, type, ssl->keys.decryptedCur == 1);
