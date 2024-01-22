@@ -26678,7 +26678,9 @@ static int ParseCipherList(Suites* suites,
         suites->setSuites = 1;
     }
 
+#ifdef NO_CERTS
     (void)privateKeySz;
+#endif
 
     return ret;
 }
