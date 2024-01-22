@@ -8110,6 +8110,26 @@ void wolfSSL_EVP_init(void)
     }
 #endif /* !NO_AES || !NO_DES3 */
 
+    static int IsCipherTypeAEAD(unsigned char cipherType)
+    {
+        switch (cipherType) {
+            case AES_128_GCM_TYPE:
+            case AES_192_GCM_TYPE:
+            case AES_256_GCM_TYPE:
+            case AES_128_CCM_TYPE:
+            case AES_192_CCM_TYPE:
+            case AES_256_CCM_TYPE:
+            case ARIA_128_GCM_TYPE:
+            case ARIA_192_GCM_TYPE:
+            case ARIA_256_GCM_TYPE:
+            case SM4_GCM_TYPE:
+            case SM4_CCM_TYPE:
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
     /* Return length on ok */
     int wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
                            word32 len)
@@ -8123,31 +8143,8 @@ void wolfSSL_EVP_init(void)
             return WOLFSSL_FATAL_ERROR;
         }
 
-        if (TRUE
-        #ifdef HAVE_AESGCM
-            && ctx->cipherType != AES_128_GCM_TYPE &&
-             ctx->cipherType != AES_192_GCM_TYPE &&
-             ctx->cipherType != AES_256_GCM_TYPE
-        #endif
-        #ifdef HAVE_AESCCM
-            && ctx->cipherType != AES_128_CCM_TYPE &&
-             ctx->cipherType != AES_192_CCM_TYPE &&
-             ctx->cipherType != AES_256_CCM_TYPE
-        #endif
-        #ifdef HAVE_ARIA
-            && ctx->cipherType != ARIA_128_GCM_TYPE &&
-             ctx->cipherType != ARIA_192_GCM_TYPE &&
-             ctx->cipherType != ARIA_256_GCM_TYPE
-        #endif
-        #ifdef WOLFSSL_SM4_GCM
-            && ctx->cipherType != SM4_GCM_TYPE
-        #endif
-        #ifdef WOLFSSL_SM4_CCM
-            && ctx->cipherType != SM4_CCM_TYPE
-        #endif
-            ) {
-            /* Not an AEAD cipher */
-            /* No-op for none AEAD ciphers */
+        if (!IsCipherTypeAEAD(ctx->cipherType)) {
+            /* No-op for non-AEAD ciphers */
             if (src == NULL && dst == NULL && len == 0)
                 return 0;
             if (src == NULL || dst == NULL) {
