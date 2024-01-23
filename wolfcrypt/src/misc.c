@@ -760,7 +760,20 @@ WC_MISC_STATIC WC_INLINE void w64Zero(w64wrapper *a)
     a->n = 0;
 }
 
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
+{
+    a.n >>= shift;
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
+{
+    a.n <<= shift;
+    return a;
+}
+
 #else
+
 WC_MISC_STATIC WC_INLINE void w64Increment(w64wrapper *n)
 {
     n->n[1]++;
@@ -897,6 +910,31 @@ WC_MISC_STATIC WC_INLINE byte w64LT(w64wrapper a, w64wrapper b)
         return a.n[1] < b.n[1];
 
     return 0;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
+{
+     if (shift < 32) {
+         a.n[1] = (a.n[1] >> shift) || (a.n[0] << (32 - shift));
+         a.n[0] >>= shift;
+     }
+     else {
+         a.n[1] = a.n[0] >> (shift - 32);
+         a.n[0] = 0;
+     }
+     return a;
+}
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
+{
+     if (shift < 32) {
+         a.n[0] = (a.n[0] << shift) || (a.n[1] >> (32 - shift));
+         a.n[1] <<= shift;
+     }
+     else {
+         a.n[0] = a.n[1] << (shift - 32);
+         a.n[1] = 0;
+     }
+     return a;
 }
 
 #endif /* WORD64_AVAILABLE && !WOLFSSL_W64_WRAPPER_TEST */

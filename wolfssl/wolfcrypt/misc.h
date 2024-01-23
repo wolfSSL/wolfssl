@@ -152,6 +152,8 @@ WOLFSSL_LOCAL byte w64GTE(w64wrapper a, w64wrapper b);
 WOLFSSL_LOCAL byte w64LT(w64wrapper a, w64wrapper b);
 WOLFSSL_LOCAL w64wrapper w64Sub(w64wrapper a, w64wrapper b);
 WOLFSSL_LOCAL void w64Zero(w64wrapper *a);
+WOLFSSL_LOCAL w64wrapper w64ShiftRight(w64wrapper a, int shift);
+WOLFSSL_LOCAL w64wrapper w64ShiftLeft(w64wrapper a, int shift);
 
 #else /* !NO_INLINE */
 

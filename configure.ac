@@ -1167,6 +1167,10 @@ do
     ENABLED_WC_XMSS=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
     ;;
+  small)
+    ENABLED_WC_XMSS=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS_SMALL"
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for XMSS []: $ENABLED_XMSS.])
     break;;

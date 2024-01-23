@@ -321,8 +321,6 @@ static int InitSha512_256(wc_Sha512* sha512)
 #if defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
-#ifdef WOLFSSL_SHA512
-
     /*****
     Intel AVX1/AVX2 Macro Control Structure
 
@@ -486,7 +484,6 @@ static int InitSha512_256(wc_Sha512* sha512)
 
         transform_check = 1;
     }
-#endif /* WOLFSSL_SHA512 */
 
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
