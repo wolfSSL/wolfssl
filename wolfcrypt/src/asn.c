@@ -33197,7 +33197,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     return 0;
 }
 
-static int EccKeyParamCopy(char** dst, char* src)
+static int EccKeyParamCopy(char** dst, char* src, void* heap)
 {
     int ret = 0;
 #ifdef WOLFSSL_ECC_CURVE_STATIC
@@ -33218,8 +33218,9 @@ static int EccKeyParamCopy(char** dst, char* src)
     else {
         XSTRNCPY(*dst, src, MAX_ECC_STRING);
     }
-    XFREE(src, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(src, heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
+    (void)heap;
 
     return ret;
 }
@@ -33327,10 +33328,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
-                ret = EccKeyParamCopy((char**)&curve->prime, p);
+                ret = EccKeyParamCopy((char**)&curve->prime, p, key->heap);
 #else
                 const char *_tmp_ptr = &curve->prime[0];
-                ret = EccKeyParamCopy((char**)&_tmp_ptr, p);
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, p, key->heap);
 #endif
             }
         }
@@ -33346,10 +33347,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
-                ret = EccKeyParamCopy((char**)&curve->Af, af);
+                ret = EccKeyParamCopy((char**)&curve->Af, af, key->heap);
 #else
                 const char *_tmp_ptr = &curve->Af[0];
-                ret = EccKeyParamCopy((char**)&_tmp_ptr, af);
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, af, key->heap);
 #endif
             }
         }
@@ -33359,10 +33360,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
-                ret = EccKeyParamCopy((char**)&curve->Bf, bf);
+                ret = EccKeyParamCopy((char**)&curve->Bf, bf, key->heap);
 #else
                 const char *_tmp_ptr = &curve->Bf[0];
-                ret = EccKeyParamCopy((char**)&_tmp_ptr, bf);
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, bf, key->heap);
 #endif
             }
         }
@@ -33419,10 +33420,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             if (ret == 0) {
 #ifndef WOLFSSL_ECC_CURVE_STATIC
-                ret = EccKeyParamCopy((char**)&curve->order, o);
+                ret = EccKeyParamCopy((char**)&curve->order, o, key->heap);
 #else
                 const char *_tmp_ptr = &curve->order[0];
-                ret = EccKeyParamCopy((char**)&_tmp_ptr, o);
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, o, key->heap);
 #endif
             }
         }
