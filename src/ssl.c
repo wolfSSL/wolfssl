@@ -19448,7 +19448,7 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  * @param ticketNonceBuf If not null and @avoidSysCalls is true, the copy of the
  *                      ticketNonce will happen in this pre allocated buffer
  * @param ticketNonceLen @ticketNonceBuf len as input, used length on output
- * @param ticketNonceUsed if @ticketNonceBuf was used to copy the ticket noncet
+ * @param preallocUsed  if @ticketNonceBuf was used to copy the ticket noncet
  * @return              WOLFSSL_SUCCESS on success
  *                      WOLFSSL_FAILURE on failure
  */
