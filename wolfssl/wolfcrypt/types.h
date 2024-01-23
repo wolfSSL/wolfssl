@@ -700,8 +700,8 @@ typedef struct w64wrapper {
         #endif
 
         #ifndef XSTRCASECMP
-        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000)
-            /* XC32 supports str[n]casecmp in version >= 1.0. */
+        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000) && (__XC32_VERSION < 4000)
+            /* XC32 supports str[n]casecmp in version >= 1.0 through 4.0. */
             #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
         #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
                 defined(WOLFSSL_ZEPHYR)
