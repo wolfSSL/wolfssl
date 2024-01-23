@@ -2868,6 +2868,9 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_RSA */
 
 #if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING)
+/* Performs direct RSA computation without padding. The input and output must
+ * match the key size (ex: 2048-bits = 256 bytes). Returns the size of the
+ * output on success or negative value on failure. */
 int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
         RsaKey* key, int type, WC_RNG* rng)
 {
