@@ -13,7 +13,6 @@
     	// error initializing RSA key
     }
     \endcode
-    \sa wc_RsaInitCavium
     \sa wc_FreeRsaKey
     \sa wc_RsaSetRNG
 */
@@ -47,7 +46,6 @@ int  wc_InitRsaKey(RsaKey* key, void* heap);
     }
     \endcode
     \sa wc_InitRsaKey
-    \sa wc_RsaInitCavium
     \sa wc_FreeRsaKey
     \sa wc_RsaSetRNG
 */

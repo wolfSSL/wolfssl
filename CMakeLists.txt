@@ -1753,13 +1753,15 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_ASYNC_THREADING")
 endif()
 
-# TODO: - cryptodev
-#       - Session export
+# TODO: - Session export
 
 add_option("WOLFSSL_CRYPTOCB"
     "Enable crypto callbacks (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_PKCALLBACKS"
+    "Enable public key callbacks (default: disabled)"
+    "no" "yes;no")
 
 add_option("WOLFSSL_OLD_NAMES"
     "Keep backwards compat with old names (default: enabled)"
@@ -1958,6 +1960,11 @@ endif()
 
 if(WOLFSSL_CRYPTOCB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLF_CRYPTO_CB")
+endif()
+
+# Public Key Callbacks
+if(WOLFSSL_PKCALLBACKS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PK_CALLBACKS")
 endif()
 
 if(WOLFSSL_OCSPSTAPLING)
