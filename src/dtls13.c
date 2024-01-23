@@ -262,6 +262,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
 #else
         wc_AesEncryptDirect(c->aes, mask, ciphertext);
+        return 0;
 #endif
     }
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
