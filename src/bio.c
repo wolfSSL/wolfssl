@@ -70,16 +70,31 @@ static int wolfSSL_BIO_BASE64_read(WOLFSSL_BIO* bio, void* buf, int len)
  */
 static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
-    int   sz;
+    int   sz1;
+    int   sz2;
     char* pt;
 
-    sz = wolfSSL_BIO_nread(bio, &pt, len);
+    if (buf == NULL || len == 0)
+        return 0;
 
-    if (sz > 0) {
-        XMEMCPY(buf, pt, sz);
+    sz1 = wolfSSL_BIO_nread(bio, &pt, len);
+    if (sz1 > 0) {
+        XMEMCPY(buf, pt, sz1);
+        buf = (char*)buf + sz1;
+        len -= sz1;
+        if (len > 0) {
+            /* try again to see if maybe we wrapped around the ring buffer */
+            sz2 = wolfSSL_BIO_nread(bio, &pt, len);
+            if (sz2 > 0) {
+                XMEMCPY(buf, pt, sz2);
+                sz1 += sz2;
+            }
+        }
     }
+    if (sz1 == 0)
+        sz1 = -1;
 
-    return sz;
+    return sz1;
 }
 
 #ifndef WOLFSSL_BIO_RESIZE_THRESHOLD
@@ -470,7 +485,6 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
 }
 #endif /* WOLFCRYPT_ONLY */
 
-
 /* Writes to a WOLFSSL_BIO_BIO type.
  *
  * returns the amount written on success
@@ -478,27 +492,40 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
 static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
         int len)
 {
-    int   sz;
+    int   sz1;
+    int   sz2;
     char* buf;
 
     WOLFSSL_ENTER("wolfSSL_BIO_BIO_write");
 
     /* adding in sanity checks for static analysis tools */
-    if (bio == NULL || data == NULL) {
-        return BAD_FUNC_ARG;
-    }
+    if (bio == NULL || data == NULL || len == 0)
+        return 0;
 
-    sz = wolfSSL_BIO_nwrite(bio, &buf, len);
-
-    /* test space for write */
-    if (sz <= 0) {
+    sz1 = wolfSSL_BIO_nwrite(bio, &buf, len);
+    if (sz1 == 0) {
         WOLFSSL_MSG("No room left to write");
-        return sz;
+        return WOLFSSL_BIO_ERROR;
+    }
+    if (sz1 < 0) {
+        WOLFSSL_MSG("Error in wolfSSL_BIO_nwrite");
+        return sz1;
+    }
+    XMEMCPY(buf, data, sz1);
+    data = (char*)data + sz1;
+    len -= sz1;
+
+    if (len > 0) {
+        /* try again to see if maybe we wrapped around the ring buffer */
+        sz2 = wolfSSL_BIO_nwrite(bio, &buf, len);
+        if (sz2 > 0) {
+            XMEMCPY(buf, data, sz2);
+            sz1 += sz2;
+        }
     }
 
-    XMEMCPY(buf, data, sz);
 
-    return sz;
+    return sz1;
 }
 
 
@@ -907,7 +934,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 char* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_nread0(bio, &c);
-                if (cSz == 0) {
+                if (cSz <= 0) {
                     ret = 0; /* Nothing to read */
                     buf[0] = '\0';
                     break;
@@ -1297,7 +1324,7 @@ int wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf)
 
     if (bio == NULL || buf == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
-        return 0;
+        return -2;
     }
 
     /* if paired read from pair */
@@ -1314,7 +1341,7 @@ int wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf)
         }
     }
 
-    return 0;
+    return -2;
 }
 
 
@@ -1343,7 +1370,7 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
 
         /* get amount able to read and set buffer pointer */
         sz = wolfSSL_BIO_nread0(bio, buf);
-        if (sz == 0) {
+        if (sz < 0) {
             return WOLFSSL_BIO_ERROR;
         }
 

@@ -217,7 +217,8 @@
         int         _z = (int)(z);                                             \
         int         _w = ((_x) && (_y)) ? XMEMCMP(_x, _y, _z) : -1;            \
         Expect(_w op 0, ("%s " #op " %s for %s", #x, #y, #z),                  \
-                             ("\"%p\" " #er " \"%p\" for \"%d\"", _x, _y, _z));\
+                             ("\"%p\" " #er " \"%p\" for \"%d\"",              \
+                                (const void *)_x, (const void *)_y, _z));      \
     }                                                                          \
 } while(0)
 
