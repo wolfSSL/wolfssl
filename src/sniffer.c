@@ -531,7 +531,7 @@ typedef struct SnifferSession {
     word32         srvAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
     FinCapture     finCapture;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
-    time_t         lastUsed;        /* last used ticks */
+    wc_time_t         lastUsed;        /* last used ticks */
     word32         keySz;           /* size of the private key */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
@@ -1185,7 +1185,7 @@ static void Trace(int idx)
 static void TraceHeader(void)
 {
     if (TraceOn) {
-        time_t ticks = wc_Time(NULL);
+        wc_time_t ticks = wc_Time(NULL);
         XFPRINTF(TraceFile, "\n%s", XCTIME(&ticks));
     }
 }
@@ -1598,7 +1598,7 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;
-    time_t          currTime = wc_Time(NULL);
+    wc_time_t          currTime = wc_Time(NULL);
     word32          row = SessionHash(ipInfo, tcpInfo);
 
     LOCK_SESSION();

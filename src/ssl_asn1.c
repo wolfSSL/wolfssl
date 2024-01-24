@@ -3337,11 +3337,11 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, time_t t,
     int offset_day, long offset_sec)
 {
     WOLFSSL_ASN1_TIME* ret = NULL;
-    const time_t sec_per_day = 24*60*60;
+    const wc_time_t sec_per_day = 24*60*60;
     int time_get;
     char time_str[MAX_TIME_STRING_SZ];
-    time_t offset_day_sec = offset_day * sec_per_day;
-    time_t t_adj          = t + offset_day_sec + offset_sec;
+    wc_time_t offset_day_sec = offset_day * sec_per_day;
+    wc_time_t t_adj          = t + offset_day_sec + offset_sec;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
 
@@ -3757,7 +3757,7 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
 static int wolfssl_get_current_time_tm(struct tm* tm)
 {
     int ret = 1;
-    time_t currentTime;
+    wc_time_t currentTime;
     struct tm *tmpTs;
 #if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */

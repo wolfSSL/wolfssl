@@ -2375,7 +2375,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
     const byte* datePart;
 #ifndef NO_ASN_TIME
     struct tm timearg;
-    time_t now;
+    wc_time_t now;
 #endif
 
     ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
@@ -49725,7 +49725,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)
 #endif /* WOLFSSL_CERT_PIV */
 
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
-static time_t time_cb(time_t* t)
+static wc_time_t time_cb(wc_time_t* t)
 {
     if (t != NULL) {
         *t = 99;
@@ -49736,7 +49736,7 @@ static time_t time_cb(time_t* t)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t time_test(void)
 {
-    time_t t;
+    wc_time_t t;
     wc_test_ret_t ret;
 
     ret = wc_SetTimeCb(time_cb);
@@ -49745,7 +49745,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t time_test(void)
     t = wc_Time(NULL);
     if (t != 99)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_GetTime(&t, sizeof(time_t));
+    ret = wc_GetTime(&t, sizeof(wc_time_t));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (t != 99)

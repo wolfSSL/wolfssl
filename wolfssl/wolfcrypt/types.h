@@ -139,6 +139,63 @@ decouple library dependencies with standard string, memory and so on.
      */
     #define _WC_STRINGIFY_L2(str) #str
     #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
+    #if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
+        /* These platforms have 64-bit CPU registers.  */
+        #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
+            (defined(__mips64) && \
+             ((defined(_ABI64) && (_MIPS_SIM == _ABI64)) || \
+              (defined(_ABIO64) && (_MIPS_SIM == _ABIO64)))) || \
+             defined(__x86_64__) || defined(_M_X64)) || \
+             defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
+            (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
+            defined(__aarch64__) || \
+            (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
+            #define WC_64BIT_CPU
+        #elif (defined(sun) || defined(__sun)) && \
+              (defined(LP64) || defined(_LP64))
+            /* LP64 with GNU GCC compiler is reserved for when long int is 64 bits
+             * and int uses 32 bits. When using Solaris Studio sparc and __sparc are
+             * available for 32 bit detection but __sparc64__ could be missed. This
+             * uses LP64 for checking 64 bit CPU arch. */
+            #define WC_64BIT_CPU
+        #else
+            #define WC_32BIT_CPU
+        #endif
+    
+        #if defined(NO_64BIT)
+              typedef word32 wolfssl_word;
+              #undef WORD64_AVAILABLE
+        #else
+            #ifdef WC_64BIT_CPU
+              typedef word64 wolfssl_word;
+            #else
+              typedef word32 wolfssl_word;
+              #ifdef WORD64_AVAILABLE
+                  #define WOLFCRYPT_SLOW_WORD64
+              #endif
+            #endif
+        #endif
+    
+    #elif defined(WC_16BIT_CPU)
+            #undef WORD64_AVAILABLE
+            typedef word16 wolfssl_word;
+            #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
+                               * mp_digit, no 64 bit type so make mp_digit 16 bit */
+    
+    #else
+            #undef WORD64_AVAILABLE
+            typedef word32 wolfssl_word;
+            #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
+                               * mp_digit, no 64 bit type so make mp_digit 16 bit */
+    #endif
+
+typedef struct w64wrapper {
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_W64_WRAPPER_TEST)
+    word64 n;
+#else
+    word32 n[2];
+#endif /* WORD64_AVAILABLE && WOLFSSL_W64_WRAPPER_TEST */
+} w64wrapper;
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_WIN32) || defined(HAVE_LIMITS_H)
@@ -174,110 +231,6 @@ decouple library dependencies with standard string, memory and so on.
          #endif
     #endif
 
-    #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
-        #define WORD64_AVAILABLE
-        #define W64LIT(x) x##ui64
-        #define SW64LIT(x) x##i64
-        typedef          __int64 sword64;
-        typedef unsigned __int64 word64;
-    #elif defined(__EMSCRIPTEN__)
-        #define WORD64_AVAILABLE
-        #define W64LIT(x) x##ull
-        #define SW64LIT(x) x##ll
-        typedef          long long sword64;
-        typedef unsigned long long word64;
-    #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
-        #define WORD64_AVAILABLE
-        #ifdef WOLF_C89
-            #define W64LIT(x) x##UL
-            #define SW64LIT(x) x##L
-        #else
-            #define W64LIT(x) x##ULL
-            #define SW64LIT(x) x##LL
-        #endif
-        typedef          long sword64;
-        typedef unsigned long word64;
-    #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
-        #define WORD64_AVAILABLE
-        #ifdef WOLF_C89
-            #define W64LIT(x) x##UL
-            #define SW64LIT(x) x##L
-        #else
-            #define W64LIT(x) x##ULL
-            #define SW64LIT(x) x##LL
-        #endif
-        typedef          long long sword64;
-        typedef unsigned long long word64;
-    #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
-        #define WORD64_AVAILABLE
-        #ifdef WOLF_C89
-            #define W64LIT(x) x##UL
-            #define SW64LIT(x) x##L
-        #else
-            #define W64LIT(x) x##ULL
-            #define SW64LIT(x) x##LL
-        #endif
-        typedef          long long sword64;
-        typedef unsigned long long word64;
-    #endif
-
-#if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
-    /* These platforms have 64-bit CPU registers.  */
-    #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-        (defined(__mips64) && \
-         ((defined(_ABI64) && (_MIPS_SIM == _ABI64)) || \
-          (defined(_ABIO64) && (_MIPS_SIM == _ABIO64)))) || \
-         defined(__x86_64__) || defined(_M_X64)) || \
-         defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
-        (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
-        defined(__aarch64__) || \
-        (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
-        #define WC_64BIT_CPU
-    #elif (defined(sun) || defined(__sun)) && \
-          (defined(LP64) || defined(_LP64))
-        /* LP64 with GNU GCC compiler is reserved for when long int is 64 bits
-         * and int uses 32 bits. When using Solaris Studio sparc and __sparc are
-         * available for 32 bit detection but __sparc64__ could be missed. This
-         * uses LP64 for checking 64 bit CPU arch. */
-        #define WC_64BIT_CPU
-    #else
-        #define WC_32BIT_CPU
-    #endif
-
-    #if defined(NO_64BIT)
-          typedef word32 wolfssl_word;
-          #undef WORD64_AVAILABLE
-    #else
-        #ifdef WC_64BIT_CPU
-          typedef word64 wolfssl_word;
-        #else
-          typedef word32 wolfssl_word;
-          #ifdef WORD64_AVAILABLE
-              #define WOLFCRYPT_SLOW_WORD64
-          #endif
-        #endif
-    #endif
-
-#elif defined(WC_16BIT_CPU)
-        #undef WORD64_AVAILABLE
-        typedef word16 wolfssl_word;
-        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
-                           * mp_digit, no 64 bit type so make mp_digit 16 bit */
-
-#else
-        #undef WORD64_AVAILABLE
-        typedef word32 wolfssl_word;
-        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
-                           * mp_digit, no 64 bit type so make mp_digit 16 bit */
-#endif
-
-typedef struct w64wrapper {
-#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_W64_WRAPPER_TEST)
-    word64 n;
-#else
-    word32 n[2];
-#endif /* WORD64_AVAILABLE && WOLFSSL_W64_WRAPPER_TEST */
-} w64wrapper;
 
 #ifdef WC_PTR_TYPE /* Allow user supplied type */
     typedef WC_PTR_TYPE wc_ptr_t;

@@ -14544,7 +14544,7 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
     if (buf == NULL || len == 0)
         return BAD_FUNC_ARG;
 
-    ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
+    ts = (struct tm *)XGMTIME((wc_time_t*)currTime, tmpTime);
     if (ValidateGmtime(ts)) {
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;
@@ -14654,7 +14654,7 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 /* dateType = AFTER or BEFORE */
 int wc_ValidateDate(const byte* date, byte format, int dateType)
 {
-    time_t ltime;
+    wc_time_t ltime;
     struct tm  certTime;
     struct tm* localTime;
     struct tm* tmpTime;
@@ -14673,7 +14673,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     ltime = wc_Time(0);
 #ifndef NO_TIME_SIGNEDNESS_CHECK
     if (sizeof(ltime) == sizeof(word32) && (int)ltime < 0){
-        /* A negative response here could be due to a 32-bit time_t
+        /* A negative response here could be due to a 32-bit wc_time_t
          * where the year is 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
         return 0;
@@ -14714,7 +14714,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
         return 0;
     }
 
-    ltime -= (time_t)timeDiff;
+    ltime -= (wc_time_t)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (ValidateGmtime(localTime)) {
@@ -14741,13 +14741,13 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
 
 int wc_GetTime(void* timePtr, word32 timeSize)
 {
-    time_t* ltime = (time_t*)timePtr;
+    wc_time_t* ltime = (wc_time_t*)timePtr;
 
     if (timePtr == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if ((word32)sizeof(time_t) > timeSize) {
+    if ((word32)sizeof(wc_time_t) > timeSize) {
         return BUFFER_E;
     }
 
@@ -14757,10 +14757,7 @@ int wc_GetTime(void* timePtr, word32 timeSize)
 }
 
 #ifdef TIME_OVERRIDES
-    #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
-    #endif
-    extern time_t XTIME(time_t* t);
+    extern wc_time_t XTIME(wc_time_t* t);
 #endif
 
 static wc_time_cb timeFunc = NULL;
@@ -14771,7 +14768,7 @@ int wc_SetTimeCb(wc_time_cb f)
     return 0;
 }
 
-time_t wc_Time(time_t* t)
+wc_time_t wc_Time(wc_time_t* t)
 {
     if (timeFunc != NULL) {
         return timeFunc(t);
@@ -28365,8 +28362,8 @@ static int SetValidity(byte* output, int daysValid)
 
     word32 beforeSz, afterSz, seqSz;
 
-    time_t now;
-    time_t then;
+    wc_time_t now;
+    wc_time_t then;
     struct tm* tmpTime;
     struct tm* expandedTime;
     struct tm localTime;
@@ -28406,7 +28403,7 @@ static int SetValidity(byte* output, int daysValid)
     afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
 
     /* add daysValid of seconds */
-    then = now + (daysValid * (time_t)86400);
+    then = now + (daysValid * (wc_time_t)86400);
     expandedTime = XGMTIME(&then, tmpTime);
     if (ValidateGmtime(expandedTime)) {
         WOLFSSL_MSG("XGMTIME failed");
@@ -28438,8 +28435,8 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 {
 #ifndef NO_ASN_TIME
     int ret = 0;
-    time_t now;
-    time_t then;
+    wc_time_t now;
+    wc_time_t then;
     struct tm* tmpTime;
     struct tm* expandedTime;
     struct tm localTime;
@@ -28471,7 +28468,7 @@ static int SetValidity(byte* before, byte* after, int daysValid)
         SetTime(&localTime, before);
 
         /* add daysValid of seconds */
-        then = now + (daysValid * (time_t)86400);
+        then = now + (daysValid * (wc_time_t)86400);
         expandedTime = XGMTIME(&then, tmpTime);
         if (ValidateGmtime(expandedTime)) {
             WOLFSSL_MSG("XGMTIME failed");

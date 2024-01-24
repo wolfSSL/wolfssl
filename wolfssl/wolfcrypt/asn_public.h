@@ -909,9 +909,9 @@ WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
 */
 WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
 
-typedef time_t (*wc_time_cb)(time_t* t);
+typedef wc_time_t (*wc_time_cb)(wc_time_t* t);
 WOLFSSL_API int wc_SetTimeCb(wc_time_cb f);
-WOLFSSL_API time_t wc_Time(time_t* t);
+WOLFSSL_API wc_time_t wc_Time(wc_time_t* t);
 #endif
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS

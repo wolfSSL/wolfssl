@@ -9570,10 +9570,7 @@ ProtocolVersion MakeDTLSv1_3(void)
         return (word32) wc_Time(0);
     }
 #else
-    #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
-    #endif
-    extern time_t XTIME(time_t * timer);
+    extern wc_time_t XTIME(wc_time_t * timer);
 
     word32 LowResTimer(void)
     {

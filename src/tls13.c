@@ -1648,15 +1648,12 @@ end:
 
 #elif defined(TIME_OVERRIDES)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
-    word32 TimeNowInMilliseconds(void)
+    word64 TimeNowInMilliseconds(void)
     {
-        return (word32) wc_Time(0) * 1000;
+        return (word64) wc_Time(0) * 1000;
     }
 #else
-    #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
-    #endif
-    extern time_t XTIME(time_t * timer);
+    extern wc_time_t XTIME(wc_time_t * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -1946,9 +1943,9 @@ end:
     }
 #else
     #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
+        typedef sword64 wc_time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern wc_time_t XTIME(wc_time_t * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
