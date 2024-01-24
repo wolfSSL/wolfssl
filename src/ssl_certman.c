@@ -595,6 +595,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     long sz, int format, int prev_err)
 {
     int ret = 0;
+    int pcr_ret = 0;
     int fatal = 0;
     DerBuffer* der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -646,10 +647,11 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
         ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm);
+        pcr_ret = ret;
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0
+     if ((ret == 0
 #ifdef WOLFSSL_NO_ASN_STRICT
         || ret == ASN_CRIT_EXT_E
 #endif
@@ -657,7 +659,18 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* Check for a CRL for the CA and check validity of certificate. */
         ret = CheckCertCRL(cm->crl, cert);
     }
-#endif
+#endif /* HAVE_CRL */
+
+    /* If there was a parse error in the cert, then CRL check was not done and
+     * ret has the error. This is reasonable as there was no valid certificate
+     * from which the CRL information could be extracted. The exception is when
+     * an unknown critical extension has been encountered. In this case we can
+     * still do CRL verification. If that fails, ret has the error from CRL
+     * verfication. In the case of no CRL verification error but an unknown
+     * critical extension, we want ret to hold ASN_CRIT_EXT_E. */
+    if (ret == 0 && pcr_ret == ASN_CRIT_EXT_E) {
+        ret = ASN_CRIT_EXT_E;
+    }
 
     (void)fatal;
 
