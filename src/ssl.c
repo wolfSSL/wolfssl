@@ -14480,6 +14480,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 
     if (LowResTimer() >= (ssl->session->bornOn + ssl->session->timeout)) {
 #if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        wolfSSL_FreeSession(ssl->ctx, ssl->session);
+        ssl->session = NULL;
         return WOLFSSL_FAILURE;  /* session timed out */
 #else /* defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) */
         WOLFSSL_MSG("Session is expired but return success for "
