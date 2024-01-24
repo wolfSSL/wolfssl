@@ -45817,7 +45817,7 @@ static int test_wolfSSL_SESSION(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
 #endif
-#else
+#elif !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE)
     /* session timeout case */
     /* make the session to be expired */
     ExpectIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
