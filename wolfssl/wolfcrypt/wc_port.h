@@ -1090,9 +1090,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #if !defined(TIME_T_OVERRIDE)
-    #if defined(HAVE_TIME_T_TYPE) || defined(__time_t_defined)
-        typedef time_t wc_time_t;
-    #endif
+    typedef time_t wc_time_t;
 #else
     typedef sword64 wc_time_t;
     #if !defined(HAVE_TIME_T_TYPE) && !defined(__time_t_defined)
