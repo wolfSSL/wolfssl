@@ -652,7 +652,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
 #ifdef HAVE_CRL
      if ((ret == 0
-#ifdef WOLFSSL_NO_ASN_STRICT
+#ifdef WOLFSSL_CRL_CHECK_ON_CRIT_EXT
         || ret == ASN_CRIT_EXT_E
 #endif
         ) && cm->crlEnabled) {
