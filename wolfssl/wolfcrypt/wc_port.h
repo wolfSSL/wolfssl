@@ -880,19 +880,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Time functions */
 #ifndef NO_ASN_TIME
 
-#if !defined(TIME_T_OVERRIDE)
-    #if defined(HAVE_TIME_T_TYPE) || defined(__time_t_defined)
-        typedef time_t wc_time_t;
-    #endif
-#else
-    typedef sword64 wc_time_t;
-    #if !defined(HAVE_TIME_T_TYPE) && !defined(__time_t_defined)
-        #define HAVE_TIME_T_TYPE
-        #define __time_t_defined 1
-        typedef wc_time_t time_t;
-    #endif
-#endif
-
 #if defined(USER_TIME)
     /* Use our gmtime and time_t/struct tm types.
        Only needs seconds since EPOCH using XTIME function.
@@ -1100,6 +1087,19 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     #define XMKTIME(tm) mktime(tm)
     #define XDIFFTIME(to, from) difftime(to, from)
+#endif
+
+#if !defined(TIME_T_OVERRIDE)
+    #if defined(HAVE_TIME_T_TYPE) || defined(__time_t_defined)
+        typedef time_t wc_time_t;
+    #endif
+#else
+    typedef sword64 wc_time_t;
+    #if !defined(HAVE_TIME_T_TYPE) && !defined(__time_t_defined)
+        #define HAVE_TIME_T_TYPE
+        #define __time_t_defined 1
+        typedef wc_time_t time_t;
+    #endif
 #endif
 
 #ifdef SIZEOF_TIME_T
