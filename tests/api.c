@@ -45788,12 +45788,11 @@ static int test_wolfSSL_SESSION(void)
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
     /* session timeout case */
     /* make the session to be expired */
-    ExpectIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
+    ExpectIntEQ(SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
     XSLEEP_MS(1200);
-
-#ifdef OPENSSL_EXTRA
     /* SSL_set_session should reject specified session but return success
      * if WOLFSSL_ERROR_CODE_OPENSSL macro is defined for OpenSSL compatibility.
      */
@@ -45819,6 +45818,10 @@ static int test_wolfSSL_SESSION(void)
     ExpectIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
 #endif
 #else
+    /* session timeout case */
+    /* make the session to be expired */
+    ExpectIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
+    XSLEEP_MS(1200);
     ExpectIntEQ(wolfSSL_set_session(ssl,sess), SSL_FAILURE);
     /* verify session was reset for a clean ssl object */
     ExpectNull(ssl->session);
