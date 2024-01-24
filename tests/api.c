@@ -69195,6 +69195,7 @@ static int test_tls_multi_handshakes_one_record(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     int newRecIdx = RECORD_HEADER_SZ;
+    RecordLayerHeader* rh;
     int idx = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -69211,7 +69212,8 @@ static int test_tls_multi_handshakes_one_record(void)
     while (idx < test_ctx.c_len) {
         word16 recLen;
 
-        ato16(((RecordLayerHeader*)(test_ctx.c_buff + idx))->length, &recLen);
+        rh = (RecordLayerHeader*)(test_ctx.c_buff + idx);
+        ato16(rh->length, &recLen);
         idx += RECORD_HEADER_SZ;
 
         XMEMMOVE(test_ctx.c_buff + newRecIdx, test_ctx.c_buff + idx,
@@ -69220,8 +69222,8 @@ static int test_tls_multi_handshakes_one_record(void)
         newRecIdx += recLen;
         idx += recLen;
     }
-    c16toa(newRecIdx - RECORD_HEADER_SZ,
-            ((RecordLayerHeader*)test_ctx.c_buff)->length);
+    rh = (RecordLayerHeader*)test_ctx.c_buff;
+    c16toa(newRecIdx - RECORD_HEADER_SZ, rh->length);
     test_ctx.c_len = newRecIdx;
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
