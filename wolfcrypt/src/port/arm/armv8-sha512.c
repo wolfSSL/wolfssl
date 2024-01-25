@@ -1,22 +1,12 @@
 /* sha512.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.  All rights reserved.
  *
  * This file is part of wolfSSL.
  *
- * wolfSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Contact licensing@wolfssl.com with any questions or comments.
  *
- * wolfSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ * https://www.wolfssl.com
  */
 
 #ifdef HAVE_CONFIG_H
@@ -145,18 +135,6 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA512
-
-#ifdef WOLFSSL_ARMASM
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
-    extern void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data,
-        word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_neon
-#else
-    extern void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
-        word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_crypto
-#endif
-#endif
 
 static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
                                                     enum wc_HashType type)
@@ -467,7 +445,25 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
     if (blocksLen > 0) {
         /* Byte reversal performed in function if required. */
-        Transform_Sha512_Len(sha512, data, blocksLen);
+    #ifndef WOLFSSL_ARMASM_NO_NEON
+        /* Data must be 64-bit aligned to be passed to Transform_Sha512_Len().
+         * 64 bits is 8 bytes.
+         */
+        if (((size_t)data & 0x7) != 0) {
+            word32 i;
+
+            for (i = 0; i < blocksLen; i += WC_SHA512_BLOCK_SIZE) {
+                word64 buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64)];
+                XMEMCPY(buffer, data + i, WC_SHA512_BLOCK_SIZE);
+                Transform_Sha512_Len(sha512, (const byte*)buffer,
+                                                          WC_SHA512_BLOCK_SIZE);
+            }
+        }
+        else
+    #endif
+        {
+            Transform_Sha512_Len(sha512, data, blocksLen);
+        }
         data += blocksLen;
         len  -= blocksLen;
     }
@@ -792,6 +788,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SHA512
 
+#if !defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256)
+
 static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
                                             enum wc_HashType type )
 {
@@ -827,6 +825,8 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
     }
     return ret;
 }
+
+#endif /* !WOLFSSL_NOSHA512_224 || !WOLFSSL_NOSHA512_256 */
 
 int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
 {

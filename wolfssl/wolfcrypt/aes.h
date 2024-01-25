@@ -38,6 +38,27 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifndef NO_AES
 
+#ifdef HAVE_AESGCM
+typedef struct Gcm {
+    ALIGN16 byte H[16];
+#ifdef OPENSSL_EXTRA
+    word32 aadH[4]; /* additional authenticated data GHASH */
+    word32 aadLen;  /* additional authenticated data len */
+#endif
+#ifdef GCM_TABLE
+    /* key-based fast multiplication table. */
+    ALIGN16 byte M0[256][16];
+#elif defined(GCM_TABLE_4BIT)
+    #if defined(BIG_ENDIAN_ORDER) || defined(WC_16BIT_CPU)
+        ALIGN16 byte M0[16][16];
+    #else
+        ALIGN16 byte M0[32][16];
+    #endif
+#endif /* GCM_TABLE */
+} Gcm;
+
+#endif
+
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     #include <wolfssl/wolfcrypt/fips.h>
@@ -177,6 +198,7 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     ALIGN16 byte H[AES_BLOCK_SIZE];
+    Gcm gcm;
 #ifdef OPENSSL_EXTRA
     word32 aadH[4]; /* additional authenticated data GHASH */
     word32 aadLen;  /* additional authenticated data len */
@@ -377,8 +399,13 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
  WOLFSSL_API __must_check int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
  WOLFSSL_API __must_check int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 #else
- WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+  #ifndef WOLFSSL_ARMASM
+   WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+   WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+  #else
+   WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+   WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+  #endif
 #endif
  WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
@@ -449,8 +476,10 @@ WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
                                const byte* authIn, word32 authInSz,
                                const byte* authTag, word32 authTagSz);
 #endif /* WC_NO_RNG */
- WOLFSSL_LOCAL void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+#ifndef WOLFSSL_ARMASM
+WOLFSSL_LOCAL void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
                                word32 cSz, byte* s, word32 sSz);
+#endif
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
  WOLFSSL_LOCAL int wc_AesCcmCheckTagSize(int sz);

@@ -1,22 +1,12 @@
 /* armv8-sha512-asm
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.  All rights reserved.
  *
  * This file is part of wolfSSL.
  *
- * wolfSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Contact licensing@wolfssl.com with any questions or comments.
  *
- * wolfSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ * https://www.wolfssl.com
  */
 
 #ifdef HAVE_CONFIG_H
@@ -30,6 +20,7 @@
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
 #ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
@@ -1201,20 +1192,15 @@ Transform_Sha512_Len_crypto:
 .p2align	2
 _Transform_Sha512_Len_crypto:
 #endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-208]!
+	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
 	stp	d8, d9, [x29, #16]
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
-	stp	d16, d17, [x29, #80]
-	stp	d18, d19, [x29, #96]
-	stp	d20, d21, [x29, #112]
-	stp	d22, d23, [x29, #128]
-	stp	d24, d25, [x29, #144]
-	stp	d26, d27, [x29, #160]
-	stp	d28, d29, [x29, #176]
-	stp	d30, d31, [x29, #192]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_SHA512_transform_crypto_len_k
 	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k
@@ -1222,7 +1208,7 @@ _Transform_Sha512_Len_crypto:
 	adrp x4, L_SHA512_transform_crypto_len_k@PAGE
 	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
-	# Load first 16 64-bit words of K permantly
+	# Load first 16 64-bit words of K permanently
 	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
 	ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40
 	# Load digest into working vars
@@ -1731,15 +1717,7 @@ L_sha512_len_crypto_begin:
 	ldp	d10, d11, [x29, #32]
 	ldp	d12, d13, [x29, #48]
 	ldp	d14, d15, [x29, #64]
-	ldp	d16, d17, [x29, #80]
-	ldp	d18, d19, [x29, #96]
-	ldp	d20, d21, [x29, #112]
-	ldp	d22, d23, [x29, #128]
-	ldp	d24, d25, [x29, #144]
-	ldp	d26, d27, [x29, #160]
-	ldp	d28, d29, [x29, #176]
-	ldp	d30, d31, [x29, #192]
-	ldp	x29, x30, [sp], #0xd0
+	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
@@ -1752,3 +1730,4 @@ L_sha512_len_crypto_begin:
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
+#endif /* !WOLFSSL_ARMASM_INLINE */
