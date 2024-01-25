@@ -36801,12 +36801,14 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
     /* clean up keylog file */
     ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "w")) != XBADFILE);
     if (fp != XBADFILE) {
+        XFFLUSH(fp);
         XFCLOSE(fp);
         fp = XBADFILE;
     }
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
         &server_cbf, NULL), TEST_SUCCESS);
+    XSLEEP_MS(100);
 
     /* check if the keylog file exists */
 
@@ -36814,6 +36816,7 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
     int  found = 0;
 
     ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "r")) != XBADFILE);
+    XFFLUSH(fp); /* Just to make sure any buffers get flushed */
 
     while (EXPECT_SUCCESS() && XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
         if (0 == strncmp(buff,"CLIENT_RANDOM ", sizeof("CLIENT_RANDOM ")-1)) {
@@ -39231,12 +39234,12 @@ static int test_wolfSSL_BIO(void)
     for (i = 0; i < 20; i++) {
         ExpectIntEQ((int)bufPt[i], i);
     }
-    ExpectIntEQ(BIO_nread(bio2, &bufPt, 1), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio2, &bufPt, 1), 0);
     ExpectIntEQ(BIO_nread(bio1, &bufPt, (int)BIO_ctrl_pending(bio1)), 8);
     for (i = 0; i < 8; i++) {
         ExpectIntEQ((int)bufPt[i], i);
     }
-    ExpectIntEQ(BIO_nread(bio1, &bufPt, 1), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio1, &bufPt, 1), 0);
     ExpectIntEQ(BIO_ctrl_reset_read_request(bio1), 1);
 
     /* new pair */
@@ -39245,7 +39248,7 @@ static int test_wolfSSL_BIO(void)
     bio2 = NULL;
     ExpectIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_SUCCESS);
     ExpectIntEQ((int)BIO_ctrl_pending(bio3), 0);
-    ExpectIntEQ(BIO_nread(bio3, &bufPt, 10), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 10), 0);
 
     /* test wrap around... */
     ExpectIntEQ(BIO_reset(bio1), 0);
@@ -39293,7 +39296,7 @@ static int test_wolfSSL_BIO(void)
     /* test reset on data in bio1 write buffer */
     ExpectIntEQ(BIO_reset(bio1), 0);
     ExpectIntEQ((int)BIO_ctrl_pending(bio3), 0);
-    ExpectIntEQ(BIO_nread(bio3, &bufPt, 3), WOLFSSL_BIO_ERROR);
+    ExpectIntEQ(BIO_nread(bio3, &bufPt, 3), 0);
     ExpectIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
     ExpectIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_INFO, 0, &p), 20);
     ExpectNotNull(p);
@@ -39404,6 +39407,35 @@ static int test_wolfSSL_BIO(void)
     ExpectNotNull(bio1 = BIO_new(BIO_s_bio()));
     BIO_vfree(NULL);
     BIO_vfree(bio1);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_BIO_BIO_ring_read(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL)
+    BIO* bio1 = NULL;
+    BIO* bio2 = NULL;
+    byte data[50];
+    byte tmp[50];
+
+    XMEMSET(data, 42, sizeof(data));
+
+
+    ExpectIntEQ(BIO_new_bio_pair(&bio1, sizeof(data), &bio2, sizeof(data)),
+            SSL_SUCCESS);
+
+    ExpectIntEQ(BIO_write(bio1, data, 40), 40);
+    ExpectIntEQ(BIO_read(bio1, tmp, 20), -1);
+    ExpectIntEQ(BIO_read(bio2, tmp, 20), 20);
+    ExpectBufEQ(tmp, data, 20);
+    ExpectIntEQ(BIO_write(bio1, data, 20), 20);
+    ExpectIntEQ(BIO_read(bio2, tmp, 40), 40);
+    ExpectBufEQ(tmp, data, 40);
+
+    BIO_free(bio1);
+    BIO_free(bio2);
 #endif
     return EXPECT_RESULT();
 }
@@ -69722,6 +69754,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_PEM_file_RSAPrivateKey),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_BIO),
+    TEST_DECL(test_wolfSSL_BIO_BIO_ring_read),
     TEST_DECL(test_wolfSSL_PEM_read_bio),
     TEST_DECL(test_wolfSSL_PEM_bio_RSAKey),
     TEST_DECL(test_wolfSSL_PEM_bio_DSAKey),
