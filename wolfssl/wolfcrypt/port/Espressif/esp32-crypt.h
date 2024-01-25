@@ -238,6 +238,11 @@ enum {
 **   See NO_HW_MATH_TEST.
 **
 *******************************************************************************
+** WOLFSSL_FULL_WOLFSSH_SUPPORT
+**   TODO - there's a known, unresolved problem with SHA256 in wolfSSH
+**   Until fixed by a release version or this macro being define once resolved,
+**   this macro should remain undefined.
+**
 */
 #ifdef WOLFSSL_ESP32_CRYPT_DEBUG
     #undef LOG_LOCAL_LEVEL
@@ -452,7 +457,10 @@ enum {
 #endif
 
 #ifdef SINGLE_THREADED
-    #undef ESP_MONITOR_HW_TASK_LOCK
+    #ifdef WOLFSSL_DEBUG_MUTEX
+        #undef  ESP_MONITOR_HW_TASK_LOCK
+        #define ESP_MONITOR_HW_TASK_LOCK
+    #endif
 #else
     /* Unless explicitly disabled, monitor task lock when not single thread. */
     #ifndef ESP_DISABLE_HW_TASK_LOCK
@@ -616,7 +624,7 @@ extern "C"
     {
         /* pointer to object the initialized HW; to track copies */
         void* initializer;
-#ifndef SINGLE_THREADED
+#if !defined(SINGLE_THREADED) || defined(ESP_MONITOR_HW_TASK_LOCK)
         void* task_owner;
 #endif
 
@@ -856,6 +864,16 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
+/* Compatibility checks */
+#if defined(DEBUG_WOLFSSH) || defined(ESP_ENABLE_WOLFSSH) || \
+    defined(WOLFSSH_TERM)  || defined(WOLFSSH_TEST_SERVER)
+    #ifndef NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256
+        /* need to add this line to wolfssl component user_settings.h
+         * #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256 */
+        #error "ESP32_CRYPT_HASH_SHA256 not supported on wolfSSL at this time"
+    #endif
+#endif /* SSH SHA256 HW check */
 
 #endif /* WOLFSSL_ESPIDF (entire contents excluded when not Espressif ESP-IDF) */
 

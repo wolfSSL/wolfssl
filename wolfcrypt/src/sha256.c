@@ -109,7 +109,8 @@ on the specific device platform.
     **
     ** Beware of possible conflict in test.c (that one now named TEST_TAG)
     */
-    #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
+    #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
+       !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
         static const char* TAG = "wc_sha256";
     #endif
 #endif
@@ -731,7 +732,7 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->hiLen   = 0;
 
 #ifndef NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256
-        ret = esp_sha_init(&(sha256->ctx), WC_HASH_TYPE_SHA256);
+        ret = esp_sha_init((WC_ESP32SHA*)&(sha256->ctx), WC_HASH_TYPE_SHA256);
 #endif
         return ret;
     }
@@ -748,15 +749,14 @@ static int InitSha256(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
-#ifndef NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256
+    #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
+       !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
         /* We know this is a fresh, uninitialized item, so set to INIT */
         if (sha256->ctx.mode != ESP32_SHA_INIT) {
             ESP_LOGV(TAG, "Set ctx mode from prior value: "
                                "%d", sha256->ctx.mode);
         }
         sha256->ctx.mode = ESP32_SHA_INIT;
-#endif
     #endif
 
         return InitSha256(sha256);
