@@ -295,6 +295,8 @@ extern ${variable.value} ${variable.name};
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_EXTENDED_MASTER
+#define WOLFSSL_ASN_TEMPLATE
+#define HAVE_SNI
 
 #if defined(WOLF_CONF_TLS13) && WOLF_CONF_TLS13 == 1
     #define WOLFSSL_TLS13
@@ -442,6 +444,7 @@ extern ${variable.value} ${variable.name};
 #endif
 
 /* Other possible AES modes */
+//#define WOLFSSL_AES_CFB /* Used by TPM parameter encryption */
 //#define WOLFSSL_AES_COUNTER
 //#define HAVE_AESCCM
 //#define WOLFSSL_AES_XTS
@@ -610,6 +613,8 @@ extern ${variable.value} ${variable.name};
 #define NO_RC4
 #define NO_MD4
 #define NO_DES3
+#define WOLFSSL_NO_SHAKE128
+#define WOLFSSL_NO_SHAKE256
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */
