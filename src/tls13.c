@@ -4724,8 +4724,8 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     int serverRandomOffset, int helloSz)
 {
     int ret = 0;
-    int digestType;
-    int digestSize;
+    int digestType = 0;
+    int digestSize = 0;
     HS_Hashes* tmpHashes;
     HS_Hashes* acceptHashes;
     byte zeros[WC_MAX_DIGEST_SIZE];
@@ -4857,10 +4857,10 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
   int serverRandomOffset, int helloSz)
 {
     int ret = 0;
-    int digestType;
-    int digestSize;
-    HS_Hashes* tmpHashes;
-    HS_Hashes* acceptHashes;
+    int digestType = 0;
+    int digestSize = 0;
+    HS_Hashes* tmpHashes = NULL;
+    HS_Hashes* acceptHashes = NULL;
     byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
