@@ -313,6 +313,8 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
 
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
+        AddLength(sha256, len);
+
         /* fill leftover buffer with data */
         add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
         XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
@@ -329,8 +331,6 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
 
             Sha256Transform(sha256, data, numBlocks);
             data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
-
-            AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
 
             /* copy over any remaining data leftover */
             XMEMCPY(sha256->buffer, data, add);
@@ -352,8 +352,6 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     const word32* k;
 
     local = (byte*)sha256->buffer;
-    AddLength(sha256, sha256->buffLen);  /* before adding pads */
-
     local[sha256->buffLen++] = 0x80;     /* add 1 */
 
     /* pad with zeros */
@@ -901,6 +899,8 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
 
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
+        AddLength(sha256, len);
+
         /* fill leftover buffer with data */
         add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
         XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
@@ -917,8 +917,6 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
 
             Sha256Transform(sha256, data, numBlocks);
             data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
-
-            AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
 
             /* copy over any remaining data leftover */
             XMEMCPY(sha256->buffer, data, add);
@@ -943,8 +941,6 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     }
 
     local = (byte*)sha256->buffer;
-    AddLength(sha256, sha256->buffLen);  /* before adding pads */
-
     local[sha256->buffLen++] = 0x80;     /* add 1 */
 
     /* pad with zeros */

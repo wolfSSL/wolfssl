@@ -714,6 +714,7 @@ endif
 
 if BUILD_WC_XMSS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_xmss.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_xmss_impl.c
 endif
 
 if BUILD_CURVE25519

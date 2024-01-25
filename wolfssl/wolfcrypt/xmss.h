@@ -89,6 +89,53 @@
 #define XMSSMT_NAME_MIN_LEN (20) /* strlen("XMSSMT-SHA2_20/2_256") */
 #define XMSSMT_NAME_MAX_LEN (21) /* strlen("XMSSMT-SHA2_60/12_256") */
 
+#if defined(HAVE_FIPS) || defined(HAVE_LIBXMSS)
+    #undef WOLFSSL_WC_XMSS_NO_SHA512
+    #define WOLFSSL_WC_XMSS_NO_SHA512
+    #undef WOLFSSL_WC_XMSS_NO_SHAKE128
+    #define WOLFSSL_WC_XMSS_NO_SHAKE128
+    #undef WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #ifdef HAVE_LIBXMSS
+        #define WOLFSSL_WC_XMSS_MIN_HASH_SIZE       256
+    #else
+        #define WOLFSSL_WC_XMSS_MIN_HASH_SIZE       192
+    #endif
+    #define WOLFSSL_WC_XMSS_MAX_HASH_SIZE       256
+#endif
+
+#if !defined(NO_SHA256) && !defined(WOLFSSL_WC_XMSS_NO_SHA256)
+    #define WC_XMSS_SHA256
+#endif
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_WC_XMSS_NO_SHA512)
+    #define WC_XMSS_SHA512
+#endif
+#if defined(WOLFSSL_SHAKE128) && !defined(WOLFSSL_WC_XMSS_NO_SHAKE128)
+    #define WC_XMSS_SHAKE128
+#endif
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_WC_XMSS_NO_SHAKE256)
+    #define WC_XMSS_SHAKE256
+#endif
+
+#ifndef WOLFSSL_WC_XMSS_MIN_HASH_SIZE
+    #define WOLFSSL_WC_XMSS_MIN_HASH_SIZE       192
+#endif
+#ifndef WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #define WOLFSSL_WC_XMSS_MAX_HASH_SIZE       512
+#endif
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE > WOLFSSL_WC_XMSS_MAX_HASH_SIZE
+    #error "XMSS minimum hash size is greater than maximum hash size"
+#endif
+
+#ifndef WOLFSSL_XMSS_MIN_HEIGHT
+    #define WOLFSSL_XMSS_MIN_HEIGHT             10
+#endif
+#ifndef WOLFSSL_XMSS_MAX_HEIGHT
+    #define WOLFSSL_XMSS_MAX_HEIGHT             60
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT > WOLFSSL_XMSS_MAX_HEIGHT
+    #error "XMSS minimum height is greater than maximum height"
+#endif
+
 typedef struct XmssKey XmssKey;
 
 /* Return codes returned by private key callbacks. */
@@ -113,37 +160,41 @@ enum wc_XmssState {
 };
 
 /* Private key write and read callbacks. */
-typedef enum wc_XmssRc (*write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef enum wc_XmssRc (*read_private_key_cb)(byte * priv, word32 privSz, void *context);
+typedef enum wc_XmssRc (*write_private_key_cb)(const byte* priv, word32 privSz,
+    void* context);
+typedef enum wc_XmssRc (*read_private_key_cb)(byte* priv, word32 privSz,
+    void* context);
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-WOLFSSL_API int  wc_XmssKey_Init(XmssKey * key, void * heap, int devId);
-WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey * key, const char * str);
+
+WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
+WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey* key, const char* str);
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
-WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey * key,
+WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey* key,
     write_private_key_cb write_cb);
-WOLFSSL_API int  wc_XmssKey_SetReadCb(XmssKey * key,
+WOLFSSL_API int  wc_XmssKey_SetReadCb(XmssKey* key,
     read_private_key_cb read_cb);
-WOLFSSL_API int  wc_XmssKey_SetContext(XmssKey * key, void * context);
-WOLFSSL_API int  wc_XmssKey_MakeKey(XmssKey * key, WC_RNG * rng);
-WOLFSSL_API int  wc_XmssKey_Reload(XmssKey * key);
-WOLFSSL_API int  wc_XmssKey_GetPrivLen(const XmssKey * key, word32 * len);
-WOLFSSL_API int  wc_XmssKey_Sign(XmssKey * key, byte * sig, word32 * sigSz,
-    const byte * msg, int msgSz);
-WOLFSSL_API int  wc_XmssKey_SigsLeft(XmssKey * key);
+WOLFSSL_API int  wc_XmssKey_SetContext(XmssKey* key, void* context);
+WOLFSSL_API int  wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_XmssKey_Reload(XmssKey* key);
+WOLFSSL_API int  wc_XmssKey_GetPrivLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigSz,
+    const byte* msg, int msgSz);
+WOLFSSL_API int  wc_XmssKey_SigsLeft(XmssKey* key);
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
-WOLFSSL_API void wc_XmssKey_Free(XmssKey * key);
-WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey * key, word32 * len);
-WOLFSSL_API int  wc_XmssKey_GetPubLen(const XmssKey * key, word32 * len);
-WOLFSSL_API int  wc_XmssKey_ExportPub(XmssKey * keyDst, const XmssKey * keySrc);
-WOLFSSL_API int  wc_XmssKey_ExportPubRaw(const XmssKey * key, byte * out,
-    word32 * outLen);
-WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey * key, const byte * in,
+WOLFSSL_API void wc_XmssKey_Free(XmssKey* key);
+WOLFSSL_API int  wc_XmssKey_GetSigLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_GetPubLen(const XmssKey* key, word32* len);
+WOLFSSL_API int  wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc);
+WOLFSSL_API int  wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out,
+    word32* outLen);
+WOLFSSL_API int  wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in,
     word32 inLen);
-WOLFSSL_API int  wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigSz,
-    const byte * msg, int msgSz);
+WOLFSSL_API int  wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigSz,
+    const byte* msg, int msgSz);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

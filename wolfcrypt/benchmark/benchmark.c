@@ -178,6 +178,8 @@
     #include <wolfssl/wolfcrypt/xmss.h>
     #ifdef HAVE_LIBXMSS
         #include <wolfssl/wolfcrypt/ext_xmss.h>
+    #else
+        #include <wolfssl/wolfcrypt/wc_xmss.h>
     #endif
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
@@ -662,7 +664,21 @@
 
 /* Post-Quantum Stateful Hash-Based sig algorithms. */
 #define BENCH_LMS_HSS                   0x00000001
-#define BENCH_XMSS_XMSSMT               0x00000002
+#define BENCH_XMSS_XMSSMT_SHA256        0x00000002
+#define BENCH_XMSS_XMSSMT_SHA512        0x00000004
+#define BENCH_XMSS_XMSSMT_SHAKE128      0x00000008
+#define BENCH_XMSS_XMSSMT_SHAKE256      0x00000010
+#ifndef NO_SHA256
+#define BENCH_XMSS_XMSSMT               BENCH_XMSS_XMSSMT_SHA256
+#elif defined(WOLFSSL_SHA512)
+#define BENCH_XMSS_XMSSMT               BENCH_XMSS_XMSSMT_SHA512
+#elif defined(WOLFSSL_SHAKE128)
+#define BENCH_XMSS_XMSSMT               BENCH_XMSS_XMSSMT_SHAKE128
+#elif defined(WOLFSSL_SHAKE256)
+#define BENCH_XMSS_XMSSMT               BENCH_XMSS_XMSSMT_SHAKE256
+#else
+#define BENCH_XMSS_XMSSMT               0x00000000
+#endif
 
 /* Other */
 #define BENCH_RNG                0x00000001
@@ -987,7 +1003,23 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
     { "-lms_hss", BENCH_LMS_HSS},
 #endif
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
-    { "-xmss_xmssmt", BENCH_XMSS_XMSSMT},
+    { "-xmss_xmssmt",          BENCH_XMSS_XMSSMT},
+#ifdef WC_XMSS_SHA256
+    { "-xmss_xmssmt_sha256",   BENCH_XMSS_XMSSMT_SHA256},
+#endif
+#ifdef WC_XMSS_SHA512
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 512 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+    { "-xmss_xmssmt_sha512",   BENCH_XMSS_XMSSMT_SHA512},
+#endif
+#endif
+#ifdef WC_XMSS_SHAKE128
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+    { "-xmss_xmssmt_shake128", BENCH_XMSS_XMSSMT_SHAKE128},
+#endif
+#endif
+#ifdef WC_XMSS_SHAKE256
+    { "-xmss_xmssmt_shake256", BENCH_XMSS_XMSSMT_SHAKE256},
+#endif
 #endif
     { NULL, 0}
 };
@@ -3497,9 +3529,29 @@ static void* benchmarks_do(void* args)
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
-    if (bench_all || (bench_pq_hash_sig_algs & BENCH_XMSS_XMSSMT)) {
-        bench_xmss();
+    if (bench_all) {
+        bench_pq_hash_sig_algs |= BENCH_XMSS_XMSSMT;
     }
+#ifndef NO_SHA256
+    if (bench_pq_hash_sig_algs & BENCH_XMSS_XMSSMT_SHA256) {
+        bench_xmss(WC_HASH_TYPE_SHA256);
+    }
+#endif
+#ifdef WOLFSSL_SHA512
+    if (bench_pq_hash_sig_algs & BENCH_XMSS_XMSSMT_SHA512) {
+        bench_xmss(WC_HASH_TYPE_SHA512);
+    }
+#endif
+#ifdef WOLFSSL_SHAKE128
+    if (bench_pq_hash_sig_algs & BENCH_XMSS_XMSSMT_SHAKE128) {
+        bench_xmss(WC_HASH_TYPE_SHAKE128);
+    }
+#endif
+#ifdef WOLFSSL_SHAKE256
+    if (bench_pq_hash_sig_algs & BENCH_XMSS_XMSSMT_SHAKE256) {
+        bench_xmss(WC_HASH_TYPE_SHAKE256);
+    }
+#endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
 #ifdef HAVE_ECC
@@ -9640,11 +9692,17 @@ static void bench_xmss_sign_verify(const char * params)
     }
 
     ret = wc_XmssKey_GetPubLen(&key, &pkSz);
+    if (ret != 0) {
+        fprintf(stderr, "wc_XmssKey_GetPubLen failed: %d\n", ret);
+        goto exit_xmss_sign_verify;
+    }
+#ifndef WOLFSSL_WC_XMSS
     if (pkSz != XMSS_SHA256_PUBLEN) {
         fprintf(stderr, "error: xmss pub len: got %u, expected %d\n", pkSz,
                 XMSS_SHA256_PUBLEN);
         goto exit_xmss_sign_verify;
     }
+#endif
 
     ret = wc_XmssKey_GetPrivLen(&key, &skSz);
     if (ret != 0 || skSz <= 0) {
@@ -9684,7 +9742,7 @@ static void bench_xmss_sign_verify(const char * params)
         goto exit_xmss_sign_verify;
     }
 
-    ret = wc_XmssKey_SetContext(&key, (void *) sk);
+    ret = wc_XmssKey_SetContext(&key, (void *)sk);
     if (ret != 0) {
         fprintf(stderr, "error: wc_XmssKey_SetContext failed: %d\n", ret);
         goto exit_xmss_sign_verify;
@@ -9697,25 +9755,21 @@ static void bench_xmss_sign_verify(const char * params)
     fprintf(stderr, "sigSz:  %d\n", sigSz);
 #endif
 
-    /* Making the private key is the bottleneck
-     * for larger heights. Only print load time in debug builds. */
-#if defined(DEBUG_WOLFSSL)
+    /* Making the private key is the bottleneck for larger heights. */
+    count = 0;
     bench_stats_start(&count, &start);
-#endif /* if defined DEBUG_WOLFSSL*/
 
     ret = wc_XmssKey_MakeKey(&key, &rng);
     if (ret != 0) {
         printf("wc_XmssKey_MakeKey failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
+    /* Can only do one at a time - state changes after make key. */
 
     count +=1;
 
-#if defined(DEBUG_WOLFSSL)
     bench_stats_check(start);
-    bench_stats_asym_finish(params, (int)skSz, "load", 0,
-                            count, start, ret);
-#endif /* if defined DEBUG_WOLFSSL*/
+    bench_stats_asym_finish(params, (int)skSz, "gen", 0, count, start, ret);
 
     freeKey = 1;
 
@@ -9724,20 +9778,24 @@ static void bench_xmss_sign_verify(const char * params)
 
     do {
         /* XMSS is stateful. Async queuing not practical. */
-        for (times = 0; times < ntimes; ++times) {
-
+#ifndef WOLFSSL_WC_XMSS_SMALL
+        for (times = 0; times < ntimes; ++times)
+#else
+        for (times = 0; times < 1; ++times)
+#endif
+        {
+            if (!wc_XmssKey_SigsLeft(&key))
+                break;
             ret = wc_XmssKey_Sign(&key, sig, &sigSz, (byte *) msg, msgSz);
             if (ret) {
                 printf("wc_XmssKey_Sign failed: %d\n", ret);
                 goto exit_xmss_sign_verify;
             }
         }
-
         count += times;
-    } while (bench_stats_check(start));
+    } while (wc_XmssKey_SigsLeft(&key) && bench_stats_check(start));
 
-    bench_stats_asym_finish(params, (int)sigSz, "sign", 0,
-                            count, start, ret);
+    bench_stats_asym_finish(params, (int)sigSz, "sign", 0, count, start, ret);
 
     count = 0;
     bench_stats_start(&count, &start);
@@ -9751,13 +9809,11 @@ static void bench_xmss_sign_verify(const char * params)
                 goto exit_xmss_sign_verify;
             }
         }
-
         count += times;
     } while (bench_stats_check(start));
 
 exit_xmss_sign_verify:
-    bench_stats_asym_finish(params, (int)sigSz, "verify", 0,
-                            count, start, ret);
+    bench_stats_asym_finish(params, (int)sigSz, "verify", 0, count, start, ret);
 
     /* Cleanup everything. */
     if (sig != NULL) {
@@ -9783,7 +9839,7 @@ exit_xmss_sign_verify:
     return;
 }
 
-void bench_xmss(void)
+void bench_xmss(int hash)
 {
     /* All NIST SP 800-208 approved SHA256 XMSS/XMSS^MT parameter
      * sets.
@@ -9799,18 +9855,287 @@ void bench_xmss(void)
      *
      * h is the total height of the hyper tree, and d the number of
      * trees.
-     * */
-                                                       /* h/d    h   d */
-    bench_xmss_sign_verify("XMSS-SHA2_10_256");        /*  10   10   1 */
- /* bench_xmss_sign_verify("XMSS-SHA2_16_256"); */     /*  16   16   1 */
- /* bench_xmss_sign_verify("XMSS-SHA2_20_256"); */     /*  20   20   1 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_20/2_256");    /*  10   20   2 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_20/4_256");    /*   5   20   4 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_40/4_256");    /*  10   40   4 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_40/8_256");    /*   5   40   8 */
- /* bench_xmss_sign_verify("XMSSMT-SHA2_60/3_256"); */ /*  20   60   3 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_60/6_256");    /*  10   60   6 */
-    bench_xmss_sign_verify("XMSSMT-SHA2_60/12_256");   /*   5   60  12 */
+     */
+                                                            /* h/d    h   d */
+#ifdef WC_XMSS_SHA256
+    if (hash == WC_HASH_TYPE_SHA256) {
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHA2_10_256");         /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_16_256");         /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_20_256");         /*  20   20   1 */
+#endif
+#endif
+#endif /* HASH_SIZE 256 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 192 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 192
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHA2_10_192");         /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_16_192");         /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_20_192");         /*  20   20   1 */
+#endif
+#endif
+#endif /* HASH_SIZE 192 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/2_256");     /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/4_256");     /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/2_256");     /*  20   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/4_256");     /*  10   40   4 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/8_256");     /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/3_256");     /*  20   60   3 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/6_256");     /*  10   60   6 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/12_256");    /*   5   60  12 */
+#endif
+#endif /* HASH_SIZE 256 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 192 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 192
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/2_192");     /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/4_192");     /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/2_192");     /*  20   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/4_192");     /*  10   40   4 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/8_192");     /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/3_192");     /*  20   60   3 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/6_192");     /*  10   60   6 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/12_192");    /*   5   60  12 */
+#endif
+#endif /* HASH_SIZE 192 */
+    }
+#endif
+#ifdef WC_XMSS_SHA512
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 512 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+    if (hash == WC_HASH_TYPE_SHA512) {
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHA2_10_512");         /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_16_512");         /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHA2_20_512");         /*  20   20   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/2_512");     /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHA2_20/4_512");     /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/2_512");     /*  20   40   4 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/4_512");     /*  10   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_40/8_512");     /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/3_512");     /*  20   60   3 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/6_512");     /*  10   60   6 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHA2_60/12_512");    /*   5   60  12 */
+#endif
+    }
+#endif /* HASH_SIZE 512 */
+#endif
+#ifdef WC_XMSS_SHAKE128
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+    if (hash == WC_HASH_TYPE_SHAKE128) {
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHAKE_10_256");        /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE_16_256");        /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE_20_256");        /*  20   20   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHAKE_20/2_256");    /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHAKE_20/4_256");    /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/2_256");    /*  20   40   4 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/4_256");    /*  10   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/8_256");    /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/3_256");    /*  20   60   3 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/6_256");    /*  10   60   6 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/12_256");   /*   5   60  12 */
+#endif
+    }
+#endif /* HASH_SIZE 256 */
+#endif
+#ifdef WC_XMSS_SHAKE256
+    if (hash == WC_HASH_TYPE_SHAKE256) {
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 512 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHAKE_10_512");        /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE_16_512");        /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE_20_512");        /*  20   20   1 */
+#endif
+#endif
+#endif /* HASH_SIZE 512 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHAKE256_10_256");     /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE256_16_256");     /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE256_20_256");     /*  20   20   1 */
+#endif
+#endif
+#endif /* HASH_SIZE 256 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 192 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 192
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 10 && WOLFSSL_XMSS_MAX_HEIGHT >= 10
+        bench_xmss_sign_verify("XMSS-SHAKE256_10_192");     /*  10   10   1 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 16 && WOLFSSL_XMSS_MAX_HEIGHT >= 16
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE256_16_192");     /*  16   16   1 */
+#endif
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSS-SHAKE256_20_192");     /*  20   20   1 */
+#endif
+#endif
+#endif /* HASH_SIZE 192 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 512 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 512
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_20/2_512");    /*  10   20   2 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE_20/4_512");    /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/2_512");    /*  20   40   4 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/4_512");    /*  10   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE_40/8_512");    /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/3_512");    /*  20   60   3 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/6_512");    /*  10   60   6 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE_60/12_512");   /*   5   60  12 */
+#endif
+#endif /* HASH_SIZE 512 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_20/2_256"); /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_20/4_256"); /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/2_256"); /*  20   40   4 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/4_256"); /*  10   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/8_256"); /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/3_256"); /*  20   60   3 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/6_256"); /*  10   60   6 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/12_256");/*   5   60  12 */
+#endif
+#endif /* HASH_SIZE 256 */
+#if WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 192 && WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 192
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 20 && WOLFSSL_XMSS_MAX_HEIGHT >= 20
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_20/2_192"); /*  10   20   2 */
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_20/4_192"); /*   5   20   4 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 40 && WOLFSSL_XMSS_MAX_HEIGHT >= 40
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/2_192"); /*  20   40   4 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/4_192"); /*  10   40   4 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_40/8_192"); /*   5   40   8 */
+#endif
+#if WOLFSSL_XMSS_MIN_HEIGHT <= 60 && WOLFSSL_XMSS_MAX_HEIGHT >= 60
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/3_192"); /*  20   60   3 */
+#endif
+#ifdef BENCH_XMSS_SLOW_KEYGEN
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/6_192"); /*  10   60   6 */
+#endif
+        bench_xmss_sign_verify("XMSSMT-SHAKE256_60/12_192");/*   5   60  12 */
+#endif
+#endif /* HASH_SIZE 192 */
+    }
+#endif
     return;
 }
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */

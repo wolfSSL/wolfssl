@@ -601,6 +601,9 @@ const char* wc_GetErrorString(int error)
     case AES_EAX_AUTH_E:
         return "AES-EAX Authentication check fail";
 
+    case KEY_EXHAUSTED_E:
+        return "Key no longer usable for operation";
+
     default:
         return "unknown error number";
 

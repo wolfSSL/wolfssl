@@ -39,6 +39,7 @@
 #endif
 
 #include <xmss_callbacks.h>
+#include <utils.h>
 
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 static THREAD_LS_T WC_RNG * xmssRng = NULL;
@@ -175,6 +176,11 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
         key->params.wots_w != 16 ||
         key->params.wots_len != XMSS_SHA256_WOTS_LEN) {
         WOLFSSL_MSG("error: unsupported XMSS/XMSS^MT parameter set");
+        return -1;
+    }
+    if ((key->params.full_height < WOLFSSL_XMSS_MIN_HEIGHT) ||
+        (key->params.full_height > WOLFSSL_XMSS_MAX_HEIGHT)) {
+        WOLFSSL_MSG("error: unsupported XMSS/XMSS^MT parameter set - height");
         return -1;
     }
 
@@ -746,6 +752,47 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
     wc_XmssKey_SignUpdate(key, sig, sigLen, msg, msgLen);
 
     return (key->state == WC_XMSS_STATE_OK) ? 0 : -1;
+}
+
+
+/* Check if more signatures are possible with key.
+ *
+ * @param [in] key  XMSS key to check.
+ * @return  1 when signatures possible.
+ * @return  0 when key exhausted.
+ */
+int  wc_XmssKey_SigsLeft(XmssKey* key)
+{
+    int ret;
+
+    /* Validate parameter. */
+    if (key == NULL) {
+        ret = 0;
+    }
+    /* Validate state. */
+    else if (key->state == WC_XMSS_STATE_NOSIGS) {
+        WOLFSSL_MSG("error: XMSS signatures exhausted");
+        ret = 0;
+    }
+    else if (key->state != WC_XMSS_STATE_OK) {
+        WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
+        ret = 0;
+    }
+    /* Read the current secret key from NV storage.*/
+    else if (key->read_private_key(key->sk, key->sk_len, key->context) !=
+             WC_XMSS_RC_READ_TO_MEMORY) {
+        WOLFSSL_MSG("error: XMSS read_private_key failed");
+        ret = 0;
+    }
+    else {
+        xmss_params* params = &key->params;
+        unsigned long long idx;
+
+        idx = (unsigned long)bytes_to_ull(key->sk, params->index_bytes);
+        ret = idx < ((1ULL << params->full_height) - 1);
+    }
+
+    return ret;
 }
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY*/
 
