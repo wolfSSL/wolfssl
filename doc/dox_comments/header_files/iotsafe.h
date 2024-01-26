@@ -346,7 +346,7 @@ int wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, word16 id_size)
 
 /*!
     \ingroup IoTSafe
-    \brief Sign a pre-computed 256-bit HASH, using a private key previously stored, or pre-provisioned,
+    \brief Sign a pre-computed HASH, using a private key previously stored, or pre-provisioned,
     in the IoT-Safe applet.
 
     \param in pointer to the buffer containing the message hash to sign
@@ -367,7 +367,7 @@ int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word32 *outlen, 
 
 /*!
     \ingroup IoTSafe
-    \brief Sign a pre-computed 256-bit HASH, using a private key previously stored, or pre-provisioned,
+    \brief Sign a pre-computed HASH, using a private key previously stored, or pre-provisioned,
            in the IoT-Safe applet. Equivalent to \ref wc_iotsafe_ecc_sign_hash "wc_iotsafe_ecc_sign_hash",
            except that it can be invoked with a key ID of two or more bytes.
 
@@ -390,7 +390,7 @@ int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, word32 *outle
 
 /*!
     \ingroup IoTSafe
-    \brief Verify an ECC signature against a pre-computed 256-bit HASH, using a public key previously stored, or pre-provisioned,
+    \brief Verify an ECC signature against a pre-computed HASH, using a public key previously stored, or pre-provisioned,
     in the IoT-Safe applet. Result is written to res. 1 is valid, 0 is invalid.
     Note: Do not use the return value to test for valid. Only use res.
 
@@ -412,7 +412,7 @@ int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash, word32 hash
 
 /*!
     \ingroup IoTSafe
-    \brief Verify an ECC signature against a pre-computed 256-bit HASH, using a public key previously stored, or pre-provisioned,
+    \brief Verify an ECC signature against a pre-computed HASH, using a public key previously stored, or pre-provisioned,
     in the IoT-Safe applet. Result is written to res. 1 is valid, 0 is invalid.
     Note: Do not use the return value to test for valid. Only use res.
     Equivalent to \ref wc_iotsafe_ecc_verify_hash "wc_iotsafe_ecc_verify_hash",
