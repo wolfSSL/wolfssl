@@ -179,6 +179,7 @@ enum {
     AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
+    AES_ENCRYPTION_AND_DECRYPTION = 2,
 
     AES_BLOCK_SIZE      = 16,
 
@@ -398,7 +399,8 @@ struct Aes {
 
 #ifdef WOLFSSL_AES_XTS
 typedef struct XtsAes {
-    Aes aes;
+    Aes aes_encrypt;
+    Aes aes_decrypt;
     Aes tweak;
 } XtsAes;
 #endif
