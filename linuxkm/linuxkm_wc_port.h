@@ -146,6 +146,14 @@
     #include <linux/net.h>
     #include <linux/slab.h>
 
+    #ifdef LINUXKM_REGISTER_ALG
+        #include <linux/crypto.h>
+        #include <linux/scatterlist.h>
+        #include <crypto/scatterwalk.h>
+        #include <crypto/internal/aead.h>
+        #include <crypto/internal/skcipher.h>
+    #endif
+
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_SP_X86_64_ASM)
         #ifndef CONFIG_X86
             #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
@@ -185,7 +193,11 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define SAVE_VECTOR_REGISTERS2() ({ int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); (_fuzzer_ret == 0) ? save_vector_registers_x86() : _fuzzer_ret; })
+            #else
+                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+            #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -643,8 +655,9 @@
         #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_KERNEL)
     #endif
 
-#ifdef WOLFSSL_TRACK_MEMORY
     #include <wolfssl/wolfcrypt/memory.h>
+
+#ifdef WOLFSSL_TRACK_MEMORY
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
     #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
         #define XFREE(p, h, t)       ({(void)(h); (void)(t); wolfSSL_Free(p);})

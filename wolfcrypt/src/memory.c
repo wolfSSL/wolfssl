@@ -1534,9 +1534,38 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
         return 0;
 }
 
-#endif
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
 
-#endif
+#elif defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+
+/* DEBUG_VECTOR_REGISTER_ACCESS is undefined but fuzzing requested --
+ * fuzz vector register access without the detailed debugging.
+ * this is useful for testing in the kernel module build, where glibc and
+ * thread-local storage are unavailable.
+ */
+
+WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
+    static unsigned long prn = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
+    unsigned long popcount;
+    /* access to prn is racey, but it doesn't matter. */
+    unsigned long new_prn = prn ^ 0xba86943da66ee701ul;
+    if (new_prn & 0x3f)
+        new_prn = (new_prn << (new_prn & 0x3f)) | (new_prn >> (0x40 - (new_prn & 0x3f)));
+    __asm__ volatile ("popcnt %1, %0;"
+                      :"=r"(popcount)
+                      :"r"(new_prn)
+                      :
+        );
+    new_prn ^= popcount;
+    prn = new_prn;
+
+    if (prn & 1)
+        return IO_FAILED_E;
+    else
+        return 0;
+}
+
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS || DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
 
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_memory.c"

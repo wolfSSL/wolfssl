@@ -317,6 +317,28 @@ static int wolfssl_init(void)
     pr_info("wolfCrypt self-test passed.\n");
 #endif
 
+#if defined(LINUXKM_REGISTER_ALG) && !defined(NO_AES)
+    ret = linuxkm_register_alg();
+
+    if (ret) {
+        pr_err("linuxkm_register_alg failed with return code %d.\n", ret);
+        linuxkm_unregister_alg();
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+
+    ret = linuxkm_test_alg();
+
+    if (ret) {
+        pr_err("linuxkm_test_alg failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        linuxkm_unregister_alg();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
     wolfcrypt_benchmark_main(0, (char**)NULL);
 #endif
@@ -343,27 +365,6 @@ static int wolfssl_init(void)
         );
 #endif
 
-#if defined(LINUXKM_REGISTER_ALG) && !defined(NO_AES)
-    ret = linuxkm_register_alg();
-
-    if (ret) {
-        pr_err("linuxkm_register_alg failed with return code %d.\n", ret);
-        (void)libwolfssl_cleanup();
-        linuxkm_unregister_alg();
-        msleep(10);
-        return -ECANCELED;
-    }
-
-    ret = linuxkm_test_alg();
-
-    if (ret) {
-        pr_err("linuxkm_test_alg failed with return code %d.\n", ret);
-        (void)libwolfssl_cleanup();
-        linuxkm_unregister_alg();
-        msleep(10);
-        return -ECANCELED;
-    }
-#endif
     return 0;
 }
 
@@ -810,6 +811,8 @@ PRAGMA_GCC_DIAG_POP;
 
 /* km_AesX(): wrappers to wolfcrypt wc_AesX functions and
  * structures.  */
+
+#include <wolfssl/wolfcrypt/aes.h>
 
 struct km_AesCtx {
     Aes          aes;
