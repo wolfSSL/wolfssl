@@ -763,7 +763,7 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
  */
 int  wc_XmssKey_SigsLeft(XmssKey* key)
 {
-    int ret;
+    int ret = 0;
 
     /* Validate parameter. */
     if (key == NULL) {
@@ -785,12 +785,29 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         ret = 0;
     }
     else {
-        xmss_params* params = &key->params;
-        unsigned long long idx;
+        /* The following assumes core_fast implementation is used
+         * from patched xmss-reference. */
+        const unsigned char* sk = (key->sk + XMSS_OID_LEN);
+        const xmss_params*   params = &key->params;
+        unsigned long long   idx = 0;
 
-        idx = (unsigned long)bytes_to_ull(key->sk, params->index_bytes);
+        if (key->is_xmssmt) {
+            for (uint64_t i = 0; i < params->index_bytes; i++) {
+                idx |= ((unsigned long long)sk[i])
+                       << 8 * (params->index_bytes - 1 - i);
+            }
+        }
+        else {
+            idx = ((unsigned long)sk[0] << 24) |
+                  ((unsigned long)sk[1] << 16) |
+                  ((unsigned long)sk[2] <<  8) | sk[3];
+        }
+
         ret = idx < ((1ULL << params->full_height) - 1);
     }
+
+    /* Force zero the secret key from memory always. */
+    ForceZero(key->sk, key->sk_len);
 
     return ret;
 }
