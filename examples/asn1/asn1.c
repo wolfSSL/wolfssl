@@ -180,8 +180,8 @@ static int FindPem(unsigned char* data, word32 offset, word32 len,
     word32* start, word32* end)
 {
     int ret = 0;
-    word32 i;
-    word32 j;
+    word32 i = 0;
+    word32 j = 0;
 
     /* Find header. */
     for (i = offset; i < len; i++) {

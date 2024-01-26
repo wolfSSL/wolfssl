@@ -32734,12 +32734,12 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
 {
     DECL_ASNGETDATA(dataASN, eccSpecifiedASN_Length);
     int ret = 0;
-    ecc_set_type* curve;
+    ecc_set_type* curve = NULL;
     word32 idx = 0;
-    byte version;
-    byte cofactor;
-    const byte *base;
-    word32 baseLen;
+    byte version = 0;
+    byte cofactor = 0;
+    const byte *base = NULL;
+    word32 baseLen = 0;
 
     /* Allocate a new parameter set. */
     curve = (ecc_set_type*)XMALLOC(sizeof(*curve), heap,
