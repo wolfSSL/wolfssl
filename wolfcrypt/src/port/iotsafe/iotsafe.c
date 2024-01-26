@@ -766,7 +766,7 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
             hash_len = WC_SHA384_DIGEST_SIZE;
             break;
 #endif
-#ifdef WOLFSSL_TLS13_SHA512
+#ifdef WOLFSSL_SHA512
         case WC_SHA512:
             hash_algo = (uint16_t)4;
             hash_len = WC_SHA512_DIGEST_SIZE;
