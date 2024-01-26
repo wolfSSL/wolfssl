@@ -493,6 +493,10 @@ int wolfCrypt_Cleanup(void)
     #endif
     }
 
+#if defined(HAVE_LIBOQS)
+    wolfSSL_liboqsClose();
+#endif
+
     return ret;
 }
 

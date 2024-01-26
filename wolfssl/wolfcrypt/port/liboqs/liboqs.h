@@ -47,6 +47,8 @@ implementations for Post-Quantum cryptography algorithms.
 
 int wolfSSL_liboqsInit(void);
 
+void wolfSSL_liboqsClose(void);
+
 int wolfSSL_liboqsRngMutexLock(WC_RNG* rng);
 
 int wolfSSL_liboqsRngMutexUnlock(void);

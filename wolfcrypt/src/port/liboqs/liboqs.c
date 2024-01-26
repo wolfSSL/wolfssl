@@ -99,6 +99,11 @@ int wolfSSL_liboqsInit(void)
     return ret;
 }
 
+void wolfSSL_liboqsClose(void)
+{
+    wc_FreeRng(&liboqsDefaultRNG);
+}
+
 int wolfSSL_liboqsRngMutexLock(WC_RNG* rng)
 {
     int ret = wolfSSL_liboqsInit();
