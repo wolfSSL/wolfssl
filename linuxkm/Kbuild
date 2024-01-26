@@ -49,7 +49,12 @@ hostprogs := linuxkm/get_thread_size
 always-y := $(hostprogs)
 # "-mindirect-branch=keep -mfunction-return=keep" to avoid "undefined reference
 #  to `__x86_return_thunk'" on CONFIG_RETHUNK kernels (5.19.0-rc7)
-HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer -mindirect-branch=keep -mfunction-return=keep
+ifeq "$(KERNEL_ARCH)" "aarch64"
+  HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer
+else
+  HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer -mindirect-branch=keep -mfunction-return=keep
+endif
+
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
