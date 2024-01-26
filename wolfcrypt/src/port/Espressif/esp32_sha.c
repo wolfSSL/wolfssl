@@ -679,7 +679,10 @@ int esp_sha256_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst)
 } /* esp_sha256_ctx_copy */
 #endif
 
-#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+#if !(defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) && \
+      defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)    \
+     ) && \
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
 /*
 ** internal sha384 ctx copy for ESP HW
 */
@@ -744,7 +747,10 @@ int esp_sha384_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst)
 } /* esp_sha384_ctx_copy */
 #endif
 
-#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+#if !(defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) && \
+      defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)    \
+     ) && \
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
 /*
 ** Internal sha512 ctx copy for ESP HW.
 ** If HW already active, fall back to SW for this ctx.
@@ -1190,7 +1196,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
         ESP_LOGE(TAG, "unexpected error in esp_sha_try_hw_lock.");
         return ESP_FAIL;
     }
-#else /* not ESP_FAILfined(SINGLE_THREADED) */
+#else /* not SINGLE_THREADED */
     /*
     ** there's only one SHA engine for all the hash types
     ** so when any hash is in use, no others can use it.
@@ -2013,7 +2019,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
             pwrd1[i]     ^= pwrd1[i + 1];
         }
     }
-#endif
+#endif /* SHA512 or SHA384*/
 #endif /* not CONFIG_IDF_TARGET_ESP32S3, C3, else... */
 
     ESP_LOGV(TAG, "leave esp_digest_state");
@@ -2122,6 +2128,9 @@ int esp_sha256_digest_process(struct wc_Sha256* sha, byte blockprocess)
     }
 
     wc_esp_digest_state(&sha->ctx, (byte*)sha->digest);
+#else
+    ESP_LOGE(TAG, "Call esp_sha256_digest_process with "
+                  "NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256 ");
 #endif
     ESP_LOGV(TAG, "leave esp_sha256_digest_process");
     return ret;
@@ -2130,7 +2139,10 @@ int esp_sha256_digest_process(struct wc_Sha256* sha, byte blockprocess)
 
 #endif /* NO_SHA256 */
 
-#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+#if !(defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) && \
+      defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)    \
+     ) && \
+    (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384))
 /*
 ** sha512 process. this is used for sha384 too.
 */

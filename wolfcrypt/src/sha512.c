@@ -40,7 +40,10 @@
      * but individual components can be turned off. See user_settings.h
      */
     #define WOLFSSL_USE_ESP32_CRYPT_HASH_HW
-    static const char* TAG = "wc_sha_512";
+    #if !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) && \
+        !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
+        static const char* TAG = "wc_sha_512";
+    #endif
 #else
     #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 #endif
