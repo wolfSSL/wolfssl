@@ -651,11 +651,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
      }
 
 #ifdef HAVE_CRL
-     if ((ret == 0
-#ifdef WOLFSSL_CRL_CHECK_ON_CRIT_EXT
-        || ret == ASN_CRIT_EXT_E
-#endif
-        ) && cm->crlEnabled) {
+     if ((ret == 0 || ret == ASN_CRIT_EXT_E) && cm->crlEnabled) {
         /* Check for a CRL for the CA and check validity of certificate. */
         ret = CheckCertCRL(cm->crl, cert);
     }
