@@ -15624,7 +15624,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
           [sz] "+r" (sz)
-        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+        : [key] "r" (xaes->aes_encrypt.key), [rounds] "r" (xaes->aes_encrypt.rounds),
           [key2] "r" (xaes->tweak.key), [i] "r" (i),
           [tmp] "r" (tmp)
         : "cc", "memory",
@@ -15972,7 +15972,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
           [sz] "+r" (sz)
-        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+        : [key] "r" (xaes->aes_decrypt.key), [rounds] "r" (xaes->aes_decrypt.rounds),
           [key2] "r" (xaes->tweak.key), [i] "r" (i),
           [tmp] "r" (tmp)
         : "cc", "memory",
@@ -16298,7 +16298,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
           [sz] "+r" (sz), [i] "+r" (i), [key2] "+r" (key2)
-        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+        : [key] "r" (xaes->aes_encrypt.key), [rounds] "r" (xaes->aes_encrypt.rounds),
           [tmp] "r" (tmp)
         : "cc", "memory",
           "r9", "r10", "r11", "r12", "r14",
@@ -16455,7 +16455,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         : [blocks] "+r" (blocks), [in] "+r" (in), [out] "+r" (out),
           [sz] "+r" (sz), [i] "+r" (i), [key2] "+r" (key2)
-        : [key] "r" (xaes->aes.key), [rounds] "r" (xaes->aes.rounds),
+        : [key] "r" (xaes->aes_decrypt.key), [rounds] "r" (xaes->aes_decrypt.rounds),
           [tmp] "r" (tmp)
         : "cc", "memory",
           "r9", "r10", "r11", "r12", "r14",
