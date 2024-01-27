@@ -119,8 +119,87 @@
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
     #include <linux/ctype.h>
+
+    #ifdef CONFIG_FORTIFY_SOURCE
+        #ifdef __PIE__
+            /* the inline definitions in fortify-string.h use non-inline
+             * fortify_panic().
+             */
+            extern void __my_fortify_panic(const char *name) __noreturn __cold;
+            #define fortify_panic __my_fortify_panic
+        #endif
+
+        /* the _FORTIFY_SOURCE macros and implementations for several string
+         * functions are incompatible with libwolfssl, so just reimplement with
+         * inlines and remap with macros.
+         */
+
+        #define __ARCH_STRLEN_NO_REDIRECT
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __ARCH_MEMSET_NO_REDIRECT
+        #define __ARCH_MEMMOVE_NO_REDIRECT
+
+        /* the inline definitions in fortify-string.h use non-inline
+         * strlen().
+         */
+        static inline size_t strlen(const char *s) {
+            const char *s_start = s;
+            while (*s)
+                ++s;
+            return (size_t)s - (size_t)s_start;
+        }
+
+        #include <linux/string.h>
+
+        #undef strlen
+        #define strlen(s) \
+            ((__builtin_constant_p(s) && __builtin_constant_p(*(s))) ? \
+             (sizeof(s) - 1) : strlen(s))
+
+        static inline void *my_memcpy(void *dest, const void *src, size_t n) {
+            u8 *src_bytes = (u8 *)src,
+                *dest_bytes = (u8 *)dest,
+                *endp = src_bytes + n;
+            while (src_bytes < endp)
+                *dest_bytes++ = *src_bytes++;
+            return dest;
+        }
+        #undef memcpy
+        #define memcpy my_memcpy
+
+        static inline void *my_memset(void *dest, int c, size_t n) {
+            u8 *dest_bytes = (u8 *)dest, *endp = dest_bytes + n;
+            while (dest_bytes < endp)
+                *dest_bytes++ = (u8)c;
+            return dest;
+        }
+        #undef memset
+        #define memset my_memset
+
+        static inline void *my_memmove(void *dest, const void *src, size_t n) {
+            u8 *src_bytes = (u8 *)src, *dest_bytes = (u8 *)dest;
+            if (src_bytes < dest_bytes) {
+                u8 *startp = src_bytes;
+                src_bytes += n - 1;
+                dest_bytes += n - 1;
+                while (src_bytes >= startp)
+                    *dest_bytes-- = *src_bytes--;
+            } else if (src_bytes > dest_bytes) {
+                u8 *endp = src_bytes + n;
+                while (src_bytes < endp)
+                    *dest_bytes++ = *src_bytes++;
+            }
+            return dest;
+        }
+        #undef memmove
+        #define memmove my_memmove
+
+    #endif /* CONFIG_FORTIFY_SOURCE */
+
     #include <linux/init.h>
     #include <linux/module.h>
+    #include <linux/delay.h>
+
     #ifdef __PIE__
         /* without this, mm.h brings in static, but not inline, pmd_to_page(),
          * with direct references to global vmem variables.
@@ -146,7 +225,7 @@
     #include <linux/net.h>
     #include <linux/slab.h>
 
-    #ifdef LINUXKM_REGISTER_ALG
+    #ifdef LINUXKM_LKCAPI_REGISTER
         #include <linux/crypto.h>
         #include <linux/scatterlist.h>
         #include <crypto/scatterwalk.h>
@@ -303,6 +382,11 @@
         #else
             typeof(printk) *printk;
         #endif
+
+#ifdef CONFIG_FORTIFY_SOURCE
+        typeof(__warn_printk) *__warn_printk;
+#endif
+
         typeof(snprintf) *snprintf;
 
         const unsigned char *_ctype;
@@ -446,6 +530,11 @@
     #else
         #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
     #endif
+
+    #ifdef CONFIG_FORTIFY_SOURCE
+        #define __warn_printk (wolfssl_linuxkm_get_pie_redirect_table()->__warn_printk)
+    #endif
+
     #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)

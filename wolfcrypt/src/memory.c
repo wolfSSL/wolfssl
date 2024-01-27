@@ -1542,27 +1542,40 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
  * fuzz vector register access without the detailed debugging.
  * this is useful for testing in the kernel module build, where glibc and
  * thread-local storage are unavailable.
+ *
+ * note this is not a well-behaved PRNG, but is adequate for fuzzing purposes.
+ * the prn sequence is incompressible according to ent and xz, and does not
+ * cycle within 10M iterations with various seeds including zero, but the Chi
+ * square distribution is poor, and the unconditioned lsb bit balance is ~54%
+ * regardless of seed.
  */
 
 WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     static unsigned long prn = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
-    unsigned long popcount;
+    static int balance_bit = 0;
     /* access to prn is racey, but it doesn't matter. */
-    unsigned long new_prn = prn ^ 0xba86943da66ee701ul;
+    unsigned long new_prn = prn ^ 0xba86943da66ee701ul; /* note this magic
+                                                         * random number is
+                                                         * bit-balanced.
+                                                         */
+    /* barrel-roll using the bottom 6 bits. */
     if (new_prn & 0x3f)
         new_prn = (new_prn << (new_prn & 0x3f)) | (new_prn >> (0x40 - (new_prn & 0x3f)));
-    __asm__ volatile ("popcnt %1, %0;"
-                      :"=r"(popcount)
-                      :"r"(new_prn)
-                      :
-        );
-    new_prn ^= popcount;
     prn = new_prn;
 
-    if (prn & 1)
-        return IO_FAILED_E;
-    else
-        return 0;
+    balance_bit = !balance_bit;
+
+    if (balance_bit) {
+        if (prn & 1)
+            return IO_FAILED_E;
+        else
+            return 0;
+    } else {
+        if (prn & 1)
+            return 0;
+        else
+            return IO_FAILED_E;
+    }
 }
 
 #endif /* DEBUG_VECTOR_REGISTER_ACCESS || DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */

@@ -154,10 +154,10 @@ ifneq "$(quiet)" "silent_"
 endif
 	@cd "$(obj)" || exit $$?; \
 	for file in $(WOLFCRYPT_PIE_FILES); do \
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?; \
 	done
 ifneq "$(quiet)" "silent_"
-	@echo '  wolfCrypt .{text,data} sections containerized to .{text,data}.wolfcrypt'
+	@echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif
 
 $(src)/linuxkm/module_exports.c: rename-pie-text-and-data-sections

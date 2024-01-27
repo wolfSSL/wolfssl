@@ -12252,6 +12252,14 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 /* Galois Field to use */
 #define GF_XTS 0x87
 
+/* Set up keys for encryption and/or decryption.
+ *
+ * aes   buffer holding aes subkeys
+ * heap  heap hint to use for memory. Can be NULL
+ * devId id to use with async crypto. Can be 0
+ *
+ * return 0 on success
+ */
 int wc_AesXtsInit(XtsAes* aes, void* heap, int devId)
 {
     int    ret = 0;
@@ -12278,15 +12286,12 @@ int wc_AesXtsInit(XtsAes* aes, void* heap, int devId)
 
 /* Set up keys for encryption and/or decryption.
  *
- * tweak AES key for tweak in XTS
- * aes   AES key for encrypt/decrypt process
- * key   buffer holding aes key | tweak key
+ * aes   buffer holding aes subkeys
+ * key   AES key for encrypt/decrypt and tweak process (concatenated)
  * len   length of key buffer in bytes. Should be twice that of key size. i.e.
  *       32 for a 16 byte key.
  * dir   direction: AES_ENCRYPTION, AES_DECRYPTION, or
  *       AES_ENCRYPTION_AND_DECRYPTION
- * heap  heap hint to use for memory. Can be NULL
- * devId id to use with async crypto. Can be 0
  *
  * return 0 on success
  */
@@ -12680,15 +12685,19 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         if (xaes->aes_encrypt.use_aesni) {
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_XTS_encrypt_avx1(in, out, sz, i, (const byte*)xaes->aes_encrypt.key,
-                                     (const byte*)xaes->tweak.key, (int)xaes->aes_encrypt.rounds);
+                AES_XTS_encrypt_avx1(in, out, sz, i,
+                                     (const byte*)xaes->aes_encrypt.key,
+                                     (const byte*)xaes->tweak.key,
+                                     (int)xaes->aes_encrypt.rounds);
                 ret = 0;
             }
             else
 #endif
             {
-                AES_XTS_encrypt_aesni(in, out, sz, i, (const byte*)xaes->aes_encrypt.key,
-                                      (const byte*)xaes->tweak.key, (int)xaes->aes_encrypt.rounds);
+                AES_XTS_encrypt_aesni(in, out, sz, i,
+                                      (const byte*)xaes->aes_encrypt.key,
+                                      (const byte*)xaes->tweak.key,
+                                      (int)xaes->aes_encrypt.rounds);
                 ret = 0;
             }
         }
@@ -12893,15 +12902,19 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         if (xaes->aes_decrypt.use_aesni) {
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_XTS_decrypt_avx1(in, out, sz, i, (const byte*)xaes->aes_decrypt.key,
-                                     (const byte*)xaes->tweak.key, (int)xaes->aes_decrypt.rounds);
+                AES_XTS_decrypt_avx1(in, out, sz, i,
+                                     (const byte*)xaes->aes_decrypt.key,
+                                     (const byte*)xaes->tweak.key,
+                                     (int)xaes->aes_decrypt.rounds);
                 ret = 0;
             }
             else
 #endif
             {
-                AES_XTS_decrypt_aesni(in, out, sz, i, (const byte*)xaes->aes_decrypt.key,
-                                      (const byte*)xaes->tweak.key, (int)xaes->aes_decrypt.rounds);
+                AES_XTS_decrypt_aesni(in, out, sz, i,
+                                      (const byte*)xaes->aes_decrypt.key,
+                                      (const byte*)xaes->tweak.key,
+                                      (int)xaes->aes_decrypt.rounds);
                 ret = 0;
             }
         }

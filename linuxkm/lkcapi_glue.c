@@ -46,10 +46,31 @@
 #define WOLFKM_AESCFB_NAME   "cfb(aes)"
 #define WOLFKM_AESGCM_NAME   "gcm(aes)"
 #define WOLFKM_AESXTS_NAME   "xts(aes)"
-#define WOLFKM_AESCBC_DRIVER "cbc-aes-wolfcrypt"
-#define WOLFKM_AESCFB_DRIVER "cfb-aes-wolfcrypt"
-#define WOLFKM_AESGCM_DRIVER "gcm-aes-wolfcrypt"
-#define WOLFKM_AESXTS_DRIVER "xts-aes-wolfcrypt"
+
+#ifdef WOLFSSL_AESNI
+    #define WOLFKM_DRIVER_ISA_EXT "-aesni"
+#else
+    #define WOLFKM_DRIVER_ISA_EXT ""
+#endif
+
+#ifdef HAVE_FIPS_VERSION
+    #if HAVE_FIPS_VERSION >= 5
+        #define WOLFKM_DRIVER_FIPS "-fips-140-3"
+    #elif HAVE_FIPS_VERSION == 2
+        #define WOLFKM_DRIVER_FIPS "-fips-140-2"
+    #else
+        #define WOLFKM_DRIVER_FIPS "-fips-140"
+    #endif
+#else
+    #define WOLFKM_DRIVER_FIPS ""
+#endif
+
+#define WOLFKM_DRIVER_SUFFIX WOLFKM_DRIVER_ISA_EXT WOLFKM_DRIVER_FIPS "-wolfcrypt"
+
+#define WOLFKM_AESCBC_DRIVER ("cbc-aes" WOLFKM_DRIVER_SUFFIX)
+#define WOLFKM_AESCFB_DRIVER ("cfb-aes" WOLFKM_DRIVER_SUFFIX)
+#define WOLFKM_AESGCM_DRIVER ("gcm-aes" WOLFKM_DRIVER_SUFFIX)
+#define WOLFKM_AESXTS_DRIVER ("xts-aes" WOLFKM_DRIVER_SUFFIX)
 
 #if defined(HAVE_AES_CBC) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
@@ -1509,7 +1530,7 @@ static int aes_xts_128_test(void)
 
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1520,7 +1541,7 @@ static int aes_xts_128_test(void)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -1536,7 +1557,7 @@ static int aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1547,7 +1568,7 @@ static int aes_xts_128_test(void)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -1560,7 +1581,7 @@ static int aes_xts_128_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1572,7 +1593,7 @@ static int aes_xts_128_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -1588,7 +1609,7 @@ static int aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1600,7 +1621,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -1613,7 +1634,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1625,7 +1646,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -1638,7 +1659,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1652,7 +1673,7 @@ static int aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1669,7 +1690,7 @@ static int aes_xts_128_test(void)
 
     ret = wc_AesXtsEncrypt(aes, buf, buf, sizeof(p3), i3, sizeof(i3));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1681,7 +1702,7 @@ static int aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, buf, sizeof(c3), i3, sizeof(i3));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1717,7 +1738,7 @@ static int aes_xts_128_test(void)
             ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
                 sizeof(i1));
         #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
         #endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -1728,7 +1749,7 @@ static int aes_xts_128_test(void)
             ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
                 sizeof(i1));
         #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
         #endif
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2062,7 +2083,7 @@ static int aes_xts_256_test(void)
 
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2075,7 +2096,7 @@ static int aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2086,7 +2107,7 @@ static int aes_xts_256_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2098,7 +2119,7 @@ static int aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2109,7 +2130,7 @@ static int aes_xts_256_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2122,7 +2143,7 @@ static int aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -2361,15 +2382,18 @@ static int linuxkm_lkcapi_register(void)
     int ret = 0;
 
 #define REGISTER_ALG(alg, installer, tester) do {                       \
-        if (alg ## _loaded) {\
-            pr_err("ERROR: %s is already registered.\n", (alg).base.cra_driver_name); \
+        if (alg ## _loaded) {                                           \
+            pr_err("ERROR: %s is already registered.\n",                \
+                   (alg).base.cra_driver_name);                         \
             return -EEXIST;                                             \
         }                                                               \
                                                                         \
         ret =  (installer)(&(alg));                                     \
                                                                         \
         if (ret) {                                                      \
-            pr_err("ERROR: " #installer " for %s failed with return code %d.\n", (alg).base.cra_driver_name, ret); \
+            pr_err("ERROR: " #installer " for %s failed "               \
+                   "with return code %d.\n",                            \
+                   (alg).base.cra_driver_name, ret);                    \
             return ret;                                                 \
         }                                                               \
                                                                         \
@@ -2378,33 +2402,43 @@ static int linuxkm_lkcapi_register(void)
         ret = (tester());                                               \
                                                                         \
         if (ret) {                                                      \
-            pr_err("ERROR: self-test for %s failed with return code %d.\n", (alg).base.cra_driver_name, ret); \
+            pr_err("ERROR: self-test for %s failed "                    \
+                   "with return code %d.\n",                            \
+                   (alg).base.cra_driver_name, ret);                    \
             return ret;                                                 \
         }                                                               \
-        pr_info("%s self-test OK -- registered for %s with priority %d.\n", (alg).base.cra_driver_name, (alg).base.cra_name, (alg).base.cra_priority); \
+        pr_info("%s self-test OK -- "                                   \
+                "registered for %s with priority %d.\n",                \
+                (alg).base.cra_driver_name,                             \
+                (alg).base.cra_name,                                    \
+                (alg).base.cra_priority);                               \
     } while (0)
 
 #if defined(HAVE_AES_CBC) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
 
     REGISTER_ALG(cbcAesAlg, crypto_register_skcipher, linuxkm_test_aescbc);
 #endif
 
 #if defined(WOLFSSL_AES_CFB) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
 
     REGISTER_ALG(cfbAesAlg, crypto_register_skcipher, linuxkm_test_aescfb);
 #endif
 
 #if defined(HAVE_AESGCM) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) &&                        \
     (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
 
     REGISTER_ALG(gcmAesAead, crypto_register_aead, linuxkm_test_aesgcm);
 #endif
 
 #if defined(WOLFSSL_AES_XTS) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 
     REGISTER_ALG(xtsAesAlg, crypto_register_skcipher, linuxkm_test_aesxts);
 #endif
@@ -2416,33 +2450,38 @@ static int linuxkm_lkcapi_register(void)
 
 static void linuxkm_lkcapi_unregister(void)
 {
+#define UNREGISTER_ALG(alg, uninstaller) do {                           \
+        if (alg ## _loaded) {                                           \
+            (uninstaller)(&(alg));                                      \
+            alg ## _loaded = 0;                                         \
+        }                                                               \
+    } while (0)
+
 #if defined(HAVE_AES_CBC) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
-    if (cbcAesAlg_loaded) {
-        crypto_unregister_skcipher(&cbcAesAlg);
-        cbcAesAlg_loaded = 0;
-    }
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+
+    UNREGISTER_ALG(cbcAesAlg, crypto_unregister_skcipher);
 #endif
 #if defined(WOLFSSL_AES_CFB) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
-    if (cfbAesAlg_loaded) {
-        crypto_unregister_skcipher(&cfbAesAlg);
-        cfbAesAlg_loaded = 0;
-    }
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+
+    UNREGISTER_ALG(cfbAesAlg, crypto_unregister_skcipher);
 #endif
 #if defined(HAVE_AESGCM) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
     (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
-    if (gcmAesAead_loaded) {
-        crypto_unregister_aead(&gcmAesAead);
-        gcmAesAead_loaded = 0;
-    }
+
+    UNREGISTER_ALG(gcmAesAead, crypto_unregister_aead);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
-    if (xtsAesAlg_loaded) {
-        crypto_unregister_skcipher(&xtsAesAlg);
-        xtsAesAlg_loaded = 0;
-    }
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
+
+    UNREGISTER_ALG(xtsAesAlg, crypto_unregister_skcipher);
 #endif
+
+#undef UNREGISTER_ALG
 }
