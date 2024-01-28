@@ -121,7 +121,6 @@ static int updateFipsHash(void);
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
-#undef HAVE_PTHREAD
 #define STRING_USER
 #define NO_MAIN_FUNCTION
 #define current_time benchmark_current_time
