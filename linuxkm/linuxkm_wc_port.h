@@ -146,7 +146,7 @@
             const char *s_start = s;
             while (*s)
                 ++s;
-            return (size_t)s - (size_t)s_start;
+            return (size_t)((uintptr_t)s - (uintptr_t)s_start);
         }
 
         #include <linux/string.h>
@@ -157,37 +157,75 @@
              (sizeof(s) - 1) : strlen(s))
 
         static inline void *my_memcpy(void *dest, const void *src, size_t n) {
-            u8 *src_bytes = (u8 *)src,
-                *dest_bytes = (u8 *)dest,
-                *endp = src_bytes + n;
-            while (src_bytes < endp)
-                *dest_bytes++ = *src_bytes++;
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
+                uintptr_t *src_longs = (uintptr_t *)src,
+                    *dest_longs = (uintptr_t *)dest,
+                    *endp = (uintptr_t *)((u8 *)src + n);
+                while (src_longs < endp)
+                    *dest_longs++ = *src_longs++;
+            } else {
+                u8 *src_bytes = (u8 *)src,
+                    *dest_bytes = (u8 *)dest,
+                    *endp = src_bytes + n;
+                while (src_bytes < endp)
+                    *dest_bytes++ = *src_bytes++;
+            }
             return dest;
         }
         #undef memcpy
         #define memcpy my_memcpy
 
         static inline void *my_memset(void *dest, int c, size_t n) {
-            u8 *dest_bytes = (u8 *)dest, *endp = dest_bytes + n;
-            while (dest_bytes < endp)
-                *dest_bytes++ = (u8)c;
+            if (! (((uintptr_t)dest | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
+                uintptr_t c_long = __builtin_choose_expr(
+                    sizeof(uintptr_t) == 8,
+                    (uintptr_t)(u8)c * 0x0101010101010101UL,
+                    (uintptr_t)(u8)c * 0x01010101U
+                    );
+                uintptr_t *dest_longs = (uintptr_t *)dest, *endp = (uintptr_t *)((u8 *)dest_longs + n);
+                while (dest_longs < endp)
+                    *dest_longs++ = c_long;
+            } else {
+                u8 *dest_bytes = (u8 *)dest, *endp = dest_bytes + n;
+                while (dest_bytes < endp)
+                    *dest_bytes++ = (u8)c;
+            }
             return dest;
         }
         #undef memset
         #define memset my_memset
 
         static inline void *my_memmove(void *dest, const void *src, size_t n) {
-            u8 *src_bytes = (u8 *)src, *dest_bytes = (u8 *)dest;
-            if (src_bytes < dest_bytes) {
-                u8 *startp = src_bytes;
-                src_bytes += n - 1;
-                dest_bytes += n - 1;
-                while (src_bytes >= startp)
-                    *dest_bytes-- = *src_bytes--;
-            } else if (src_bytes > dest_bytes) {
-                u8 *endp = src_bytes + n;
-                while (src_bytes < endp)
-                    *dest_bytes++ = *src_bytes++;
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
+                uintptr_t *src_longs = (uintptr_t *)src, *dest_longs = (uintptr_t *)dest;
+                n >>= __builtin_choose_expr(
+                    sizeof(uintptr_t) == 8,
+                    3U,
+                    2U);
+                if (src_longs < dest_longs) {
+                    uintptr_t *startp = src_longs;
+                    src_longs += n - 1;
+                    dest_longs += n - 1;
+                    while (src_longs >= startp)
+                        *dest_longs-- = *src_longs--;
+                } else if (src_longs > dest_longs) {
+                    uintptr_t *endp = src_longs + n;
+                    while (src_longs < endp)
+                        *dest_longs++ = *src_longs++;
+                }
+            } else {
+                u8 *src_bytes = (u8 *)src, *dest_bytes = (u8 *)dest;
+                if (src_bytes < dest_bytes) {
+                    u8 *startp = src_bytes;
+                    src_bytes += n - 1;
+                    dest_bytes += n - 1;
+                    while (src_bytes >= startp)
+                        *dest_bytes-- = *src_bytes--;
+                } else if (src_bytes > dest_bytes) {
+                    u8 *endp = src_bytes + n;
+                    while (src_bytes < endp)
+                        *dest_bytes++ = *src_bytes++;
+                }
             }
             return dest;
         }
