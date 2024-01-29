@@ -12328,9 +12328,9 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
     }
 #endif
 
-    if ((dir == AES_ENCRYPTION)
+    if (dir == AES_ENCRYPTION
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-        || (dir == AES_ENCRYPTION_AND_DECRYPTION)
+        || dir == AES_ENCRYPTION_AND_DECRYPTION
 #endif
         )
     {
