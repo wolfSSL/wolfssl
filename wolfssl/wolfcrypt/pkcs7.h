@@ -247,7 +247,10 @@ struct PKCS7 {
 #ifdef ASN_BER_TO_DER
     byte*  der;                   /* DER encoded version of message       */
     word32 derSz;
+    byte   encodeStream;          /* use BER when encoding */
 #endif
+    byte   noCerts:1;             /* if certificates should be added into bundle
+                                     during creation */
     byte*  cert[MAX_PKCS7_CERTS]; /* array of certs parsed from bundle */
     byte*  verifyCert;            /* cert from array used for verify */
     word32 verifyCertSz;
@@ -494,6 +497,11 @@ WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCb(PKCS7* pkcs7,
         CallbackDecryptContent decryptionCb);
 WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+WOLFSSL_API int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag);
+WOLFSSL_API int wc_PKCS7_GetStreamMode(PKCS7* pkcs7);
+WOLFSSL_API int wc_PKCS7_SetNoCerts(PKCS7* pkcs7, byte flag);
+WOLFSSL_API int wc_PKCS7_GetNoCerts(PKCS7* pkcs7);
 
 /* CMS/PKCS#7 CompressedData */
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)

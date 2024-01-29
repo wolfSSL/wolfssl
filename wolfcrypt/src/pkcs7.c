@@ -2462,7 +2462,22 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         esd->innerContSeqSz = 0;
         esd->contentInfoSeqSz = SetSequence(pkcs7->contentTypeSz,
                                             esd->contentInfoSeq);
-    } else {
+    }
+    else if (pkcs7->encodeStream) {
+        byte tmp[] = { 0xA0, 0x80 };
+        byte tmpSeq[] = { 0x30, 0x80 };
+        byte tmpStr[] = { 0x24, 0x80 };
+
+        XMEMCPY(esd->innerContSeq, tmp, 2);
+        esd->innerContSeqSz = 2;
+
+        XMEMCPY(esd->contentInfoSeq, tmpSeq, 2);
+        esd->contentInfoSeqSz = 2;
+
+        XMEMCPY(esd->innerOctets, tmpStr, 2);
+        esd->innerOctetsSz = 2;
+    }
+    else {
         esd->innerOctetsSz = SetOctetString(pkcs7->contentSz, esd->innerOctets);
         esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz +
                                     pkcs7->contentSz, esd->innerContSeq);
@@ -2577,10 +2592,12 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     /* certificates [0] IMPLICIT CertificateSet */
     /* get total certificates size */
-    certPtr = pkcs7->certList;
-    while (certPtr != NULL) {
-        certSetSz += certPtr->derSz;
-        certPtr = certPtr->next;
+    if (pkcs7->noCerts != 1) {
+        certPtr = pkcs7->certList;
+        while (certPtr != NULL) {
+            certSetSz += certPtr->derSz;
+            certPtr = certPtr->next;
+        }
     }
     certPtr = NULL;
 
@@ -2603,19 +2620,48 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     totalSz = esd->versionSz + esd->singleDigAlgoIdSz + esd->digAlgoIdSetSz +
               esd->contentInfoSeqSz + pkcs7->contentTypeSz +
-              esd->innerContSeqSz + esd->innerOctetsSz + pkcs7->contentSz;
+              esd->innerContSeqSz + esd->innerOctetsSz;
+
+    if (pkcs7->encodeStream) {
+        word32 sz = 0, tmpIdx = 0;
+        totalSz += 6; /* 00's for BER with inner content */
+
+        StreamOctetString(pkcs7->content, pkcs7->contentSz, NULL, &sz, &tmpIdx);
+        totalSz += sz + 6;
+    }
+    else {
+        totalSz += pkcs7->contentSz;
+    }
     total2Sz = esd->certsSetSz + certSetSz + signerInfoSz;
 
     if (pkcs7->detached) {
         totalSz -= pkcs7->contentSz;
     }
 
-    esd->innerSeqSz = SetSequence(totalSz + total2Sz, esd->innerSeq);
-    totalSz += esd->innerSeqSz;
-    esd->outerContentSz = SetExplicit(0, totalSz + total2Sz, esd->outerContent);
-    totalSz += esd->outerContentSz + signedDataOidSz;
-    esd->outerSeqSz = SetSequence(totalSz + total2Sz, esd->outerSeq);
-    totalSz += esd->outerSeqSz;
+    if (pkcs7->encodeStream) {
+        byte tmp[] = { 0xA0, 0x80 };
+        byte tmpSeq[] = { 0x30, 0x80 };
+
+        XMEMCPY(esd->innerSeq, tmpSeq, 2);
+        esd->innerSeqSz = 2;
+        totalSz += esd->innerSeqSz + 2;
+
+        XMEMCPY(esd->outerContent, tmp, 2);
+        esd->outerContentSz = 2;
+        totalSz += esd->outerContentSz + 2 + signedDataOidSz;
+
+        XMEMCPY(esd->outerSeq, tmpSeq, 2);
+        esd->outerSeqSz = 2;
+        totalSz += esd->outerSeqSz + 2;
+    }
+    else {
+        esd->innerSeqSz = SetSequence(totalSz + total2Sz, esd->innerSeq);
+        totalSz += esd->innerSeqSz;
+        esd->outerContentSz = SetExplicit(0, totalSz + total2Sz, esd->outerContent);
+        totalSz += esd->outerContentSz + signedDataOidSz;
+        esd->outerSeqSz = SetSequence(totalSz + total2Sz, esd->outerSeq);
+        totalSz += esd->outerSeqSz;
+    }
 
     /* if using header/footer, we are not returning the content */
     if (output2 && output2Sz) {
@@ -2690,8 +2736,20 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
     else {
         if (!pkcs7->detached && pkcs7->content != NULL && pkcs7->contentSz > 0) {
-            XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
-            idx += pkcs7->contentSz;
+            if (pkcs7->encodeStream) {
+                StreamOctetString(pkcs7->content, pkcs7->contentSz, output,
+                    outputSz, (word32*)&idx);
+                output[idx++] = 0x00;
+                output[idx++] = 0x00;
+                output[idx++] = 0x00;
+                output[idx++] = 0x00;
+                output[idx++] = 0x00;
+                output[idx++] = 0x00;
+            }
+            else {
+                XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
+                idx += pkcs7->contentSz;
+            }
         }
         output2 = output;
     }
@@ -2699,12 +2757,16 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     /* certificates */
     XMEMCPY(output2 + idx, esd->certsSet, esd->certsSetSz);
     idx += esd->certsSetSz;
-    certPtr = pkcs7->certList;
-    while (certPtr != NULL) {
-        XMEMCPY(output2 + idx, certPtr->der, certPtr->derSz);
-        idx += certPtr->derSz;
-        certPtr = certPtr->next;
+
+    if (pkcs7->noCerts != 1) {
+        certPtr = pkcs7->certList;
+        while (certPtr != NULL) {
+            XMEMCPY(output2 + idx, certPtr->der, certPtr->derSz);
+            idx += certPtr->derSz;
+            certPtr = certPtr->next;
+        }
     }
+
     wc_PKCS7_FreeCertSet(pkcs7);
 
     XMEMCPY(output2 + idx, esd->signerInfoSet, esd->signerInfoSetSz);
@@ -2755,6 +2817,19 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     idx += esd->signerDigestSz;
     XMEMCPY(output2 + idx, esd->encContentDigest, esd->encContentDigestSz);
     idx += esd->encContentDigestSz;
+
+    if (pkcs7->encodeStream) {
+        byte tmp[] = { 0x00, 0x00 };
+
+        XMEMCPY(output2 + idx, tmp, 2);
+        idx += 2;
+
+        XMEMCPY(output2 + idx, tmp, 2);
+        idx += 2;
+
+        XMEMCPY(output2 + idx, tmp, 2);
+        idx += 2;
+    }
 
     if (output2Sz) {
         *output2Sz = idx;
@@ -8584,13 +8659,29 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
     }
 
-    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
-                                    encContentOctet);
+    if (pkcs7->encodeStream) {
+        int err;
+        byte tmp[] = { 0x30, 0x80};
 
-    encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
+        err = SetImplicitBer(ASN_OCTET_STRING, 0, encryptedContent,
+            encryptedOutSz, NULL, (word32*)&encContentOctetSz);
+
+        if (err != LENGTH_ONLY_E) {
+
+        }
+        encContentOctetSz -= encryptedOutSz;
+
+        XMEMCPY(encContentSeq, tmp, 2);
+        encContentSeqSz = 2;
+    }
+    else {
+        encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
+                                    encContentOctet);
+        encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   ivOctetStringSz + blockSz +
                                   encContentOctetSz + encryptedOutSz,
                                   encContentSeq);
+    }
 
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
@@ -8598,18 +8689,46 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
               encContentOctetSz + encryptedOutSz;
 
     /* EnvelopedData */
-    envDataSeqSz = SetSequence(totalSz, envDataSeq);
+    if (pkcs7->encodeStream) {
+        byte tmp[] = { 0x30, 0x80};
+
+        /* account for ending of encContentSeq */
+        totalSz += 2;
+
+        XMEMCPY(envDataSeq, tmp, 2);
+        envDataSeqSz = 2;
+        totalSz += 2; /* 30 80 00 00 */
+    }
+    else {
+        envDataSeqSz = SetSequence(totalSz, envDataSeq);
+    }
     totalSz += envDataSeqSz;
 
     /* outer content */
-    outerContentSz = SetExplicit(0, totalSz, outerContent);
+    if (pkcs7->encodeStream) {
+        byte tmp[] = { 0xA0, 0x80};
+        XMEMCPY(outerContent, tmp, 2);
+        outerContentSz = 2;
+        totalSz += 2; /* A0 80 00 00 */
+    }
+    else {
+        outerContentSz = SetExplicit(0, totalSz, outerContent);
+    }
     totalSz += outerContentTypeSz;
     totalSz += outerContentSz;
 
     if (pkcs7->contentOID != FIRMWARE_PKG_DATA) {
         /* ContentInfo */
-        contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
-        totalSz += contentInfoSeqSz;
+        if (pkcs7->encodeStream) {
+            byte tmp[] = { 0x30, 0x80};
+            XMEMCPY(contentInfoSeq, tmp, 2);
+            contentInfoSeqSz = 2;
+            totalSz += contentInfoSeqSz + 2; /* 30 80 00 00 */
+        }
+        else {
+            contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+            totalSz += contentInfoSeqSz;
+        }
     }
 
     if (totalSz > (int)outputSz) {
@@ -8628,6 +8747,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XMEMCPY(output + idx, outerContent, outerContentSz);
         idx += outerContentSz;
     }
+
     XMEMCPY(output + idx, envDataSeq, envDataSeqSz);
     idx += envDataSeqSz;
     XMEMCPY(output + idx, ver, verSz);
@@ -8642,6 +8762,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         tmpRecip = tmpRecip->next;
     }
     wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+
     XMEMCPY(output + idx, encContentSeq, encContentSeqSz);
     idx += encContentSeqSz;
     XMEMCPY(output + idx, contentType, contentTypeSz);
@@ -8652,10 +8773,50 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += ivOctetStringSz;
     XMEMCPY(output + idx, tmpIv, blockSz);
     idx += blockSz;
-    XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
-    idx += encContentOctetSz;
-    XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
-    idx += encryptedOutSz;
+
+    /* stream the content (octet string with multiple octet elements) */
+    if (pkcs7->encodeStream) {
+        int err;
+        byte* tmp;
+        byte tmpPad[] = { 0x00, 0x00};
+
+        tmp = XMALLOC(encContentOctetSz + encryptedOutSz, pkcs7->heap,
+            DYNAMIC_TYPE_PKCS7);
+        if (tmp == NULL) {
+            return MEMORY_E;
+        }
+
+        err = SetImplicitBer(ASN_OCTET_STRING, 0, encryptedContent,
+            encryptedOutSz, tmp, (word32*)&encContentOctetSz);
+        if (err <= 0) {
+            return ASN_PARSE_E;
+        }
+        XMEMCPY(output + idx, tmp, err);
+        idx += err;
+
+        /* end of encrypted content info */
+        XMEMCPY(output + idx, tmpPad, 2);
+        idx += 2;
+
+        /* end of Enveloped Data seq */
+        XMEMCPY(output + idx, tmpPad, 2);
+        idx += 2;
+
+        /* end of outer content set */
+        XMEMCPY(output + idx, tmpPad, 2);
+        idx += 2;
+
+        /* end of outer content info seq */
+        XMEMCPY(output + idx, tmpPad, 2);
+        idx += 2;
+        XFREE(tmp, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    }
+    else {
+        XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
+        idx += encContentOctetSz;
+        XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+        idx += encryptedOutSz;
+    }
 
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -11655,9 +11816,21 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         return BAD_FUNC_ARG;
     }
 
-    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
-                                    encContentOctet);
+    if (pkcs7->encodeStream) {
+        int err;
 
+        err = SetImplicitBer(ASN_OCTET_STRING, 0, encryptedContent,
+            encryptedOutSz, NULL, (word32*)&encContentOctetSz);
+
+        if (err != LENGTH_ONLY_E) {
+
+        }
+        encContentOctetSz -= encryptedOutSz;
+    }
+    else {
+        encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
+                                    encContentOctet);
+    }
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   nonceOctetStringSz + nonceSz + macIntSz +
                                   algoParamSeqSz + encContentOctetSz +
@@ -11730,10 +11903,27 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     idx += nonceSz;
     XMEMCPY(output + idx, macInt, macIntSz);
     idx += macIntSz;
-    XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
-    idx += encContentOctetSz;
-    XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
-    idx += encryptedOutSz;
+
+
+    if (pkcs7->encodeStream) {
+        int err;
+
+        byte* tmp = malloc(encContentOctetSz + encryptedOutSz);
+
+        err = SetImplicitBer(ASN_OCTET_STRING, 0, encryptedContent,
+            encryptedOutSz, tmp, (word32*)&encContentOctetSz);
+        if (err <= 0) {
+            return ASN_PARSE_E;
+        }
+        XMEMCPY(output + idx, tmp, encContentOctetSz);
+        idx += encContentOctetSz;
+    }
+    else {
+        XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
+        idx += encContentOctetSz;
+        XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+        idx += encryptedOutSz;
+    }
 
     /* authenticated attributes */
     if (flatAuthAttribs && authAttribsSz > 0) {
@@ -13094,6 +13284,51 @@ int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
     return 0;
 }
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+
+/* set stream mode for encoding and signing
+ * returns 0 on success */
+int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag)
+{
+    if (pkcs7 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    pkcs7->encodeStream = flag;
+    return 0;
+}
+
+
+/* returns to current stream mode flag on success, negative values on fail */
+int wc_PKCS7_GetStreamMode(PKCS7* pkcs7)
+{
+    if (pkcs7 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return pkcs7->encodeStream;
+}
+
+
+/* set option to not include certificates when creating a bundle
+ * returns 0 on success */
+int wc_PKCS7_SetNoCerts(PKCS7* pkcs7, byte flag)
+{
+    if (pkcs7 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    pkcs7->noCerts = flag;
+    return 0;
+}
+
+
+/* returns the current noCerts flag value on success, negative values on fail */
+int wc_PKCS7_GetNoCerts(PKCS7* pkcs7)
+{
+    if (pkcs7 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return pkcs7->noCerts;
+}
+
 
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
 

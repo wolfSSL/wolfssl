@@ -3460,6 +3460,101 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
 #endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
 
 #ifdef ASN_BER_TO_DER
+
+#define BER_OCTET_LENGTH 4096
+
+
+/* Breaks an octet string up into chunks for use with streaming
+ * returns 0 on success and updates idx */
+int StreamOctetString(const byte* in, word32 inSz, byte* out, word32* outSz,
+    word32* idx)
+{
+    word32 i  = 0;
+    word32 outIdx = *idx;
+    byte* tmp = out;
+
+    if (tmp) tmp += outIdx;
+
+    while (i < inSz) {
+        int ret, sz;
+
+        sz = BER_OCTET_LENGTH;
+
+        if ((sz + i) > inSz) {
+            sz = inSz - i;
+        }
+
+        ret = SetOctetString(sz, tmp);
+        if (ret > 0) {
+            outIdx += ret;
+        }
+
+        if (tmp) {
+            if (ret + sz + i + outIdx > *outSz) {
+                return BUFFER_E;
+            }
+            XMEMCPY(tmp + ret, in + i, sz);
+            tmp += sz + ret;
+        }
+        outIdx += sz;
+        i      += sz;
+    }
+
+    if (tmp) {
+        *idx = outIdx;
+        return 0;
+    }
+    else {
+        *outSz = outIdx;
+        return LENGTH_ONLY_E;
+    }
+}
+
+long SetImplicitBer(byte tag, byte num, const byte* data, word32 dataSz,
+    byte* out, word32* outSz)
+{
+    word32 sz = 0;
+    long outIdx = 0;
+    byte berTag = tag;
+
+    (void)num;
+    if (outSz == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* create a list of chuncked up octets */
+    if (tag == ASN_OCTET_STRING) {
+        berTag = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC;
+    }
+
+    if (out != NULL) {
+        if (*outSz < 2) {
+            return BUFFER_E;
+        }
+        out[outIdx] = berTag;
+        out[outIdx + 1] = ASN_INDEF_LENGTH;
+    }
+    outIdx += 2;
+
+    sz = *outSz;
+    StreamOctetString(data, dataSz, out, &sz, (word32*)&outIdx);
+
+    if (out) {
+        out[outIdx]     = 0x00;
+        out[outIdx + 1] = 0x00;
+    }
+    outIdx += 2;
+
+    if (out) {
+        return outIdx;
+    }
+    else {
+        *outSz = outIdx;
+        return LENGTH_ONLY_E;
+    }
+}
+
+
 /* Convert BER to DER */
 
 /* Pull informtation from the ASN.1 BER encoded item header */
