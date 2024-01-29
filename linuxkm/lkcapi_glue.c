@@ -134,7 +134,7 @@ static int km_AesInitCommon(struct km_AesCtx * ctx, const char * name, int need_
 
     ctx->aes_decrypt = (Aes *)malloc(sizeof(*ctx->aes_decrypt));
 
-    if (! ctx->aes_encrypt) {
+    if (! ctx->aes_decrypt) {
         pr_err("error: km_AesInitCommon %s failed: %d\n", name, MEMORY_E);
         km_AesExitCommon(ctx);
         return MEMORY_E;
@@ -239,7 +239,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
@@ -274,7 +274,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_decrypt, walk.iv);
 
         if (unlikely(err)) {
@@ -347,7 +347,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
@@ -382,7 +382,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
@@ -527,7 +527,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         int n = nbytes;
 
         if (likely(cryptLeft && nbytes)) {
@@ -615,7 +615,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         int n = nbytes;
 
         if (likely(cryptLeft && nbytes)) {
@@ -712,9 +712,6 @@ static void km_AesXtsExit(struct crypto_skcipher *tfm)
     wc_AesXtsFree(ctx->aesXts);
     free(ctx->aesXts);
     ctx->aesXts = NULL;
-#if 0
-    km_ForceZeroXts(ctx);
-#endif
 }
 
 static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
@@ -729,11 +726,6 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
         pr_err("error: km_AesXtsSetKey %s failed: %d\n", WOLFKM_AESXTS_DRIVER, err);
         return err;
     }
-
-#if 0
-    XMEMCPY(ctx->key, in_key, key_len);
-    ctx->keylen = key_len;
-#endif
 
     return 0;
 }
@@ -759,7 +751,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesXtsEncrypt(ctx->aesXts, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes,
                                walk.iv, walk.ivsize);
@@ -798,7 +790,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes)) {
+    while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesXtsDecrypt(ctx->aesXts, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes,
                                walk.iv, walk.ivsize);

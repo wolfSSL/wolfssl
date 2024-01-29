@@ -399,8 +399,10 @@ struct Aes {
 
 #ifdef WOLFSSL_AES_XTS
 typedef struct XtsAes {
-    Aes aes_encrypt;
+    Aes aes;
+#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     Aes aes_decrypt;
+#endif
     Aes tweak;
 } XtsAes;
 #endif

@@ -269,6 +269,10 @@
         #include <crypto/scatterwalk.h>
         #include <crypto/internal/aead.h>
         #include <crypto/internal/skcipher.h>
+
+        #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #endif
     #endif
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_SP_X86_64_ASM)
