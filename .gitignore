@@ -406,6 +406,12 @@ user_settings_asm.h
 /IDE/Espressif/**/sdkconfig
 /IDE/Espressif/**/sdkconfig.old
 
+# MPLAB
+/IDE/MPLABX16/wolfssl.X/dist/default/
+/IDE/MPLABX16/wolfssl.X/.generated_files
+/IDE/MPLABX16/wolfcrypt_test.X/dist/default/
+/IDE/MPLABX16/wolfcrypt_test.X/.generated_files
+
 # auto-created CMake backups
 **/CMakeLists.txt.old
 

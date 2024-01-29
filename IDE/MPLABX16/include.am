@@ -1,0 +1,8 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST +=                            \
+    IDE/MPLABX16/README.md       \
+    IDE/MPLABX16/main.c     \
+                IDE/MPLABX16/user_settings.h
