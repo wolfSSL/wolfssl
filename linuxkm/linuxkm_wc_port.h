@@ -65,8 +65,8 @@
           (int)_xatoi_res;                              \
         })
 
-    /* Kbuild+gcc on x86 doesn't consistently honor the default ALIGN16 on stack objects,
-     *   but gives adequate alignment with "32".
+    /* Kbuild+gcc on x86 doesn't consistently honor the default ALIGN16 on stack
+     * objects, but gives adequate alignment with "32".
      */
     #if defined(CONFIG_X86) && !defined(ALIGN16)
         #define ALIGN16 __attribute__ ( (aligned (32)))
@@ -157,7 +157,9 @@
              (sizeof(s) - 1) : strlen(s))
 
         static inline void *my_memcpy(void *dest, const void *src, size_t n) {
-            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
                 uintptr_t *src_longs = (uintptr_t *)src,
                     *dest_longs = (uintptr_t *)dest,
                     *endp = (uintptr_t *)((u8 *)src + n);
@@ -176,13 +178,16 @@
         #define memcpy my_memcpy
 
         static inline void *my_memset(void *dest, int c, size_t n) {
-            if (! (((uintptr_t)dest | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
+            if (! (((uintptr_t)dest | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
                 uintptr_t c_long = __builtin_choose_expr(
                     sizeof(uintptr_t) == 8,
                     (uintptr_t)(u8)c * 0x0101010101010101UL,
                     (uintptr_t)(u8)c * 0x01010101U
                     );
-                uintptr_t *dest_longs = (uintptr_t *)dest, *endp = (uintptr_t *)((u8 *)dest_longs + n);
+                uintptr_t *dest_longs = (uintptr_t *)dest,
+                    *endp = (uintptr_t *)((u8 *)dest_longs + n);
                 while (dest_longs < endp)
                     *dest_longs++ = c_long;
             } else {
@@ -196,8 +201,11 @@
         #define memset my_memset
 
         static inline void *my_memmove(void *dest, const void *src, size_t n) {
-            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n) & (uintptr_t)(sizeof(uintptr_t) - 1))) {
-                uintptr_t *src_longs = (uintptr_t *)src, *dest_longs = (uintptr_t *)dest;
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
+                uintptr_t *src_longs = (uintptr_t *)src,
+                    *dest_longs = (uintptr_t *)dest;
                 n >>= __builtin_choose_expr(
                     sizeof(uintptr_t) == 8,
                     3U,
@@ -270,12 +278,26 @@
         #include <crypto/internal/aead.h>
         #include <crypto/internal/skcipher.h>
 
+        /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
+         * loaded simultaneously, and the Linux in-tree implementations have two
+         * AES key structs in each context, one for each direction.  in
+         * linuxkm/lkcapi_glue.c (used for CBC, CFB, and GCM), we do the same
+         * thing with "struct km_AesCtx".  however, wolfCrypt struct AesXts
+         * already has two AES expanded keys, the main and tweak, and the tweak
+         * is always used in the encrypt direction regardless of the main
+         * direction.  to avoid allocating and computing a duplicate second
+         * tweak encrypt key, we set
+         * WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS, which adds a second
+         * Aes slot to wolfCrypt's struct AesXts, and activates support for
+         * AES_ENCRYPTION_AND_DECRYPTION on AES-XTS.
+         */
         #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #endif
     #endif
 
-    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_SP_X86_64_ASM)
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
+        defined(WOLFSSL_SP_X86_64_ASM)
         #ifndef CONFIG_X86
             #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
         #endif
@@ -301,21 +323,35 @@
         #endif
     #endif
 
-    /* benchmarks.c uses floating point math, so needs a working SAVE_VECTOR_REGISTERS(). */
-    #if defined(WOLFSSL_LINUXKM_BENCHMARKS) && !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+    /* benchmarks.c uses floating point math, so needs a working
+     * SAVE_VECTOR_REGISTERS().
+     */
+    #if defined(WOLFSSL_LINUXKM_BENCHMARKS) && \
+        !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     #endif
 
-    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
+        defined(CONFIG_X86)
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
+            #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
+                int _svr_ret = save_vector_registers_x86(); \
+                if (_svr_ret != 0) {                        \
+                    fail_clause                             \
+                }                                           \
+            }
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define SAVE_VECTOR_REGISTERS2() ({ int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); (_fuzzer_ret == 0) ? save_vector_registers_x86() : _fuzzer_ret; })
+                #define SAVE_VECTOR_REGISTERS2() ({                    \
+                    int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
+                    (_fuzzer_ret == 0) ?                               \
+                     save_vector_registers_x86() :                     \
+                     _fuzzer_ret;                                      \
+                })
             #else
                 #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
             #endif

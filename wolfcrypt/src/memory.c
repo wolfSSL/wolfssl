@@ -1560,25 +1560,18 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
                                                          */
     /* barrel-roll using the bottom 6 bits. */
     if (new_prn & 0x3f)
-        new_prn = (new_prn << (new_prn & 0x3f)) | (new_prn >> (0x40 - (new_prn & 0x3f)));
+        new_prn = (new_prn << (new_prn & 0x3f)) |
+            (new_prn >> (0x40 - (new_prn & 0x3f)));
     prn = new_prn;
 
     balance_bit = !balance_bit;
 
-    if (balance_bit) {
-        if (prn & 1)
-            return IO_FAILED_E;
-        else
-            return 0;
-    } else {
-        if (prn & 1)
-            return 0;
-        else
-            return IO_FAILED_E;
-    }
+    return ((prn & 1) ^ balance_bit) ? IO_FAILED_E : 0;
 }
 
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS || DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS ||
+        * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+        */
 
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_memory.c"

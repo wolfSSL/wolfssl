@@ -245,7 +245,8 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-    pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup self-test succeeded.\n",
+    pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
+            "self-test succeeded.\n",
 #ifdef HAVE_FIPS_VERSION_MAJOR
             HAVE_FIPS_VERSION_MAJOR,
 #else
@@ -306,7 +307,8 @@ static int wolfssl_init(void)
     }
     pr_info("wolfCrypt self-test passed.\n");
 #else
-    pr_info("skipping full wolfcrypt_test() (configure with --enable-crypttests to enable).\n");
+    pr_info("skipping full wolfcrypt_test() "
+            "(configure with --enable-crypttests to enable).\n");
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -559,12 +561,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     /* runtime assert that the table has no null slots after initialization. */
     {
         unsigned long *i;
+        static_assert(sizeof(unsigned long) == sizeof(void *),
+                      "unexpected pointer size");
         for (i = (unsigned long *)&wolfssl_linuxkm_pie_redirect_table;
              i < (unsigned long *)&wolfssl_linuxkm_pie_redirect_table._last_slot;
              ++i)
             if (*i == 0) {
-                pr_err("wolfCrypt container redirect table initialization was incomplete [%lu].\n",
-                       i - (unsigned long *)&wolfssl_linuxkm_pie_redirect_table);
+                pr_err("wolfCrypt container redirect table initialization was "
+                       "incomplete [%lu].\n",
+                       i-(unsigned long *)&wolfssl_linuxkm_pie_redirect_table);
                 return -EFAULT;
             }
     }

@@ -9740,7 +9740,8 @@ static wc_test_ret_t aes_xts_128_test(void)
                 sizeof(i1));
         #if defined(WOLFSSL_ASYNC_CRYPT)
             #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
             #else
             ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
             #endif

@@ -24,7 +24,8 @@
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
-#if defined(LINUXKM_LKCAPI_REGISTER_AESGCM) && defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(LINUXKM_LKCAPI_REGISTER_AESGCM) && defined(WOLFSSL_AESNI) && \
+    defined(WC_AES_C_DYNAMIC_FALLBACK)
     /* xxx temporary */
     #error LINUXKM_LKCAPI_REGISTER_AESGCM is incompatible with WOLFSSL_AESNI && WC_AES_C_DYNAMIC_FALLBACK
 #endif
@@ -65,7 +66,8 @@
     #define WOLFKM_DRIVER_FIPS ""
 #endif
 
-#define WOLFKM_DRIVER_SUFFIX WOLFKM_DRIVER_ISA_EXT WOLFKM_DRIVER_FIPS "-wolfcrypt"
+#define WOLFKM_DRIVER_SUFFIX \
+    WOLFKM_DRIVER_ISA_EXT WOLFKM_DRIVER_FIPS "-wolfcrypt"
 
 #define WOLFKM_AESCBC_DRIVER ("cbc-aes" WOLFKM_DRIVER_SUFFIX)
 #define WOLFKM_AESCFB_DRIVER ("cfb-aes" WOLFKM_DRIVER_SUFFIX)
@@ -73,20 +75,24 @@
 #define WOLFKM_AESXTS_DRIVER ("xts-aes" WOLFKM_DRIVER_SUFFIX)
 
 #if defined(HAVE_AES_CBC) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
 static int  linuxkm_test_aescbc(void);
 #endif
 #if defined(WOLFSSL_AES_CFB) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
 static int  linuxkm_test_aescfb(void);
 #endif
 #if defined(HAVE_AESGCM) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
     (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
 static int  linuxkm_test_aesgcm(void);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 static int  linuxkm_test_aesxts(void);
 #endif
 
@@ -96,7 +102,9 @@ static int  linuxkm_test_aesxts(void);
 #include <wolfssl/wolfcrypt/aes.h>
 
 struct km_AesCtx {
-    Aes          *aes_encrypt; /* must be pointer to control alignment, needed for AESNI. */
+    Aes          *aes_encrypt; /* allocated in km_AesInitCommon() to assure
+                                * alignment, needed for AESNI.
+                                */
     Aes          *aes_decrypt; /* same. */
 };
 
@@ -107,24 +115,28 @@ struct km_AesCtx {
 
 static void km_AesExitCommon(struct km_AesCtx * ctx);
 
-static int km_AesInitCommon(struct km_AesCtx * ctx, const char * name, int need_decryption)
+static int km_AesInitCommon(
+    struct km_AesCtx * ctx,
+    const char * name,
+    int need_decryption)
 {
     int err;
 
     ctx->aes_encrypt = (Aes *)malloc(sizeof(*ctx->aes_encrypt));
 
     if (! ctx->aes_encrypt) {
-        pr_err("error: km_AesInitCommon %s failed: %d\n", name, MEMORY_E);
+        pr_err("%s: allocation of %zu bytes for encryption key failed.\n",
+               name, sizeof(*ctx->aes_encrypt));
         return MEMORY_E;
     }
 
     err = wc_AesInit(ctx->aes_encrypt, NULL, INVALID_DEVID);
 
     if (unlikely(err)) {
-        pr_err("error: km_AesInitCommon %s failed: %d\n", name, err);
+        pr_err("%s: wc_AesInit failed: %d\n", name, err);
         free(ctx->aes_encrypt);
         ctx->aes_encrypt = NULL;
-        return err;
+        return -EINVAL;
     }
 
     if (! need_decryption) {
@@ -135,7 +147,8 @@ static int km_AesInitCommon(struct km_AesCtx * ctx, const char * name, int need_
     ctx->aes_decrypt = (Aes *)malloc(sizeof(*ctx->aes_decrypt));
 
     if (! ctx->aes_decrypt) {
-        pr_err("error: km_AesInitCommon %s failed: %d\n", name, MEMORY_E);
+        pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
+               name, sizeof(*ctx->aes_decrypt));
         km_AesExitCommon(ctx);
         return MEMORY_E;
     }
@@ -143,11 +156,11 @@ static int km_AesInitCommon(struct km_AesCtx * ctx, const char * name, int need_
     err = wc_AesInit(ctx->aes_decrypt, NULL, INVALID_DEVID);
 
     if (unlikely(err)) {
-        pr_err("error: km_AesInitCommon %s failed: %d\n", name, err);
+        pr_err("%s: wc_AesInit failed: %d\n", name, err);
         free(ctx->aes_decrypt);
         ctx->aes_decrypt = NULL;
         km_AesExitCommon(ctx);
-        return err;
+        return -EINVAL;
     }
 
     return 0;
@@ -175,16 +188,18 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
     err = wc_AesSetKey(ctx->aes_encrypt, in_key, key_len, NULL, AES_ENCRYPTION);
 
     if (unlikely(err)) {
-        pr_err("error: km_AesSetKeyCommon %s failed: %d\n", name, err);
-        return err;
+        pr_err("%s: wc_AesSetKey for encryption key failed: %d\n", name, err);
+        return -ENOKEY;
     }
 
     if (ctx->aes_decrypt) {
-        err = wc_AesSetKey(ctx->aes_decrypt, in_key, key_len, NULL, AES_DECRYPTION);
+        err = wc_AesSetKey(ctx->aes_decrypt, in_key, key_len, NULL,
+                           AES_DECRYPTION);
 
         if (unlikely(err)) {
-            pr_err("error: km_AesSetKeyCommon %s failed: %d\n", name, err);
-            return err;
+            pr_err("%s: wc_AesSetKey for decryption key failed: %d\n",
+                   name, err);
+            return -ENOKEY;
         }
     }
 
@@ -211,7 +226,8 @@ static void km_AesExit(struct crypto_skcipher *tfm)
         */
 
 #if defined(HAVE_AES_CBC) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
 
 static int km_AesCbcInit(struct crypto_skcipher *tfm)
 {
@@ -239,23 +255,37 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
+    if (unlikely(err)) {
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
-            pr_err("wc_AesSetIV failed: %d\n", err);
-            return err;
+            pr_err("%s: wc_AesSetIV failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = wc_AesCbcEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes);
 
         if (unlikely(err)) {
-            pr_err("wc_AesCbcEncrypt failed %d\n", err);
-            return err;
+            pr_err("%s: wc_AesCbcEncrypt failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return err;
+        }
     }
 
     return err;
@@ -274,23 +304,37 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
+    if (unlikely(err)) {
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_decrypt, walk.iv);
 
         if (unlikely(err)) {
-            pr_err("wc_AesSetKey failed");
-            return err;
+            pr_err("%s: wc_AesSetKey failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = wc_AesCbcDecrypt(ctx->aes_decrypt, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes);
 
         if (unlikely(err)) {
-            pr_err("wc_AesCbcDecrypt failed");
-            return err;
+            pr_err("%s: wc_AesCbcDecrypt failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return err;
+        }
     }
 
     return err;
@@ -319,7 +363,8 @@ static int cbcAesAlg_loaded = 0;
         */
 
 #if defined(WOLFSSL_AES_CFB) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
 
 static int km_AesCfbInit(struct crypto_skcipher *tfm)
 {
@@ -347,23 +392,37 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
+    if (unlikely(err)) {
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
-            pr_err("wc_AesSetKey failed: %d\n", err);
-            return err;
+            pr_err("%s: wc_AesSetKey failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = wc_AesCfbEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes);
 
         if (unlikely(err)) {
-            pr_err("wc_AesCfbEncrypt failed %d\n", err);
-            return err;
+            pr_err("%s: wc_AesCfbEncrypt failed %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return err;
+        }
     }
 
     return err;
@@ -382,23 +441,37 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
 
     err = skcipher_walk_virt(&walk, req, false);
 
+    if (unlikely(err)) {
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
         err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
         if (unlikely(err)) {
-            pr_err("wc_AesSetKey failed");
-            return err;
+            pr_err("%s: wc_AesSetKey failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = wc_AesCfbDecrypt(ctx->aes_encrypt, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes);
 
         if (unlikely(err)) {
-            pr_err("wc_AesCfbDecrypt failed");
-            return err;
+            pr_err("%s: wc_AesCfbDecrypt failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return err;
+        }
     }
 
     return err;
@@ -427,7 +500,8 @@ static int cfbAesAlg_loaded = 0;
         */
 
 #if defined(HAVE_AESGCM) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
     (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
 
 static int km_AesGcmInit(struct crypto_aead * tfm)
@@ -450,11 +524,13 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
 
     err = wc_AesGcmSetKey(ctx->aes_encrypt, in_key, key_len);
 
-    if (err) {
-        pr_err("error: km_AesGcmSetKey %s failed: %d\n", WOLFKM_AESGCM_DRIVER, err);
+    if (unlikely(err)) {
+        pr_err("%s: wc_AesGcmSetKey failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -ENOKEY;
     }
 
-    return err;
+    return 0;
 }
 
 static int km_AesGcmSetAuthsize(struct crypto_aead *tfm, unsigned int authsize)
@@ -462,7 +538,8 @@ static int km_AesGcmSetAuthsize(struct crypto_aead *tfm, unsigned int authsize)
     (void)tfm;
     if (authsize > AES_BLOCK_SIZE ||
         authsize < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        pr_err("error: invalid authsize: %d\n", authsize);
+        pr_err("%s: invalid authsize: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), authsize);
         return -EINVAL;
     }
     return 0;
@@ -500,31 +577,37 @@ static int km_AesGcmEncrypt(struct aead_request *req)
 
     err = skcipher_walk_aead_encrypt(&walk, req, false);
     if (unlikely(err)) {
-        pr_err("error: skcipher_walk_aead_encrypt: %d\n", err);
+        pr_err("%s: skcipher_walk_aead_encrypt: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return -1;
     }
 
-    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /* key */, 0 /* keylen */, walk.iv,
+    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
                         AES_BLOCK_SIZE);
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmInit failed with return code %d.\n", err);
-        return err;
+        pr_err("%s: wc_AesGcmInit failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     assoc = scatterwalk_map(&assocSgWalk);
     if (unlikely(IS_ERR(assoc))) {
-        pr_err("error: scatterwalk_map failed %ld\n", PTR_ERR(assoc));
+        pr_err("%s: scatterwalk_map failed: %ld\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
+               PTR_ERR(assoc));
         return err;
     }
 
-    err = wc_AesGcmEncryptUpdate(ctx->aes_encrypt, NULL, NULL, 0, assoc, assocLeft);
+    err = wc_AesGcmEncryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
+                                 assoc, assocLeft);
     assocLeft -= assocLeft;
     scatterwalk_unmap(assoc);
     assoc = NULL;
 
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmEncryptUpdate failed %d\n", err);
-        return err;
+        pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
@@ -533,24 +616,36 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         if (likely(cryptLeft && nbytes)) {
             n = cryptLeft < nbytes ? cryptLeft : nbytes;
 
-            err = wc_AesGcmEncryptUpdate(ctx->aes_encrypt, walk.dst.virt.addr,
-                                         walk.src.virt.addr, cryptLeft, NULL, 0);
+            err = wc_AesGcmEncryptUpdate(
+                ctx->aes_encrypt,
+                walk.dst.virt.addr,
+                walk.src.virt.addr,
+                cryptLeft,
+                NULL, 0);
             nbytes -= n;
             cryptLeft -= n;
         }
 
         if (unlikely(err)) {
-            pr_err("wc_AesGcmEncryptUpdate failed %d\n", err);
-            return err;
+            pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return err;
+        }
     }
 
     err = wc_AesGcmEncryptFinal(ctx->aes_encrypt, authTag, tfm->authsize);
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n", err);
-        return err;
+        pr_err("%s: wc_AesGcmEncryptFinal failed with return code %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     /* Now copy the auth tag into request scatterlist. */
@@ -588,31 +683,37 @@ static int km_AesGcmDecrypt(struct aead_request *req)
 
     err = skcipher_walk_aead_decrypt(&walk, req, false);
     if (unlikely(err)) {
-        pr_err("error: skcipher_walk_aead_decrypt: %d\n", err);
-        return -1;
+        pr_err("%s: skcipher_walk_aead_decrypt: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return err;
     }
 
-    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /* key */, 0 /* keylen */, walk.iv,
+    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
                         AES_BLOCK_SIZE);
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmInit failed with return code %d.\n", err);
-        return err;
+        pr_err("%s: wc_AesGcmInit failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     assoc = scatterwalk_map(&assocSgWalk);
     if (unlikely(IS_ERR(assoc))) {
-        pr_err("error: scatterwalk_map failed %ld\n", PTR_ERR(assoc));
+        pr_err("%s: scatterwalk_map failed: %ld\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
+               PTR_ERR(assoc));
         return err;
     }
 
-    err = wc_AesGcmDecryptUpdate(ctx->aes_encrypt, NULL, NULL, 0, assoc, assocLeft);
+    err = wc_AesGcmDecryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
+                                 assoc, assocLeft);
     assocLeft -= assocLeft;
     scatterwalk_unmap(assoc);
     assoc = NULL;
 
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmDecryptUpdate failed %d\n", err);
-        return err;
+        pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
@@ -621,29 +722,41 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         if (likely(cryptLeft && nbytes)) {
             n = cryptLeft < nbytes ? cryptLeft : nbytes;
 
-            err = wc_AesGcmDecryptUpdate(ctx->aes_encrypt, walk.dst.virt.addr,
-                                         walk.src.virt.addr, cryptLeft, NULL, 0);
+            err = wc_AesGcmDecryptUpdate(
+                ctx->aes_encrypt,
+                walk.dst.virt.addr,
+                walk.src.virt.addr,
+                cryptLeft,
+                NULL, 0);
             nbytes -= n;
             cryptLeft -= n;
         }
 
         if (unlikely(err)) {
-            pr_err("wc_AesGcmDecryptUpdate failed %d\n", err);
-            return err;
+            pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, nbytes);
+
+        if (unlikely(err)) {
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return err;
+        }
     }
 
     err = wc_AesGcmDecryptFinal(ctx->aes_encrypt, origAuthTag, tfm->authsize);
     if (unlikely(err)) {
-        pr_err("error: wc_AesGcmDecryptFinal failed with return code %d\n", err);
+        pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
+               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
 
         if (err == AES_GCM_AUTH_E) {
             return -EBADMSG;
         }
         else {
-            return err;
+            return -EINVAL;
         }
     }
 
@@ -675,10 +788,13 @@ static int gcmAesAead_loaded = 0;
         */
 
 #if defined(WOLFSSL_AES_XTS) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 
 struct km_AesXtsCtx {
-    XtsAes       *aesXts; /* allocated here, with correct alignment, for AESNI. */
+    XtsAes *aesXts; /* allocated in km_AesXtsInitCommon() to assure alignment
+                     * for AESNI.
+                     */
 };
 
 static int km_AesXtsInitCommon(struct km_AesXtsCtx * ctx, const char * name)
@@ -693,8 +809,8 @@ static int km_AesXtsInitCommon(struct km_AesXtsCtx * ctx, const char * name)
     err = wc_AesXtsInit(ctx->aesXts, NULL, INVALID_DEVID);
 
     if (unlikely(err)) {
-        pr_err("error: km_AesXtsInitCommon %s failed: %d\n", name, err);
-        return err;
+        pr_err("%s: km_AesXtsInitCommon failed: %d\n", name, err);
+        return -EINVAL;
     }
 
     return 0;
@@ -720,11 +836,13 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     int err;
     struct km_AesXtsCtx * ctx = crypto_skcipher_ctx(tfm);
 
-    err = wc_AesXtsSetKeyNoInit(ctx->aesXts, in_key, key_len, AES_ENCRYPTION_AND_DECRYPTION);
+    err = wc_AesXtsSetKeyNoInit(ctx->aesXts, in_key, key_len,
+                                AES_ENCRYPTION_AND_DECRYPTION);
 
     if (unlikely(err)) {
-        pr_err("error: km_AesXtsSetKey %s failed: %d\n", WOLFKM_AESXTS_DRIVER, err);
-        return err;
+        pr_err("%s: wc_AesXtsSetKeyNoInit failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return -EINVAL;
     }
 
     return 0;
@@ -747,7 +865,8 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
     err = skcipher_walk_virt(&walk, req, false);
 
     if (unlikely(err)) {
-        pr_err("skcipher_walk_virt() failed: %d\n", err);
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
         return err;
     }
 
@@ -757,14 +876,16 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
                                walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("wc_AesXtsEncrypt failed: %d\n", err);
-            return err;
+            pr_err("%s: wc_AesXtsEncrypt failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 
         if (unlikely(err)) {
-            pr_err("skcipher_walk_done() failed: %d\n", err);
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
             return err;
         }
     }
@@ -786,7 +907,8 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     err = skcipher_walk_virt(&walk, req, false);
 
     if (unlikely(err)) {
-        pr_err("skcipher_walk_virt() failed: %d\n", err);
+        pr_err("%s: skcipher_walk_virt failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
         return err;
     }
 
@@ -796,14 +918,16 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
                                walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("wc_AesCbcDecrypt failed");
-            return err;
+            pr_err("%s: wc_AesCbcDecrypt failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+            return -EINVAL;
         }
 
         err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 
         if (unlikely(err)) {
-            pr_err("skcipher_walk_done() failed: %d\n", err);
+            pr_err("%s: skcipher_walk_done failed: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
             return err;
         }
     }
@@ -838,7 +962,8 @@ static int xtsAesAlg_loaded = 0;
 /* cipher tests, cribbed from test.c, with supplementary LKCAPI tests: */
 
 #if defined(HAVE_AES_CBC) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
 
 static int linuxkm_test_aescbc(void)
 {
@@ -854,7 +979,8 @@ static int linuxkm_test_aescbc(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte vector[] = /* Now is the time for all good men w/o trailing 0 */
+    WOLFSSL_SMALL_STACK_STATIC const byte vector[] =
+    /* Now is the time for all good men w/o trailing 0 */
     {
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -862,7 +988,7 @@ static int linuxkm_test_aescbc(void)
         0x67,0x6f,0x6f,0x64,0x20,0x6d,0x65,0x6e
     };
     WOLFSSL_SMALL_STACK_STATIC const byte iv[] = "1234567890abcdef";
-    byte    iv_copy[sizeof iv];
+    byte    iv_copy[sizeof(iv)];
     byte    enc[sizeof(vector)];
     byte    dec[sizeof(vector)];
     u8 *    enc2 = NULL;
@@ -874,19 +1000,19 @@ static int linuxkm_test_aescbc(void)
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCbcEncrypt failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     /* Re init for decrypt and set flag. */
@@ -895,25 +1021,25 @@ static int linuxkm_test_aescbc(void)
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_DECRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesCbcDecrypt(&aes, dec, enc, sizeof(vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCbcDecrypt failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = XMEMCMP(vector, dec, sizeof(vector));
     if (ret) {
         pr_err("error: vector and dec do not match: %d\n", ret);
-        return -1;
+        return ret;
     }
 
     /* now the kernel crypto part */
@@ -954,7 +1080,7 @@ static int linuxkm_test_aescbc(void)
     sg_init_one(&src, dec2, sizeof(vector));
     sg_init_one(&dst, enc2, sizeof(vector));
 
-    XMEMCPY(iv_copy, iv, sizeof iv);
+    XMEMCPY(iv_copy, iv, sizeof(iv));
     skcipher_request_set_crypt(req, &src, &dst, sizeof(vector), iv_copy);
 
     ret = crypto_skcipher_encrypt(req);
@@ -974,7 +1100,7 @@ static int linuxkm_test_aescbc(void)
     sg_init_one(&src, enc2, sizeof(vector));
     sg_init_one(&dst, dec2, sizeof(vector));
 
-    XMEMCPY(iv_copy, iv, sizeof iv);
+    XMEMCPY(iv_copy, iv, sizeof(iv));
     skcipher_request_set_crypt(req, &src, &dst, sizeof(vector), iv_copy);
 
     ret = crypto_skcipher_decrypt(req);
@@ -1005,7 +1131,8 @@ test_cbc_end:
         */
 
 #if defined(WOLFSSL_AES_CFB) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
 
 static int linuxkm_test_aescfb(void)
 {
@@ -1021,7 +1148,8 @@ static int linuxkm_test_aescfb(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte vector[] = /* Now is the time for all good men w/o trailing 0 */
+    WOLFSSL_SMALL_STACK_STATIC const byte vector[] =
+    /* Now is the time for all good men w/o trailing 0 */
     {
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -1029,7 +1157,7 @@ static int linuxkm_test_aescfb(void)
         0x67,0x6f,0x6f,0x64,0x20,0x6d,0x65,0x6e
     };
     WOLFSSL_SMALL_STACK_STATIC const byte iv[] = "1234567890abcdef";
-    byte    iv_copy[sizeof iv];
+    byte    iv_copy[sizeof(iv)];
     byte    enc[sizeof(vector)];
     byte    dec[sizeof(vector)];
     u8 *    enc2 = NULL;
@@ -1041,19 +1169,19 @@ static int linuxkm_test_aescfb(void)
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesCfbEncrypt(&aes, enc, vector, sizeof(vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCfbEncrypt failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     /* Re init for decrypt and set flag. */
@@ -1062,25 +1190,25 @@ static int linuxkm_test_aescfb(void)
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = wc_AesCfbDecrypt(&aes, dec, enc, sizeof(vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCfbDecrypt failed with return code %d\n", ret);
-        return -1;
+        return ret;
     }
 
     ret = XMEMCMP(vector, dec, sizeof(vector));
     if (ret) {
         pr_err("error: vector and dec do not match: %d\n", ret);
-        return -1;
+        return ret;
     }
 
     /* now the kernel crypto part */
@@ -1121,7 +1249,7 @@ static int linuxkm_test_aescfb(void)
     sg_init_one(&src, dec2, sizeof(vector));
     sg_init_one(&dst, enc2, sizeof(vector));
 
-    XMEMCPY(iv_copy, iv, sizeof iv);
+    XMEMCPY(iv_copy, iv, sizeof(iv));
     skcipher_request_set_crypt(req, &src, &dst, sizeof(vector), iv_copy);
 
     ret = crypto_skcipher_encrypt(req);
@@ -1141,7 +1269,7 @@ static int linuxkm_test_aescfb(void)
     sg_init_one(&src, enc2, sizeof(vector));
     sg_init_one(&dst, dec2, sizeof(vector));
 
-    XMEMCPY(iv_copy, iv, sizeof iv);
+    XMEMCPY(iv_copy, iv, sizeof(iv));
     skcipher_request_set_crypt(req, &src, &dst, sizeof(vector), iv_copy);
 
     ret = crypto_skcipher_decrypt(req);
@@ -1172,7 +1300,8 @@ test_cfb_end:
         */
 
 #if defined(HAVE_AESGCM) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) &&                        \
     (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
 
 static int linuxkm_test_aesgcm(void)
@@ -1190,7 +1319,8 @@ static int linuxkm_test_aesgcm(void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte vector[] = /* Now is the time for all w/o trailing 0 */
+    WOLFSSL_SMALL_STACK_STATIC const byte vector[] =
+    /* Now is the time for all w/o trailing 0 */
     {
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -1233,19 +1363,22 @@ static int linuxkm_test_aesgcm(void)
 
     ret = wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, assoc, sizeof(assoc));
     if (ret) {
-        pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n", ret);
+        pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n",
+               ret);
         goto test_gcm_end;
     }
 
     ret = wc_AesGcmEncryptUpdate(&aes, enc, vector, sizeof(vector), NULL, 0);
     if (ret) {
-        pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n", ret);
+        pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n",
+               ret);
         goto test_gcm_end;
     }
 
     ret = wc_AesGcmEncryptFinal(&aes, authTag, AES_BLOCK_SIZE);
     if (ret) {
-        pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n", ret);
+        pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
+               ret);
         goto test_gcm_end;
     }
 
@@ -1256,15 +1389,18 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmDecryptUpdate(&aes, dec, enc, sizeof(vector), assoc, sizeof(assoc));
+    ret = wc_AesGcmDecryptUpdate(&aes, dec, enc, sizeof(vector),
+                                 assoc, sizeof(assoc));
     if (ret) {
-        pr_err("error: wc_AesGcmDecryptUpdate failed with return code %d\n", ret);
+        pr_err("error: wc_AesGcmDecryptUpdate failed with return code %d\n",
+               ret);
         goto test_gcm_end;
     }
 
     ret = wc_AesGcmDecryptFinal(&aes, authTag, AES_BLOCK_SIZE);
     if (ret) {
-        pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n", ret);
+        pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
+               ret);
         goto test_gcm_end;
     }
 
@@ -1413,7 +1549,8 @@ test_gcm_end:
         */
 
 #if defined(WOLFSSL_AES_XTS) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
+    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 
 #ifndef HEAP_HINT
 #define HEAP_HINT NULL
@@ -1423,20 +1560,17 @@ test_gcm_end:
 #define ERROR_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 #endif
 
-#ifndef WC_TEST_RET_ENC_EC
-#define WC_TEST_RET_ENC_EC(ret) (ret)
-#endif
-
-#ifndef WC_TEST_RET_ENC_NC
-#define WC_TEST_RET_ENC_NC (-1)
-#endif
+/* note the FIPS code will be returned on failure even in non-FIPS builds. */
+#define LINUXKM_LKCAPI_AES_KAT_MISMATCH_E AES_KAT_FIPS_E
 
 #ifndef WC_USE_DEVID
 #define WC_USE_DEVID INVALID_DEVID
 #endif
 static const int devId = WC_USE_DEVID;
 
-/* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
+/* test vectors from
+ * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html
+ */
 #ifdef WOLFSSL_AES_128
 static int aes_xts_128_test(void)
 {
@@ -1447,8 +1581,9 @@ static int aes_xts_128_test(void)
 #endif
     int aes_inited = 0;
     int ret = 0;
-    unsigned char buf[AES_BLOCK_SIZE * 2 + 8];
-    unsigned char cipher[AES_BLOCK_SIZE * 2 + 8];
+#define AES_XTS_128_TEST_BUF_SIZ (AES_BLOCK_SIZE * 2 + 8)
+    unsigned char *buf = NULL;
+    unsigned char *cipher = NULL;
 
     /* 128 key tests */
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k1[] = {
@@ -1480,6 +1615,7 @@ static int aes_xts_128_test(void)
         0x82, 0x50, 0x81, 0xd5, 0xbe, 0x47, 0x1c, 0x63
     };
 
+    /* plain text test of partial block is not from NIST test vector list */
     WOLFSSL_SMALL_STACK_STATIC const unsigned char cp[] = {
         0x2b, 0xf7, 0x2c, 0xf3, 0xeb, 0x85, 0xef, 0x7b,
         0x0b, 0x76, 0xa0, 0xaa, 0xf3, 0x3f, 0x25, 0x8b,
@@ -1512,12 +1648,6 @@ static int aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
-    WOLFSSL_SMALL_STACK_STATIC const unsigned char cp2[] = {
-        0x2b, 0xf7, 0x2c, 0xf3, 0xeb, 0x85, 0xef, 0x7b,
-        0x0b, 0x76, 0xa0, 0xaa, 0xf3, 0x3f, 0x25, 0x8b,
-        0x77, 0x8a, 0xe8, 0xb4, 0x3c, 0xb9, 0x8d, 0x5a
-    };
-
 #ifndef HAVE_FIPS_VERSION /* FIPS requires different keys for main and tweak. */
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -1546,9 +1676,23 @@ static int aes_xts_128_test(void)
 #endif /* HAVE_FIPS_VERSION */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = (XtsAes *)XMALLOC(sizeof(*aes), HEAP_HINT, DYNAMIC_TYPE_AES))
+        == NULL)
+    {
         ERROR_OUT(MEMORY_E, out);
+    }
 #endif
+
+    if ((buf = (unsigned char *)XMALLOC(AES_XTS_128_TEST_BUF_SIZ, HEAP_HINT,
+                                        DYNAMIC_TYPE_AES)) == NULL)
+    {
+        ERROR_OUT(MEMORY_E, out);
+    }
+    if ((cipher = (unsigned char *)XMALLOC(AES_XTS_128_TEST_BUF_SIZ, HEAP_HINT,
+                                           DYNAMIC_TYPE_AES)) == NULL)
+    {
+        ERROR_OUT(MEMORY_E, out);
+    }
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
     && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
@@ -1559,25 +1703,25 @@ static int aes_xts_128_test(void)
     }
 #endif
 
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsInit(aes, HEAP_HINT, devId);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     else
         aes_inited = 1;
 
     ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c2, buf, sizeof(c2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -1587,24 +1731,24 @@ static int aes_xts_128_test(void)
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c2, buf, sizeof(c2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 #endif
 
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
 
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -1614,113 +1758,113 @@ static int aes_xts_128_test(void)
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 #endif
 
     /* partial block encryption test */
-    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(cipher, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (XMEMCMP(cp2, cipher, sizeof(cp2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(ret, out);
+    if (XMEMCMP(cp, cipher, sizeof(cp)))
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
-    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(cipher, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (XMEMCMP(cp2, cipher, sizeof(cp2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(ret, out);
+    if (XMEMCMP(cp, cipher, sizeof(cp)))
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 #endif
 
     /* partial block decrypt test */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(pp, buf, sizeof(pp)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(pp, buf, sizeof(pp)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 #endif
 
     /* NIST decrypt test vector */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 #endif
 
     /* fail case with decrypting using wrong key */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p2, buf, sizeof(p2)) == 0) /* fail case with wrong key */
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
     /* set correct key and retest */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p2, buf, sizeof(p2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #ifndef HAVE_FIPS_VERSION
 
@@ -1728,28 +1872,28 @@ static int aes_xts_128_test(void)
     XMEMCPY(buf, p3, sizeof(p3));
     ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     ret = wc_AesXtsEncrypt(aes, buf, buf, sizeof(p3), i3, sizeof(i3));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c3, buf, sizeof(c3)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
     ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsDecrypt(aes, buf, buf, sizeof(c3), i3, sizeof(i3));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p3, buf, sizeof(p3)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
 #endif /* HAVE_FIPS_VERSION */
 
@@ -1767,7 +1911,7 @@ static int aes_xts_128_test(void)
         int j;
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (large_input == NULL)
-            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+            ERROR_OUT(MEMORY_E, out);
     #endif
 
         for (i = 0; i < (int)LARGE_XTS_SZ; i++)
@@ -1776,28 +1920,30 @@ static int aes_xts_128_test(void)
         for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
             if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ERROR_OUT(ret, out);
             ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
                 sizeof(i1));
         #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
         #endif
             if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ERROR_OUT(ret, out);
 
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
             if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ERROR_OUT(ret, out);
             ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
                 sizeof(i1));
         #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
         #endif
             if (ret != 0)
-                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                ERROR_OUT(ret, out);
             for (i = 0; i < j; i++) {
                 if (large_input[i] != (byte)i) {
-                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                    ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
                 }
             }
         }
@@ -1866,17 +2012,18 @@ static int aes_xts_128_test(void)
     }
 
     ret = crypto_skcipher_ivsize(tfm);
-    if (ret != sizeof iv) {
+    if (ret != sizeof(iv)) {
         pr_err("error: AES skcipher algorithm %s crypto_skcipher_ivsize()"
                " returned %d but expected %d\n",
-               WOLFKM_AESXTS_DRIVER, ret, (int)sizeof iv);
+               WOLFKM_AESXTS_DRIVER, ret, (int)sizeof(iv));
         ret = -EINVAL;
         goto test_xts_end;
     }
 
     ret = crypto_skcipher_setkey(tfm, k1, sizeof(k1));
     if (ret) {
-        pr_err("error: crypto_skcipher_setkey for %s returned: %d\n", WOLFKM_AESXTS_NAME, ret);
+        pr_err("error: crypto_skcipher_setkey for %s returned: %d\n",
+               WOLFKM_AESXTS_NAME, ret);
         goto test_xts_end;
     }
 
@@ -1894,7 +2041,7 @@ static int aes_xts_128_test(void)
     sg_init_one(src, dec2, sizeof(p1));
     sg_init_one(dst, enc2, sizeof(p1));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), iv);
 
     ret = crypto_skcipher_encrypt(req);
@@ -1904,7 +2051,7 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    ret = XMEMCMP(c1, enc2, sizeof(enc2));
+    ret = XMEMCMP(c1, enc2, sizeof(c1));
     if (ret) {
         pr_err("error: c1 and enc2 do not match: %d\n", ret);
         ret = -EINVAL;
@@ -1915,7 +2062,7 @@ static int aes_xts_128_test(void)
     sg_init_one(src, enc2, sizeof(p1));
     sg_init_one(dst, dec2, sizeof(p1));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), iv);
 
     ret = crypto_skcipher_decrypt(req);
@@ -1938,7 +2085,7 @@ static int aes_xts_128_test(void)
     sg_init_one(src, dec2, sizeof(pp));
     sg_init_one(dst, enc2, sizeof(pp));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), iv);
 
     ret = crypto_skcipher_encrypt(req);
@@ -1959,7 +2106,7 @@ static int aes_xts_128_test(void)
     sg_init_one(src, enc2, sizeof(pp));
     sg_init_one(dst, dec2, sizeof(pp));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), iv);
 
     ret = crypto_skcipher_decrypt(req);
@@ -1998,10 +2145,17 @@ static int aes_xts_128_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
+    if (buf)
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_AES);
+    if (cipher)
+        XFREE(cipher, HEAP_HINT, DYNAMIC_TYPE_AES);
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
+
+#undef AES_XTS_128_TEST_BUF_SIZ
 
     return ret;
 }
@@ -2017,8 +2171,9 @@ static int aes_xts_256_test(void)
 #endif
     int aes_inited = 0;
     int ret = 0;
-    unsigned char buf[AES_BLOCK_SIZE * 3];
-    unsigned char cipher[AES_BLOCK_SIZE * 3];
+#define AES_XTS_256_TEST_BUF_SIZ (AES_BLOCK_SIZE * 3)
+    unsigned char *buf = NULL;
+    unsigned char *cipher = NULL;
 
     /* 256 key tests */
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k1[] = {
@@ -2099,9 +2254,23 @@ static int aes_xts_256_test(void)
     };
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = (XtsAes *)XMALLOC(sizeof(*aes), HEAP_HINT, DYNAMIC_TYPE_AES))
+        == NULL)
+    {
         ERROR_OUT(MEMORY_E, out);
+    }
 #endif
+
+    if ((buf = (unsigned char *)XMALLOC(AES_XTS_256_TEST_BUF_SIZ, HEAP_HINT,
+                                        DYNAMIC_TYPE_AES)) == NULL)
+    {
+        ERROR_OUT(MEMORY_E, out);
+    }
+    if ((cipher = (unsigned char *)XMALLOC(AES_XTS_256_TEST_BUF_SIZ, HEAP_HINT,
+                                           DYNAMIC_TYPE_AES)) == NULL)
+    {
+        ERROR_OUT(MEMORY_E, out);
+    }
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
     && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
@@ -2114,83 +2283,83 @@ static int aes_xts_256_test(void)
 
     ret = wc_AesXtsInit(aes, HEAP_HINT, devId);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     else
         aes_inited = 1;
 
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c2, buf, sizeof(c2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
     /* partial block encryption test */
-    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(cipher, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_encrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     /* partial block decrypt test */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(pp, buf, sizeof(pp)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
     /* NIST decrypt test vector */
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
-    XMEMSET(buf, 0, sizeof(buf));
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     if (XMEMCMP(p2, buf, sizeof(p2)))
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
     /* now the kernel crypto part */
 
@@ -2249,17 +2418,18 @@ static int aes_xts_256_test(void)
     }
 
     ret = crypto_skcipher_ivsize(tfm);
-    if (ret != sizeof iv) {
+    if (ret != sizeof(iv)) {
         pr_err("error: AES skcipher algorithm %s crypto_skcipher_ivsize()"
                " returned %d but expected %d\n",
-               WOLFKM_AESXTS_DRIVER, ret, (int)sizeof iv);
+               WOLFKM_AESXTS_DRIVER, ret, (int)sizeof(iv));
         ret = -EINVAL;
         goto test_xts_end;
     }
 
     ret = crypto_skcipher_setkey(tfm, k1, sizeof(k1));
     if (ret) {
-        pr_err("error: crypto_skcipher_setkey for %s returned: %d\n", WOLFKM_AESXTS_NAME, ret);
+        pr_err("error: crypto_skcipher_setkey for %s returned: %d\n",
+               WOLFKM_AESXTS_NAME, ret);
         goto test_xts_end;
     }
 
@@ -2277,7 +2447,7 @@ static int aes_xts_256_test(void)
     sg_init_one(src, dec2, sizeof(p1));
     sg_init_one(dst, enc2, sizeof(p1));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), iv);
 
     ret = crypto_skcipher_encrypt(req);
@@ -2287,7 +2457,7 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    ret = XMEMCMP(c1, enc2, sizeof(enc2));
+    ret = XMEMCMP(c1, enc2, sizeof(c1));
     if (ret) {
         pr_err("error: c1 and enc2 do not match: %d\n", ret);
         ret = -EINVAL;
@@ -2298,7 +2468,7 @@ static int aes_xts_256_test(void)
     sg_init_one(src, enc2, sizeof(p1));
     sg_init_one(dst, dec2, sizeof(p1));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(p1), iv);
 
     ret = crypto_skcipher_decrypt(req);
@@ -2321,7 +2491,7 @@ static int aes_xts_256_test(void)
     sg_init_one(src, dec2, sizeof(pp));
     sg_init_one(dst, enc2, sizeof(pp));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), iv);
 
     ret = crypto_skcipher_encrypt(req);
@@ -2342,7 +2512,7 @@ static int aes_xts_256_test(void)
     sg_init_one(src, enc2, sizeof(pp));
     sg_init_one(dst, dec2, sizeof(pp));
 
-    memcpy(iv, i1, sizeof iv);
+    memcpy(iv, i1, sizeof(iv));
     skcipher_request_set_crypt(req, src, dst, sizeof(pp), iv);
 
     ret = crypto_skcipher_decrypt(req);
@@ -2381,10 +2551,17 @@ static int aes_xts_256_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
+    if (buf)
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_AES);
+    if (cipher)
+        XFREE(cipher, HEAP_HINT, DYNAMIC_TYPE_AES);
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
+
+#undef AES_XTS_256_TEST_BUF_SIZ
 
     return ret;
 }

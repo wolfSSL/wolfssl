@@ -179,7 +179,9 @@ enum {
     AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
+#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     AES_ENCRYPTION_AND_DECRYPTION = 2,
+#endif
 
     AES_BLOCK_SIZE      = 16,
 

@@ -12321,18 +12321,25 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
         return WC_KEY_SIZE_E;
     }
 
-#ifdef HAVE_FIPS_VERSION
+#ifdef HAVE_FIPS
     if (XMEMCMP(key, key + keySz, keySz) == 0) {
         WOLFSSL_MSG("FIPS AES-XTS main and tweak keys must differ");
         return BAD_FUNC_ARG;
     }
 #endif
 
-    if ((dir == AES_ENCRYPTION) || (dir == AES_ENCRYPTION_AND_DECRYPTION))
+    if ((dir == AES_ENCRYPTION)
+#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        || (dir == AES_ENCRYPTION_AND_DECRYPTION)
+#endif
+        )
+    {
         ret = wc_AesSetKey(&aes->aes, key, keySz, NULL, AES_ENCRYPTION);
+    }
 
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-    if ((ret == 0) && ((dir == AES_DECRYPTION) || (dir == AES_ENCRYPTION_AND_DECRYPTION)))
+    if ((ret == 0) && ((dir == AES_DECRYPTION)
+                       || (dir == AES_ENCRYPTION_AND_DECRYPTION)))
         ret = wc_AesSetKey(&aes->aes_decrypt, key, keySz, NULL, AES_DECRYPTION);
 #else
     if (dir == AES_DECRYPTION)
@@ -12349,11 +12356,16 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
          * conflicting _aesni status, but the AES-XTS asm implementations need
          * them to all be AESNI.  If any aren't, disable AESNI on all.
          */
-        if ((((dir == AES_ENCRYPTION) || (dir == AES_ENCRYPTION_AND_DECRYPTION)) &&
+        if ((((dir == AES_ENCRYPTION)
+#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+              || (dir == AES_ENCRYPTION_AND_DECRYPTION)
+#endif
+             ) &&
              (aes->aes.use_aesni != aes->tweak.use_aesni))
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
             ||
-            (((dir == AES_DECRYPTION) || (dir == AES_ENCRYPTION_AND_DECRYPTION)) &&
+            (((dir == AES_DECRYPTION)
+              || (dir == AES_ENCRYPTION_AND_DECRYPTION)) &&
              (aes->aes_decrypt.use_aesni != aes->tweak.use_aesni))
 #endif
             )
