@@ -2723,6 +2723,17 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         if (mp_to_unsigned_bin_len_ct(tmp, out, (int)*outLen) != MP_OKAY)
              ret = MP_TO_E;
     }
+#ifdef WOLFSSL_RSA_CHECK_D_ON_DECRYPT
+    if ((ret == 0) && (type == RSA_PRIVATE_DECRYPT)) {
+        mp_sub(&key->n, &key->p, tmp);
+        mp_sub(tmp, &key->q, tmp);
+        mp_add_d(tmp, 1, tmp);
+        mp_mulmod(&key->d, &key->e, tmp, tmp);
+        if (!mp_isone(tmp)) {
+            ret = MP_EXPTMOD_E;
+        }
+    }
+#endif
 #else
     (void)type;
     (void)key;
