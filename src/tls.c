@@ -6479,7 +6479,7 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_E;
 
     if (msgType == hello_retry_request)
-        return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0,
+        return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 1,
                                &ssl->extensions);
 
     /* client_hello */
