@@ -46,6 +46,440 @@
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_X86_64_BUILD
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sse2_sha256_sha_k:
+.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+.long	0xe49b69c1,0xefbe4786,0xfc19dc6,0x240ca1cc
+.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+.long	0xc6e00bf3,0xd5a79147,0x6ca6351,0x14292967
+.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_sse2_sha256_shuf_mask:
+.quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_SSE2_Sha
+.type	Transform_Sha256_SSE2_Sha,@function
+.align	16
+Transform_Sha256_SSE2_Sha:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_SSE2_Sha
+.p2align	4
+_Transform_Sha256_SSE2_Sha:
+#endif /* __APPLE__ */
+        leaq	32(%rdi), %rdx
+        movdqa	L_sse2_sha256_shuf_mask(%rip), %xmm10
+        movq	(%rdi), %xmm1
+        movq	8(%rdi), %xmm2
+        movhpd	16(%rdi), %xmm1
+        movhpd	24(%rdi), %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movdqu	(%rdx), %xmm3
+        movdqu	16(%rdx), %xmm4
+        movdqu	32(%rdx), %xmm5
+        movdqu	48(%rdx), %xmm6
+        pshufb	%xmm10, %xmm3
+        movdqa	%xmm1, %xmm8
+        movdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        movdqa	%xmm3, %xmm0
+        paddd	0+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        pshufb	%xmm10, %xmm4
+        movdqa	%xmm4, %xmm0
+        paddd	16+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        pshufb	%xmm10, %xmm5
+        movdqa	%xmm5, %xmm0
+        paddd	32+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        pshufb	%xmm10, %xmm6
+        movdqa	%xmm6, %xmm0
+        paddd	48+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        movdqa	%xmm3, %xmm0
+        paddd	64+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        movdqa	%xmm4, %xmm0
+        paddd	80+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        movdqa	%xmm5, %xmm0
+        paddd	96+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        movdqa	%xmm6, %xmm0
+        paddd	112+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        movdqa	%xmm3, %xmm0
+        paddd	128+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        movdqa	%xmm4, %xmm0
+        paddd	144+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        movdqa	%xmm5, %xmm0
+        paddd	160+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        movdqa	%xmm6, %xmm0
+        paddd	176+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        movdqa	%xmm3, %xmm0
+        paddd	192+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        movdqa	%xmm4, %xmm0
+        paddd	208+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm5, %xmm0
+        paddd	224+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm6, %xmm0
+        paddd	240+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        paddd	%xmm8, %xmm1
+        paddd	%xmm9, %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movq	%xmm1, (%rdi)
+        movq	%xmm2, 8(%rdi)
+        movhpd	%xmm1, 16(%rdi)
+        movhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_SSE2_Sha,.-Transform_Sha256_SSE2_Sha
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_SSE2_Sha_Len
+.type	Transform_Sha256_SSE2_Sha_Len,@function
+.align	16
+Transform_Sha256_SSE2_Sha_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_SSE2_Sha_Len
+.p2align	4
+_Transform_Sha256_SSE2_Sha_Len:
+#endif /* __APPLE__ */
+        movdqa	L_sse2_sha256_shuf_mask(%rip), %xmm10
+        movq	(%rdi), %xmm1
+        movq	8(%rdi), %xmm2
+        movhpd	16(%rdi), %xmm1
+        movhpd	24(%rdi), %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        # Start of loop processing a block
+L_sha256_sha_len_sse2_start:
+        movdqu	(%rsi), %xmm3
+        movdqu	16(%rsi), %xmm4
+        movdqu	32(%rsi), %xmm5
+        movdqu	48(%rsi), %xmm6
+        pshufb	%xmm10, %xmm3
+        movdqa	%xmm1, %xmm8
+        movdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        movdqa	%xmm3, %xmm0
+        paddd	0+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        pshufb	%xmm10, %xmm4
+        movdqa	%xmm4, %xmm0
+        paddd	16+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        pshufb	%xmm10, %xmm5
+        movdqa	%xmm5, %xmm0
+        paddd	32+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        pshufb	%xmm10, %xmm6
+        movdqa	%xmm6, %xmm0
+        paddd	48+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        movdqa	%xmm3, %xmm0
+        paddd	64+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        movdqa	%xmm4, %xmm0
+        paddd	80+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        movdqa	%xmm5, %xmm0
+        paddd	96+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        movdqa	%xmm6, %xmm0
+        paddd	112+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        movdqa	%xmm3, %xmm0
+        paddd	128+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        movdqa	%xmm4, %xmm0
+        paddd	144+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        movdqa	%xmm5, %xmm0
+        paddd	160+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        movdqa	%xmm6, %xmm0
+        paddd	176+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        movdqa	%xmm3, %xmm0
+        paddd	192+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        movdqa	%xmm4, %xmm0
+        paddd	208+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm5, %xmm0
+        paddd	224+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm6, %xmm0
+        paddd	240+L_sse2_sha256_sha_k(%rip), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        addq	$0x40, %rsi
+        subl	$0x40, %edx
+        paddd	%xmm8, %xmm1
+        paddd	%xmm9, %xmm2
+        jnz	L_sha256_sha_len_sse2_start
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movq	%xmm1, (%rdi)
+        movq	%xmm2, 8(%rdi)
+        movhpd	%xmm1, 16(%rdi)
+        movhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_SSE2_Sha_Len,.-Transform_Sha256_SSE2_Sha_Len
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
 .data
@@ -9671,6 +10105,384 @@ L_sha256_len_avx1_len_rorx_start:
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_AVX1_RORX_Len,.-Transform_Sha256_AVX1_RORX_Len
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_avx1_sha256_sha_k:
+.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+.long	0xe49b69c1,0xefbe4786,0xfc19dc6,0x240ca1cc
+.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+.long	0xc6e00bf3,0xd5a79147,0x6ca6351,0x14292967
+.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_avx1_sha256_shuf_mask:
+.quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_AVX1_Sha
+.type	Transform_Sha256_AVX1_Sha,@function
+.align	16
+Transform_Sha256_AVX1_Sha:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_Sha
+.p2align	4
+_Transform_Sha256_AVX1_Sha:
+#endif /* __APPLE__ */
+        leaq	32(%rdi), %rdx
+        vmovdqa	L_avx1_sha256_shuf_mask(%rip), %xmm10
+        vmovq	(%rdi), %xmm1
+        vmovq	8(%rdi), %xmm2
+        vmovhpd	16(%rdi), %xmm1, %xmm1
+        vmovhpd	24(%rdi), %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovdqu	(%rdx), %xmm3
+        vmovdqu	16(%rdx), %xmm4
+        vmovdqu	32(%rdx), %xmm5
+        vmovdqu	48(%rdx), %xmm6
+        vpshufb	%xmm10, %xmm3, %xmm3
+        vmovdqa	%xmm1, %xmm8
+        vmovdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        vpaddd	0+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        vpshufb	%xmm10, %xmm4, %xmm4
+        vpaddd	16+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        vpshufb	%xmm10, %xmm5, %xmm5
+        vpaddd	32+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        vpshufb	%xmm10, %xmm6, %xmm6
+        vpaddd	48+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        vpaddd	64+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        vpaddd	80+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        vpaddd	96+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        vpaddd	112+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        vpaddd	128+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        vpaddd	144+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        vpaddd	160+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        vpaddd	176+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        vpaddd	192+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        vpaddd	208+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	224+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	240+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	%xmm8, %xmm1, %xmm1
+        vpaddd	%xmm9, %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovq	%xmm1, (%rdi)
+        vmovq	%xmm2, 8(%rdi)
+        vmovhpd	%xmm1, 16(%rdi)
+        vmovhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_AVX1_Sha,.-Transform_Sha256_AVX1_Sha
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_AVX1_Sha_Len
+.type	Transform_Sha256_AVX1_Sha_Len,@function
+.align	16
+Transform_Sha256_AVX1_Sha_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_Sha_Len
+.p2align	4
+_Transform_Sha256_AVX1_Sha_Len:
+#endif /* __APPLE__ */
+        vmovdqa	L_avx1_sha256_shuf_mask(%rip), %xmm10
+        vmovq	(%rdi), %xmm1
+        vmovq	8(%rdi), %xmm2
+        vmovhpd	16(%rdi), %xmm1, %xmm1
+        vmovhpd	24(%rdi), %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        # Start of loop processing a block
+L_sha256_sha_len_avx1_start:
+        vmovdqu	(%rsi), %xmm3
+        vmovdqu	16(%rsi), %xmm4
+        vmovdqu	32(%rsi), %xmm5
+        vmovdqu	48(%rsi), %xmm6
+        vpshufb	%xmm10, %xmm3, %xmm3
+        vmovdqa	%xmm1, %xmm8
+        vmovdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        vpaddd	0+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        vpshufb	%xmm10, %xmm4, %xmm4
+        vpaddd	16+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        vpshufb	%xmm10, %xmm5, %xmm5
+        vpaddd	32+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        vpshufb	%xmm10, %xmm6, %xmm6
+        vpaddd	48+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        vpaddd	64+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        vpaddd	80+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        vpaddd	96+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        vpaddd	112+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        vpaddd	128+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        vpaddd	144+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        vpaddd	160+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        vpaddd	176+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        vpaddd	192+L_avx1_sha256_sha_k(%rip), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        vpaddd	208+L_avx1_sha256_sha_k(%rip), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	224+L_avx1_sha256_sha_k(%rip), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	240+L_avx1_sha256_sha_k(%rip), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        addq	$0x40, %rsi
+        subl	$0x40, %edx
+        vpaddd	%xmm8, %xmm1, %xmm1
+        vpaddd	%xmm9, %xmm2, %xmm2
+        jnz	L_sha256_sha_len_avx1_start
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovq	%xmm1, (%rdi)
+        vmovq	%xmm2, 8(%rdi)
+        vmovhpd	%xmm1, 16(%rdi)
+        vmovhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        vzeroupper
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_AVX1_Sha_Len,.-Transform_Sha256_AVX1_Sha_Len
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2

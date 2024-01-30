@@ -50,6 +50,7 @@
     #define CPUID_ADX    0x0040   /* ADCX, ADOX */
     #define CPUID_MOVBE  0x0080   /* Move and byte swap */
     #define CPUID_BMI1   0x0100   /* ANDN */
+    #define CPUID_SHA    0x0200   /* SHA-1 and SHA-256 instructions */
 
     #define IS_INTEL_AVX1(f)    ((f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    ((f) & CPUID_AVX2)
@@ -60,6 +61,7 @@
     #define IS_INTEL_ADX(f)     ((f) & CPUID_ADX)
     #define IS_INTEL_MOVBE(f)   ((f) & CPUID_MOVBE)
     #define IS_INTEL_BMI1(f)    ((f) & CPUID_BMI1)
+    #define IS_INTEL_SHA(f)     ((f) & CPUID_SHA)
 
 #endif
 

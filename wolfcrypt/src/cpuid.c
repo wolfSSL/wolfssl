@@ -96,6 +96,7 @@
             if (cpuid_flag(7, 0, EBX, 19)) { cpuid_flags |= CPUID_ADX   ; }
             if (cpuid_flag(1, 0, ECX, 22)) { cpuid_flags |= CPUID_MOVBE ; }
             if (cpuid_flag(7, 0, EBX,  3)) { cpuid_flags |= CPUID_BMI1  ; }
+            if (cpuid_flag(7, 0, EBX, 29)) { cpuid_flags |= CPUID_SHA   ; }
 
             cpuid_check = 1;
         }
