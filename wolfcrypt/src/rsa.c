@@ -3141,7 +3141,9 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
-#ifndef WOLF_CRYPTO_CB_ONLY_RSA
+#ifdef WOLF_CRYPTO_CB_ONLY_RSA
+    return NO_VALID_DEVID;
+#else /* !WOLF_CRYPTO_CB_ONLY_RSA */
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
@@ -3192,7 +3194,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
         wc_RsaCleanup(key);
     }
     return ret;
-#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
+#endif /* !WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
