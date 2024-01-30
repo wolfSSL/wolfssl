@@ -64,10 +64,10 @@ jobs:
 
       - name: Install zephyr SDK
         run: |
-          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${{ matrix.config.zephyr-sdk }}/zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64.tar.xz
-          tar xf zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64.tar.xz
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${{ matrix.config.zephyr-sdk }}/zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64_minimal.tar.xz
+          tar xf zephyr-sdk-${{ matrix.config.zephyr-sdk }}_linux-x86_64_minimal.tar.xz
           cd zephyr-sdk-${{ matrix.config.zephyr-sdk }}
-          ./setup.sh -h -c
+          ./setup.sh -h -c -t x86_64-zephyr-elf
 
       - name: Run wolfssl test
         id: wolfssl-test
