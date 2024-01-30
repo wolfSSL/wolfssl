@@ -54,8 +54,10 @@
     #define WOLFKM_DRIVER_ISA_EXT ""
 #endif
 
-#ifdef HAVE_FIPS_VERSION
-    #if HAVE_FIPS_VERSION >= 5
+#ifdef HAVE_FIPS
+    #ifndef HAVE_FIPS_VERSION
+        #define WOLFKM_DRIVER_FIPS "-fips-140"
+    #elif HAVE_FIPS_VERSION >= 5
         #define WOLFKM_DRIVER_FIPS "-fips-140-3"
     #elif HAVE_FIPS_VERSION == 2
         #define WOLFKM_DRIVER_FIPS "-fips-140-2"
@@ -1648,7 +1650,7 @@ static int aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
-#ifndef HAVE_FIPS_VERSION /* FIPS requires different keys for main and tweak. */
+#ifndef HAVE_FIPS /* FIPS requires different keys for main and tweak. */
     WOLFSSL_SMALL_STACK_STATIC const unsigned char k3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -1673,7 +1675,7 @@ static int aes_xts_128_test(void)
         0xA0, 0x85, 0xD2, 0x69, 0x6E, 0x87, 0x0A, 0xBF,
         0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
     };
-#endif /* HAVE_FIPS_VERSION */
+#endif /* HAVE_FIPS */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof(*aes), HEAP_HINT, DYNAMIC_TYPE_AES))
@@ -1866,7 +1868,7 @@ static int aes_xts_128_test(void)
     if (XMEMCMP(p2, buf, sizeof(p2)))
         ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
-#ifndef HAVE_FIPS_VERSION
+#ifndef HAVE_FIPS
 
     /* Test ciphertext stealing in-place. */
     XMEMCPY(buf, p3, sizeof(p3));
@@ -1895,7 +1897,7 @@ static int aes_xts_128_test(void)
     if (XMEMCMP(p3, buf, sizeof(p3)))
         ERROR_OUT(LINUXKM_LKCAPI_AES_KAT_MISMATCH_E, out);
 
-#endif /* HAVE_FIPS_VERSION */
+#endif /* HAVE_FIPS */
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
     !defined(WOLFSSL_AFALG)
