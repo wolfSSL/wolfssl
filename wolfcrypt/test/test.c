@@ -12556,7 +12556,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 
 #else
     byte large_input[BENCH_AESGCM_LARGE];
-    byte large_output[BENCH_AESGCM_LARGE];
+    byte large_output[BENCH_AESGCM_LARGE + AES_BLOCK_SIZE];
     byte large_outdec[BENCH_AESGCM_LARGE];
 #endif
 
