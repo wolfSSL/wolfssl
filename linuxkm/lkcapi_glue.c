@@ -579,7 +579,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
 
     err = skcipher_walk_aead_encrypt(&walk, req, false);
     if (unlikely(err)) {
-        pr_err("%s: skcipher_walk_aead_encrypt: %d\n",
+        pr_err("%s: skcipher_walk_aead_encrypt failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return -1;
     }
@@ -685,7 +685,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
 
     err = skcipher_walk_aead_decrypt(&walk, req, false);
     if (unlikely(err)) {
-        pr_err("%s: skcipher_walk_aead_decrypt: %d\n",
+        pr_err("%s: skcipher_walk_aead_decrypt failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return err;
     }
