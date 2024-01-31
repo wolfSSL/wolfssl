@@ -34,7 +34,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                release: [ "22.03-SNAPSHOT", "21.02-SNAPSHOT" ] # some other versions: 21.02.0 21.02.5 22.03.0 22.03.3 snapshot
+                release: [ "22.03.6", "21.02.7" ] # some other versions: 21.02.0 21.02.5 22.03.0 22.03.3 snapshot
         steps:
             - uses: actions/checkout@v3
             - uses: docker/setup-buildx-action@v2
