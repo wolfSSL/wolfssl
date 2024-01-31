@@ -1536,7 +1536,8 @@ WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 
-#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+#if defined(HAVE_OCSP) || defined(HAVE_CRL) || (defined(WOLFSSL_CUSTOM_OID) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_OID_DECODING))
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 
@@ -3593,6 +3594,13 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
+
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+    WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback cb);
+#endif
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,
         const char* f, const char* d);

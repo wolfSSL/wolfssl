@@ -2632,6 +2632,7 @@ struct WOLFSSL_CERT_MANAGER {
     short           minFalconKeySz;      /* minimum allowed Falcon key size */
     short           minDilithiumKeySz;   /* minimum allowed Dilithium key size */
 #endif
+    wc_UnknownExtCallback unknownExtCallback;
 
 };
 
