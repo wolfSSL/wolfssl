@@ -1,0 +1,72 @@
+name: openssh Tests
+
+on:
+  workflow_call:
+  # TODO: remove this from PR
+  push:
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-openssh --enable-dsa --with-max-rsa-bits=8192
+            --enable-intelasm --enable-sp-asm
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-openssh
+          path: build-dir
+          retention-days: 1
+
+  openssh_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - git_ref: 'V_9_6_P1'
+            osp_ver: '9.6'
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-openssh
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          # TODO: update with wolfssl repo after merge
+          repository: julek-wolfssl/osp
+          ref: openssh-9.6
+          path: osp
+
+      - name: Build and test openssh
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: openssh/openssh-portable
+          ref: ${{ matrix.git_ref }}
+          path: openssh
+          patch-file: $GITHUB_WORKSPACE/osp/openssh-patches/openssh-${{ matrix.osp_ver }}.patch
+          configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-rpath=-Wl,-rpath=
+          check: false
+
+      # make tests take >20 minutes. Consider limiting? 
+      - name: Run tests
+        working-directory: ./openssh
+        run: |
+          # Run all the tests except (t-exec) as it takes too long
+          make file-tests interop-tests extra-tests unit

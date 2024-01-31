@@ -545,6 +545,18 @@ WC_MISC_STATIC WC_INLINE int ByteToHexStr(byte in, char* out)
     return 0;
 }
 
+WC_MISC_STATIC WC_INLINE int CharIsWhiteSpace(char ch)
+{
+    switch (ch) {
+        case ' ':
+        case '\t':
+        case '\n':
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 #ifndef WOLFSSL_NO_CT_OPS
 /* Constant time - mask set when a > b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
