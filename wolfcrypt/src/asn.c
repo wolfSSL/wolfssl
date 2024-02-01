@@ -15400,7 +15400,9 @@ word32 SetLength(word32 length, byte* output)
 word32 SetLengthEx(word32 length, byte* output, byte isIndef)
 {
     if (isIndef) {
-        output[0] = ASN_INDEF_LENGTH;
+        if (output != NULL) {
+            output[0] = ASN_INDEF_LENGTH;
+        }
         return 1;
     }
     else {
