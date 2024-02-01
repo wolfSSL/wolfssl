@@ -2630,27 +2630,25 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         totalSz -= pkcs7->contentSz;
     }
 
-    {
-        esd->innerSeqSz = SetSequenceEx(totalSz + total2Sz, esd->innerSeq,
-            pkcs7->encodeStream);
-        totalSz += esd->innerSeqSz;
-        if (pkcs7->encodeStream) {
-            totalSz += ASN_INDEF_END_SZ;
-        }
+    esd->innerSeqSz = SetSequenceEx(totalSz + total2Sz, esd->innerSeq,
+        pkcs7->encodeStream);
+    totalSz += esd->innerSeqSz;
+    if (pkcs7->encodeStream) {
+        totalSz += ASN_INDEF_END_SZ;
+    }
 
-        esd->outerContentSz = SetExplicit(0, totalSz + total2Sz,
-            esd->outerContent, pkcs7->encodeStream);
-        totalSz += esd->outerContentSz + signedDataOidSz;
-        if (pkcs7->encodeStream) {
-            totalSz += ASN_INDEF_END_SZ;
-        }
+    esd->outerContentSz = SetExplicit(0, totalSz + total2Sz,
+        esd->outerContent, pkcs7->encodeStream);
+    totalSz += esd->outerContentSz + signedDataOidSz;
+    if (pkcs7->encodeStream) {
+        totalSz += ASN_INDEF_END_SZ;
+    }
 
-        esd->outerSeqSz = SetSequenceEx(totalSz + total2Sz, esd->outerSeq,
-            pkcs7->encodeStream);
-        totalSz += esd->outerSeqSz;
-        if (pkcs7->encodeStream) {
-            totalSz += ASN_INDEF_END_SZ;
-        }
+    esd->outerSeqSz = SetSequenceEx(totalSz + total2Sz, esd->outerSeq,
+        pkcs7->encodeStream);
+    totalSz += esd->outerSeqSz;
+    if (pkcs7->encodeStream) {
+        totalSz += ASN_INDEF_END_SZ;
     }
 
     /* if using header/footer, we are not returning the content */

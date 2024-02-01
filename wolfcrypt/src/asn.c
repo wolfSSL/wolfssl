@@ -15482,7 +15482,7 @@ word32 SetSet(word32 len, byte* output)
  */
 word32 SetImplicit(byte tag, byte number, word32 len, byte* output, byte isIndef)
 {
-    int useIndef = 0;
+    byte useIndef = 0;
 
     if ((tag == ASN_OCTET_STRING) && isIndef) {
         tag = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | number;
@@ -36453,7 +36453,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
          */
         extSz = EncodeOcspRequestExtensions(req, extArray + 2,
                                             OCSP_NONCE_EXT_SZ);
-        extSz += SetExplicit(2, extSz, extArray);
+        extSz += SetExplicit(2, extSz, extArray, 0);
     }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
