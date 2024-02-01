@@ -27997,7 +27997,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #if defined(HAVE_PKCS7)
     PKCS7*      pkcs7 = NULL;
 #ifdef ASN_BER_TO_DER
-    int encodedSz;
+    int encodedSz = 0;
 #endif
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG      rng;
