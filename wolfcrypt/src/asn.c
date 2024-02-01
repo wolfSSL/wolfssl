@@ -3463,6 +3463,18 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
 
 #define BER_OCTET_LENGTH 4096
 
+/* sets the terminating 0x00 0x00 at the end of an indefinite length
+ * returns the number of bytes written */
+word32 SetIndefEnd(byte* in)
+{
+    byte terminate[] = { 0x00, 0x00 };
+
+    if (in != NULL) {
+        XMEMCPY(in, terminate, 2);
+    }
+    return 2;
+}
+
 
 /* Breaks an octet string up into chunks for use with streaming
  * returns 0 on success and updates idx */
@@ -3503,50 +3515,6 @@ int StreamOctetString(const byte* in, word32 inSz, byte* out, word32* outSz,
     if (tmp) {
         *idx = outIdx;
         return 0;
-    }
-    else {
-        *outSz = outIdx;
-        return LENGTH_ONLY_E;
-    }
-}
-
-long SetImplicitBer(byte tag, byte num, const byte* data, word32 dataSz,
-    byte* out, word32* outSz)
-{
-    word32 sz = 0;
-    long outIdx = 0;
-    byte berTag = tag;
-
-    (void)num;
-    if (outSz == NULL || data == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* create a list of chuncked up octets */
-    if (tag == ASN_OCTET_STRING) {
-        berTag = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC;
-    }
-
-    if (out != NULL) {
-        if (*outSz < 2) {
-            return BUFFER_E;
-        }
-        out[outIdx] = berTag;
-        out[outIdx + 1] = ASN_INDEF_LENGTH;
-    }
-    outIdx += 2;
-
-    sz = *outSz;
-    StreamOctetString(data, dataSz, out, &sz, (word32*)&outIdx);
-
-    if (out) {
-        out[outIdx]     = 0x00;
-        out[outIdx + 1] = 0x00;
-    }
-    outIdx += 2;
-
-    if (out) {
-        return outIdx;
     }
     else {
         *outSz = outIdx;
@@ -15429,6 +15397,16 @@ word32 SetLength(word32 length, byte* output)
     return i;
 }
 
+word32 SetLengthEx(word32 length, byte* output, byte isIndef)
+{
+    if (isIndef) {
+        output[0] = ASN_INDEF_LENGTH;
+        return 1;
+    }
+    else {
+        return SetLength(length, output);
+    }
+}
 /* Encode a DER header - type/tag and length.
  *
  * @param [in]  tag     DER tag of ASN.1 item.
@@ -15436,14 +15414,15 @@ word32 SetLength(word32 length, byte* output)
  * @param [out] output  Buffer to encode into.
  * @return  Number of bytes encoded.
  */
-static word32 SetHeader(byte tag, word32 len, byte* output)
+static word32 SetHeader(byte tag, word32 len, byte* output, byte isIndef)
 {
     if (output) {
         /* Encode tag first. */
         output[0] = tag;
     }
     /* Encode the length. */
-    return SetLength(len, output ? output + ASN_TAG_SZ : NULL) + ASN_TAG_SZ;
+    return SetLengthEx(len, output ? output + ASN_TAG_SZ : NULL, isIndef) +
+        ASN_TAG_SZ;
 }
 
 /* Encode a SEQUENCE header in DER.
@@ -15454,7 +15433,12 @@ static word32 SetHeader(byte tag, word32 len, byte* output)
  */
 word32 SetSequence(word32 len, byte* output)
 {
-    return SetHeader(ASN_SEQUENCE | ASN_CONSTRUCTED, len, output);
+    return SetHeader(ASN_SEQUENCE | ASN_CONSTRUCTED, len, output, 0);
+}
+
+word32 SetSequenceEx(word32 len, byte* output, byte isIndef)
+{
+    return SetHeader(ASN_SEQUENCE | ASN_CONSTRUCTED, len, output, isIndef);
 }
 
 /* Encode an OCTET STRING header in DER.
@@ -15465,7 +15449,14 @@ word32 SetSequence(word32 len, byte* output)
  */
 word32 SetOctetString(word32 len, byte* output)
 {
-    return SetHeader(ASN_OCTET_STRING, len, output);
+    return SetHeader(ASN_OCTET_STRING, len, output, 0);
+}
+
+word32 SetOctetStringEx(word32 len, byte* output, byte indef)
+{
+    if (indef)
+        return SetHeader(ASN_OCTET_STRING | ASN_CONSTRUCTED, len, output, indef);
+    return SetOctetString(len, output);
 }
 
 /* Encode a SET header in DER.
@@ -15476,7 +15467,7 @@ word32 SetOctetString(word32 len, byte* output)
  */
 word32 SetSet(word32 len, byte* output)
 {
-    return SetHeader(ASN_SET | ASN_CONSTRUCTED, len, output);
+    return SetHeader(ASN_SET | ASN_CONSTRUCTED, len, output, 0);
 }
 
 /* Encode an implicit context specific header in DER.
@@ -15489,11 +15480,23 @@ word32 SetSet(word32 len, byte* output)
  * @param [out] output  Buffer to encode into.
  * @return  Number of bytes encoded.
  */
-word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
+word32 SetImplicit(byte tag, byte number, word32 len, byte* output, byte isIndef)
 {
-    tag = (byte)(((tag == ASN_SEQUENCE || tag == ASN_SET) ? ASN_CONSTRUCTED : 0)
-                 | ASN_CONTEXT_SPECIFIC | number);
-    return SetHeader(tag, len, output);
+    int useIndef = 0;
+
+    if ((tag == ASN_OCTET_STRING) && isIndef) {
+        tag = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | number;
+    }
+    else {
+        tag = (byte)(((tag == ASN_SEQUENCE || tag == ASN_SET) ?
+            ASN_CONSTRUCTED : 0) | ASN_CONTEXT_SPECIFIC | number);
+    }
+
+    if (isIndef && (tag & ASN_CONSTRUCTED)) {
+        useIndef = 1;
+    }
+
+    return SetHeader(tag, len, output, useIndef);
 }
 
 /* Encode an explicit context specific header in DER.
@@ -15505,10 +15508,10 @@ word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
  * @param [out] output  Buffer to encode into.
  * @return  Number of bytes encoded.
  */
-word32 SetExplicit(byte number, word32 len, byte* output)
+word32 SetExplicit(byte number, word32 len, byte* output, byte isIndef)
 {
     return SetHeader((byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | number),
-                     len, output);
+                     len, output, isIndef);
 }
 
 #if defined(OPENSSL_EXTRA)
@@ -15534,8 +15537,8 @@ word32 SetOthername(void *name, byte *output)
     nameSz = (word32)nm->value->value.utf8string->length;
 
     len = nm->type_id->objSz +
-          SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL) +
-          SetHeader(CTC_UTF8, nameSz, NULL) + nameSz;
+          SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL, 0) +
+          SetHeader(CTC_UTF8, nameSz, NULL, 0) + nameSz;
 
     if (output != NULL) {
         /* otherName OID */
@@ -15543,9 +15546,9 @@ word32 SetOthername(void *name, byte *output)
         output += nm->type_id->objSz;
 
         output += SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2,
-                            output);
+                            output, 0);
 
-        output += SetHeader(CTC_UTF8, nameSz, output);
+        output += SetHeader(CTC_UTF8, nameSz, output, 0);
 
         XMEMCPY(output, nameStr, nameSz);
     }
@@ -34549,7 +34552,7 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         /* pubKey */
         if (pubKey) {
             idx += SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY |
-                             1, pubKeyLen, output + idx);
+                             1, pubKeyLen, output + idx, 0);
             XMEMCPY(output + idx, pubKey, pubKeyLen);
             idx += pubKeyLen;
         }

@@ -247,8 +247,8 @@ struct PKCS7 {
 #ifdef ASN_BER_TO_DER
     byte*  der;                   /* DER encoded version of message       */
     word32 derSz;
-    byte   encodeStream;          /* use BER when encoding */
 #endif
+    byte   encodeStream:1;        /* use BER when encoding */
     byte   noCerts:1;             /* if certificates should be added into bundle
                                      during creation */
     byte*  cert[MAX_PKCS7_CERTS]; /* array of certs parsed from bundle */
