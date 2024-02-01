@@ -1,3 +1,7 @@
+# wolfSSL Release X.Y.Z (TBD)
+
+NOTE: This release switches the default ASN.1 parser to the new ASN template code. If the original ASN.1 code is preferred define `WOLFSSL_ASN_ORIGINAL` to use it. See PR #7199.
+
 # wolfSSL Release 5.6.6 (Dec 19, 2023)
 
 Release 5.6.6 has been developed according to wolfSSL's development and QA

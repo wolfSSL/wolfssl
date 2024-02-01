@@ -1384,9 +1384,8 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
     int    len;
     /* Current index into buffer. */
     word32 idx = *inOutIdx;
-    /* Initialize the end index at each depth to be the length. */
-    word32 endIdx[GET_ASN_MAX_DEPTH] = { length, length, length, length, length,
-                                         length, length };
+    /* Declare the end index array. */
+    word32 endIdx[GET_ASN_MAX_DEPTH];
     /* Set choices to -1 to indicate they haven't been seen or found. */
     signed char   choiceMet[GET_ASN_MAX_CHOICES] = { -1, -1 };
     /* Not matching a choice right now. */
@@ -1401,6 +1400,11 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
 #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
     WOLFSSL_ENTER("GetASN_Items");
 #endif
+
+    /* Set the end index at each depth to be the length. */
+    for (i=0; i<GET_ASN_MAX_DEPTH; i++) {
+        endIdx[i] = length;
+    }
 
     /* Start depth at first items depth. */
     minDepth = depth = asn[0].depth;
@@ -19551,7 +19555,7 @@ enum {
 static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
                                     Base_entry** head, void* heap)
 {
-    Base_entry* entry;
+    Base_entry* entry = NULL;
     word32 nameIdx = 0;
     word32 len = sz;
     int strLen;
