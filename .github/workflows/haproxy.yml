@@ -21,7 +21,7 @@ jobs:
           install: true
 
       - name: Checkout VTest
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: vtest/VTest
           path: VTest
@@ -32,7 +32,7 @@ jobs:
         run: make FLAGS='-O2 -s -Wall'
 
       - name: Checkout HaProxy
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: haproxy/haproxy
           path: haproxy

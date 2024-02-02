@@ -20,7 +20,7 @@ jobs:
         run: cp wolfssl/.github/workflows/memcached.sh build-dir/bin
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wolf-install-memcached
           path: build-dir
@@ -38,13 +38,13 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wolf-install-memcached
           path: build-dir
 
       - name: Checkout OSP
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
@@ -56,7 +56,7 @@ jobs:
             sudo apt-get install -y libevent-dev libevent-2.1-7 automake pkg-config make libio-socket-ssl-perl
 
       - name: Checkout memcached
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: memcached/memcached
           ref: 1.6.22

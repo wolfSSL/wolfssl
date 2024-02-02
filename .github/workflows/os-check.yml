@@ -94,7 +94,7 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ matrix.os == 'macos-latest' }}
       run: brew install automake libtool
     - run: ./autogen.sh
@@ -121,10 +121,10 @@ jobs:
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1
+      uses: microsoft/setup-msbuild@v2
 
     - name: Restore NuGet packages
       working-directory: ${{env.GITHUB_WORKSPACE}}

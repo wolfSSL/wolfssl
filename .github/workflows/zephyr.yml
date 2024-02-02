@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload failure logs
         if: ${{ failure() && (steps.wolfssl-test.outcome == 'failure' || steps.wolfssl-tls-sock.outcome == 'failure' || steps.wolfssl-tls-thread.outcome == 'failure') }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zephyr-client-test-logs
           path: logs.zip

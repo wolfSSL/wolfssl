@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build
         env:
             CC: ${{ matrix.CC }}

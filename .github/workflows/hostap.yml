@@ -40,7 +40,7 @@ jobs:
           install: true
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build_id }}
           path: build-dir
@@ -113,7 +113,7 @@ jobs:
           echo Our job run ID is $SHA_SUM
 
       - name: Checkout wolfSSL
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: wolfssl
 
@@ -140,7 +140,7 @@ jobs:
           echo "hostap_debug_flags=-d" >> $GITHUB_ENV
 
       - name: Download lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.config.build_id }}
           path: build-dir
@@ -170,7 +170,7 @@ jobs:
           sudo rmmod mac80211_hwsim
 
       - name: Checkout hostap
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: julek-wolfssl/hostap-mirror 
           path: hostap
@@ -185,7 +185,7 @@ jobs:
 
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
@@ -275,7 +275,7 @@ jobs:
 
       - name: Upload failure logs
         if: ${{ failure() && steps.testing.outcome == 'failure' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hostap-logs-${{ env.our_job_run_id }}
           path: hostap/tests/hwsim/logs.zip
