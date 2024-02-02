@@ -26916,12 +26916,55 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     }
 
     ExpectIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
-
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+#ifdef ASN_BER_TO_DER
+    wc_PKCS7_Free(pkcs7);
+
+    /* reinitialize and test setting stream mode */
+    {
+        int signedSz;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+        if (pkcs7 != NULL) {
+            pkcs7->content = data;
+            pkcs7->contentSz = (word32)sizeof(data);
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = (word32)sizeof(key);
+            pkcs7->encryptOID = RSAk;
+        #ifdef NO_SHA
+            pkcs7->hashOID = SHA256h;
+        #else
+            pkcs7->hashOID = SHAh;
+        #endif
+            pkcs7->rng = &rng;
+        }
+        ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(NULL, 1), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 1);
+
+        ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, output,
+            outputSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+        /* use exact signed buffer size since BER encoded */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, signedSz), 0);
+    }
+#endif
 
     /* Pass in bad args. */
     ExpectIntEQ(wc_PKCS7_EncodeSignedData(NULL, output, outputSz),
@@ -27953,6 +27996,9 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
     PKCS7*      pkcs7 = NULL;
+#ifdef ASN_BER_TO_DER
+    int encodedSz = 0;
+#endif
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG      rng;
 #endif
@@ -28153,6 +28199,39 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
+    #ifdef ASN_BER_TO_DER
+        /* test setting stream mode */
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (testVectors + i)->cert,
+                                    (word32)(testVectors + i)->certSz), 0);
+        if (pkcs7 != NULL) {
+        #ifdef ECC_TIMING_RESISTANT
+            pkcs7->rng = &rng;
+        #endif
+
+            pkcs7->content       = (byte*)(testVectors + i)->content;
+            pkcs7->contentSz     = (testVectors + i)->contentSz;
+            pkcs7->contentOID    = (testVectors + i)->contentOID;
+            pkcs7->encryptOID    = (testVectors + i)->encryptOID;
+            pkcs7->keyWrapOID    = (testVectors + i)->keyWrapOID;
+            pkcs7->keyAgreeOID   = (testVectors + i)->keyAgreeOID;
+            pkcs7->privateKey    = (testVectors + i)->privateKey;
+            pkcs7->privateKeySz  = (testVectors + i)->privateKeySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
+
+        ExpectIntGE(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output)), 0);
+
+        decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+            (word32)encodedSz, decoded, (word32)sizeof(decoded));
+        ExpectIntGE(decodedSz, 0);
+        /* Verify the size of each buffer. */
+        ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    #endif
+
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (testVectors + i)->cert,
                                     (word32)(testVectors + i)->certSz), 0);
         if (pkcs7 != NULL) {
@@ -28170,6 +28249,11 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->privateKeySz  = (testVectors + i)->privateKeySz;
         }
 
+    #ifdef ASN_BER_TO_DER
+        /* test without setting stream mode */
+        ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 0);
+    #endif
+
         ExpectIntGE(wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
             (word32)sizeof(output)), 0);
 
@@ -28178,6 +28262,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         ExpectIntGE(decodedSz, 0);
         /* Verify the size of each buffer. */
         ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+
         /* Don't free the last time through the loop. */
         if (i < testSz - 1) {
             wc_PKCS7_Free(pkcs7);
@@ -28871,7 +28956,6 @@ static int test_wc_PKCS7_signed_enveloped(void)
 #ifdef HAVE_AES_CBC
     PKCS7* inner = NULL;
 #endif
-    void*  pt = NULL;
     WC_RNG rng;
     unsigned char key[FOURK_BUF/2];
     unsigned char cert[FOURK_BUF/2];
@@ -28958,17 +29042,13 @@ static int test_wc_PKCS7_signed_enveloped(void)
         pkcs7->rng = &rng;
     }
 
-    /* Set no certs in bundle for this test. Hang on to the pointer though to
-     * free it later. */
+    /* Set no certs in bundle for this test. */
     if (pkcs7 != NULL) {
-        pt = (void*)pkcs7->certList;
-        pkcs7->certList = NULL; /* no certs in bundle */
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(NULL, 1), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_PKCS7_GetNoCerts(pkcs7), 1);
     }
     ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
-    if (pkcs7 != NULL) {
-        /* restore pointer for PKCS7 free call */
-        pkcs7->certList = (Pkcs7Cert*)pt;
-    }
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 

@@ -1836,7 +1836,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
 
     /* rewind index and set tag and length */
     tmpIdx -= MAX_LENGTH_SZ + 1;
-    sz = (word32)SetExplicit(0, (word32)ret, out + tmpIdx);
+    sz = (word32)SetExplicit(0, (word32)ret, out + tmpIdx, 0);
     tmpIdx += sz; totalSz += sz;
     XMEMMOVE(out + tmpIdx, out + MAX_LENGTH_SZ + 1, (size_t)ret);
 
