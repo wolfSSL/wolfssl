@@ -281,7 +281,9 @@ static WC_INLINE void Sha256Transform(wc_Sha256* sha256, const byte* data,
     "CBZ w8, 2f \n"
 
     "#load in message and schedule updates \n"
-    "LD1 {v0.2d-v3.2d}, [%[dataIn]], #64   \n"
+    "#use byte arrangement as dataIn may \n"
+    "#no longer be aligned \n"
+    "LD1 {v0.16b-v3.16b}, [%[dataIn]], #64   \n"
     "MOV v14.16b, v12.16b \n"
     "MOV v15.16b, v13.16b \n"
     "REV32 v0.16b, v0.16b \n"
