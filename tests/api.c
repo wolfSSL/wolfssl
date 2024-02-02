@@ -47311,7 +47311,7 @@ static int test_wolfSSL_OPENSSL_hexstr2buf(void)
     long len = 0;
     unsigned char* returnedBuf = NULL;
 
-    for (i = 0; i < NUM_CASES && EXPECT_SUCCESS(); ++i) {
+    for (i = 0; i < NUM_CASES && !EXPECT_FAIL(); ++i) {
         returnedBuf = wolfSSL_OPENSSL_hexstr2buf(inputs[i], &len);
         if (returnedBuf == NULL) {
             ExpectIntEQ(expectedOutputs[i].ret, 0);
