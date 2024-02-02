@@ -65,8 +65,8 @@
           (int)_xatoi_res;                              \
         })
 
-    /* Kbuild+gcc on x86 doesn't consistently honor the default ALIGN16 on stack objects,
-     *   but gives adequate alignment with "32".
+    /* Kbuild+gcc on x86 doesn't consistently honor the default ALIGN16 on stack
+     * objects, but gives adequate alignment with "32".
      */
     #if defined(CONFIG_X86) && !defined(ALIGN16)
         #define ALIGN16 __attribute__ ( (aligned (32)))
@@ -119,8 +119,133 @@
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
     #include <linux/ctype.h>
+
+    #ifdef CONFIG_FORTIFY_SOURCE
+        #ifdef __PIE__
+            /* the inline definitions in fortify-string.h use non-inline
+             * fortify_panic().
+             */
+            extern void __my_fortify_panic(const char *name) __noreturn __cold;
+            #define fortify_panic __my_fortify_panic
+        #endif
+
+        /* the _FORTIFY_SOURCE macros and implementations for several string
+         * functions are incompatible with libwolfssl, so just reimplement with
+         * inlines and remap with macros.
+         */
+
+        #define __ARCH_STRLEN_NO_REDIRECT
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __ARCH_MEMSET_NO_REDIRECT
+        #define __ARCH_MEMMOVE_NO_REDIRECT
+
+        /* the inline definitions in fortify-string.h use non-inline
+         * strlen().
+         */
+        static inline size_t strlen(const char *s) {
+            const char *s_start = s;
+            while (*s)
+                ++s;
+            return (size_t)((uintptr_t)s - (uintptr_t)s_start);
+        }
+
+        #include <linux/string.h>
+
+        #undef strlen
+        #define strlen(s) \
+            ((__builtin_constant_p(s) && __builtin_constant_p(*(s))) ? \
+             (sizeof(s) - 1) : strlen(s))
+
+        static inline void *my_memcpy(void *dest, const void *src, size_t n) {
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
+                uintptr_t *src_longs = (uintptr_t *)src,
+                    *dest_longs = (uintptr_t *)dest,
+                    *endp = (uintptr_t *)((u8 *)src + n);
+                while (src_longs < endp)
+                    *dest_longs++ = *src_longs++;
+            } else {
+                u8 *src_bytes = (u8 *)src,
+                    *dest_bytes = (u8 *)dest,
+                    *endp = src_bytes + n;
+                while (src_bytes < endp)
+                    *dest_bytes++ = *src_bytes++;
+            }
+            return dest;
+        }
+        #undef memcpy
+        #define memcpy my_memcpy
+
+        static inline void *my_memset(void *dest, int c, size_t n) {
+            if (! (((uintptr_t)dest | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
+                uintptr_t c_long = __builtin_choose_expr(
+                    sizeof(uintptr_t) == 8,
+                    (uintptr_t)(u8)c * 0x0101010101010101UL,
+                    (uintptr_t)(u8)c * 0x01010101U
+                    );
+                uintptr_t *dest_longs = (uintptr_t *)dest,
+                    *endp = (uintptr_t *)((u8 *)dest_longs + n);
+                while (dest_longs < endp)
+                    *dest_longs++ = c_long;
+            } else {
+                u8 *dest_bytes = (u8 *)dest, *endp = dest_bytes + n;
+                while (dest_bytes < endp)
+                    *dest_bytes++ = (u8)c;
+            }
+            return dest;
+        }
+        #undef memset
+        #define memset my_memset
+
+        static inline void *my_memmove(void *dest, const void *src, size_t n) {
+            if (! (((uintptr_t)dest | (uintptr_t)src | (uintptr_t)n)
+                   & (uintptr_t)(sizeof(uintptr_t) - 1)))
+            {
+                uintptr_t *src_longs = (uintptr_t *)src,
+                    *dest_longs = (uintptr_t *)dest;
+                n >>= __builtin_choose_expr(
+                    sizeof(uintptr_t) == 8,
+                    3U,
+                    2U);
+                if (src_longs < dest_longs) {
+                    uintptr_t *startp = src_longs;
+                    src_longs += n - 1;
+                    dest_longs += n - 1;
+                    while (src_longs >= startp)
+                        *dest_longs-- = *src_longs--;
+                } else if (src_longs > dest_longs) {
+                    uintptr_t *endp = src_longs + n;
+                    while (src_longs < endp)
+                        *dest_longs++ = *src_longs++;
+                }
+            } else {
+                u8 *src_bytes = (u8 *)src, *dest_bytes = (u8 *)dest;
+                if (src_bytes < dest_bytes) {
+                    u8 *startp = src_bytes;
+                    src_bytes += n - 1;
+                    dest_bytes += n - 1;
+                    while (src_bytes >= startp)
+                        *dest_bytes-- = *src_bytes--;
+                } else if (src_bytes > dest_bytes) {
+                    u8 *endp = src_bytes + n;
+                    while (src_bytes < endp)
+                        *dest_bytes++ = *src_bytes++;
+                }
+            }
+            return dest;
+        }
+        #undef memmove
+        #define memmove my_memmove
+
+    #endif /* CONFIG_FORTIFY_SOURCE */
+
     #include <linux/init.h>
     #include <linux/module.h>
+    #include <linux/delay.h>
+
     #ifdef __PIE__
         /* without this, mm.h brings in static, but not inline, pmd_to_page(),
          * with direct references to global vmem variables.
@@ -146,7 +271,33 @@
     #include <linux/net.h>
     #include <linux/slab.h>
 
-    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_SP_X86_64_ASM)
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #include <linux/crypto.h>
+        #include <linux/scatterlist.h>
+        #include <crypto/scatterwalk.h>
+        #include <crypto/internal/aead.h>
+        #include <crypto/internal/skcipher.h>
+
+        /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
+         * loaded simultaneously, and the Linux in-tree implementations have two
+         * AES key structs in each context, one for each direction.  in
+         * linuxkm/lkcapi_glue.c (used for CBC, CFB, and GCM), we do the same
+         * thing with "struct km_AesCtx".  however, wolfCrypt struct AesXts
+         * already has two AES expanded keys, the main and tweak, and the tweak
+         * is always used in the encrypt direction regardless of the main
+         * direction.  to avoid allocating and computing a duplicate second
+         * tweak encrypt key, we set
+         * WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS, which adds a second
+         * Aes slot to wolfCrypt's struct AesXts, and activates support for
+         * AES_ENCRYPTION_AND_DECRYPTION on AES-XTS.
+         */
+        #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #endif
+    #endif
+
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
+        defined(WOLFSSL_SP_X86_64_ASM)
         #ifndef CONFIG_X86
             #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
         #endif
@@ -172,20 +323,38 @@
         #endif
     #endif
 
-    /* benchmarks.c uses floating point math, so needs a working SAVE_VECTOR_REGISTERS(). */
-    #if defined(WOLFSSL_LINUXKM_BENCHMARKS) && !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+    /* benchmarks.c uses floating point math, so needs a working
+     * SAVE_VECTOR_REGISTERS().
+     */
+    #if defined(WOLFSSL_LINUXKM_BENCHMARKS) && \
+        !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
     #endif
 
-    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
+        defined(CONFIG_X86)
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+            #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
+                int _svr_ret = save_vector_registers_x86(); \
+                if (_svr_ret != 0) {                        \
+                    fail_clause                             \
+                }                                           \
+            }
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define SAVE_VECTOR_REGISTERS2() ({                    \
+                    int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
+                    (_fuzzer_ret == 0) ?                               \
+                     save_vector_registers_x86() :                     \
+                     _fuzzer_ret;                                      \
+                })
+            #else
+                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+            #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -291,6 +460,11 @@
         #else
             typeof(printk) *printk;
         #endif
+
+#ifdef CONFIG_FORTIFY_SOURCE
+        typeof(__warn_printk) *__warn_printk;
+#endif
+
         typeof(snprintf) *snprintf;
 
         const unsigned char *_ctype;
@@ -434,6 +608,11 @@
     #else
         #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
     #endif
+
+    #ifdef CONFIG_FORTIFY_SOURCE
+        #define __warn_printk (wolfssl_linuxkm_get_pie_redirect_table()->__warn_printk)
+    #endif
+
     #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
@@ -643,8 +822,9 @@
         #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_KERNEL)
     #endif
 
-#ifdef WOLFSSL_TRACK_MEMORY
     #include <wolfssl/wolfcrypt/memory.h>
+
+#ifdef WOLFSSL_TRACK_MEMORY
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
     #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
         #define XFREE(p, h, t)       ({(void)(h); (void)(t); wolfSSL_Free(p);})

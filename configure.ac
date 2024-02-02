@@ -745,7 +745,7 @@ then
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
-    test "$enable_xts" = "" && enable_xts=yes
+    test "$enable_aesxts" = "" && enable_aesxts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
@@ -933,7 +933,7 @@ then
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
-    test "$enable_xts" = "" && enable_xts=yes
+    test "$enable_aesxts" = "" && enable_aesxts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
@@ -4836,17 +4836,23 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes"],
 
 
 # AES-XTS
-AC_ARG_ENABLE([xts],
-    [AS_HELP_STRING([--enable-xts],[Enable XTS (default: disabled)])],
-    [ ENABLED_XTS=$enableval ],
-    [ ENABLED_XTS=no ]
+AC_ARG_ENABLE([aesxts],
+    [AS_HELP_STRING([--enable-aesxts],[Enable AES XTS (default: disabled)])],
+    [ ENABLED_AESXTS=$enableval ],
+    [ ENABLED_AESXTS=no ]
     )
 
-AS_IF([test "x$ENABLED_XTS" = "xyes"],
+# legacy old option name, for compatibility:
+AC_ARG_ENABLE([xts],
+    [AS_HELP_STRING([--enable-xts],[Please use --enable-aesxts])],
+    [ ENABLED_AESXTS=$enableval ]
+    )
+
+AS_IF([test "x$ENABLED_AESXTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
-AS_IF([test "x$ENABLED_XTS" = "xyes" && test "x$ENABLED_INTELASM" = "xyes"],
+AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_INTELASM" = "xyes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
-AS_IF([test "x$ENABLED_XTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
+AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
 
 # Web Server Build
@@ -8028,6 +8034,37 @@ if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
    fi
 fi
 
+AC_ARG_ENABLE([linuxkm-lkcapi-register],
+    [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.  Possible values are "none", "all", "cbc(aes)", "cfb(aes)", "gcm(aes)", and "xts(aes)", or a comma-separate combination. (default: none)])],
+    [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
+    [ENABLED_LINUXKM_LKCAPI_REGISTER=none]
+    )
+if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" != "none"
+then
+    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER"
+
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$ENABLED_AESNI" = "no" && test "$ENABLED_ARMASM" = "no" && test "$ENABLED_FIPS" = "no"; then
+        ENABLED_AESGCM_STREAM=yes
+    fi
+
+    for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
+    do
+        case "$lkcapi_alg" in
+        all) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL"           ;;
+        'cbc(aes)') test "$ENABLED_AESCBC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CBC implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCBC" ;;
+        'cfb(aes)') test "$ENABLED_AESCFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CFB implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCFB" ;;
+        'gcm(aes)') test "$ENABLED_AESGCM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-GCM implementation not enabled.])
+                    test "$ENABLED_AESGCM_STREAM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: --enable-aesgcm-stream is required for LKCAPI.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESGCM" ;;
+        'xts(aes)') test "$ENABLED_AESXTS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-XTS implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESXTS" ;;
+        *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
+        esac
+    done
+fi
+
 # Library Suffix
 LIBSUFFIX=""
 AC_ARG_WITH([libsuffix],
@@ -8958,7 +8995,7 @@ AM_CONDITIONAL([BUILD_SNIFFER],  [ test "x$ENABLED_SNIFFER"   = "xyes" || test "
 AM_CONDITIONAL([BUILD_SNIFFTEST],[ test "x$ENABLED_SNIFFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_XTS],[test "x$ENABLED_XTS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_AESXTS],[test "x$ENABLED_AESXTS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
@@ -9397,6 +9434,7 @@ echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * AES-OFB:                    $ENABLED_AESOFB"
+echo "   * AES-XTS:                    $ENABLED_AESXTS"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"

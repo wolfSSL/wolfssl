@@ -2771,6 +2771,7 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_TEST_SUBROUTINE
         #define WOLFSSL_TEST_SUBROUTINE static
     #endif
+    #undef HAVE_PTHREAD
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS

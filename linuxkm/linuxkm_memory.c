@@ -275,7 +275,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
 {
     struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(1);
     if (pstate == NULL)
-        return ENOMEM;
+        return MEMORY_E;
 
     /* allow for nested calls */
     if (pstate->fpu_state != 0U) {
@@ -314,7 +314,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         if (! warned_fpu_forbidden)
             pr_err("save_vector_registers_x86 called from IRQ handler.\n");
         wc_linuxkm_fpu_state_release(pstate);
-        return EPERM;
+        return BAD_STATE_E;
     } else {
 #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
@@ -378,5 +378,13 @@ void my__show_free_areas(
     (void)nodemask;
     (void)max_zone_idx;
     return;
+}
+#endif
+
+#if defined(__PIE__) && defined(CONFIG_FORTIFY_SOURCE)
+/* needed because FORTIFY_SOURCE inline implementations call fortify_panic(). */
+void __my_fortify_panic(const char *name) {
+    pr_emerg("__my_fortify_panic in %s\n", name);
+    BUG();
 }
 #endif

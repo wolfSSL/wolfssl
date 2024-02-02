@@ -32,6 +32,10 @@ WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -is
 
 ifeq "$(KERNEL_ARCH)" "x86"
     WOLFSSL_CFLAGS += -mpreferred-stack-boundary=4
+else ifeq "$(KERNEL_ARCH)" "aarch64"
+    WOLFSSL_CFLAGS += -mno-outline-atomics
+else ifeq "$(KERNEL_ARCH)" "arm64"
+    WOLFSSL_CFLAGS += -mno-outline-atomics
 endif
 
 obj-m := libwolfssl.o
@@ -47,9 +51,14 @@ $(obj)/linuxkm/module_exports.o: $(WOLFSSL_OBJ_TARGETS)
 # this mechanism only works in kernel 5.x+ (fallback to hardcoded value)
 hostprogs := linuxkm/get_thread_size
 always-y := $(hostprogs)
+
+HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer
+
 # "-mindirect-branch=keep -mfunction-return=keep" to avoid "undefined reference
 #  to `__x86_return_thunk'" on CONFIG_RETHUNK kernels (5.19.0-rc7)
-HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer -mindirect-branch=keep -mfunction-return=keep
+ifeq "$(KERNEL_ARCH)" "x86"
+  HOST_EXTRACFLAGS += -mindirect-branch=keep -mfunction-return=keep
+endif
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
@@ -149,10 +158,10 @@ ifneq "$(quiet)" "silent_"
 endif
 	@cd "$(obj)" || exit $$?; \
 	for file in $(WOLFCRYPT_PIE_FILES); do \
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?; \
 	done
 ifneq "$(quiet)" "silent_"
-	@echo '  wolfCrypt .{text,data} sections containerized to .{text,data}.wolfcrypt'
+	@echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif
 
 $(src)/linuxkm/module_exports.c: rename-pie-text-and-data-sections

@@ -267,6 +267,13 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         ((void)(CipherLifecycleTag), (void)(heap), (void)(abort_p), 0)
 #endif
 
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void);
+    #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
+        #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
+    #endif
+#endif
+
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
     WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
     WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
@@ -320,11 +327,6 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
     } while (0)
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
-        #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
-    #endif
-        WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void);
-
     #define SAVE_VECTOR_REGISTERS2(...) ({                          \
         int _svr2_val = SAVE_VECTOR_REGISTERS2_fuzzer();            \
         if (_svr2_val == 0) {                                       \
