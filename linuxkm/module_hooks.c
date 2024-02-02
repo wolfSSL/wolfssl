@@ -760,11 +760,19 @@ static int updateFipsHash(void)
         }
     }
 
-    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0)
+    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0) {
+#if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        pr_info("updateFipsHash: verifyCore already matches [%s]\n", verifyCore);
+#else
         pr_info("updateFipsHash: verifyCore already matches.\n");
-    else {
+#endif
+    } else {
         XMEMCPY(verifyCore, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
+#if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        pr_info("updateFipsHash: verifyCore updated [%s].\n", base16_hash);
+#else
         pr_info("updateFipsHash: verifyCore updated.\n");
+#endif
     }
 
     ret = 0;

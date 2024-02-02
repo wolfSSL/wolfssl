@@ -8042,6 +8042,11 @@ AC_ARG_ENABLE([linuxkm-lkcapi-register],
 if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" != "none"
 then
     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER"
+
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$ENABLED_AESNI" = "no" && test "$ENABLED_ARMASM" = "no" && test "$ENABLED_FIPS" = "no"; then
+        ENABLED_AESGCM_STREAM=yes
+    fi
+
     for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
     do
         case "$lkcapi_alg" in
