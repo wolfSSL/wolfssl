@@ -3465,20 +3465,21 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
 
 /* sets the terminating 0x00 0x00 at the end of an indefinite length
  * returns the number of bytes written */
-word32 SetIndefEnd(byte* in)
+word32 SetIndefEnd(byte* output)
 {
-    byte terminate[] = { 0x00, 0x00 };
+    byte terminate[ASN_INDEF_END_SZ] = { 0x00, 0x00 };
 
-    if (in != NULL) {
-        XMEMCPY(in, terminate, 2);
+    if (output != NULL) {
+        XMEMCPY(output, terminate, ASN_INDEF_END_SZ);
     }
-    return 2;
+
+    return (word32)ASN_INDEF_END_SZ;
 }
 
 
 /* Breaks an octet string up into chunks for use with streaming
  * returns 0 on success and updates idx */
-int StreamOctetString(const byte* in, word32 inSz, byte* out, word32* outSz,
+int StreamOctetString(const byte* inBuf, word32 inBufSz, byte* out, word32* outSz,
     word32* idx)
 {
     word32 i  = 0;
@@ -3487,13 +3488,13 @@ int StreamOctetString(const byte* in, word32 inSz, byte* out, word32* outSz,
 
     if (tmp) tmp += outIdx;
 
-    while (i < inSz) {
-        int ret, sz;
+    while (i < inBufSz) {
+        word32 ret, sz;
 
         sz = BER_OCTET_LENGTH;
 
-        if ((sz + i) > inSz) {
-            sz = inSz - i;
+        if ((sz + i) > inBufSz) {
+            sz = inBufSz - i;
         }
 
         ret = SetOctetString(sz, tmp);
@@ -3502,10 +3503,10 @@ int StreamOctetString(const byte* in, word32 inSz, byte* out, word32* outSz,
         }
 
         if (tmp) {
-            if (ret + sz + i + outIdx > *outSz) {
+            if ((word32)ret + sz + i + outIdx > *outSz) {
                 return BUFFER_E;
             }
-            XMEMCPY(tmp + ret, in + i, sz);
+            XMEMCPY(tmp + ret, inBuf + i, sz);
             tmp += sz + ret;
         }
         outIdx += sz;
