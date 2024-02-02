@@ -804,10 +804,10 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         }
 
         ret = idx < ((1ULL << params->full_height) - 1);
-    }
 
-    /* Force zero the secret key from memory always. */
-    ForceZero(key->sk, key->sk_len);
+        /* Force zero the secret key from memory always. */
+        ForceZero(key->sk, key->sk_len);
+    }
 
     return ret;
 }
