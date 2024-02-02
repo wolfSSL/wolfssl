@@ -1582,6 +1582,18 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMCPY(&dup->version, &ssl->version, sizeof(ProtocolVersion));
     XMEMCPY(&dup->chVersion, &ssl->chVersion, sizeof(ProtocolVersion));
 
+#ifdef HAVE_ONE_TIME_AUTH
+#ifdef HAVE_POLY1305
+    if (ssl->auth.setup && ssl->auth.poly1305 != NULL) {
+        dup->auth.poly1305 =
+            (Poly1305*)XMALLOC(sizeof(Poly1305), dup->heap, DYNAMIC_TYPE_CIPHER);
+        if (dup->auth.poly1305 == NULL)
+            return MEMORY_E;
+        dup->auth.setup = 1;
+    }
+#endif
+#endif
+
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
 
