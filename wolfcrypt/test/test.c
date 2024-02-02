@@ -44708,7 +44708,7 @@ static wc_test_ret_t mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
     char str[30];
     WOLFSSL_SMALL_STACK_STATIC const char* badStr1 = "A";
     WOLFSSL_SMALL_STACK_STATIC const char* badStr2 = "a";
-    WOLFSSL_SMALL_STACK_STATIC const char* badStr3 = " ";
+    WOLFSSL_SMALL_STACK_STATIC const char* empty2 = " ";
     WOLFSSL_SMALL_STACK_STATIC const char* zeros = "000";
     WOLFSSL_SMALL_STACK_STATIC const char* empty = "";
 
@@ -44740,8 +44740,8 @@ static wc_test_ret_t mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
     ret = mp_read_radix(r, badStr2, MP_RADIX_DEC);
     if (ret != MP_VAL)
         return WC_TEST_RET_ENC_EC(ret);
-    ret = mp_read_radix(r, badStr3, MP_RADIX_DEC);
-    if (ret != MP_VAL)
+    ret = mp_read_radix(r, empty2, MP_RADIX_DEC);
+    if (ret != MP_OKAY)
         return WC_TEST_RET_ENC_EC(ret);
 
     ret = mp_read_radix(r, zeros, MP_RADIX_DEC);
@@ -44788,7 +44788,7 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
 #if defined(WOLFSSL_SP_MATH) || defined(USE_FAST_MATH)
     static char longStr[2 * sizeof(a->dp) + 2];
 #endif
-    WOLFSSL_SMALL_STACK_STATIC const char* badStr1 = " ";
+    WOLFSSL_SMALL_STACK_STATIC const char* empty2 = " ";
     WOLFSSL_SMALL_STACK_STATIC const char* badStr2 = "}";
     WOLFSSL_SMALL_STACK_STATIC const char* empty = "";
 
@@ -44808,8 +44808,8 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
         }
     }
 
-    ret = mp_read_radix(r, badStr1, MP_RADIX_HEX);
-    if (ret != MP_VAL)
+    ret = mp_read_radix(r, empty2, MP_RADIX_HEX);
+    if (ret != MP_OKAY)
         return WC_TEST_RET_ENC_EC(ret);
     ret = mp_read_radix(r, badStr2, MP_RADIX_HEX);
     if (ret != MP_VAL)
