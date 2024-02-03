@@ -21,8 +21,13 @@
 
 /* Example for TLS v1.2 client only, ECC only, AES GCM only, SHA2-256 only */
 /* Derived using:
- * ./configure --disable-rsa --disable-dh --disable-tls13 --disable-chacha --disable-poly1305 --disable-sha224 --disable-sha --disable-md5
- * And generated wolfssl/options.h
+ * ./configure --disable-rsa --disable-dh --disable-tls13 --disable-chacha \
+ *     --disable-poly1305 --disable-sha224 --disable-sha --disable-md5
+ * From generated wolfssl/options.h
+ * Build and Test using:
+ * ./configure --enable-usersettings --disable-examples
+ * make
+ * ./wolfcrypt/test/testwolfcrypt
  */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
@@ -35,7 +40,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
-#define WOLFSSL_USER_IO /* Use the SetIO callbacks, not the internal wolfio.c socket code */
+/* Use the SetIO callbacks, not the internal wolfio.c socket code */
+#define WOLFSSL_USER_IO
 #define WOLFSSL_IGNORE_FILE_WARN /* ignore file includes not required */
 //#define WOLFSSL_SMALL_STACK /* option to reduce stack size, offload to heap */
 #define NO_FILESYSTEM
