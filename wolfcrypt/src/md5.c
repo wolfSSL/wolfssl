@@ -461,7 +461,9 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 
     /* pad with zeros */
     if (md5->buffLen > WC_MD5_PAD_SIZE) {
-        XMEMSET(&local[md5->buffLen], 0, WC_MD5_BLOCK_SIZE - md5->buffLen);
+        if (md5->buffLen < WC_MD5_BLOCK_SIZE) {
+            XMEMSET(&local[md5->buffLen], 0, WC_MD5_BLOCK_SIZE - md5->buffLen);
+        }
         md5->buffLen += WC_MD5_BLOCK_SIZE - md5->buffLen;
 
 #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
