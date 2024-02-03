@@ -5358,6 +5358,9 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
     ++str;
   }
 
+  /* Skip whitespace at end of str */
+  while (CharIsWhiteSpace(*str))
+    ++str;
   /* if digit in isn't null term, then invalid character was found */
   if (*str != '\0') {
      mp_zero (a);

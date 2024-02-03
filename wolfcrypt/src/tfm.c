@@ -5945,6 +5945,8 @@ static int fp_read_radix_16(fp_int *a, const char *str)
 {
   int     i, j, k, neg;
   int     ch;
+  /* Skip whitespace at end of line */
+  int     eol_done = 0;
 
   /* if the leading digit is a
    * minus set the sign to negative.
@@ -5961,8 +5963,11 @@ static int fp_read_radix_16(fp_int *a, const char *str)
   for (i = (int)(XSTRLEN(str) - 1); i >= 0; i--) {
       ch = (int)HexCharToByte(str[i]);
       if (ch < 0) {
+        if (!eol_done && CharIsWhiteSpace(str[i]))
+          continue;
         return FP_VAL;
       }
+      eol_done = 1;
 
       k += j == DIGIT_BIT;
       j &= DIGIT_BIT - 1;
@@ -6024,7 +6029,13 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
       }
     }
     if (y >= radix) {
-      return FP_VAL;
+      /* Check if whitespace at end of line */
+      while (CharIsWhiteSpace(*str))
+        ++str;
+      if (*str)
+        return FP_VAL;
+      else
+        break;
     }
 
     /* if the char was found in the map

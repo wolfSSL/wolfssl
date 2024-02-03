@@ -114,6 +114,7 @@ word32 btoi(byte b);
 WOLFSSL_LOCAL signed char HexCharToByte(char ch);
 WOLFSSL_LOCAL char ByteToHex(byte in);
 WOLFSSL_LOCAL int  ByteToHexStr(byte in, char* out);
+WOLFSSL_LOCAL int CharIsWhiteSpace(char ch);
 
 WOLFSSL_LOCAL byte ctMaskGT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskGTE(int a, int b);

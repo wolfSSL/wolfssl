@@ -5033,15 +5033,19 @@ int wolfSSL_DSA_set0_key(WOLFSSL_DSA *d, WOLFSSL_BIGNUM *pub_key,
     WOLFSSL_ENTER("wolfSSL_DSA_set0_key");
 
     /* The private key may be NULL */
-    if (pub_key == NULL) {
+    if (d->pub_key == NULL && pub_key == NULL) {
         WOLFSSL_MSG("Bad parameter");
         return 0;
     }
 
-    wolfSSL_BN_free(d->pub_key);
-    wolfSSL_BN_free(d->priv_key);
-    d->pub_key = pub_key;
-    d->priv_key = priv_key;
+    if (pub_key != NULL) {
+        wolfSSL_BN_free(d->pub_key);
+        d->pub_key = pub_key;
+    }
+    if (priv_key != NULL) {
+        wolfSSL_BN_free(d->priv_key);
+        d->priv_key = priv_key;
+    }
 
     return 1;
 }

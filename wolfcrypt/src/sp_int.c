@@ -18068,6 +18068,8 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
     unsigned int s = 0;
     unsigned int j = 0;
     sp_int_digit d;
+    /* Skip whitespace at end of line */
+    int eol_done = 0;
 
     /* Make all nibbles in digit 0. */
     d = 0;
@@ -18078,9 +18080,12 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
         int ch = (int)HexCharToByte(in[i]);
         /* Check for invalid character. */
         if (ch < 0) {
+            if (!eol_done && CharIsWhiteSpace(in[i]))
+                continue;
             err = MP_VAL;
             break;
         }
+        eol_done = 1;
 
         /* Check whether we have filled the digit. */
         if (s == SP_WORD_SIZE) {
@@ -18150,6 +18155,8 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
             ch -= '0';
         }
         else {
+            if (CharIsWhiteSpace(ch))
+                continue;
             /* Return error on invalid character. */
             err = MP_VAL;
             break;
