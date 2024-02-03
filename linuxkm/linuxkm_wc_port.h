@@ -292,7 +292,7 @@
          * AES_ENCRYPTION_AND_DECRYPTION on AES-XTS.
          */
         #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-        #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #endif
     #endif
 
@@ -822,6 +822,11 @@
         #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_KERNEL)
     #endif
 
+    #ifndef static_assert
+        #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
+        #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
+    #endif
+
     #include <wolfssl/wolfcrypt/memory.h>
 
 #ifdef WOLFSSL_TRACK_MEMORY
@@ -848,7 +853,7 @@
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
     #if BITS_PER_LONG == 64
-        _Static_assert(sizeof(ULONG_MAX) == 8,
+        static_assert(sizeof(ULONG_MAX) == 8,
                        "BITS_PER_LONG is 64, but ULONG_MAX is not.");
 
         #undef UCHAR_MAX
@@ -870,7 +875,7 @@
 
     #elif BITS_PER_LONG == 32
 
-        _Static_assert(sizeof(ULONG_MAX) == 4,
+        static_assert(sizeof(ULONG_MAX) == 4,
                        "BITS_PER_LONG is 32, but ULONG_MAX is not.");
 
         #undef UCHAR_MAX
