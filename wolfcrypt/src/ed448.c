@@ -25,6 +25,11 @@
  * Reworked for curve448 by Sean Parkinson.
  */
 
+/* Possible Ed448 enable options:
+ *   WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN                               Default: OFF
+ *     Check that the private key didn't change during the signing operations.
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -279,6 +284,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     byte     hram[ED448_SIG_SIZE];
     byte     az[ED448_PRV_KEY_SIZE];
     int      ret = 0;
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    byte     orig_k[ED448_KEY_SIZE];
+#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL) ||
@@ -297,6 +305,10 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     if (ret == 0) {
         *outLen = ED448_SIG_SIZE;
+
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+        XMEMCPY(orig_k, key->k, ED448_KEY_SIZE);
+#endif
 
         /* step 1: create nonce to use where nonce is r in
            r = H(h_b, ... ,h_2b-1,M) */
@@ -390,6 +402,17 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         sc448_reduce(hram);
         sc448_muladd(out + (ED448_SIG_SIZE/2), hram, az, nonce);
     }
+
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    if (ret == 0) {
+        int  i;
+        byte c = 0;
+        for (i = 0; i < ED448_KEY_SIZE; i++) {
+            c |= key->k[i] ^ orig_k[i];
+        }
+        ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
+    }
+#endif
 
     return ret;
 }
