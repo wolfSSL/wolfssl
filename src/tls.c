@@ -7658,6 +7658,13 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     word32 privSz = 0;
     word32 pubSz = 0;
 
+    /* This gets called twice. Once during parsing of the key share and once
+     * during the population of the extension. No need to do work the second
+     * time. Just return success if its already been done. */
+    if (kse->pubKey != NULL) {
+        return ret;
+    }
+
     findEccPqc(&ecc_group, &oqs_group, kse->group);
     ret = kyber_id2type(oqs_group, &type);
     if (ret == NOT_COMPILED_IN) {
@@ -7735,10 +7742,11 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Note we are saving the OQS private key and ECC private key
          * separately. That's because the ECC private key is not simply a
-         * buffer. Its is an ecc_key struct.
-         */
+         * buffer. Its is an ecc_key struct. Typically do not need the private
+         * key size, but will need to zero it out upon freeing. */
         kse->privKey = privKey;
         privKey = NULL;
+        kse->privKeyLen = privSz;
 
         kse->key = ecc_kse->key;
         ecc_kse->key = NULL;
@@ -7814,9 +7822,19 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
         }
 #ifdef HAVE_PQC
-        else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group) &&
-                 current->key != NULL) {
-            ForceZero((byte*)current->key, current->keyLen);
+        else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group)) {
+            if (current->key != NULL) {
+                ForceZero((byte*)current->key, current->keyLen);
+            }
+            if (current->pubKey != NULL) {
+                XFREE(current->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                current->pubKey = NULL;
+            }
+            if (current->privKey != NULL) {
+                ForceZero(current->privKey, current->privKeyLen);
+                XFREE(current->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+                current->privKey = NULL;
+            }
         }
 #endif
         else {
