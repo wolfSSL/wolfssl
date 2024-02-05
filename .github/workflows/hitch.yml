@@ -19,7 +19,7 @@ jobs:
           install: true
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wolf-install-hitch
           path: build-dir
@@ -41,13 +41,13 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wolf-install-hitch
           path: build-dir
 
       - name: Checkout OSP
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
@@ -59,7 +59,7 @@ jobs:
             sudo apt-get install -y libev-dev libssl-dev automake python3-docutils flex bison pkg-config make
 
       - name: Checkout hitch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: varnish/hitch
           ref: 1.7.3
