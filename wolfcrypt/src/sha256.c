@@ -1321,8 +1321,11 @@ static int InitSha256(wc_Sha256* sha256)
 
         /* pad with zeros */
         if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
-            XMEMSET(&local[sha256->buffLen], 0,
-                WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+            if (sha256->buffLen < WC_SHA256_BLOCK_SIZE) {
+                XMEMSET(&local[sha256->buffLen], 0,
+                    WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+            }
+
             sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
 
         #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \

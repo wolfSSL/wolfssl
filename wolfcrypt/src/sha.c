@@ -841,7 +841,10 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 
     /* pad with zeros */
     if (sha->buffLen > WC_SHA_PAD_SIZE) {
-        XMEMSET(&local[sha->buffLen], 0, WC_SHA_BLOCK_SIZE - sha->buffLen);
+        if (sha->buffLen < WC_SHA_BLOCK_SIZE) {
+            XMEMSET(&local[sha->buffLen], 0, WC_SHA_BLOCK_SIZE - sha->buffLen);
+        }
+
         sha->buffLen += WC_SHA_BLOCK_SIZE - sha->buffLen;
 
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
