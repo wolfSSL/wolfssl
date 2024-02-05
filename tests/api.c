@@ -68547,6 +68547,81 @@ static int test_dtls_dropped_ccs(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
+    && !defined(WOLFSSL_NO_TLS12)
+static int test_dtls_seq_num_downgrade_check_num(byte* ioBuf, int ioBufLen,
+        byte seq_num)
+{
+    EXPECT_DECLS;
+    DtlsRecordLayerHeader* dtlsRH;
+    byte sequence_number[8];
+
+    XMEMSET(&sequence_number, 0, sizeof(sequence_number));
+
+    ExpectIntGE(ioBufLen, sizeof(*dtlsRH));
+    dtlsRH = (DtlsRecordLayerHeader*)ioBuf;
+    ExpectIntEQ(dtlsRH->type, handshake);
+    ExpectIntEQ(dtlsRH->pvMajor, DTLS_MAJOR);
+    ExpectIntEQ(dtlsRH->pvMinor, DTLSv1_2_MINOR);
+    sequence_number[7] = seq_num;
+    ExpectIntEQ(XMEMCMP(sequence_number, dtlsRH->sequence_number,
+            sizeof(sequence_number)), 0);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * Make sure that we send the correct sequence number after a HelloVerifyRequest
+ * and after a HelloRetryRequest. This is testing the server side as it is
+ * operating statelessly and should copy the sequence number of the ClientHello.
+ */
+static int test_dtls_seq_num_downgrade(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) \
+    && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLS_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls_seq_num_downgrade_check_num(test_ctx.s_buff,
+            test_ctx.s_len, 0), TEST_SUCCESS);
+    /* HVR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls_seq_num_downgrade_check_num(test_ctx.c_buff,
+            test_ctx.c_len, 0), TEST_SUCCESS);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls_seq_num_downgrade_check_num(test_ctx.s_buff,
+            test_ctx.s_len, 1), TEST_SUCCESS);
+    /* Server first flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_dtls_seq_num_downgrade_check_num(test_ctx.c_buff,
+            test_ctx.c_len, 1), TEST_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /**
  * Make sure we don't send RSA Signature Hash Algorithms in the
  * CertificateRequest when we don't have any such ciphers set.
@@ -70649,6 +70724,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_client_hello_timeout_downgrade),
     TEST_DECL(test_dtls_client_hello_timeout),
     TEST_DECL(test_dtls_dropped_ccs),
+    TEST_DECL(test_dtls_seq_num_downgrade),
     TEST_DECL(test_certreq_sighash_algos),
     TEST_DECL(test_revoked_loaded_int_cert),
     TEST_DECL(test_dtls_frag_ch),
