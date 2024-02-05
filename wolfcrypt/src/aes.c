@@ -12356,32 +12356,35 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
          * conflicting _aesni status, but the AES-XTS asm implementations need
          * them to all be AESNI.  If any aren't, disable AESNI on all.
          */
-        if ((((dir == AES_ENCRYPTION)
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-              || (dir == AES_ENCRYPTION_AND_DECRYPTION)
-#endif
-             ) &&
-             (aes->aes.use_aesni != aes->tweak.use_aesni))
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        if ((((dir == AES_ENCRYPTION) ||
+              (dir == AES_ENCRYPTION_AND_DECRYPTION))
+             && (aes->aes.use_aesni != aes->tweak.use_aesni))
             ||
-            (((dir == AES_DECRYPTION)
-              || (dir == AES_ENCRYPTION_AND_DECRYPTION)) &&
-             (aes->aes_decrypt.use_aesni != aes->tweak.use_aesni))
-#endif
-            )
+            (((dir == AES_DECRYPTION) ||
+              (dir == AES_ENCRYPTION_AND_DECRYPTION))
+             && (aes->aes_decrypt.use_aesni != aes->tweak.use_aesni)))
         {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+        #ifdef WC_AES_C_DYNAMIC_FALLBACK
             aes->aes.use_aesni = 0;
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
             aes->aes_decrypt.use_aesni = 0;
-#endif
             aes->tweak.use_aesni = 0;
-#else
+        #else
             ret = SYSLIB_FAILED_E;
-#endif
+        #endif
         }
+    #else /* !WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS */
+        if (aes->aes.use_aesni != aes->tweak.use_aesni) {
+        #ifdef WC_AES_C_DYNAMIC_FALLBACK
+            aes->aes.use_aesni = 0;
+            aes->tweak.use_aesni = 0;
+        #else
+            ret = SYSLIB_FAILED_E;
+        #endif
+        }
+    #endif /* !WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS */
     }
-#endif
+#endif /* WOLFSSL_AESNI */
 
     return ret;
 }
