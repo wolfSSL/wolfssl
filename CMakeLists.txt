@@ -215,7 +215,7 @@ if(WOLFSSL_REPRODUCIBLE_BUILD)
     set(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -D <TARGET>")
 endif()
 
-add_option("WOLFSSL_INSTALL" "Create install target for WolfSSL project" "no" "yes;no")
+add_option("WOLFSSL_INSTALL" "Create install target for WolfSSL project" "yes" "yes;no")
 
 # Support for forcing 32-bit mode
 # TODO: detect platform from other options
