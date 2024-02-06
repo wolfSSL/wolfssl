@@ -1,0 +1,44 @@
+# command script for refresh.sh
+#
+# comments must be removed in calling script (e.g. cut -d'#' -f1)
+#
+# Do not edit this ./configure command:
+./configure
+#
+# Edit parameters as needed (example shown, set your own parameters and comments)
+#
+  ##
+  ## enabled features:
+  ##
+  --enable-sha                  # SHA required for TLS1.2 connect, beware of side-effect enable (e.g. old TLS)
+  --enable-stacksize=verbose
+  --enable-trackmemory=verbose
+  --enable-stacksize
+
+  ##
+  ## disabled features:
+  ##
+  --disable-inline              # when you don't want to inline functions
+  --disable-crypttests          # crypttests
+  --disable-crypttests-libs     # crypttests-libs
+  --disable-sha3                #
+  --disable-sha512
+  --disable-sha224
+  --disable-sha512
+  --disable-sha384
+  --disable-oldtls              # disable old TLS versions < 1.2 (default: enabled)
+  --disable-tlsv10              #
+  --disable-sslv3
+
+
+  ##
+  ## WPA
+  ##
+  --disable-wpas
+  --disable-wpas-dpp
+
+  ##
+  ## Debugging
+  ##
+  --disable-memtest             # memory testing: WOLFSSL_DEBUG_MEMORY    (not active unless defined)
+  --enable-errorstrings         # relatively little benefit to RAM either way
