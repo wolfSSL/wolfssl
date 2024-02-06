@@ -6002,10 +6002,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
        aren't under heavy load, basically allows 200 new sessions per minute
 
        SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
-       or systems where the default of nearly 3kB is too much RAM, this define
-       uses less than 500 bytes RAM
+       or systems where the default of is too much RAM.
+       SessionCache takes about 2K, ClientCache takes about 3Kbytes
+
+       MICRO_SESSION_CACHE only stores 1 session, good for embedded clients
+       or systems where memory is at a premium.
+       SessionCache takes about 400 bytes, ClientCache takes 576 bytes
 
        default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
+       SessionCache takes about 13K bytes, ClientCache takes 17K bytes
     */
     #if defined(TITAN_SESSION_CACHE)
         #define SESSIONS_PER_ROW 31
@@ -6025,6 +6030,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #elif defined(SMALL_SESSION_CACHE)
         #define SESSIONS_PER_ROW 2
         #define SESSION_ROWS 3
+    #elif defined(MICRO_SESSION_CACHE)
+        #define SESSIONS_PER_ROW 1
+        #define SESSION_ROWS 1
     #else
         #define SESSIONS_PER_ROW 3
         #define SESSION_ROWS 11
