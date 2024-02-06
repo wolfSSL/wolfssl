@@ -1384,9 +1384,8 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
     int    len;
     /* Current index into buffer. */
     word32 idx = *inOutIdx;
-    /* Initialize the end index at each depth to be the length. */
-    word32 endIdx[GET_ASN_MAX_DEPTH] = { length, length, length, length, length,
-                                         length, length };
+    /* Declare the end index array. */
+    word32 endIdx[GET_ASN_MAX_DEPTH];
     /* Set choices to -1 to indicate they haven't been seen or found. */
     signed char   choiceMet[GET_ASN_MAX_CHOICES] = { -1, -1 };
     /* Not matching a choice right now. */
@@ -1401,6 +1400,11 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
 #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
     WOLFSSL_ENTER("GetASN_Items");
 #endif
+
+    /* Set the end index at each depth to be the length. */
+    for (i=0; i<GET_ASN_MAX_DEPTH; i++) {
+        endIdx[i] = length;
+    }
 
     /* Start depth at first items depth. */
     minDepth = depth = asn[0].depth;
@@ -3014,7 +3018,7 @@ int GetMyVersion(const byte* input, word32* inOutIdx,
 #else
     ASNGetData dataASN[intASN_Length];
     int ret;
-    byte num;
+    byte num = 0;
 
     /* Clear dynamic data and set the version number variable. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
@@ -3081,7 +3085,7 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 #else
     ASNGetData dataASN[intASN_Length];
     int ret;
-    word32 num;
+    word32 num = 0;
 
     /* Clear dynamic data and set the 32-bit number variable. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
@@ -6827,7 +6831,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     DECL_ASNGETDATA(dataASN, pkcs8KeyASN_Length);
     int ret = 0;
     word32 oid = 9;
-    byte version;
+    byte version = 0;
     word32 idx;
 
     /* Check validity of parameters. */
@@ -8745,7 +8749,7 @@ exit_dc:
     int    version;
     word32 idx = 0;
     word32 pIdx = 0;
-    word32 iterations;
+    word32 iterations = 0;
     word32 keySz = 0;
     word32 saltSz = 0;
     word32 shaOid = 0;
@@ -19652,7 +19656,7 @@ enum {
 static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
                                     Base_entry** head, void* heap)
 {
-    Base_entry* entry;
+    Base_entry* entry = NULL;
     word32 nameIdx = 0;
     word32 len = sz;
     int strLen;
@@ -33178,7 +33182,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     return ret;
 #else
     DECL_ASNGETDATA(dataASN, eccKeyASN_Length);
-    byte version;
+    byte version = 0;
     int ret = 0;
     int curve_id = ECC_CURVE_DEF;
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
@@ -36210,7 +36214,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     int ret = 0;
     word32 idx = 0, size = resp->maxIdx;
     byte* source = resp->source;
-    byte status;
+    byte status = 0;
     byte* basic;
     word32 basicSz;
 
