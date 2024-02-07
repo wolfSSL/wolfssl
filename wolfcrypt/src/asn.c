@@ -3465,7 +3465,9 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
 
 #ifdef ASN_BER_TO_DER
 
-#define BER_OCTET_LENGTH 4096
+#ifndef BER_OCTET_LENGTH
+    #define BER_OCTET_LENGTH 4096
+#endif
 
 /* sets the terminating 0x00 0x00 at the end of an indefinite length
  * returns the number of bytes written */

@@ -27019,8 +27019,8 @@ static int test_wc_PKCS7_EncodeSignedData(void)
             pkcs7->rng = &rng;
         }
         ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 0);
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(NULL, 1), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(NULL, 1, NULL, NULL), BAD_FUNC_ARG);
         ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 1);
 
         ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, output,
@@ -28287,16 +28287,46 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->privateKey    = (testVectors + i)->privateKey;
             pkcs7->privateKeySz  = (testVectors + i)->privateKeySz;
         }
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL), 0);
 
-        ExpectIntGE(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
-            (word32)sizeof(output)), 0);
+        encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output));
 
-        decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-            (word32)encodedSz, decoded, (word32)sizeof(decoded));
-        ExpectIntGE(decodedSz, 0);
-        /* Verify the size of each buffer. */
-        ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+        switch ((testVectors + i)->encryptOID) {
+        #ifndef NO_DES3
+            case DES3b:
+            case DESb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef HAVE_AESCCM
+        #ifdef WOLFSSL_AES_128
+            case AES128CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+            case AES192CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+            case AES256CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #endif
+            default:
+                ExpectIntGE(encodedSz, 0);
+        }
+
+        if (encodedSz > 0) {
+            decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+                (word32)encodedSz, decoded, (word32)sizeof(decoded));
+            ExpectIntGE(decodedSz, 0);
+            /* Verify the size of each buffer. */
+            ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+        }
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
