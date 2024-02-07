@@ -271,7 +271,7 @@
         #undef  WOLFSSL_ARDUINO
         #define WOLFSSL_ARDUINO
     /* ESP32? */
-    #endif // defined(__arm__)
+    #endif
 
     #undef FREERTOS
     #ifndef WOLFSSL_USER_SETTINGS
