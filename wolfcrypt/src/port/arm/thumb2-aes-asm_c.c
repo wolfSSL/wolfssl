@@ -310,11 +310,12 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         : [ks] "+r" (ks), [rounds] "+r" (rounds),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c), [L_AES_Thumb2_td] "+r" (L_AES_Thumb2_td_c)
         :
+        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
 #else
         : [ks] "+r" (ks), [rounds] "+r" (rounds)
         : [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te), [L_AES_Thumb2_td] "r" (L_AES_Thumb2_td)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
@@ -558,11 +559,12 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c), [L_AES_Thumb2_rcon] "+r" (L_AES_Thumb2_rcon_c)
         :
+        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "cc"
 #else
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks)
         : [L_AES_Thumb2_te] "r" (L_AES_Thumb2_te), [L_AES_Thumb2_rcon] "r" (L_AES_Thumb2_rcon)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
@@ -969,12 +971,16 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr),
           [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr)
-        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
+        : "memory", "r12", "lr", "r4", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
@@ -1169,12 +1175,19 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv)
-        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
+        : "memory", "r12", "lr", "r4", "r5", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)iv;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AES_CBC */
@@ -1390,12 +1403,19 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_ecb] "+r" (L_AES_Thumb2_te_ecb_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr)
-        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_te_ecb] "r" (L_AES_Thumb2_te_ecb)
+        : "memory", "r12", "lr", "r4", "r5", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)ctr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_AES_COUNTER */
@@ -1834,12 +1854,16 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr),
           [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c), [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr)
-        : [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb), [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb), [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4)
+        : "memory", "r12", "lr", "r4", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
@@ -2193,12 +2217,19 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c), [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv)
-        : [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb), [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_td_ecb] "r" (L_AES_Thumb2_td_ecb), [L_AES_Thumb2_td4] "r" (L_AES_Thumb2_td4)
+        : "memory", "r12", "lr", "r4", "r5", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)iv;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AES_CBC */
@@ -2785,11 +2816,12 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned cha
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
+        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
 #else
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len)
         : [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
 }
 
@@ -2996,12 +3028,19 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_Thumb2_te_gcm] "+r" (L_AES_Thumb2_te_gcm_c)
         :
-#else
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr)
-        : [L_AES_Thumb2_te_gcm] "r" (L_AES_Thumb2_te_gcm)
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+#else
+        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks)
+        : [L_AES_Thumb2_te_gcm] "r" (L_AES_Thumb2_te_gcm)
+        : "memory", "r12", "lr", "r4", "r5", "r7", "r8", "r9", "r10", "r11", "cc"
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)nr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifdef WOLFSSL_NO_VAR_ASSIGN_REG
+    (void)ctr;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 }
 
 #endif /* HAVE_AESGCM */
