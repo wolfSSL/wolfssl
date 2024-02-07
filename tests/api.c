@@ -69268,6 +69268,7 @@ static int test_tls13_early_data(void)
                 ExpectFalse(wolfSSL_is_init_finished(ssl_s));
                 ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
                         &read), 0);
+                ExpectIntEQ(read, 0);
                 ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
                 ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
@@ -69278,7 +69279,7 @@ static int test_tls13_early_data(void)
                 ExpectFalse(wolfSSL_is_init_finished(ssl_s));
                 ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
                         &read), 0);
-
+                ExpectIntEQ(read, 0);
                 ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
                 /* Read server 0.5-RTT data */
