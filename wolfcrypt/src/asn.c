@@ -23610,6 +23610,28 @@ void FreeSignerTable(Signer** table, int rows, void* heap)
     }
 }
 
+void FreeSignerTableType(Signer** table, int rows, byte type, void* heap)
+{
+    int i;
+
+    for (i = 0; i < rows; i++) {
+        Signer* signer = table[i];
+        Signer** next = &table[i];
+
+        while (signer) {
+            if (signer->type == type) {
+                *next = signer->next;
+                FreeSigner(signer, heap);
+                signer = *next;
+            }
+            else {
+                next = &signer->next;
+                signer = signer->next;
+            }
+        }
+    }
+}
+
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* Free an individual trusted peer cert.
  *

@@ -5954,6 +5954,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         cert->permittedNames = NULL;
         cert->excludedNames = NULL;
     #endif
+        signer->type = (byte)type;
 
     #ifndef NO_SKID
         row = HashSigner(signer->subjectKeyIdHash);
@@ -16353,6 +16354,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
 
         return wolfSSL_CertManagerUnloadCAs(ctx->cm);
+    }
+
+    int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_UnloadIntermediateCerts");
+
+        if (ctx == NULL)
+            return BAD_FUNC_ARG;
+
+        if (ctx->ref.count > 1) {
+            WOLFSSL_MSG("ctx object must have a ref count of 1 before "
+                        "unloading intermediate certs");
+            return BAD_STATE_E;
+        }
+
+        return wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
     }
 
 
