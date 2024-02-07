@@ -1915,10 +1915,10 @@ enum Misc {
 
 #ifdef HAVE_PQC
 #ifndef MIN_FALCONKEY_SZ
-    #define MIN_FALCONKEY_SZ    897
+    #define MIN_FALCONKEY_SZ    1281
 #endif
 #ifndef MIN_DILITHIUMKEY_SZ
-    #define MIN_DILITHIUMKEY_SZ    1312
+    #define MIN_DILITHIUMKEY_SZ    2528
 #endif
 #endif
 
@@ -3585,8 +3585,11 @@ struct WOLFSSL_CTX {
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*  altPrivateKey;
-    byte        altPrivateKeyType;
+    byte        altPrivateKeyType:6;
+    byte        altPrivateKeyId:1;
+    byte        altPrivateKeyLabel:1;
     int         altPrivateKeySz;
+    int         altPrivateKeyDevId;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
     WOLFSSL_EVP_PKEY* privateKeyPKey;
@@ -4550,15 +4553,18 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
-    byte            keyType:6;             /* Type of key: RSA, ECC, Ed25519 */
+    byte            keyType:6;             /* Type of key */
     byte            keyId:1;               /* Key data is an id not data */
     byte            keyLabel:1;            /* Key data is a label not data */
     int             keySz;                 /* Size of RSA key */
     int             keyDevId;              /* Device Id for key */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*      altKey;                /* WOLFSSL_CTX owns, unless we own */
-    byte            altKeyType;            /* Type of key: dilithium, falcon */
-    int             altKeySz;              /* Size of key */
+    byte            altKeyType:6;          /* Type of alt key */
+    byte            altKeyId:1;            /* Key data is an id not data */
+    byte            altKeyLabel:1;         /* Key data is a label not data */
+    int             altKeySz;              /* Size of alt key */
+    int             altKeyDevId;           /* Device Id for alt key */
 #endif
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */

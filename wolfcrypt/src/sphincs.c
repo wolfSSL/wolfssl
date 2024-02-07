@@ -952,7 +952,7 @@ int wc_Sphincs_PublicKeyToDer(sphincs_key* key, byte* output, word32 inLen,
     word32 pubKeyLen = (word32)sizeof(pubKey);
     int    keytype = 0;
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
