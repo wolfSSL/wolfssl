@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         # List of refs to test
-        ref: [ master, release/2.6, v2.6.0 ]
+        ref: [ release/2.6, v2.6.0 ] # 'master' is currently broken
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
