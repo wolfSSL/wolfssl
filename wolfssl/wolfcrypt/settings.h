@@ -348,6 +348,9 @@
 
 #undef OPENSSL_EXTRA
 #define OPENSSL_EXTRA
+
+#undef HAVE_OID_DECODING
+#define HAVE_OID_DECODING
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* ---------------------------------------------------------------------------

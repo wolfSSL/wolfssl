@@ -2629,10 +2629,13 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     wolfSSL_Ref     ref;
 #ifdef HAVE_PQC
-    short           minFalconKeySz;      /* minimum allowed Falcon key size */
-    short           minDilithiumKeySz;   /* minimum allowed Dilithium key size */
+    short           minFalconKeySz;     /* minimum allowed Falcon key size */
+    short           minDilithiumKeySz;  /* minimum allowed Dilithium key size */
 #endif
-
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+    wc_UnknownExtCallback unknownExtCallback;
+#endif
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm,
