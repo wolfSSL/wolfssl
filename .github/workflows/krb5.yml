@@ -23,7 +23,7 @@ jobs:
         with:
           name: wolf-install-krb5
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   krb5_check:
     strategy:

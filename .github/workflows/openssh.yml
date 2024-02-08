@@ -25,7 +25,7 @@ jobs:
         with:
           name: wolf-install-openssh
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   openssh_check:
     strategy:

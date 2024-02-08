@@ -23,7 +23,7 @@ jobs:
         with:
           name: wolf-install-hitch
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   hitch_check:
     strategy:
