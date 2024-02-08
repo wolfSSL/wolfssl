@@ -3546,6 +3546,12 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         return BAD_FUNC_ARG;
     }
 
+    if (ssl->buffers.tls13CookieSecret.buffer == NULL ||
+            ssl->buffers.tls13CookieSecret.length == 0) {
+        WOLFSSL_MSG("Missing DTLS 1.3 cookie secret");
+        return COOKIE_ERROR;
+    }
+
     /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
     cookie[cookieSz++] = (byte)hashSz;
     XMEMCPY(cookie + cookieSz, hash, hashSz);
@@ -4693,7 +4699,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 }
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_CLIENT)
-static int Dtls13DoDowngrade(WOLFSSL* ssl)
+static int Dtls13ClientDoDowngrade(WOLFSSL* ssl)
 {
     int ret;
     if (ssl->dtls13ClientHello == NULL)
@@ -5099,7 +5105,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->options.dtls) {
                 ssl->chVersion.minor = DTLSv1_2_MINOR;
                 ssl->version.minor = DTLSv1_2_MINOR;
-                ret = Dtls13DoDowngrade(ssl);
+                ret = Dtls13ClientDoDowngrade(ssl);
                 if (ret != 0)
                     return ret;
             }
@@ -5193,7 +5199,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             ssl->chVersion.minor = DTLSv1_2_MINOR;
             ssl->version.minor = DTLSv1_2_MINOR;
-            ret = Dtls13DoDowngrade(ssl);
+            ret = Dtls13ClientDoDowngrade(ssl);
             if (ret != 0)
                 return ret;
         }
@@ -5266,7 +5272,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {
-                ret = Dtls13DoDowngrade(ssl);
+                ret = Dtls13ClientDoDowngrade(ssl);
                 if (ret != 0)
                     return ret;
             }
@@ -6321,6 +6327,12 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
     byte cookieType = 0;
     byte macSz = 0;
 
+    if (ssl->buffers.tls13CookieSecret.buffer == NULL ||
+            ssl->buffers.tls13CookieSecret.length == 0) {
+        WOLFSSL_MSG("Missing DTLS 1.3 cookie secret");
+        return COOKIE_ERROR;
+    }
+
 #if !defined(NO_SHA) && defined(NO_SHA256)
     cookieType = SHA;
     macSz = WC_SHA_DIGEST_SIZE;
@@ -6695,6 +6707,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      * wolfSSL_accept_TLSv13 when changing this one. */
     if (IsDtlsNotSctpMode(ssl) && ssl->options.sendCookie &&
             !ssl->options.dtlsStateful) {
+        DtlsSetSeqNumForReply(ssl);
         ret = DoClientHelloStateless(ssl, input + *inOutIdx, helloSz, 0, NULL);
         if (ret != 0 || !ssl->options.dtlsStateful) {
             *inOutIdx += helloSz;

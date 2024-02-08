@@ -114,6 +114,7 @@ int DtlsIgnoreError(int err)
     case SOCKET_ERROR_E:
     case WANT_READ:
     case WANT_WRITE:
+    case COOKIE_ERROR:
         return 0;
     default:
         return 1;
@@ -207,6 +208,13 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
 {
     int ret;
     Hmac cookieHmac;
+
+    if (ssl->buffers.dtlsCookieSecret.buffer == NULL ||
+            ssl->buffers.dtlsCookieSecret.length == 0) {
+        WOLFSSL_MSG("Missing DTLS 1.2 cookie secret");
+        return COOKIE_ERROR;
+    }
+
     ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&cookieHmac, DTLS_COOKIE_TYPE,

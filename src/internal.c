@@ -7456,15 +7456,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
-        if (!IsAtLeastTLSv1_3(ssl->version)) {
-                ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
-                if (ret != 0) {
-                    WOLFSSL_MSG("DTLS Cookie Secret error");
-                    return ret;
-                }
+        /* Initialize both in case we allow downgrading. */
+        ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("DTLS Cookie Secret error");
+            return ret;
         }
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-        else {
+        if (IsAtLeastTLSv1_3(ssl->version)) {
             ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("DTLS1.3 Cookie secret error");
