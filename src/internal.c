@@ -33018,6 +33018,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         switch (err) {
             case BUFFER_ERROR:
                 return decode_error;
+            case BAD_BINDER:
             case EXT_NOT_ALLOWED:
             case PEER_KEY_ERROR:
             case ECC_PEERKEY_ERROR:
