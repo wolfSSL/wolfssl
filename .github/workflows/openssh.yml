@@ -2,8 +2,6 @@ name: openssh Tests
 
 on:
   workflow_call:
-  # TODO: remove this from PR
-  push:
 
 jobs:
   build_wolfssl:
@@ -49,9 +47,7 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:
-          # TODO: update with wolfssl repo after merge
-          repository: julek-wolfssl/osp
-          ref: openssh-9.6
+          repository: wolfssl/osp
           path: osp
 
       - name: Build and test openssh
