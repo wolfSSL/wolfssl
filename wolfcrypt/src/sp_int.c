@@ -281,10 +281,10 @@ while (0)
             if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
                 (n)[0] = (sp_int*)n##d;                                        \
-                ((sp_int_minimal*)(n)[0])->size = (s);                         \
+                ((sp_int*)(n)[0])->size = (s);                         \
                 for (n##ii = 1; n##ii < (int)(c); n##ii++) {                   \
                     (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
-                    ((sp_int_minimal*)(n)[n##ii])->size = (s);                 \
+                    ((sp_int*)(n)[n##ii])->size = (s);                 \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -4835,12 +4835,10 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
  */
 static void _sp_zero(sp_int* a)
 {
-    sp_int_minimal* am = (sp_int_minimal *)a;
-
-    am->used = 0;
-    am->dp[0] = 0;
+    a->used = 0;
+    a->dp[0] = 0;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    am->sign = MP_ZPOS;
+    a->sign = MP_ZPOS;
 #endif
 }
 
@@ -4852,12 +4850,10 @@ static void _sp_zero(sp_int* a)
  */
 static void _sp_init_size(sp_int* a, unsigned int size)
 {
-    volatile sp_int_minimal* am = (sp_int_minimal *)a;
-
 #ifdef HAVE_WOLF_BIGINT
-    wc_bigint_init((struct WC_BIGINT*)&am->raw);
+    wc_bigint_init((struct WC_BIGINT*)&a->raw);
 #endif
-    _sp_zero((sp_int*)am);
+    _sp_zero(a);
 
     a->size = size;
 }
@@ -5863,14 +5859,11 @@ int sp_2expt(sp_int* a, int e)
  */
 static void _sp_set(sp_int* a, sp_int_digit d)
 {
-    /* Use sp_int_minimal to support allocated byte arrays as sp_ints. */
-    sp_int_minimal* am = (sp_int_minimal*)a;
-
-    am->dp[0] = d;
+    a->dp[0] = d;
     /* d == 0 => used = 0, d > 0 => used = 1 */
-    am->used = (d > 0);
+    a->used = (d > 0);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    am->sign = MP_ZPOS;
+    a->sign = MP_ZPOS;
 #endif
 }
 

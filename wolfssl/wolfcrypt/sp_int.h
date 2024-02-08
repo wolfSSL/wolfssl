@@ -775,7 +775,7 @@ typedef struct sp_ecc_ctx {
  * Must have at least one digit.
  */
 #define MP_INT_SIZEOF(cnt)                                              \
-    (sizeof(sp_int_minimal) + (((cnt) <= 1) ? 0 : ((cnt) - 1)) *        \
+    (sizeof(sp_int) - (SP_INT_DIGITS - (((cnt) <= 1) ? 1 : (cnt))) *        \
      sizeof(sp_int_digit))
 /* The address of the next sp_int after one with 'cnt' digits. */
 #define MP_INT_NEXT(t, cnt) \
@@ -843,7 +843,7 @@ while (0)
 /* Dispose of static mp_int. */
 #define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
 /* Type to force compiler to not complain about size. */
-#define MP_INT_SIZE     sp_int_minimal
+#define MP_INT_SIZE     sp_int
 #endif
 
 /* Initialize an mp_int to a specific size. */
@@ -891,19 +891,6 @@ typedef struct sp_int {
     /** Data of number.  */
     sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
-
-typedef struct sp_int_minimal {
-    unsigned int used;
-    unsigned int size;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    unsigned int sign;
-#endif
-#ifdef HAVE_WOLF_BIGINT
-    struct WC_BIGINT raw;
-#endif
-    /** First digit of number.  */
-    sp_int_digit dp[1];
-} sp_int_minimal;
 
 /* Multi-precision integer type is SP integer type. */
 typedef sp_int       mp_int;
