@@ -634,7 +634,7 @@ struct WOLFSSL_X509_STORE {
 #endif
 
 struct WOLFSSL_X509_VERIFY_PARAM {
-    time_t         check_time;
+    wc_time_t         check_time;
     unsigned int   inherit_flags;
     unsigned long  flags;
     char           hostName[WOLFSSL_HOST_NAME_MAX];

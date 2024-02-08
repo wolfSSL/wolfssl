@@ -42,6 +42,52 @@
     #endif
 #endif
 
+#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
+    #define WORD64_AVAILABLE
+    #define W64LIT(x) x##ui64
+    #define SW64LIT(x) x##i64
+    typedef          __int64 sword64;
+    typedef unsigned __int64 word64;
+#elif defined(__EMSCRIPTEN__)
+    #define WORD64_AVAILABLE
+    #define W64LIT(x) x##ull
+    #define SW64LIT(x) x##ll
+    typedef          long long sword64;
+    typedef unsigned long long word64;
+#elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
+    #define WORD64_AVAILABLE
+    #ifdef WOLF_C89
+        #define W64LIT(x) x##UL
+        #define SW64LIT(x) x##L
+    #else
+        #define W64LIT(x) x##ULL
+        #define SW64LIT(x) x##LL
+    #endif
+    typedef          long sword64;
+    typedef unsigned long word64;
+#elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
+    #define WORD64_AVAILABLE
+    #ifdef WOLF_C89
+        #define W64LIT(x) x##UL
+        #define SW64LIT(x) x##L
+    #else
+        #define W64LIT(x) x##ULL
+        #define SW64LIT(x) x##LL
+    #endif
+    typedef          long long sword64;
+    typedef unsigned long long word64;
+#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
+    #define WORD64_AVAILABLE
+    #ifdef WOLF_C89
+        #define W64LIT(x) x##UL
+        #define SW64LIT(x) x##L
+    #else
+        #define W64LIT(x) x##ULL
+        #define SW64LIT(x) x##LL
+    #endif
+    typedef          long long sword64;
+    typedef unsigned long long word64;
+#endif
 
 /* GENERIC INCLUDE SECTION */
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
@@ -833,10 +879,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* TIME SECTION */
 /* Time functions */
 #ifndef NO_ASN_TIME
+
 #if defined(USER_TIME)
     /* Use our gmtime and time_t/struct tm types.
        Only needs seconds since EPOCH using XTIME function.
-       time_t XTIME(time_t * timer) {}
+       wc_time_t XTIME(wc_time_t * timer) {}
     */
     #define WOLFSSL_GMTIME
     #ifndef HAVE_TM_TYPE
@@ -849,8 +896,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(TIME_OVERRIDES)
     /* Override XTIME() and XGMTIME() functionality.
        Requires user to provide these functions:
-        time_t XTIME(time_t * timer) {}
-        struct tm* XGMTIME(const time_t* timer, struct tm* tmp) {}
+        wc_time_t XTIME(wc_time_t * timer) {}
+        struct tm* XGMTIME(const wc_time_t* timer, struct tm* tmp) {}
     */
     #ifndef HAVE_TIME_T_TYPE
         #define USE_WOLF_TIME_T
@@ -1042,6 +1089,17 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XDIFFTIME(to, from) difftime(to, from)
 #endif
 
+#if !defined(TIME_T_OVERRIDE)
+    typedef time_t wc_time_t;
+#else
+    typedef sword64 wc_time_t;
+    #if !defined(HAVE_TIME_T_TYPE) && !defined(__time_t_defined)
+        #define HAVE_TIME_T_TYPE
+        #define __time_t_defined 1
+        typedef wc_time_t time_t;
+    #endif
+#endif
+
 #ifdef SIZEOF_TIME_T
     /* check if size of time_t from autoconf is less than 8 bytes (64bits) */
     #if SIZEOF_TIME_T < 8
@@ -1104,7 +1162,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     };
 #endif /* USE_WOLF_TM */
 #if defined(USE_WOLF_TIME_T)
-    typedef long time_t;
+    typedef sword64 time_t;
 #endif
 #if defined(USE_WOLF_SUSECONDS_T)
     typedef long suseconds_t;
@@ -1112,29 +1170,29 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #if defined(USE_WOLF_TIMEVAL_T)
     struct timeval
     {
-        time_t tv_sec;
+        wc_time_t tv_sec;
         suseconds_t tv_usec;
     };
 #endif
 
     /* forward declarations */
 #if defined(USER_TIME)
-    struct tm* gmtime(const time_t* timer);
-    extern time_t XTIME(time_t * timer);
+    struct tm* gmtime(const wc_time_t* timer);
+    extern wc_time_t XTIME(wc_time_t * timer);
 
     #ifdef STACK_TRAP
         /* for stack trap tracking, don't call os gmtime on OS X/linux,
            uses a lot of stack spce */
-        extern time_t time(time_t * timer);
+        extern wc_time_t time(wc_time_t * timer);
         #define XTIME(tl)  time((tl))
     #endif /* STACK_TRAP */
 
 #elif defined(TIME_OVERRIDES)
-    extern time_t XTIME(time_t * timer);
-    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+    extern wc_time_t XTIME(wc_time_t * timer);
+    extern struct tm* XGMTIME(const wc_time_t* timer, struct tm* tmp);
 #elif defined(WOLFSSL_GMTIME)
-    struct tm* gmtime(const time_t* timer);
-    struct tm* gmtime_r(const time_t* timer, struct tm *ret);
+    struct tm* gmtime(const wc_time_t* timer);
+    struct tm* gmtime_r(const wc_time_t* timer, struct tm *ret);
 #endif
 #endif /* !NO_ASN_TIME */
 
