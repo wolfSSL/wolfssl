@@ -527,10 +527,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(WOLFSSL_ESP32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
+     !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
     #include <esp_log.h>
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
-    const char* TAG = "aes";
+    #define TAG "aes"
 
     /* We'll use SW for fallback:
      *   unsupported key lengths. (e.g. ESP32-S3)
@@ -967,6 +967,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 
 
+
+#if defined(WC_AES_BITSLICED) && !defined(HAVE_AES_ECB)
+    #error "When WC_AES_BITSLICED is defined, HAVE_AES_ECB is needed."
+#endif
 
 #ifdef NEED_AES_TABLES
 

@@ -2681,12 +2681,16 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     NEW_MP_INT_SIZE(tmp, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
-    if (tmp == NULL)
+    if (tmp == NULL) {
+        WOLFSSL_MSG("NEW_MP_INT_SIZE tmp is NULL, return MEMORY_E");
         return MEMORY_E;
+    }
 #endif
 
-    if (INIT_MP_INT_SIZE(tmp, mp_bitsused(&key->n)) != MP_OKAY)
+    if (INIT_MP_INT_SIZE(tmp, mp_bitsused(&key->n)) != MP_OKAY) {
+        WOLFSSL_MSG("INIT_MP_INT_SIZE failed.");
         ret = MP_INIT_E;
+    }
 
 #ifndef TEST_UNPAD_CONSTANT_TIME
     if (ret == 0 && mp_read_unsigned_bin(tmp, in, inLen) != MP_OKAY)
@@ -2710,8 +2714,10 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     #endif
         case RSA_PUBLIC_ENCRYPT:
         case RSA_PUBLIC_DECRYPT:
-            if (mp_exptmod_nct(tmp, &key->e, &key->n, tmp) != MP_OKAY)
+            if (mp_exptmod_nct(tmp, &key->e, &key->n, tmp) != MP_OKAY) {
+                WOLFSSL_MSG("mp_exptmod_nct failed");
                 ret = MP_EXPTMOD_E;
+            }
             break;
         default:
             ret = RSA_WRONG_TYPE_E;
@@ -2720,8 +2726,11 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
 
     if (ret == 0) {
-        if (mp_to_unsigned_bin_len_ct(tmp, out, (int)*outLen) != MP_OKAY)
-             ret = MP_TO_E;
+        WOLFSSL_MSG("mp_to_unsigned_bin_len_ct...");
+        if (mp_to_unsigned_bin_len_ct(tmp, out, (int)*outLen) != MP_OKAY) {
+            WOLFSSL_MSG("mp_to_unsigned_bin_len_ct failed");
+            ret = MP_TO_E;
+        }
     }
 #ifdef WOLFSSL_RSA_CHECK_D_ON_DECRYPT
     if ((ret == 0) && (type == RSA_PRIVATE_DECRYPT)) {
@@ -2757,6 +2766,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     ret = wc_RsaEncryptSize(key);
     if (ret < 0) {
+        WOLFSSL_MSG_EX("wc_RsaEncryptSize failed err = %d", ret);
         return ret;
     }
     keyLen = (word32)ret;
@@ -2771,6 +2781,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
 
     if (mp_iseven(&key->n)) {
+        WOLFSSL_MSG("MP_VAL is even");
         return MP_VAL;
     }
 
