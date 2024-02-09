@@ -62,6 +62,14 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
+#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+    /* force off unneeded vector register save/restore. */
+    #undef SAVE_VECTOR_REGISTERS
+    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #undef RESTORE_VECTOR_REGISTERS
+    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+#endif
+
 /*
 Possible RSA enable options:
  * NO_RSA:                Overall control of RSA                    default: on
@@ -712,8 +720,7 @@ int wc_CheckRsaKey(RsaKey* key)
 
     ret = wc_InitRng(rng);
 
-    if (ret == 0)
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
     if (ret == 0) {
         if (INIT_MP_INT_SIZE(tmp, mp_bitsused(&key->n)) != MP_OKAY)
@@ -4830,7 +4837,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #endif
         isPrime = 0;
         i = 0;
-        do {
+        for (;;) {
 #ifdef SHOW_GEN
             printf(".");
             fflush(stdout);
@@ -4853,9 +4860,15 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             i++;
 #else
             /* Keep the old retry behavior in non-FIPS build. */
-            (void)i;
 #endif
-        } while (err == MP_OKAY && !isPrime && i < failCount);
+
+            if (err != MP_OKAY || isPrime || i >= failCount)
+                break;
+
+            /* linuxkm: release the kernel for a moment before iterating. */
+            RESTORE_VECTOR_REGISTERS();
+            SAVE_VECTOR_REGISTERS(err = _svr_ret; break;);
+        };
     }
 
     if (err == MP_OKAY && !isPrime)

@@ -51,6 +51,14 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#if defined(WOLFSSL_LINUXKM) && !defined(USE_INTEL_SPEEDUP)
+    /* force off unneeded vector register save/restore. */
+    #undef SAVE_VECTOR_REGISTERS
+    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #undef RESTORE_VECTOR_REGISTERS
+    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+#endif
+
 const curve25519_set_type curve25519_sets[] = {
     {
         CURVE25519_KEYSIZE,

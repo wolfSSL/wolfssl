@@ -120,7 +120,7 @@
     #include <linux/kernel.h>
     #include <linux/ctype.h>
 
-    #ifdef CONFIG_FORTIFY_SOURCE
+    #if defined(CONFIG_FORTIFY_SOURCE) || defined(DEBUG_LINUXKM_FORTIFY_OVERLAY)
         #ifdef __PIE__
             /* the inline definitions in fortify-string.h use non-inline
              * fortify_panic().
@@ -345,6 +345,8 @@
                     fail_clause                             \
                 }                                           \
             }
+        #endif
+        #ifndef SAVE_VECTOR_REGISTERS2
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
                 #define SAVE_VECTOR_REGISTERS2() ({                    \
                     int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
@@ -363,6 +365,8 @@
         #include <asm/fpsimd.h>
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
+        #endif
+        #ifndef SAVE_VECTOR_REGISTERS2
             #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
