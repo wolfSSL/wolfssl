@@ -1508,16 +1508,21 @@ THREAD_LS_T const char *wc_svr_last_file = NULL;
 THREAD_LS_T int wc_svr_last_line = -1;
 THREAD_LS_T int wc_debug_vector_registers_retval =
     WC_DEBUG_VECTOR_REGISTERS_RETVAL_INITVAL;
+#endif
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+
+#ifdef HAVE_THREAD_LS
 
 WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     static THREAD_LS_T struct drand48_data wc_svr_fuzzing_state;
     static THREAD_LS_T int wc_svr_fuzzing_seeded = 0;
     long result;
 
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS
     if (wc_debug_vector_registers_retval)
         return wc_debug_vector_registers_retval;
+#endif
 
     if (wc_svr_fuzzing_seeded == 0) {
         long seed = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
@@ -1534,30 +1539,33 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
         return 0;
 }
 
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
+#else /* !HAVE_THREAD_LS */
 
-#elif defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
-
-/* DEBUG_VECTOR_REGISTER_ACCESS is undefined but fuzzing requested --
- * fuzz vector register access without the detailed debugging.
- * this is useful for testing in the kernel module build, where glibc and
- * thread-local storage are unavailable.
+/* alternate implementation useful for testing in the kernel module build, where
+ * glibc and thread-local storage are unavailable.
  *
  * note this is not a well-behaved PRNG, but is adequate for fuzzing purposes.
  * the prn sequence is incompressible according to ent and xz, and does not
  * cycle within 10M iterations with various seeds including zero, but the Chi
  * square distribution is poor, and the unconditioned lsb bit balance is ~54%
  * regardless of seed.
+ *
+ * deterministic only if access is single-threaded, but never degenerate.
  */
 
 WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     static unsigned long prn = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
     static int balance_bit = 0;
-    /* access to prn is racey, but it doesn't matter. */
     unsigned long new_prn = prn ^ 0xba86943da66ee701ul; /* note this magic
                                                          * random number is
                                                          * bit-balanced.
                                                          */
+
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS
+    if (wc_debug_vector_registers_retval)
+        return wc_debug_vector_registers_retval;
+#endif
+
     /* barrel-roll using the bottom 6 bits. */
     if (new_prn & 0x3f)
         new_prn = (new_prn << (new_prn & 0x3f)) |
@@ -1569,9 +1577,9 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     return ((prn & 1) ^ balance_bit) ? IO_FAILED_E : 0;
 }
 
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS ||
-        * DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-        */
+#endif /* !HAVE_THREAD_LS */
+
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS_FUZZING */
 
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_memory.c"

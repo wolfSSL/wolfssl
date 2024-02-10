@@ -434,6 +434,11 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         wc_svr_last_file = __FILE__;                                \
         wc_svr_last_line = __LINE__;                                \
     } while(0)
+
+#else /* !DEBUG_VECTOR_REGISTER_ACCESS */
+    #if !defined(SAVE_VECTOR_REGISTERS2) && defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+        #define SAVE_VECTOR_REGISTERS2(...) SAVE_VECTOR_REGISTERS2_fuzzer()
+    #endif
 #endif
 
 #ifdef __cplusplus

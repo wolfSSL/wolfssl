@@ -12097,10 +12097,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
-    wc_AesFree(enc);
-#ifdef HAVE_AES_DECRYPT
-    wc_AesFree(dec);
-#endif
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     ret = wc_AesSetKey(enc, key, keySz, iv, AES_ENCRYPTION);
@@ -12138,11 +12134,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
 #ifndef HAVE_RENESAS_SYNC
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#endif
-
-    wc_AesFree(enc);
-#ifdef HAVE_AES_DECRYPT
-    wc_AesFree(dec);
 #endif
 
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
