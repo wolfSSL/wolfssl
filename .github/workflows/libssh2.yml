@@ -24,7 +24,7 @@ jobs:
         with:
           name: wolf-install-libssh2
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   libssh2_check:
     strategy:

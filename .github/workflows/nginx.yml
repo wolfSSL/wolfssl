@@ -29,7 +29,7 @@ jobs:
         with:
           name: wolf-install-nginx
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   nginx_check:
     strategy:

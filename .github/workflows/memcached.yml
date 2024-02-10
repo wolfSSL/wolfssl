@@ -24,7 +24,7 @@ jobs:
         with:
           name: wolf-install-memcached
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   memcached_check:
     strategy:

@@ -24,7 +24,7 @@ jobs:
               with:
                 name: openwrt-libwolfssl.so
                 path: src/.libs/libwolfssl.so
-                retention-days: 1
+                retention-days: 5
     compile_container:
         name: Compile container
         runs-on: ubuntu-latest

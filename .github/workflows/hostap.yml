@@ -44,7 +44,7 @@ jobs:
         with:
           name: ${{ matrix.build_id }}
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   # Build wpa_supplicant with wolfSSL and hostapd with OpenSSL and interop.
   hostap_test:
