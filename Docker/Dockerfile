@@ -6,7 +6,7 @@ USER root
 ARG DEPS_WOLFSSL="build-essential autoconf libtool clang clang-tools zlib1g-dev libuv1-dev libpam0g-dev valgrind git linux-headers-generic gcc-multilib g++-multilib libpcap-dev bubblewrap gdb iputils-ping lldb bsdmainutils netcat binutils-arm-linux-gnueabi binutils-aarch64-linux-gnu"
 ARG DEPS_LIBOQS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind git"
 ARG DEPS_UDP_PROXY="wget libevent-dev"
-ARG DEPS_TESTS="abi-dumper libcurl4-openssl-dev tcpdump"
+ARG DEPS_TESTS="abi-dumper libcurl4-openssl-dev tcpdump libpsl-dev python3-pandas python3-tabulate"
 ARG DEPS_TOOLS="ccache"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
                     && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} ${DEPS_UDP_PROXY} ${DEPS_TESTS} ${DEPS_TOOLS} \
