@@ -1474,18 +1474,35 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 
     WOLFSSL_ENTER("wolfSSL_new");
 
-    if (ctx == NULL)
-        return ssl;
-
-    ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
-    if (ssl) {
-        if ( (ret = InitSSL(ssl, ctx, 0)) < 0) {
-            FreeSSL(ssl, ctx->heap);
-            ssl = 0;
-        }
+    if (ctx == NULL) {
+        WOLFSSL_MSG("wolfSSL_new ctx is null");
+        return NULL;
     }
 
-    WOLFSSL_LEAVE("wolfSSL_new", ret);
+    ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG_EX("ssl xmalloc failed to allocate %d bytes",
+                        (int)sizeof(WOLFSSL));
+    }
+    else {
+        ret = InitSSL(ssl, ctx, 0);
+        if (ret < 0) {
+            WOLFSSL_MSG_EX("wolfSSL_new failed during InitSSL. err = %d", ret);
+            FreeSSL(ssl, ctx->heap);
+            ssl = NULL;
+        }
+        else if (ret == 0) {
+            WOLFSSL_MSG("wolfSSL_new InitSSL success");
+        }
+        else {
+            /* Only success (0) or negative values should ever be seen. */
+            WOLFSSL_MSG_EX("WARNING: wolfSSL_new unexpected InitSSL return"
+                           " value = %d", ret);
+        } /* InitSSL check */
+    } /* ssl XMALLOC success */
+
+    WOLFSSL_LEAVE("wolfSSL_new InitSSL =", ret);
     (void)ret;
 
     return ssl;
@@ -1496,8 +1513,14 @@ WOLFSSL_ABI
 void wolfSSL_free(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_free");
-    if (ssl)
+
+    if (ssl) {
+        WOLFSSL_MSG_EX("Free SSL: %p", (uintptr_t)ssl);
         FreeSSL(ssl, ssl->ctx->heap);
+    }
+    else {
+        WOLFSSL_MSG("Free SSL: wolfSSL_free already null");
+    }
     WOLFSSL_LEAVE("wolfSSL_free", 0);
 }
 
@@ -11906,7 +11929,10 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     /* list contains ciphers either only for TLS 1.3 or <= TLS 1.2 */
-
+    if (suites->suiteSz == 0) {
+        WOLFSSL_MSG("Warning suites->suiteSz = 0 set to WOLFSSL_MAX_SUITE_SZ");
+        suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
+    }
 #ifdef WOLFSSL_SMALL_STACK
     if (suites->suiteSz > 0) {
         suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL,
@@ -12598,10 +12624,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         return wolfSSL_connect_TLSv13(ssl);
     #else
         #ifdef WOLFSSL_TLS13
-        if (ssl->options.tls1_3)
+        if (ssl->options.tls1_3) {
+            WOLFSSL_MSG("TLS 1.3");
             return wolfSSL_connect_TLSv13(ssl);
+        }
         #endif
 
+        WOLFSSL_MSG("TLS 1.2 or lower");
         WOLFSSL_ENTER("wolfSSL_connect");
 
         /* make sure this wolfSSL object has arrays and rng setup. Protects
@@ -12719,11 +12748,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
             #endif
             /* get response */
+            WOLFSSL_MSG("Server state up to needed state.");
             while (ssl->options.serverState < neededState) {
+                WOLFSSL_MSG("Progressing server state...");
                 #ifdef WOLFSSL_TLS13
                     if (ssl->options.tls1_3)
                         return wolfSSL_connect_TLSv13(ssl);
                 #endif
+                WOLFSSL_MSG("ProcessReply...");
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -12739,6 +12771,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                             neededState = SERVER_HELLODONE_COMPLETE;
                     }
                 }
+                WOLFSSL_MSG("ProcessReply done.");
 
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)
@@ -16903,6 +16936,11 @@ cleanup:
         }
 #endif
 
+#ifdef NO_FILESYSTEM
+        WOLFSSL_MSG("wolfSSL_CTX_set_default_verify_paths not supported"
+                    " with NO_FILESYSTEM enabled");
+        ret = WOLFSSL_FATAL_ERROR;
+#else
         ret = wolfSSL_CTX_load_system_CA_certs(ctx);
         if (ret == WOLFSSL_BAD_PATH) {
             /*
@@ -16911,6 +16949,7 @@ cleanup:
              */
             ret = WOLFSSL_SUCCESS;
         }
+#endif
 
         WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);
 

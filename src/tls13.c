@@ -12633,7 +12633,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
 
             ssl->options.connectState = CLIENT_HELLO_SENT;
-            WOLFSSL_MSG("connect state: CLIENT_HELLO_SENT");
+            WOLFSSL_MSG("TLSv13 connect state: CLIENT_HELLO_SENT");
     #ifdef WOLFSSL_EARLY_DATA
             if (ssl->earlyData != no_early_data) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)

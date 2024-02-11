@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
- #include <wolfssl/internal.h>
+#include <wolfssl/internal.h>
 
 #if !defined(WOLFSSL_SSL_CERTMAN_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -89,11 +89,22 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     WOLFSSL_CERT_MANAGER* cm;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerNew");
+    if (heap == NULL) {
+         WOLFSSL_MSG("heap param is null");
+    }
+    else {
+        /* Some systems may have heap in unexpected segments. (IRAM vs DRAM) */
+        WOLFSSL_MSG_EX("heap param = %p", heap);
+    }
+    WOLFSSL_MSG_EX("DYNAMIC_TYPE_CERT_MANAGER Allocating = %d bytes",
+                    (word32)sizeof(WOLFSSL_CERT_MANAGER));
 
     /* Allocate memory for certificate manager. */
     cm = (WOLFSSL_CERT_MANAGER*)XMALLOC(sizeof(WOLFSSL_CERT_MANAGER), heap,
         DYNAMIC_TYPE_CERT_MANAGER);
     if (cm == NULL) {
+        WOLFSSL_MSG_EX("XMALLOC failed to allocate WOLFSSL_CERT_MANAGER %d "
+                    "bytes.", (int)sizeof(WOLFSSL_CERT_MANAGER));
         err = 1;
     }
     if (!err) {

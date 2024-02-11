@@ -31,6 +31,9 @@ This library contains implementation for the random number generator.
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#if defined(DEBUG_WOLFSSL)
+    #include <wolfssl/wolfcrypt/logging.h>
+#endif
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
@@ -1635,9 +1638,12 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     ret = 0; /* success */
 #else
+
+ /* not CUSTOM_RAND_GENERATE_BLOCK follows */
 #ifdef HAVE_HASHDRBG
-    if (nonceSz == 0)
+    if (nonceSz == 0) {
         seedSz = MAX_SEED_SZ;
+    }
 
     if (wc_RNG_HealthTestLocal(0, rng->heap, devId) == 0) {
     #ifndef WOLFSSL_SMALL_STACK
@@ -1654,13 +1660,23 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 (struct DRBG*)XMALLOC(sizeof(DRBG_internal), rng->heap,
                                                           DYNAMIC_TYPE_RNG);
         if (rng->drbg == NULL) {
+    #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG_EX("_InitRng XMALLOC failed to allocate %d bytes",
+                           sizeof(DRBG_internal));
+    #endif
             ret = MEMORY_E;
             rng->status = DRBG_FAILED;
         }
 #else
         rng->drbg = (struct DRBG*)&rng->drbg_data;
+#endif /* WOLFSSL_NO_MALLOC or WOLFSSL_STATIC_MEMORY */
+
+        if (ret != 0) {
+#if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG_EX("_InitRng failed. err = ", ret);
 #endif
-        if (ret == 0) {
+        }
+        else {
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
@@ -1673,10 +1689,13 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
-#endif
+#endif /* WC_RNG_SEED_CB */
             if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
             else {
+    #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
+    #endif
                 ret = DRBG_FAILURE;
                 rng->status = DRBG_FAILED;
             }
@@ -1692,7 +1711,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             #endif
                 rng->drbg = NULL;
             }
-        }
+        } /* ret == 0 */
 
         ForceZero(seed, seedSz);
     #ifdef WOLFSSL_SMALL_STACK
@@ -1705,11 +1724,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     if (ret == DRBG_SUCCESS) {
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-#ifdef HAVE_HASHDRBG
+    #ifdef HAVE_HASHDRBG
         struct DRBG_internal* drbg = (struct DRBG_internal*)rng->drbg;
         wc_MemZero_Add("DRBG V", &drbg->V, sizeof(drbg->V));
         wc_MemZero_Add("DRBG C", &drbg->C, sizeof(drbg->C));
-#endif
+    #endif
 #endif
 
         rng->status = DRBG_OK;
@@ -3451,6 +3470,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
+    #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_ENTER("ESP8266 Random");
+    #endif
             word32 rand;
             while (sz > 0) {
                 word32 len = sizeof(rand);
@@ -3465,7 +3487,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
             return 0;
         }
-    #endif /* end WOLFSSL_ESP32 */
+    #endif /* end WOLFSSL_ESPIDF */
 
 #elif defined(WOLFSSL_LINUXKM)
     #include <linux/random.h>
@@ -3744,15 +3766,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
         os->fd = open("/dev/urandom", O_RDONLY);
+        #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG("opened /dev/urandom.");
+        #endif
         if (os->fd == -1)
     #endif
         {
             /* may still have /dev/random */
             os->fd = open("/dev/random", O_RDONLY);
+    #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG("opened /dev/random.");
+    #endif
             if (os->fd == -1)
                 return OPEN_RAN_E;
         }
-
+    #if defined(DEBUG_WOLFSSL)
+        WOLFSSL_MSG("rnd read...");
+    #endif
         while (sz) {
             int len = (int)read(os->fd, output, sz);
             if (len == -1) {
