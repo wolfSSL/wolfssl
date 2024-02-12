@@ -888,12 +888,12 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
  * @param [out] block    First block to encrypt.
  */
 static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
-        const byte* index, byte indexSz, unsigned char* block)
+        const byte* index, int indexSz, unsigned char* block)
 {
-    word32 i;
+    int i;
 
     /* XOR salt into zeroized buffer. */
-    for (i = 0; i < WC_SRTP_MAX_SALT - saltSz; i++) {
+    for (i = 0; i < WC_SRTP_MAX_SALT - (int)saltSz; i++) {
         block[i] = 0;
     }
     XMEMCPY(block + WC_SRTP_MAX_SALT - saltSz, salt, saltSz);
@@ -942,13 +942,13 @@ static int wc_srtp_kdf_derive_key(byte* block, byte indexSz, byte label,
     int i;
     int ret = 0;
     /* Calculate the number of full blocks needed for derived key. */
-    int blocks = keySz / AES_BLOCK_SIZE;
+    int blocks = (int)(keySz / AES_BLOCK_SIZE);
 
     /* XOR in label. */
     block[WC_SRTP_MAX_SALT - indexSz - 1] ^= label;
     for (i = 0; (ret == 0) && (i < blocks); i++) {
         /* Set counter. */
-        block[15] = i;
+        block[15] = (byte)i;
         /* Encrypt block into key buffer. */
         ret = wc_AesEcbEncrypt(aes, key, block, AES_BLOCK_SIZE);
         /* Reposition for more derived key. */
@@ -960,7 +960,7 @@ static int wc_srtp_kdf_derive_key(byte* block, byte indexSz, byte label,
     if ((ret == 0) && (keySz > 0)) {
         byte enc[AES_BLOCK_SIZE];
         /* Set counter. */
-        block[15] = i;
+        block[15] = (byte)i;
         /* Encrypt block into temporary. */
         ret = wc_AesEcbEncrypt(aes, enc, block, AES_BLOCK_SIZE);
         if (ret == 0) {

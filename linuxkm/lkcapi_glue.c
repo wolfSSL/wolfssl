@@ -24,12 +24,6 @@
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
-#if defined(LINUXKM_LKCAPI_REGISTER_AESGCM) && defined(WOLFSSL_AESNI) && \
-    defined(WC_AES_C_DYNAMIC_FALLBACK)
-    /* xxx temporary */
-    #error LINUXKM_LKCAPI_REGISTER_AESGCM is incompatible with WOLFSSL_AESNI && WC_AES_C_DYNAMIC_FALLBACK
-#endif
-
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY
 /* Larger number means higher priority.  The highest in-tree priority is 4001,
  * in the Cavium driver.
@@ -88,8 +82,7 @@ static int  linuxkm_test_aescfb(void);
 #endif
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
-    (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
 static int  linuxkm_test_aesgcm(void);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
@@ -503,8 +496,7 @@ static int cfbAesAlg_loaded = 0;
 
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
-    (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
 
 #ifndef WOLFSSL_AESGCM_STREAM
     #error LKCAPI registration of AES-GCM requires WOLFSSL_AESGCM_STREAM (--enable-aesgcm-stream).
@@ -790,7 +782,6 @@ static int gcmAesAead_loaded = 0;
 
 #endif /* HAVE_AESGCM &&
         * (LINUXKM_LKCAPI_REGISTER_ALL || LINUXKM_LKCAPI_REGISTER_AESGCM) &&
-        * (! (WOLFSSL_AESNI && WC_AES_C_DYNAMIC_FALLBACK))
         */
 
 #if defined(WOLFSSL_AES_XTS) && \
@@ -1009,8 +1000,6 @@ static int linuxkm_test_aescbc(void)
     u8 *    enc2 = NULL;
     u8 *    dec2 = NULL;
 
-    const char *driver_name;
-
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(enc));
 
@@ -1086,13 +1075,18 @@ static int linuxkm_test_aescbc(void)
         goto test_cbc_end;
     }
 
-    driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
-    if (strcmp(driver_name, WOLFKM_AESCBC_DRIVER)) {
-        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-               WOLFKM_AESCBC_NAME, driver_name, WOLFKM_AESCBC_DRIVER);
-        ret = -ENOENT;
-        goto test_cbc_end;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    {
+        const char *driver_name =
+            crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+        if (strcmp(driver_name, WOLFKM_AESCBC_DRIVER)) {
+            pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                   WOLFKM_AESCBC_NAME, driver_name, WOLFKM_AESCBC_DRIVER);
+            ret = -ENOENT;
+            goto test_cbc_end;
+        }
     }
+#endif
 
     ret = crypto_skcipher_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
     if (ret) {
@@ -1199,7 +1193,6 @@ static int linuxkm_test_aescfb(void)
     byte    dec[sizeof(p_vector)];
     u8 *    enc2 = NULL;
     u8 *    dec2 = NULL;
-    const char *driver_name;
 
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(enc));
@@ -1276,13 +1269,18 @@ static int linuxkm_test_aescfb(void)
         goto test_cfb_end;
     }
 
-    driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
-    if (strcmp(driver_name, WOLFKM_AESCFB_DRIVER)) {
-        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-               WOLFKM_AESCFB_NAME, driver_name, WOLFKM_AESCFB_DRIVER);
-        ret = -ENOENT;
-        goto test_cfb_end;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    {
+        const char *driver_name =
+            crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+        if (strcmp(driver_name, WOLFKM_AESCFB_DRIVER)) {
+            pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                   WOLFKM_AESCFB_NAME, driver_name, WOLFKM_AESCFB_DRIVER);
+            ret = -ENOENT;
+            goto test_cfb_end;
+        }
     }
+#endif
 
     ret = crypto_skcipher_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
     if (ret) {
@@ -1352,8 +1350,7 @@ test_cfb_end:
 
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) &&                        \
-    (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
 
 static int linuxkm_test_aesgcm(void)
 {
@@ -1404,7 +1401,6 @@ static int linuxkm_test_aesgcm(void)
     u8 *    iv = NULL;
     size_t  encryptLen = sizeof(p_vector);
     size_t  decryptLen = sizeof(p_vector) + sizeof(authTag);
-    const char *driver_name;
 
     /* Init stack variables. */
     XMEMSET(enc, 0, sizeof(p_vector));
@@ -1525,13 +1521,17 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    driver_name = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
-    if (strcmp(driver_name, WOLFKM_AESGCM_DRIVER)) {
-        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-               WOLFKM_AESGCM_NAME, driver_name, WOLFKM_AESGCM_DRIVER);
-        ret = -ENOENT;
-        goto test_gcm_end;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    {
+        const char *driver_name = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+        if (strcmp(driver_name, WOLFKM_AESGCM_DRIVER)) {
+            pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                   WOLFKM_AESGCM_NAME, driver_name, WOLFKM_AESGCM_DRIVER);
+            ret = -ENOENT;
+            goto test_gcm_end;
+        }
     }
+#endif
 
     ret = crypto_aead_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
     if (ret) {
@@ -1628,7 +1628,6 @@ test_gcm_end:
 
 #endif /* HAVE_AESGCM &&
         * (LINUXKM_LKCAPI_REGISTER_ALL || LINUXKM_LKCAPI_REGISTER_AESGCM) &&
-        * (! (WOLFSSL_AESNI && WC_AES_C_DYNAMIC_FALLBACK))
         */
 
 #if defined(WOLFSSL_AES_XTS) && \
@@ -1654,7 +1653,6 @@ static int aes_xts_128_test(void)
     struct crypto_skcipher *tfm = NULL;
     struct skcipher_request *req = NULL;
     u8 iv[AES_BLOCK_SIZE];
-    const char *driver_name;
 
     /* 128 key tests */
     static const unsigned char k1[] = {
@@ -2024,13 +2022,18 @@ static int aes_xts_128_test(void)
         goto test_xts_end;
     }
 
-    driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
-    if (strcmp(driver_name, WOLFKM_AESXTS_DRIVER)) {
-        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-               WOLFKM_AESXTS_NAME, driver_name, WOLFKM_AESXTS_DRIVER);
-        ret = -ENOENT;
-        goto test_xts_end;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    {
+        const char *driver_name =
+            crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+        if (strcmp(driver_name, WOLFKM_AESXTS_DRIVER)) {
+            pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                   WOLFKM_AESXTS_NAME, driver_name, WOLFKM_AESXTS_DRIVER);
+            ret = -ENOENT;
+            goto test_xts_end;
+        }
     }
+#endif
 
     ret = crypto_skcipher_ivsize(tfm);
     if (ret != sizeof(iv)) {
@@ -2194,7 +2197,6 @@ static int aes_xts_256_test(void)
     struct crypto_skcipher *tfm = NULL;
     struct skcipher_request *req = NULL;
     u8 iv[AES_BLOCK_SIZE];
-    const char *driver_name;
 
     /* 256 key tests */
     static const unsigned char k1[] = {
@@ -2404,13 +2406,17 @@ static int aes_xts_256_test(void)
         goto test_xts_end;
     }
 
-    driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
-    if (strcmp(driver_name, WOLFKM_AESXTS_DRIVER)) {
-        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
-               WOLFKM_AESXTS_NAME, driver_name, WOLFKM_AESXTS_DRIVER);
-        ret = -ENOENT;
-        goto test_xts_end;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    {
+        const char *driver_name = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+        if (strcmp(driver_name, WOLFKM_AESXTS_DRIVER)) {
+            pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                   WOLFKM_AESXTS_NAME, driver_name, WOLFKM_AESXTS_DRIVER);
+            ret = -ENOENT;
+            goto test_xts_end;
+        }
     }
+#endif
 
     ret = crypto_skcipher_ivsize(tfm);
     if (ret != sizeof(iv)) {
@@ -2640,8 +2646,7 @@ static int linuxkm_lkcapi_register(void)
 
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) &&                        \
-    (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
 
     REGISTER_ALG(gcmAesAead, crypto_register_aead, linuxkm_test_aesgcm);
 #endif
@@ -2681,8 +2686,7 @@ static void linuxkm_lkcapi_unregister(void)
 #endif
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_AESGCM)) && \
-    (! (defined(WOLFSSL_AESNI) && defined(WC_AES_C_DYNAMIC_FALLBACK)))
+     defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
 
     UNREGISTER_ALG(gcmAesAead, crypto_unregister_aead);
 #endif

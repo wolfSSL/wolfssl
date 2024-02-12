@@ -8966,10 +8966,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
-#if defined(WC_AES_C_DYNAMIC_FALLBACK) && defined(WOLFSSL_AESNI)
-    #error "AES-GCM streaming with AESNI is incompatible with WC_AES_C_DYNAMIC_FALLBACK."
-#endif
-
 /* Initialize the AES GCM cipher with an IV. C implementation.
  *
  * @param [in, out] aes   AES object.
@@ -8980,10 +8976,6 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
 {
     ALIGN32 byte counter[AES_BLOCK_SIZE];
     int ret;
-
-#ifdef WOLFSSL_AESNI
-    aes->use_aesni = 0;
-#endif
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
@@ -9211,6 +9203,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
     ASSERT_SAVED_VECTOR_REGISTERS();
 
     /* Reset state fields. */
+    aes->over = 0;
     aes->aSz = 0;
     aes->cSz = 0;
     /* Set tag to all zeros as initial value. */
@@ -9237,8 +9230,6 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
         AES_GCM_init_aesni((byte*)aes->key, (int)aes->rounds, iv, ivSz,
             aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
     }
-
-    aes->use_aesni = 1;
 
     return 0;
 }
@@ -9865,19 +9856,18 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
         if (iv != NULL) {
             /* Initialize with the IV. */
-            VECTOR_REGISTERS_PUSH;
 
         #ifdef WOLFSSL_AESNI
             if (aes->use_aesni) {
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
                 ret = AesGcmInit_aesni(aes, iv, ivSz);
+                RESTORE_VECTOR_REGISTERS();
             }
             else
         #endif
             {
                 ret = AesGcmInit_C(aes, iv, ivSz);
             }
-
-            VECTOR_REGISTERS_POP;
 
             if (ret == 0)
                 aes->nonceSet = 1;
@@ -9992,11 +9982,12 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         /* Encrypt with AAD and/or plaintext. */
-        VECTOR_REGISTERS_PUSH;
 
     #ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmEncryptUpdate_aesni(aes, out, in, sz, authIn, authInSz);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -10009,8 +10000,6 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
                 GHASH_UPDATE(aes, authIn, authInSz, out, sz);
             }
         }
-
-        VECTOR_REGISTERS_POP;
     }
 
     return ret;
@@ -10047,17 +10036,17 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         /* Calculate authentication tag. */
-        VECTOR_REGISTERS_PUSH;
     #ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmEncryptFinal_aesni(aes, authTag, authTagSz);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
         {
             ret = AesGcmFinal_C(aes, authTag, authTagSz);
         }
-        VECTOR_REGISTERS_POP;
     }
 
     if ((ret == 0) && aes->ctrSet) {
@@ -10130,10 +10119,11 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         /* Decrypt with AAD and/or cipher text. */
-        VECTOR_REGISTERS_PUSH;
     #ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmDecryptUpdate_aesni(aes, out, in, sz, authIn, authInSz);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -10144,7 +10134,6 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
             /* Decrypt the cipher text. */
             ret = AesGcmCryptUpdate_C(aes, out, in, sz);
         }
-        VECTOR_REGISTERS_POP;
     }
 
     return ret;
@@ -10181,10 +10170,11 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         /* Calculate authentication tag and compare with one passed in.. */
-        VECTOR_REGISTERS_PUSH;
     #ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmDecryptFinal_aesni(aes, authTag, authTagSz);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -10199,7 +10189,6 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
                 }
             }
         }
-        VECTOR_REGISTERS_POP;
     }
 
     return ret;
@@ -11107,6 +11096,11 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     aes->heap = heap;
     aes->rounds = 0;
+
+#ifdef WOLFSSL_AESNI
+    /* clear here for the benefit of wc_AesGcmInit(). */
+    aes->use_aesni = 0;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     aes->devId = devId;

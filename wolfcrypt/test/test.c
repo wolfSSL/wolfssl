@@ -536,6 +536,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  XChaCha20Poly1305_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  des_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  des3_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes_test(void);
+#if defined(WOLFSSL_AES_CFB)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes_cfb_test(void);
+#endif
+#ifdef WOLFSSL_AES_XTS
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes_xts_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes192_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes256_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesofb_test(void);
@@ -1463,7 +1469,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     if ( (ret = aesofb_test()) != 0)
         TEST_FAIL("AES-OFB  test failed!\n", ret);
     else
-        TEST_PASS("AESOFB   test passed!\n");
+        TEST_PASS("AES-OFB   test passed!\n");
 #endif
 
 #ifdef HAVE_AESGCM
@@ -1490,6 +1496,21 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("AES-CCM  test passed!\n");
 #endif
+
+#ifdef WOLFSSL_AES_CFB
+    if ( (ret = aes_cfb_test()) != 0)
+        TEST_FAIL("AES-CFB  test failed!\n", ret);
+    else
+        TEST_PASS("AES-CFB  test passed!\n");
+#endif
+
+#ifdef WOLFSSL_AES_XTS
+    if ( (ret = aes_xts_test()) != 0)
+        TEST_FAIL("AES-XTS  test failed!\n", ret);
+    else
+        TEST_PASS("AES-XTS  test passed!\n");
+#endif
+
 #ifdef HAVE_AES_KEYWRAP
     if ( (ret = aeskeywrap_test()) != 0)
         TEST_FAIL("AES Key Wrap test failed!\n", ret);
@@ -8433,8 +8454,10 @@ EVP_TEST_END:
 #endif /* WOLFSSL_AES_OFB */
 
 #if defined(WOLFSSL_AES_CFB)
-    /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
-    static wc_test_ret_t aescfb_test(void)
+    /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of
+     * Operation Methods and Techniques
+     */
+    static wc_test_ret_t aescfb_test_0(void)
     {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *enc = NULL;
@@ -9360,7 +9383,7 @@ static wc_test_ret_t aes_key_size_test(void)
     return ret;
 }
 
-#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+#if defined(WOLFSSL_AES_XTS)
 
 /* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
 #ifdef WOLFSSL_AES_128
@@ -11770,44 +11793,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
         goto out;
 #endif
 
-#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
-    #ifdef WOLFSSL_AES_128
-    ret = aes_xts_128_test();
-    if (ret != 0)
-        goto out;
-    #endif
-    #ifdef WOLFSSL_AES_256
-    ret = aes_xts_256_test();
-    if (ret != 0)
-        goto out;
-    #endif
-    #if defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_256)
-    ret = aes_xts_sector_test();
-    if (ret != 0)
-        goto out;
-    #endif
-    #ifdef WOLFSSL_AES_128
-    ret = aes_xts_args_test();
-    if (ret != 0)
-        goto out;
-    #endif
-#endif
-
-#if defined(WOLFSSL_AES_CFB)
-    ret = aescfb_test();
-    if (ret != 0)
-        goto out;
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
-    ret = aescfb1_test();
-    if (ret != 0)
-        goto out;
-
-    ret = aescfb8_test();
-    if (ret != 0)
-        goto out;
-#endif
-#endif
-
 #if defined(HAVE_AES_ECB) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     ret = aesecb_test();
     if (ret != 0)
@@ -11845,6 +11830,54 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
 
     return ret;
 }
+
+#if defined(WOLFSSL_AES_CFB)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cfb_test(void)
+{
+    int ret;
+    ret = aescfb_test_0();
+    if (ret != 0)
+        return ret;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    ret = aescfb1_test();
+    if (ret != 0)
+        return ret;
+
+    ret = aescfb8_test();
+    if (ret != 0)
+        return ret;
+#endif
+    return 0;
+}
+#endif
+
+#if defined(WOLFSSL_AES_XTS)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_xts_test(void)
+{
+    int ret = 0;
+    #ifdef WOLFSSL_AES_128
+    ret = aes_xts_128_test();
+    if (ret != 0)
+        return ret;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ret = aes_xts_256_test();
+    if (ret != 0)
+        return ret;
+    #endif
+    #if defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_256)
+    ret = aes_xts_sector_test();
+    if (ret != 0)
+        return ret;
+    #endif
+    #ifdef WOLFSSL_AES_128
+    ret = aes_xts_args_test();
+    if (ret != 0)
+        return ret;
+    #endif
+    return 0;
+}
+#endif
 
 #ifdef WOLFSSL_AES_192
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes192_test(void)
@@ -12064,10 +12097,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
-    wc_AesFree(enc);
-#ifdef HAVE_AES_DECRYPT
-    wc_AesFree(dec);
-#endif
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
     ret = wc_AesSetKey(enc, key, keySz, iv, AES_ENCRYPTION);
@@ -12105,11 +12134,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
 #ifndef HAVE_RENESAS_SYNC
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#endif
-
-    wc_AesFree(enc);
-#ifdef HAVE_AES_DECRYPT
-    wc_AesFree(dec);
 #endif
 
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -49671,6 +49695,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     #ifdef HAVE_AES_CBC
     if (ret == 0)
         ret = aes_test();
+    #endif
+    #ifdef WOLFSSL_AES_XTS
+    if (ret == 0)
+        ret = aes_xts_test();
     #endif
     #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
     if (ret == 0)

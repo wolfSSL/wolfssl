@@ -115,6 +115,14 @@ This library provides single precision (SP) integer math functions.
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
+#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+    /* force off unneeded vector register save/restore. */
+    #undef SAVE_VECTOR_REGISTERS
+    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #undef RESTORE_VECTOR_REGISTERS
+    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+#endif
+
 /* DECL_SP_INT: Declare one variable of type 'sp_int'. */
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
     !defined(WOLFSSL_SP_NO_MALLOC)

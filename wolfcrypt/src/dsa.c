@@ -42,6 +42,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+    /* force off unneeded vector register save/restore. */
+    #undef SAVE_VECTOR_REGISTERS
+    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #undef RESTORE_VECTOR_REGISTERS
+    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+#endif
+
 #ifdef _MSC_VER
     /* disable for while(0) cases (MSVC bug) */
     #pragma warning(disable:4127)
