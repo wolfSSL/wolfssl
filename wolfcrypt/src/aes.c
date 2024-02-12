@@ -967,7 +967,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
 /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
-#elif WOLF_CRYPTO_CB_ONLY_AES
+#elif defined(WOLF_CRYPTO_CB_ONLY_AES)
 /* no sw fallback */
 #else
 
