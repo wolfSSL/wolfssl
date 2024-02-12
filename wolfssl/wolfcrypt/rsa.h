@@ -444,6 +444,8 @@ WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** ou
                                    int bits, void* heap);
 
 WOLFSSL_LOCAL int wc_hash2mgf(enum wc_HashType hType);
+WOLFSSL_LOCAL int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
+    int checkSmallCt);
 
 #ifdef __cplusplus
     } /* extern "C" */
