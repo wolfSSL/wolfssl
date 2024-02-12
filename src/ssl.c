@@ -24719,6 +24719,16 @@ int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
     return ret;
 }
 
+int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid)
+{
+    return wolfSSL_get_signature_nid(ssl, nid);
+}
+
+int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
+{
+    return wolfSSL_get_signature_nid((WOLFSSL*)ssl, nid);
+}
+
 #ifdef HAVE_ECC
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
