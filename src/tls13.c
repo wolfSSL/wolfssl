@@ -14357,6 +14357,7 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
+    *outSz = 0;
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;

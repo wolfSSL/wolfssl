@@ -13938,9 +13938,11 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
 
     \brief This function reads any early data from a client on resumption.
     Call this function instead of wolfSSL_accept() or wolfSSL_accept_TLSv13()
-    to accept a client and read any early data in the handshake.
-    If there is no early data than the handshake will be processed as normal.
-    This function is only used with servers.
+    to accept a client and read any early data in the handshake. The function
+    should be invoked until wolfSSL_is_init_finished() returns true. Early data
+    may be sent by the client in multiple messsages. If there is no early data
+    then the handshake will be processed as normal. This function is only used
+    with servers.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [out] data a buffer to hold the early data read from client.
@@ -13951,7 +13953,7 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     not using TLSv1.3.
     \return SIDE_ERROR if called with a client.
     \return WOLFSSL_FATAL_ERROR if accepting a connection fails.
-    \return WOLFSSL_SUCCESS if successful.
+    \return Number of early data bytes read (may be zero).
 
     _Example_
     \code
@@ -13963,19 +13965,16 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     char buffer[80];
     ...
 
-    ret = wolfSSL_read_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
-    if (ret != SSL_SUCCESS) {
-        err = wolfSSL_get_error(ssl, ret);
-        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
-    }
-    if (outSz > 0) {
-        // early data available
-    }
-    ret = wolfSSL_accept_TLSv13(ssl);
-    if (ret != SSL_SUCCESS) {
-        err = wolfSSL_get_error(ssl, ret);
-        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
-    }
+    do {
+        ret = wolfSSL_read_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl, ret);
+            printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
+        }
+        if (outSz > 0) {
+            // early data available
+        }
+    } while (!wolfSSL_is_init_finished(ssl));
     \endcode
 
     \sa wolfSSL_write_early_data
