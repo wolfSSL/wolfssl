@@ -1143,7 +1143,7 @@ do
                 do_wolfssl_client
                 psk=""
                 adh=""
-                openssl_psk="-psk 0123456789abcdef0123456789abcdef"
+                openssl_psk="-psk 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 open_temp_cases_total=$((open_temp_cases_total + 1))
                 port=$wolfssl_port
                 do_openssl_client
