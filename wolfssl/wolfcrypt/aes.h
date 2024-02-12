@@ -522,30 +522,36 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
- WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
+WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
- WOLFSSL_API int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
+WOLFSSL_API int wc_AesCtrSetKey(Aes* aes, const byte* key, word32 len,
                                         const byte* iv, int dir);
 
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
 #if defined(BUILDING_WOLFSSL)
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
                                                         const byte* in);
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,
                                                         const byte* in);
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesSetKeyDirect(Aes* aes,
+#else
+WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+#endif
+#endif
+
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
+#if defined(BUILDING_WOLFSSL)
+WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+                                const byte* iv, int dir);
+#else
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesSetKeyDirect(Aes* aes,
                                                        const byte* key,
                                                        word32 len,
                                 const byte* iv, int dir);
-#else
- WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
-                                const byte* iv, int dir);
 #endif
-#endif
+#endif /* WOLFSSL_AES_COUNTER || WOLFSSL_AES_DIRECT */
 
 #ifdef HAVE_AESGCM
 #ifdef WOLFSSL_XILINX_CRYPT
