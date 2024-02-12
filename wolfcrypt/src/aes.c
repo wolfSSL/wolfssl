@@ -6260,21 +6260,24 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
 #else /* software + AESNI implementation */
-
+#ifndef WOLF_CRYPTO_CB_ONLY_AES
 #ifndef WOLFSSL_AESNI
-static WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
+static
+#endif
+WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
                       Aes* aes, byte* out, const byte* in, word32 sz,
                       const byte* iv, word32 ivSz,
                       byte* authTag, word32 authTagSz,
                       const byte* authIn, word32 authInSz);
-static WARN_UNUSED_RESULT int AES_GCM_decrypt_C(
+#ifdef WOLFSSL_AESNI
+static
+#endif
+WARN_UNUSED_RESULT int AES_GCM_decrypt_C(
                       Aes* aes, byte* out, const byte* in, word32 sz,
                       const byte* iv, word32 ivSz,
                       const byte* authTag, word32 authTagSz,
                       const byte* authIn, word32 authInSz);
-#endif /* !WOLFSSL_AESNI */
 
-#ifndef WOLF_CRYPTO_CB_ONLY_AES
 #if !defined(FREESCALE_LTC_AES_GCM)
 static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
