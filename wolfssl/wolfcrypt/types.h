@@ -259,7 +259,9 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
 #elif defined(WC_16BIT_CPU)
+    #ifndef MICROCHIP_PIC24
         #undef WORD64_AVAILABLE
+    #endif
         typedef word16 wolfssl_word;
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                            * mp_digit, no 64 bit type so make mp_digit 16 bit */
@@ -704,7 +706,7 @@ typedef struct w64wrapper {
             /* XC32 supports str[n]casecmp in version >= 1.0 through 4.0. */
             #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
         #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
-                defined(WOLFSSL_ZEPHYR)
+                defined(WOLFSSL_ZEPHYR) || defined(MICROCHIP_PIC24)
             /* XC32 version < 1.0 does not support strcasecmp. */
             #define USE_WOLF_STRCASECMP
             #define XSTRCASECMP(s1,s2) wc_strcasecmp(s1,s2)
@@ -734,7 +736,7 @@ typedef struct w64wrapper {
             /* XC32 supports str[n]casecmp in version >= 1.0. */
             #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
         #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
-                defined(WOLFSSL_ZEPHYR)
+                defined(WOLFSSL_ZEPHYR) || defined(MICROCHIP_PIC24)
             /* XC32 version < 1.0 does not support strncasecmp. */
             #define USE_WOLF_STRNCASECMP
             #define XSTRNCASECMP(s1,s2) wc_strncasecmp(s1,s2)

@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="65">
+  <logicalFolder name="root" displayName="root" projectFiles="true">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>../user_settings.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="LinkerScript"
+                   displayName="Linker Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <logicalFolder name="f2" displayName="wolfcrypt" projectFiles="true">
+        <itemPath>../../../wolfcrypt/src/aes.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/arc4.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/asm.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/asn.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/blake2b.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/blake2s.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/camellia.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/chacha.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/chacha20_poly1305.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/cmac.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/coding.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/compress.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/cpuid.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/cryptocb.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/curve25519.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/curve448.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/des3.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/dh.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/dilithium.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/dsa.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ecc.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ecc_fp.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/eccsi.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ed25519.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ed448.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/error.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/evp.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ext_kyber.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/falcon.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/fe_448.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/fe_low_mem.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/fe_operations.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ge_448.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ge_low_mem.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ge_operations.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/hash.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/hmac.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/hpke.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/integer.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/kdf.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/logging.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/md2.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/md4.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/md5.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/memory.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/misc.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/pkcs12.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/pkcs7.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/poly1305.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/pwdbased.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/random.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/rc2.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/ripemd.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/rsa.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sakke.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sha.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sha256.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sha3.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sha512.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/signature.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/siphash.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_arm32.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_arm64.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_armthumb.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_c32.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_c64.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sp_int.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/sphincs.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/srp.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/tfm.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wc_encrypt.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wc_pkcs11.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wc_port.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wolfevent.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/wolfmath.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f1" displayName="wolfssl" projectFiles="true">
+        <itemPath>../../../src/crl.c</itemPath>
+        <itemPath>../../../src/internal.c</itemPath>
+        <itemPath>../../../src/keys.c</itemPath>
+        <itemPath>../../../src/ssl.c</itemPath>
+        <itemPath>../../../src/tls.c</itemPath>
+        <itemPath>../../../src/tls13.c</itemPath>
+        <itemPath>../../../src/wolfio.c</itemPath>
+      </logicalFolder>
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>..</Elem>
+    <Elem>../../src</Elem>
+    <Elem>../../wolfcrypt/src</Elem>
+    <Elem>../../wolfcrypt/test</Elem>
+    <Elem>../../../src</Elem>
+    <Elem>../../../wolfcrypt/src</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="default" type="3">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <targetDevice>PIC24FJ1024GB610</targetDevice>
+        <targetHeader></targetHeader>
+        <targetPluginBoard></targetPluginBoard>
+        <platformTool>noID</platformTool>
+        <languageToolchain>XC16</languageToolchain>
+        <languageToolchainVersion>2.10</languageToolchainVersion>
+        <platform>4</platform>
+      </toolsSet>
+      <packs>
+        <pack name="PIC24F-GA-GB_DFP" vendor="Microchip" version="1.4.141"/>
+      </packs>
+      <ScriptingSettings>
+      </ScriptingSettings>
+      <compileType>
+        <linkerTool>
+          <linkerLibItems>
+          </linkerLibItems>
+        </linkerTool>
+        <archiverTool>
+        </archiverTool>
+        <loading>
+          <useAlternateLoadableFile>false</useAlternateLoadableFile>
+          <parseOnProdLoad>false</parseOnProdLoad>
+          <alternateLoadableFile></alternateLoadableFile>
+        </loading>
+        <subordinates>
+        </subordinates>
+      </compileType>
+      <makeCustomizationType>
+        <makeCustomizationPreStepEnabled>false</makeCustomizationPreStepEnabled>
+        <makeUseCleanTarget>false</makeUseCleanTarget>
+        <makeCustomizationPreStep></makeCustomizationPreStep>
+        <makeCustomizationPostStepEnabled>false</makeCustomizationPostStepEnabled>
+        <makeCustomizationPostStep></makeCustomizationPostStep>
+        <makeCustomizationPutChecksumInUserID>false</makeCustomizationPutChecksumInUserID>
+        <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
+        <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
+      </makeCustomizationType>
+      <C30>
+        <property key="code-model" value="large-code"/>
+        <property key="const-model" value="default"/>
+        <property key="data-model" value="default"/>
+        <property key="disable-instruction-scheduling" value="false"/>
+        <property key="enable-all-warnings" value="true"/>
+        <property key="enable-ansi-std" value="false"/>
+        <property key="enable-ansi-warnings" value="false"/>
+        <property key="enable-fatal-warnings" value="false"/>
+        <property key="enable-large-arrays" value="false"/>
+        <property key="enable-omit-frame-pointer" value="false"/>
+        <property key="enable-procedural-abstraction" value="false"/>
+        <property key="enable-short-double" value="false"/>
+        <property key="enable-symbols" value="true"/>
+        <property key="enable-unroll-loops" value="false"/>
+        <property key="expand-pragma-config" value="false"/>
+        <property key="extra-include-directories" value="../../;../"/>
+        <property key="isolate-each-function" value="false"/>
+        <property key="keep-inline" value="false"/>
+        <property key="oXC16gcc-align-arr" value="false"/>
+        <property key="oXC16gcc-cnsts-mauxflash" value="false"/>
+        <property key="oXC16gcc-data-sects" value="false"/>
+        <property key="oXC16gcc-errata" value=""/>
+        <property key="oXC16gcc-fillupper" value=""/>
+        <property key="oXC16gcc-large-aggregate" value="false"/>
+        <property key="oXC16gcc-mauxflash" value="false"/>
+        <property key="oXC16gcc-mpa-lvl" value=""/>
+        <property key="oXC16gcc-name-text-sec" value=""/>
+        <property key="oXC16gcc-near-chars" value="false"/>
+        <property key="oXC16gcc-no-isr-warn" value="false"/>
+        <property key="oXC16gcc-sfr-warn" value="false"/>
+        <property key="oXC16gcc-smar-io-lvl" value="1"/>
+        <property key="oXC16gcc-smart-io-fmt" value=""/>
+        <property key="optimization-level" value="2"/>
+        <property key="post-instruction-scheduling" value="default"/>
+        <property key="pre-instruction-scheduling" value="default"/>
+        <property key="preprocessor-macros" value="WOLFSSL_USER_SETTINGS"/>
+        <property key="scalar-model" value="default"/>
+        <property key="use-cci" value="false"/>
+        <property key="use-iar" value="false"/>
+      </C30>
+      <C30-AR>
+        <property key="additional-options-chop-files" value="false"/>
+      </C30-AR>
+      <C30-AS>
+        <property key="assembler-symbols" value=""/>
+        <property key="expand-macros" value="false"/>
+        <property key="extra-include-directories-for-assembler" value=""/>
+        <property key="extra-include-directories-for-preprocessor" value=""/>
+        <property key="false-conditionals" value="false"/>
+        <property key="keep-locals" value="false"/>
+        <property key="list-assembly" value="false"/>
+        <property key="list-section-info" value="false"/>
+        <property key="list-source" value="false"/>
+        <property key="list-symbols" value="false"/>
+        <property key="oXC16asm-extra-opts" value=""/>
+        <property key="oXC16asm-list-to-file" value="false"/>
+        <property key="omit-debug-dirs" value="false"/>
+        <property key="omit-forms" value="false"/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="relax" value="false"/>
+        <property key="warning-level" value="emit-warnings"/>
+      </C30-AS>
+      <C30-CO>
+        <property key="coverage-enable" value=""/>
+        <property key="stack-guidance" value="true"/>
+      </C30-CO>
+      <C30-LD>
+        <property key="additional-options-use-response-files" value="false"/>
+        <property key="boot-eeprom" value="no_eeprom"/>
+        <property key="boot-flash" value="no_flash"/>
+        <property key="boot-ram" value="no_ram"/>
+        <property key="boot-write-protect" value="no_write_protect"/>
+        <property key="enable-check-sections" value="false"/>
+        <property key="enable-data-init" value="true"/>
+        <property key="enable-default-isr" value="true"/>
+        <property key="enable-handles" value="true"/>
+        <property key="enable-pack-data" value="true"/>
+        <property key="extra-lib-directories" value=""/>
+        <property key="fill-flash-options-addr" value=""/>
+        <property key="fill-flash-options-const" value=""/>
+        <property key="fill-flash-options-how" value="0"/>
+        <property key="fill-flash-options-inc-const" value="1"/>
+        <property key="fill-flash-options-increment" value=""/>
+        <property key="fill-flash-options-seq" value=""/>
+        <property key="fill-flash-options-what" value="0"/>
+        <property key="general-code-protect" value="no_code_protect"/>
+        <property key="general-write-protect" value="no_write_protect"/>
+        <property key="generate-cross-reference-file" value="false"/>
+        <property key="heap-size" value=""/>
+        <property key="input-libraries" value=""/>
+        <property key="linker-stack" value="true"/>
+        <property key="linker-symbols" value=""/>
+        <property key="map-file" value="${DISTDIR}/${PROJECTNAME}.${IMAGE_TYPE}.map"/>
+        <property key="no-ivt" value="false"/>
+        <property key="oXC16ld-extra-opts" value=""/>
+        <property key="oXC16ld-fill-upper" value="0"/>
+        <property key="oXC16ld-force-link" value="false"/>
+        <property key="oXC16ld-no-smart-io" value="false"/>
+        <property key="oXC16ld-nostdlib" value="false"/>
+        <property key="oXC16ld-stackguard" value="16"/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="remove-unused-sections" value="false"/>
+        <property key="report-memory-usage" value="true"/>
+        <property key="secure-eeprom" value="no_eeprom"/>
+        <property key="secure-flash" value="no_flash"/>
+        <property key="secure-ram" value="no_ram"/>
+        <property key="secure-write-protect" value="no_write_protect"/>
+        <property key="stack-size" value="16"/>
+        <property key="symbol-stripping" value=""/>
+        <property key="trace-symbols" value=""/>
+        <property key="warn-section-align" value="false"/>
+      </C30-LD>
+      <C30Global>
+        <property key="common-include-directories" value="../../.."/>
+        <property key="dual-boot-partition" value="0"/>
+        <property key="fast-math" value="false"/>
+        <property key="generic-16-bit" value="false"/>
+        <property key="legacy-libc" value="true"/>
+        <property key="mpreserve-all" value="false"/>
+        <property key="oXC16glb-macros" value=""/>
+        <property key="omit-pack-options" value="1"/>
+        <property key="output-file-format" value="elf"/>
+        <property key="preserve-all" value="false"/>
+        <property key="preserve-file" value=""/>
+        <property key="relaxed-math" value="false"/>
+        <property key="save-temps" value="false"/>
+      </C30Global>
+    </conf>
+  </confs>
+</configurationDescriptor>
