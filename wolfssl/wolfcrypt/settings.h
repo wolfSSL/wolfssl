@@ -3342,6 +3342,16 @@ extern void uITRON4_free(void *p) ;
     /* Ciphersuite check done in internal.h */
 #endif
 
+/* disable modes not currently supported by crypto cb */
+#ifdef WOLF_CRYPTO_CB_ONLY_AES
+    #undef WOLFSSL_AES_DIRECT
+    #undef WOLFSSL_AES_CFB
+    #undef WOLFSSL_AES_OFB
+    #undef HAVE_AES_KEYWRAP
+    #undef WOLFSSL_AES_XTS
+    #undef WOLFSSL_AES_SIV
+    #undef WOLFSSL_AES_EAX
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */
