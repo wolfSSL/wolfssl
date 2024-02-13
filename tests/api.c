@@ -66130,6 +66130,77 @@ static int test_extra_alerts_bad_psk(void)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
+    && !defined(NO_PSK)
+static unsigned int test_tls13_bad_psk_binder_client_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    XSTRNCPY(identity, "Client_identity", id_max_len);
+
+    key[0] = 0x20;
+    return 1;
+}
+
+static unsigned int test_tls13_bad_psk_binder_server_cb(WOLFSSL* ssl,
+        const char* id, unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)id;
+    (void)key_max_len;
+    /* zero means error */
+    key[0] = 0x10;
+    return 1;
+}
+#endif
+
+static int test_tls13_bad_psk_binder(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
+    && !defined(NO_PSK)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    wolfSSL_set_psk_client_callback(ssl_c, test_tls13_bad_psk_binder_client_cb);
+    wolfSSL_set_psk_server_callback(ssl_s, test_tls13_bad_psk_binder_server_cb);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ( wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        BAD_BINDER);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    ExpectIntEQ(h.last_rx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_HARDEN_TLS) && !defined(WOLFSSL_NO_TLS12) && \
         defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int test_harden_no_secure_renegotiation_io_cb(WOLFSSL *ssl, char *buf,
@@ -70873,6 +70944,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
+    TEST_DECL(test_tls13_bad_psk_binder),
     /* Can't memory test as client/server Asserts. */
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),

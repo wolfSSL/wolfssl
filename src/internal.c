@@ -33047,6 +33047,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case PSK_KEY_ERROR:
             case INVALID_PARAMETER:
             case HRR_COOKIE_ERROR:
+            case BAD_BINDER:
                 return illegal_parameter;
             case INCOMPLETE_DATA:
                 return missing_extension;
