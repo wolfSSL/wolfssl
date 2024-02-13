@@ -3040,18 +3040,20 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
         #ifdef __PPU
             #include <sys/types.h>
             #include <sys/socket.h>
-        #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM) && \
+        #elif defined(ARDUINO)
+            /* TODO board specific */
+        #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)    && \
               !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
-              !defined(WOLFSSL_EMBOS) && !defined(WOLFSSL_FROSTED) && \
-              !defined(WOLFSSL_CHIBIOS) && !defined(WOLFSSL_CONTIKI) && \
-              !defined(WOLFSSL_ZEPHYR) && !defined(NETOS)
+              !defined(WOLFSSL_EMBOS)   && !defined(WOLFSSL_FROSTED)    && \
+              !defined(WOLFSSL_CHIBIOS) && !defined(WOLFSSL_CONTIKI)    && \
+              !defined(WOLFSSL_ZEPHYR)  && !defined(NETOS)
             #include <sys/uio.h>
         #endif
         /* allow writev style writing */
         WOLFSSL_API int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov,
                                      int iovcnt);
-    #endif
-#endif
+    #endif /* !NO_WRITEV */
+#endif /* !_WIN32 */
 
 
 #ifndef NO_CERTS

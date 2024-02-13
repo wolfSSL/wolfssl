@@ -3434,6 +3434,73 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(ARDUINO)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+        word32 rand;
+        while (sz > 0) {
+            word32 len = sizeof(rand);
+            if (sz < len)
+                len = sz;
+        /* Get an Arduino framework random number */
+        #if defined(__arm__)
+            /* See: https://github.com/avrxml/asf/tree/master/sam/utils/cmsis/sam3x/include */
+            #if defined(__SAM3A4C__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif defined(__SAM3A8C__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif defined(__SAM3X4C__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif defined(__SAM3X4E__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif defined(__SAM3X8C__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif defined(__SAM3X8E__)
+                /* This is the Arduino Due */
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #elif  defined(__SAM3A8H__)
+                #ifndef TRNG
+                    #define TRNG (0x400BC000U)
+                #endif
+            #else
+                #ifndef TRNG
+                    #error "Unknown TRNG for this device"
+                #endif
+            #endif
+
+            srand(analogRead(0));
+            rand = trng_read_output_data(TRNG);
+        #elif defined(__STM32__)
+            /* TODO: confirm this is proper random number on Arduino STM32 */
+            #warning "Not yet tested on STM32 targets"
+            rand = random();
+        #else
+            /* TODO: Pull requests appreciated for new targets */
+            #warning "Not yet tested on this target"
+            rand = random();
+        #endif
+            XMEMCPY(output, &rand, len);
+            output += len;
+            sz -= len;
+        }
+
+        return ret;
+    }
+
 #elif defined(WOLFSSL_ESPIDF)
 
     /* Espressif */

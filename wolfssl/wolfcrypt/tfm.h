@@ -364,7 +364,7 @@ while (0)
 /* Initialize an mp_int. */
 #define INIT_MP_INT_SIZE(name, bits) \
     mp_init(name)
-/* Type to cast to when using size marcos. */
+/* Type to cast to when using size macros. */
 #define MP_INT_SIZE     mp_int
 
 

@@ -3,6 +3,7 @@
 
 EXTRA_DIST += examples/configs/README.md
 EXTRA_DIST += examples/configs/user_settings_all.h
+EXTRA_DIST += examples/configs/user_settings_arduino.h
 EXTRA_DIST += examples/configs/user_settings_min_ecc.h
 EXTRA_DIST += examples/configs/user_settings_wolfboot_keytools.h
 EXTRA_DIST += examples/configs/user_settings_template.h

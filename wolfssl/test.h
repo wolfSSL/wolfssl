@@ -175,6 +175,8 @@
         int h_length;        /* length of address */
         char** h_addr_list;  /* list of addresses from the name server */
     };
+#elif defined(ARDUINO)
+    /* TODO, define board-specific */
 #else
     #include <string.h>
     #include <sys/types.h>

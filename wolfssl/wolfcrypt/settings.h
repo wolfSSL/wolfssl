@@ -265,6 +265,32 @@
 /* Uncomment next line if using MAXQ108x */
 /* #define WOLFSSL_MAXQ108X */
 
+#if defined(ARDUINO)
+    /* we don't have the luxury of compiler options, so manually define */
+    #if defined(__arm__)
+        #undef  WOLFSSL_ARDUINO
+        #define WOLFSSL_ARDUINO
+    /* ESP32? */
+    #endif
+
+    #undef FREERTOS
+    #ifndef WOLFSSL_USER_SETTINGS
+        #define WOLFSSL_USER_SETTINGS
+    #endif /* WOLFSSL_USER_SETTINGS */
+
+    /* board-specific */
+    #if defined(__AVR__)
+        #define WOLFSSL_NO_SOCK
+        #define NO_WRITEV
+    #elif defined(__arm__)
+        #define WOLFSSL_NO_SOCK
+        #define NO_WRITEV
+    #elif defined(ESP32) || defined(ESP8266)
+        /* assume sockets available */
+    #else
+        #define WOLFSSL_NO_SOCK
+    #endif
+#endif
 
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
@@ -422,6 +448,33 @@
         #include <types.h>
     #endif
     #include <nx_api.h>
+#endif
+
+#if defined(ARDUINO)
+    #if defined(ESP32)
+        #ifndef NO_ARDUINO_DEFAULT
+            #define SIZEOF_LONG_LONG 8
+            #ifdef FREERTOS
+                #undef FREERTOS
+            #endif
+
+            #define WOLFSSL_LWIP
+            #define NO_WRITEV
+            #define NO_WOLFSSL_DIR
+            #define WOLFSSL_NO_CURRDIR
+
+            #define TFM_TIMING_RESISTANT
+            #define ECC_TIMING_RESISTANT
+            #define WC_RSA_BLINDING
+            #define WC_NO_CACHE_RESISTANT
+        #endif /* !NO_ARDUINO_DEFAULT */
+    #elif defined(__arm__)
+            #define NO_WRITEV
+            #define NO_WOLFSSL_DIR
+            #define WOLFSSL_NO_CURRDIR
+    #elif defined(OTHERBOARD)
+        /* TODO: define other Arduino boards here */
+    #endif
 #endif
 
 #if defined(WOLFSSL_ESPIDF)
@@ -754,11 +807,20 @@
 
 
 #ifdef WOLFSSL_ARDUINO
+    /* Define WOLFSSL_USER_IO here to avoid check in internal.c */
+    #define WOLFSSL_USER_IO
+
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
     #define SINGLE_THREADED
     #define NO_DEV_RANDOM
-    #ifndef INTEL_GALILEO /* Galileo has time.h compatibility */
+    #if defined(INTEL_GALILEO) || defined(ESP32)
+        /* boards with has time.h compatibility */
+    #elif defined(__arm__)
+        /* TODO is time really missing from Arduino Due? */
+        /* This is a brute-force solution to make it work: */
+        #define NO_ASN_TIME
+    #else
         #define TIME_OVERRIDES
         #ifndef XTIME
             #error "Must define XTIME externally see porting guide"
@@ -3340,6 +3402,11 @@ extern void uITRON4_free(void *p) ;
         #error "RFC9325 requires some additional alerts to be sent"
     #endif
     /* Ciphersuite check done in internal.h */
+#endif
+
+/* Some final sanity checks */
+#if defined(WOLFSSL_ESPIDF) && defined(ARDUINO)
+    #error "Found both ESPIDF and ARDUINO. Pick one."
 #endif
 
 

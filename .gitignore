@@ -322,6 +322,10 @@ wolfcrypt/src/port/intel/qat_test
 # Arduino Generated Files
 /IDE/ARDUINO/wolfSSL
 scripts/memtest.txt
+/IDE/ARDUINO/Arduino_README_prepend.md.tmp
+/IDE/ARDUINO/library.properties.tmp
+/IDE/ARDUINO/library.properties.tmp.backup
+/IDE/ARDUINO/PREPENDED_README.md
 
 # Doxygen generated files
 doc/doxygen_warnings
