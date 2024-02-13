@@ -95,6 +95,7 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/include/time_hel
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/include/wifi_connect.h
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/VisualGDB/README.md
 
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/wolfssl_client_ESP8266.vgdbproj
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/VisualGDB/wolfssl_client_IDF_v5_ESP32.sln
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/VisualGDB/wolfssl_client_IDF_v5_ESP32.vgdbproj
 

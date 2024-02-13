@@ -44,6 +44,13 @@
 #include <esp_types.h>
 #include <esp_log.h>
 
+#if ESP_IDF_VERSION_MAJOR >= 4
+    #define WOLFSSL_ESPIDF_BLANKLINE_MESSAGE ""
+#else
+    /* Older ESP-IDF such as that for ESP8266 do not support empty strings */
+    #define WOLFSSL_ESPIDF_BLANKLINE_MESSAGE "."
+#endif
+
 /* exit codes to be used in tfm.c, sp_int.c, integer.c, etc.
  *
  * see wolfssl/wolfcrypt/error-crypt.h
@@ -521,6 +528,8 @@ extern "C"
 #ifndef NO_AES
     #if ESP_IDF_VERSION_MAJOR >= 4
         #include "esp32/rom/aes.h"
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        /* no hardware includes for ESP8266*/
     #else
         #include "rom/aes.h"
     #endif
