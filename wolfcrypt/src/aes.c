@@ -6269,7 +6269,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
                       const byte* iv, word32 ivSz,
                       byte* authTag, word32 authTagSz,
                       const byte* authIn, word32 authInSz);
-#ifdef WOLFSSL_AESNI
+#ifndef WOLFSSL_AESNI
 static
 #endif
 WARN_UNUSED_RESULT int AES_GCM_decrypt_C(
