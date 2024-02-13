@@ -2519,6 +2519,7 @@ struct CRL_Entry {
 };
 
 
+#ifdef HAVE_CRL_MONITOR
 typedef struct CRL_Monitor CRL_Monitor;
 
 /* CRL directory monitor */
@@ -2544,6 +2545,7 @@ typedef HANDLE wolfSSL_CRL_mfd_t; /* monitor fd, INVALID_HANDLE_VALUE if
                                    * no init yet */
 #define WOLFSSL_CRL_MFD_INIT_VAL (INVALID_HANDLE_VALUE)
 #endif
+#endif
 
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
@@ -2554,8 +2556,8 @@ struct WOLFSSL_CRL {
     CbCrlIO               crlIOCb;
 #endif
     wolfSSL_RwLock        crlLock;       /* CRL list lock */
-    CRL_Monitor           monitors[WOLFSSL_CRL_MONITORS_LEN];
 #ifdef HAVE_CRL_MONITOR
+    CRL_Monitor           monitors[WOLFSSL_CRL_MONITORS_LEN];
     COND_TYPE             cond;          /* condition to signal setup */
     THREAD_TYPE           tid;           /* monitoring thread */
     wolfSSL_CRL_mfd_t     mfd;

@@ -69,9 +69,9 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     crl->cm = cm;
     crl->crlList  = NULL;
     crl->currentEntry = NULL;
+#ifdef HAVE_CRL_MONITOR
     crl->monitors[0].path = NULL;
     crl->monitors[1].path = NULL;
-#ifdef HAVE_CRL_MONITOR
     crl->tid = INVALID_THREAD_VAL;
     crl->mfd = WOLFSSL_CRL_MFD_INIT_VAL;
     crl->setup = 0; /* thread setup done predicate */
@@ -249,11 +249,13 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 
     tmp = crl->crlList;
     WOLFSSL_ENTER("FreeCRL");
+#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
 
     if (crl->monitors[1].path)
         XFREE(crl->monitors[1].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
+#endif
 
     XFREE(crl->currentEntry, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
     crl->currentEntry = NULL;
@@ -840,6 +842,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
         return BAD_FUNC_ARG;
     }
 
+#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         int pathSz = (int)XSTRLEN(crl->monitors[0].path) + 1;
         dupl->monitors[0].path = (char*)XMALLOC(pathSz, dupl->heap,
@@ -867,6 +870,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
             return MEMORY_E;
         }
     }
+#endif
 
     dupl->crlList = DupCRL_list(crl->crlList, dupl->heap);
 #ifdef HAVE_CRL_IO
@@ -998,6 +1002,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
         return -1;
     }
 
+#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         ret = LoadCRL(tmp, crl->monitors[0].path, WOLFSSL_FILETYPE_PEM, 0);
         if (ret != WOLFSSL_SUCCESS) {
@@ -1021,6 +1026,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
             return -1;
         }
     }
+#endif
 
     if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Wr failed");
@@ -1116,6 +1122,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     fPEM = -1;
     fDER = -1;
 
+#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         fPEM = open(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
@@ -1137,6 +1144,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             return NULL;
         }
     }
+#endif
 
     if (fPEM != -1)
         EV_SET(&change, fPEM, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
@@ -1248,6 +1256,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
         return NULL;
     }
 
+#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         wd = inotify_add_watch(notifyFd, crl->monitors[0].path, IN_CLOSE_WRITE |
                                                                 IN_DELETE);
@@ -1271,6 +1280,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             return NULL;
         }
     }
+#endif
 
 
     /* signal to calling thread we're setup */
@@ -1413,6 +1423,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     }
     handlesLen++;
 
+#ifdef HAVE_CRL_MONITOR
     for (i = 0; i < WOLFSSL_CRL_MONITORS_LEN; i++) {
         if (crl->monitors[i].path) {
             handles[handlesLen] = FindFirstChangeNotificationA(
@@ -1432,6 +1443,7 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             handlesLen++;
         }
     }
+#endif
 
     if (handlesLen == 1) {
         WOLFSSL_MSG("Nothing to watch. Only custom event handle set.");
