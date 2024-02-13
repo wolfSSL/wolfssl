@@ -80,7 +80,7 @@ enum {
 /* An ED448 Key */
 struct ed448_key {
     byte    p[ED448_PUB_KEY_SIZE]; /* compressed public key */
-    byte    k[ED448_PRV_KEY_SIZE]; /* private key : 56 secret -- 56 public */
+    byte    k[ED448_PRV_KEY_SIZE]; /* private key : 57 secret -- 57 public */
 #ifdef FREESCALE_LTC_ECC
     /* uncompressed point coordinates */
     byte pointX[ED448_KEY_SIZE]; /* recovered X coordinate */
