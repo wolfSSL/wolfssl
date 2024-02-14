@@ -18498,7 +18498,11 @@ static int test_wc_AesGcmEncryptDecrypt(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte), iv,
         sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) + 1, a, sizeof(a)),
+    #if (defined(HAVE_FIPS) && FIPS_VERSION_LE(2,0) && defined(WOLFSSL_ARMASM))
+        AES_GCM_AUTH_E);
+    #else
         BAD_FUNC_ARG);
+    #endif
     #if ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)) && \
             !defined(WOLFSSL_AES_GCM_FIXED_IV_AAD)
