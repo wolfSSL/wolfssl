@@ -4589,10 +4589,11 @@ void fp_clear(fp_int *a)
 
 void fp_forcezero (mp_int * a)
 {
+    int size;
+
     if (a == NULL)
       return;
 
-    int size;
     a->used = 0;
     a->sign = FP_ZPOS;
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
