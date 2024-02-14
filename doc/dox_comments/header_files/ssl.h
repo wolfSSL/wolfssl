@@ -2086,15 +2086,18 @@ int  wolfSSL_get_using_nonblock(WOLFSSL*);
     \brief This function writes sz bytes from the buffer, data, to the SSL
     connection, ssl. If necessary, wolfSSL_write() will negotiate an SSL/TLS
     session if the handshake has not already been performed yet by
-    wolfSSL_connect() or wolfSSL_accept(). wolfSSL_write() works with both
-    blocking and non-blocking I/O.  When the underlying I/O is non-blocking,
-    wolfSSL_write() will return when the underlying I/O could not satisfy the
-    needs of wolfSSL_write() to continue.  In this case, a call to
-    wolfSSL_get_error() will yield either SSL_ERROR_WANT_READ or
-    SSL_ERROR_WANT_WRITE.  The calling process must then repeat the call to
-    wolfSSL_write() when the underlying I/O is ready. If the underlying I/O
-    is blocking, wolfSSL_write() will only return once the buffer data of
-    size sz has been completely written or an error occurred.
+    wolfSSL_connect() or wolfSSL_accept(). When using (D)TLSv1.3 and early data
+    feature is compiled in, this function progresses the handshake only up to
+    the point when it is possible to send data. Next invokations of
+    wolfSSL_Connect()/wolfSSL_Accept()/wolfSSL_read() will complete the
+    handshake. wolfSSL_write() works with both blocking and non-blocking I/O.
+    When the underlying I/O is non-blocking, wolfSSL_write() will return when
+    the underlying I/O could not satisfy the needs of wolfSSL_write() to
+    continue.  In this case, a call to wolfSSL_get_error() will yield either
+    SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE.  The calling process must then
+    repeat the call to wolfSSL_write() when the underlying I/O is ready. If the
+    underlying I/O is blocking, wolfSSL_write() will only return once the buffer
+    data of size sz has been completely written or an error occurred.
 
     \return >0 the number of bytes written upon success.
     \return 0 will be returned upon failure.  Call wolfSSL_get_error() for
