@@ -4834,7 +4834,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             err = MEMORY_E;
     }
 
-    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+    if (err == MP_OKAY) {
+        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+    }
 
     /* make p */
     if (err == MP_OKAY) {
