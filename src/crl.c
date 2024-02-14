@@ -1002,7 +1002,6 @@ static int SwapLists(WOLFSSL_CRL* crl)
         return -1;
     }
 
-#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         ret = LoadCRL(tmp, crl->monitors[0].path, WOLFSSL_FILETYPE_PEM, 0);
         if (ret != WOLFSSL_SUCCESS) {
@@ -1026,7 +1025,6 @@ static int SwapLists(WOLFSSL_CRL* crl)
             return -1;
         }
     }
-#endif
 
     if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockRwLock_Wr failed");
@@ -1122,7 +1120,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     fPEM = -1;
     fDER = -1;
 
-#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         fPEM = open(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
@@ -1144,7 +1141,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             return NULL;
         }
     }
-#endif
 
     if (fPEM != -1)
         EV_SET(&change, fPEM, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
@@ -1256,7 +1252,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
         return NULL;
     }
 
-#ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
         wd = inotify_add_watch(notifyFd, crl->monitors[0].path, IN_CLOSE_WRITE |
                                                                 IN_DELETE);
@@ -1280,7 +1275,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             return NULL;
         }
     }
-#endif
 
 
     /* signal to calling thread we're setup */
@@ -1423,7 +1417,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
     }
     handlesLen++;
 
-#ifdef HAVE_CRL_MONITOR
     for (i = 0; i < WOLFSSL_CRL_MONITORS_LEN; i++) {
         if (crl->monitors[i].path) {
             handles[handlesLen] = FindFirstChangeNotificationA(
@@ -1443,7 +1436,6 @@ static THREAD_RETURN WOLFSSL_THREAD DoMonitor(void* arg)
             handlesLen++;
         }
     }
-#endif
 
     if (handlesLen == 1) {
         WOLFSSL_MSG("Nothing to watch. Only custom event handle set.");
