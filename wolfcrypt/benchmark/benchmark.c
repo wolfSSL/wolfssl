@@ -4697,7 +4697,7 @@ static void bench_aesecb_internal(int useDeviceID,
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
-                                      &times, numBlocks, &pending)) {
+                                      &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
                     wc_AesEncryptDirect(&enc[i], bench_cipher, bench_plain);
                 #else
@@ -4748,7 +4748,7 @@ exit_aes_enc:
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
-                                      &times, numBlocks, &pending)) {
+                                      &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
                     wc_AesDecryptDirect(&enc[i], bench_plain, bench_cipher);
                 #else
