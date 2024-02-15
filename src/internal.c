@@ -24040,6 +24040,52 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
 
+/**
+ * ssl_in_handshake():
+ * Invoked in wolfSSL_read/wolfSSL_write to check if wolfSSL_negotiate() is
+ * needed in the handshake.
+ *
+ * In TLSv1.2 negotiate until the end of the handshake, unless:
+ * 1 in SCR and sending data or
+ * 2 in SCR and we have plain data ready
+ * Early data logic may bypass this logic in TLSv1.3 when appropriate.
+ */
+static int ssl_in_handshake(WOLFSSL *ssl, int send)
+{
+    if (IsSCR(ssl)) {
+        if (send) {
+            /* allow sending data in SCR */
+            return 0;
+        } else {
+            /* allow reading buffered data in SCR */
+            if (ssl->buffers.clearOutputBuffer.length != 0)
+                return 0;
+        }
+        return 1;
+    }
+
+    if (ssl->options.handShakeState != HANDSHAKE_DONE)
+        return 1;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return ssl->options.acceptState < TLS13_TICKET_SENT;
+        if (IsAtLeastTLSv1_2(ssl))
+            return ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
+        return 0;
+    }
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return ssl->options.connectState < FINISHED_DONE;
+        if (IsAtLeastTLSv1_2(ssl))
+            return ssl->options.connectState < SECOND_REPLY_DONE;
+        return 0;
+    }
+
+    return 0;
+}
+
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
@@ -24091,7 +24137,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE && !IsSCR(ssl)) {
+    if (ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -24343,19 +24389,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     else
 #endif
     {
-        int negotiate = 0;
-#ifdef HAVE_SECURE_RENEGOTIATION
-        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
-            if (ssl->options.handShakeState != HANDSHAKE_DONE
-                && ssl->buffers.clearOutputBuffer.length == 0)
-                negotiate = 1;
-        }
-        else
-#endif
-        if (ssl->options.handShakeState != HANDSHAKE_DONE)
-            negotiate = 1;
-
-        if (negotiate) {
+        if (ssl_in_handshake(ssl, 0)) {
             int err;
             WOLFSSL_MSG("Handshake not complete, trying to finish");
             if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {

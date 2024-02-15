@@ -69676,6 +69676,121 @@ static int test_write_dup(void)
     return EXPECT_RESULT();
 }
 
+static int test_read_write_hs(void)
+{
+
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_s = NULL, *ctx_c = NULL;
+    WOLFSSL *ssl_s = NULL, *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    uint8_t test_buffer[16];
+    unsigned int test;
+
+    /* test == 0 : client writes, server reads */
+    /* test == 1 : server writes, client reads */
+    for (test = 0; test < 2; test++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s,  &ssl_c, &ssl_s,
+                                     wolfTLSv1_2_client_method,
+                                     wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_group_messages(ssl_s), WOLFSSL_SUCCESS);
+        /* CH -> */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), -1);
+        } else {
+            ExpectIntEQ(wolfSSL_read(ssl_c, test_buffer,
+                                     sizeof(test_buffer)),  -1);
+        }
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* <- SH + SKE + SHD */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_read(ssl_s, test_buffer,
+                                     sizeof(test_buffer)), -1);
+        } else {
+            ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), -1);
+        }
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* -> CKE + CLIENT FINISHED */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), -1);
+        } else {
+            ExpectIntEQ(wolfSSL_read(ssl_c, test_buffer,
+                                     sizeof(test_buffer)), -1);
+        }
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        /* abide clang static analyzer */
+        if (ssl_s != NULL) {
+            /* disable group message to separate sending of ChangeCipherspec
+             * from Finished */
+            ssl_s->options.groupMessages = 0;
+        }
+        /* allow writing of CS, but not FINISHED */
+        test_ctx.c_len = TEST_MEMIO_BUF_SZ - 6;
+
+        /* <- CS */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_read(ssl_s, test_buffer,
+                                     sizeof(test_buffer)), -1);
+        } else {
+            ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), -1);
+        }
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_WRITE);
+
+        /* move CS message where the client can read it */
+        memmove(test_ctx.c_buff,
+                (test_ctx.c_buff + TEST_MEMIO_BUF_SZ - 6), 6);
+        test_ctx.c_len = 6;
+        /* read CS */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), -1);
+        } else {
+            ExpectIntEQ(wolfSSL_read(ssl_c, test_buffer,
+                                     sizeof(test_buffer)), -1);
+        }
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.c_len, 0);
+
+        if (test == 0) {
+            /* send SERVER FINISHED */
+            ExpectIntEQ(wolfSSL_read(ssl_s, test_buffer,
+                                     sizeof(test_buffer)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+                        WOLFSSL_ERROR_WANT_READ);
+        } else {
+            /* send SERVER FINISHED + App Data */
+            ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), 5);
+        }
+
+        ExpectIntGT(test_ctx.c_len, 0);
+
+        /* Send and receive the data */
+        if (test == 0) {
+            ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+            ExpectIntEQ(wolfSSL_read(ssl_s, test_buffer,
+                                     sizeof(test_buffer)), 5);
+        } else {
+            ExpectIntEQ(wolfSSL_read(ssl_c, test_buffer,
+                                     sizeof(test_buffer)), 5);
+        }
+
+        ExpectBufEQ(test_buffer, "hello", 5);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        ssl_c = ssl_s = NULL;
+        ctx_c = ctx_s = NULL;
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -70983,6 +71098,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls13_early_data),
     TEST_DECL(test_tls_multi_handshakes_one_record),
     TEST_DECL(test_write_dup),
+    TEST_DECL(test_read_write_hs),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
