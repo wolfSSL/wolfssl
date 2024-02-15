@@ -431,3 +431,9 @@ void join_thread(THREAD_TYPE thread)
     THREAD_CHECK_RET(wolfSSL_JoinThread(thread));
 }
 #endif /* SINGLE_THREADED */
+
+/* These correspond to WOLFSSL_SSLV3...WOLFSSL_DTLSV1_3 */
+const char* tls_desc[] = {
+    "SSLv3", "TLSv1.0", "TLSv1.1", "TLSv1.2", "TLSv1.3",
+    "DTLSv1.0", "DTLSv1.2", "DTLSv1.3"
+};

@@ -9420,8 +9420,6 @@ typedef struct Dcv13Args {
     word32 sigSz;
     word32 idx;
     word32 begin;
-    byte   hashAlgo;
-    byte   sigAlgo;
 
     byte*  sigData;
     word16 sigDataSz;
@@ -9575,8 +9573,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         ret = 0;
         ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(Dcv13Args));
-        args->hashAlgo = sha_mac;
-        args->sigAlgo = anonymous_sa_algo;
+        ssl->options.peerHashAlgo = sha_mac;
+        ssl->options.peerSigAlgo = anonymous_sa_algo;
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -9625,14 +9623,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_NATIVE ||
                 *ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-                ret = DecodeTls13SigAlg(input + args->idx, &args->hashAlgo,
-                                        &args->sigAlgo);
+                ret = DecodeTls13SigAlg(input + args->idx,
+                        &ssl->options.peerHashAlgo, &ssl->options.peerSigAlgo);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
             }
             else {
                 ret = DecodeTls13HybridSigAlg(input + args->idx,
-                                              &args->hashAlgo,
-                                              &args->sigAlgo,
+                                              &ssl->options.peerHashAlgo,
+                                              &ssl->options.peerSigAlgo,
                                               &args->altSigAlgo);
             }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -9661,7 +9659,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
                 word16 sa;
                 if (args->altSigAlgo == 0)
-                    sa = args->sigAlgo;
+                    sa = ssl->options.peerSigAlgo;
                 else
                     sa = args->altSigAlgo;
 
@@ -9747,66 +9745,66 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             /* Assume invalid unless signature algo matches the key provided */
             validSigAlgo = 0;
         #ifdef HAVE_ED25519
-            if (args->sigAlgo == ed25519_sa_algo) {
+            if (ssl->options.peerSigAlgo == ed25519_sa_algo) {
                 WOLFSSL_MSG("Peer sent ED25519 sig");
                 validSigAlgo = (ssl->peerEd25519Key != NULL) &&
                                                      ssl->peerEd25519KeyPresent;
             }
         #endif
         #ifdef HAVE_ED448
-            if (args->sigAlgo == ed448_sa_algo) {
+            if (ssl->options.peerSigAlgo == ed448_sa_algo) {
                 WOLFSSL_MSG("Peer sent ED448 sig");
                 validSigAlgo = (ssl->peerEd448Key != NULL) &&
                                                        ssl->peerEd448KeyPresent;
             }
         #endif
         #ifdef HAVE_ECC
-            if (args->sigAlgo == ecc_dsa_sa_algo) {
+            if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
                 WOLFSSL_MSG("Peer sent ECC sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
                                                       ssl->peerEccDsaKeyPresent;
             }
         #endif
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-            if (args->sigAlgo == sm2_sa_algo) {
+            if (ssl->options.peerSigAlgo == sm2_sa_algo) {
                 WOLFSSL_MSG("Peer sent SM2 sig");
                 validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
                                                       ssl->peerEccDsaKeyPresent;
             }
         #endif
         #ifdef HAVE_PQC
-            if (args->sigAlgo == falcon_level1_sa_algo) {
+            if (ssl->options.peerSigAlgo == falcon_level1_sa_algo) {
                 WOLFSSL_MSG("Peer sent Falcon Level 1 sig");
                 validSigAlgo = (ssl->peerFalconKey != NULL) &&
                                ssl->peerFalconKeyPresent;
             }
-            if (args->sigAlgo == falcon_level5_sa_algo) {
+            if (ssl->options.peerSigAlgo == falcon_level5_sa_algo) {
                 WOLFSSL_MSG("Peer sent Falcon Level 5 sig");
                 validSigAlgo = (ssl->peerFalconKey != NULL) &&
                                ssl->peerFalconKeyPresent;
             }
-            if (args->sigAlgo == dilithium_level2_sa_algo) {
+            if (ssl->options.peerSigAlgo == dilithium_level2_sa_algo) {
                 WOLFSSL_MSG("Peer sent Dilithium Level 2 sig");
                 validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
                                ssl->peerDilithiumKeyPresent;
             }
-            if (args->sigAlgo == dilithium_level3_sa_algo) {
+            if (ssl->options.peerSigAlgo == dilithium_level3_sa_algo) {
                 WOLFSSL_MSG("Peer sent Dilithium Level 3 sig");
                 validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
                                ssl->peerDilithiumKeyPresent;
             }
-            if (args->sigAlgo == dilithium_level5_sa_algo) {
+            if (ssl->options.peerSigAlgo == dilithium_level5_sa_algo) {
                 WOLFSSL_MSG("Peer sent Dilithium Level 5 sig");
                 validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
                                ssl->peerDilithiumKeyPresent;
             }
         #endif
         #ifndef NO_RSA
-            if (args->sigAlgo == rsa_sa_algo) {
+            if (ssl->options.peerSigAlgo == rsa_sa_algo) {
                 WOLFSSL_MSG("Peer sent PKCS#1.5 algo - not valid TLS 1.3");
                 ERROR_OUT(INVALID_PARAMETER, exit_dcv);
             }
-            if (args->sigAlgo == rsa_pss_sa_algo) {
+            if (ssl->options.peerSigAlgo == rsa_pss_sa_algo) {
                 WOLFSSL_MSG("Peer sent RSA sig");
                 validSigAlgo = (ssl->peerRsaKey != NULL) &&
                                                          ssl->peerRsaKeyPresent;
@@ -9830,10 +9828,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * don't do:
                  *   sig->length -= args->altSignatureSz; */
                 #define RSA3072_SIG_LEN 384
-                if (args->sigAlgo == rsa_pss_sa_algo) {
+                if (ssl->options.peerSigAlgo == rsa_pss_sa_algo) {
                     sig->length = RSA3072_SIG_LEN;
                 }
-                else if (args->sigAlgo == ecc_dsa_sa_algo) {
+                else if (ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
                     word32 tmpIdx = args->idx;
                     sig->length = wc_SignatureGetSize(WC_SIGNATURE_TYPE_ECC,
                                       ssl->peerEccDsaKey,
@@ -9873,11 +9871,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if (ret != 0)
                     goto exit_dcv;
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (args->sigAlgo != sm2_sa_algo)
+                if (ssl->options.peerSigAlgo != sm2_sa_algo)
             #endif
                 {
                     ret = CreateECCEncodedSig(args->sigData,
-                        args->sigDataSz, args->hashAlgo);
+                        args->sigDataSz, ssl->options.peerHashAlgo);
                     if (ret < 0)
                         goto exit_dcv;
                     args->sigDataSz = (word16)ret;
@@ -9957,7 +9955,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #ifndef NO_RSA
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                 ret = RsaVerify(ssl, sig->buffer, (word32)sig->length, &args->output,
-                    args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
+                    ssl->options.peerSigAlgo, ssl->options.peerHashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
                     &ssl->buffers.peerRsaKey
                 #else
@@ -9973,7 +9971,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #ifdef HAVE_ECC
             if (ssl->peerEccDsaKeyPresent) {
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (args->sigAlgo == sm2_sa_algo) {
+                if (ssl->options.peerSigAlgo == sm2_sa_algo) {
                     ret = Sm2wSm3Verify(ssl, TLS13_SM2_SIG_ID,
                         TLS13_SM2_SIG_ID_SZ, input + args->idx, args->sz,
                         args->sigData, args->sigDataSz,
@@ -10153,8 +10151,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         {
         #if !defined(NO_RSA) && defined(WC_RSA_PSS)
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
-                ret = CheckRSASignature(ssl, args->sigAlgo, args->hashAlgo,
-                                        args->output, args->sendSz);
+                ret = CheckRSASignature(ssl, ssl->options.peerSigAlgo,
+                        ssl->options.peerHashAlgo, args->output, args->sendSz);
                 if (ret != 0)
                     goto exit_dcv;
 
