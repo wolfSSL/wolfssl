@@ -24040,7 +24040,8 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
 
-/*
+/**
+ * ssl_in_handshake():
  * Invoked in wolfSSL_read/wolfSSL_write to check if wolfSSL_negotiate() is
  * needed in the handshake.
  *
@@ -24049,7 +24050,7 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
  * 2 in SCR and we have plain data ready
  * Early data logic may bypass this logic in TLSv1.3 when appropriate.
  */
-static int need_negotiate(WOLFSSL *ssl, int send)
+static int ssl_in_handshake(WOLFSSL *ssl, int send)
 {
     if (IsSCR(ssl)) {
         if (send) {
@@ -24136,7 +24137,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
     else
 #endif
-    if (need_negotiate(ssl, 1)) {
+    if (ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -24388,7 +24389,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     else
 #endif
     {
-        if (need_negotiate(ssl, 0)) {
+        if (ssl_in_handshake(ssl, 0)) {
             int err;
             WOLFSSL_MSG("Handshake not complete, trying to finish");
             if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
