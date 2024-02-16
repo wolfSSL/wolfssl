@@ -659,10 +659,8 @@ WOLFSSL_LOCAL
 int wc_ecc_shared_secret_gen_sync(ecc_key* private_key,
     ecc_point* point, byte* out, word32* outlen);
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
-#define wc_ecc_shared_secret_ssh wc_ecc_shared_secret
-#else
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(PLUTON_CRYPTO_ECC) && !defined(WOLFSSL_CRYPTOCELL)
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */
 #endif
 

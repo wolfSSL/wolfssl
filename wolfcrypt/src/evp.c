@@ -2497,9 +2497,9 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
 #endif
                 return WOLFSSL_FAILURE;
             }
-            if (wc_ecc_shared_secret_ssh((ecc_key*)ctx->pkey->ecc->internal,
-                                         (ecc_point*)ctx->peerKey->ecc->pub_key->internal,
-                                         key, &len32) != MP_OKAY) {
+            if (wc_ecc_shared_secret((ecc_key*)ctx->pkey->ecc->internal,
+                    (ecc_key*)ctx->peerKey->ecc->internal, key, &len32)
+                    != MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_shared_secret failed");
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && (!defined(HAVE_FIPS) || \
