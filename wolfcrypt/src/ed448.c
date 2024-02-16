@@ -203,7 +203,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         az[55] |= 0x80;
         az[56]  = 0x00;
 
-        ge448_scalarmult_base(&A, az);
+        ret = ge448_scalarmult_base(&A, az);
+    }
+
+    if (ret == 0) {
         ge448_to_bytes(pubKey, &A);
 
         key->pubKeySet = 1;

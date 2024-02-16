@@ -19754,6 +19754,10 @@ static int test_wc_RsaPublicEncryptDecrypt(void)
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
 
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     ExpectNotNull(in);
     ExpectNotNull(plain);
@@ -19815,6 +19819,10 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     ExpectNotNull(in);
@@ -19880,6 +19888,10 @@ static int test_wc_RsaSSL_SignVerify(void)
     WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(out, byte, TEST_RSA_BYTES, NULL);
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_ALLOC_VAR(out, byte, TEST_RSA_BYTES, NULL);
+    WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     ExpectNotNull(in);

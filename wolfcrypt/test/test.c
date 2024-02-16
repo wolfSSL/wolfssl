@@ -11917,12 +11917,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes192_test(void)
         0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8
     };
 
-    WOLFSSL_SMALL_STACK_STATIC byte key[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
         0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
         0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
         0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
     };
-    WOLFSSL_SMALL_STACK_STATIC byte iv[]  = {
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[]  = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
     };
@@ -12046,7 +12046,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
                 (byte*)guser_PKCbInfo.wrapped_key_aes256;
     int keySz = (256/8);
 #else
-    WOLFSSL_SMALL_STACK_STATIC byte key[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte key[] = {
         0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
         0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
         0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
@@ -12054,7 +12054,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
     };
     int keySz = (int)sizeof(key);
 #endif
-    WOLFSSL_SMALL_STACK_STATIC byte iv[]  = {
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[]  = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
     };
@@ -15977,16 +15977,16 @@ static void initDefaultName(void)
 
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
-static byte minSerial[] = { 0x02, 0x01, 0x01 };
-static byte minName[] = { 0x30, 0x00 };
-static byte nameBad[] = {
+static const byte minSerial[] = { 0x02, 0x01, 0x01 };
+static const byte minName[] = { 0x30, 0x00 };
+static const byte nameBad[] = {
     0x30, 0x08,
           0x31, 0x06,
                 0x30, 0x04,
                       0x06, 0x02,
                             0x55, 0x04,
 };
-static byte minDates[] = {
+static const byte minDates[] = {
     0x30, 0x1e,
           0x17, 0x0d,
                 0x31, 0x38, 0x30, 0x34, 0x31, 0x33, 0x31, 0x35,
@@ -15995,7 +15995,7 @@ static byte minDates[] = {
                 0x32, 0x31, 0x30, 0x31, 0x30, 0x37, 0x31, 0x35,
                 0x32, 0x33, 0x31, 0x30, 0x5a
 };
-static byte minPubKey[] = {
+static const byte minPubKey[] = {
     0x30, 0x1c,
           0x30, 0x0d,
                 0x06, 0x09,
@@ -16009,14 +16009,14 @@ static byte minPubKey[] = {
                             0x02, 0x03,
                                   0x01, 0x00, 0x01
 };
-static byte minSigAlg[] = {
+static const byte minSigAlg[] = {
     0x30, 0x0d,
           0x06, 0x09,
                 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
                 0x0b,
           0x05, 0x00
 };
-static byte minSig[] = {
+static const byte minSig[] = {
     0x03, 0x01,
           0x00
 };
@@ -16028,7 +16028,7 @@ static int add_seq(byte* certData, int offset, byte* data, byte length)
     certData[offset++] = length;
     return offset + length;
 }
-static int add_data(byte* certData, int offset, byte* data, byte length)
+static int add_data(byte* certData, int offset, const byte* data, byte length)
 {
     XMEMCPY(certData + offset, data, length);
     return offset + length;
@@ -17259,6 +17259,10 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+    WC_ALLOC_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || sig == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_pss);
@@ -17579,6 +17583,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+    WC_ALLOC_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_nopadding);
@@ -17809,6 +17817,12 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
+
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    WC_ALLOC_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+#endif
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (out == NULL
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -18625,6 +18639,10 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
@@ -18985,6 +19003,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+    WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
@@ -19190,7 +19212,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 
 #elif defined(WOLFSSL_PUBLIC_MP)
     {
-        static byte signature_2048[] = {
+        static const byte signature_2048[] = {
             0x07, 0x6f, 0xc9, 0x85, 0x73, 0x9e, 0x21, 0x79,
             0x47, 0xf1, 0xa3, 0xd7, 0xf4, 0x27, 0x29, 0xbe,
             0x99, 0x5d, 0xac, 0xb2, 0x10, 0x3f, 0x95, 0xda,
@@ -25964,6 +25986,13 @@ static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
     WC_DECLARE_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
+    WC_ALLOC_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
+    WC_ALLOC_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(r, byte, MAX_ECC_BYTES, HEAP_HINT);
+    WC_ALLOC_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
+#endif
+
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (sig == NULL)
         ERROR_OUT(MEMORY_E, done);
@@ -27350,6 +27379,21 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif
 #ifndef WC_NO_RNG
     int     curveSize;
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    WC_ALLOC_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+#endif
+#ifdef HAVE_ECC_KEY_EXPORT
+    WC_ALLOC_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
+#endif
+#if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_KCAPI_ECC)) && \
+    defined(HAVE_ECC_SIGN)
+    WC_ALLOC_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
 #endif
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
@@ -29000,6 +29044,18 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
 #endif
 #ifndef WC_NO_RNG
     int     curveSize;
+#endif
+
+#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG)
+    WC_ALLOC_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+#endif
+#ifdef HAVE_ECC_KEY_EXPORT
+    WC_ALLOC_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
+#endif
+#ifdef HAVE_ECC_SIGN
+    WC_ALLOC_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
 #endif
 
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
@@ -32680,7 +32736,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
                                    sizeof(msg4)
     };
 #ifndef NO_ASN
-    static byte privateEd25519[] = {
+    static const byte privateEd25519[] = {
         0x30,0x2e,0x02,0x01,0x00,0x30,0x05,0x06,
         0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
         0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
@@ -32688,7 +32744,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
         0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60
     };
-    static byte badPrivateEd25519[] = {
+    static const byte badPrivateEd25519[] = {
         0x30,0x52,0x02,0x01,0x00,0x30,0x05,0x06,
         0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
         0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
@@ -32702,7 +32758,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         0xf7,0x07,0x51,0x1a,
         0x00  /* add additional bytes to make the pubkey bigger  */
     };
-    static byte publicEd25519[] = {
+    static const byte publicEd25519[] = {
         0x30,0x2a,0x30,0x05,0x06,0x03,0x2b,0x65,
         0x70,0x03,0x21,0x00,0xd7,0x5a,0x98,0x01,
         0x82,0xb1,0x0a,0xb7,0xd5,0x4b,0xfe,0xd3,
@@ -32712,7 +32768,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     };
 
     /* size has been altered to catch if sanity check is done */
-    static byte badPublicEd25519[] = {
+    static const byte badPublicEd25519[] = {
         0x30,0x2a,0x30,0x05,0x06,0x03,0x2b,0x65,
         0x70,0x03,0x21,0x00,0xd7,0x5a,0x98,0x01,
         0x82,0xb1,0x0a,0xb7,0xd5,0x4b,0xfe,0xd3,
@@ -32721,7 +32777,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         0xf7,0x07,0x51,0x1a,
         0x00 /* add an additional byte to make the pubkey appear bigger */
     };
-    static byte privPubEd25519[] = {
+    static const byte privPubEd25519[] = {
         0x30,0x50,0x02,0x01,0x00,0x30,0x05,0x06,
         0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
         0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
@@ -36807,7 +36863,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
  *   https://github.com/XMSS/xmss-reference
  * */
 
-static byte xmss_pub[XMSS_SHA256_PUBLEN] =
+static const byte xmss_pub[XMSS_SHA256_PUBLEN] =
 {
     0x00,0x00,0x00,0x01,0xA5,0x41,0x31,0x96,
     0x0A,0xF9,0xF3,0xB2,0x4B,0x2E,0x5B,0x3E,
@@ -36820,7 +36876,7 @@ static byte xmss_pub[XMSS_SHA256_PUBLEN] =
     0xC9,0xB7,0x39,0x4E
 };
 
-static byte xmss_msg[32] =
+static const byte xmss_msg[32] =
 {
     0x07,0x9F,0x80,0x86,0xDB,0x76,0x27,0xDF,
     0xED,0x5B,0x2A,0x81,0x60,0x60,0x7D,0xB4,
@@ -36830,7 +36886,7 @@ static byte xmss_msg[32] =
 
 /* This was actually the 5th signature produced from
  * xmss_fast test in xmss-reference. */
-static byte xmss_sig[2500] =
+static const byte xmss_sig[2500] =
 {
     0x00,0x00,0x00,0x05,0xF0,0x15,0x34,0xBA,
     0x92,0x03,0x6A,0xB9,0xA5,0x23,0x86,0x11,
@@ -37408,7 +37464,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
  * */
 
 /* "wolfSSL LMS example message!" without null terminator. */
-static byte lms_msg[28] =
+static const byte lms_msg[28] =
 {
     0x77,0x6F,0x6C,0x66,0x53,0x53,0x4C,0x20,
     0x4C,0x4D,0x53,0x20,0x65,0x78,0x61,0x6D,
@@ -37416,7 +37472,7 @@ static byte lms_msg[28] =
     0x61,0x67,0x65,0x21
 };
 
-static byte lms_L1H10W8_pub[HSS_MAX_PUBLIC_KEY_LEN] =
+static const byte lms_L1H10W8_pub[HSS_MAX_PUBLIC_KEY_LEN] =
 {
     0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x06,
     0x00,0x00,0x00,0x04,0xA1,0x26,0x76,0xF8,
@@ -37430,7 +37486,7 @@ static byte lms_L1H10W8_pub[HSS_MAX_PUBLIC_KEY_LEN] =
 
 #define LMS_L1H10W8_SIGLEN (1456)
 
-static byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
+static const byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
 {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
     0x00,0x00,0x00,0x04,0x18,0x70,0x09,0x2E,
@@ -39440,12 +39496,12 @@ static wc_test_ret_t sakke_kat_encapsulate_test(SakkeKey* key)
         0x37, 0x30, 0x30, 0x39, 0x30, 0x30, 0x31, 0x32,
         0x33, 0x00
     };
-    static word32 idSz = sizeof(id);
+    static const word32 idSz = sizeof(id);
     byte ssv[] = {
         0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0,
         0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0
     };
-    static word16 ssvSz = sizeof(ssv);
+    static const word16 ssvSz = sizeof(ssv);
     static const byte expAuth[] = {
         0x04,
         0x44, 0xE8, 0xAD, 0x44, 0xAB, 0x85, 0x92, 0xA6,
@@ -43145,8 +43201,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7encrypted_test(void)
     /* Attribute example from RFC 4134, Section 7.2
      * OID = 1.2.5555
      * OCTET STRING = 'This is a test General ASN Attribute, number 1.' */
-    static byte genAttrOid[] = { 0x06, 0x03, 0x2a, 0xab, 0x33 };
-    static byte genAttr[] = { 0x04, 47,
+    static const byte genAttrOid[] = { 0x06, 0x03, 0x2a, 0xab, 0x33 };
+    static const byte genAttr[] = { 0x04, 47,
                               0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,
                               0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x47,
                               0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x20, 0x41,
@@ -43154,8 +43210,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7encrypted_test(void)
                               0x62, 0x75, 0x74, 0x65, 0x2c, 0x20, 0x6e, 0x75,
                               0x6d, 0x62, 0x65, 0x72, 0x20, 0x31, 0x2e };
 
-    static byte genAttrOid2[] = { 0x06, 0x03, 0x2a, 0xab, 0x34 };
-    static byte genAttr2[] = { 0x04, 47,
+    static const byte genAttrOid2[] = { 0x06, 0x03, 0x2a, 0xab, 0x34 };
+    static const byte genAttr2[] = { 0x04, 47,
                               0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,
                               0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x47,
                               0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x20, 0x41,
@@ -43488,12 +43544,12 @@ typedef struct {
     word32       signedAttribsSz;
     const char*  outFileName;
     int          contentOID;
-    byte*        contentType;
+    const byte*  contentType;
     word32       contentTypeSz;
     int          sidType;
     int          encryptOID;   /* for single-shot encrypt alg OID */
     int          encCompFlag;  /* for single-shot. 1 = enc, 2 = comp, 3 = both*/
-    byte*        encryptKey;   /* for single-shot, encryptedData */
+    const byte*  encryptKey;   /* for single-shot, encryptedData */
     word32       encryptKeySz; /* for single-shot, encryptedData */
     PKCS7Attrib* unprotectedAttribs;   /* for single-shot, encryptedData */
     word32       unprotectedAttribsSz; /* for single-shot, encryptedData */
@@ -43527,24 +43583,24 @@ static wc_test_ret_t pkcs7signed_run_vectors(
         0x72,0x6c,0x64
     };
 
-    static byte transIdOid[] =
+    static const byte transIdOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x07 };
-    static byte messageTypeOid[] =
+    static const byte messageTypeOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x02 };
-    static byte senderNonceOid[] =
+    static const byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
 #ifndef NO_SHA
-    static byte transId[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
+    byte transId[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
 #else
-    static byte transId[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
+    byte transId[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
 #endif
-    static byte messageType[] = { 0x13, 2, '1', '9' };
-    static byte senderNonce[PKCS7_NONCE_SZ + 2];
+    static const byte messageType[] = { 0x13, 2, '1', '9' };
+    byte senderNonce[PKCS7_NONCE_SZ + 2];
 
-    static PKCS7Attrib attribs[] =
+    PKCS7Attrib attribs[] =
     {
         { transIdOid, sizeof(transIdOid), transId,
                                sizeof(transId) - 1 }, /* take off the null */
@@ -43555,13 +43611,13 @@ static wc_test_ret_t pkcs7signed_run_vectors(
     };
 
     /* for testing custom contentType, FirmwarePkgData */
-    static byte customContentType[] = { 0x06, 0x0B, 0x2A, 0x86,
+    static const byte customContentType[] = { 0x06, 0x0B, 0x2A, 0x86,
                                         0x48, 0x86, 0xF7, 0x0D,
                                         0x01, 0x09, 0x10, 0x01, 0x10 };
 
     #define MAX_TESTVECTORS_LEN 20
     #define ADD_PKCS7SIGNEDVECTOR(...) {                                       \
-            pkcs7SignedVector _this_vector = { __VA_ARGS__ };                  \
+            const pkcs7SignedVector _this_vector = { __VA_ARGS__ };            \
             if (testSz == MAX_TESTVECTORS_LEN) {                               \
                 ret = WC_TEST_RET_ENC_NC;                                      \
                 goto out;                                                      \
@@ -43818,7 +43874,8 @@ static wc_test_ret_t pkcs7signed_run_vectors(
         /* optional custom contentType, default is DATA,
            overrides contentOID if set */
         if (testVectors[i].contentType != NULL) {
-            ret = wc_PKCS7_SetContentType(pkcs7, testVectors[i].contentType,
+            ret = wc_PKCS7_SetContentType(pkcs7,
+                                          (byte *)testVectors[i].contentType,
                                           testVectors[i].contentTypeSz);
             if (ret != 0)
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -43940,7 +43997,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
         #else
             byte buf[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
         #endif
-            byte* oidPt = transIdOid + 2;  /* skip object id tag and size */
+            const byte* oidPt = transIdOid + 2;  /* skip object id tag and size */
             int oidSz = (int)sizeof(transIdOid) - 2;
             int bufSz = 0;
 
@@ -44046,7 +44103,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
 
 #if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
      defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
-    static byte aes256Key[] = {
+    static const byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -44054,10 +44111,10 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
     };
 #endif
 
-    static byte messageTypeOid[] =
+    static const byte messageTypeOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x02 };
-    static byte messageType[] = { 0x13, 2, '1', '9' };
+    static const byte messageType[] = { 0x13, 2, '1', '9' };
 
     PKCS7Attrib attribs[] =
     {
@@ -44347,7 +44404,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
 
             /* encode Signed Encrypted FirmwarePkgData */
             encodedSz = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7,
-                    testVectors[i].encryptKey, testVectors[i].encryptKeySz,
+                    (byte *)testVectors[i].encryptKey, testVectors[i].encryptKeySz,
                     testVectors[i].privateKey, testVectors[i].privateKeySz,
                     testVectors[i].encryptOID, testVectors[i].signOID,
                     testVectors[i].hashOID, (byte*)testVectors[i].content,
@@ -44450,7 +44507,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
         else if (testVectors[i].encCompFlag == 1) {
 
             /* decrypt inner encryptedData */
-            pkcs7->encryptionKey = testVectors[i].encryptKey;
+            pkcs7->encryptionKey = (byte *)testVectors[i].encryptKey;
             pkcs7->encryptionKeySz = testVectors[i].encryptKeySz;
 
             ret = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,

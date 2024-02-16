@@ -47,6 +47,10 @@ else
     WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
 endif
 
+ifeq "$(ENABLED_LINUXKM_BENCHMARKS)" "yes"
+    WOLFSSL_OBJ_FILES+=wolfcrypt/benchmark/benchmark.o
+endif
+
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     WOLFCRYPT_PIE_FILES := linuxkm/pie_first.o $(filter wolfcrypt/src/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o linuxkm/pie_last.o
     WOLFSSL_OBJ_FILES := $(WOLFCRYPT_PIE_FILES) $(filter-out $(WOLFCRYPT_PIE_FILES),$(WOLFSSL_OBJ_FILES))

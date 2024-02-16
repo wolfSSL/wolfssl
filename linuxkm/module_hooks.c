@@ -121,11 +121,7 @@ static int updateFipsHash(void);
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
-#define STRING_USER
-#define NO_MAIN_FUNCTION
-#define current_time benchmark_current_time
-#define WOLFSSL_NO_FLOAT_FMT
-#include "wolfcrypt/benchmark/benchmark.c"
+extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
 
 #ifdef LINUXKM_LKCAPI_REGISTER

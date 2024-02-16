@@ -6522,7 +6522,6 @@ int wc_GenerateSakkePointITable(SakkeKey* key, byte* table, word32* len)
         key->i.table = table;
         key->i.tableLen = *len;
     }
-    (void)table;
 #endif
 
     return err;
