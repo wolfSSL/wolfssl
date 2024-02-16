@@ -3722,7 +3722,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 output[i] = (byte)rand();
             return 0;
         }
+#elif defined(WOLFSSL_MAXQ108X) || defined(WOLFSSL_MAXQ1065)
 
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        return maxq10xx_random(output, sz);
+    }
 #elif defined(WOLFSSL_GETRANDOM)
 
     /* getrandom() was added to the Linux kernel in version 3.17.
