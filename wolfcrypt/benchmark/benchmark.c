@@ -8940,6 +8940,11 @@ void bench_dh(int useDeviceID)
     WC_DECLARE_VAR(priv2, byte,
                      BENCH_DH_PRIV_SIZE, HEAP_HINT);
 
+    /* old scan-build misfires -Wmaybe-uninitialized on these. */
+    XMEMSET(pub, 0, sizeof(pub));
+    XMEMSET(agree, 0, sizeof(agree));
+    XMEMSET(priv, 0, sizeof(priv));
+
     WC_CALLOC_ARRAY(dhKey, DhKey, BENCH_MAX_PENDING,
                      sizeof(DhKey), HEAP_HINT);
     WC_ALLOC_ARRAY(pub, byte,
@@ -10347,6 +10352,11 @@ void bench_ecc(int useDeviceID, int curveId)
     WC_DECLARE_ARRAY(digest, byte,
                      BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
+
+    /* old scan-build misfires -Wmaybe-uninitialized on these. */
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(digest, 0, sizeof(digest));
+    XMEMSET(shared, 0, sizeof(shared));
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
