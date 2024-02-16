@@ -1045,7 +1045,7 @@ extern void uITRON4_free(void *p) ;
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
         /* FreeRTOS pvPortRealloc() implementation can be found here:
          * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
-        #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA)
+        #else
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc((p), (n)))
         #endif
     #endif
