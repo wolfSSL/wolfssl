@@ -342,9 +342,10 @@ static void ge448_scalarmult(ge448_p2* h, const ge448_p2* p, const byte* a)
  * r  [in]  Point to hold result.
  * a  [in]  Scalar to multiply by.
  */
-void ge448_scalarmult_base(ge448_p2* h, const byte* a)
+int ge448_scalarmult_base(ge448_p2* h, const byte* a)
 {
     ge448_scalarmult(h, &ed448_base, a);
+    return 0;
 }
 
 /* Perform a scalar multplication of the base point and public point.
@@ -10563,12 +10564,28 @@ static void ge448_select(ge448_precomp* r, int pos, byte b)
  * r  [in]  Point to hold result.
  * a  [in]  Scalar to multiply by.
  */
-void ge448_scalarmult_base(ge448_p2* r, const byte* a)
+int ge448_scalarmult_base(ge448_p2* r, const byte* a)
 {
     byte          carry;
-    ge448_precomp t;
-    int           i;
+#ifdef WOLFSSL_SMALL_STACK
+    ge448_precomp *t = NULL;
+    byte          *e = NULL;
+#else
+    ge448_precomp t[1];
     byte          e[113];
+#endif
+    int           i;
+
+#ifdef WOLFSSL_SMALL_STACK
+    t = (ge448_precomp *)XMALLOC(sizeof(*t), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (t == NULL)
+        return MEMORY_E;
+    e = (byte *)XMALLOC(113, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     carry = 0;
     for (i = 0; i < 56; ++i) {
@@ -10586,13 +10603,13 @@ void ge448_scalarmult_base(ge448_p2* r, const byte* a)
     /* each e[i] is between -8 and 8 */
 
     /* Odd indeces first - sum based on even index so multiply by 16 */
-    ge448_select(&t, 0, e[1]);
-    fe448_copy(r->X, t.x);
-    fe448_copy(r->Y, t.y);
+    ge448_select(t, 0, e[1]);
+    fe448_copy(r->X, t->x);
+    fe448_copy(r->Y, t->y);
     fe448_1(r->Z);
     for (i = 3; i < 112; i += 2) {
-        ge448_select(&t, i / 2, e[i]);
-        ge448_madd(r, r, &t);
+        ge448_select(t, i / 2, e[i]);
+        ge448_madd(r, r, t);
     }
 
     ge448_dbl(r, r);
@@ -10602,9 +10619,16 @@ void ge448_scalarmult_base(ge448_p2* r, const byte* a)
 
     /* Add even indeces */
     for (i = 0; i <= 112; i += 2) {
-        ge448_select(&t, i / 2, e[i]);
-        ge448_madd(r, r, &t);
+        ge448_select(t, i / 2, e[i]);
+        ge448_madd(r, r, t);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
 }
 
 /* Create to a sliding window for the scalar multiplicaton.

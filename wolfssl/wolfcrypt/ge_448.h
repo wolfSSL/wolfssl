@@ -64,7 +64,7 @@ WOLFSSL_LOCAL int  ge448_from_bytes_negate_vartime(ge448_p2 *r, const byte *b);
 
 WOLFSSL_LOCAL int  ge448_double_scalarmult_vartime(ge448_p2 *r, const byte *a,
                                     const ge448_p2 *A, const byte *b);
-WOLFSSL_LOCAL void ge448_scalarmult_base(ge448_p2* h, const byte* a);
+WOLFSSL_LOCAL int  ge448_scalarmult_base(ge448_p2* h, const byte* a);
 WOLFSSL_LOCAL void sc448_reduce(byte* b);
 WOLFSSL_LOCAL void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d);
 WOLFSSL_LOCAL void ge448_to_bytes(byte *s, const ge448_p2 *h);
