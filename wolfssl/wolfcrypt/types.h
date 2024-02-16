@@ -627,8 +627,8 @@ typedef struct w64wrapper {
             VAR_TYPE* VAR_NAME = NULL
         #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
             do {                                                        \
-                VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);\
-                if (VAR_NAME == NULL) {                                 \
+                (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+                if ((VAR_NAME) == NULL) {                               \
                     WC_ALLOC_DO_ON_FAILURE();                           \
                 }                                                       \
             } while (0)
