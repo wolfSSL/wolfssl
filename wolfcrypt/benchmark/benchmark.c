@@ -8435,13 +8435,12 @@ static const unsigned char rsa_3072_sig[] = {
 #endif
 #endif /* WOLFSSL_RSA_VERIFY_INLINE || WOLFSSL_RSA_PUBLIC_ONLY */
 
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-static void bench_rsa_helper(int useDeviceID, RsaKey *rsaKey[BENCH_MAX_PENDING],
+static void bench_rsa_helper(int useDeviceID,
+                             WC_ARRAY_ARG(rsaKey,
+                                          RsaKey,
+                                          BENCH_MAX_PENDING,
+                                          sizeof(RsaKey)),
                              word32 rsaKeySz)
-#else
-static void bench_rsa_helper(int useDeviceID, RsaKey rsaKey[1][BENCH_MAX_PENDING],
-                             word32 rsaKeySz)
-#endif
 {
     int         ret = 0, i, times, count = 0, pending = 0;
     word32      idx = 0;
@@ -8791,7 +8790,7 @@ void bench_rsa(int useDeviceID)
     }
 
     if (rsaKeySz > 0) {
-        bench_rsa_helper(useDeviceID, &rsaKey[0], rsaKeySz);
+        bench_rsa_helper(useDeviceID, rsaKey, rsaKeySz);
     }
 
     (void)bytes;
