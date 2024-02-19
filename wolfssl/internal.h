@@ -4814,6 +4814,8 @@ struct Options {
     byte            cipherSuite;            /* second byte, actual suite */
     byte            hashAlgo;               /* selected hash algorithm */
     byte            sigAlgo;                /* selected sig algorithm */
+    byte            peerHashAlgo;           /* peer's chosen hash algo */
+    byte            peerSigAlgo;            /* peer's chosen sig algo */
     byte            serverState;
     byte            clientState;
     byte            handShakeState;

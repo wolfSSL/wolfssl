@@ -24612,111 +24612,159 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
     return SetSuitesHashSigAlgo(ssl->suites, list);
 }
 
-struct WOLFSSL_HashSigInfo {
-    int hashAlgo;
-    int sigAlgo;
-    int nid;
-}  wolfssl_hash_sig_info[] =
+static int HashToNid(byte hashAlgo, int* nid)
 {
-#ifndef NO_RSA
-    #ifndef NO_SHA256
-        { sha256_mac, rsa_sa_algo, CTC_SHA256wRSA },
-    #endif
-    #ifdef WOLFSSL_SHA384
-        { sha384_mac, rsa_sa_algo, CTC_SHA384wRSA },
-    #endif
-    #ifdef WOLFSSL_SHA512
-        { sha512_mac, rsa_sa_algo, CTC_SHA512wRSA },
-    #endif
-    #ifdef WOLFSSL_SHA224
-        { sha224_mac, rsa_sa_algo, CTC_SHA224wRSA },
-    #endif
-    #ifndef NO_SHA
-        { sha_mac,    rsa_sa_algo, CTC_SHAwRSA },
-    #endif
-    #ifdef WC_RSA_PSS
-        #ifndef NO_SHA256
-            { sha256_mac, rsa_pss_sa_algo, CTC_SHA256wRSA },
-        #endif
-        #ifdef WOLFSSL_SHA384
-            { sha384_mac, rsa_pss_sa_algo, CTC_SHA384wRSA },
-        #endif
-        #ifdef WOLFSSL_SHA512
-            { sha512_mac, rsa_pss_sa_algo, CTC_SHA512wRSA },
-        #endif
-        #ifdef WOLFSSL_SHA224
-            { sha224_mac, rsa_pss_sa_algo, CTC_SHA224wRSA },
-        #endif
-    #endif
-#endif
-#ifdef HAVE_ECC
-    #ifndef NO_SHA256
-        { sha256_mac, ecc_dsa_sa_algo, CTC_SHA256wECDSA },
-    #endif
-    #ifdef WOLFSSL_SHA384
-        { sha384_mac, ecc_dsa_sa_algo, CTC_SHA384wECDSA },
-    #endif
-    #ifdef WOLFSSL_SHA512
-        { sha512_mac, ecc_dsa_sa_algo, CTC_SHA512wECDSA },
-    #endif
-    #ifdef WOLFSSL_SHA224
-        { sha224_mac, ecc_dsa_sa_algo, CTC_SHA224wECDSA },
-    #endif
-    #ifndef NO_SHA
-        { sha_mac,    ecc_dsa_sa_algo, CTC_SHAwECDSA },
-    #endif
-#endif
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    { sm3_mac, sm2_sa_algo, CTC_SM3wSM2 },
-#endif
-#ifdef HAVE_ED25519
-    { no_mac, ed25519_sa_algo, CTC_ED25519 },
-#endif
-#ifdef HAVE_ED448
-    { no_mac, ed448_sa_algo, CTC_ED448 },
-#endif
-#ifdef HAVE_PQC
-#ifdef HAVE_FALCON
-    { no_mac, falcon_level1_sa_algo, CTC_FALCON_LEVEL1 },
-    { no_mac, falcon_level5_sa_algo, CTC_FALCON_LEVEL5 },
-#endif /* HAVE_FALCON */
-#ifdef HAVE_DILITHIUM
-    { no_mac, dilithium_level2_sa_algo, CTC_DILITHIUM_LEVEL2 },
-    { no_mac, dilithium_level3_sa_algo, CTC_DILITHIUM_LEVEL3 },
-    { no_mac, dilithium_level5_sa_algo, CTC_DILITHIUM_LEVEL5 },
-#endif /* HAVE_DILITHIUM */
-#endif /* HAVE_PQC */
-#ifndef NO_DSA
-    #ifndef NO_SHA
-        { sha_mac,    dsa_sa_algo, CTC_SHAwDSA },
-    #endif
-#endif
-};
-#define WOLFSSL_HASH_SIG_INFO_SZ \
-    (int)(sizeof(wolfssl_hash_sig_info)/sizeof(*wolfssl_hash_sig_info))
+    int ret = WOLFSSL_SUCCESS;
 
+    /* Cast for compiler to check everything is implemented */
+    switch ((enum wc_MACAlgorithm)hashAlgo) {
+        case no_mac:
+        case rmd_mac:
+            *nid = NID_undef;
+            break;
+        case md5_mac:
+            *nid = NID_md5;
+            break;
+        case sha_mac:
+            *nid = NID_sha1;
+            break;
+        case sha224_mac:
+            *nid = NID_sha224;
+            break;
+        case sha256_mac:
+            *nid = NID_sha256;
+            break;
+        case sha384_mac:
+            *nid = NID_sha384;
+            break;
+        case sha512_mac:
+            *nid = NID_sha512;
+            break;
+        case blake2b_mac:
+            *nid = NID_blake2b512;
+            break;
+        case sm3_mac:
+            *nid = NID_sm3;
+            break;
+        default:
+            ret = WOLFSSL_FAILURE;
+            break;
+    }
+
+    return ret;
+}
+
+static int SaToNid(byte sa, int* nid)
+{
+    int ret = WOLFSSL_SUCCESS;
+    /* Cast for compiler to check everything is implemented */
+    switch ((enum SignatureAlgorithm)sa) {
+        case anonymous_sa_algo:
+            *nid = NID_undef;
+            break;
+        case rsa_sa_algo:
+            *nid = NID_rsaEncryption;
+            break;
+        case dsa_sa_algo:
+            *nid = NID_dsa;
+            break;
+        case ecc_dsa_sa_algo:
+            *nid = NID_X9_62_id_ecPublicKey;
+            break;
+        case rsa_pss_sa_algo:
+            *nid = NID_rsassaPss;
+            break;
+        case ed25519_sa_algo:
+#ifdef HAVE_ED25519
+            *nid = NID_ED25519;
+#else
+            ret = WOLFSSL_FAILURE;
+#endif
+            break;
+        case rsa_pss_pss_algo:
+            *nid = NID_rsassaPss;
+            break;
+        case ed448_sa_algo:
+#ifdef HAVE_ED448
+            *nid = NID_ED448;
+#else
+            ret = WOLFSSL_FAILURE;
+#endif
+            break;
+        case falcon_level1_sa_algo:
+            *nid = CTC_FALCON_LEVEL1;
+            break;
+        case falcon_level5_sa_algo:
+            *nid = CTC_FALCON_LEVEL5;
+            break;
+        case dilithium_level2_sa_algo:
+            *nid = CTC_DILITHIUM_LEVEL2;
+            break;
+        case dilithium_level3_sa_algo:
+            *nid = CTC_DILITHIUM_LEVEL3;
+            break;
+        case dilithium_level5_sa_algo:
+            *nid = CTC_DILITHIUM_LEVEL5;
+            break;
+        case sm2_sa_algo:
+            *nid = NID_sm2;
+            break;
+        case invalid_sa_algo:
+        default:
+            ret = WOLFSSL_FAILURE;
+            break;
+    }
+    return ret;
+}
+
+/* This API returns the hash selected. */
 int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
 {
-    int i;
-    int ret = WOLFSSL_FAILURE;
-
     WOLFSSL_MSG("wolfSSL_get_signature_nid");
 
-    if (ssl == NULL) {
+    if (ssl == NULL || nid == NULL) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FAILURE;
     }
 
-    for (i = 0; i < WOLFSSL_HASH_SIG_INFO_SZ; i++) {
-        if (ssl->options.hashAlgo == wolfssl_hash_sig_info[i].hashAlgo &&
-                     ssl->options.sigAlgo == wolfssl_hash_sig_info[i].sigAlgo) {
-            *nid = wolfssl_hash_sig_info[i].nid;
-            ret = WOLFSSL_SUCCESS;
-            break;
-        }
+    return HashToNid(ssl->options.hashAlgo, nid);
+}
+
+/* This API returns the signature selected. */
+int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid)
+{
+    WOLFSSL_MSG("wolfSSL_get_signature_type_nid");
+
+    if (ssl == NULL || nid == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
     }
 
-    return ret;
+    return SaToNid(ssl->options.sigAlgo, nid);
+}
+
+int wolfSSL_get_peer_signature_nid(WOLFSSL* ssl, int* nid)
+{
+    WOLFSSL_MSG("wolfSSL_get_peer_signature_nid");
+
+    if (ssl == NULL || nid == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    return HashToNid(ssl->options.peerHashAlgo, nid);
+}
+
+int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
+{
+    WOLFSSL_MSG("wolfSSL_get_peer_signature_type_nid");
+
+    if (ssl == NULL || nid == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    return SaToNid(ssl->options.peerSigAlgo, nid);
 }
 
 #ifdef HAVE_ECC

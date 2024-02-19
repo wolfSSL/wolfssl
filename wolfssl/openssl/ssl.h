@@ -340,6 +340,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set1_sigalgs_list       wolfSSL_CTX_set1_sigalgs_list
 #define SSL_set1_sigalgs_list           wolfSSL_set1_sigalgs_list
 #define SSL_get_signature_nid           wolfSSL_get_signature_nid
+#define SSL_get_signature_type_nid      wolfSSL_get_signature_type_nid
+#define SSL_get_peer_signature_nid      wolfSSL_get_peer_signature_nid
+#define SSL_get_peer_signature_type_nid wolfSSL_get_peer_signature_type_nid
 
 #define SSL_CTX_set1_groups             wolfSSL_CTX_set1_groups
 #define SSL_set1_groups                 wolfSSL_set1_groups
