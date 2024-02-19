@@ -70017,9 +70017,9 @@ static word32 test_tls_cert_store_unchanged_HashCaTable(Signer** caTable)
 }
 
 static word32 test_tls_cert_store_unchanged_before_hashes[2];
-static size_t test_tls_cert_store_unchanged_before_hashes_idx = 0;
+static size_t test_tls_cert_store_unchanged_before_hashes_idx;
 static word32 test_tls_cert_store_unchanged_after_hashes[2];
-static size_t test_tls_cert_store_unchanged_after_hashes_idx = 0;
+static size_t test_tls_cert_store_unchanged_after_hashes_idx;
 
 static int test_tls_cert_store_unchanged_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -70046,19 +70046,25 @@ static int test_tls_cert_store_unchanged_ctx_cleanup(WOLFSSL_CTX* ctx)
     return EXPECT_RESULT();
 }
 
-/*
 static int test_tls_cert_store_unchanged_on_hs(WOLFSSL_CTX **ctx, WOLFSSL **ssl)
 {
     EXPECT_DECLS;
+    WOLFSSL_CERT_MANAGER* cm;
 
     (void)ssl;
+    /* WARNING: this approach bypasses the reference counter check in
+     * wolfSSL_CTX_UnloadIntermediateCerts. It is not recommended as it may
+     * cause unexpected behaviour when other active connections try accessing
+     * the caTable. */
+    ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(*ctx));
+    ExpectIntEQ(wolfSSL_CertManagerUnloadIntermediateCerts(cm),
+            WOLFSSL_SUCCESS);
     ExpectIntNE(test_tls_cert_store_unchanged_after_hashes
         [test_tls_cert_store_unchanged_after_hashes_idx++] =
             test_tls_cert_store_unchanged_HashCaTable((*ctx)->cm->caTable), 0);
 
     return EXPECT_RESULT();
 }
-*/
 
 static int test_tls_cert_store_unchanged_ssl_ready(WOLFSSL* ssl)
 {
@@ -70077,41 +70083,53 @@ static int test_tls_cert_store_unchanged(void)
 #if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
+    int i;
 
-    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
-    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+        XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
-    XMEMSET(test_tls_cert_store_unchanged_before_hashes, 0,
-            sizeof(test_tls_cert_store_unchanged_before_hashes));
-    XMEMSET(test_tls_cert_store_unchanged_after_hashes, 0,
-            sizeof(test_tls_cert_store_unchanged_after_hashes));
+        test_tls_cert_store_unchanged_before_hashes_idx = 0;
+        XMEMSET(test_tls_cert_store_unchanged_before_hashes, 0,
+                sizeof(test_tls_cert_store_unchanged_before_hashes));
+        test_tls_cert_store_unchanged_after_hashes_idx = 0;
+        XMEMSET(test_tls_cert_store_unchanged_after_hashes, 0,
+                sizeof(test_tls_cert_store_unchanged_after_hashes));
 
-    client_cbf.ctx_ready = test_tls_cert_store_unchanged_ctx_ready;
-    server_cbf.ctx_ready = test_tls_cert_store_unchanged_ctx_ready;
+        client_cbf.ctx_ready = test_tls_cert_store_unchanged_ctx_ready;
+        server_cbf.ctx_ready = test_tls_cert_store_unchanged_ctx_ready;
 
-    client_cbf.ssl_ready = test_tls_cert_store_unchanged_ssl_ready;
-    server_cbf.ssl_ready = test_tls_cert_store_unchanged_ssl_ready;
+        client_cbf.ssl_ready = test_tls_cert_store_unchanged_ssl_ready;
+        server_cbf.ssl_ready = test_tls_cert_store_unchanged_ssl_ready;
 
-    /* TODO add API to allow clearing/not storing certs while connections are
-     * still active.
-    client_cbf.on_handshake = test_tls_cert_store_unchanged_on_hs;
-    server_cbf.on_handshake = test_tls_cert_store_unchanged_on_hs;
-    */
+        switch (i) {
+            case 0:
+                client_cbf.on_ctx_cleanup =
+                        test_tls_cert_store_unchanged_ctx_cleanup;
+                server_cbf.on_ctx_cleanup =
+                        test_tls_cert_store_unchanged_ctx_cleanup;
+                break;
+            case 1:
+                client_cbf.on_handshake = test_tls_cert_store_unchanged_on_hs;
+                server_cbf.on_handshake = test_tls_cert_store_unchanged_on_hs;
+                break;
+            default:
+                Fail(("Should not enter here"), ("Entered here"));
+        }
 
-    client_cbf.on_ctx_cleanup = test_tls_cert_store_unchanged_ctx_cleanup;
-    server_cbf.on_ctx_cleanup = test_tls_cert_store_unchanged_ctx_cleanup;
 
-    client_cbf.certPemFile = "certs/intermediate/client-chain.pem";
-    server_cbf.certPemFile = "certs/intermediate/server-chain.pem";
+        client_cbf.certPemFile = "certs/intermediate/client-chain.pem";
+        server_cbf.certPemFile = "certs/intermediate/server-chain.pem";
 
-    server_cbf.caPemFile = caCertFile;
+        server_cbf.caPemFile = caCertFile;
 
-    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
-        &server_cbf, NULL), TEST_SUCCESS);
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+            &server_cbf, NULL), TEST_SUCCESS);
 
-    ExpectBufEQ(test_tls_cert_store_unchanged_before_hashes,
-            test_tls_cert_store_unchanged_after_hashes,
-            sizeof(test_tls_cert_store_unchanged_after_hashes));
+        ExpectBufEQ(test_tls_cert_store_unchanged_before_hashes,
+                test_tls_cert_store_unchanged_after_hashes,
+                sizeof(test_tls_cert_store_unchanged_after_hashes));
+    }
 #endif
     return EXPECT_RESULT();
 }
