@@ -25070,14 +25070,15 @@ static int test_wc_ecc_pointFns(void)
 
 
 /*
- * Testing wc_ecc_sahred_secret_ssh()
+ * Testing wc_ecc_shared_secret_ssh()
  */
 static int test_wc_ecc_shared_secret_ssh(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
+    !defined(WOLFSSL_CRYPTOCELL)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;

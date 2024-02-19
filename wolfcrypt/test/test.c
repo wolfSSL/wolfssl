@@ -28354,7 +28354,9 @@ done:
 #endif
 
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
+    !defined(WOLFSSL_CRYPTOCELL)
 static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
     wc_test_ret_t ret;
