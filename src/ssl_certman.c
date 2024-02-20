@@ -457,6 +457,31 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
+int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
+
+    /* Validate parameter. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Lock CA table. */
+    if ((ret == WOLFSSL_SUCCESS) && (wc_LockMutex(&cm->caLock) != 0)) {
+        ret = BAD_MUTEX_E;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Dispose of CA table. */
+        FreeSignerTableType(cm->caTable, CA_TABLE_SIZE, WOLFSSL_CHAIN_CA,
+                cm->heap);
+
+        /* Unlock CA table. */
+        wc_UnLockMutex(&cm->caLock);
+    }
+
+    return ret;
+}
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* Unload the trusted peers table.

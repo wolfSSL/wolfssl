@@ -3063,6 +3063,7 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
 #ifndef NO_CERTS
     /* SSL_CTX versions */
     WOLFSSL_API int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX* ctx);
+    WOLFSSL_API int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx);
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_API int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX* ctx);
 #ifdef WOLFSSL_LOCAL_X509_STORE
@@ -3617,6 +3618,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
         const unsigned char* buff, long sz, int format);
 
     WOLFSSL_API int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wolfSSL_CertManagerUnloadIntermediateCerts(
+        WOLFSSL_CERT_MANAGER* cm);
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_API int wolfSSL_CertManagerUnload_trust_peers(
         WOLFSSL_CERT_MANAGER* cm);

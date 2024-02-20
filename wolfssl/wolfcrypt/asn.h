@@ -2022,6 +2022,7 @@ struct Signer {
     byte *sapkiDer;
     int sapkiLen;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
+    byte type;
 
     Signer* next;
 };
@@ -2167,6 +2168,8 @@ WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void* heap);
 WOLFSSL_LOCAL void    FreeSigner(Signer* signer, void* heap);
 WOLFSSL_LOCAL void    FreeSignerTable(Signer** table, int rows, void* heap);
+WOLFSSL_LOCAL void    FreeSignerTableType(Signer** table, int rows, byte type,
+                                          void* heap);
 #ifdef WOLFSSL_TRUST_PEER_CERT
 WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert* tp, void* heap);
 WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert** table, int rows,
