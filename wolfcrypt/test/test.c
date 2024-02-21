@@ -15755,7 +15755,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             #ifdef WOLFSSL_CERT_GEN
             static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
             #endif
-            #if defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)
+            #if (defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)) \
+                && !defined(NO_ASN_TIME)
             static const char* rsaCaCertDerFile = CERT_ROOT "ca-cert.der";
             #endif
             #ifdef HAVE_PKCS7
@@ -18109,8 +18110,7 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
     if (ret < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     }
-
-#ifdef WOLFSSL_ALT_NAMES
+#if defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)
         /* Get CA Cert for testing */
     #ifdef USE_CERT_BUFFERS_1024
         XMEMCPY(tmp, ca_cert_der_1024, sizeof_ca_cert_der_1024);
@@ -18129,6 +18129,7 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
     #endif /* USE_CERT_BUFFERS */
 
+    #if  defined(WOLFSSL_ALT_NAMES)
     #if !defined(NO_FILESYSTEM) && !defined(USE_CERT_BUFFERS_1024) && \
         !defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
         ret = wc_SetAltNames(myCert, rsaCaCertFile);
@@ -18150,7 +18151,8 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
         if (ret < 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     #endif
-#endif /* WOLFSSL_ALT_NAMES */
+    #endif /* WOLFSSL_ALT_NAMES */
+#endif /* WOLFSSL_ALT_NAMES || HAVE_PKCS7 */
 
     /* Get CA Key */
 #ifdef USE_CERT_BUFFERS_1024
