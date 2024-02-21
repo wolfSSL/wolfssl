@@ -379,50 +379,6 @@
 #define HAVE_OID_DECODING
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
-/* ---------------------------------------------------------------------------
- * OpenSSL compat layer
- * ---------------------------------------------------------------------------
- */
-#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
-#undef  WOLFSSL_ALWAYS_VERIFY_CB
-#define WOLFSSL_ALWAYS_VERIFY_CB
-
-#undef WOLFSSL_VERIFY_CB_ALL_CERTS
-#define WOLFSSL_VERIFY_CB_ALL_CERTS
-
-#undef WOLFSSL_EXTRA_ALERTS
-#define WOLFSSL_EXTRA_ALERTS
-
-#undef HAVE_EXT_CACHE
-#define HAVE_EXT_CACHE
-
-#undef WOLFSSL_FORCE_CACHE_ON_TICKET
-#define WOLFSSL_FORCE_CACHE_ON_TICKET
-
-#undef WOLFSSL_AKID_NAME
-#define WOLFSSL_AKID_NAME
-
-#undef HAVE_CTS
-#define HAVE_CTS
-
-#undef WOLFSSL_SESSION_ID_CTX
-#define WOLFSSL_SESSION_ID_CTX
-#endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
-
-/* ---------------------------------------------------------------------------
- * Special small OpenSSL compat layer for certs
- * ---------------------------------------------------------------------------
- */
-#ifdef OPENSSL_EXTRA_X509_SMALL
-#undef WOLFSSL_EKU_OID
-#define WOLFSSL_EKU_OID
-
-#undef WOLFSSL_MULTI_ATTRIB
-#define WOLFSSL_MULTI_ATTRIB
-
-#undef WOLFSSL_NO_OPENSSL_RAND_CB
-#define WOLFSSL_NO_OPENSSL_RAND_CB
-#endif /* OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(_WIN32) && !defined(_M_X64) && \
     defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
@@ -2897,6 +2853,51 @@ extern void uITRON4_free(void *p) ;
 #if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
     #define OPENSSL_EXTRA
 #endif
+
+/* ---------------------------------------------------------------------------
+ * OpenSSL compat layer
+ * ---------------------------------------------------------------------------
+ */
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
+    #undef  WOLFSSL_ALWAYS_VERIFY_CB
+    #define WOLFSSL_ALWAYS_VERIFY_CB
+
+    #undef WOLFSSL_VERIFY_CB_ALL_CERTS
+    #define WOLFSSL_VERIFY_CB_ALL_CERTS
+
+    #undef WOLFSSL_EXTRA_ALERTS
+    #define WOLFSSL_EXTRA_ALERTS
+
+    #undef HAVE_EXT_CACHE
+    #define HAVE_EXT_CACHE
+
+    #undef WOLFSSL_FORCE_CACHE_ON_TICKET
+    #define WOLFSSL_FORCE_CACHE_ON_TICKET
+
+    #undef WOLFSSL_AKID_NAME
+    #define WOLFSSL_AKID_NAME
+
+    #undef HAVE_CTS
+    #define HAVE_CTS
+
+    #undef WOLFSSL_SESSION_ID_CTX
+    #define WOLFSSL_SESSION_ID_CTX
+#endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
+
+/* ---------------------------------------------------------------------------
+ * Special small OpenSSL compat layer for certs
+ * ---------------------------------------------------------------------------
+ */
+#ifdef OPENSSL_EXTRA_X509_SMALL
+    #undef WOLFSSL_EKU_OID
+    #define WOLFSSL_EKU_OID
+
+    #undef WOLFSSL_MULTI_ATTRIB
+    #define WOLFSSL_MULTI_ATTRIB
+
+    #undef WOLFSSL_NO_OPENSSL_RAND_CB
+    #define WOLFSSL_NO_OPENSSL_RAND_CB
+#endif /* OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
