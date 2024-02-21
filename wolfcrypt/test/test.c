@@ -18070,6 +18070,7 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
     #endif /* USE_CERT_BUFFERS */
 
+    #if  defined(WOLFSSL_ALT_NAMES)
     #if !defined(NO_FILESYSTEM) && !defined(USE_CERT_BUFFERS_1024) && \
         !defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
         ret = wc_SetAltNames(myCert, rsaCaCertFile);
@@ -18091,7 +18092,8 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
         if (ret < 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     #endif
-#endif /* WOLFSSL_ALT_NAMES */
+    #endif /* WOLFSSL_ALT_NAMES */
+#endif /* WOLFSSL_ALT_NAMES || HAVE_PKCS7 */
 
     /* Get CA Key */
 #ifdef USE_CERT_BUFFERS_1024
