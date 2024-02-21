@@ -368,13 +368,15 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
         /* step 2: computing R = rB where rB is the scalar multiplication of
            r and B */
-        ge448_scalarmult_base(&R,nonce);
-        ge448_to_bytes(out,&R);
+        ret = ge448_scalarmult_base(&R,nonce);
 
         /* step 3: hash R + public key + message getting H(R,A,M) then
            creating S = (r + H(R,A,M)a) mod l */
+        if (ret == 0) {
+            ge448_to_bytes(out,&R);
 
-        ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
+            ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
+        }
         if (ret == 0) {
             ret = ed448_hash_update(key, sha, &type, sizeof(type));
         }
