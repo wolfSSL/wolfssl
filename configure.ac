@@ -451,9 +451,35 @@ then
         RANLIB=ranlib
     fi
     xxx_ranlib_flags=$(${RANLIB} --help 2>&1)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
+
     AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr" lt_ar_flags="Dcr"])
     AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD -g0"
+
+    # opportunistically use -ffile-prefix-map (added in GCC8 and LLVM10)
+
+    if "$CC" -ffile-prefix-map=/tmp=. -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+        #include <stdlib.h>
+        int main(int argc, char **argv) {
+            (void)argc; (void)argv; return 0;
+        }
+        EOF
+    then
+        AM_CFLAGS="$AM_CFLAGS -ffile-prefix-map=\$(abs_top_srcdir)/= -ffile-prefix-map=\$(top_srcdir)/="
+    fi
+
+    # opportunistically use linker option --build-id=none
+
+    if "$CC" -Wl,--build-id=none -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+        #include <stdlib.h>
+        int main(int argc, char **argv) {
+            (void)argc; (void)argv; return 0;
+        }
+        EOF
+    then
+        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=none"
+    fi
 fi
 
 
