@@ -59,6 +59,81 @@ Benchmark complete
 Benchmark Test: Return code 0
 ```
 
+### STM32H753ZI (-O2, Thumb2 ARM ASM, SP-ASM Cortex M small)
+
+Enable CPU I-Cache and D-Cache by calling:
+
+```c
+SCB_EnableICache();
+SCB_EnableDCache();
+```
+
+Build options for ARM ASM:
+
+```c
+#define WOLFSSL_ARMASM
+#define WOLFSSL_ARMASM_INLINE
+#define WOLFSSL_ARMASM_NO_HW_CRYPTO
+#define WOLFSSL_ARMASM_NO_NEON
+#define WOLFSSL_ARM_ARCH 7
+```
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.6.6
+------------------------------------------------------------------------------
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                          6 MiB took 1.000 seconds,    6.079 MiB/s
+AES-128-CBC-enc             17 MiB took 1.000 seconds,   17.261 MiB/s
+AES-128-CBC-dec             17 MiB took 1.000 seconds,   16.748 MiB/s
+AES-192-CBC-enc             15 MiB took 1.000 seconds,   14.575 MiB/s
+AES-192-CBC-dec             14 MiB took 1.000 seconds,   14.209 MiB/s
+AES-256-CBC-enc             13 MiB took 1.000 seconds,   12.622 MiB/s
+AES-256-CBC-dec             12 MiB took 1.000 seconds,   12.378 MiB/s
+AES-128-GCM-enc              8 MiB took 1.000 seconds,    8.374 MiB/s
+AES-128-GCM-dec              8 MiB took 1.000 seconds,    8.374 MiB/s
+AES-192-GCM-enc              8 MiB took 1.000 seconds,    7.690 MiB/s
+AES-192-GCM-dec              8 MiB took 1.000 seconds,    7.690 MiB/s
+AES-256-GCM-enc              7 MiB took 1.000 seconds,    7.129 MiB/s
+AES-256-GCM-dec              7 MiB took 1.000 seconds,    7.104 MiB/s
+AES-128-GCM-enc-no_AAD       8 MiB took 1.000 seconds,    8.472 MiB/s
+AES-128-GCM-dec-no_AAD       8 MiB took 1.000 seconds,    8.472 MiB/s
+AES-192-GCM-enc-no_AAD       8 MiB took 1.000 seconds,    7.764 MiB/s
+AES-192-GCM-dec-no_AAD       8 MiB took 1.000 seconds,    7.715 MiB/s
+AES-256-GCM-enc-no_AAD       7 MiB took 1.000 seconds,    7.153 MiB/s
+AES-256-GCM-dec-no_AAD       7 MiB took 1.000 seconds,    7.153 MiB/s
+GMAC Table 4-bit            17 MiB took 1.000 seconds,   16.617 MiB/s
+CHACHA                      29 MiB took 1.000 seconds,   28.662 MiB/s
+CHA-POLY                    19 MiB took 1.000 seconds,   18.848 MiB/s
+POLY1305                    90 MiB took 1.000 seconds,   89.771 MiB/s
+SHA-224                     18 MiB took 1.000 seconds,   18.042 MiB/s
+SHA-256                     18 MiB took 1.000 seconds,   18.042 MiB/s
+SHA-384                      8 MiB took 1.000 seconds,    7.544 MiB/s
+SHA-512                      8 MiB took 1.000 seconds,    7.568 MiB/s
+SHA-512/224                  8 MiB took 1.000 seconds,    7.544 MiB/s
+SHA-512/256                  8 MiB took 1.000 seconds,    7.520 MiB/s
+HMAC-SHA224                 18 MiB took 1.000 seconds,   17.896 MiB/s
+HMAC-SHA256                 18 MiB took 1.000 seconds,   17.896 MiB/s
+HMAC-SHA384                  7 MiB took 1.000 seconds,    7.373 MiB/s
+HMAC-SHA512                  7 MiB took 1.000 seconds,    7.397 MiB/s
+RSA     2048   public       508 ops took 1.000 sec, avg 1.969 ms, 508.000 ops/sec
+RSA     2048  private        14 ops took 1.020 sec, avg 72.857 ms, 13.725 ops/sec
+DH      2048  key gen        30 ops took 1.012 sec, avg 33.733 ms, 29.644 ops/sec
+DH      2048    agree        30 ops took 1.012 sec, avg 33.733 ms, 29.644 ops/sec
+ECC   [      SECP256R1]   256  key gen       982 ops took 1.000 sec, avg 1.018 ms, 982.000 ops/sec
+ECDHE [      SECP256R1]   256    agree       456 ops took 1.000 sec, avg 2.193 ms, 456.000 ops/sec
+ECDSA [      SECP256R1]   256     sign       520 ops took 1.000 sec, avg 1.923 ms, 520.000 ops/sec
+ECDSA [      SECP256R1]   256   verify       288 ops took 1.004 sec, avg 3.486 ms, 286.853 ops/sec
+CURVE  25519  key gen      1112 ops took 1.000 sec, avg 0.899 ms, 1112.000 ops/sec
+CURVE  25519    agree      1144 ops took 1.000 sec, avg 0.874 ms, 1144.000 ops/sec
+ED     25519  key gen      2358 ops took 1.000 sec, avg 0.424 ms, 2358.000 ops/sec
+ED     25519     sign      1716 ops took 1.000 sec, avg 0.583 ms, 1716.000 ops/sec
+ED     25519   verify       862 ops took 1.000 sec, avg 1.160 ms, 862.000 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
 ### STM32H753ZI (No HW Crypto, -Os, FastMath)
 
 ```

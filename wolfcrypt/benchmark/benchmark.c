@@ -4251,6 +4251,7 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
 #ifdef HAVE_AES_DECRYPT
@@ -4258,14 +4259,19 @@ static void bench_aesgcm_internal(int useDeviceID,
                   sizeof(Aes), HEAP_HINT);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_additional)
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL || enc == NULL
+    #ifdef HAVE_AES_DECRYPT
+         || dec == NULL
+    #endif
+    ) {
+        ret = MEMORY_E;
+        goto exit;
+    }
 #endif
-        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_tag)
-#endif
-        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -4427,14 +4433,19 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
                   sizeof(Aes), HEAP_HINT);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_additional)
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL || enc == NULL
+    #ifdef HAVE_AES_DECRYPT
+         || dec == NULL
+    #endif
+    ) {
+        ret = MEMORY_E;
+        goto exit;
+    }
 #endif
-        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_tag)
-#endif
-        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -4992,6 +5003,13 @@ void bench_aesxts(void)
 
     WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
 
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (aes == NULL){
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
+
     ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId);
     if (ret != 0) {
@@ -5136,6 +5154,13 @@ void bench_aesccm(int useDeviceID)
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -5476,6 +5501,9 @@ void bench_sm4_gcm(void)
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
+    WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (bench_additional == NULL || bench_tag == NULL) {
         printf("bench_aesgcm_internal malloc failed\n");
@@ -8457,34 +8485,35 @@ static void bench_rsa_helper(int useDeviceID,
     WC_DECLARE_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
                                  rsaKeySz, HEAP_HINT);
 
-    #if (  !defined(WOLFSSL_RSA_VERIFY_INLINE) \
-        && !defined(WOLFSSL_RSA_PUBLIC_ONLY)   )
-        WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                     rsaKeySz, HEAP_HINT);
-    #else
-        byte* out[BENCH_MAX_PENDING];
-    #endif
+#if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
+                                    rsaKeySz, HEAP_HINT);
+#else
+    byte* out[BENCH_MAX_PENDING];
+#endif
 
     XMEMSET(out, 0, sizeof(out));
 
     WC_ALLOC_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
                                  rsaKeySz, HEAP_HINT);
 
-    #if (  !defined(WOLFSSL_RSA_VERIFY_INLINE) \
-        && !defined(WOLFSSL_RSA_PUBLIC_ONLY)   )
-        WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                     rsaKeySz, HEAP_HINT);
-        if (out[0] == NULL) {
-            ret = MEMORY_E;
-            goto exit;
-        }
-    #endif
+#if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+        !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
+                                    rsaKeySz, HEAP_HINT);
+    if (out[0] == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
     if (enc[0] == NULL) {
         ret = MEMORY_E;
         goto exit;
     }
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
+    WC_ALLOC_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
     #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (message == NULL) {
         ret = MEMORY_E;
@@ -8955,7 +8984,12 @@ void bench_dh(int useDeviceID)
 
     WC_ALLOC_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
     WC_ALLOC_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
-
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (pub2 == NULL || priv2 == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     (void)tmp;
 
@@ -11491,6 +11525,13 @@ void bench_ed448KeySign(void)
 
     WC_ALLOC_VAR(genKey, ed448_key, 1, HEAP_HINT);
 
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
+
     wc_ed448_init(genKey);
 
     ret = wc_ed448_make_key(&gRng, ED448_KEY_SIZE, genKey);
@@ -11577,6 +11618,13 @@ void bench_eccsiKeyGen(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
 
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
+
     /* Key Gen */
     bench_stats_start(&count, &start);
     do {
@@ -11621,6 +11669,13 @@ void bench_eccsiPairGen(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL || ssk == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11678,6 +11733,13 @@ void bench_eccsiValidate(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL || ssk == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11741,6 +11803,13 @@ void bench_eccsi(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL || ssk == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11829,6 +11898,13 @@ void bench_sakkeKeyGen(void)
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
 
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
+
     /* Key Gen */
     bench_stats_start(&count, &start);
     do {
@@ -11871,6 +11947,13 @@ void bench_sakkeRskGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     rsk = wc_ecc_new_point();
     wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11922,6 +12005,13 @@ void bench_sakkeValidate(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11982,6 +12072,13 @@ void bench_sakke(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (genKey == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 
