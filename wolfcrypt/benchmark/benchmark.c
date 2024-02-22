@@ -4251,23 +4251,18 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
 #ifdef HAVE_AES_DECRYPT
     WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
-#endif
-
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL || enc == NULL
-    #ifdef HAVE_AES_DECRYPT
-         || dec == NULL
-    #endif
-    ) {
-        ret = MEMORY_E;
-        goto exit;
-    }
 #endif
 
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -4425,23 +4420,18 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
 #ifdef HAVE_AES_DECRYPT
     WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
-#endif
-
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL || enc == NULL
-    #ifdef HAVE_AES_DECRYPT
-         || dec == NULL
-    #endif
-    ) {
-        ret = MEMORY_E;
-        goto exit;
-    }
 #endif
 
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -5002,7 +4992,6 @@ void bench_aesxts(void)
     };
 
     WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (aes == NULL){
         ret = MEMORY_E;
@@ -5154,7 +5143,6 @@ void bench_aesccm(int useDeviceID)
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (bench_additional == NULL || bench_tag == NULL) {
         ret = MEMORY_E;
@@ -8499,7 +8487,7 @@ static void bench_rsa_helper(int useDeviceID,
                                  rsaKeySz, HEAP_HINT);
 
 #if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-        !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
     WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
                                     rsaKeySz, HEAP_HINT);
     if (out[0] == NULL) {
@@ -11524,7 +11512,6 @@ void bench_ed448KeySign(void)
 #endif
 
     WC_ALLOC_VAR(genKey, ed448_key, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
@@ -11617,7 +11604,6 @@ void bench_eccsiKeyGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
@@ -11669,7 +11655,6 @@ void bench_eccsiPairGen(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL || ssk == NULL) {
         ret = MEMORY_E;
@@ -11733,7 +11718,6 @@ void bench_eccsiValidate(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL || ssk == NULL) {
         ret = MEMORY_E;
@@ -11803,7 +11787,6 @@ void bench_eccsi(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL || ssk == NULL) {
         ret = MEMORY_E;
@@ -11897,7 +11880,6 @@ void bench_sakkeKeyGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
@@ -11947,7 +11929,6 @@ void bench_sakkeRskGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
@@ -12005,7 +11986,6 @@ void bench_sakkeValidate(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
@@ -12072,7 +12052,6 @@ void bench_sakke(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (genKey == NULL) {
         ret = MEMORY_E;
