@@ -4251,13 +4251,6 @@ static void bench_aesgcm_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
-
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
 #ifdef HAVE_AES_DECRYPT
@@ -4420,12 +4413,6 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
@@ -4992,12 +4979,6 @@ void bench_aesxts(void)
     };
 
     WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (aes == NULL){
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId);
@@ -5143,12 +5124,6 @@ void bench_aesccm(int useDeviceID)
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -5492,17 +5467,11 @@ void bench_sm4_gcm(void)
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        printf("bench_aesgcm_internal malloc failed\n");
-        return;
-    }
-#endif
 
     ret = wc_Sm4GcmSetKey(&sm4, bench_key, SM4_KEY_SIZE);
     if (ret != 0) {
         printf("Sm4GcmSetKey failed, ret = %d\n", ret);
-        return;
+        goto exit;
     }
 
     bench_stats_start(&count, &start);
@@ -5513,7 +5482,7 @@ void bench_sm4_gcm(void)
                 bench_additional, aesAuthAddSz);
             if (ret < 0) {
                 printf("Sm4GcmEncrypt failed: %d\n", ret);
-                return;
+                goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -5539,7 +5508,7 @@ void bench_sm4_gcm(void)
                 bench_additional, aesAuthAddSz);
             if (ret < 0) {
                 printf("Sm4GcmDecrypt failed: %d\n", ret);
-                return;
+                goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -5554,6 +5523,11 @@ void bench_sm4_gcm(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+exit:
+
+    WC_FREE_VAR(bench_additional);
+    WC_FREE_VAR(bench_tag);
 }
 #endif
 
@@ -5568,12 +5542,8 @@ void bench_sm4_ccm()
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        printf("bench_aesccm malloc failed\n");
-        goto exit;
-    }
-#endif
+    WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -8502,12 +8472,6 @@ static void bench_rsa_helper(int useDeviceID,
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     WC_ALLOC_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
-    #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (message == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-    #endif
     XMEMCPY(message, messageStr, len);
 #endif
 
@@ -8731,12 +8695,6 @@ void bench_rsa(int useDeviceID)
 
     WC_CALLOC_ARRAY(rsaKey, RsaKey, BENCH_MAX_PENDING,
                      sizeof(RsaKey), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (rsaKey[0] == NULL) {
-        printf("bench_rsa malloc failed\n");
-        return;
-    }
-#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     tmp = rsa_key_der_1024;
@@ -8839,12 +8797,6 @@ void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 
     WC_CALLOC_ARRAY(rsaKey, RsaKey, BENCH_MAX_PENDING,
                      sizeof(RsaKey), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (rsaKey[0] == NULL) {
-        printf("bench_rsa_key malloc failed\n");
-        return;
-    }
-#endif
 
     /* init keys */
     do {
@@ -8972,12 +8924,6 @@ void bench_dh(int useDeviceID)
 
     WC_ALLOC_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
     WC_ALLOC_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (pub2 == NULL || priv2 == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     (void)tmp;
 
@@ -10271,14 +10217,6 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-    for (i = 0; i < BENCH_MAX_PENDING; ++i)
-        XMEMSET(genKey[i], 0, sizeof(ecc_key));
-#endif
 
     deviceID = useDeviceID ? devId : INVALID_DEVID;
     keySize = wc_ecc_get_curve_size_from_id(curveId);
@@ -10381,23 +10319,10 @@ void bench_ecc(int useDeviceID, int curveId)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-#endif
 
 #ifdef HAVE_ECC_DHE
     WC_CALLOC_ARRAY(genKey2, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey2[0] == NULL) {
-        XFREE(genKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-#endif
     WC_ALLOC_ARRAY(shared, byte,
                   BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
@@ -10817,15 +10742,6 @@ static void bench_sm2_MakeKey(int useDeviceID)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_sm2_MakeKey malloc failed\n");
-        return;
-    }
-    for (i = 0; i < BENCH_MAX_PENDING; ++i)
-        XMEMSET(genKey[i], 0, sizeof(ecc_key));
-#endif
 
     /* ECC Make Key */
     bench_stats_start(&count, &start);
@@ -11496,7 +11412,6 @@ void bench_ed448KeyGen(void)
 #endif
 }
 
-
 void bench_ed448KeySign(void)
 {
     int    ret;
@@ -11512,19 +11427,13 @@ void bench_ed448KeySign(void)
 #endif
 
     WC_ALLOC_VAR(genKey, ed448_key, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     wc_ed448_init(genKey);
 
     ret = wc_ed448_make_key(&gRng, ED448_KEY_SIZE, genKey);
     if (ret != 0) {
         printf("ed448_make_key failed\n");
-        return;
+        goto exit;
     }
 
 #ifdef HAVE_ED448_SIGN
@@ -11604,12 +11513,6 @@ void bench_eccsiKeyGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11655,12 +11558,6 @@ void bench_eccsiPairGen(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL || ssk == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11718,12 +11615,6 @@ void bench_eccsiValidate(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL || ssk == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11787,12 +11678,6 @@ void bench_eccsi(void)
 
     WC_ALLOC_VAR(genKey, EccsiKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(ssk, mp_int, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL || ssk == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     (void)mp_init(ssk);
     pvt = wc_ecc_new_point();
@@ -11880,12 +11765,6 @@ void bench_sakkeKeyGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     /* Key Gen */
     bench_stats_start(&count, &start);
@@ -11929,12 +11808,6 @@ void bench_sakkeRskGen(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     rsk = wc_ecc_new_point();
     wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -11986,12 +11859,6 @@ void bench_sakkeValidate(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     rsk = wc_ecc_new_point();
     (void)wc_InitSakkeKey_ex(genKey, 128, ECC_SAKKE_1, NULL, INVALID_DEVID);
@@ -12052,12 +11919,6 @@ void bench_sakke(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
 
     XMEMCPY(ssv, ssv_init, sizeof ssv);
 
