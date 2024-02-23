@@ -245,14 +245,21 @@ ECC Curve Sizes:
     #define HAVE_ECC_MAKE_PUB
 #endif
 
+
+/* macro guard for ecc_check_pubkey_order functionality */
 #if !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_IMXRT1170_CAAM) || \
+      defined(WOLFSSL_QNX_CAAM))
+
+    /* CAAM builds use public key validation as a means to check if an
+     * imported private key is an encrypted black key or not */
     #undef  HAVE_ECC_CHECK_PUBKEY_ORDER
     #define HAVE_ECC_CHECK_PUBKEY_ORDER
 #endif
+
 
 #if defined(WOLFSSL_SP_MATH_ALL) && SP_INT_BITS < MAX_ECC_BITS_NEEDED
 #define MAX_ECC_BITS_USE    SP_INT_BITS
@@ -1841,8 +1848,7 @@ static void alt_fp_init(mp_int* a)
 #endif /* ALT_ECC_SIZE */
 
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 
 #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_PUBLIC_ECC_ADD_DBL)
 static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
@@ -5138,8 +5144,7 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 }
 #endif /* USE_ECC_B_PARAM */
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
 int wc_ecc_point_is_at_infinity(ecc_point* p)
 {
@@ -5150,7 +5155,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 
     return 0;
 }
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL */
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
 
 /* generate random and ensure its greater than 0 and less than order */
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
@@ -7767,9 +7772,8 @@ int wc_ecc_free(ecc_key* key)
     return 0;
 }
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
+
 /* Handles add failure cases:
  *
  * Before add:
@@ -7883,8 +7887,7 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
 
     return err;
 }
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A
-          && !WOLFSSL_CRYPTOCELL && !WOLFSSL_SP_MATH */
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_CRYPTOCELL) && \
@@ -9606,9 +9609,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
 
 /* is ecc point on curve described by dp ? */
 static int _ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
@@ -10107,7 +10108,7 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 }
 #endif /* !WOLFSSL_SP_MATH */
 
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL*/
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
 
 #ifdef OPENSSL_EXTRA
 int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
@@ -10148,10 +10149,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 {
     int err = MP_OKAY;
 #ifndef WOLFSSL_SP_MATH
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
+#ifdef HAVE_ECC_CHECK_PUBKEY_ORDER
     mp_int* b = NULL;
     #ifdef USE_ECC_B_PARAM
         DECLARE_CURVE_SPECS(4);
@@ -10161,8 +10159,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         #endif
         DECLARE_CURVE_SPECS(3);
     #endif /* USE_ECC_B_PARAM */
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A &&
-          !WOLFSSL_CRYPTOCELL && !WOLFSSL_SILABS_SE_ACCEL && !WOLFSSL_SE050 */
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER */
 #endif /* !WOLFSSL_SP_MATH */
 
     ASSERT_SAVED_VECTOR_REGISTERS();
@@ -10208,7 +10205,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* consider key check success on HW crypto
      * ex: ATECC508/608A, CryptoCell and Silabs
      *
-     * consider key check success on Crypt Cb
+     * consider key check success on most Crypt Cb only builds
      */
     err = MP_OKAY;
 
