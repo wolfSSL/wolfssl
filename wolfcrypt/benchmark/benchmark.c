@@ -4258,14 +4258,8 @@ static void bench_aesgcm_internal(int useDeviceID,
                   sizeof(Aes), HEAP_HINT);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_additional)
-#endif
-        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_tag)
-#endif
-        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -4427,14 +4421,8 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
                   sizeof(Aes), HEAP_HINT);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_additional)
-#endif
-        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (bench_tag)
-#endif
-        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5476,17 +5464,14 @@ void bench_sm4_gcm(void)
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        printf("bench_aesgcm_internal malloc failed\n");
-        return;
-    }
-#endif
+
+    WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
     ret = wc_Sm4GcmSetKey(&sm4, bench_key, SM4_KEY_SIZE);
     if (ret != 0) {
         printf("Sm4GcmSetKey failed, ret = %d\n", ret);
-        return;
+        goto exit;
     }
 
     bench_stats_start(&count, &start);
@@ -5497,7 +5482,7 @@ void bench_sm4_gcm(void)
                 bench_additional, aesAuthAddSz);
             if (ret < 0) {
                 printf("Sm4GcmEncrypt failed: %d\n", ret);
-                return;
+                goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -5523,7 +5508,7 @@ void bench_sm4_gcm(void)
                 bench_additional, aesAuthAddSz);
             if (ret < 0) {
                 printf("Sm4GcmDecrypt failed: %d\n", ret);
-                return;
+                goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -5538,6 +5523,11 @@ void bench_sm4_gcm(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+exit:
+
+    WC_FREE_VAR(bench_additional);
+    WC_FREE_VAR(bench_tag);
 }
 #endif
 
@@ -5552,12 +5542,8 @@ void bench_sm4_ccm()
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (bench_additional == NULL || bench_tag == NULL) {
-        printf("bench_aesccm malloc failed\n");
-        goto exit;
-    }
-#endif
+    WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -8457,40 +8443,35 @@ static void bench_rsa_helper(int useDeviceID,
     WC_DECLARE_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
                                  rsaKeySz, HEAP_HINT);
 
-    #if (  !defined(WOLFSSL_RSA_VERIFY_INLINE) \
-        && !defined(WOLFSSL_RSA_PUBLIC_ONLY)   )
-        WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                     rsaKeySz, HEAP_HINT);
-    #else
-        byte* out[BENCH_MAX_PENDING];
-    #endif
+#if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
+                                    rsaKeySz, HEAP_HINT);
+#else
+    byte* out[BENCH_MAX_PENDING];
+#endif
 
     XMEMSET(out, 0, sizeof(out));
 
     WC_ALLOC_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
                                  rsaKeySz, HEAP_HINT);
 
-    #if (  !defined(WOLFSSL_RSA_VERIFY_INLINE) \
-        && !defined(WOLFSSL_RSA_PUBLIC_ONLY)   )
-        WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                     rsaKeySz, HEAP_HINT);
-        if (out[0] == NULL) {
-            ret = MEMORY_E;
-            goto exit;
-        }
-    #endif
+#if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
+                                    rsaKeySz, HEAP_HINT);
+    if (out[0] == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
     if (enc[0] == NULL) {
         ret = MEMORY_E;
         goto exit;
     }
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (message == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-    #endif
+    WC_ALLOC_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
     XMEMCPY(message, messageStr, len);
 #endif
 
@@ -8714,12 +8695,6 @@ void bench_rsa(int useDeviceID)
 
     WC_CALLOC_ARRAY(rsaKey, RsaKey, BENCH_MAX_PENDING,
                      sizeof(RsaKey), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (rsaKey[0] == NULL) {
-        printf("bench_rsa malloc failed\n");
-        return;
-    }
-#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     tmp = rsa_key_der_1024;
@@ -8822,12 +8797,6 @@ void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 
     WC_CALLOC_ARRAY(rsaKey, RsaKey, BENCH_MAX_PENDING,
                      sizeof(RsaKey), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (rsaKey[0] == NULL) {
-        printf("bench_rsa_key malloc failed\n");
-        return;
-    }
-#endif
 
     /* init keys */
     do {
@@ -8955,7 +8924,6 @@ void bench_dh(int useDeviceID)
 
     WC_ALLOC_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
     WC_ALLOC_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
-
 
     (void)tmp;
 
@@ -10249,14 +10217,6 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-    for (i = 0; i < BENCH_MAX_PENDING; ++i)
-        XMEMSET(genKey[i], 0, sizeof(ecc_key));
-#endif
 
     deviceID = useDeviceID ? devId : INVALID_DEVID;
     keySize = wc_ecc_get_curve_size_from_id(curveId);
@@ -10359,23 +10319,10 @@ void bench_ecc(int useDeviceID, int curveId)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-#endif
 
 #ifdef HAVE_ECC_DHE
     WC_CALLOC_ARRAY(genKey2, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey2[0] == NULL) {
-        XFREE(genKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        printf("bench_eccMakeKey malloc failed\n");
-        return;
-    }
-#endif
     WC_ALLOC_ARRAY(shared, byte,
                   BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
@@ -10795,15 +10742,6 @@ static void bench_sm2_MakeKey(int useDeviceID)
 
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
-
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (genKey[0] == NULL) {
-        printf("bench_sm2_MakeKey malloc failed\n");
-        return;
-    }
-    for (i = 0; i < BENCH_MAX_PENDING; ++i)
-        XMEMSET(genKey[i], 0, sizeof(ecc_key));
-#endif
 
     /* ECC Make Key */
     bench_stats_start(&count, &start);
@@ -11474,7 +11412,6 @@ void bench_ed448KeyGen(void)
 #endif
 }
 
-
 void bench_ed448KeySign(void)
 {
     int    ret;
@@ -11496,7 +11433,7 @@ void bench_ed448KeySign(void)
     ret = wc_ed448_make_key(&gRng, ED448_KEY_SIZE, genKey);
     if (ret != 0) {
         printf("ed448_make_key failed\n");
-        return;
+        goto exit;
     }
 
 #ifdef HAVE_ED448_SIGN
