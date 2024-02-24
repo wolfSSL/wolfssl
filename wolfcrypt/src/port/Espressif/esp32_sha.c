@@ -2244,14 +2244,18 @@ int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc)
 
 #if defined(WOLFSSL_ESP32_CRYPT) && defined(WOLFSSL_HW_METRICS)
 int esp_sw_sha256_count_add(void) {
+    int ret = 0;
+#if !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     esp_sha256_sw_fallback_usage_ct++;
-    return esp_sha256_sw_fallback_usage_ct;
+    ret = esp_sha256_sw_fallback_usage_ct;
+#endif
+    return ret;
 }
 
 int esp_hw_show_sha_metrics(void)
 {
     int ret = 0;
-#ifdef WOLFSSL_ESP32_CRYPT
+#if defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "------------- wolfSSL ESP HW SHA Metrics----------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
@@ -2279,7 +2283,6 @@ int esp_hw_show_sha_metrics(void)
     /* no HW math, no HW math metrics */
     ret = 0;
 #endif /* HW_MATH_ENABLED */
-
 
     return ret;
 }
