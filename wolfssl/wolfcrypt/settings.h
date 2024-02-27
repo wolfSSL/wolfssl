@@ -2053,7 +2053,7 @@ extern void uITRON4_free(void *p) ;
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY)
         /* Per the user manual of embOS https://www.segger.com/downloads/embos/UM01001
-         this API has changed with V5. */
+         * this API has changed with V5. */
         #if (OS_VERSION >= 50000U)
             #define XMALLOC(s, h, type)  ((void)(h), (void)(type), OS_HEAP_malloc((s)))
             #define XFREE(p, h, type)    ((void)(h), (void)(type), OS_HEAP_free((p)))
