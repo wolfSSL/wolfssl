@@ -190,3 +190,51 @@ More info can be found on-line at: https://wolfssl.com/wolfSSL/Docs.html
 [wolfSSL Vulnerabilities](https://www.wolfssl.com/docs/security-vulnerabilities/)
 
 [Additional wolfSSL Examples](https://github.com/wolfssl/wolfssl-examples)
+
+# Directory structure
+
+```
+<wolfssl_root>
+├── certs   [Certificates used in tests and examples]
+├── cmake   [Cmake build utilities]
+├── debian  [Debian packaging files]
+├── doc     [Documentation for wolfSSL (Doxygen)]
+├── Docker  [Prebuilt Docker environments]
+├── examples    [wolfSSL examples]
+│   ├── asn1    [ASN.1 printing example]
+│   ├── async   [Asynchronous Cryptography example]
+│   ├── benchmark   [TLS benchmark example]
+│   ├── client  [Client example]
+│   ├── configs [Example build configurations]
+│   ├── echoclient  [Echoclient example]
+│   ├── echoserver  [Echoserver example]
+│   ├── pem [Example for convert between PEM and DER]
+│   ├── sctp    [Servers and clients that demonstrate wolfSSL's DTLS-SCTP support]
+│   └── server  [Server example]
+├── IDE     [Contains example projects for various development environments]
+├── linuxkm [Linux Kernel Module implementation]
+├── m4      [Autotools utilities]
+├── mcapi   [wolfSSL MPLAB X Project Files]
+├── mplabx  [wolfSSL MPLAB X Project Files]
+├── mqx     [wolfSSL Freescale CodeWarrior Project Files]
+├── rpm     [RPM packaging metadata]
+├── RTOS
+│   └── nuttx   [Port of wolfSSL for NuttX]
+├── scripts [Testing scripts]
+├── src     [wolfSSL source code]
+├── sslSniffer  [wolfSSL sniffer can be used to passively sniff SSL traffic]
+├── support [Contains the pkg-config file]
+├── tests   [Unit and configuration testing]
+├── testsuite   [Test application that orchestrates tests]
+├── tirtos  [Port of wolfSSL for TI RTOS]
+├── wolfcrypt   [The wolfCrypt component]
+│   ├── benchmark   [Cryptography benchmarking application]
+│   ├── src         [wolfCrypt source code]
+│   │   └── port    [Supported hardware acceleration ports]
+│   └── test        [Cryptography testing application]
+├── wolfssl [Header files]
+│   ├── openssl [Compatibility layer headers]
+│   └── wolfcrypt   [Header files]
+├── wrapper [wolfSSL language wrappers]
+└── zephyr  [Port of wolfSSL for Zephyr RTOS]
+```
