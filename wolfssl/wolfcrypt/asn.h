@@ -935,7 +935,7 @@ enum Misc_ASN {
 #ifdef HAVE_SPHINCS
     MAX_ENCODED_SIG_SZ  = 51200,
 #elif defined(HAVE_PQC)
-    MAX_ENCODED_SIG_SZ  = 5120;
+    MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
 #ifdef WOLFSSL_HAPROXY
     MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
