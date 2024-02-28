@@ -163,11 +163,15 @@
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
-            #include <netdb.h>
+            #ifdef HAVE_NETDB_H
+                #include <netdb.h>
+            #endif
             #ifdef __PPU
                 #include <netex/errno.h>
             #else
-                #include <sys/ioctl.h>
+                #ifdef HAVE_SYS_IOCTL_H
+                    #include <sys/ioctl.h>
+                #endif
             #endif
         #endif
     #endif

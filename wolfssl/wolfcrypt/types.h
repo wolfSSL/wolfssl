@@ -911,8 +911,12 @@ typedef struct w64wrapper {
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         #ifndef XGETENV
-            #include <stdlib.h>
-            #define XGETENV getenv
+            #ifdef NO_GETENV
+                #define XGETENV(x) (NULL)
+            #else
+                #include <stdlib.h>
+                #define XGETENV getenv
+            #endif
         #endif
     #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
@@ -927,7 +931,11 @@ typedef struct w64wrapper {
         #endif
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #define XISALNUM(c)     isalnum((c))
-        #define XISASCII(c)     isascii((c))
+        #ifdef NO_STDLIB_ISASCII
+            #define XISASCII(c) (((c) >= 0 && (c) <= 127) ? 1 : 0)
+        #else
+            #define XISASCII(c) isascii((c))
+        #endif
         #define XISSPACE(c)     isspace((c))
         #endif
         /* needed by wolfSSL_check_domain_name() */

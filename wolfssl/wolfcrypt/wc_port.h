@@ -732,7 +732,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             #define SEPARATOR_CHAR ':'
 
         #else
-            #include <dirent.h>
+            #ifndef NO_WOLFSSL_DIR
+                #include <dirent.h>
+            #endif
             #include <unistd.h>
             #include <sys/stat.h>
             #define XWRITE      write

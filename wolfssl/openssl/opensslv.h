@@ -57,6 +57,10 @@
 #define OPENSSL_VERSION_TEXT             "wolfSSL " LIBWOLFSSL_VERSION_STRING
 #define OPENSSL_VERSION                  0
 
+#ifndef OPENSSL_IS_WOLFSSL
+#define OPENSSL_IS_WOLFSSL
+#endif
+
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* header */

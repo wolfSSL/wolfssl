@@ -130,9 +130,15 @@ if(HAVE___UINT128_T)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE___UINT128_T")
 endif()
 
-include(TestBigEndian)
-
-test_big_endian(WORDS_BIGENDIAN)
+if(CMAKE_VERSION VERSION_LESS "3.20")
+    # TestBigEndian was deprecated in 3.20
+    include(TestBigEndian)
+    test_big_endian(IS_BIG_ENDIAN)
+    set(CMAKE_C_BYTE_ORDER "LITTLE_ENDIAN")
+    if(IS_BIG_ENDIAN)
+        set(CMAKE_C_BYTE_ORDER "BIG_ENDIAN")
+    endif()
+endif()
 
 # Thread local storage
 include(CheckCSourceCompiles)
@@ -576,7 +582,7 @@ if(WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
 endif()
 
-if(WOLFSSL_AESGCM AND NOT WORDS_BIGENDIAN)
+if(WOLFSSL_AESGCM AND CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
     override_cache(WOLFSSL_AESGCM "4bit")
 endif()
 
@@ -2081,7 +2087,7 @@ endif()
 # Suppress some warnings about separate compilation, inlining
 add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
 # Generate user options header
-message("Generating user options header...")
+message(STATUS "Generating user options header...")
 if (${CMAKE_DISABLE_SOURCE_CHANGES})
     set(WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT "${CMAKE_DISABLE_SOURCE_CHANGES}")
 else()
