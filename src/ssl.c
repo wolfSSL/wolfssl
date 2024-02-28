@@ -6893,6 +6893,9 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
         }
+        else if (*keyFormat == 0) {
+            ret = 0; /* continue trying other algorithms */
+        }
 
         wc_ed448_free(key);
     }
@@ -6997,6 +7000,10 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 *resetSuites = 1;
             }
         }
+        else if (*keyFormat == 0) {
+            ret = 0; /* continue trying other algorithms */
+        }
+
         wc_falcon_free(key);
     }
     XFREE(key, heap, DYNAMIC_TYPE_FALCON);
@@ -7111,6 +7118,10 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 *resetSuites = 1;
             }
         }
+        else if (*keyFormat == 0) {
+            ret = 0; /* continue trying other algorithms */
+        }
+
         wc_dilithium_free(key);
     }
     XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
