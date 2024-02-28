@@ -24787,9 +24787,9 @@ int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
 #ifdef HAVE_ECC
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-static int populate_groups(int* groups, int max_count, char *list)
+static int populate_groups(int* groups, int max_count, const char *list)
 {
-    char *end;
+    const char *end;
     int count = 0;
     const WOLF_EC_NIST_NAME* nist_name;
 
@@ -24829,7 +24829,7 @@ static int populate_groups(int* groups, int max_count, char *list)
     return count;
 }
 
-int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
+int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list)
 {
     int groups[WOLFSSL_MAX_GROUP_COUNT];
     int count = 0;
@@ -24846,7 +24846,7 @@ int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
     return wolfSSL_CTX_set1_groups(ctx, groups, count);
 }
 
-int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
+int wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list)
 {
     int groups[WOLFSSL_MAX_GROUP_COUNT];
     int count = 0;
