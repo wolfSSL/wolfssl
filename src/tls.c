@@ -3097,6 +3097,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 
 #ifndef NO_WOLFSSL_CLIENT
     if (isRequest) {
+        int ret = 0;
         word16 offset = 0;
         word16 length = 0;
 
@@ -3110,11 +3111,15 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                 offset += OPAQUE16_LEN;
 
                 /* request extensions */
-                if (csr->request.ocsp.nonceSz)
-                    length = (word16)EncodeOcspRequestExtensions(
-                                                 &csr->request.ocsp,
+                if (csr->request.ocsp.nonceSz) {
+                    ret = (int)EncodeOcspRequestExtensions(&csr->request.ocsp,
                                                  output + offset + OPAQUE16_LEN,
                                                  OCSP_NONCE_EXT_SZ);
+
+                    if (ret > 0) {
+                        length = (word16)ret;
+                    }
+                }
 
                 c16toa(length, output + offset);
                 offset += OPAQUE16_LEN + length;
@@ -3558,6 +3563,7 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
 
 #ifndef NO_WOLFSSL_CLIENT
     if (isRequest) {
+        int ret = 0;
         word16 offset;
         word16 length;
 
@@ -3585,11 +3591,16 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                     /* request extensions */
                     length = 0;
 
-                    if (csr2->request.ocsp[0].nonceSz)
-                        length = (word16)EncodeOcspRequestExtensions(
+                    if (csr2->request.ocsp[0].nonceSz) {
+                        ret = (int)EncodeOcspRequestExtensions(
                                                  &csr2->request.ocsp[0],
                                                  output + offset + OPAQUE16_LEN,
                                                  OCSP_NONCE_EXT_SZ);
+
+                        if (ret > 0) {
+                            length = (word16)ret;
+                        }
+                    }
 
                     c16toa(length, output + offset);
                     offset += OPAQUE16_LEN + length;

@@ -36359,18 +36359,20 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
     /* Check request has nonce to write in extension. */
     if (req != NULL && req->nonceSz != 0) {
         DECL_ASNSETDATA(dataASN, ocspNonceExtASN_Length);
-        int sz;
+        int sz = 0;
 
         CALLOC_ASNSETDATA(dataASN, ocspNonceExtASN_Length, ret, req->heap);
 
-        /* Set nonce extension OID and nonce. */
-        SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], NonceObjId,
-                sizeof(NonceObjId));
-        SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_NONCE], req->nonce,
-                (word32)req->nonceSz);
-        /* Calculate size of nonce extension. */
-        ret = SizeASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
-                            &sz);
+        if ((ret == 0) && (output != NULL)) {
+            /* Set nonce extension OID and nonce. */
+            SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], NonceObjId,
+                    sizeof(NonceObjId));
+            SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_NONCE], req->nonce,
+                    (word32)req->nonceSz);
+            /* Calculate size of nonce extension. */
+            ret = SizeASN_Items(ocspNonceExtASN, dataASN,
+                                ocspNonceExtASN_Length, &sz);
+        }
         /* Check buffer big enough for encoding if supplied. */
         if ((ret == 0) && (output != NULL) && (sz > (int)size)) {
             ret = BUFFER_E;
