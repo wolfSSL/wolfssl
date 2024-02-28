@@ -6543,7 +6543,10 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     "not enabled to try");
         ret = WOLFSSL_BAD_FILE;
     #else
-        ret = 0; /* continue trying other algorithms */
+        if (*keyFormat == 0) {
+            /* Format unknown so keep trying. */
+            ret = 0; /* continue trying other algorithms */
+        }
     #endif
     }
     else {
@@ -6616,7 +6619,10 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                         "not enabled to try");
             ret = WOLFSSL_BAD_FILE;
         #else
-            ret = 0; /* continue trying other algorithms */
+            if (*keyFormat == 0) {
+                /* Format unknown so keep trying. */
+                ret = 0; /* continue trying other algorithms */
+            }
         #endif
         }
         else {
@@ -6728,7 +6734,7 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 *resetSuites = 1;
             }
         }
-        else {
+        else if (*keyFormat == 0) {
             ret = 0; /* continue trying other algorithms */
         }
 
@@ -6809,7 +6815,7 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
         }
-        else {
+        else if (*keyFormat == 0) {
             ret = 0; /* continue trying other algorithms */
         }
 
