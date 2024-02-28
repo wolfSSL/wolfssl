@@ -15281,14 +15281,30 @@ static wc_test_ret_t random_rng_test(void)
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
     {
         byte nonce[8] = { 0 };
-        /* Test dynamic RNG. */
+
+        /* Test dynamic RNG */
         rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
         if (rng == NULL)
             return WC_TEST_RET_ENC_ERRNO;
 
         ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
-
         wc_rng_free(rng);
+        rng = NULL;
+
+        if (ret != 0)
+            return ret;
+
+        /* Test dynamic RNG using extended API */
+        ret = wc_rng_new_ex(&rng, nonce, (word32)sizeof(nonce),
+                            HEAP_HINT, devId);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
+        wc_rng_free(rng);
+
+        if (ret != 0)
+            return ret;
     }
 #endif
 
