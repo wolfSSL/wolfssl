@@ -1850,7 +1850,8 @@ enum Misc {
     (MIN_FFHDE_GROUP <= (group) && (group) <= MAX_FFHDE_GROUP)
 #ifdef HAVE_PQC
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group) \
-    (WOLFSSL_PQC_MIN <= (group) && (group) <= WOLFSSL_PQC_MAX)
+    ((WOLFSSL_PQC_SIMPLE_MIN <= (group) && (group) <= WOLFSSL_PQC_SIMPLE_MAX) || \
+     (WOLFSSL_PQC_HYBRID_MIN <= (group) && (group) <= WOLFSSL_PQC_HYBRID_MAX))
 #else
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group)    ((void)(group), 0)
 #endif /* HAVE_PQC */
