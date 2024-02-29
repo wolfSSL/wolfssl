@@ -1488,7 +1488,7 @@ static int xil_mpi_import(mp_int *mpi,
     /* cache (mp_int) of the curve parameters */
     static ecc_curve_spec* ecc_curve_spec_cache[ECC_SET_COUNT];
     #ifndef SINGLE_THREADED
-        static wolfSSL_Mutex ecc_curve_cache_mutex;
+        static wolfSSL_Mutex ecc_curve_cache_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_curve_cache_mutex);
     #endif
 
     #define DECLARE_CURVE_SPECS(intcount) ecc_curve_spec* curve = NULL
@@ -1758,7 +1758,8 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
 int wc_ecc_curve_cache_init(void)
 {
     int ret = 0;
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED) && \
+        !defined(WOLFSSL_MUTEX_INITIALIZER)
     ret = wc_InitMutex(&ecc_curve_cache_mutex);
 #endif
     return ret;
@@ -1777,7 +1778,8 @@ void wc_ecc_curve_cache_free(void)
         }
     }
 
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED) && \
+        !defined(WOLFSSL_MUTEX_INITIALIZER)
     wc_FreeMutex(&ecc_curve_cache_mutex);
 #endif
 }
@@ -11598,8 +11600,10 @@ typedef struct {
 static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 
 #ifndef HAVE_THREAD_LS
+    static wolfSSL_Mutex ecc_fp_lock WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_fp_lock);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     static volatile int initMutex = 0;  /* prevent multiple mutex inits */
-    static wolfSSL_Mutex ecc_fp_lock;
+#endif
 #endif /* HAVE_THREAD_LS */
 
 /* simple table to help direct the generation of the LUT */
@@ -12886,10 +12890,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
    }
 
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
 
    if (wc_LockMutex(&ecc_fp_lock) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -13044,10 +13050,12 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
 
    if (wc_LockMutex(&ecc_fp_lock) != 0) {
       err = BAD_MUTEX_E;
@@ -13219,10 +13227,12 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    }
 
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
 
    if (wc_LockMutex(&ecc_fp_lock) != 0) {
       err = BAD_MUTEX_E;
@@ -13379,10 +13389,12 @@ void wc_ecc_fp_init(void)
 {
 #ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
    if (initMutex == 0) {
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
 #endif
 #endif
 }
@@ -13394,10 +13406,12 @@ void wc_ecc_fp_free(void)
 {
 #if !defined(WOLFSSL_SP_MATH)
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
 
    if (wc_LockMutex(&ecc_fp_lock) == 0) {
 #endif /* HAVE_THREAD_LS */
@@ -13406,8 +13420,10 @@ void wc_ecc_fp_free(void)
 
 #ifndef HAVE_THREAD_LS
        wc_UnLockMutex(&ecc_fp_lock);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
        wc_FreeMutex(&ecc_fp_lock);
        initMutex = 0;
+#endif
    }
 #endif /* HAVE_THREAD_LS */
 #endif

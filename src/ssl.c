@@ -309,8 +309,10 @@ int wc_OBJ_sn2nid(const char *sn)
 static WC_RNG globalRNG;
 static int initGlobalRNG = 0;
 
-static wolfSSL_Mutex globalRNGMutex;
+static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(globalRNGMutex);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
 static int globalRNGMutex_valid = 0;
+#endif
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
 static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
@@ -406,8 +408,10 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
      *                OPENSSL_EXTRA where RAND callbacks are not used */
     #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
         static const WOLFSSL_RAND_METHOD* gRandMethods = NULL;
+        static wolfSSL_Mutex gRandMethodMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(gRandMethodMutex);
+        #ifndef WOLFSSL_MUTEX_INITIALIZER
         static int gRandMethodsInit = 0;
-        static wolfSSL_Mutex gRandMethodMutex;
+        #endif
     #endif /* !WOLFSSL_NO_OPENSSL_RAND_CB */
 #endif /* OPENSSL_EXTRA */
 
@@ -1265,11 +1269,9 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 
 /* prevent multiple mutex initializations */
 static volatile WOLFSSL_GLOBAL int initRefCount = 0;
-#ifdef WOLFSSL_MUTEX_INITIALIZER
-static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex = WOLFSSL_MUTEX_INITIALIZER;
-#else
-static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex;   /* init ref count mutex */
-static WOLFSSL_GLOBAL int count_mutex_valid = 0;
+static WOLFSSL_GLOBAL wolfSSL_Mutex inits_count_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex); /* init ref count mutex */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+static WOLFSSL_GLOBAL int inits_count_mutex_valid = 0;
 #endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
@@ -6164,8 +6166,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                                                      /* Client Cache */
                                                      /* uses session mutex */
 
-        static WOLFSSL_GLOBAL wolfSSL_Mutex clisession_mutex; /* ClientCache mutex */
+        static WOLFSSL_GLOBAL wolfSSL_Mutex clisession_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(clisession_mutex); /* ClientCache mutex */
+        #ifndef WOLFSSL_MUTEX_INITIALIZER
         static WOLFSSL_GLOBAL int clisession_mutex_valid = 0;
+        #endif
     #endif /* !NO_CLIENT_CACHE */
 
     void EvictSessionFromCache(WOLFSSL_SESSION* session)
@@ -6223,22 +6227,40 @@ int wolfSSL_Init(void)
 
     WOLFSSL_ENTER("wolfSSL_Init");
 
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    if (inits_count_mutex_valid == 0) {
+        if (wc_InitMutex(&inits_count_mutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex count");
+            return BAD_MUTEX_E;
+        }
+        else {
+            inits_count_mutex_valid = 1;
+        }
+    }
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
+
+    if (wc_LockMutex(&inits_count_mutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex count");
+        return BAD_MUTEX_E;
+    }
+
+    if ((ret == WOLFSSL_SUCCESS) && (initRefCount == 0)) {
+        /* Initialize crypto for use with TLS connection */
+
     #if FIPS_VERSION_GE(5,1)
         ret = wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
-        if (ret != 0)
-            return ret;
-        else
+        if (ret == 0)
             ret = WOLFSSL_SUCCESS;
     #endif
 
-    if (initRefCount == 0) {
-        /* Initialize crypto for use with TLS connection */
-        if (wolfCrypt_Init() != 0) {
-            WOLFSSL_MSG("Bad wolfCrypt Init");
-            ret = WC_INIT_E;
+        if (ret == WOLFSSL_SUCCESS) {
+            if (wolfCrypt_Init() != 0) {
+                WOLFSSL_MSG("Bad wolfCrypt Init");
+                ret = WC_INIT_E;
+            }
         }
 
-#ifdef HAVE_GLOBAL_RNG
+#if defined(HAVE_GLOBAL_RNG) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         if (ret == WOLFSSL_SUCCESS) {
             if (wc_InitMutex(&globalRNGMutex) != 0) {
                 WOLFSSL_MSG("Bad Init Mutex rng");
@@ -6293,6 +6315,7 @@ int wolfSSL_Init(void)
         }
     #endif
     #ifndef NO_CLIENT_CACHE
+        #ifndef WOLFSSL_MUTEX_INITIALIZER
         if (ret == WOLFSSL_SUCCESS) {
             if (wc_InitMutex(&clisession_mutex) != 0) {
                 WOLFSSL_MSG("Bad Init Mutex session");
@@ -6302,19 +6325,9 @@ int wolfSSL_Init(void)
                 clisession_mutex_valid = 1;
             }
         }
+        #endif
     #endif
 #endif
-#ifndef WOLFSSL_MUTEX_INITIALIZER
-        if (ret == WOLFSSL_SUCCESS) {
-            if (wc_InitMutex(&count_mutex) != 0) {
-                WOLFSSL_MSG("Bad Init Mutex count");
-                ret = BAD_MUTEX_E;
-            }
-            else {
-                count_mutex_valid = 1;
-            }
-        }
-#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
         /* OpenSSL registers cleanup using atexit */
         if ((ret == WOLFSSL_SUCCESS) && (atexit(AtExitCleanup) != 0)) {
@@ -6325,15 +6338,10 @@ int wolfSSL_Init(void)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (wc_LockMutex(&count_mutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex count");
-            ret = BAD_MUTEX_E;
-        }
-        else {
-            initRefCount++;
-            wc_UnLockMutex(&count_mutex);
-        }
+        initRefCount++;
     }
+
+    wc_UnLockMutex(&inits_count_mutex);
 
     if (ret != WOLFSSL_SUCCESS) {
         initRefCount = 1; /* Force cleanup */
@@ -13603,9 +13611,9 @@ int wolfSSL_Cleanup(void)
     WOLFSSL_ENTER("wolfSSL_Cleanup");
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (count_mutex_valid == 1) {
+    if (inits_count_mutex_valid == 1) {
 #endif
-        if (wc_LockMutex(&count_mutex) != 0) {
+        if (wc_LockMutex(&inits_count_mutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex count");
             return BAD_MUTEX_E;
         }
@@ -13620,9 +13628,9 @@ int wolfSSL_Cleanup(void)
     }
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (count_mutex_valid == 1) {
+    if (inits_count_mutex_valid == 1) {
 #endif
-        wc_UnLockMutex(&count_mutex);
+        wc_UnLockMutex(&inits_count_mutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     }
 #endif
@@ -13666,6 +13674,7 @@ int wolfSSL_Cleanup(void)
         }
     }
     #ifndef NO_CLIENT_CACHE
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
     if ((clisession_mutex_valid == 1) &&
         (wc_FreeMutex(&clisession_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
@@ -13673,14 +13682,15 @@ int wolfSSL_Cleanup(void)
     }
     clisession_mutex_valid = 0;
     #endif
+    #endif
 #endif /* !NO_SESSION_CACHE */
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if ((count_mutex_valid == 1) && (wc_FreeMutex(&count_mutex) != 0)) {
+    if ((inits_count_mutex_valid == 1) && (wc_FreeMutex(&inits_count_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
             ret = BAD_MUTEX_E;
     }
-    count_mutex_valid = 0;
+    inits_count_mutex_valid = 0;
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -13701,11 +13711,13 @@ int wolfSSL_Cleanup(void)
 #endif
 
 #ifdef HAVE_GLOBAL_RNG
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if ((globalRNGMutex_valid == 1) && (wc_FreeMutex(&globalRNGMutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
             ret = BAD_MUTEX_E;
     }
     globalRNGMutex_valid = 0;
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
     #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
     wolfSSL_FIPS_drbg_free(gDrbgDefCtx);
@@ -32932,6 +32944,7 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
 static int wolfSSL_RAND_InitMutex(void)
 {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (gRandMethodsInit == 0) {
         if (wc_InitMutex(&gRandMethodMutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex rand methods");
@@ -32939,6 +32952,7 @@ static int wolfSSL_RAND_InitMutex(void)
         }
         gRandMethodsInit = 1;
     }
+#endif
     return 0;
 }
 #endif
@@ -33310,8 +33324,10 @@ void wolfSSL_RAND_Cleanup(void)
         wc_UnLockMutex(&gRandMethodMutex);
     }
 
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
     if (wc_FreeMutex(&gRandMethodMutex) == 0)
         gRandMethodsInit = 0;
+    #endif
 #endif
 #ifdef HAVE_GLOBAL_RNG
     if (wc_LockMutex(&globalRNGMutex) == 0) {

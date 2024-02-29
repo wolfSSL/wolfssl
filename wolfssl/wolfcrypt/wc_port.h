@@ -244,7 +244,7 @@
             typedef pthread_rwlock_t wolfSSL_RwLock;
         #endif
         typedef pthread_mutex_t wolfSSL_Mutex;
-        #define WOLFSSL_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+        #define WOLFSSL_MUTEX_INITIALIZER(lockname) PTHREAD_MUTEX_INITIALIZER
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
     #elif defined(WOLFSSL_DEOS)
@@ -306,6 +306,13 @@
     #endif /* USE_WINDOWS_API */
 
 #endif /* SINGLE_THREADED */
+
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+    #define WOLFSSL_MUTEX_INITIALIZER_CLAUSE(lockname) = WOLFSSL_MUTEX_INITIALIZER(lockname)
+#else
+    #define WOLFSSL_MUTEX_INITIALIZER_CLAUSE(lockname) /* null expansion */
+#endif
+
 #if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif

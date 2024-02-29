@@ -92,9 +92,12 @@ This library contains implementation for the random number generator.
 #elif defined(HAVE_WNR)
     #include <wnr.h>
     #include <wolfssl/wolfcrypt/logging.h>
-    wolfSSL_Mutex wnr_mutex;    /* global netRandom mutex */
+    wolfSSL_Mutex wnr_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wnr_mutex);    /* global netRandom mutex */
     int wnr_timeout     = 0;    /* entropy timeout, milliseconds */
-    int wnr_mutex_init  = 0;    /* flag for mutex init */
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+    int wnr_mutex_inited = 0;   /* flag for mutex init */
+    #endif
+    int wnr_inited = 0;    /* flag for whether wc_InitNetRandom() has been called */
     wnr_context*  wnr_ctx;      /* global netRandom context */
 #elif defined(FREESCALE_KSDK_2_0_TRNG)
     #include "fsl_trng.h"
@@ -1376,7 +1379,7 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
 /* Mutex to prevent multiple callers requesting entropy operations at the
  * same time.
  */
-static wolfSSL_Mutex entropy_mutex;
+static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
 
 /* Get entropy of specified strength.
  *
@@ -1503,7 +1506,7 @@ int Entropy_Init()
 
     /* Check whether initialization has succeeded before. */
     if (!entropy_memuse_initialized) {
-    #ifndef SINGLE_THREADED
+    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         ret = wc_InitMutex(&entropy_mutex);
     #endif
         if (ret == 0) {
@@ -1540,7 +1543,7 @@ void Entropy_Final()
     if (entropy_memuse_initialized) {
         /* Dispose of the SHA3-356 hash object. */
         wc_Sha3_256_Free(&entropyHash);
-    #ifndef SINGLE_THREADED
+    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
         wc_FreeMutex(&entropy_mutex);
     #endif
         /* Clear health test data. */
@@ -2277,10 +2280,13 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
  */
 int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
 {
+    int ret;
+
     if (configFile == NULL || timeout < 0)
         return BAD_FUNC_ARG;
 
-    if (wnr_mutex_init > 0) {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    if (wnr_mutex_inited > 0) {
         WOLFSSL_MSG("netRandom context already created, skipping");
         return 0;
     }
@@ -2289,7 +2295,14 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
         return BAD_MUTEX_E;
     }
-    wnr_mutex_init = 1;
+
+    wnr_mutex_inited = 1;
+#endif
+
+    if (wnr_inited > 0) {
+        WOLFSSL_MSG("netRandom context already created, skipping");
+        return 0;
+    }
 
     if (wc_LockMutex(&wnr_mutex) != 0) {
         WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
@@ -2302,7 +2315,8 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
     /* create global wnr_context struct */
     if (wnr_create(&wnr_ctx) != WNR_ERROR_NONE) {
         WOLFSSL_MSG("Error creating global netRandom context");
-        return RNG_FAILURE_E;
+        ret = RNG_FAILURE_E;
+        goto out;
     }
 
     /* load config file */
@@ -2310,7 +2324,8 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         WOLFSSL_MSG("Error loading config file into netRandom context");
         wnr_destroy(wnr_ctx);
         wnr_ctx = NULL;
-        return RNG_FAILURE_E;
+        ret = RNG_FAILURE_E;
+        goto out;
     }
 
     /* create/init polling mechanism */
@@ -2318,7 +2333,8 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         WOLFSSL_MSG("Error initializing netRandom polling mechanism");
         wnr_destroy(wnr_ctx);
         wnr_ctx = NULL;
-        return RNG_FAILURE_E;
+        ret = RNG_FAILURE_E;
+        goto out;
     }
 
     /* validate config, set HMAC callback (optional) */
@@ -2327,12 +2343,17 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         wnr_destroy(wnr_ctx);
         wnr_ctx = NULL;
         wnr_poll_destroy();
-        return RNG_FAILURE_E;
+        ret = RNG_FAILURE_E;
+        goto out;
     }
+
+    wnr_inited = 1;
+
+out:
 
     wc_UnLockMutex(&wnr_mutex);
 
-    return 0;
+    return ret;
 }
 
 /*
@@ -2341,7 +2362,7 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
  */
 int wc_FreeNetRandom(void)
 {
-    if (wnr_mutex_init > 0) {
+    if (wnr_inited > 0) {
 
         if (wc_LockMutex(&wnr_mutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
@@ -2356,8 +2377,12 @@ int wc_FreeNetRandom(void)
 
         wc_UnLockMutex(&wnr_mutex);
 
+#ifndef WOLFSSL_MUTEX_INITIALIZER
         wc_FreeMutex(&wnr_mutex);
-        wnr_mutex_init = 0;
+        wnr_mutex_inited = 0;
+#endif
+
+        wnr_inited = 0;
     }
 
     return 0;

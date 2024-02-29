@@ -120,7 +120,7 @@ int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*  mf,
 }
 
 #ifdef WOLFSSL_MEM_FAIL_COUNT
-static wolfSSL_Mutex memFailMutex;
+static wolfSSL_Mutex memFailMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(memFailMutex);
 int mem_fail_allocs = 0;
 int mem_fail_frees = 0;
 int mem_fail_cnt = 0;
@@ -128,7 +128,9 @@ int mem_fail_cnt = 0;
 void wc_MemFailCount_Init()
 {
     char* cnt;
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_InitMutex(&memFailMutex);
+#endif
     cnt = getenv("MEM_FAIL_CNT");
     if (cnt != NULL) {
         fprintf(stderr, "MemFailCount At: %d\n", mem_fail_cnt);
@@ -158,7 +160,9 @@ static void wc_MemFailCount_FreeMem(void)
 }
 void wc_MemFailCount_Free()
 {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_FreeMutex(&memFailMutex);
+#endif
     fprintf(stderr, "MemFailCount Total: %d\n", mem_fail_allocs);
     fprintf(stderr, "MemFailCount Frees: %d\n", mem_fail_frees);
 }
@@ -196,7 +200,7 @@ static MemZero memZero[WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN];
  */
 static int nextIdx = -1;
 /* Mutex to protect modifying list of addresses to check. */
-static wolfSSL_Mutex zeroMutex;
+static wolfSSL_Mutex zeroMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(zeroMutex);
 
 /* Initialize the table of addresses and the mutex.
  */
@@ -205,7 +209,9 @@ void wc_MemZero_Init()
     /* Clear the table to more easily see what is valid. */
     XMEMSET(memZero, 0, sizeof(memZero));
     /* Initialize mutex. */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_InitMutex(&zeroMutex);
+#endif
     /* Next index is first entry. */
     nextIdx = 0;
 }
@@ -215,7 +221,9 @@ void wc_MemZero_Init()
 void wc_MemZero_Free()
 {
     /* Free mutex. */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_FreeMutex(&zeroMutex);
+#endif
     /* Make sure we checked all addresses. */
     if (nextIdx > 0) {
         int i;
