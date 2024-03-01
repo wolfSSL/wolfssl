@@ -175,6 +175,10 @@ static void km_AesExitCommon(struct km_AesCtx * ctx)
     }
 }
 
+#if defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCFB)
+
 static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
                               unsigned int key_len, const char * name)
 {
@@ -200,10 +204,6 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
 
     return 0;
 }
-
-#if defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCFB)
 
 static void km_AesExit(struct crypto_skcipher *tfm)
 {
@@ -964,11 +964,12 @@ static int xtsAesAlg_loaded = 0;
 
 static int linuxkm_test_aescbc(void)
 {
-    int     ret = 0;
+    int    ret = 0;
     struct crypto_skcipher *  tfm = NULL;
     struct skcipher_request * req = NULL;
     struct scatterlist        src, dst;
-    Aes     aes;
+    Aes    *aes;
+    int    aes_inited = 0;
     static const byte key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -1000,25 +1001,30 @@ static int linuxkm_test_aescbc(void)
     u8 *    enc2 = NULL;
     u8 *    dec2 = NULL;
 
+    aes = (Aes *)malloc(sizeof(*aes));
+    if (aes == NULL)
+        return -ENOMEM;
+
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(enc));
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
+    aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
 
-    ret = wc_AesCbcEncrypt(&aes, enc, p_vector, sizeof(p_vector));
+    ret = wc_AesCbcEncrypt(aes, enc, p_vector, sizeof(p_vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCbcEncrypt failed with return code %d\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
 
     if (XMEMCMP(enc, c_vector, sizeof(c_vector)) != 0) {
@@ -1027,42 +1033,44 @@ static int linuxkm_test_aescbc(void)
     }
 
     /* Re init for decrypt and set flag. */
-    wc_AesFree(&aes);
+    wc_AesFree(aes);
+    aes_inited = 0;
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
+    aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_DECRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
 
-    ret = wc_AesCbcDecrypt(&aes, dec, enc, sizeof(p_vector));
+    ret = wc_AesCbcDecrypt(aes, dec, enc, sizeof(p_vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCbcDecrypt failed with return code %d\n", ret);
-        return ret;
+        goto test_cbc_end;
     }
 
     ret = XMEMCMP(p_vector, dec, sizeof(p_vector));
     if (ret) {
         pr_err("error: p_vector and dec do not match: %d\n", ret);
-        return ret;
-    }
-
-    /* now the kernel crypto part */
-    enc2 = kmalloc(sizeof(p_vector), GFP_KERNEL);
-    if (!enc2) {
-        pr_err("error: kmalloc failed\n");
         goto test_cbc_end;
     }
 
-    dec2 = kmalloc(sizeof(p_vector), GFP_KERNEL);
+    /* now the kernel crypto part */
+    enc2 = malloc(sizeof(p_vector));
+    if (!enc2) {
+        pr_err("error: malloc failed\n");
+        goto test_cbc_end;
+    }
+
+    dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_cbc_end;
     }
 
@@ -1142,10 +1150,14 @@ static int linuxkm_test_aescbc(void)
 
 test_cbc_end:
 
-    if (enc2) { kfree(enc2); enc2 = NULL; }
-    if (dec2) { kfree(dec2); dec2 = NULL; }
-    if (req) { skcipher_request_free(req); req = NULL; }
-    if (tfm) { crypto_free_skcipher(tfm); tfm = NULL; }
+    if (enc2) { free(enc2); }
+    if (dec2) { free(dec2); }
+    if (req) { skcipher_request_free(req); }
+    if (tfm) { crypto_free_skcipher(tfm); }
+
+    if (aes_inited)
+        wc_AesFree(aes);
+    free(aes);
 
     return ret;
 }
@@ -1160,11 +1172,12 @@ test_cbc_end:
 
 static int linuxkm_test_aescfb(void)
 {
-    int ret = 0;
+    int    ret = 0;
     struct crypto_skcipher *  tfm = NULL;
     struct skcipher_request * req = NULL;
     struct scatterlist        src, dst;
-    Aes     aes;
+    Aes    *aes;
+    int    aes_inited = 0;
     static const byte key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -1194,25 +1207,30 @@ static int linuxkm_test_aescfb(void)
     u8 *    enc2 = NULL;
     u8 *    dec2 = NULL;
 
+    aes = (Aes *)malloc(sizeof(*aes));
+    if (aes == NULL)
+        return -ENOMEM;
+
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(enc));
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
+    aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
 
-    ret = wc_AesCfbEncrypt(&aes, enc, p_vector, sizeof(p_vector));
+    ret = wc_AesCfbEncrypt(aes, enc, p_vector, sizeof(p_vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCfbEncrypt failed with return code %d\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
 
     if (XMEMCMP(enc, c_vector, sizeof(c_vector)) != 0) {
@@ -1221,42 +1239,44 @@ static int linuxkm_test_aescfb(void)
     }
 
     /* Re init for decrypt and set flag. */
-    wc_AesFree(&aes);
+    wc_AesFree(aes);
+    aes_inited = 0;
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("wolfcrypt wc_AesInit failed with return code %d.\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
+    aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
 
-    ret = wc_AesCfbDecrypt(&aes, dec, enc, sizeof(p_vector));
+    ret = wc_AesCfbDecrypt(aes, dec, enc, sizeof(p_vector));
     if (ret) {
         pr_err("wolfcrypt wc_AesCfbDecrypt failed with return code %d\n", ret);
-        return ret;
+        goto test_cfb_end;
     }
 
     ret = XMEMCMP(p_vector, dec, sizeof(p_vector));
     if (ret) {
         pr_err("error: p_vector and dec do not match: %d\n", ret);
-        return ret;
-    }
-
-    /* now the kernel crypto part */
-    enc2 = kmalloc(sizeof(p_vector), GFP_KERNEL);
-    if (!enc2) {
-        pr_err("error: kmalloc failed\n");
         goto test_cfb_end;
     }
 
-    dec2 = kmalloc(sizeof(p_vector), GFP_KERNEL);
+    /* now the kernel crypto part */
+    enc2 = malloc(sizeof(p_vector));
+    if (!enc2) {
+        pr_err("error: malloc failed\n");
+        goto test_cfb_end;
+    }
+
+    dec2 = malloc(sizeof(p_vector));
     if (!dec2) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_cfb_end;
     }
 
@@ -1336,10 +1356,14 @@ static int linuxkm_test_aescfb(void)
 
 test_cfb_end:
 
-    if (enc2) { kfree(enc2); enc2 = NULL; }
-    if (dec2) { kfree(dec2); dec2 = NULL; }
-    if (req) { skcipher_request_free(req); req = NULL; }
-    if (tfm) { crypto_free_skcipher(tfm); tfm = NULL; }
+    if (enc2) { free(enc2); }
+    if (dec2) { free(dec2); }
+    if (req) { skcipher_request_free(req); }
+    if (tfm) { crypto_free_skcipher(tfm); }
+
+    if (aes_inited)
+        wc_AesFree(aes);
+    free(aes);
 
     return ret;
 }
@@ -1359,7 +1383,8 @@ static int linuxkm_test_aesgcm(void)
     struct aead_request * req = NULL;
     struct scatterlist *  src = NULL;
     struct scatterlist *  dst = NULL;
-    Aes     aes;
+    Aes    *aes;
+    int    aes_inited = 0;
     static const byte key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -1407,27 +1432,32 @@ static int linuxkm_test_aesgcm(void)
     XMEMSET(dec, 0, sizeof(p_vector));
     XMEMSET(authTag, 0, AES_BLOCK_SIZE);
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    aes = (Aes *)malloc(sizeof(*aes));
+    if (aes == NULL)
+        return -ENOMEM;
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
         pr_err("error: wc_AesInit failed with return code %d.\n", ret);
         goto test_gcm_end;
     }
+    aes_inited = 1;
 
-    ret = wc_AesGcmInit(&aes, key32, sizeof(key32)/sizeof(byte), ivstr,
+    ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
                         AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmEncryptUpdate(&aes, NULL, NULL, 0, assoc, sizeof(assoc));
+    ret = wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, assoc, sizeof(assoc));
     if (ret) {
         pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n",
                ret);
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmEncryptUpdate(&aes, enc, p_vector, sizeof(p_vector), NULL, 0);
+    ret = wc_AesGcmEncryptUpdate(aes, enc, p_vector, sizeof(p_vector), NULL, 0);
     if (ret) {
         pr_err("error: wc_AesGcmEncryptUpdate failed with return code %d\n",
                ret);
@@ -1440,7 +1470,7 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmEncryptFinal(&aes, authTag, AES_BLOCK_SIZE);
+    ret = wc_AesGcmEncryptFinal(aes, authTag, AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
                ret);
@@ -1453,14 +1483,14 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmInit(&aes, key32, sizeof(key32)/sizeof(byte), ivstr,
+    ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
                         AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmDecryptUpdate(&aes, dec, enc, sizeof(p_vector),
+    ret = wc_AesGcmDecryptUpdate(aes, dec, enc, sizeof(p_vector),
                                  assoc, sizeof(assoc));
     if (ret) {
         pr_err("error: wc_AesGcmDecryptUpdate failed with return code %d\n",
@@ -1468,7 +1498,7 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmDecryptFinal(&aes, authTag, AES_BLOCK_SIZE);
+    ret = wc_AesGcmDecryptFinal(aes, authTag, AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
                ret);
@@ -1482,31 +1512,31 @@ static int linuxkm_test_aesgcm(void)
     }
 
     /* now the kernel crypto part */
-    assoc2 = kmalloc(sizeof(assoc), GFP_KERNEL);
+    assoc2 = malloc(sizeof(assoc));
     if (IS_ERR(assoc2)) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_gcm_end;
     }
     memset(assoc2, 0, sizeof(assoc));
     memcpy(assoc2, assoc, sizeof(assoc));
 
-    iv = kmalloc(AES_BLOCK_SIZE, GFP_KERNEL);
+    iv = malloc(AES_BLOCK_SIZE);
     if (IS_ERR(iv)) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_gcm_end;
     }
     memset(iv, 0, AES_BLOCK_SIZE);
     memcpy(iv, ivstr, AES_BLOCK_SIZE);
 
-    enc2 = kmalloc(decryptLen, GFP_KERNEL);
+    enc2 = malloc(decryptLen);
     if (IS_ERR(enc2)) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_gcm_end;
     }
 
-    dec2 = kmalloc(decryptLen, GFP_KERNEL);
+    dec2 = malloc(decryptLen);
     if (IS_ERR(dec2)) {
-        pr_err("error: kmalloc failed\n");
+        pr_err("error: malloc failed\n");
         goto test_gcm_end;
     }
 
@@ -1552,11 +1582,11 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    src = kmalloc(sizeof(struct scatterlist) * 2, GFP_KERNEL);
-    dst = kmalloc(sizeof(struct scatterlist) * 2, GFP_KERNEL);
+    src = malloc(sizeof(struct scatterlist) * 2);
+    dst = malloc(sizeof(struct scatterlist) * 2);
 
     if (IS_ERR(src) || IS_ERR(dst)) {
-        pr_err("error: kmalloc src or dst failed: %ld, %ld\n",
+        pr_err("error: malloc src or dst failed: %ld, %ld\n",
                PTR_ERR(src), PTR_ERR(dst));
         goto test_gcm_end;
     }
@@ -1614,14 +1644,18 @@ test_gcm_end:
     if (req) { aead_request_free(req); req = NULL; }
     if (tfm) { crypto_free_aead(tfm); tfm = NULL; }
 
-    if (src) { kfree(src); src = NULL; }
-    if (dst) { kfree(dst); dst = NULL; }
+    if (src) { free(src); src = NULL; }
+    if (dst) { free(dst); dst = NULL; }
 
-    if (dec2) { kfree(dec2); dec2 = NULL; }
-    if (enc2) { kfree(enc2); enc2 = NULL; }
+    if (dec2) { free(dec2); dec2 = NULL; }
+    if (enc2) { free(enc2); enc2 = NULL; }
 
-    if (assoc2) { kfree(assoc2); assoc2 = NULL; }
-    if (iv) { kfree(iv); iv = NULL; }
+    if (assoc2) { free(assoc2); assoc2 = NULL; }
+    if (iv) { free(iv); iv = NULL; }
+
+    if (aes_inited)
+        wc_AesFree(aes);
+    free(aes);
 
     return ret;
 }
@@ -1653,6 +1687,7 @@ static int aes_xts_128_test(void)
     struct crypto_skcipher *tfm = NULL;
     struct skcipher_request *req = NULL;
     u8 iv[AES_BLOCK_SIZE];
+    byte* large_input = NULL;
 
     /* 128 key tests */
     static const unsigned char k1[] = {
@@ -1946,14 +1981,15 @@ static int aes_xts_128_test(void)
 
     {
     #define LARGE_XTS_SZ        1024
-        byte* large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
         int i;
         int j;
 
-        if (large_input == NULL)
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (large_input == NULL) {
             ret = MEMORY_E;
-        goto out;
+            goto out;
+        }
 
         for (i = 0; i < (int)LARGE_XTS_SZ; i++)
             large_input[i] = (byte)i;
@@ -1981,19 +2017,18 @@ static int aes_xts_128_test(void)
                 }
             }
         }
-        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     /* now the kernel crypto part */
 
-    enc2 = XMALLOC(sizeof(p1), NULL, DYNAMIC_TYPE_AES);
+    enc2 = XMALLOC(sizeof(pp), NULL, DYNAMIC_TYPE_AES);
     if (!enc2) {
         pr_err("error: malloc failed\n");
         ret = -ENOMEM;
         goto test_xts_end;
     }
 
-    dec2 = XMALLOC(sizeof(p1), NULL, DYNAMIC_TYPE_AES);
+    dec2 = XMALLOC(sizeof(pp), NULL, DYNAMIC_TYPE_AES);
     if (!dec2) {
         pr_err("error: malloc failed\n");
         ret = -ENOMEM;
@@ -2163,6 +2198,9 @@ static int aes_xts_128_test(void)
         crypto_free_skcipher(tfm);
 
   out:
+
+    if (large_input)
+        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);

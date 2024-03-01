@@ -57,7 +57,11 @@ int wc_ChaCha20Poly1305_Encrypt(
                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret;
-    ChaChaPoly_Aead aead;
+#ifdef WOLFSSL_SMALL_STACK
+    ChaChaPoly_Aead *aead = NULL;
+#else
+    ChaChaPoly_Aead aead[1];
+#endif
 
     /* Validate function arguments */
     if (!inKey || !inIV ||
@@ -68,15 +72,27 @@ int wc_ChaCha20Poly1305_Encrypt(
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_ChaCha20Poly1305_Init(&aead, inKey, inIV,
+#ifdef WOLFSSL_SMALL_STACK
+    aead = (ChaChaPoly_Aead *)XMALLOC(sizeof(*aead), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (aead == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_ChaCha20Poly1305_Init(aead, inKey, inIV,
         CHACHA20_POLY1305_AEAD_ENCRYPT);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_UpdateAad(&aead, inAAD, inAADLen);
+        ret = wc_ChaCha20Poly1305_UpdateAad(aead, inAAD, inAADLen);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_UpdateData(&aead, inPlaintext, outCiphertext,
+        ret = wc_ChaCha20Poly1305_UpdateData(aead, inPlaintext, outCiphertext,
             inPlaintextLen);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_Final(&aead, outAuthTag);
+        ret = wc_ChaCha20Poly1305_Final(aead, outAuthTag);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -90,7 +106,11 @@ int wc_ChaCha20Poly1305_Decrypt(
                 byte* outPlaintext)
 {
     int ret;
-    ChaChaPoly_Aead aead;
+#ifdef WOLFSSL_SMALL_STACK
+    ChaChaPoly_Aead *aead = NULL;
+#else
+    ChaChaPoly_Aead aead[1];
+#endif
     byte calculatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
 
     /* Validate function arguments */
@@ -102,19 +122,31 @@ int wc_ChaCha20Poly1305_Decrypt(
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    aead = (ChaChaPoly_Aead *)XMALLOC(sizeof(*aead), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (aead == NULL)
+        return MEMORY_E;
+#endif
+
     XMEMSET(calculatedAuthTag, 0, sizeof(calculatedAuthTag));
 
-    ret = wc_ChaCha20Poly1305_Init(&aead, inKey, inIV,
+    ret = wc_ChaCha20Poly1305_Init(aead, inKey, inIV,
         CHACHA20_POLY1305_AEAD_DECRYPT);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_UpdateAad(&aead, inAAD, inAADLen);
+        ret = wc_ChaCha20Poly1305_UpdateAad(aead, inAAD, inAADLen);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_UpdateData(&aead, inCiphertext, outPlaintext,
+        ret = wc_ChaCha20Poly1305_UpdateData(aead, inCiphertext, outPlaintext,
             inCiphertextLen);
     if (ret == 0)
-        ret = wc_ChaCha20Poly1305_Final(&aead, calculatedAuthTag);
+        ret = wc_ChaCha20Poly1305_Final(aead, calculatedAuthTag);
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_CheckTag(inAuthTag, calculatedAuthTag);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 

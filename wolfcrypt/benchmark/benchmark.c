@@ -5755,19 +5755,29 @@ exit:
 #ifdef HAVE_CHACHA
 void bench_chacha(void)
 {
-    ChaCha enc;
+    WC_DECLARE_VAR(enc, ChaCha, 1, HEAP_HINT);
     double start;
-    int    i, count;
+    int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    XMEMSET(&enc, 0, sizeof(enc));
-    wc_Chacha_SetKey(&enc, bench_key, 16);
+    WC_ALLOC_VAR(enc, ChaCha, 1, HEAP_HINT);
+
+    XMEMSET(enc, 0, sizeof(ChaCha));
+    wc_Chacha_SetKey(enc, bench_key, 16);
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_Chacha_SetIV(&enc, bench_iv, 0);
-            wc_Chacha_Process(&enc, bench_cipher, bench_plain, bench_size);
+            ret = wc_Chacha_SetIV(enc, bench_iv, 0);
+            if (ret < 0) {
+                printf("wc_Chacha_SetIV error: %d\n", ret);
+                goto exit;
+            }
+            ret = wc_Chacha_Process(enc, bench_cipher, bench_plain, bench_size);
+            if (ret < 0) {
+                printf("wc_Chacha_Process error: %d\n", ret);
+                goto exit;
+            }
             RECORD_MULTI_VALUE_STATS();
         }
         count += i;
@@ -5781,6 +5791,9 @@ void bench_chacha(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+exit:
+    WC_FREE_VAR(enc, HEAP_HINT);
 }
 #endif /* HAVE_CHACHA*/
 
@@ -5791,8 +5804,9 @@ void bench_chacha20_poly1305_aead(void)
     int    ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
-    XMEMSET(authTag, 0, sizeof(authTag));
+    WC_DECLARE_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
+    XMEMSET(authTag, 0, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE);
 
     bench_stats_start(&count, &start);
     do {
@@ -5801,7 +5815,7 @@ void bench_chacha20_poly1305_aead(void)
                 bench_plain, bench_size, bench_cipher, authTag);
             if (ret < 0) {
                 printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
-                break;
+                goto exit;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -5816,6 +5830,10 @@ void bench_chacha20_poly1305_aead(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+exit:
+
+    WC_FREE_VAR(authTag, HEAP_HINT);
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
