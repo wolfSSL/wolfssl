@@ -447,7 +447,6 @@ typedef struct SnifferServer {
     struct SnifferServer* next;                  /* for list */
 } SnifferServer;
 
-
 /* Session Flags */
 typedef struct Flags {
     byte           side;            /* which end is current packet headed */
@@ -569,13 +568,13 @@ typedef struct SnifferSession {
 /* Sniffer Server List and mutex */
 static THREAD_LS_T WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
+static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ServerListMutex);
 #endif
 
 /* Session Hash Table, mutex, and count */
 static THREAD_LS_T WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex;
+static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(SessionMutex);
 #endif
 static THREAD_LS_T WOLFSSL_GLOBAL int SessionCount = 0;
 
@@ -584,7 +583,7 @@ static WOLFSSL_GLOBAL int MaxRecoveryMemory  = -1;
                                            /* per session max recovery memory */
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
 /* Recovery of missed data switches and stats */
-static WOLFSSL_GLOBAL wolfSSL_Mutex RecoveryMutex; /* for stats */
+static WOLFSSL_GLOBAL wolfSSL_Mutex RecoveryMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(RecoveryMutex); /* for stats */
 /* # of sessions with missed data */
 static WOLFSSL_GLOBAL word32 MissedDataSessions = 0;
 #endif
@@ -596,7 +595,7 @@ static WOLFSSL_GLOBAL void*     ConnectionCbCtx = NULL;
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
 static WOLFSSL_GLOBAL SSLStats SnifferStats;
-static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex;
+static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(StatsMutex);
 #endif
 
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
@@ -683,6 +682,7 @@ static int addKeyLogSnifferServerHelper(const char* address,
 void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
+#ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef HAVE_C___ATOMIC
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
@@ -693,6 +693,11 @@ void ssl_InitSniffer_ex(int devId)
 #ifdef WOLFSSL_SNIFFER_STATS
     XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&StatsMutex);
+#endif
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
+
+#ifdef WOLFSSL_SNIFFER_STATS
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
 #endif
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
     CryptoDeviceId = devId;
@@ -903,6 +908,7 @@ void ssl_FreeSniffer(void)
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
 
+#ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_FreeMutex(&RecoveryMutex);
 #endif
@@ -910,6 +916,7 @@ void ssl_FreeSniffer(void)
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
 #endif
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
@@ -7235,7 +7242,7 @@ static THREAD_LS_T WOLFSSL_GLOBAL
 SecretNode*
 secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex secretListMutex;
+static WOLFSSL_GLOBAL wolfSSL_Mutex secretListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(secretListMutex);
 #endif
 
 static unsigned int secretHashFunction(unsigned char* clientRandom);

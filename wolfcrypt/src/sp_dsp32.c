@@ -2620,8 +2620,10 @@ static THREAD_LS_T int sp_cache_last = -1;
 static THREAD_LS_T int sp_cache_inited = 0;
 
 #ifndef HAVE_THREAD_LS
+    static wolfSSL_Mutex sp_cache_lock WOLFSSL_MUTEX_INITIALIZER_CLAUSE(sp_cache_lock);
+#ifdef WOLFSSL_MUTEX_INITIALIZER
     static volatile int initCacheMutex = 0;
-    static wolfSSL_Mutex sp_cache_lock;
+#endif
 #endif
 
 static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
@@ -2701,10 +2703,12 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
     int err = MP_OKAY;
 
 #ifndef HAVE_THREAD_LS
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (initCacheMutex == 0) {
          wc_InitMutex(&sp_cache_lock);
          initCacheMutex = 1;
     }
+#endif
     if (wc_LockMutex(&sp_cache_lock) != 0)
        err = BAD_MUTEX_E;
 #endif /* HAVE_THREAD_LS */

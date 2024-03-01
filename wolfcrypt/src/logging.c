@@ -818,7 +818,7 @@ static struct wc_error_queue* wc_current_node;
 static void* wc_error_heap;
 
 /* mutex for list operation protection */
-static wolfSSL_Mutex wc_error_mutex;
+static wolfSSL_Mutex wc_error_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wc_error_mutex);
 #define ERRQ_MUTEX_INIT()      wc_InitMutex(&wc_error_mutex)
 #define ERRQ_MUTEX_FREE()      wc_FreeMutex(&wc_error_mutex)
 #define ERRQ_LOCK()            wc_LockMutex(&wc_error_mutex)
@@ -827,10 +827,12 @@ static wolfSSL_Mutex wc_error_mutex;
 /* Internal function that is called by wolfCrypt_Init() */
 int wc_LoggingInit(void)
 {
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (ERRQ_MUTEX_INIT() != 0) {
         WOLFSSL_MSG("Bad Init Mutex");
         return BAD_MUTEX_E;
     }
+#endif
     wc_errors_count = 0;
     wc_errors          = NULL;
     wc_current_node    = NULL;
@@ -845,10 +847,12 @@ int wc_LoggingCleanup(void)
     /* clear logging entries */
     wc_ClearErrorNodes();
     /* free mutex */
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (ERRQ_MUTEX_FREE() != 0) {
         WOLFSSL_MSG("Bad Mutex free");
         return BAD_MUTEX_E;
     }
+#endif
     return 0;
 }
 

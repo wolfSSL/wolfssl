@@ -1283,18 +1283,22 @@ void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err)
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */
-static wolfSSL_Mutex wcCryptHwMutex;
+static wolfSSL_Mutex wcCryptHwMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wcCryptHwMutex);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
 static int wcCryptHwMutexInit = 0;
+#endif
 
 int wolfSSL_CryptHwMutexInit(void)
 {
     int ret = 0;
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     if (wcCryptHwMutexInit == 0) {
         ret = wc_InitMutex(&wcCryptHwMutex);
         if (ret == 0) {
             wcCryptHwMutexInit = 1;
         }
     }
+#endif
     return ret;
 }
 int wolfSSL_CryptHwMutexLock(void)

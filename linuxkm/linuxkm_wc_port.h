@@ -800,6 +800,7 @@
      */
     #include <linux/mutex.h>
     typedef struct mutex wolfSSL_Mutex;
+    #define WOLFSSL_MUTEX_INITIALIZER(lockname) __MUTEX_INITIALIZER(lockname)
 
     /* prevent gcc's mm_malloc.h from being included, since it unconditionally
      * includes stdlib.h, which is kernel-incompatible.

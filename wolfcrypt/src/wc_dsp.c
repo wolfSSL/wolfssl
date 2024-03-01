@@ -38,7 +38,7 @@
 #include "rpcmem.h"
 static wolfSSL_DSP_Handle_cb handle_function = NULL;
 static remote_handle64 defaultHandle;
-static wolfSSL_Mutex handle_mutex; /* mutex for access to single default handle */
+static wolfSSL_Mutex handle_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(handle_mutex); /* mutex for access to single default handle */
 
 #define WOLFSSL_HANDLE_DONE 1
 #define WOLFSSL_HANDLE_GET 0
@@ -95,11 +95,13 @@ int wolfSSL_InitHandle()
         return -1;
     }
     wolfSSL_SetHandleCb(default_handle_cb);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     ret = wc_InitMutex(&handle_mutex);
     if (ret != 0) {
         WOLFSSL_MSG("Unable to init handle mutex");
         return -1;
     }
+#endif
     return 0;
 }
 
@@ -108,7 +110,9 @@ int wolfSSL_InitHandle()
 void wolfSSL_CleanupHandle()
 {
     wolfSSL_close(defaultHandle);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_FreeMutex(&handle_mutex);
+#endif
 }
 #if defined(WOLFSSL_HAVE_SP_ECC)
 
