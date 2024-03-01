@@ -854,6 +854,10 @@ run_renewcerts(){
     echo ""
     openssl crl2pkcs7 -nocrl -certfile ./client-cert.pem -out test-degenerate.p7b -outform DER
     check_result $? ""
+
+    openssl smime -sign -in ./ca-cert.pem -out test-stream-sign.p7b -signer ./ca-cert.pem -nodetach -nocerts -binary -outform DER -stream -inkey ./ca-key.pem
+    check_result $? ""
+
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
