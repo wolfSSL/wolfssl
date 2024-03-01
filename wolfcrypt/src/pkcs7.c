@@ -6012,12 +6012,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
             }
 
-            if (ret < 0)
-                break;
-
         #ifndef NO_PKCS7_STREAM
             /* make sure that terminating zero's follow */
-            if (ret >= 0 && pkcs7->stream->indefLen == 1) {
+            if ((ret == PKCS7_SIGNEEDS_CHECK || ret >= 0) &&
+                    pkcs7->stream->indefLen == 1) {
                 int i;
                 for (i = 0; i < 3 * ASN_INDEF_END_SZ; i++) {
                     if (pkiMsg2[idx + i] != 0) {
@@ -6026,9 +6024,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     }
                 }
             }
+        #endif /* NO_PKCS7_STREAM */
+
             if (ret < 0)
                 break;
-        #endif /* NO_PKCS7_STREAM */
+
 
             ret = 0; /* success */
         #ifndef NO_PKCS7_STREAM
