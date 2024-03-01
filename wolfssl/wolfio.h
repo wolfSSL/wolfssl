@@ -120,8 +120,6 @@
         #include <errno.h>
         #include <unistd.h>
         #include <fcntl.h>
-        #include <netdb.h>
-        #include <sys/ioctl.h>
     #elif defined(WOLFSSL_SGX)
         #include <errno.h>
     #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
@@ -163,15 +161,9 @@
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
-            #ifdef HAVE_NETDB_H
-                #include <netdb.h>
-            #endif
             #ifdef __PPU
                 #include <netex/errno.h>
             #else
-                #ifdef HAVE_SYS_IOCTL_H
-                    #include <sys/ioctl.h>
-                #endif
             #endif
         #endif
     #endif
