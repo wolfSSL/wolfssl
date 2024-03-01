@@ -6244,20 +6244,20 @@ int wolfSSL_Init(void)
         return BAD_MUTEX_E;
     }
 
-    if ((ret == WOLFSSL_SUCCESS) && (initRefCount == 0)) {
-        /* Initialize crypto for use with TLS connection */
-
     #if FIPS_VERSION_GE(5,1)
+    if ((ret == WOLFSSL_SUCCESS) && (initRefCount == 0)) {
         ret = wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
         if (ret == 0)
             ret = WOLFSSL_SUCCESS;
+    }
     #endif
 
-        if (ret == WOLFSSL_SUCCESS) {
-            if (wolfCrypt_Init() != 0) {
-                WOLFSSL_MSG("Bad wolfCrypt Init");
-                ret = WC_INIT_E;
-            }
+    if ((ret == WOLFSSL_SUCCESS) && (initRefCount == 0)) {
+        /* Initialize crypto for use with TLS connection */
+
+        if (wolfCrypt_Init() != 0) {
+            WOLFSSL_MSG("Bad wolfCrypt Init");
+            ret = WC_INIT_E;
         }
 
 #if defined(HAVE_GLOBAL_RNG) && !defined(WOLFSSL_MUTEX_INITIALIZER)
