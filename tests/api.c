@@ -27035,6 +27035,31 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, signedSz), 0);
     }
 #endif
+#ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    {
+        word32 z;
+        int ret;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+        /* test for streaming mode */
+        ret = -1;
+        for (z = 0; z < outputSz && ret != 0; z++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+            if (ret < 0){
+                ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+            }
+        }
+        ExpectIntEQ(ret, 0);
+        ExpectIntNE(pkcs7->contentSz, 0);
+        ExpectNotNull(pkcs7->contentDynamic);
+    }
+#endif /* !NO_PKCS7_STREAM */
+
 
     /* Pass in bad args. */
     ExpectIntEQ(wc_PKCS7_EncodeSignedData(NULL, output, outputSz),
@@ -27243,6 +27268,10 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     {
         byte* output = NULL;
         word32 outputSz = 0;
+    #ifndef NO_PKCS7_STREAM
+        word32 z;
+        int ret;
+    #endif /* !NO_PKCS7_STREAM */
 
         ExpectNotNull(output = (byte*)XMALLOC(
             outputHeadSz + sizeof(data) + outputFootSz, HEAP_HINT,
@@ -27259,6 +27288,32 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+    #ifndef NO_PKCS7_STREAM
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+        /* test for streaming mode */
+        ret = -1;
+        for (z = 0; z < outputSz && ret != 0; z++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+            if (ret < 0){
+                ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+            }
+        }
+        ExpectIntEQ(ret, 0);
+        ExpectIntNE(pkcs7->contentSz, 0);
+        ExpectNotNull(pkcs7->contentDynamic);
+
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    #endif /* !NO_PKCS7_STREAM */
+
         XFREE(output, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -27706,6 +27761,10 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     struct tm tmpTimeStorage;
     struct tm* tmpTime = &tmpTimeStorage;
 #endif
+    #ifndef NO_PKCS7_STREAM
+        word32 z;
+        int ret;
+    #endif /* !NO_PKCS7_STREAM */
 #endif /* !NO_ASN && !NO_ASN_TIME */
 
     XMEMSET(&hash, 0, sizeof(wc_HashAlg));
@@ -27724,6 +27783,26 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+#ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+#endif /* !NO_PKCS7_STREAM */
 
     /* Check that decoded signed attributes are correct */
 
@@ -27819,8 +27898,35 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     }
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz),
                 SIG_VERIFY_E);
+
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = badContent;
+        pkcs7->contentSz = sizeof(badContent);
+    }
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret == WC_PKCS7_WANT_READ_E){
+            continue;
+        }
+        else if (ret < 0) {
+            break;
+        }
+    }
+    ExpectIntEQ(ret, SIG_VERIFY_E);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
+
 
     /* Test success case with detached signature and valid content */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -27832,6 +27938,30 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = sizeof(data);
+    }
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
 
     /* verify using pre-computed content digest only (no content) */
     {
@@ -27856,6 +27986,27 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
+
 #endif /* !NO_RSA */
 #endif
     return EXPECT_RESULT();
@@ -27874,6 +28025,10 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     byte   data[] = "Test data to encode.";
     byte   badContent[] = "This is different content than was signed";
     wc_HashAlg hash;
+#ifndef NO_PKCS7_STREAM
+    word32 z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 #ifdef NO_SHA
     enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
 #else
@@ -27897,6 +28052,25 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
+
     /* Invalid content should error, use detached signature so we can
      * easily change content */
     outputSz = sizeof(output);
@@ -27914,6 +28088,33 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = badContent;
+        pkcs7->contentSz = sizeof(badContent);
+    }
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret == WC_PKCS7_WANT_READ_E){
+            continue;
+        }
+        else if (ret < 0) {
+            break;
+        }
+    }
+    ExpectIntEQ(ret, SIG_VERIFY_E);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
+
+
     /* Test success case with detached signature and valid content */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -27924,6 +28125,30 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = sizeof(data);
+    }
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
 
     /* verify using pre-computed content digest only (no content) */
     {
@@ -27951,6 +28176,27 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < outputSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, output + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectIntNE(pkcs7->contentSz, 0);
+    ExpectNotNull(pkcs7->contentDynamic);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
+
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_VerifySignedData_ECC() */
@@ -28713,7 +28959,10 @@ static int test_wc_PKCS7_Degenerate(void)
     XFILE  f = XBADFILE;
     byte   der[4096];
     word32 derSz = 0;
-
+#ifndef NO_PKCS7_STREAM
+    word32 z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
     ExpectTrue((f = XFOPEN(fName, "rb")) != XBADFILE);
     ExpectTrue((derSz = (word32)XFREAD(der, 1, sizeof(der), f)) > 0);
     if (f != XBADFILE)
@@ -28725,9 +28974,27 @@ static int test_wc_PKCS7_Degenerate(void)
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 #ifndef NO_RSA
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+
+    #ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < derSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, der + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    #endif /* !NO_PKCS7_STREAM */
 #else
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
-#endif
+#endif /* NO_RSA */
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
@@ -28738,6 +29005,28 @@ static int test_wc_PKCS7_Degenerate(void)
     wc_PKCS7_AllowDegenerate(pkcs7, 0); /* override allowing degenerate case */
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
         PKCS7_NO_SIGNER_E);
+
+    #ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0); /* override allowing degenerate case */
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < derSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, der + z, 1);
+        if (ret == WC_PKCS7_WANT_READ_E){
+            continue;
+        }
+        else
+            break;
+    }
+    ExpectIntEQ(ret, PKCS7_NO_SIGNER_E);
+    #endif /* !NO_PKCS7_STREAM */
+
     wc_PKCS7_Free(pkcs7);
 #endif
     return EXPECT_RESULT();
@@ -28954,6 +29243,10 @@ static int test_wc_PKCS7_BER(void)
     byte   decoded[2048];
 #endif
     word32 derSz = 0;
+#ifndef NO_PKCS7_STREAM
+    word32 z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 
     ExpectTrue((f = XFOPEN(fName, "rb")) != XBADFILE);
     ExpectTrue((derSz = (word32)XFREAD(der, 1, sizeof(der), f)) > 0);
@@ -28967,6 +29260,24 @@ static int test_wc_PKCS7_BER(void)
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 #ifndef NO_RSA
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+
+    #ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < derSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, der + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    #endif /* !NO_PKCS7_STREAM */
 #else
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
 #endif
@@ -29039,6 +29350,10 @@ static int test_wc_PKCS7_signed_enveloped(void)
     unsigned char decoded[FOURK_BUF];
     int decodedSz = FOURK_BUF;
 #endif
+#ifndef NO_PKCS7_STREAM
+    int z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
@@ -29153,6 +29468,24 @@ static int test_wc_PKCS7_signed_enveloped(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+
+#ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < sigSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, sig + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+#endif /* !NO_PKCS7_STREAM */
+
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
@@ -29181,6 +29514,43 @@ static int test_wc_PKCS7_signed_enveloped(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
     ExpectNotNull(pkcs7->content);
 
+#ifndef NO_PKCS7_STREAM
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* create valid degenerate bundle */
+    sigSz = FOURK_BUF * 2;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    if (pkcs7 != NULL) {
+        pkcs7->content    = env;
+        pkcs7->contentSz  = envSz;
+        pkcs7->contentOID = DATA;
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->rng = &rng;
+    }
+    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
+    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    wc_FreeRng(&rng);
+
+    /* check verify */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < sigSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, sig + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+#endif /* !NO_PKCS7_STREAM */
+
 #ifdef HAVE_AES_CBC
     /* check decode */
     ExpectNotNull(inner = wc_PKCS7_New(NULL, 0));
@@ -29206,6 +29576,24 @@ static int test_wc_PKCS7_signed_enveloped(void)
     ExpectIntNE(pkcs7->singleCertSz, 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+
+#ifndef NO_PKCS7_STREAM
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    /* test for streaming */
+    ret = -1;
+    for (z = 0; z < decodedSz && ret != 0; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, decoded + z, 1);
+        if (ret < 0){
+            ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+        }
+    }
+    ExpectIntEQ(ret, 0);
+    ExpectNotNull(pkcs7->singleCert);
+    ExpectIntNE(pkcs7->singleCertSz, 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* !NO_PKCS7_STREAM */
 #endif
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_AES */
     return EXPECT_RESULT();
@@ -52720,6 +53108,10 @@ static int test_wolfSSL_PKCS7_sign(void)
     EVP_PKEY* signKey = NULL;
     X509* caCert = NULL;
     X509_STORE* store = NULL;
+#ifndef NO_PKCS7_STREAM
+    int z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 
     /* read signer cert/key into BIO */
     ExpectNotNull(certBio = BIO_new_file(cert, "r"));
@@ -52765,6 +53157,23 @@ static int test_wolfSSL_PKCS7_sign(void)
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
         ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+
+    #ifndef NO_PKCS7_STREAM
+        /* verify with wc_PKCS7_VerifySignedData streaming */
+        wc_PKCS7_Free(p7Ver);
+        p7Ver = NULL;
+        ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
+        /* test for streaming */
+        ret = -1;
+        for (z = 0; z < outLen && ret != 0; z++) {
+            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+            if (ret < 0){
+                ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+            }
+        }
+        ExpectIntEQ(ret, 0);
+    #endif /* !NO_PKCS7_STREAM */
 
         /* compare the signer found to expected signer */
         ExpectIntNE(p7Ver->verifyCertSz, 0);
@@ -52838,6 +53247,26 @@ static int test_wolfSSL_PKCS7_sign(void)
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
 
+    #ifndef NO_PKCS7_STREAM
+        /* verify with wc_PKCS7_VerifySignedData streaming */
+        ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (p7Ver != NULL) {
+            p7Ver->content = data;
+            p7Ver->contentSz = sizeof(data);
+        }
+        /* test for streaming */
+        ret = -1;
+        for (z = 0; z < outLen && ret != 0; z++) {
+            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+            if (ret < 0){
+                ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+            }
+        }
+        ExpectIntEQ(ret, 0);
+        wc_PKCS7_Free(p7Ver);
+        p7Ver = NULL;
+    #endif /* !NO_PKCS7_STREAM */
+
         /* verify expected failure (NULL return) from d2i_PKCS7, it does not
          * yet support detached content */
         tmpPtr = out;
@@ -52876,6 +53305,28 @@ static int test_wolfSSL_PKCS7_sign(void)
         p7Ver = NULL;
 
         ExpectNotNull(out);
+
+    #ifndef NO_PKCS7_STREAM
+        /* verify with wc_PKCS7_VerifySignedData streaming */
+        ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (p7Ver != NULL) {
+            p7Ver->content = data;
+            p7Ver->contentSz = sizeof(data);
+        }
+        /* test for streaming */
+        ret = -1;
+        for (z = 0; z < outLen && ret != 0; z++) {
+            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+            if (ret < 0){
+                ExpectIntEQ(ret, WC_PKCS7_WANT_READ_E);
+            }
+        }
+        ExpectIntEQ(ret, 0);
+        ExpectNotNull(out);
+        wc_PKCS7_Free(p7Ver);
+        p7Ver = NULL;
+    #endif /* !NO_PKCS7_STREAM */
+
         XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         PKCS7_free(p7);
         p7 = NULL;
