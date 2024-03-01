@@ -31642,8 +31642,8 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
 int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
         void* heap)
 {
-    byte oid[MAX_OID_SZ];
-    word32 oidSz = MAX_OID_SZ;
+    byte oid[CTC_MAX_EKU_OID_SZ];
+    word32 oidSz = CTC_MAX_EKU_OID_SZ;
 
     if (idx >= CTC_MAX_EKU_NB || sz >= CTC_MAX_EKU_OID_SZ) {
         WOLFSSL_MSG("Either idx or sz was too large");
