@@ -19,4 +19,9 @@ WORKDIR /opt/poky
 ARG YOCTO_VERSION=kirkstone
 RUN git checkout -t origin/${YOCTO_VERSION} -b ${YOCTO_VERSION} && git pull
 
+RUN git clone --single-branch --branch=${YOCTO_VERSION} https://github.com/wolfSSL/meta-wolfssl.git && \
+    /bin/bash -c "source oe-init-build-env" && \
+    echo 'IMAGE_INSTALL:append = " wolfssl wolfclu wolfssh wolfmqtt wolftpm wolfclu "' >> /opt/poky/build/conf/local.conf && \
+    sed -i '/\/opt\/poky\/meta-poky \\/a \\t/opt/poky/meta-wolfssl \\' /opt/poky/build/conf/bblayers.conf
+
 RUN /bin/bash -c "source oe-init-build-env && bitbake core-image-minimal"
