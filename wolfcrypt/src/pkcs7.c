@@ -2728,7 +2728,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
     word32 flatSignedAttribsSz = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    ESD* esd;
+    ESD* esd = NULL;
 #else
     ESD  esd[1];
 #endif
