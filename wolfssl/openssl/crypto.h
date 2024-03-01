@@ -97,6 +97,7 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define SSLeay wolfSSLeay
 #define OpenSSL_version_num wolfSSL_OpenSSL_version_num
 #define SSLEAY_VERSION_NUMBER OPENSSL_VERSION_NUMBER
+#define SSLEAY_VERSION OPENSSL_VERSION
 
 #define CRYPTO_lock wc_LockMutex_ex
 
