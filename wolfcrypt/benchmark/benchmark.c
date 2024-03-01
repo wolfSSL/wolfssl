@@ -910,7 +910,8 @@ static const bench_alg bench_mac_opt[] = {
 /* All recognized KDF algorithm choosing command line options. */
 static const bench_alg bench_kdf_opt[] = {
     { "-kdf",                0xffffffff              },
-#ifdef WC_SRTP_KDF
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     { "-srtp-kdf",           BENCH_SRTP_KDF          },
 #endif
     { NULL, 0 }
@@ -3458,7 +3459,8 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
-#ifdef WC_SRTP_KDF
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     if (bench_all || (bench_kdf_algs & BENCH_SRTP_KDF)) {
         bench_srtpkdf();
     }
@@ -8141,7 +8143,8 @@ void bench_siphash(void)
 }
 #endif
 
-#ifdef WC_SRTP_KDF
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 void bench_srtpkdf(void)
 {
     double start;

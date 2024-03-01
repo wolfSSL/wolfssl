@@ -522,7 +522,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls13_kdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
-#ifdef WC_SRTP_KDF
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  arc4_test(void);
@@ -966,6 +967,10 @@ wc_test_ret_t wolfcrypt_test(void* args)
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();
 #endif
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
+
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
 #ifdef WOLF_CRYPTO_CB
@@ -1365,7 +1370,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("HPKE     test passed!\n");
 #endif
 
-#if defined(WC_SRTP_KDF)
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     if ( (ret = srtpkdf_test()) != 0)
         TEST_FAIL("SRTP KDF test failed!\n", ret);
     else
@@ -2020,10 +2026,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #ifdef HAVE_WC_INTROSPECTION
         printf("Math: %s\n", wc_GetMathInfo());
     #endif
-
-#ifdef WC_RNG_SEED_CB
-    wc_SetSeed_Cb(wc_GenerateSeed);
-#endif
 
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, wolfcrypt_test);
@@ -25471,7 +25473,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 }
 #endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
 
-#if defined(WC_SRTP_KDF)
+#if defined(WC_SRTP_KDF)  && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 typedef struct Srtp_Kdf_Tv {
     const unsigned char* key;
     word32 keySz;

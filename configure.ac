@@ -5064,6 +5064,12 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])
     ])
 
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$ENABLED_ALL" = "xyes"],
+    [AC_MSG_ERROR([FIPS is incompatible with --enable-all])])
+
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$ENABLED_ALL_CRYPT" = "xyes"],
+    [AC_MSG_ERROR([FIPS is incompatible with --enable-all-crypto])])
+
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno" && test "$ENABLE_LINUXKM" = "no"],
     [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
 
