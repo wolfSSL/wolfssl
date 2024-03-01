@@ -2758,8 +2758,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
      * hash must be known in order to create the surrounding ASN1 syntax
      * properly before writing out the content and generating the hash on the
      * fly and then creating the signature */
-    if (pkcs7->getContentCb != NULL && hashBuf == NULL &&
-        pkcs7->publicKeyOID == ECDSAk) {
+    if (hashBuf == NULL && pkcs7->publicKeyOID == ECDSAk) {
         WOLFSSL_MSG("Pre-calculated content hash is needed in this case");
         return BAD_FUNC_ARG;
     }
