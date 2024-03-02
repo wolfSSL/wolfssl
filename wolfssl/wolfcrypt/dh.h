@@ -30,8 +30,7 @@
 
 #ifndef NO_DH
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -118,6 +117,11 @@ enum {
             #define DH_MAX_SIZE 4096
         #endif
     #endif
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_dh_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_DH_sanity(void);
 #endif
 
 #ifdef HAVE_PUBLIC_FFDHE

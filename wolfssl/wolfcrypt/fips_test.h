@@ -51,38 +51,43 @@
 
 
 enum FipsCastId {
-    FIPS_CAST_AES_CBC,
-    FIPS_CAST_AES_GCM,
-    FIPS_CAST_HMAC_SHA1,
-    FIPS_CAST_HMAC_SHA2_256,
-    FIPS_CAST_HMAC_SHA2_512,
-    FIPS_CAST_HMAC_SHA3_256,
-    FIPS_CAST_DRBG,
-    FIPS_CAST_RSA_SIGN_PKCS1v15,
-    FIPS_CAST_ECC_CDH,
-    FIPS_CAST_ECC_PRIMITIVE_Z,
-    FIPS_CAST_DH_PRIMITIVE_Z,
-    FIPS_CAST_ECDSA,
-    FIPS_CAST_KDF_TLS12,
-    FIPS_CAST_KDF_TLS13,
-    FIPS_CAST_KDF_SSH,
-    FIPS_CAST_COUNT
+    /* v5.2.0 & v5.2.1 + */
+    FIPS_CAST_AES_CBC           =  0,
+    FIPS_CAST_AES_GCM           =  1,
+    FIPS_CAST_HMAC_SHA1         =  2,
+    FIPS_CAST_HMAC_SHA2_256     =  3,
+    FIPS_CAST_HMAC_SHA2_512     =  4,
+    FIPS_CAST_HMAC_SHA3_256     =  5,
+    FIPS_CAST_DRBG              =  6,
+    FIPS_CAST_RSA_SIGN_PKCS1v15 =  7,
+    FIPS_CAST_ECC_CDH           =  8,
+    FIPS_CAST_ECC_PRIMITIVE_Z   =  9,
+    FIPS_CAST_DH_PRIMITIVE_Z    = 10,
+    FIPS_CAST_ECDSA             = 11,
+    FIPS_CAST_KDF_TLS12         = 12,
+    FIPS_CAST_KDF_TLS13         = 13,
+    FIPS_CAST_KDF_SSH           = 14,
+    /* v6.0.0 + */
+    FIPS_CAST_KDF_SRTP          = 15,
+    FIPS_CAST_ED25519           = 16,
+    FIPS_CAST_ED448             = 17,
+    FIPS_CAST_PBKDF2            = 18,
+    FIPS_CAST_COUNT             = 19
 };
 
 enum FipsCastStateId {
-    FIPS_CAST_STATE_INIT,
-    FIPS_CAST_STATE_PROCESSING,
-    FIPS_CAST_STATE_SUCCESS,
-    FIPS_CAST_STATE_FAILURE
+    FIPS_CAST_STATE_INIT        = 0,
+    FIPS_CAST_STATE_PROCESSING  = 1,
+    FIPS_CAST_STATE_SUCCESS     = 2,
+    FIPS_CAST_STATE_FAILURE     = 3
 };
 
 enum FipsModeId {
-    FIPS_MODE_INIT = 0,
-    FIPS_MODE_NORMAL = 1,
-    FIPS_MODE_DEGRADED = 2,
-    FIPS_MODE_FAILED = 3
+    FIPS_MODE_INIT              = 0,
+    FIPS_MODE_NORMAL            = 1,
+    FIPS_MODE_DEGRADED          = 2,
+    FIPS_MODE_FAILED            = 3
 };
-
 
 /* FIPS failure callback */
 typedef void(*wolfCrypt_fips_cb)(int ok, int err, const char* hash);
@@ -94,6 +99,7 @@ WOLFSSL_API int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf);
 WOLFSSL_API int wolfCrypt_GetStatus_fips(void);
 WOLFSSL_API int wolfCrypt_GetMode_fips(void);
 WOLFSSL_API const char* wolfCrypt_GetCoreHash_fips(void);
+WOLFSSL_API const char* wolfCrypt_GetRawComputedHash_fips(void);
 
 #ifdef HAVE_FORCE_FIPS_FAILURE
     /* Public function to force failure mode for operational testing */

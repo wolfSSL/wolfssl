@@ -180,6 +180,15 @@ ECC Curve Sizes:
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_ecc_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000005 };
+    int wolfCrypt_FIPS_ECC_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #if defined(FREESCALE_LTC_ECC)
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
