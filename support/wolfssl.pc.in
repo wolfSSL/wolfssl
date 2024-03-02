@@ -7,4 +7,5 @@ Name: wolfssl
 Description: wolfssl C library.
 Version: @VERSION@
 Libs: -L${libdir} -lwolfssl
+Libs.private: @LIBM@
 Cflags: -I${includedir}

@@ -2582,6 +2582,16 @@ if(WOLFSSL_INSTALL)
     set(includedir "\${prefix}/include")
     set(VERSION ${PROJECT_VERSION})
 
+    # Setting libm in Libs.private of wolfssl.pc.
+    # See "Link Libraries" in above about `m` insertion to LINK_LIBRARIES
+    get_target_property(_wolfssl_dep_libs wolfssl LINK_LIBRARIES)
+    list(FIND _wolfssl_dep_libs m _dep_libm)
+    if ("${_dep_libm}" GREATER -1)
+      set(LIBM -lm)
+    else()
+      set(LIBM)
+    endif()
+
     configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
