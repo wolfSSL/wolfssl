@@ -55,6 +55,15 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_dh_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000004 };
+    int wolfCrypt_FIPS_DH_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS

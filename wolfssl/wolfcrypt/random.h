@@ -30,13 +30,17 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_DRBG_sanity(void);
 #endif
 
  /* Maximum generate block length */
