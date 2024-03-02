@@ -39,6 +39,11 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_kdf_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_KDF_sanity(void);
+#endif
+
 enum max_prf {
 #ifdef HAVE_FFDHE_8192
     MAX_PRF_HALF        = 516, /* Maximum half secret len */

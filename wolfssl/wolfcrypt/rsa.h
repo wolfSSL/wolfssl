@@ -97,6 +97,11 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_rsa_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_RSA_sanity(void);
+#endif
+
 #ifndef RSA_MIN_SIZE
 #define RSA_MIN_SIZE 512
 #endif
@@ -134,6 +139,11 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #ifdef WOLFSSL_CERT_GEN
         #include <wolfssl/wolfcrypt/asn.h>
     #endif
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    #define WC_RSA_FIPS_GEN_MIN 2048
+    #define WC_RSA_FIPS_SIG_MIN (WC_RSA_FIPS_GEN_MIN/8)
 #endif
 
 enum {

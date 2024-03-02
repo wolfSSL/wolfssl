@@ -153,6 +153,15 @@ This library contains implementation for the random number generator.
 #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000011 };
+    int wolfCrypt_FIPS_DRBG_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
     defined(HAVE_AMD_RDSEED)
     static word32 intel_flags = 0;
@@ -613,6 +622,9 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     }
 
     if (drbg->reseedCtr == RESEED_INTERVAL) {
+#if FIPS_VERSION3_GE(6,0,0)
+        printf("Reseed triggered\n");
+#endif
         return DRBG_NEED_RESEED;
     }
     else {
