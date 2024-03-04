@@ -26,6 +26,7 @@
 #include <wolfssl/ssl.h>
 #include <ifaddrs.h>
 #include <applibs/log.h>
+#include <netdb.h>
 
 #define _GNU_SOURCE /* defines NI_NUMERICHOST */
 #ifndef NI_MAXHOST
