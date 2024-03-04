@@ -2497,7 +2497,7 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
         #ifdef ASN_BER_TO_DER
             if (pkcs7->getContentCb) {
                 contentDataRead = pkcs7->getContentCb(pkcs7,
-                                                      &buf);
+                                                      &buf, pkcs7->streamCtx);
             }
             else
         #endif
@@ -7549,7 +7549,7 @@ int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->streamOutCb) {
-        ret = pkcs7->streamOutCb(pkcs7, input, inputSz);
+        ret = pkcs7->streamOutCb(pkcs7, input, inputSz, pkcs7->streamCtx);
         /* sanity check on user provided ret value */
         if (ret < 0) {
             WOLFSSL_MSG("Return value error from stream out callback");
@@ -13854,7 +13854,7 @@ int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
  * returns 0 on success */
 int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
     CallbackGetContent getContentCb,
-	CallbackStreamOut streamOutCb)
+	CallbackStreamOut streamOutCb, void* ctx)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -13863,11 +13863,13 @@ int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
     pkcs7->encodeStream = flag;
     pkcs7->getContentCb = getContentCb;
     pkcs7->streamOutCb  = streamOutCb;
+    pkcs7->streamCtx    = ctx;
     return 0;
 #else
     (void)flag;
     (void)getContentCb;
     (void)streamOutCb;
+    (void)ctx;
     return NOT_COMPILED_IN;
 #endif
 }

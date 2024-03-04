@@ -225,9 +225,9 @@ typedef int (*CallbackWrapCEK)(PKCS7* pkcs7, byte* cek, word32 cekSz,
                                   int keyWrapAlgo, int type, int dir);
 
 /* Callbacks for supporting different stream cases */
-typedef int (*CallbackGetContent)(PKCS7* pkcs7, byte** content);
+typedef int (*CallbackGetContent)(PKCS7* pkcs7, byte** content, void* ctx);
 typedef int (*CallbackStreamOut)(PKCS7* pkcs7, const byte* output,
-        word32 outputSz);
+        word32 outputSz, void* ctx);
 
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
 /* RSA sign raw digest callback, user builds DigestInfo */
@@ -254,6 +254,7 @@ struct PKCS7 {
     word32 derSz;
     CallbackGetContent getContentCb;
     CallbackStreamOut  streamOutCb;
+    void*  streamCtx; /* passed to getcontentCb and streamOutCb */
 #endif
     byte   encodeStream:1;        /* use BER when encoding */
     byte   noCerts:1;             /* if certificates should be added into bundle
@@ -509,7 +510,7 @@ WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx);
 WOLFSSL_LOCAL int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output,
     const byte* input, word32 inputSz);
 WOLFSSL_API int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
-    CallbackGetContent getContentCb, CallbackStreamOut streamOutCb);
+    CallbackGetContent getContentCb, CallbackStreamOut streamOutCb, void* ctx);
 WOLFSSL_API int wc_PKCS7_GetStreamMode(PKCS7* pkcs7);
 WOLFSSL_API int wc_PKCS7_SetNoCerts(PKCS7* pkcs7, byte flag);
 WOLFSSL_API int wc_PKCS7_GetNoCerts(PKCS7* pkcs7);
