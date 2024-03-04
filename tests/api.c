@@ -26945,7 +26945,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         int             certSz;
         int             keySz;
 
-        ExpectTrue((fp = XOPEN("./certs/client-ecc-cert.der", "rb")) !=
+        ExpectTrue((fp = XFOPEN("./certs/client-ecc-cert.der", "rb")) !=
             XBADFILE);
         ExpectIntGT(certSz = (int)XFREAD(cert, 1, ONEK_BUF, fp), 0);
         if (fp != XBADFILE) {
@@ -27099,6 +27099,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
 
     wc_PKCS7_Free(pkcs7);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeSignedData */
@@ -28008,6 +28009,83 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
 #endif /* !NO_PKCS7_STREAM */
 
 #endif /* !NO_RSA */
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM) && \
+        !defined(NO_FILESYSTEM)
+    {
+        XFILE signedBundle = XBADFILE;
+        int   signedBundleSz = 0;
+        int   chunkSz = 1;
+        int   i, rc;
+        byte* buf = NULL;
+
+        ExpectTrue((signedBundle = XFOPEN("./certs/test-stream-sign.p7b",
+            "rb")) != XBADFILE);
+        ExpectTrue(XFSEEK(signedBundle, 0, XSEEK_END) == 0);
+        ExpectIntGT(signedBundleSz = (int)XFTELL(signedBundle), 0);
+        ExpectTrue(XFSEEK(signedBundle, 0, XSEEK_SET) == 0);
+        ExpectNotNull(buf = (byte*)XMALLOC(signedBundleSz, HEAP_HINT,
+            DYNAMIC_TYPE_FILE));
+        if (buf != NULL) {
+            ExpectIntEQ(XFREAD(buf, 1, signedBundleSz, signedBundle),
+                signedBundleSz);
+        }
+        if (signedBundle != XBADFILE) {
+            XFCLOSE(signedBundle);
+            signedBundle = XBADFILE;
+        }
+
+        if (buf != NULL) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            for (i = 0; i < signedBundleSz;) {
+                int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
+                    chunkSz;
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                if (rc < 0 ) {
+                    if (rc == WC_PKCS7_WANT_READ_E) {
+                        i += sz;
+                        continue;
+                    }
+                    break;
+                }
+                else {
+                    break;
+                }
+            }
+            ExpectIntEQ(rc, PKCS7_SIGNEEDS_CHECK);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        /* now try with malformed bundle */
+        if (buf != NULL) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            buf[signedBundleSz - 2] = buf[signedBundleSz - 2] + 1;
+            for (i = 0; i < signedBundleSz;) {
+                int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
+                    chunkSz;
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                if (rc < 0 ) {
+                    if (rc == WC_PKCS7_WANT_READ_E) {
+                        i += sz;
+                        continue;
+                    }
+                    break;
+                }
+                else {
+                    break;
+                }
+            }
+            ExpectIntEQ(rc, ASN_PARSE_E);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        if (buf != NULL)
+            XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
+    }
+#endif /* BER and stream */
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_VerifySignedData()_RSA */
