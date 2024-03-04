@@ -810,11 +810,13 @@
     /* fun fact: since linux commit 59bb47985c, kmalloc with power-of-2 size is
      * aligned to the size.
      */
-    #define WC_LINUXKM_ROUND_UP_P_OF_2(x) (                                         \
-    {                                                                               \
-        size_t _alloc_sz = (x);                                                     \
-        _alloc_sz = 1UL << ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz)); \
-        _alloc_sz;                                                                  \
+    #define WC_LINUXKM_ROUND_UP_P_OF_2(x) (                                \
+    {                                                                      \
+        size_t _alloc_sz = (x);                                            \
+        if (_alloc_sz < 8192)                                              \
+          _alloc_sz = 1UL <<                                               \
+              ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz - 1)); \
+        _alloc_sz;                                                         \
     })
     #ifdef HAVE_KVMALLOC
         #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_KERNEL, NUMA_NO_NODE)
