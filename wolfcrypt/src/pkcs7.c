@@ -2611,7 +2611,8 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             case WC_CIPHER_NONE:
                 XMEMCPY(encContentOut, contentData, idx);
                 if (esd && esd->contentDigestSet != 1) {
-                    ret = wc_HashUpdate(&esd->hash, esd->hashType, contentData, idx);
+                    ret = wc_HashUpdate(&esd->hash, esd->hashType, contentData,
+                                        idx);
                 }
                 break;
 
@@ -2645,7 +2646,8 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                                             encContentOut, idx);
 
         if (cipherType == WC_CIPHER_NONE && esd && esd->contentDigestSet != 1) {
-            ret = wc_HashFinal(&esd->hash, esd->hashType, esd->contentDigest + 2);
+            ret = wc_HashFinal(&esd->hash, esd->hashType,
+                esd->contentDigest + 2);
             wc_HashFree(&esd->hash, esd->hashType);
         }
 
@@ -2661,9 +2663,11 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                 if (esd && esd->contentDigestSet != 1) {
                     ret = wc_HashInit(&esd->hash, esd->hashType);
                     if (ret == 0)
-                        ret = wc_HashUpdate(&esd->hash, esd->hashType, in, inSz);
+                        ret = wc_HashUpdate(&esd->hash, esd->hashType, in,
+                                            inSz);
                     if (ret == 0)
-                        ret = wc_HashFinal(&esd->hash, esd->hashType, esd->contentDigest + 2);
+                        ret = wc_HashFinal(&esd->hash, esd->hashType,
+                                           esd->contentDigest + 2);
                     wc_HashFree(&esd->hash, esd->hashType);
                 }
                 break;
@@ -7547,6 +7551,14 @@ int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
 {
     int ret = 0;
 
+    if (inputSz == 0)
+        return 0;
+
+    if (input == NULL) {
+        WOLFSSL_MSG("Internal error, trying to write out NULL buffer");
+        return -1;
+    }
+
 #ifdef ASN_BER_TO_DER
     if (pkcs7->streamOutCb) {
         ret = pkcs7->streamOutCb(pkcs7, input, inputSz, pkcs7->streamCtx);
@@ -8328,15 +8340,16 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
 
     if (ret == 0) {
         /* encrypt, normal */
-        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz, (byte*)iv,
-                                      ivSz, NULL, 0, NULL, 0, out, outLen, out);
+        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz,
+                                      (byte*)iv, ivSz, NULL, 0, NULL, 0, out,
+                                      outLen, out);
     }
 
     if (ret == 0) {
         /* encrypt again, using last ciphertext block as IV */
         lastBlock = out + (((outLen / blockSz) - 1) * blockSz);
-        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz, lastBlock,
-                                      blockSz, NULL, 0, NULL, 0, out,
+        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz,
+                                      lastBlock, blockSz, NULL, 0, NULL, 0, out,
                                       outLen, out);
     }
 
@@ -13284,9 +13297,9 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
     }
 
-    ret = wc_PKCS7_EncryptContent(pkcs7, pkcs7->encryptOID, pkcs7->encryptionKey,
-            pkcs7->encryptionKeySz, tmpIv, blockSz, NULL, 0, NULL, 0,
-            plain, encryptedOutSz, encryptedContent);
+    ret = wc_PKCS7_EncryptContent(pkcs7, pkcs7->encryptOID,
+            pkcs7->encryptionKey, pkcs7->encryptionKeySz, tmpIv, blockSz, NULL,
+            0, NULL, 0, plain, encryptedOutSz, encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
