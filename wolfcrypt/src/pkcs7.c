@@ -13867,7 +13867,7 @@ int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
  * returns 0 on success */
 int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
     CallbackGetContent getContentCb,
-	CallbackStreamOut streamOutCb, void* ctx)
+    CallbackStreamOut streamOutCb, void* ctx)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
