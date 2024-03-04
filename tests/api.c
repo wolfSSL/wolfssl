@@ -28034,50 +28034,54 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
             signedBundle = XBADFILE;
         }
 
-        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-        for (i = 0; i < signedBundleSz;) {
-            int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
-                chunkSz;
-            rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
-            if (rc < 0 ) {
-                if (rc == WC_PKCS7_WANT_READ_E) {
-                    i += sz;
-                    continue;
+        if (buf != NULL) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            for (i = 0; i < signedBundleSz;) {
+                int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
+                    chunkSz;
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                if (rc < 0 ) {
+                    if (rc == WC_PKCS7_WANT_READ_E) {
+                        i += sz;
+                        continue;
+                    }
+                    break;
                 }
-                break;
+                else {
+                    break;
+                }
             }
-            else {
-                break;
-            }
+            ExpectIntEQ(rc, PKCS7_SIGNEEDS_CHECK);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
         }
-        ExpectIntEQ(rc, PKCS7_SIGNEEDS_CHECK);
-        wc_PKCS7_Free(pkcs7);
-        pkcs7 = NULL;
-
 
         /* now try with malformed bundle */
-        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-        buf[signedBundleSz - 2] = buf[signedBundleSz - 2] + 1;
-        for (i = 0; i < signedBundleSz;) {
-            int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
-                chunkSz;
-            rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
-            if (rc < 0 ) {
-                if (rc == WC_PKCS7_WANT_READ_E) {
-                    i += sz;
-                    continue;
+        if (buf != NULL) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            buf[signedBundleSz - 2] = buf[signedBundleSz - 2] + 1;
+            for (i = 0; i < signedBundleSz;) {
+                int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
+                    chunkSz;
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                if (rc < 0 ) {
+                    if (rc == WC_PKCS7_WANT_READ_E) {
+                        i += sz;
+                        continue;
+                    }
+                    break;
                 }
-                break;
+                else {
+                    break;
+                }
             }
-            else {
-                break;
-            }
+            ExpectIntEQ(rc, ASN_PARSE_E);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
         }
-        ExpectIntEQ(rc, ASN_PARSE_E);
-        wc_PKCS7_Free(pkcs7);
-        pkcs7 = NULL;
+
         if (buf != NULL)
             XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
     }
