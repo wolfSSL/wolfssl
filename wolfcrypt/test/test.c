@@ -3199,6 +3199,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     testVector interleave_test_sha[4];
     wc_Sha256  i_sha, i_shaCopy;
 #endif
+#ifndef NO_LARGE_HASH_TEST
+#define LARGE_HASH_TEST_INPUT_SZ 1024
+#ifdef WOLFSSL_SMALL_STACK
+    byte *large_input = NULL;
+#else
+    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
+#endif
+#endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
     WOLFSSL_ENTER("sha256_test");
@@ -3339,17 +3347,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 
 #ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
-    byte large_input[1024];
 #ifdef HASH_SIZE_LIMIT
-    const char* large_digest =
+    WOLFSSL_SMALL_STACK_STATIC const char* large_digest =
             "\xa4\x75\x9e\x7a\xa2\x03\x38\x32\x88\x66\xa2\xea\x17\xea\xf8\xc7"
             "\xfe\x4e\xc6\xbb\xe3\xbb\x71\xce\xe7\xdf\x7c\x04\x61\xb3\xc2\x2f";
 #else
-    const char* large_digest =
+    WOLFSSL_SMALL_STACK_STATIC const char* large_digest =
            "\x27\x78\x3e\x87\x96\x3a\x4e\xfb\x68\x29\xb5\x31\xc9\xba\x57\xb4"
            "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
 #endif
-    for (i = 0; i < (int)sizeof(large_input); i++) {
+
+#ifdef WOLFSSL_SMALL_STACK
+    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (large_input == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
+    }
+#endif
+
+    for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
 #ifdef HASH_SIZE_LIMIT
@@ -3358,11 +3375,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     times = 100;
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH
-    wc_Sha256SizeSet(&sha, times * sizeof(large_input));
+    wc_Sha256SizeSet(&sha, times * LARGE_HASH_TEST_INPUT_SZ);
 #endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha256Update(&sha, (byte*)large_input,
-            (word32)sizeof(large_input));
+            LARGE_HASH_TEST_INPUT_SZ);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         }
@@ -3372,10 +3389,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA256_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     } /* END LARGE HASH TEST */
+#undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
 exit:
 
+#if !defined(NO_LARGE_HASH_TEST) && defined(WOLFSSL_SMALL_STACK)
+    XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     wc_Sha256Free(&sha);
     wc_Sha256Free(&shaCopy);
 #ifndef NO_WOLFSSL_SHA256_INTERLEAVE
@@ -3405,6 +3426,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     byte       i_hash[WC_SHA512_DIGEST_SIZE];
     byte       i_hashcopy[WC_SHA512_DIGEST_SIZE];
     testVector interleave_test_sha[3];
+#endif
+#ifndef NO_LARGE_HASH_TEST
+#define LARGE_HASH_TEST_INPUT_SZ 1024
+#ifdef WOLFSSL_SMALL_STACK
+    byte *large_input = NULL;
+#else
+    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
+#endif
 #endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -3539,22 +3568,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 
 #ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
-    byte large_input[1024];
 #ifdef HASH_SIZE_LIMIT
-    const char* large_digest =
+    WOLFSSL_SMALL_STACK_STATIC const char* large_digest =
         "\x30\x9B\x96\xA6\xE9\x43\x78\x30\xA3\x71\x51\x61\xC1\xEB\xE1\xBE"
         "\xC8\xA5\xF9\x13\x5A\xD6\x6D\x9E\x46\x31\x31\x67\x8D\xE2\xC0\x0B"
         "\x2A\x1A\x03\xE1\xF3\x48\xA7\x33\xBD\x49\xF8\xFF\xF1\xC2\xC2\x95"
         "\xCB\xF0\xAF\x87\x61\x85\x58\x63\x6A\xCA\x70\x9C\x8B\x83\x3F\x5D";
 #else
-    const char* large_digest =
+    WOLFSSL_SMALL_STACK_STATIC const char* large_digest =
         "\x5a\x1f\x73\x90\xbd\x8c\xe4\x63\x54\xce\xa0\x9b\xef\x32\x78\x2d"
         "\x2e\xe7\x0d\x5e\x2f\x9d\x15\x1b\xdd\x2d\xde\x65\x0c\x7b\xfa\x83"
         "\x5e\x80\x02\x13\x84\xb8\x3f\xff\x71\x62\xb5\x09\x89\x63\xe1\xdc"
         "\xa5\xdc\xfc\xfa\x9d\x1a\x4d\xc0\xfa\x3a\x14\xf6\x01\x51\x90\xa4";
 #endif
 
-    for (i = 0; i < (int)sizeof(large_input); i++) {
+#ifdef WOLFSSL_SMALL_STACK
+    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (large_input == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
+    }
+#endif
+
+    for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
 #ifdef HASH_SIZE_LIMIT
@@ -3564,7 +3601,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 #endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha512Update(&sha, (byte*)large_input,
-            (word32)sizeof(large_input));
+            LARGE_HASH_TEST_INPUT_SZ);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     }
@@ -3578,16 +3615,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     /* Unaligned memory access test */
     for (i = 1; i < 16; i++) {
         ret = wc_Sha512Update(&sha, (byte*)large_input + i,
-            (word32)sizeof(large_input) - i);
+            LARGE_HASH_TEST_INPUT_SZ - i);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         ret = wc_Sha512Final(&sha, hash);
     }
 #endif
     } /* END LARGE HASH TEST */
+#undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
 exit:
+
+#if !defined(NO_LARGE_HASH_TEST) && defined(WOLFSSL_SMALL_STACK)
+    XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     wc_Sha512Free(&sha);
     wc_Sha512Free(&shaCopy);
 #ifndef NO_WOLFSSL_SHA256_INTERLEAVE
@@ -24356,7 +24398,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void)
         return WC_TEST_RET_ENC_NC;
 #endif
 #else
+#ifdef SCRYPT_TEST_ALL
     (void)verify4;
+#endif
 #endif /* !BENCH_EMBEDDED && !defined(WOLFSSL_LINUXKM) && !HAVE_INTEL_QA */
 
 #if !defined(BENCH_EMBEDDED)

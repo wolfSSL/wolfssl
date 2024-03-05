@@ -6805,7 +6805,7 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     ssl->buffers.keyType = ed25519_sa_algo;
                     ssl->buffers.keySz = *keySz;
                 }
-                else if (ctx) {
+                else {
                     ctx->privateKeyType = ed25519_sa_algo;
                     ctx->privateKeySz = *keySz;
                 }
