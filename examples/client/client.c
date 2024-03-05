@@ -2166,6 +2166,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)usePqc;
     (void)pqcAlg;
     (void)opensslPsk;
+    (void)fileFormat;
     StackTrap();
 
     /* Reinitialize the global myVerifyAction. */

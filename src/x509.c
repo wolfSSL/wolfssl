@@ -11262,6 +11262,27 @@ cleanup:
         return loadX509orX509REQFromPemBio(bp, x, cb, u, CERT_TYPE);
     }
 
+    /*
+     * bp : bio to read X509 from
+     * x  : x509 to write to
+     * cb : password call back for reading PEM
+     * u  : password
+     * _AUX is for working with a trusted X509 certificate
+     */
+    WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX(WOLFSSL_BIO *bp,
+                               WOLFSSL_X509 **x, wc_pem_password_cb *cb,
+                               void *u)
+    {
+        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
+
+        /* AUX info is; trusted/rejected uses, friendly name, private key id,
+         * and potentially a stack of "other" info. wolfSSL does not store
+         * friendly name or private key id yet in WOLFSSL_X509 for human
+         * readability and does not support extra trusted/rejected uses for
+         * root CA. */
+        return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
+    }
+
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                 wc_pem_password_cb *cb, void *u)

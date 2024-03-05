@@ -2365,7 +2365,10 @@ WOLFSSL_LOCAL int wc_EncryptedInfoParse(EncryptedInfo* info,
 WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
                           DerBuffer** pDer, void* heap, EncryptedInfo* info,
                           int* eccKey);
-WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
+WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type,
+    void* heap);
+WOLFSSL_LOCAL int AllocCopyDer(DerBuffer** der, const unsigned char* buff,
+    word32 length, int type, void* heap);
 WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 
 #if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \

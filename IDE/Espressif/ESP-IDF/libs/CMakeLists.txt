@@ -75,7 +75,10 @@ set(COMPONENT_SRCEXCLUDE
     "./src/ssl_bn.c"      # included by ssl.c
     "./src/ssl_certman.c" # included by ssl.c
     "./src/ssl_crypto.c"  # included by ssl.c
+    "./src/ssl_load.c"    # included by ssl.c
     "./src/ssl_misc.c"    # included by ssl.c
+    "./src/ssl_p7p12.c"   # included by ssl.c
+    "./src/ssl_sess.c"    # included by ssl.c
     "./src/x509.c"
     "./src/x509_str.c"
     "./wolfcrypt/src/evp.c"

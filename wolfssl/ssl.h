@@ -793,9 +793,9 @@ enum SNICbReturn {
  * functions should use this macro to fill this gap. Users who want them
  * to return the same return value as OpenSSL can define
  * WOLFSSL_ERR_CODE_OPENSSL.
- * Give item1 a variable that contains the potentially negative
+ * Give rc a variable that contains the potentially negative
  * wolfSSL-defined return value or the return value itself, and
- * give item2 the openSSL-defined return value.
+ * give fail_rc the openSSL-defined return value.
  * Note that this macro replaces only negative return values with the
  * specified value.
  * Since wolfSSL 4.7.0, the following functions use this macro:
@@ -804,11 +804,15 @@ enum SNICbReturn {
  * - wolfSSL_EVP_PKEY_cmp
  */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-    #define WS_RETURN_CODE(item1,item2) \
-      (((item1) < 0) ? (int)(item2) : (int)(item1))
+    #define WS_RETURN_CODE(rc, fail_rc) \
+      (((rc) < 0) ? (int)(fail_rc) : (int)(rc))
 #else
-    #define WS_RETURN_CODE(item1,item2)  (item1)
+    #define WS_RETURN_CODE(rc, fail_rc)  (rc)
 #endif
+#define WS_RC(rc) \
+    (((rc) == 1) ? 1 : 0)
+#define WC_TO_WS_RC(ret) \
+    (((ret) == 0) ? 1 : (ret))
 
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
@@ -4553,7 +4557,7 @@ WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(WOLFSSL_X509_NA
 WOLFSSL_API void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne);
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_new(void);
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME* name);
-WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX* ctx, WOLFSSL_X509* x);
+WOLFSSL_API int wolfSSL_CTX_use_certificate(WOLFSSL_CTX* ctx, WOLFSSL_X509* x);
 WOLFSSL_API int wolfSSL_CTX_add0_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
 WOLFSSL_API int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
 WOLFSSL_API int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509);
