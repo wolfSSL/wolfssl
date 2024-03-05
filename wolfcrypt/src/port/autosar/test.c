@@ -1,6 +1,6 @@
-/* example.c
+/* test.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -46,8 +46,8 @@ static int singleshot_test(void)
         0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
         0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
     };
-    const uint8 key[] = "0123456789abcdef   ";  /* align */
-    const uint8 iv[]  = "1234567890abcdef   ";  /* align */
+    const uint8 key[] = "0123456789abcdef   ";
+    const uint8 iv[]  = "1234567890abcdef   ";
 
     XMEMSET(cipher, 0, BLOCK_SIZE);
     XMEMSET(plain, 0, BLOCK_SIZE);

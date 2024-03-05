@@ -1,6 +1,6 @@
 /* crypto.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -101,38 +101,44 @@ static int GetKey(Crypto_JobType* job, uint32 eId, uint8 **key, uint32 *keySz)
     }
 
     // @TODO sanity checks on setup... uint8 redirectionConfig;
-    if (eId == job->jobRedirectionInfoRef->inputKeyElementId) {
-        if (job->jobRedirectionInfoRef->inputKeyId >= MAX_KEYSTORE) {
-            WOLFSSL_MSG("Bogus input key ID redirection (too large)");
+    switch (eid) {
+        case job->jobRedirectionInfoRef->inputKeyElementId:
+            if (job->jobRedirectionInfoRef->inputKeyId >= MAX_KEYSTORE) {
+                WOLFSSL_MSG("Bogus input key ID redirection (too large)");
+                ret = -1;
+            }
+            else {
+                i = job->jobRedirectionInfoRef->inputKeyId;
+                *key   = keyStore[i].key;
+                *keySz = keyStore[i].keyLen;
+            }
+            break;
+        case job->jobRedirectionInfoRef->secondaryInputKeyElementId:
+            if (job->jobRedirectionInfoRef->secondaryInputKeyId >= MAX_KEYSTORE) {
+                WOLFSSL_MSG("Bogus input key ID redirection (too large)");
+                ret = -1;
+            }
+            else {
+                i = job->jobRedirectionInfoRef->secondaryInputKeyId;
+                *key   = keyStore[i].key;
+                *keySz = keyStore[i].keyLen;
+            }
+            break;
+        case job->jobRedirectionInfoRef->tertiaryInputKeyElementId:
+            if (job->jobRedirectionInfoRef->tertiaryInputKeyId >= MAX_KEYSTORE) {
+                WOLFSSL_MSG("Bogus input key ID redirection (too large)");
+                ret = -1;
+            }
+            else {
+                i = job->jobRedirectionInfoRef->tertiaryInputKeyId;
+                *key   = keyStore[i].key;
+                *keySz = keyStore[i].keyLen;
+            }
+            break;
+        default:
+            WOLFSSL_MSG("Unknown key element ID");
             ret = -1;
-        }
-        else {
-            i = job->jobRedirectionInfoRef->inputKeyId;
-            *key   = keyStore[i].key;
-            *keySz = keyStore[i].keyLen;
-        }
-    }
-    if (eId == job->jobRedirectionInfoRef->secondaryInputKeyElementId) {
-        if (job->jobRedirectionInfoRef->secondaryInputKeyId >= MAX_KEYSTORE) {
-            WOLFSSL_MSG("Bogus input key ID redirection (too large)");
-            ret = -1;
-        }
-        else {
-            i = job->jobRedirectionInfoRef->secondaryInputKeyId;
-            *key   = keyStore[i].key;
-            *keySz = keyStore[i].keyLen;
-        }
-    }
-    if (eId == job->jobRedirectionInfoRef->tertiaryInputKeyElementId) {
-        if (job->jobRedirectionInfoRef->tertiaryInputKeyId >= MAX_KEYSTORE) {
-            WOLFSSL_MSG("Bogus input key ID redirection (too large)");
-            ret = -1;
-        }
-        else {
-            i = job->jobRedirectionInfoRef->tertiaryInputKeyId;
-            *key   = keyStore[i].key;
-            *keySz = keyStore[i].keyLen;
-        }
+            break;
     }
 #else
     /* find first key of key element type */
@@ -180,8 +186,15 @@ static Aes* NewAesStruct(Crypto_JobType* job)
 
     for (i = 0; i < MAX_JOBS; i++) {
         if (activeJobs[i].inUse == 0) {
+            int ret;
+
             activeJobs[i].inUse = 1;
             activeJobs[i].jobId = job->jobId;
+            ret = wc_AesInit(&activeJobs[i].aes, NULL, INVALID_DEVID);
+            if (ret != 0) {
+                WOLFSSL_MSG("Error initializing AES structure");
+                return NULL;
+            }
             return &activeJobs[i].aes;
         }
     }
@@ -252,7 +265,7 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
             WOLFSSL_MSG("Crypto error setting up AES key");
             return E_NOT_OK;
         }
-        /* ForceZero(key, keySz); Do not keep raw key in memory */
+        ForceZero(key, keySz);
     }
 
     if ((job->jobPrimitiveInputOutput.mode & CRYPTO_OPERATIONMODE_UPDATE)

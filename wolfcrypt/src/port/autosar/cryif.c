@@ -1,6 +1,6 @@
 /* cryif.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -47,7 +47,13 @@ void CryIf_Init(const CryIf_ConfigType* in)
 
 void CryIf_GetVersionInfo(Std_VersionInfoType* ver)
 {
-    (void)ver;
+    if (ver != NULL) {
+        ver->vendorID = 0; /* no vendor or module ID */
+        ver->moduleID = 0;
+        ver->sw_major_version = 5;
+        ver->sw_minor_version = 6;
+        ver->sw_patch_version = 6;
+    }
 }
 
 

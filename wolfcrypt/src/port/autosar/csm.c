@@ -1,6 +1,6 @@
 /* csm.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -156,18 +156,16 @@ void Csm_Init(const Csm_ConfigType* config)
 }
 
 
-/* not yet implemented */
+/* getter function for CSM version info */
 void Csm_GetVersionInfo(Std_VersionInfoType* version)
 {
-    (void)version;
-
-    /*
-    version->vendorID = ; //uint16
-    version->moduleID = ; //uint16
-    version->sw_major_version = ; //uint8
-    version->sw_minor_version = ; //uint8
-    version->sw_patch_version = ; //uint8
-    */
+    if (version != NULL) {
+        version->vendorID = 0; /* no vendor or module ID */
+        version->moduleID = 0;
+        version->sw_major_version = 5;
+        version->sw_minor_version = 6;
+        version->sw_patch_version = 6;
+    }
 }
 
 

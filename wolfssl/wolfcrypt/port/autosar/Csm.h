@@ -1,6 +1,6 @@
 /* csm.h
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -83,7 +83,7 @@ typedef enum Crypto_ServiceInfoType {
     CRYPTO_DECRYPT = 0x04,
     CRYPTO_RANDOMGENERATE = 0x0B,
 
-#if 0
+#ifdef CSM_UNSUPPORTED_ALGS
     /* not yet supported */
     CRYPTO_HASH = 0x00,
     CRYPTO_MACGENERATE = 0x01,
@@ -107,7 +107,8 @@ typedef enum Crypto_ServiceInfoType {
 typedef enum Crypto_AlgorithmModeType {
     CRYPTO_ALGOMODE_NOT_SET = 0x00,
     CRYPTO_ALGOMODE_CBC = 0x02,
-#if 0
+
+#ifdef CSM_UNSUPPORTED_ALGS
     /* not yet supported */
     CRYPTO_ALGOMODE_ECB = 0x01,
     CRYPTO_ALGOMODE_CFB = 0x03,
