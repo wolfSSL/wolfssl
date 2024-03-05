@@ -73,7 +73,12 @@ EXTRA_DIST += \
              certs/x942dh2048.der \
              certs/x942dh2048.pem \
              certs/fpki-cert.der \
-             certs/rid-cert.der
+             certs/rid-cert.der \
+             certs/dh-priv-2048.der \
+             certs/dh-priv-2048.pem \
+             certs/dh-pub-2048.der \
+             certs/dh-pub-2048.pem \
+             certs/dsa2048.pem
 
 EXTRA_DIST += \
              certs/ca-key.der \
