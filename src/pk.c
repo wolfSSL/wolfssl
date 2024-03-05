@@ -8499,7 +8499,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     word32         keySz  = 0;
     int            pubSz  = MAX_DHKEY_SZ;
     int            privSz = MAX_DHKEY_SZ;
-    int            sz;
+    int            sz     = 0;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* pub    = NULL;
     unsigned char* priv   = NULL;

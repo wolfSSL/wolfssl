@@ -444,6 +444,8 @@
 
         #define TFM_TIMING_RESISTANT
         #define ECC_TIMING_RESISTANT
+
+        /* WC_RSA_BLINDING takes up extra space! */
         #define WC_RSA_BLINDING
         #define WC_NO_CACHE_RESISTANT
     #endif /* !WOLFSSL_ESPIDF_NO_DEFAULT */
@@ -997,7 +999,8 @@ extern void uITRON4_free(void *p) ;
         #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p)))
         #if defined(WOLFSSL_ESPIDF)
                 /* In IDF, realloc(p, n) is equivalent to
-                 * heap_caps_realloc(p, s, MALLOC_CAP_8BIT) */
+                 * heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
+                 *  there's no pvPortRealloc available  */
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
         /* FreeRTOS pvPortRealloc() implementation can be found here:
          * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
@@ -1019,8 +1022,10 @@ extern void uITRON4_free(void *p) ;
             #define NO_DH
         #endif
     #endif
-    #ifndef NO_DSA
-        #define NO_DSA
+    #ifndef HAVE_DSA
+        #ifndef NO_DSA
+            #define NO_DSA
+        #endif
     #endif
 
     #ifndef SINGLE_THREADED
@@ -3418,6 +3423,17 @@ extern void uITRON4_free(void *p) ;
     #error "Found both ESPIDF and ARDUINO. Pick one."
 #endif
 
+#if defined(WOLFSSL_CAAM_BLOB)
+    #ifndef WOLFSSL_CAAM
+        #error "WOLFSSL_CAAM_BLOB requires WOLFSSL_CAAM"
+    #endif
+#endif
+
+#if defined(HAVE_ED25519)
+    #ifndef WOLFSSL_SHA512
+        #error "HAVE_ED25519 requires WOLFSSL_SHA512"
+    #endif
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */
