@@ -24214,14 +24214,25 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
     return ret;
 }
 
+int AllocCopyDer(DerBuffer** pDer, const unsigned char* buff, word32 length,
+    int type, void* heap)
+{
+    int ret = AllocDer(pDer, length, type, heap);
+    if (ret == 0) {
+        XMEMCPY((*pDer)->buffer, buff, length);
+    }
+
+    return ret;
+}
+
 void FreeDer(DerBuffer** pDer)
 {
-    if (pDer && *pDer)
-    {
+    if (pDer && *pDer) {
         DerBuffer* der = (DerBuffer*)*pDer;
 
         /* ForceZero private keys */
-        if (der->type == PRIVATEKEY_TYPE && der->buffer != NULL) {
+        if (((der->type == PRIVATEKEY_TYPE) ||
+             (der->type == ALT_PRIVATEKEY_TYPE)) && der->buffer != NULL) {
             ForceZero(der->buffer, der->length);
         }
         der->buffer = NULL;
