@@ -28015,7 +28015,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
         XFILE signedBundle = XBADFILE;
         int   signedBundleSz = 0;
         int   chunkSz = 1;
-        int   i, rc;
+        int   i, rc = 0;
         byte* buf = NULL;
 
         ExpectTrue((signedBundle = XFOPEN("./certs/test-stream-sign.p7b",
