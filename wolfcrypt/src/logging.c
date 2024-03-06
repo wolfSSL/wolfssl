@@ -234,7 +234,9 @@ void WOLFSSL_TIME(int count)
 
 #ifdef DEBUG_WOLFSSL
 
-#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+#if defined(ARDUINO)
+    /* see Arduino wolfssl.h for wolfSSL_Arduino_Serial_Print */
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* see wc_port.h for fio.h and nio.h includes */
 #elif defined(WOLFSSL_SGX)
     /* Declare sprintf for ocall */
@@ -281,9 +283,10 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
     else {
 #if defined(WOLFSSL_USER_LOG)
         WOLFSSL_USER_LOG(logMessage);
+#elif defined(ARDUINO)
+        wolfSSL_Arduino_Serial_Print(logMessage);
 #elif defined(WOLFSSL_LOG_PRINTF)
         printf("%s\n", logMessage);
-
 #elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
         dc_log_printf("%s\n", logMessage);
 #elif defined(WOLFSSL_DEOS)

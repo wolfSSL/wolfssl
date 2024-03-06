@@ -82,16 +82,19 @@ snifftest
 output
 mcapi/test
 testsuite/testsuite
-tests/unit
 testsuite/testsuite.test
+testsuite/*.der
+testsuite/*.pem
+testsuite/*.raw
+testsuite/*.obj
+testsuite/*.pdb
+testsuite/*.idb
+tests/unit
 tests/unit.test
 tests/bio_write_test.txt
 tests/test-log-dump-to-file.txt
 tests/cert_cache.tmp
 test-write-dhparams.pem
-testsuite/*.der
-testsuite/*.pem
-testsuite/*.raw
 cert.der
 cert.pem
 certecc.der
@@ -402,7 +405,7 @@ XXX-fips-test
 # Generated user_settings_asm.h.
 user_settings_asm.h
 
-# VisualGD
+# VisualGDB
 **/.visualgdb
 
 # Espressif sdk config default should be saved in sdkconfig.defaults

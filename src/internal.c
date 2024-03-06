@@ -5428,7 +5428,9 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
         keySz = ssl->eccTempKeySz;
         /* get curve type */
         if (ssl->ecdhCurveOID > 0) {
+            WOLFSSL_MSG("calling ecc_cuve"); /* TODO; review */
             ecc_curve = wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL);
+            WOLFSSL_MSG("ecc_curve done");
         }
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
         (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
@@ -5462,7 +5464,9 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     else
 #endif
     {
+        WOLFSSL_MSG("make key"); /* TODO review */
         ret = wc_ecc_make_key_ex(ssl->rng, keySz, key, ecc_curve);
+        WOLFSSL_MSG("make key done");
     }
 
     /* make sure the curve is set for TLS */

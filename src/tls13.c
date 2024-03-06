@@ -136,6 +136,15 @@
     #define FALSE 0
 #endif
 
+#ifndef HAVE_AEAD
+    #ifndef _MSC_VER
+        #error "The build option HAVE_AEAD is required for TLS 1.3"
+    #else
+        #pragma \
+        message("error: The build option HAVE_AEAD is required for TLS 1.3")
+    #endif
+#endif
+
 #ifndef HAVE_HKDF
     #ifndef _MSC_VER
         #error "The build option HAVE_HKDF is required for TLS 1.3"
