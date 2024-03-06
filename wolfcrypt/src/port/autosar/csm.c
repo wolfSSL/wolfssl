@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/port/autosar/Csm.h>
 #include <wolfssl/wolfcrypt/port/autosar/CryIf.h>
 
@@ -162,9 +163,9 @@ void Csm_GetVersionInfo(Std_VersionInfoType* version)
     if (version != NULL) {
         version->vendorID = 0; /* no vendor or module ID */
         version->moduleID = 0;
-        version->sw_major_version = 5;
-        version->sw_minor_version = 6;
-        version->sw_patch_version = 6;
+        version->sw_major_version = (LIBWOLFSSL_VERSION_HEX >> 24) & 0xFFF;
+        version->sw_minor_version = (LIBWOLFSSL_VERSION_HEX >> 12) & 0xFFF;
+        version->sw_patch_version = (LIBWOLFSSL_VERSION_HEX) & 0xFFF;
     }
 }
 

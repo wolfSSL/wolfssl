@@ -100,7 +100,7 @@ static int GetKey(Crypto_JobType* job, uint32 eId, uint8 **key, uint32 *keySz)
         return -1;
     }
 
-    // @TODO sanity checks on setup... uint8 redirectionConfig;
+    /* @TODO sanity checks on setup... uint8 redirectionConfig; */
     switch (eid) {
         case job->jobRedirectionInfoRef->inputKeyElementId:
             if (job->jobRedirectionInfoRef->inputKeyId >= MAX_KEYSTORE) {
@@ -331,11 +331,13 @@ Std_ReturnType wolfSSL_Crypto(Crypto_JobType* job)
     return ret;
 }
 
+static WC_RNG rng;
+static wolfSSL_Mutex rngMutex;
+static volatile byte rngInit = 0;
 
 /* returns E_OK on success */
 Std_ReturnType wolfSSL_Crypto_RNG(Crypto_JobType* job)
 {
-    WC_RNG rng;
     int ret;
 
     uint8  *out   = job->jobPrimitiveInputOutput.outputPtr;
@@ -346,10 +348,31 @@ Std_ReturnType wolfSSL_Crypto_RNG(Crypto_JobType* job)
         return E_NOT_OK;
     }
 
-    ret = wc_InitRng_ex(&rng, NULL, 0);
-    if (ret != 0) {
-        WOLFSSL_MSG("Error initializing RNG");
-        return E_NOT_OK;
+    if (rngInit == 1) {
+        if (wc_LockMutex(&rngMutex) != 0) {
+            WOLFSSL_MSG("Error locking RNG mutex");
+            return E_NOT_OK;
+        }
+    }
+
+    if (rngInit == 0) {
+        if (wc_InitMutex(&rngMutex) != 0) {
+            WOLFSSL_MSG("Error initializing RNG mutex");
+            return E_NOT_OK;
+        }
+
+        if (wc_LockMutex(&rngMutex) != 0) {
+            WOLFSSL_MSG("Error locking RNG mutex");
+            return E_NOT_OK;
+        }
+
+        ret = wc_InitRng_ex(&rng, NULL, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error initializing RNG");
+            wc_UnLockMutex(&rngMutex);
+            return E_NOT_OK;
+        }
+        rngInit = 1;
     }
 
     ret = wc_RNG_GenerateBlock(&rng, out, *outSz);
@@ -359,14 +382,16 @@ Std_ReturnType wolfSSL_Crypto_RNG(Crypto_JobType* job)
         if (ret != 0) {
             WOLFSSL_MSG("Error free'ing RNG");
         }
+        rngInit = 0;
+        wc_UnLockMutex(&rngMutex);
         return E_NOT_OK;
     }
 
-    ret = wc_FreeRng(&rng);
-    if (ret != 0) {
-        WOLFSSL_MSG("Error free'ing RNG");
+    if (wc_UnLockMutex(&rngMutex) != 0) {
+        WOLFSSL_MSG("Error unlocking RNG mutex");
         return E_NOT_OK;
     }
+
     return E_OK;
 }
 

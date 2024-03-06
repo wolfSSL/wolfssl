@@ -121,8 +121,8 @@ static int update_test(void)
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
     };
-    const uint8 key[] = "0123456789abcdef   ";  /* align */
-    const uint8 iv[]  = "1234567890abcdef   ";  /* align */
+    const uint8 key[] = "0123456789abcdef   ";
+    const uint8 iv[]  = "1234567890abcdef   ";
 
     XMEMSET(cipher, 0, BLOCK_SIZE);
     XMEMSET(plain, 0, BLOCK_SIZE);

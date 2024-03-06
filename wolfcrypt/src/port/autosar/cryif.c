@@ -28,6 +28,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/port/autosar/Csm.h>
 #include <wolfssl/wolfcrypt/port/autosar/CryIf.h>
 #include <wolfssl/wolfcrypt/port/autosar/Crypto.h>
@@ -50,9 +51,9 @@ void CryIf_GetVersionInfo(Std_VersionInfoType* ver)
     if (ver != NULL) {
         ver->vendorID = 0; /* no vendor or module ID */
         ver->moduleID = 0;
-        ver->sw_major_version = 5;
-        ver->sw_minor_version = 6;
-        ver->sw_patch_version = 6;
+        ver->sw_major_version = (LIBWOLFSSL_VERSION_HEX >> 24) & 0xFFF;
+        ver->sw_minor_version = (LIBWOLFSSL_VERSION_HEX >> 12) & 0xFFF;
+        ver->sw_patch_version = (LIBWOLFSSL_VERSION_HEX) & 0xFFF;
     }
 }
 
