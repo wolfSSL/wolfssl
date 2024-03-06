@@ -557,6 +557,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                     }
                 }
                 else {
+                    wolfSSL_X509_free(x509);
                     WOLFSSL_MSG("Could not find CA for certificate");
                 }
             }
