@@ -105,7 +105,7 @@ on the specific device platform.
 #endif
 
 #ifdef WOLFSSL_ESPIDF
-    /* Define the ESP_LOGx(TAG, "" value for output messages here.
+    /* Define the ESP_LOGx(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE value for output messages here.
     **
     ** Beware of possible conflict in test.c (that one now named TEST_TAG)
     */

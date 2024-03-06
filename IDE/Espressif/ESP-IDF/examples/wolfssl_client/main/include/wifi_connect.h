@@ -21,9 +21,6 @@
 #ifndef _WIFI_CONNECT_H_
 #define _WIFI_CONNECT_H_
 
-#include <esp_idf_version.h>
-#include <esp_log.h>
-
 /* ESP lwip */
 #define EXAMPLE_ESP_MAXIMUM_RETRY       CONFIG_ESP_MAXIMUM_RETRY
 
@@ -48,19 +45,54 @@
  * file my_private_config.h should be excluded from git updates */
 /* #define  USE_MY_PRIVATE_CONFIG */
 
-#ifdef  USE_MY_PRIVATE_CONFIG
+/* Note that IntelliSense may not work properly in the next section for the
+ * Espressif SDK 3.4 on the ESP8266. Macros should still be defined.
+ * See the project-level Makefile. Example found in:
+ * https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples/template
+ *
+ * The USE_MY_PRIVATE_[OS]_CONFIG is typically an environment variable that
+ * triggers the make (not cmake) to add compiler defines.
+ */
+#if defined(USE_MY_PRIVATE_WINDOWS_CONFIG)
+    #include "/workspace/my_private_config.h"
+#elif defined(USE_MY_PRIVATE_WSL_CONFIG)
+    #include "/mnt/c/workspace/my_private_config.h"
+#elif defined(USE_MY_PRIVATE_LINUX_CONFIG)
+    #include "~/workspace/my_private_config.h"
+#elif defined(USE_MY_PRIVATE_MAC_CONFIG)
+    #include "~/Documents/my_private_config.h"
+#elif defined(USE_MY_PRIVATE_CONFIG)
+    /* This section works best with cmake & non-environment variable setting */
     #if defined(WOLFSSL_CMAKE_SYSTEM_NAME_WINDOWS)
+        #define WOLFSSL_CMAKE
+        #include "/workspace/my_private_config.h"
+    #elif defined(WOLFSSL_MAKE_SYSTEM_NAME_WINDOWS)
+        #define WOLFSSL_MAKE
         #include "/workspace/my_private_config.h"
     #elif defined(WOLFSSL_CMAKE_SYSTEM_NAME_WSL)
+        #define WOLFSSL_CMAKE
+        #include "/mnt/c/workspace/my_private_config.h"
+    #elif defined(WOLFSSL_MAKE_SYSTEM_NAME_WSL)
+        #define WOLFSSL_MAKE
         #include "/mnt/c/workspace/my_private_config.h"
     #elif defined(WOLFSSL_CMAKE_SYSTEM_NAME_LINUX)
+        #define WOLFSSL_CMAKE
+        #include "~/workspace/my_private_config.h"
+    #elif defined(WOLFSSL_MAKE_SYSTEM_NAME_LINUX)
+        #define WOLFSSL_MAKE
         #include "~/workspace/my_private_config.h"
     #elif defined(WOLFSSL_CMAKE_SYSTEM_NAME_APPLE)
         #include "~/Documents/my_private_config.h"
+    #elif defined(WOLFSSL_MAKE_SYSTEM_NAME_APPLE)
+        #define WOLFSSL_MAKE
+        #include "~/Documents/my_private_config.h"
+    #elif defined(OS_WINDOWS)
+        #include "/workspace/my_private_config.h"
     #else
-        #warning "did not detect environment. using ~/my_private_config.h"
-        #include "~/my_private_config.h"
-	#endif
+        /* Edit as needed for your private config: */
+        #warning "default private config using /workspace/my_private_config.h"
+        #include "/workspace/my_private_config.h"
+    #endif
 #else
 
     /*
@@ -70,14 +102,22 @@
     ** If you'd rather not, just change the below entries to strings with
     ** the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
     */
-    #ifdef CONFIG_ESP_WIFI_SSID
+    #if defined(CONFIG_ESP_WIFI_SSID)
+        /* tyically from ESP32 with ESP-IDF v4 ot v5 */
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
+    #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
+        /* tyically from ESP8266 rtos-sdk/v3.4 */
+        #define EXAMPLE_ESP_WIFI_SSID CONFIG_EXAMPLE_WIFI_SSID
     #else
         #define EXAMPLE_ESP_WIFI_SSID "MYSSID_WIFI_CONNECT"
     #endif
 
-    #ifdef CONFIG_ESP_WIFI_PASSWORD
+    #if defined(CONFIG_ESP_WIFI_PASSWORD)
+        /* tyically from ESP32 with ESP-IDF v4 or v5 */
         #define EXAMPLE_ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
+    #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
+        /* tyically from ESP8266 rtos-sdk/v3.4 */
+        #define EXAMPLE_ESP_WIFI_PASS CONFIG_EXAMPLE_WIFI_PASSWORD
     #else
         #define EXAMPLE_ESP_WIFI_PASS "MYPASSWORD_WIFI_CONNECT"
     #endif
