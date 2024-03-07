@@ -219,18 +219,18 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 #ifndef BASE64_NO_TABLE
         if (e1 < BASE64_MIN || e2 < BASE64_MIN || e3 < BASE64_MIN ||
                                                               e4 < BASE64_MIN) {
-//            WOLFSSL_MSG("Bad Base64 Decode data, too small");
+            WOLFSSL_MSG("Bad Base64 Decode data, too small");
             return ASN_INPUT_E;
         }
 
         if (e1 > maxIdx || e2 > maxIdx || e3 > maxIdx || e4 > maxIdx) {
-//            WOLFSSL_MSG("Bad Base64 Decode data, too big");
+            WOLFSSL_MSG("Bad Base64 Decode data, too big");
             return ASN_INPUT_E;
         }
 #endif
 
         if (i + 1 + !pad3 + !pad4 > *outLen) {
-//            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
+            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
             return BAD_FUNC_ARG;
         }
 
@@ -240,7 +240,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         e4 = (byte)((e4 == PAD) ? 0 : Base64_Char2Val(e4));
 
         if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
-//            WOLFSSL_MSG("Bad Base64 Decode bad character");
+            WOLFSSL_MSG("Bad Base64 Decode bad character");
             return ASN_INPUT_E;
         }
 
