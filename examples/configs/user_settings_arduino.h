@@ -19,7 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* This is a sample Arduino user_settings.h for wolfSSL */
+/* This is a sample Arduino user_settings.h for wolfSSL
+  >> Edit with caution. This is the file copied to wolfSSL Arduino library.
+  >> at publish time. (lines with ">>" are removed)
+*/
+
+/* Define a macro to display user settings version in example code: */
+#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.6.6 Rev 5"
 
 #define NO_FILESYSTEM
 #define USE_CERT_BUFFERS_2048
@@ -29,15 +35,26 @@
 
 #define HAVE_ECC
 #define WOLFSSL_SMALL_STACK
-/* #define WOLFSSL_SMALL_STACK_EXTRA */
-/* #define WOLFSSL_SMALL_STACK_CIPHERS */
-/* #define NO_DH */
+/* #define WOLFSSL_SMALL_STACK_EXTRA    */
+/* #define WOLFSSL_SMALL_STACK_CIPHERS  */
+/* #define NO_DH                        */
+#define MICRO_SESSION_CACHE
 
 /* RSA must be enabled for examples, but can be disabled like this: */
 /* #define NO_RSA */
 #define RSA_LOW_MEM
 
-/* #define NO_OLD_TLS */
+#define NO_OLD_TLS
+/* TLS 1.3                                 */
+/* #define WOLFSSL_TLS13 */
+#if defined(WOLFSSL_TLS13)
+    #define HAVE_TLS_EXTENSIONS
+    #define WC_RSA_PSS
+    #define HAVE_HKDF
+    #define HAVE_AEAD
+#endif
+
+/*  #define HAVE_SUPPORTED_CURVES  */
 
 /* Cannot use WOLFSSL_NO_MALLOC with small stack */
 /* #define WOLFSSL_NO_MALLOC */
@@ -45,6 +62,35 @@
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
 
+/* To further reduce size, client or server functionality can be disabled.
+ * Here, we check if the example code gave us a hint.
+ *
+ * The calling application can define either one of these macros before
+ * including the Arduino wolfssl.h library file:
+ *
+ *    WOLFSSL_CLIENT_EXAMPLE
+ *    WOLFSSL_SERVER_EXAMPLE
+ */
+#if defined(WOLFSSL_CLIENT_EXAMPLE)
+    #define NO_WOLFSSL_SERVER
+#elif defined(WOLFSSL_SERVER_EXAMPLE)
+    #define NO_WOLFSSL_CLIENT
+#else
+    /* Provide a hint to application that neither WOLFSSL_CLIENT_EXAMPLE
+     * or WOLFSSL_SERVER_EXAMPLE macro hint was desired but not found. */
+    #define NO_WOLFSSL_SERVER_CLIENT_MISSING
+    #warning "Define WOLFSSL_CLIENT_EXAMPLE or WOLFSSL_SERVER_EXAMPLE to" \
+             " optimize memory for small embedded devices."
+    /* Both can be disabled in wolfssl test & benchmark */
+#endif
+
+
+#define NO_DH
+#define NO_DSA
+#define USE_FAST_MATH
+#define WOLFSSL_SMALL_STACK
+#define SINGLE_THREADED
+#define WOLFSSL_LOW_MEMORY
 #define HAVE_AESGCM
 
 /* optionally turn off SHA512/224 SHA512/256 */
@@ -241,13 +287,14 @@
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
     /***** END CONFIG_IDF_TARGET_ESP266 *****/
 #else
-    /* Anything else encountered, disable HW accleration */
+    /* Anything else encountered, disable HW acceleration */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 #endif /* CONFIG_IDF_TARGET Check */
 
+#define DEBUG_WOLFSSL
 /* Debug options:
 
 #define ESP_VERIFY_MEMBLOCK
@@ -266,10 +313,10 @@
 
 #define WOLFSSL_ESPIDF_ERROR_PAUSE /* Pause in a loop rather than exit. */
 #define WOLFSSL_HW_METRICS
-
+#define ALT_ECC_SIZE
 /* #define HASH_SIZE_LIMIT */ /* for test.c */
 
-/* #define NO_HW_MATH_TEST */ /* Optionall turn off HW math checks */
+/* #define NO_HW_MATH_TEST */ /* Optionally turn off HW math checks */
 
 /* Optionally include alternate HW test library: alt_hw_test.h */
 /* When enabling, the ./components/wolfssl/CMakeLists.txt file
@@ -301,6 +348,7 @@
 #define ATCA_WOLFSSL
 */
 
+/* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm
 /* The section below defines macros used in typically all of the wolfSSL
  * examples such as the client and server for certs stored in header files.
  *
@@ -384,6 +432,9 @@
     #define WOLFSSL_BASE16
 #else
     #if defined(USE_CERT_BUFFERS_2048)
+        #ifdef USE_CERT_BUFFERS_1024
+            #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
+        #endif
         #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
@@ -402,8 +453,10 @@
         #define CTX_CLIENT_KEY       client_key_der_2048
         #define CTX_CLIENT_KEY_SIZE  sizeof_client_key_der_2048
         #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
-
     #elif defined(USE_CERT_BUFFERS_1024)
+        #ifdef USE_CERT_BUFFERS_2048
+            #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
+        #endif
         #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
@@ -423,7 +476,6 @@
         #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_1024
         #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #else
-        /* Optionally define custom cert arrays, sizes, and types here */
         #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
     #endif
-#endif /* Conditional key and cert constant names */
+#endif
