@@ -1507,6 +1507,7 @@ typedef struct ESD {
     wc_HashAlg  hash;
     enum wc_HashType hashType;
     byte contentDigest[WC_MAX_DIGEST_SIZE + 2]; /* content only + ASN.1 heading */
+    byte contentDigestSet:1;
     byte contentAttribsDigest[WC_MAX_DIGEST_SIZE];
     byte encContentDigest[MAX_ENCRYPTED_KEY_SZ];
 
@@ -1760,27 +1761,10 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
 
 #ifndef NO_RSA
 
-/* returns size of signature put into out, negative on error */
-static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+static int wc_PKCS7_ImportRSA(PKCS7* pkcs7, RsaKey* privKey)
 {
     int ret;
     word32 idx;
-#ifdef WOLFSSL_SMALL_STACK
-    RsaKey* privKey;
-#else
-    RsaKey  privKey[1];
-#endif
-
-    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (privKey == NULL)
-        return MEMORY_E;
-#endif
 
     ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
@@ -1814,6 +1798,32 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         }
     }
 
+    return ret;
+}
+
+
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    RsaKey* privKey;
+#else
+    RsaKey  privKey[1];
+#endif
+
+    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_PKCS7_ImportRSA(pkcs7, privKey);
     if (ret == 0) {
     #ifdef WOLFSSL_ASYNC_CRYPT
         do {
@@ -1844,27 +1854,10 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 
 #ifdef HAVE_ECC
 
-/* returns size of signature put into out, negative on error */
-static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+static int wc_PKCS7_ImportECC(PKCS7* pkcs7, ecc_key* privKey)
 {
     int ret;
-    word32 outSz, idx;
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key* privKey;
-#else
-    ecc_key  privKey[1];
-#endif
-
-    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (privKey == NULL)
-        return MEMORY_E;
-#endif
+    word32 idx;
 
     ret = wc_ecc_init_ex(privKey, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
@@ -1894,6 +1887,33 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         }
     }
 
+    return ret;
+}
+
+
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+{
+    int ret;
+    word32 outSz;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key* privKey;
+#else
+    ecc_key  privKey[1];
+#endif
+
+    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_PKCS7_ImportECC(pkcs7, privKey);
     if (ret == 0) {
         outSz = sizeof(esd->encContentDigest);
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1922,6 +1942,67 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 }
 
 #endif /* HAVE_ECC */
+
+/* returns encContentDigestSz based on the signature set to be used */
+static int wc_PKCS7_GetSignSize(PKCS7* pkcs7)
+{
+    int ret = 0;
+
+    switch (pkcs7->publicKeyOID) {
+
+    #ifndef NO_RSA
+        case RSAk:
+        {
+        #ifndef WOLFSSL_SMALL_STACK
+            RsaKey  privKey[1];
+        #else
+            RsaKey* privKey;
+            privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (privKey == NULL)
+                return MEMORY_E;
+        #endif
+
+            ret = wc_PKCS7_ImportRSA(pkcs7, privKey);
+            if (ret == 0) {
+                ret = wc_RsaEncryptSize(privKey);
+            }
+            wc_FreeRsaKey(privKey);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        }
+        break;
+    #endif
+
+    #ifdef HAVE_ECC
+        case ECDSAk:
+        {
+        #ifndef WOLFSSL_SMALL_STACK
+            ecc_key  privKey[1];
+        #else
+            ecc_key* privKey;
+            privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (privKey == NULL)
+                return MEMORY_E;
+        #endif
+
+            ret = wc_PKCS7_ImportECC(pkcs7, privKey);
+            if (ret == 0) {
+                ret = wc_ecc_sig_size(privKey);
+            }
+            wc_ecc_free(privKey);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        }
+        break;
+    #endif
+    }
+
+    return ret;
+}
 
 
 /* builds up SignedData signed attributes, including default ones.
@@ -2365,10 +2446,276 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
     return ret;
 }
 
+#ifndef BER_OCTET_LENGTH
+    #define BER_OCTET_LENGTH 4096
+#endif
+
+/**
+ * This helper function encodes a chunk of content stream and writes it out.
+ *
+ * @param pkcs7 Pointer to a PKCS7 structure.
+ * @param cipherType The type of cipher to use for encryption.
+ * @param aes Optional pointer to an Aes structure for AES encryption.
+ * @param encContentOut Buffer to hold the encrypted content.
+ * @param contentData Buffer holding the content to be encrypted.
+ * @param contentDataSz Size of the content to be encrypted.
+ * @param out Buffer to hold the output data.
+ * @param outIdx Pointer to an index into the output buffer.
+ * @param esd Pointer to an ESD structure for digest calculation.
+ * @return Returns 0 on success, and a negative value on failure.
+ */
+static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
+    Aes* aes, byte* encContentOut, byte* contentData, int contentDataSz,
+    byte* out, word32* outIdx, ESD* esd)
+{
+    int ret = BAD_FUNC_ARG;
+    byte   encContentOutOct[MAX_OCTET_STR_SZ];
+    word32 encContentOutOctSz = 0;
+
+    switch (cipherType) {
+        case WC_CIPHER_NONE:
+            XMEMCPY(encContentOut, contentData, contentDataSz);
+            if (esd && esd->contentDigestSet != 1) {
+                ret = wc_HashUpdate(&esd->hash, esd->hashType,
+                    contentData, contentDataSz);
+            }
+            break;
+
+    #ifndef NO_AES
+        case WC_CIPHER_AES_CBC:
+            ret = wc_AesCbcEncrypt(aes, encContentOut,
+                contentData, contentDataSz);
+            break;
+    #endif
+
+    #ifdef WOLFSSL_AESGCM_STREAM
+        case WC_CIPHER_AES_GCM:
+            ret = wc_AesGcmEncryptUpdate(aes, encContentOut,
+                    contentData, contentDataSz, NULL, 0);
+            break;
+    #endif
+    }
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* async encrypt not available here, so block till done */
+        if (ret == WC_PENDING_E && cipherType != WC_CIPHER_NONE) {
+            ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+
+    if (ret == 0) {
+        encContentOutOctSz = SetOctetString(contentDataSz, encContentOutOct);
+        wc_PKCS7_WriteOut(pkcs7, (out)? out + *outIdx: NULL,
+                          encContentOutOct, encContentOutOctSz);
+        *outIdx += encContentOutOctSz;
+        wc_PKCS7_WriteOut(pkcs7, (out)? out + *outIdx : NULL,
+                                            encContentOut, contentDataSz);
+        *outIdx += contentDataSz;
+    }
+
+    return ret;
+}
+
+
+/* Used for encoding the content, potentially one octet chunck at a time if
+ * in streaming mode with IO callbacks set.
+ * Can handle the cipher types:
+ *      - WC_CIPHER_NONE, used for encoding signed bundle where no encryption is
+ *                        done.
+ *      - WC_CIPHER_AES_CBC
+ *      - WC_CIPHER_AES_GCM, requires WOLFSSL_AESGCM_STREAM for streaming
+ *                           encryption
+ * If ESD is passed in then hash of the conentet is collected as processed.
+ *
+ * Returns 0 on success */
+#ifndef NO_AES
+static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, Aes* aes,
+    byte* in, int inSz, byte* out, int cipherType)
+#else
+static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
+    byte* in, int inSz, byte* out, int cipherType)
+#endif
+{
+    int ret = 0;
+    int devId  = pkcs7->devId;
+    void* heap = pkcs7->heap;
+
+    if (pkcs7->encodeStream) {
+        int    sz;
+        word32 totalSz = 0;
+        byte*  buf;
+        byte*  encContentOut;
+        byte*  contentData;
+        word32 idx = 0, outIdx = 0;
+        int padSz = 0;
+
+        if (cipherType != WC_CIPHER_NONE) {
+            padSz = wc_PKCS7_GetPadSize(pkcs7->contentSz,
+                   wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID));
+        }
+
+        if (cipherType == WC_CIPHER_NONE && esd && esd->contentDigestSet != 1) {
+            /* calculate hash for content */
+            ret = wc_HashInit(&esd->hash, esd->hashType);
+            if (ret != 0) {
+                return ret;
+            }
+        }
+
+        encContentOut = XMALLOC(BER_OCTET_LENGTH + MAX_OCTET_STR_SZ,
+                heap, DYNAMIC_TYPE_PKCS7);
+        contentData = XMALLOC(BER_OCTET_LENGTH + padSz,
+                heap, DYNAMIC_TYPE_PKCS7);
+
+        if (encContentOut == NULL || contentData == NULL) {
+            XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+            WOLFSSL_MSG("Memory allocation failed for content data");
+            return MEMORY_E;
+        }
+
+        /* keep pulling from content until empty */
+        do {
+            int contentDataRead = 0;
+
+        #ifdef ASN_BER_TO_DER
+            if (pkcs7->getContentCb) {
+                contentDataRead = pkcs7->getContentCb(pkcs7,
+                                                      &buf, pkcs7->streamCtx);
+
+                if (buf == NULL) {
+                    WOLFSSL_MSG("Get content callback returned null "
+                        "buffer pointer");
+                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                    return BAD_FUNC_ARG;
+                }
+            }
+            else
+        #endif
+            {
+                int szLeft = BER_OCTET_LENGTH;
+
+                if (szLeft + totalSz > (word32)inSz)
+                    szLeft = inSz - totalSz;
+
+                contentDataRead = szLeft;
+                buf = in + totalSz;
+            }
+
+            if (contentDataRead <= 0) {
+                /* no more data returned from callback */
+                break;
+            }
+            totalSz += (word32)contentDataRead;
+
+            /* check and handle octet boundary */
+            sz = contentDataRead;
+            if (idx + sz > BER_OCTET_LENGTH) {
+                sz = BER_OCTET_LENGTH - idx;
+                contentDataRead -= sz;
+
+                XMEMCPY(contentData + idx, buf, sz);
+                ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType,
+                    aes, encContentOut, contentData, BER_OCTET_LENGTH, out,
+                    &outIdx, esd);
+                if (ret != 0) {
+                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                    return ret;
+                }
+
+                /* copy over any remaining data */
+                XMEMCPY(contentData, buf + sz, contentDataRead);
+                idx = contentDataRead;
+            }
+            else {
+                /* was not on an octet boundary, copy full
+                 * amount over */
+                XMEMCPY(contentData + idx, buf, sz);
+                idx += sz;
+            }
+        } while (totalSz < pkcs7->contentSz);
+
+        /* add in padding to the end */
+        if ((cipherType != WC_CIPHER_NONE) && (totalSz == pkcs7->contentSz)) {
+            int i;
+
+            if (BER_OCTET_LENGTH < idx) {
+                XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                return BAD_FUNC_ARG;
+            }
+
+            for (i = 0; i < padSz; i++) {
+                contentData[idx + i] = (byte)padSz;
+            }
+            idx += padSz;
+        }
+
+        /* encrypt and flush out remainder of content data */
+        ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+                    encContentOut, contentData, idx, out, &outIdx, esd);
+        if (ret == 0) {
+            if (cipherType == WC_CIPHER_NONE && esd &&
+                    esd->contentDigestSet != 1) {
+                ret = wc_HashFinal(&esd->hash, esd->hashType,
+                    esd->contentDigest + 2);
+                wc_HashFree(&esd->hash, esd->hashType);
+            }
+        }
+
+        XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+    }
+    else {
+        switch (cipherType) {
+            case WC_CIPHER_NONE:
+                if (!pkcs7->detached) {
+                    XMEMCPY(out, in, inSz);
+                }
+                if (esd && esd->contentDigestSet != 1) {
+                    ret = wc_HashInit(&esd->hash, esd->hashType);
+                    if (ret == 0)
+                        ret = wc_HashUpdate(&esd->hash, esd->hashType, in,
+                                            inSz);
+                    if (ret == 0)
+                        ret = wc_HashFinal(&esd->hash, esd->hashType,
+                                           esd->contentDigest + 2);
+                    wc_HashFree(&esd->hash, esd->hashType);
+                }
+                break;
+
+        #ifndef NO_AES
+            case WC_CIPHER_AES_CBC:
+                ret = wc_AesCbcEncrypt(aes, out, in, inSz);
+                break;
+        #endif
+
+        #ifdef WOLFSSL_AESGCM_STREAM
+            case WC_CIPHER_AES_GCM:
+                ret = wc_AesGcmEncryptUpdate(aes, out, in, inSz, NULL, 0);
+                break;
+        #endif
+        }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* async encrypt not available here, so block till done */
+        if (cipherType != WC_CIPHER_NONE) {
+            ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+    }
+
+    (void)devId;
+    (void)heap;
+
+    return ret;
+}
+
 
 /* build PKCS#7 signedData content type */
 /* To get the output size then set output = 0 and *outputSz = 0 */
-static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
+static int PKCS7_EncodeSigned(PKCS7* pkcs7,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
 {
@@ -2399,6 +2746,14 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     word32 flatSignedAttribsSz = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
+    ESD* esd = NULL;
+#else
+    ESD  esd[1];
+#endif
+#ifdef ASN_BER_TO_DER
+    word32 streamSz = 0;
+#endif
+#ifdef WOLFSSL_SMALL_STACK
     byte *signedDataOid = NULL;
 #else
     byte signedDataOid[MAX_OID_SZ];
@@ -2408,8 +2763,21 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     byte signingTime[MAX_TIME_STRING_SZ];
 
     if (pkcs7 == NULL || pkcs7->hashOID == 0 ||
-        outputSz == NULL || hashSz == 0 ||
-        hashBuf == NULL) {
+        outputSz == NULL) {
+        WOLFSSL_MSG("PKCS7 struct / outputSz null, or hashOID is 0");
+        return BAD_FUNC_ARG;
+    }
+
+    if (hashSz == 0 && hashBuf != NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* signature size varies with ECDSA, with a varying sign size the content
+     * hash must be known in order to create the surrounding ASN1 syntax
+     * properly before writing out the content and generating the hash on the
+     * fly and then creating the signature */
+    if (hashBuf == NULL && pkcs7->publicKeyOID == ECDSAk) {
+        WOLFSSL_MSG("Pre-calculated content hash is needed in this case");
         return BAD_FUNC_ARG;
     }
 
@@ -2464,16 +2832,24 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     if (pkcs7->sidType != DEGENERATE_SID) {
         esd->hashType = wc_OidGetHash(pkcs7->hashOID);
-        if (wc_HashGetDigestSize(esd->hashType) != (int)hashSz) {
+        if (hashBuf != NULL &&
+                wc_HashGetDigestSize(esd->hashType) != (int)hashSz) {
             WOLFSSL_MSG("hashSz did not match hashOID");
             idx = BUFFER_E;
             goto out;
         }
 
-        /* include hash */
+        /* include hash if provided, otherwise create hash when processing
+         * content data */
         esd->contentDigest[0] = ASN_OCTET_STRING;
-        esd->contentDigest[1] = (byte)hashSz;
-        XMEMCPY(&esd->contentDigest[2], hashBuf, hashSz);
+        if (hashBuf != NULL) {
+            esd->contentDigestSet = 1;
+            esd->contentDigest[1] = (byte)hashSz;
+            XMEMCPY(&esd->contentDigest[2], hashBuf, hashSz);
+        }
+        else {
+            esd->contentDigest[1] = (byte)wc_HashGetDigestSize(esd->hashType);
+        }
     }
 
     if (pkcs7->detached == 1) {
@@ -2579,9 +2955,13 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
             esd->signedAttribSetSz = 0;
         }
 
-        /* Calculate the final hash and encrypt it. */
-        ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
-                                                flatSignedAttribsSz, esd);
+        if (pkcs7->publicKeyOID != ECDSAk && hashBuf == NULL) {
+            ret = esd->encContentDigestSz = wc_PKCS7_GetSignSize(pkcs7);
+        }
+        else {
+            ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
+                                            flatSignedAttribsSz, esd);
+        }
         if (ret < 0) {
             idx = ret;
             goto out;
@@ -2633,11 +3013,12 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->encodeStream) {
-        word32 sz = 0, tmpIdx = 0;
+        word32 tmpIdx = 0;
         totalSz += (3 * ASN_INDEF_END_SZ) ; /* 00's for BER with inner content */
 
-        StreamOctetString(pkcs7->content, pkcs7->contentSz, NULL, &sz, &tmpIdx);
-        totalSz += sz + (3 * ASN_INDEF_END_SZ);
+        StreamOctetString(pkcs7->content, pkcs7->contentSz, NULL, &streamSz,
+            &tmpIdx);
+        totalSz += streamSz + (3 * ASN_INDEF_END_SZ);
     }
     else
 #endif
@@ -2693,7 +3074,11 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         totalSz += total2Sz;
     }
 
-    if (totalSz > *outputSz) {
+    if (totalSz > *outputSz
+    #ifdef ASN_BER_TO_DER
+        && pkcs7->streamOutCb == NULL
+    #endif
+    ) {
         if (*outputSz == 0) {
         #ifdef HAVE_ECC
             if (pkcs7->publicKeyOID == ECDSAk) {
@@ -2708,33 +3093,48 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         goto out;
     }
 
+#ifdef ASN_BER_TO_DER
+    if (output == NULL && pkcs7->streamOutCb == NULL) {
+#else
     if (output == NULL) {
+#endif
         idx = BUFFER_E;
         goto out;
     }
 
     idx = 0;
-    XMEMCPY(output + idx, esd->outerSeq, esd->outerSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->outerSeq, esd->outerSeqSz);
     idx += esd->outerSeqSz;
-    XMEMCPY(output + idx, signedDataOid, signedDataOidSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            signedDataOid, signedDataOidSz);
     idx += signedDataOidSz;
-    XMEMCPY(output + idx, esd->outerContent, esd->outerContentSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->outerContent, esd->outerContentSz);
     idx += esd->outerContentSz;
-    XMEMCPY(output + idx, esd->innerSeq, esd->innerSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->innerSeq, esd->innerSeqSz);
     idx += esd->innerSeqSz;
-    XMEMCPY(output + idx, esd->version, esd->versionSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->version, esd->versionSz);
     idx += esd->versionSz;
-    XMEMCPY(output + idx, esd->digAlgoIdSet, esd->digAlgoIdSetSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->digAlgoIdSet, esd->digAlgoIdSetSz);
     idx += esd->digAlgoIdSetSz;
-    XMEMCPY(output + idx, esd->singleDigAlgoId, esd->singleDigAlgoIdSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->singleDigAlgoId, esd->singleDigAlgoIdSz);
     idx += esd->singleDigAlgoIdSz;
-    XMEMCPY(output + idx, esd->contentInfoSeq, esd->contentInfoSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->contentInfoSeq, esd->contentInfoSeqSz);
     idx += esd->contentInfoSeqSz;
-    XMEMCPY(output + idx, pkcs7->contentType, pkcs7->contentTypeSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            pkcs7->contentType, pkcs7->contentTypeSz);
     idx += pkcs7->contentTypeSz;
-    XMEMCPY(output + idx, esd->innerContSeq, esd->innerContSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->innerContSeq, esd->innerContSeqSz);
     idx += esd->innerContSeqSz;
-    XMEMCPY(output + idx, esd->innerOctets, esd->innerOctetsSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            esd->innerOctets, esd->innerOctetsSz);
     idx += esd->innerOctetsSz;
 
     /* support returning header and footer without content */
@@ -2743,39 +3143,56 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx = 0;
     }
     else {
-        if (!pkcs7->detached && pkcs7->content != NULL && pkcs7->contentSz > 0) {
+        if (
         #ifdef ASN_BER_TO_DER
-            if (pkcs7->encodeStream) {
-                StreamOctetString(pkcs7->content, pkcs7->contentSz, output,
-                    outputSz, (word32*)&idx);
-
-                /* end of content octet string */
-                idx += SetIndefEnd(output + idx);
-
-                /* end of inner content seq */
-                idx += SetIndefEnd(output + idx);
-
-                /* end of inner content info seq */
-                idx += SetIndefEnd(output + idx);
-            }
-            else
+            (pkcs7->content != NULL || pkcs7->getContentCb != NULL)
+        #else
+            pkcs7->content != NULL
         #endif
-            {
-                XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
-                idx += pkcs7->contentSz;
+             && pkcs7->contentSz > 0) {
+            wc_PKCS7_EncodeContentStream(pkcs7, esd, NULL, pkcs7->content,
+               pkcs7->contentSz, (output)? output + idx : NULL, WC_CIPHER_NONE);
+            if (!pkcs7->detached) {
+            #ifdef ASN_BER_TO_DER
+                if (pkcs7->encodeStream) {
+                    byte indefEnd[ASN_INDEF_END_SZ * 3];
+                    word32 localIdx = 0;
+
+                    idx += streamSz;
+
+                    /* end of content octet string */
+                    localIdx += SetIndefEnd(indefEnd + localIdx);
+
+                    /* end of inner content seq */
+                    localIdx += SetIndefEnd(indefEnd + localIdx);
+
+                    /* end of inner content info seq */
+                    localIdx += SetIndefEnd(indefEnd + localIdx);
+
+                    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+                        indefEnd, localIdx);
+                    idx += localIdx;
+                }
+                else
+            #endif
+                {
+                        idx += pkcs7->contentSz;
+                }
             }
         }
         output2 = output;
     }
 
     /* certificates */
-    XMEMCPY(output2 + idx, esd->certsSet, esd->certsSetSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+        esd->certsSet, esd->certsSetSz);
     idx += esd->certsSetSz;
 
     if (pkcs7->noCerts != 1) {
         certPtr = pkcs7->certList;
         while (certPtr != NULL) {
-            XMEMCPY(output2 + idx, certPtr->der, certPtr->derSz);
+            wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                certPtr->der, certPtr->derSz);
             idx += certPtr->derSz;
             certPtr = certPtr->next;
         }
@@ -2783,30 +3200,40 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     wc_PKCS7_FreeCertSet(pkcs7);
 
-    XMEMCPY(output2 + idx, esd->signerInfoSet, esd->signerInfoSetSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signerInfoSet, esd->signerInfoSetSz);
     idx += esd->signerInfoSetSz;
-    XMEMCPY(output2 + idx, esd->signerInfoSeq, esd->signerInfoSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signerInfoSeq, esd->signerInfoSeqSz);
     idx += esd->signerInfoSeqSz;
-    XMEMCPY(output2 + idx, esd->signerVersion, esd->signerVersionSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signerVersion, esd->signerVersionSz);
     idx += esd->signerVersionSz;
     /* SignerIdentifier */
     if (pkcs7->sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
         /* IssuerAndSerialNumber */
-        XMEMCPY(output2 + idx, esd->issuerSnSeq, esd->issuerSnSeqSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->issuerSnSeq, esd->issuerSnSeqSz);
         idx += esd->issuerSnSeqSz;
-        XMEMCPY(output2 + idx, esd->issuerName, esd->issuerNameSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->issuerName, esd->issuerNameSz);
         idx += esd->issuerNameSz;
-        XMEMCPY(output2 + idx, pkcs7->issuer, pkcs7->issuerSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                pkcs7->issuer, pkcs7->issuerSz);
         idx += pkcs7->issuerSz;
-        XMEMCPY(output2 + idx, esd->issuerSn, esd->issuerSnSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->issuerSn, esd->issuerSnSz);
         idx += esd->issuerSnSz;
     } else if (pkcs7->sidType == CMS_SKID) {
         /* SubjectKeyIdentifier */
-        XMEMCPY(output2 + idx, esd->issuerSKIDSeq, esd->issuerSKIDSeqSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->issuerSKIDSeq, esd->issuerSKIDSeqSz);
         idx += esd->issuerSKIDSeqSz;
-        XMEMCPY(output2 + idx, esd->issuerSKID, esd->issuerSKIDSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->issuerSKID, esd->issuerSKIDSz);
         idx += esd->issuerSKIDSz;
-        XMEMCPY(output2 + idx, pkcs7->issuerSubjKeyId, keyIdSize);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                pkcs7->issuerSubjKeyId, keyIdSize);
         idx += keyIdSize;
     } else if (pkcs7->sidType == DEGENERATE_SID) {
         /* no signer infos in degenerate case */
@@ -2814,34 +3241,92 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx = SKID_E;
         goto out;
     }
-    XMEMCPY(output2 + idx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
     idx += esd->signerDigAlgoIdSz;
 
     /* SignerInfo:Attributes */
     if (flatSignedAttribsSz > 0) {
-        XMEMCPY(output2 + idx, esd->signedAttribSet, esd->signedAttribSetSz);
+        /* if the original hash buffer passed in was null then recreate the
+        * signature */
+        if (hashBuf == NULL && pkcs7->sidType != DEGENERATE_SID) {
+            /* recreate flat attribs after the content hash is known if needed
+             * build up signed attributes, include contentType, signingTime, and
+               messageDigest by default */
+            esd->signedAttribsCount = 0;
+            esd->signedAttribsSz = 0;
+            ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd, pkcs7->contentType,
+                                     pkcs7->contentTypeSz,
+                                     contentTypeOid, sizeof(contentTypeOid),
+                                     messageDigestOid, sizeof(messageDigestOid),
+                                     signingTimeOid, sizeof(signingTimeOid),
+                                     signingTime, sizeof(signingTime));
+            if (ret < 0) {
+                idx = ret;
+                goto out;
+            }
+
+            if (esd->signedAttribsSz > 0) {
+                if (flatSignedAttribs == NULL) {
+                    idx = MEMORY_E;
+                    goto out;
+                }
+
+                flatSignedAttribsSz = esd->signedAttribsSz;
+                FlattenAttributes(pkcs7, flatSignedAttribs,
+                                   esd->signedAttribs, esd->signedAttribsCount);
+            } else {
+                esd->signedAttribSetSz = 0;
+            }
+        }
+
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signedAttribSet, esd->signedAttribSetSz);
         idx += esd->signedAttribSetSz;
-        XMEMCPY(output2 + idx, flatSignedAttribs, flatSignedAttribsSz);
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
     }
 
-    XMEMCPY(output2 + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
+    if (hashBuf == NULL && pkcs7->sidType != DEGENERATE_SID) {
+        /* Calculate the final hash and encrypt it. */
+        WOLFSSL_MSG("Recreating signature with new hash");
+        ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
+                                                flatSignedAttribsSz, esd);
+        if (ret < 0) {
+            idx = ret;
+            goto out;
+        }
+    }
+
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->digEncAlgoId, esd->digEncAlgoIdSz);
     idx += esd->digEncAlgoIdSz;
-    XMEMCPY(output2 + idx, esd->signerDigest, esd->signerDigestSz);
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->signerDigest, esd->signerDigestSz);
     idx += esd->signerDigestSz;
-    XMEMCPY(output2 + idx, esd->encContentDigest, esd->encContentDigestSz);
+
+    wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                esd->encContentDigest, esd->encContentDigestSz);
     idx += esd->encContentDigestSz;
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->encodeStream) {
+        byte indefEnd[ASN_INDEF_END_SZ * 3];
+        word32 localIdx = 0;
+
         /* end of signedData seq */
-        idx += SetIndefEnd(output2 + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of outer content set */
-        idx += SetIndefEnd(output2 + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of outer content info seq */
-        idx += SetIndefEnd(output2 + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
+
+        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                    indefEnd, localIdx);
+        idx += localIdx;
     }
 #endif
 
@@ -2881,31 +3366,24 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     word32* outputFootSz)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    ESD* esd;
-#else
-    ESD  esd[1];
-#endif
 
     /* other args checked in wc_PKCS7_EncodeSigned_ex */
-    if (pkcs7 == NULL || outputFoot == NULL || outputFootSz == NULL) {
+    if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    esd = (ESD*)XMALLOC(sizeof(ESD), pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (esd == NULL)
-        return MEMORY_E;
+#ifndef ASN_BER_TO_DER
+    if (outputFoot == NULL || outputFootSz == NULL)
+#else
+    if (pkcs7->getContentCb == NULL &&
+        (outputFoot == NULL || outputFootSz == NULL))
 #endif
+    {
+        return BAD_FUNC_ARG;
+    }
 
-    XMEMSET(esd, 0, sizeof(ESD));
-
-    ret = PKCS7_EncodeSigned(pkcs7, esd, hashBuf, hashSz,
+    ret = PKCS7_EncodeSigned(pkcs7, hashBuf, hashSz,
         outputHead, outputHeadSz, outputFoot, outputFootSz);
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
     return ret;
 }
@@ -2993,55 +3471,50 @@ int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag)
 int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int ret;
-    int hashSz;
-    enum wc_HashType hashType;
-    byte hashBuf[WC_MAX_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    ESD* esd;
-#else
-    ESD  esd[1];
-#endif
 
     /* other args checked in wc_PKCS7_EncodeSigned_ex */
-    if (pkcs7 == NULL || (pkcs7->contentSz > 0 && pkcs7->content == NULL)) {
+    if (pkcs7 == NULL || (pkcs7->contentSz > 0 &&
+    #ifdef ASN_BER_TO_DER
+        (pkcs7->content == NULL && pkcs7->getContentCb == NULL))
+    #else
+        pkcs7->content == NULL)
+    #endif
+    ) {
         return BAD_FUNC_ARG;
     }
 
-    /* get hash type and size, validate hashOID */
-    hashType = wc_OidGetHash(pkcs7->hashOID);
-    hashSz = wc_HashGetDigestSize(hashType);
-    if (hashSz < 0)
-        return hashSz;
+    /* pre-calculate hash for ECC signatures */
+    if (pkcs7->publicKeyOID == ECDSAk) {
+        int hashSz;
+        enum wc_HashType hashType;
+        byte hashBuf[WC_MAX_DIGEST_SIZE];
+        wc_HashAlg hash;
 
-#ifdef WOLFSSL_SMALL_STACK
-    esd = (ESD*)XMALLOC(sizeof(ESD), pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (esd == NULL)
-        return MEMORY_E;
-#endif
+        /* get hash type and size, validate hashOID */
+        hashType = wc_OidGetHash(pkcs7->hashOID);
+        hashSz = wc_HashGetDigestSize(hashType);
+        if (hashSz < 0)
+            return hashSz;
 
-    XMEMSET(esd, 0, sizeof(ESD));
-    esd->hashType = hashType;
-
-    /* calculate hash for content */
-    ret = wc_HashInit(&esd->hash, esd->hashType);
-    if (ret == 0) {
-        ret = wc_HashUpdate(&esd->hash, esd->hashType,
-                            pkcs7->content, pkcs7->contentSz);
+        /* calculate hash for content */
+        ret = wc_HashInit(&hash, hashType);
         if (ret == 0) {
-            ret = wc_HashFinal(&esd->hash, esd->hashType, hashBuf);
+            ret = wc_HashUpdate(&hash, hashType,
+                            pkcs7->content, pkcs7->contentSz);
+            if (ret == 0) {
+                ret = wc_HashFinal(&hash, hashType, hashBuf);
+            }
+            wc_HashFree(&hash, hashType);
         }
-        wc_HashFree(&esd->hash, esd->hashType);
+        if (ret == 0) {
+            ret = PKCS7_EncodeSigned(pkcs7, hashBuf, hashSz,
+                output, &outputSz, NULL, NULL);
+        }
     }
-
-    if (ret == 0) {
-        ret = PKCS7_EncodeSigned(pkcs7, esd, hashBuf, hashSz,
-            output, &outputSz, NULL, NULL);
+    else {
+        ret = PKCS7_EncodeSigned(pkcs7, NULL, 0, output, &outputSz,
+            NULL, NULL);
     }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
     return ret;
 }
 
@@ -7543,12 +8016,52 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
 #endif /* !NO_RSA */
 
+/* abstraction for writing out PKCS7 bundle during creation
+   returns 0 on success
+ */
+int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
+    word32 inputSz)
+{
+    int ret = 0;
+
+    if (inputSz == 0)
+        return 0;
+
+    if (input == NULL) {
+        WOLFSSL_MSG("Internal error, trying to write out NULL buffer");
+        return -1;
+    }
+
+#ifdef ASN_BER_TO_DER
+    if (pkcs7->streamOutCb) {
+        ret = pkcs7->streamOutCb(pkcs7, input, inputSz, pkcs7->streamCtx);
+        /* sanity check on user provided ret value */
+        if (ret < 0) {
+            WOLFSSL_MSG("Return value error from stream out callback");
+            ret = BUFFER_E;
+        }
+    }
+    else
+#endif
+    if (output) {
+        XMEMCPY(output, input, inputSz);
+    }
+    else {
+        WOLFSSL_MSG("No way provided to output bundle");
+        ret = BUFFER_E;
+    }
+
+    (void)pkcs7;
+    return ret;
+}
+
 
 /* encrypt content using encryptOID algo */
-static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
+static int wc_PKCS7_EncryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
+                                   int keySz,
                                    byte* iv, int ivSz, byte* aad, word32 aadSz,
                                    byte* authTag, word32 authTagSz, byte* in,
-                                   int inSz, byte* out, int devId, void* heap)
+                                   int inSz, byte* out)
 {
     int ret;
 #ifndef NO_AES
@@ -7562,9 +8075,22 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
     Des  des;
     Des3 des3;
 #endif
+    int devId  = pkcs7->devId;
+    void* heap = pkcs7->heap;
 
-    if (key == NULL || iv == NULL || in == NULL || out == NULL)
+    if (key == NULL || iv == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef ASN_BER_TO_DER
+    if ((in == NULL && pkcs7->getContentCb == NULL) ||
+        (out == NULL && pkcs7->streamOutCb == NULL)) {
+        WOLFSSL_MSG("No input or output set for encrypt");
+        return BAD_FUNC_ARG;
+    }
+#else
+    if (in == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+#endif
 
     switch (encryptOID) {
 #ifndef NO_AES
@@ -7600,11 +8126,8 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (ret == 0) {
                 ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
                 if (ret == 0) {
-                    ret = wc_AesCbcEncrypt(aes, out, in, inSz);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* async encrypt not available here, so block till done */
-                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
-                #endif
+                    ret = wc_PKCS7_EncodeContentStream(pkcs7, NULL, aes, in,
+                        inSz, out, WC_CIPHER_AES_CBC);
                 }
                 wc_AesFree(aes);
             }
@@ -7637,11 +8160,31 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (ret == 0) {
                 ret = wc_AesGcmSetKey(aes, key, keySz);
                 if (ret == 0) {
+                #ifndef WOLFSSL_AESGCM_STREAM
+                    if (pkcs7->encodeStream) {
+                        WOLFSSL_MSG("Not AES-GCM stream support compiled in");
+                        ret = NOT_COMPILED_IN;
+                    }
                     ret = wc_AesGcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     /* async encrypt not available here, so block till done */
                     ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                #else
+                    ret = wc_AesGcmEncryptInit(aes, key, keySz, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, aad,
+                            aadSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_PKCS7_EncodeContentStream(pkcs7, NULL, aes, in,
+                            inSz, out, WC_CIPHER_AES_GCM);
+                    }
+
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptFinal(aes, authTag, authTagSz);
+                    }
                 #endif
                 }
                 wc_AesFree(aes);
@@ -7666,6 +8209,11 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             defined(WOLFSSL_AES_256)
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
+
+            if (pkcs7->encodeStream) {
+                WOLFSSL_MSG("Streaming encoding not supported with AES-CCM");
+                return BAD_FUNC_ARG;
+            }
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
@@ -7697,6 +8245,11 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (keySz != DES_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
+            if (pkcs7->encodeStream) {
+                WOLFSSL_MSG("Streaming encoding not supported with DES3");
+                return BAD_FUNC_ARG;
+            }
+
             ret = wc_Des_SetKey(&des, key, iv, DES_ENCRYPTION);
             if (ret == 0)
                 ret = wc_Des_CbcEncrypt(&des, out, in, inSz);
@@ -7706,6 +8259,11 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
         case DES3b:
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
+
+            if (pkcs7->encodeStream) {
+                WOLFSSL_MSG("Streaming encoding not supported with DES3");
+                return BAD_FUNC_ARG;
+            }
 
             ret = wc_Des3Init(&des3, heap, devId);
             if (ret == 0) {
@@ -8255,17 +8813,17 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
 
     if (ret == 0) {
         /* encrypt, normal */
-        ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, (byte*)iv,
-                                      ivSz, NULL, 0, NULL, 0, out, outLen, out,
-                                      pkcs7->devId, pkcs7->heap);
+        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz,
+                                      (byte*)iv, ivSz, NULL, 0, NULL, 0, out,
+                                      outLen, out);
     }
 
     if (ret == 0) {
         /* encrypt again, using last ciphertext block as IV */
         lastBlock = out + (((outLen / blockSz) - 1) * blockSz);
-        ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, lastBlock,
-                                      blockSz, NULL, 0, NULL, 0, out,
-                                      outLen, out, pkcs7->devId, pkcs7->heap);
+        ret = wc_PKCS7_EncryptContent(pkcs7, algID, (byte*)kek, kekSz,
+                                      lastBlock, blockSz, NULL, 0, NULL, 0, out,
+                                      outLen, out);
     }
 
     if (ret == 0) {
@@ -8953,8 +9511,8 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     WC_RNG rng;
     int blockSz, blockKeySz;
-    byte* plain;
-    byte* encryptedContent;
+    byte* plain            = NULL;
+    byte* encryptedContent = NULL;
 
     Pkcs7EncodedRecip* tmpRecip = NULL;
     int recipSz, recipSetSz;
@@ -8968,12 +9526,27 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte tmpIv[MAX_CONTENT_IV_SIZE];
     byte ivOctetString[MAX_OCTET_STR_SZ];
     byte encContentOctet[MAX_OCTET_STR_SZ];
+#ifdef ASN_BER_TO_DER
+    word32 streamSz = 0;
+#endif
 
-    if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0)
+    if (pkcs7 == NULL
+        #ifndef ASN_BER_TO_DER
+            || pkcs7->content == NULL
+        #endif
+            || pkcs7->contentSz == 0) {
         return BAD_FUNC_ARG;
+    }
 
+#ifndef ASN_BER_TO_DER
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
+#else
+    /* if both output and callback are not set then error out */
+    if ((output == NULL || outputSz == 0) && (pkcs7->streamOutCb == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
     if (blockKeySz < 0)
@@ -9082,26 +9655,37 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     encryptedOutSz = pkcs7->contentSz + padSz;
 
-    plain = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    if (plain == NULL) {
-        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-        return MEMORY_E;
+#ifdef ASN_BER_TO_DER
+    if (pkcs7->getContentCb == NULL)
+#endif
+    {
+        plain = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (plain == NULL) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return MEMORY_E;
+        }
+
+        ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
+                               encryptedOutSz, blockSz);
+        if (ret < 0) {
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return ret;
+        }
+
     }
 
-    ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
-                           encryptedOutSz, blockSz);
-    if (ret < 0) {
-        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-        return ret;
-    }
-
-    encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
-                                      DYNAMIC_TYPE_PKCS7);
-    if (encryptedContent == NULL) {
-        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-        return MEMORY_E;
+#ifdef ASN_BER_TO_DER
+    if (pkcs7->streamOutCb == NULL)
+#endif
+    {
+        encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+                                          DYNAMIC_TYPE_PKCS7);
+        if (encryptedContent == NULL) {
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return MEMORY_E;
+        }
     }
 
     /* put together IV OCTET STRING */
@@ -9119,19 +9703,6 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
     }
 
-    /* encrypt content */
-    ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
-            pkcs7->cekSz, tmpIv, blockSz, NULL, 0, NULL, 0, plain,
-            encryptedOutSz, encryptedContent,
-            pkcs7->devId, pkcs7->heap);
-
-    if (ret != 0) {
-        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-        return ret;
-    }
-
     encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
                                 encContentOctet, pkcs7->encodeStream);
     encContentSeqSz = SetSequenceEx(contentTypeSz + contentEncAlgoSz +
@@ -9147,7 +9718,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* EnvelopedData */
 #ifdef ASN_BER_TO_DER
     if (pkcs7->encodeStream) {
-        word32 streamSz = 0, tmpIdx = 0;
+        word32 tmpIdx = 0;
 
         /* account for ending of encContentOctet */
         totalSz += ASN_INDEF_END_SZ;
@@ -9158,6 +9729,18 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         /* account for asn1 syntax around octet strings */
         StreamOctetString(NULL, encryptedOutSz, NULL, &streamSz, &tmpIdx);
         totalSz += (streamSz - encryptedOutSz);
+
+        /* resize encrytped content buffer */
+        if (encryptedContent != NULL) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        encryptedContent = (byte*)XMALLOC(streamSz, pkcs7->heap,
+                                          DYNAMIC_TYPE_PKCS7);
+        if (encryptedContent == NULL) {
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+            return MEMORY_E;
+        }
+        }
     }
 #endif
     envDataSeqSz = SetSequenceEx(totalSz, envDataSeq, pkcs7->encodeStream);
@@ -9190,7 +9773,11 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     #endif
     }
 
-    if (totalSz > (int)outputSz) {
+    if ((totalSz > (int)outputSz)
+    #ifdef ASN_BER_TO_DER
+         && (pkcs7->streamOutCb == NULL)
+    #endif
+    ) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9198,75 +9785,121 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BUFFER_E;
     }
 
+    /* begin writing out PKCS7 bundle */
     if (pkcs7->contentOID != FIRMWARE_PKG_DATA) {
-        XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            contentInfoSeq, contentInfoSeqSz);
         idx += contentInfoSeqSz;
-        XMEMCPY(output + idx, outerContentType, outerContentTypeSz);
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            outerContentType, outerContentTypeSz);
         idx += outerContentTypeSz;
-        XMEMCPY(output + idx, outerContent, outerContentSz);
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            outerContent, outerContentSz);
         idx += outerContentSz;
     }
 
-    XMEMCPY(output + idx, envDataSeq, envDataSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            envDataSeq, envDataSeqSz);
     idx += envDataSeqSz;
-    XMEMCPY(output + idx, ver, verSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            ver, verSz);
     idx += verSz;
-    XMEMCPY(output + idx, recipSet, recipSetSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            recipSet, recipSetSz);
     idx += recipSetSz;
     /* copy in recipients from list */
     tmpRecip = pkcs7->recipList;
     while (tmpRecip != NULL) {
-        XMEMCPY(output + idx, tmpRecip->recip, tmpRecip->recipSz);
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            tmpRecip->recip, tmpRecip->recipSz);
         idx += tmpRecip->recipSz;
         tmpRecip = tmpRecip->next;
     }
     wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
 
-    XMEMCPY(output + idx, encContentSeq, encContentSeqSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            encContentSeq, encContentSeqSz);
     idx += encContentSeqSz;
-    XMEMCPY(output + idx, contentType, contentTypeSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            contentType, contentTypeSz);
     idx += contentTypeSz;
-    XMEMCPY(output + idx, contentEncAlgo, contentEncAlgoSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            contentEncAlgo, contentEncAlgoSz);
     idx += contentEncAlgoSz;
-    XMEMCPY(output + idx, ivOctetString, ivOctetStringSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            ivOctetString, ivOctetStringSz);
     idx += ivOctetStringSz;
-    XMEMCPY(output + idx, tmpIv, blockSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            tmpIv, blockSz);
     idx += blockSz;
-    XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
+    wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            encContentOctet, encContentOctetSz);
     idx += encContentOctetSz;
+
+    /* encrypt content */
+    ret = wc_PKCS7_EncryptContent(pkcs7, pkcs7->encryptOID, pkcs7->cek,
+            pkcs7->cekSz, tmpIv, blockSz, NULL, 0, NULL, 0, plain,
+            encryptedOutSz, encryptedContent);
+    if (ret != 0) {
+        if (encryptedContent != NULL) {
+            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        }
+
+        if (plain != NULL) {
+            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        }
+
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+        return ret;
+    }
 
 #ifdef ASN_BER_TO_DER
     /* stream the content (octet string with multiple octet elements) */
     if (pkcs7->encodeStream) {
-        if (StreamOctetString(encryptedContent, encryptedOutSz, output,
-            &outputSz, (word32*)&idx) != 0) {
-            return BUFFER_E;
+        byte indefEnd[ASN_INDEF_END_SZ * 5];
+        word32 localIdx = 0;
+
+        /* advance index past encrypted content */
+        if (!pkcs7->streamOutCb) {
+            wc_PKCS7_WriteOut(pkcs7, (output)? output + idx : NULL,
+                encryptedContent, streamSz);
         }
+        idx += streamSz;
 
         /* end of encrypted content */
-        idx += SetIndefEnd(output + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of encrypted content info */
-        idx += SetIndefEnd(output + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of Enveloped Data seq */
-        idx += SetIndefEnd(output + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of outer content set */
-        idx += SetIndefEnd(output + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
 
         /* end of outer content info seq */
-        idx += SetIndefEnd(output + idx);
+        localIdx += SetIndefEnd(indefEnd + localIdx);
+
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            indefEnd, localIdx);
+        idx += localIdx;
     }
     else
 #endif
     {
-        XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+        wc_PKCS7_WriteOut(pkcs7, (output)? (output + idx) : NULL,
+            encryptedContent, encryptedOutSz);
         idx += encryptedOutSz;
     }
 
-    XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (plain != NULL) {
+        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    }
+
+    if (encryptedContent != NULL) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    }
 
     return idx;
 }
@@ -12198,10 +12831,9 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     }
 
     /* encrypt content */
-    ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
+    ret = wc_PKCS7_EncryptContent(pkcs7, pkcs7->encryptOID, pkcs7->cek,
             pkcs7->cekSz, nonce, nonceSz, aadBuffer, aadBufferSz, authTag,
-            sizeof(authTag), plain, encryptedOutSz, encryptedContent,
-            pkcs7->devId, pkcs7->heap);
+            sizeof(authTag), plain, encryptedOutSz, encryptedContent);
 
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     plain = NULL;
@@ -13138,10 +13770,9 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
     }
 
-    ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->encryptionKey,
-            pkcs7->encryptionKeySz, tmpIv, blockSz, NULL, 0, NULL, 0,
-            plain, encryptedOutSz, encryptedContent,
-            pkcs7->devId, pkcs7->heap);
+    ret = wc_PKCS7_EncryptContent(pkcs7, pkcs7->encryptOID,
+            pkcs7->encryptionKey, pkcs7->encryptionKeySz, tmpIv, blockSz, NULL,
+            0, NULL, 0, plain, encryptedOutSz, encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -13707,16 +14338,24 @@ int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
 
 /* set stream mode for encoding and signing
  * returns 0 on success */
-int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag)
+int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
+    CallbackGetContent getContentCb,
+    CallbackStreamOut streamOutCb, void* ctx)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
     }
 #ifdef ASN_BER_TO_DER
     pkcs7->encodeStream = flag;
+    pkcs7->getContentCb = getContentCb;
+    pkcs7->streamOutCb  = streamOutCb;
+    pkcs7->streamCtx    = ctx;
     return 0;
 #else
     (void)flag;
+    (void)getContentCb;
+    (void)streamOutCb;
+    (void)ctx;
     return NOT_COMPILED_IN;
 #endif
 }
