@@ -2537,6 +2537,9 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
         if (cipherType == WC_CIPHER_NONE && esd && esd->contentDigestSet != 1) {
             /* calculate hash for content */
             ret = wc_HashInit(&esd->hash, esd->hashType);
+            if (ret != 0) {
+                return ret;
+            }
         }
 
         encContentOut = XMALLOC(BER_OCTET_LENGTH + MAX_OCTET_STR_SZ,
@@ -2596,6 +2599,11 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                 ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType,
                     aes, encContentOut, contentData, BER_OCTET_LENGTH, out,
                     &outIdx, esd);
+                if (ret != 0) {
+                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                    return ret;
+                }
 
                 /* copy over any remaining data */
                 XMEMCPY(contentData, buf + sz, contentDataRead);
@@ -2628,11 +2636,13 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
         /* encrypt and flush out remainder of content data */
         ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
                     encContentOut, contentData, idx, out, &outIdx, esd);
-
-        if (cipherType == WC_CIPHER_NONE && esd && esd->contentDigestSet != 1) {
-            ret = wc_HashFinal(&esd->hash, esd->hashType,
-                esd->contentDigest + 2);
-            wc_HashFree(&esd->hash, esd->hashType);
+        if (ret == 0) {
+            if (cipherType == WC_CIPHER_NONE && esd &&
+                    esd->contentDigestSet != 1) {
+                ret = wc_HashFinal(&esd->hash, esd->hashType,
+                    esd->contentDigest + 2);
+                wc_HashFree(&esd->hash, esd->hashType);
+            }
         }
 
         XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
