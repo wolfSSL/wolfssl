@@ -2430,6 +2430,72 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
     #define BER_OCTET_LENGTH 4096
 #endif
 
+/**
+ * This helper function encodes a chunk of content stream and writes it out.
+ *
+ * @param pkcs7 Pointer to a PKCS7 structure.
+ * @param cipherType The type of cipher to use for encryption.
+ * @param aes Optional pointer to an Aes structure for AES encryption.
+ * @param encContentOut Buffer to hold the encrypted content.
+ * @param contentData Buffer holding the content to be encrypted.
+ * @param contentDataSz Size of the content to be encrypted.
+ * @param out Buffer to hold the output data.
+ * @param outIdx Pointer to an index into the output buffer.
+ * @param esd Pointer to an ESD structure for digest calculation.
+ * @return Returns 0 on success, and a negative value on failure.
+ */
+static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
+    Aes* aes, byte* encContentOut, byte* contentData, int contentDataSz,
+    byte* out, word32* outIdx, ESD* esd)
+{
+    int ret = BAD_FUNC_ARG;
+    byte   encContentOutOct[MAX_OCTET_STR_SZ];
+    word32 encContentOutOctSz = 0;
+
+    switch (cipherType) {
+        case WC_CIPHER_NONE:
+            XMEMCPY(encContentOut, contentData, contentDataSz);
+            if (esd && esd->contentDigestSet != 1) {
+                ret = wc_HashUpdate(&esd->hash, esd->hashType,
+                    contentData, contentDataSz);
+            }
+            break;
+
+    #ifndef NO_AES
+        case WC_CIPHER_AES_CBC:
+            ret = wc_AesCbcEncrypt(aes, encContentOut,
+                contentData, contentDataSz);
+            break;
+    #endif
+
+    #ifdef WOLFSSL_AESGCM_STREAM
+        case WC_CIPHER_AES_GCM:
+            ret = wc_AesGcmEncryptUpdate(aes, encContentOut,
+                    contentData, contentDataSz, NULL, 0);
+            break;
+    #endif
+    }
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* async encrypt not available here, so block till done */
+        if (ret == WC_PENDING_E && cipherType != WC_CIPHER_NONE) {
+            ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+
+    if (ret == 0) {
+        encContentOutOctSz = SetOctetString(contentDataSz, encContentOutOct);
+        wc_PKCS7_WriteOut(pkcs7, (out)? out + *outIdx: NULL,
+                          encContentOutOct, encContentOutOctSz);
+        *outIdx += encContentOutOctSz;
+        wc_PKCS7_WriteOut(pkcs7, (out)? out + *outIdx : NULL,
+                                            encContentOut, contentDataSz);
+        *outIdx += contentDataSz;
+    }
+
+    return ret;
+}
+
 
 /* Used for encoding the content, potentially one octet chunck at a time if
  * in streaming mode with IO callbacks set.
@@ -2457,8 +2523,6 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
     if (pkcs7->encodeStream) {
         int    sz;
         word32 totalSz = 0;
-        byte   encContentOutOct[MAX_OCTET_STR_SZ];
-        word32 encContentOutOctSz = 0;
         byte*  buf;
         byte*  encContentOut;
         byte*  contentData;
@@ -2487,9 +2551,6 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             return MEMORY_E;
         }
 
-        encContentOutOctSz = SetOctetString(BER_OCTET_LENGTH,
-                                              encContentOutOct);
-
         /* keep pulling from content until empty */
         do {
             int contentDataRead = 0;
@@ -2498,6 +2559,14 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             if (pkcs7->getContentCb) {
                 contentDataRead = pkcs7->getContentCb(pkcs7,
                                                       &buf, pkcs7->streamCtx);
+
+                if (buf == NULL) {
+                    WOLFSSL_MSG("Get content callback returned null "
+                        "buffer pointer");
+                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                    return BAD_FUNC_ARG;
+                }
             }
             else
         #endif
@@ -2515,14 +2584,6 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                 /* no more data returned from callback */
                 break;
             }
-
-            if (buf == NULL) {
-                WOLFSSL_MSG("Get content callback returned null "
-                    "buffer pointer");
-                XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
-                XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
-                return BAD_FUNC_ARG;
-            }
             totalSz += (word32)contentDataRead;
 
             /* check and handle octet boundary */
@@ -2532,50 +2593,9 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                 contentDataRead -= sz;
 
                 XMEMCPY(contentData + idx, buf, sz);
-
-                /* encrypt and flush out data */
-                switch (cipherType) {
-                    case WC_CIPHER_NONE:
-                        XMEMCPY(encContentOut, contentData, BER_OCTET_LENGTH);
-                        if (esd && esd->contentDigestSet != 1) {
-                            ret = wc_HashUpdate(&esd->hash, esd->hashType,
-                                contentData, BER_OCTET_LENGTH);
-                        }
-                        break;
-
-                #ifndef NO_AES
-                    case WC_CIPHER_AES_CBC:
-                        ret = wc_AesCbcEncrypt(aes, encContentOut,
-                            contentData, BER_OCTET_LENGTH);
-                        break;
-                #endif
-
-                #ifdef WOLFSSL_AESGCM_STREAM
-                    case WC_CIPHER_AES_GCM:
-                        ret = wc_AesGcmEncryptUpdate(aes, encContentOut,
-                                contentData, BER_OCTET_LENGTH, NULL, 0);
-                        break;
-                #endif
-                }
-
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                /* async encrypt not available here, so block till done */
-                if (cipherType != WC_CIPHER_NONE) {
-                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
-                }
-            #endif
-                if (pkcs7->encodeStream) {
-                    wc_PKCS7_WriteOut(pkcs7,
-                                     (out)? out + outIdx: NULL,
-                                     encContentOutOct,
-                                     encContentOutOctSz);
-                    outIdx += encContentOutOctSz;
-                }
-                wc_PKCS7_WriteOut(pkcs7,
-                                    (out)? out + outIdx : NULL,
-                                    encContentOut,
-                                    BER_OCTET_LENGTH);
-                outIdx += BER_OCTET_LENGTH;
+                ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType,
+                    aes, encContentOut, contentData, BER_OCTET_LENGTH, out,
+                    &outIdx, esd);
 
                 /* copy over any remaining data */
                 XMEMCPY(contentData, buf + sz, contentDataRead);
@@ -2605,45 +2625,9 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             idx += padSz;
         }
 
-
         /* encrypt and flush out remainder of content data */
-        switch (cipherType) {
-            case WC_CIPHER_NONE:
-                XMEMCPY(encContentOut, contentData, idx);
-                if (esd && esd->contentDigestSet != 1) {
-                    ret = wc_HashUpdate(&esd->hash, esd->hashType, contentData,
-                                        idx);
-                }
-                break;
-
-        #ifndef NO_AES
-            case WC_CIPHER_AES_CBC:
-                ret = wc_AesCbcEncrypt(aes, encContentOut, contentData, idx);
-                break;
-        #endif
-
-        #ifdef WOLFSSL_AESGCM_STREAM
-            case WC_CIPHER_AES_GCM:
-                ret = wc_AesGcmEncryptUpdate(aes, encContentOut,
-                        contentData, idx, NULL, 0);
-                break;
-        #endif
-        }
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* async encrypt not available here, so block till done */
-        if (cipherType != WC_CIPHER_NONE) {
-            ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
-        }
-    #endif
-        if (pkcs7->encodeStream) {
-            encContentOutOctSz = SetOctetString(idx,
-                                              encContentOutOct);
-            wc_PKCS7_WriteOut(pkcs7, (out)? out + outIdx: NULL,
-                          encContentOutOct, encContentOutOctSz);
-            outIdx += encContentOutOctSz;
-        }
-        wc_PKCS7_WriteOut(pkcs7, (out)? out + outIdx : NULL,
-                                            encContentOut, idx);
+        ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+                    encContentOut, contentData, idx, out, &outIdx, esd);
 
         if (cipherType == WC_CIPHER_NONE && esd && esd->contentDigestSet != 1) {
             ret = wc_HashFinal(&esd->hash, esd->hashType,
@@ -7574,7 +7558,7 @@ int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
         XMEMCPY(output, input, inputSz);
     }
     else {
-        WOLFSSL_MSG("No provided way to output bundle");
+        WOLFSSL_MSG("No way provided to output bundle");
         ret = BUFFER_E;
     }
 
