@@ -1476,7 +1476,7 @@ static const char* bench_result_words3[][5] = {
                 ESP_LOGI(TAG, "expected_diff       = %llu", expected_diff);
                 ESP_LOGI(TAG, "tickBeginDiff       = %lu", tickBeginDiff);
 
-                ESP_LOGW(TAG, "");
+                ESP_LOGW(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
             }
             #endif
         }

@@ -1,0 +1,23 @@
+
+EXTRA_DIST += wolfcrypt/src/port/autosar/csm.c \
+              wolfcrypt/src/port/autosar/crypto.c \
+              wolfcrypt/src/port/autosar/cryif.c \
+              wolfcrypt/src/port/autosar/README.md \
+              wolfcrypt/src/port/autosar/test.c
+
+if BUILD_AUTOSAR
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/autosar/csm.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/autosar/crypto.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/autosar/cryif.c
+
+if BUILD_TESTS
+check_PROGRAMS += wolfcrypt/src/port/autosar/test.test
+noinst_PROGRAMS += wolfcrypt/src/port/autosar/test.test
+
+wolfcrypt_src_port_autosar_test_test_SOURCES = \
+                        wolfcrypt/src/port/autosar/test.c
+wolfcrypt_src_port_autosar_test_test_LDADD = \
+                        src/libwolfssl.la $(LIB_STATIC_ADD)
+wolfcrypt_src_port_autosar_test_test_DEPENDENCIES = src/libwolfssl.la
+endif
+endif

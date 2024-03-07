@@ -227,10 +227,13 @@ int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type)
 #if defined(CONFIG_IDF_TARGET_ESP32) || \
     defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
     switch (hash_type) { /* check each wolfSSL hash type WC_[n] */
+
+        #ifndef NO_SHA
         case WC_HASH_TYPE_SHA:
             ctx->sha_type = SHA1; /* assign Espressif SHA HW type */
             ret = esp_sha_init_ctx(ctx);
             break;
+        #endif
 
         case WC_HASH_TYPE_SHA224:
         #if defined(CONFIG_IDF_TARGET_ESP32S2) || \
@@ -333,7 +336,6 @@ int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type)
     return ret;
 }
 
-#ifndef NO_SHAx /* TODO cannot currently turn off SHA */
 /* we'll call a separate init as there's only 1 HW acceleration */
 int esp_sha_init_ctx(WC_ESP32SHA* ctx)
 {
@@ -522,6 +524,7 @@ int esp_sha_init_ctx(WC_ESP32SHA* ctx)
                     * We assume all issues handled, above. */
 } /* esp_sha_init_ctx */
 
+#ifndef NO_SHA
 /*
 ** internal SHA ctx copy for ESP HW
 */

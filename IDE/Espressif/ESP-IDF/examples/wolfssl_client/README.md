@@ -8,12 +8,50 @@ When using the CLI, see the [example parameters](/IDE/Espressif/ESP-IDF/examples
 For general information on [wolfSSL examples for Espressif](../README.md), see the
 [README](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md) file.
 
-## VisualGDB
+## Quick Start
+
+Use the [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)
+for ESP32 or [RTOS SDK](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/get-started/index.html)
+for the ESP8266.
+
+Run `menuconfig` utility (`idf.py menuconfig` for ESP32 or `make menuconfig` for the ESP8266)
+and set the various parameters for the target device, along with local WiFi settings:
+
+* Target Host: `CONFIG_WOLFSSL_TARGET_HOST` (The IP address of a listening server)
+* Target Port: `CONFIG_WOLFSSL_TARGET_PORT` (Typically `11111`)
+* Example WiFi SSID: `CONFIG_EXAMPLE_WIFI_SSID` (The WiFi that you want to connect to)
+* Example WiFi Password: `CONFIG_EXAMPLE_WIFI_PASSWORD` (The WiFi password)
+
+The latest examples use makefiles that do not require local file copy installation of wolfSSL.
+
+Build and flash the software to see the example in action.
+
+##  Quick Start with VisualGDB
+
+There are optional [VisualGDB](https://visualgdb.com/tutorials/esp8266/) project files in the
+[VisualGDB](./VisualGDB) project subdirectory, and an ESP8266 project file in the project directory,
+called `wolfssl_client_ESP8266.vgdbproj`.
 
 Open the VisualGDB Visual Studio Project file in the VisualGDB directory and click the "Start" button.
-No wolfSSL setup is needed. You may need to adjust your specific COM port. The default is `COM20`.
+No wolfSSL setup is needed. You may need to adjust your specific COM port. The default is `COM19`.
 
-## ESP-IDF Commandline
+## Troubleshooting
+
+Weird results, odd messages, unexpected compiler errors? Manually delete the build directory and
+any locally generated files (`sdkconfig`, `sdkconfig-debug`, etc.) and start over.
+
+The `build` directory is typically located in the root of the project directory:  `[project]/build`.
+
+
+Difficulty flashing:
+
+* Ensure the target device has a robust, stable, clean power supply.
+* Check that quality USB cables are being used.
+* Try lowering the flash baud rate in the `menuconfig`. The 115200 is typically reliable.
+* Review board specifications: some require manual boot mode via on-board buttons.
+* See [Espressif ESP Frequently Asked Questions](https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf)
+
+## ESP-IDF Commandline v5.x
 
 
 1. `idf.py menuconfig` to config the project
@@ -38,9 +76,83 @@ When you want to test the wolfSSL client
 
          e.g. Launch ./examples/server/server -v 4 -b -i -d
 
+
+## VisualGDB for ESP8266
+
+Reminder that we build with `make` and not `cmake` in VisualGDB.
+
+Build files will be created in `[project directory]\build`
+
+## ESP-IDF make Commandline (version 3.5 or earlier for the ESP8266)
+
+```
+export IDF_PATH=~/esp/ESP8266_RTOS_SDK
+
+```
+
+
+## ESP-IDF CMake Commandline (version 3.5 or earlier for the ESP8266)
+
+Build files will be created in `[project directory]\build\debug`
+
+```
+# Set your path to RTOS SDK, shown here for default from WSL with VisualGDB
+WRK_IDF_PATH=/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4
+#  or
+WRK_IDF_PATH=~/esp/ESP8266_RTOS_SDK
+
+# Setup the environment
+. $WRK_IDF_PATH/export.sh
+
+# install as needed / prompted
+/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4/install.sh
+
+# Fetch wolfssl from GitHub if needed:
+cd /workspace
+git clone https://github.com/wolfSSL/wolfssl.git
+
+# change directory to wolfssl client example.
+cd wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_client
+
+# or for example, WSL with C:\workspace as home for git clones:
+# cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_client
+
+# adjust settings as desired
+idf.py menuconfig
+
+
+idf.py build flash -p /dev/ttyS70 -b 115200
+idf.py monitor -p /dev/ttyS70 -b 74880
+```
+
 ## SM Ciphers
 
-#### Working Linux Client to ESP32 Server
+(TODO coming soon)
+See https://github.com/wolfSSL/wolfsm
+
+#### Working Linux Client to ESP32 Server Example:
+
+```
+./examples/client/client -h 192.168.1.37 -p 11111 -v 3
+```
+
+```text
+-c <file>   Certificate file,           default ./certs/client-cert.pem
+-k <file>   Key file,                   default ./certs/client-key.pem
+-A <file>   Certificate Authority file, default ./certs/ca-cert.pem
+```
+
+Example client, with default certs explicitly given:
+
+```bash
+./examples/client/client -h 192.168.1.37 -p 11111 -v 3 -c ./certs/client-cert.pem -k      ./certs/client-key.pem -A     ./certs/ca-cert.pem
+```
+
+Example client, with RSA 1024 certs explicitly given:
+
+```
+./examples/client/client -h 192.168.1.37 -p 11111 -v 3 -c ./certs/1024/client-cert.pem -k ./certs/1024/client-key.pem -A ./certs/1024/ca-cert.pem
+```
 
 Command:
 
@@ -48,7 +160,6 @@ Command:
 cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_server
 . /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
 idf.py flash -p /dev/ttyS19 -b 115200 monitor
-
 ```
 
 ```
@@ -75,4 +186,3 @@ I hear you fa shizzle!
 ```
 
 See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).
-

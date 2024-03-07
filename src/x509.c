@@ -1545,22 +1545,10 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                         WOLFSSL_MSG("Memory error");
                         return rc;
                     }
-                    if (sk->next) {
-                        if ((valLen = XSNPRINTF(val, len, "%*s%s,",
-                                      indent, "", str->strData))
-                            >= len) {
-                            XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                            return rc;
-                        }
-                    } else {
-                        if ((valLen = XSNPRINTF(val, len, "%*s%s",
-                                      indent, "", str->strData))
-                            >= len) {
-                            XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                            return rc;
-                        }
-                    }
-                    if ((tmpLen + valLen) >= tmpSz) {
+                    valLen = XSNPRINTF(val, len, "%*s%s", indent, "",
+                            str->strData);
+                    if ((valLen < 0) || (valLen >= len)
+                            || ((tmpLen + valLen) >= tmpSz)) {
                         XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return rc;
                     }

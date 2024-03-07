@@ -1,6 +1,6 @@
 /* time_helper.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* common Espressif time_helper v5.6.3.002 */
-#include "esp_idf_version.h"
+/* See https://tf.nist.gov/tf-cgi/servers.cgi */
+
+/* common Espressif time_helper v5.6.6.001 */
 #include "sdkconfig.h"
 #include "time_helper.h"
 
 #include <esp_log.h>
+#include <esp_idf_version.h>
 
 #if defined(ESP_IDF_VERSION_MAJOR) && defined(ESP_IDF_VERSION_MINOR)
     #if (ESP_IDF_VERSION_MAJOR == 5) && (ESP_IDF_VERSION_MINOR >= 1)
@@ -36,25 +38,24 @@
         #include <esp_sntp.h>
     #endif
 #else
-    /* TODO Consider pre IDF v5? */
+    /* TODO Consider non ESP-IDF environments */
 #endif
 
 /* ESP-IDF uses a 64-bit signed integer to represent time_t starting from release v5.0
  * See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#year-2036-and-2038-overflow-issues
  */
-const static char* TAG = "time_helper";
 
 /* see https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html */
 #ifndef TIME_ZONE
-/*
- * PST represents Pacific Standard Time.
- * +8 specifies the offset from UTC (Coordinated Universal Time), indicating
- *   that Pacific Time is UTC-8 during standard time.
- * PDT represents Pacific Daylight Time.
- * M3.2.0 indicates that Daylight Saving Time (DST) starts on the
- *   second (2) Sunday (0) of March (3).
- * M11.1.0 indicates that DST ends on the first (1) Sunday (0) of November (11)
- */
+    /*
+     * PST represents Pacific Standard Time.
+     * +8 specifies the offset from UTC (Coordinated Universal Time), indicating
+     *   that Pacific Time is UTC-8 during standard time.
+     * PDT represents Pacific Daylight Time.
+     * M3.2.0 indicates that Daylight Saving Time (DST) starts on the
+     *   second (2) Sunday (0) of March (3).
+     * M11.1.0 indicates that DST ends on the first (1) Sunday (0) of November (11)
+     */
     #define TIME_ZONE "PST+8PDT,M3.2.0,M11.1.0"
 #endif /* not defined: TIME_ZONE, so we are setting our own */
 
@@ -87,11 +88,13 @@ const static char* TAG = "time_helper";
 
 char* ntpServerList[NTP_SERVER_COUNT] = NTP_SERVER_LIST;
 
+const static char* TAG = "time_helper";
+
 /* our NTP server list is global info */
 extern char* ntpServerList[NTP_SERVER_COUNT];
 
 /* Show the current date and time */
-int esp_show_current_datetime()
+int esp_show_current_datetime(void)
 {
     time_t now;
     char strftime_buf[64];
@@ -104,7 +107,7 @@ int esp_show_current_datetime()
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     ESP_LOGI(TAG, "The current date/time is: %s", strftime_buf);
-    return 0;
+    return ESP_OK;
 }
 
 /* the worst-case scenario is a hard-coded date/time */
@@ -113,9 +116,9 @@ int set_fixed_default_time(void)
     /* ideally, we'd like to set time from network,
      * but let's set a default time, just in case */
     struct tm timeinfo = {
-        .tm_year = 2023 - 1900,
-        .tm_mon  = 10,
-        .tm_mday = 02,
+        .tm_year = 2024 - 1900,
+        .tm_mon  = 1,
+        .tm_mday = 05,
         .tm_hour = 13,
         .tm_min  = 01,
         .tm_sec  = 05
@@ -130,7 +133,38 @@ int set_fixed_default_time(void)
     ESP_LOGI(TAG, "Adjusting time from fixed value");
     now = (struct timeval){ .tv_sec = interim_time };
     ret = settimeofday(&now, NULL);
+    ESP_LOGI(TAG, "settimeofday result = %d", ret);
+    return ret;
+}
 
+/* probably_valid_time_string(s)
+ *
+ * some sanity checks on time string before calling sscanf()
+ *
+ * returns 0 == ESP_OK == Success if str is likely a valid time.
+ *        -1 == ESP_FAIL otherwise
+ */
+int probably_valid_time_string(const char* str)
+{
+    int ret = ESP_OK;
+    size_t length = 0;
+    size_t spaces = 0;
+    size_t colons = 0;
+
+    while (str[length] != '\0') {
+        if (str[length] == ' ') {
+            spaces++;
+        }
+        if (str[length] == ':') {
+            colons++;
+        }
+        length++;
+    }
+
+    if ((length > 32) || (spaces < 4) || (spaces > 5) || (colons > 2)) {
+        ret = ESP_FAIL;
+        ESP_LOGE(TAG, "ERROR, failed time sanity check: %s", str);
+    }
     return ret;
 }
 
@@ -138,60 +172,66 @@ int set_fixed_default_time(void)
  *
  * returns 0 = success if able to set the time from the provided string
  * error for any other value, typically -1 */
-int set_time_from_string(char* time_buffer)
+int set_time_from_string(const char* time_buffer)
 {
     /* expecting github default formatting: 'Thu Aug 31 12:41:45 2023 -0700' */
+    char offset[28]; /* large arrays, just in case there's still bad data */
+    char day_str[28];
+    char month_str[28];
     const char *format = "%3s %3s %d %d:%d:%d %d %s";
     struct tm this_timeinfo;
     struct timeval now;
     time_t interim_time;
-    char offset[6]; /* expecting trailing single quote, not used */
-    char day_str[4];
-    char month_str[4];
     int day, year, hour, minute, second;
     int quote_offset = 0;
     int ret = 0;
 
-    /* we are expecting the string to be encapsulated in single quotes */
-    if (*time_buffer == 0x27) {
-        quote_offset = 1;
-    }
-
-    ret = sscanf(time_buffer + quote_offset,
-                format,
-                day_str, month_str,
-                &day, &hour, &minute, &second, &year, &offset);
-
-    if (ret == 8) {
-        /* we found a match for all componets */
-
-        const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-
-        for (int i = 0; i < 12; i++) {
-            if (strcmp(month_str, months[i]) == 0) {
-                this_timeinfo.tm_mon = i;
-                break;
-            }
+    /* perform some basic sanity checkes */
+    ret = probably_valid_time_string(time_buffer);
+    if (ret == ESP_OK) {
+        /* we are expecting the string to be encapsulated in single quotes */
+        if (*time_buffer == 0x27) {
+            quote_offset = 1;
         }
 
-        this_timeinfo.tm_mday = day;
-        this_timeinfo.tm_hour = hour;
-        this_timeinfo.tm_min = minute;
-        this_timeinfo.tm_sec = second;
-        this_timeinfo.tm_year = year - 1900; /* Number of years since 1900 */
+        ret = sscanf(time_buffer + quote_offset,
+                    format,
+                    day_str, month_str,
+                    &day, &hour, &minute, &second, &year, &offset);
 
-        interim_time = mktime(&this_timeinfo);
-        now = (struct timeval){ .tv_sec = interim_time };
-        ret = settimeofday(&now, NULL);
-        ESP_LOGI(TAG, "Time updated to %s", time_buffer);
+        if (ret == 8) {
+            /* we found a match for all componets */
+
+            const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+            for (int i = 0; i < 12; i++) {
+                if (strcmp(month_str, months[i]) == 0) {
+                    this_timeinfo.tm_mon = i;
+                    break;
+                }
+            }
+
+            this_timeinfo.tm_mday = day;
+            this_timeinfo.tm_hour = hour;
+            this_timeinfo.tm_min = minute;
+            this_timeinfo.tm_sec = second;
+            this_timeinfo.tm_year = year - 1900; /* Number of years since 1900 */
+
+            interim_time = mktime(&this_timeinfo);
+            now = (struct timeval){ .tv_sec = interim_time };
+            ret = settimeofday(&now, NULL);
+            ESP_LOGI(TAG, "Time updated to %s", time_buffer);
+        }
+        else {
+            ESP_LOGE(TAG, "Failed to convert \"%s\" to a tm date.",
+                           time_buffer);
+            ESP_LOGI(TAG, "Trying fixed date that was hard-coded....");
+            set_fixed_default_time();
+            ret = ESP_FAIL;
+        }
     }
-    else {
-        ESP_LOGE(TAG, "Failed to convert \"%s\" to a tm date.", time_buffer);
-        ESP_LOGI(TAG, "Trying fixed date that was hard-coded.");
-        set_fixed_default_time();
-        ret = -1;
-    }
+
     return ret;
 }
 
@@ -224,14 +264,16 @@ int set_time(void)
 
 #ifdef LIBWOLFSSL_VERSION_GIT_HASH_DATE
     /* initialy set a default approximate time from recent git commit */
-    ESP_LOGI(TAG, "Found git hash date, attempting to set system date.");
-    set_time_from_string(LIBWOLFSSL_VERSION_GIT_HASH_DATE);
+    ESP_LOGI(TAG, "Found git hash date, attempting to set system date: %s",
+                   LIBWOLFSSL_VERSION_GIT_HASH_DATE);
+    set_time_from_string(LIBWOLFSSL_VERSION_GIT_HASH_DATE"\0");
     esp_show_current_datetime();
 
     ret = -4;
 #else
     /* otherwise set a fixed time that was hard coded */
     set_fixed_default_time();
+    esp_show_current_datetime();
     ret = -3;
 #endif
 
@@ -262,6 +304,7 @@ int set_time(void)
             }
             ESP_LOGI(TAG, "%s", thisServer);
             sntp_setservername(i, thisServer);
+            ret = ESP_OK;
         }
     #ifdef HAS_ESP_NETIF_SNTP
         ret = esp_netif_sntp_init(&config);
@@ -289,6 +332,9 @@ int set_time(void)
         ESP_LOGW(TAG, "No sntp time servers found.");
         ret = -1;
     }
+
+    esp_show_current_datetime();
+    ESP_LOGI(TAG, "time helper existing with result = %d", ret);
     return ret;
 }
 
@@ -303,6 +349,8 @@ int set_time_wait_for_ntp(void)
     ret = esp_netif_sntp_start();
 
     ret = esp_netif_sntp_sync_wait(500 / portTICK_PERIOD_MS);
+#else
+    ESP_LOGE(TAG, "HAS_ESP_NETIF_SNTP not defined");
 #endif /* HAS_ESP_NETIF_SNTP */
     esp_show_current_datetime();
 

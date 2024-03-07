@@ -1,6 +1,6 @@
 /* client-tls.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
 #include "client-tls.h"
 
 /* Espressif FreeRTOS */
@@ -28,13 +27,15 @@
     #include <freertos/event_groups.h>
 #endif
 
+/* Espressif */
+#include <esp_log.h>
+
 /* socket includes */
 #include <lwip/netdb.h>
 #include <lwip/sockets.h>
 
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/settings.h>
-#include "user_settings.h"
 #include <wolfssl/ssl.h>
 
 #ifdef WOLFSSL_TRACK_MEMORY
@@ -50,30 +51,6 @@
     #define DEFAULT_MAX_DHKEY_BITS 2048
 #endif
 
-#if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
-    #include <wolfssl/certs_test_sm.h>
-    #define CTX_CA_CERT          root_sm2
-    #define CTX_CA_CERT_SIZE     sizeof_root_sm2
-    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_PEM
-    #define CTX_CLIENT_CERT      client_sm2
-    #define CTX_CLIENT_CERT_SIZE sizeof_client_sm2
-    #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_PEM
-    #define CTX_CLIENT_KEY       client_sm2_priv
-    #define CTX_CLIENT_KEY_SIZE  sizeof_client_sm2_priv
-    #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_PEM
-#else
-    #include <wolfssl/certs_test.h>
-    #define CTX_CA_CERT          ca_cert_der_2048
-    #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
-    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
-    #define CTX_CLIENT_CERT      client_cert_der_2048
-    #define CTX_CLIENT_CERT_SIZE sizeof_client_cert_der_2048
-    #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_ASN1
-    #define CTX_CLIENT_KEY       client_key_der_2048
-    #define CTX_CLIENT_KEY_SIZE  sizeof_client_key_der_2048
-    #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
-#endif
-
 /* Project */
 #include "wifi_connect.h"
 #include "time_helper.h"
@@ -87,7 +64,7 @@
  *  -h 192.168.1.128 -v 4 -l TLS13-SM4-CCM-SM3        -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem -A ./certs/sm2/root-sm2.pem -C
  *
  **/
-static const char* const TAG = "tls_client";
+#define TAG "client-tls"
 
 #if defined(DEBUG_WOLFSSL)
 int stack_start = -1;
@@ -264,29 +241,29 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
  *
  * reference code for SM Ciphers:
  *
-        #if defined(HAVE_AESGCM) && !defined(NO_DH)
-            #ifdef WOLFSSL_TLS13
-                defaultCipherList = "TLS13-AES128-GCM-SHA256"
-                #ifndef WOLFSSL_NO_TLS12
-                                    ":DHE-PSK-AES128-GCM-SHA256"
-                #endif
-                ;
-            #else
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
+    #if defined(HAVE_AESGCM) && !defined(NO_DH)
+        #ifdef WOLFSSL_TLS13
+            defaultCipherList = "TLS13-AES128-GCM-SHA256"
+            #ifndef WOLFSSL_NO_TLS12
+                                ":DHE-PSK-AES128-GCM-SHA256"
             #endif
-        #elif defined(HAVE_AESGCM) && defined(WOLFSSL_TLS13)
-                defaultCipherList = "TLS13-AES128-GCM-SHA256:PSK-AES128-GCM-SHA256"
-                #ifndef WOLFSSL_NO_TLS12
-                                    ":PSK-AES128-GCM-SHA256"
-                #endif
-                ;
-        #elif defined(HAVE_NULL_CIPHER)
-                defaultCipherList = "PSK-NULL-SHA256";
-        #elif !defined(NO_AES_CBC)
-                defaultCipherList = "PSK-AES128-CBC-SHA256";
+            ;
         #else
-                defaultCipherList = "PSK-AES128-GCM-SHA256";
+            defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
         #endif
+    #elif defined(HAVE_AESGCM) && defined(WOLFSSL_TLS13)
+            defaultCipherList = "TLS13-AES128-GCM-SHA256:PSK-AES128-GCM-SHA256"
+            #ifndef WOLFSSL_NO_TLS12
+                                ":PSK-AES128-GCM-SHA256"
+            #endif
+            ;
+    #elif defined(HAVE_NULL_CIPHER)
+            defaultCipherList = "PSK-NULL-SHA256";
+    #elif !defined(NO_AES_CBC)
+            defaultCipherList = "PSK-AES128-CBC-SHA256";
+    #else
+            defaultCipherList = "PSK-AES128-GCM-SHA256";
+    #endif
 */
 
     ret = wolfSSL_CTX_set_cipher_list(ctx, WOLFSSL_ESP32_CIPHER_SUITE);
@@ -294,16 +271,16 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
         ESP_LOGI(TAG, "Set cipher list: %s\n", WOLFSSL_ESP32_CIPHER_SUITE);
     }
     else {
-        ESP_LOGE(TAG, "ERROR: failed to set cipher list: %s\n", WOLFSSL_ESP32_CIPHER_SUITE);
+        ESP_LOGE(TAG, "ERROR: failed to set cipher list: %s\n",
+                       WOLFSSL_ESP32_CIPHER_SUITE);
     }
 #endif
 
 #ifdef DEBUG_WOLFSSL
     ShowCiphers(NULL);
-    ESP_LOGI(TAG,
-             "Stack used: %d\n",
-             CONFIG_ESP_MAIN_TASK_STACK_SIZE
-             - uxTaskGetStackHighWaterMark(NULL));
+    ESP_LOGI(TAG, "Stack used: %d\n",
+                   CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                   - uxTaskGetStackHighWaterMark(NULL));
 #endif
 
 /* see user_settings PROJECT_DH for HAVE_DH and HAVE_FFDHE_2048 */
@@ -328,12 +305,13 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
                                          CTX_CLIENT_CERT_SIZE,
                                          CTX_CLIENT_CERT_TYPE);
         if (ret_i != SSL_SUCCESS) {
-            ESP_LOGE(TAG, "ERROR: failed to load chain %d, please check the file.\n", ret_i);
+            ESP_LOGE(TAG, "ERROR: failed to load chain %d, "
+                          "please check the file.", ret_i);
         }
 
-    /* Load client certificates into WOLFSSL_CTX */
-    WOLFSSL_MSG("Loading...cert");
-    ret_i = wolfSSL_CTX_load_verify_buffer(ctx,
+        /* Load client certificates into WOLFSSL_CTX */
+        WOLFSSL_MSG("Loading...cert");
+        ret_i = wolfSSL_CTX_load_verify_buffer(ctx,
                                          CTX_CA_CERT,
                                          CTX_CA_CERT_SIZE,
                                          CTX_CA_CERT_TYPE);
@@ -420,10 +398,17 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
 #endif
 
     /* Attach wolfSSL to the socket */
-    wolfSSL_set_fd(ssl, sockfd);
+    ret_i = wolfSSL_set_fd(ssl, sockfd);
+    if (ret_i == WOLFSSL_SUCCESS) {
+        ESP_LOGI(TAG, "wolfSSL_set_fd success");
+    }
+    else {
+        ESP_LOGE(TAG, "ERROR: failed wolfSSL_set_fd. Error: %d\n", ret_i);
+    }
 
     WOLFSSL_MSG("Connect to wolfSSL on the server side");
     /* Connect to wolfSSL on the server side */
+    ret_i = wolfSSL_connect(ssl);
     if (wolfSSL_connect(ssl) == SSL_SUCCESS) {
 #ifdef DEBUG_WOLFSSL
         ShowCiphers(ssl);
@@ -458,7 +443,8 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
         printf("%s\n", buff);
         }
     else {
-        ESP_LOGE(TAG, "ERROR: failed to connect to wolfSSL\n");
+        ESP_LOGE(TAG, "ERROR: failed to connect to wolfSSL. "
+                      "Error: %d\n", ret_i);
     }
 #ifdef DEBUG_WOLFSSL
     ShowCiphers(ssl);
@@ -487,16 +473,28 @@ WOLFSSL_ESP_TASK tls_smp_client_init(void* args)
 #else
     xTaskHandle _handle;
 #endif
-    /* http://esp32.info/docs/esp_idf/html/dd/d3c/group__xTaskCreate.html */
+    /* See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html#functions  */
+    if (TLS_SMP_CLIENT_TASK_BYTES < (6 * 1024)) {
+        /* Observed approximately 6KB limit for the RTOS task stack size.
+         * Reminder parameter is bytes, not words as with generic FreeeRTOS. */
+        ESP_LOGW(TAG, "Warning: TLS_SMP_CLIENT_TASK_BYTES < 6KB");
+    }
+#ifndef WOLFSSL_SMALL_STACK
+    ESP_LOGW(TAG, "WARNING: WOLFSSL_SMALL_STACK is not defined. Consider "
+                  "defining that to reduce embedded memory usage.");
+#endif
+
+    /* Note that despite vanilla FreeRTOS using WORDS for a parameter,
+     * Espressif uses BYTES for the task stack size here: */
     ret = xTaskCreate(tls_smp_client_task,
                       TLS_SMP_CLIENT_TASK_NAME,
-                      TLS_SMP_CLIENT_TASK_WORDS,
+                      TLS_SMP_CLIENT_TASK_BYTES,
                       NULL,
                       TLS_SMP_CLIENT_TASK_PRIORITY,
                       &_handle);
 
     if (ret != pdPASS) {
-        ESP_LOGI(TAG, "create thread %s failed", TLS_SMP_CLIENT_TASK_NAME);
+        ESP_LOGI(TAG, "Create thread %s failed.", TLS_SMP_CLIENT_TASK_NAME);
     }
     return TLS_SMP_CLIENT_TASK_RET;
 }

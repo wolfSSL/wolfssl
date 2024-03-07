@@ -154,7 +154,48 @@ CMake Error at run_serial_tool.cmake:56 (message):
 
 Solution:
 
-Press and hold`EN` button, press and release `IO0` button, then release `EN` button.
+Press and hold `EN` button, press and release `IO0` button, then release `EN` button.
+
+### Unknown CMake command "esptool_py_flash_project_args".
+
+This unintuitive error was observed when including an unneeded `set(COMPONENTS` in the project-level CMakeLists.txt
+and attempting to build with an older toolchain, such as the RTOS SDK 3.4 for the ESP8266.
+
+### PermissionError: [Errno 13] Permission denied could not open port {}
+
+This error, other than the obvious permissions, also occurs when the port is in use by another application:
+
+```text
+Traceback (most recent call last):
+  File "/home/gojimmypi/.espressif/python_env/rtos3.4_py3.10_env/lib/python3.10/site-packages/serial/serialposix.py", line 322, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+PermissionError: [Errno 13] Permission denied: '/dev/ttyS55'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+    [... snip ...]
+raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 13] could not open port /dev/ttyS55: [Errno 13] Permission denied: '/dev/ttyS55'
+```
+### Panic Task watchdog got triggered.
+
+Long-running code may trip the watchdog timer.
+
+```
+Task watchdog got triggered.
+
+Guru Meditation Error: Core  0 panic'ed (unknown). Exception was unhandled.
+```
+
+The watchdog needs to be [fed](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/api-reference/system/wdts.html?highlight=watchdog#_CPPv418esp_task_wdt_resetv) on a regular basis
+with `void esp_task_wdt_reset(void)` from `esp8266/include/esp_task_wdt.h`.
+
+Try turning off the WDT in menuconfig, or for Makefiles:
+
+```
+EXTRA_CFLAGS += -DNO_WATCHDOG
+```
 
 #### Other Solutions
 

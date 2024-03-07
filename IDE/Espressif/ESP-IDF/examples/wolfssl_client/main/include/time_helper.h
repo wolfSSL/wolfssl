@@ -1,5 +1,6 @@
-/*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+/* time_helper.h
+ *
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,8 +21,8 @@
 
 /* common Espressif time_helper v5.6.3.001 */
 
-#ifndef _TIME_HELPER_H
-#define _TIME_HELPER_H
+#ifndef _TIME_HELPER_H_
+#define _TIME_HELPER_H_
 
 /* ESP-IDF uses a 64-bit signed integer to represent time_t starting from release v5.0
  * See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#year-2036-and-2038-overflow-issues
@@ -32,13 +33,13 @@ extern "C" {
 #endif
 
 /* a function to show the current data and time */
-int esp_show_current_datetime();
+int esp_show_current_datetime(void);
 
 /* worst case, if GitHub time not available, used fixed time */
 int set_fixed_default_time(void);
 
 /* set time from string (e.g. GitHub commit time) */
-int set_time_from_string(char* time_buffer);
+int set_time_from_string(const char* time_buffer);
 
 /* set time from NTP servers,
  * also initially calls set_fixed_default_time or set_time_from_string */
@@ -51,4 +52,4 @@ int set_time_wait_for_ntp(void);
 } /* extern "C" */
 #endif
 
-#endif /* #ifndef _TIME_HELPER_H */
+#endif /* #ifndef _TIME_HELPER_H_ */

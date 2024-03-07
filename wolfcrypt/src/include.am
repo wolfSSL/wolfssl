@@ -214,3 +214,6 @@ if BUILD_MAXQ10XX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/maxim/maxq10xx.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/maxim/README.md
+
+include wolfcrypt/src/port/autosar/include.am
+
