@@ -319,6 +319,10 @@ AS_CASE([$ENABLED_WOLFENGINE],
         ENABLED_WOLFENGINE="yes"
         ENABLED_FIPS="v5"
     ],
+    [fips-v6],[
+        ENABLED_WOLFENGINE="yes"
+        ENABLED_FIPS="v6"
+    ],
     [fips-ready],[
         ENABLED_WOLFENGINE="yes"
         ENABLED_FIPS="ready"
