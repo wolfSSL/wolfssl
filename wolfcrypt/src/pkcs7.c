@@ -2562,9 +2562,9 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             }
         }
 
-        encContentOut = XMALLOC(BER_OCTET_LENGTH + MAX_OCTET_STR_SZ,
+        encContentOut = (byte *)XMALLOC(BER_OCTET_LENGTH + MAX_OCTET_STR_SZ,
                 heap, DYNAMIC_TYPE_PKCS7);
-        contentData = XMALLOC(BER_OCTET_LENGTH + padSz,
+        contentData = (byte *)XMALLOC(BER_OCTET_LENGTH + padSz,
                 heap, DYNAMIC_TYPE_PKCS7);
 
         if (encContentOut == NULL || contentData == NULL) {
