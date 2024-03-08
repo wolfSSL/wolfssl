@@ -41,6 +41,7 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfio.h>
 
+#if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 #ifndef USE_WINDOWS_API
     #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
     #elif defined(ARDUINO)
@@ -87,6 +88,7 @@
     #endif
 
 #endif /* USE_WINDOWS_API */
+#endif /* defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT) */
 
 
 #if defined(HAVE_HTTP_CLIENT)
