@@ -515,23 +515,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hmac_sha3_test(void);
     defined(WOLFSSL_AFALG_XILINX_RSA)
 /* hkdf_test has issue with WOLFSSL_TEST_SUBROUTINE set on Xilinx with afalg */
 static                  wc_test_ret_t  hkdf_test(void);
-#ifdef WOLFSSL_HAVE_PRF
-static                  wc_test_ret_t  prf_test(void);
-#endif
-  #ifdef WOLFSSL_BASE16
-    static                  wc_test_ret_t  tls12_kdf_test(void);
-  #endif
 #else
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
 #endif
+#endif /* HAVE_HKDF && ! NO_HMAC */
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 #ifdef WOLFSSL_BASE16
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
 #endif
 #endif
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
-#endif
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
 #ifdef WOLFSSL_TLS13
