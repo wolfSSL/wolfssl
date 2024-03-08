@@ -468,7 +468,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
-        : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+        : [out] "r" (out) , [outSz] "r" (outSz)
         : "memory"
     );
 
@@ -515,16 +515,16 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 #endif
         "xorq   %[k1], %[v0]\n\t"
 
-        "cmp    $8, %[outSz]\n\t"
-        "je     L_siphash_8_end\n\t"
-
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
-        : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+        : [out] "r" (out) , [outSz] "r" (outSz)
         : "memory"
     );
 
     __asm__ __volatile__ (
+        "cmp    $8, %[outSz]\n\t"
+        "je     L_siphash_8_end\n\t"
+
         "xor    $0xee, %b[v2]\n\t"
 #if WOLFSSL_SIPHASH_DROUNDS == 2
         SIPHASH_ROUND(%[v0], %[v1], %[v2], %[v3])
@@ -575,7 +575,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
-        : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+        : [out] "r" (out) , [outSz] "r" (outSz)
         : "memory"
     );
 
