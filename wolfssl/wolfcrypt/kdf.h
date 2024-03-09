@@ -103,8 +103,24 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
     const byte* label, word32 labelLen, const byte* info, word32 infoLen,
     int digest, void* heap);
 #endif /* !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3) */
-
 #endif /* HAVE_HKDF */
+
+#if defined(HAVE_HMAC_PRF_KDF)
+typedef enum CounterLocation {
+    BEFORE_FIXED = 0,
+    AFTER_FIXED  = 1,
+    MIDDLE_FIXED = 2
+} CounterLocation;
+
+
+WOLFSSL_API int wc_HMAC_KDF_Counter(int type, const byte* inKey, word32 inKeySz,
+    const byte* info, word32 infoSz, const byte* remaining, word32 remainingSz,
+    byte* out, word32 outSz, int r, int location, void* heap, int devId);
+
+WOLFSSL_API int wc_HMAC_KDF_Feedback(int type, const byte* inKey, word32 inKeySz,
+    const byte* info, word32 infoSz, byte* iv, word32 ivLen, byte* out,
+    word32 outSz, void* heap, int devId);
+#endif
 
 #ifdef WOLFSSL_WOLFSSH
 
