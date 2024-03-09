@@ -3089,8 +3089,8 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
     return size;
 }
 
-static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
-                                                                 byte isRequest)
+static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
+                          byte isRequest)
 {
     /* shut up compiler warnings */
     (void) csr; (void) output; (void) isRequest;
@@ -3119,6 +3119,9 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                     if (ret > 0) {
                         length = (word16)ret;
                     }
+                    else {
+                        return ret;
+                    }
                 }
 
                 c16toa(length, output + offset);
@@ -3127,7 +3130,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
             break;
         }
 
-        return offset;
+        return (int)offset;
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
@@ -3555,7 +3558,7 @@ static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
     return size;
 }
 
-static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
+static int TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                                                    byte* output, byte isRequest)
 {
     /* shut up compiler warnings */
@@ -3600,6 +3603,9 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                         if (ret > 0) {
                             length = (word16)ret;
                         }
+                        else {
+                            return ret;
+                        }
                     }
 
                     c16toa(length, output + offset);
@@ -3611,7 +3617,7 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
         /* list size */
         c16toa(offset - OPAQUE16_LEN, output);
 
-        return offset;
+        return (int)offset;
     }
 #endif
 
@@ -12614,15 +12620,23 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension to write");
-                offset += CSR_WRITE((CertificateStatusRequest*)extension->data,
+                ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
                         output + offset, isRequest);
+                if (ret > 0) {
+                    offset += (word16)ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
                 WOLFSSL_MSG("Certificate Status Request v2 extension to write");
-                offset += CSR2_WRITE(
+                ret = CSR2_WRITE(
                         (CertificateStatusRequestItemV2*)extension->data,
                         output + offset, isRequest);
+                if (ret > 0) {
+                    offset += (word16)ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
