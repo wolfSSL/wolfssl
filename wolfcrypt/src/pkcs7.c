@@ -1041,9 +1041,11 @@ static int wc_PKCS7_CheckPublicKeyDer(PKCS7* pkcs7, int keyOID,
 
             /* Try to decode public key and check with wc_ecc_check_key() */
             ret = wc_EccPublicKeyDecode(key, &scratch, ecc, keySz);
+        #if defined(WOLFSSL_VALIDATE_ECC_IMPORT)
             if (ret == 0) {
                 ret = wc_ecc_check_key(ecc);
             }
+        #endif
             wc_ecc_free(ecc);
 
             break;
