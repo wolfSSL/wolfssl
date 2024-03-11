@@ -5950,11 +5950,21 @@ fi
 # browsers. Only the peer certificate must validate to a trusted
 # certificate. Without this, all certificates sent by a peer must be
 # used in the trust chain or the connection will be rejected.
+
+# We want to turn on alt cert chains for OpenSSL compatability use cases. This
+# is convenient, but it is a heavy feature so not good for the embedded use
+#case. Thus, this logic is only in configure.ac and not settings.h.
+
 AC_ARG_ENABLE([altcertchains],
     [AS_HELP_STRING([--enable-altcertchains],[Enable using alternative certificate chains, only require leaf certificate to validate to trust root (default: disabled)])],
     [ ENABLED_ALT_CERT_CHAINS=$enableval ],
     [ ENABLED_ALT_CERT_CHAINS=no ]
     )
+
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_OPENSSLEXTRA" = "xyes"
+then
+    ENABLED_ALT_CERT_CHAINS="yes"
+fi
 
 if test "x$ENABLED_ALT_CERT_CHAINS" = "xyes"
 then
