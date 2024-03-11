@@ -1116,6 +1116,7 @@ static int GetASN_BitString(const byte* input, word32 idx, int length)
     return 0;
 }
 
+#ifndef WOLFSSL_NO_ASN_STRICT
 /* Check a UTF8STRING's data is valid.
  *
  * @param [in] input   BER encoded data.
@@ -1173,6 +1174,7 @@ static int GetASN_UTF8String(const byte* input, word32 idx, int length)
 
     return ret;
 }
+#endif
 
 /* Check an OBJECT IDENTIFIER's data is valid.
  *
@@ -1673,6 +1675,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             idx++;
             len--;
         }
+    #ifndef WOLFSSL_NO_ASN_STRICT
         else if ((asn[i].tag == ASN_UTF8STRING) ||
                  (data[i].tag == ASN_UTF8STRING)) {
             /* Check validity of data. */
@@ -1680,6 +1683,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             if (err != 0)
                 return err;
         }
+    #endif
         else if (asn[i].tag == ASN_OBJECT_ID) {
             /* Check validity of data. */
             err = GetASN_ObjectId(input, idx, len);
