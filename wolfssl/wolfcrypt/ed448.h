@@ -76,11 +76,6 @@ enum {
     Ed448ph  = 1
 };
 
-#ifndef WC_ED448KEY_TYPE_DEFINED
-    typedef struct ed448_key ed448_key;
-    #define WC_ED448KEY_TYPE_DEFINED
-#endif
-
 /* An ED448 Key */
 struct ed448_key {
     byte    p[ED448_PUB_KEY_SIZE]; /* compressed public key */
@@ -106,9 +101,9 @@ struct ed448_key {
 #endif
 };
 
-#ifndef WC_ED448_TYPE_DEFINED
+#ifndef WC_ED448KEY_TYPE_DEFINED
     typedef struct ed448_key ed448_key;
-    #define WC_ED448_TYPE_DEFINED
+    #define WC_ED448KEY_TYPE_DEFINED
 #endif
 
 WOLFSSL_API
