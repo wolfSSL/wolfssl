@@ -1121,10 +1121,6 @@ do
     ;;
   no)
     ;;
-  wolfssl)
-    ENABLED_WC_KYBER=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
-    ;;
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_SMALL"
     ;;
@@ -1146,6 +1142,12 @@ done
 if test "$ENABLED_KYBER" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
+    # Use liboqs if specified.
+    if test "$ENABLED_LIBOQS" = "no"; then
+        ENABLED_WC_KYBER=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
+    fi
 
     if test "$ENABLED_KYBER512" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
@@ -1162,12 +1164,6 @@ then
         test "$enable_sha3" = "" && enable_sha3=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
-    else
-        # Default is to use liboqs. Make sure its enabled.
-        if test "$ENABLED_LIBOQS" = "no"; then
-            AC_MSG_ERROR([The default implementation for kyber is liboqs.
-            Please use --with-liboqs.])
-        fi
     fi
 fi
 
