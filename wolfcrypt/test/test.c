@@ -257,6 +257,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
@@ -519,12 +520,14 @@ static                  wc_test_ret_t  hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
 #endif
 #endif /* HAVE_HKDF && ! NO_HMAC */
+#ifdef WOLFSSL_HAVE_PRF
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 #ifdef WOLFSSL_BASE16
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
-#endif
-#endif
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+#endif /* WOLFSSL_BASE16 */
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
@@ -1373,7 +1376,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = prf_test()) != 0)
         TEST_FAIL("PRF         test failed!\n", ret);
@@ -1382,6 +1385,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
+#ifdef WOLFSSL_HAVE_PRF
 #if defined (HAVE_HKDF) && !defined(NO_HMAC)
 #ifdef WOLFSSL_BASE16
     PRIVATE_KEY_UNLOCK();
@@ -1390,8 +1394,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("TLSv1.2 KDF test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif
-#endif
+#endif /* WOLFSSL_BASE16 */
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef WOLFSSL_TLS13
     PRIVATE_KEY_UNLOCK();
@@ -25028,7 +25033,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sshkdf_test(void)
 
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
 #define DIGL 12
 #define SECL 48
 #define LBSL 63
@@ -25060,10 +25065,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
     int digL = DIGL;
     int secL = SECL;
     int lblsdL = LBSL;
-    int hash_type = 5;
+    int hash_type = sha384_mac;
 
     ret = wc_PRF(dig, digL, secret, secL, lablSd, lblsdL, hash_type,
                  HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("Failed w/ code: %d\n", ret);
+        return ret;
+    }
 
     if (XMEMCMP(expected, dig, DIGL) != 0) {
         printf("Got unexpected digest\n");
@@ -25077,6 +25086,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
 }
 #endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
 
+#ifdef WOLFSSL_HAVE_PRF
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 #ifdef WOLFSSL_BASE16
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
@@ -25131,9 +25141,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
     return 0;
 }
 #endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
-
-
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef WOLFSSL_TLS13
 
