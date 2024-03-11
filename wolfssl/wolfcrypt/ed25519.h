@@ -74,11 +74,6 @@ enum {
     Ed25519ph  = 1
 };
 
-#ifndef WC_ED25519KEY_TYPE_DEFINED
-    typedef struct ed25519_key ed25519_key;
-    #define WC_ED25519KEY_TYPE_DEFINED
-#endif
-
 /* ED25519 Flags */
 enum {
     WC_ED25519_FLAG_NONE     = 0x00,
@@ -115,9 +110,9 @@ struct ed25519_key {
 #endif
 };
 
-#ifndef WC_ED25519_TYPE_DEFINED
+#ifndef WC_ED25519KEY_TYPE_DEFINED
     typedef struct ed25519_key ed25519_key;
-    #define WC_ED25519_TYPE_DEFINED
+    #define WC_ED25519KEY_TYPE_DEFINED
 #endif
 
 
