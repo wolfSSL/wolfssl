@@ -663,7 +663,7 @@ static int wc_HMAC_PRF_KDF(int type, const byte* inKey, word32 inKeySz,
         return BAD_FUNC_ARG;
     }
 
-    /* NIST SP-800-108 states to error out when (L/h) > 2^r−1, for r in bits */
+    /* NIST SP-800-108 states to error out when (L/h) > 2^r-1, for r in bits */
     digestRatioLimit = 1;
     for (i = 0; i < (r * 8); i++) {
         digestRatioLimit *= 2;
