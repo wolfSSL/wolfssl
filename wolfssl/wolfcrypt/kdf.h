@@ -117,9 +117,9 @@ WOLFSSL_API int wc_HMAC_KDF_Counter(int type, const byte* inKey, word32 inKeySz,
     const byte* info, word32 infoSz, const byte* remaining, word32 remainingSz,
     byte* out, word32 outSz, int r, int location, void* heap, int devId);
 
-WOLFSSL_API int wc_HMAC_KDF_Feedback(int type, const byte* inKey, word32 inKeySz,
-    const byte* info, word32 infoSz, byte* iv, word32 ivLen, byte* out,
-    word32 outSz, void* heap, int devId);
+WOLFSSL_API int wc_HMAC_KDF_Feedback(int type, const byte* inKey,
+        word32 inKeySz, const byte* info, word32 infoSz, byte* iv, word32 ivLen,
+        byte* out, word32 outSz, void* heap, int devId);
 #endif
 
 #ifdef WOLFSSL_WOLFSSH
