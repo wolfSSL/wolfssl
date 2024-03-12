@@ -28503,7 +28503,7 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
     WOLFSSL_MSG_EX("ecc_test_curve keySize = %d", keySize);
 
 #if FIPS_VERSION3_GE(6,0,0)
-printf("keySize is %d\n", keySize);
+    printf("keySize is %d\n", keySize);
     if (keySize < WC_ECC_FIPS_GEN_MIN) {
         ret = 0;
         goto skip_A;
