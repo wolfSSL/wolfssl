@@ -868,7 +868,7 @@ L_chacha20_avx1_loop128:
         vmovdqa	240(%r9), %xmm15
         jmp	L_chacha20_avx1_start128
 L_chacha20_avx1_done128:
-        shl	$2, %eax
+        shll	$2, %eax
         addl	%eax, 48(%rdi)
 L_chacha20_avx1_end128:
         cmpl	$0x40, %ecx
@@ -1456,7 +1456,7 @@ L_chacha20_avx2_loop256:
         vmovdqa	480(%r9), %ymm15
         jmp	L_chacha20_avx2_start256
 L_chacha20_avx2_done256:
-        shl	$3, %eax
+        shll	$3, %eax
         addl	%eax, 48(%rdi)
 L_chacha20_avx2_end256:
 #ifndef __APPLE__

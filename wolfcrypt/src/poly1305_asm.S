@@ -1106,7 +1106,7 @@ L_poly1305_avx2_final_start_copy:
         incb	%cl
         incb	%dl
 L_poly1305_avx2_final_cmp_copy:
-        cmp	%rcx, %rax
+        cmpb	%cl, %al
         jne	L_poly1305_avx2_final_start_copy
 #ifndef __APPLE__
         callq	poly1305_final_avx@plt

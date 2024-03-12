@@ -200,6 +200,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\aes_gcm_asm.asm"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\arc4.c"
 				>
 			</File>
@@ -225,6 +229,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\chacha.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha_asm.asm"
 				>
 			</File>
 			<File
@@ -329,6 +337,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\poly1305_asm.asm"
 				>
 			</File>
 			<File

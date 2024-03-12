@@ -77,7 +77,7 @@ enum {
 
 typedef struct ChaCha {
     word32 X[CHACHA_CHUNK_WORDS];           /* state of cipher */
-#ifdef HAVE_INTEL_AVX1
+#if defined(USE_INTEL_CHACHA_SPEEDUP)
     /* vpshufd reads 16 bytes but we only use bottom 4. */
     byte extra[12];
 #endif

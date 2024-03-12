@@ -1,6 +1,6 @@
 /* fe_x25519_asm.S */
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -4140,7 +4140,7 @@ _fe_sq2_x64:
         adcq	%r11, %r8
         adcq	%r12, %r9
         adcq	%r13, %r10
-        mov	%r10, %rax
+        movq	%r10, %rax
         shldq	$0x01, %r9, %r10
         shldq	$0x01, %r8, %r9
         shldq	$0x01, %rcx, %r8
@@ -5946,7 +5946,7 @@ _ge_p2_dbl_x64:
         adcq	%r13, %r10
         adcq	%r14, %r11
         adcq	%r15, %r12
-        mov	%r12, %rax
+        movq	%r12, %rax
         shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
         shldq	$0x01, %r9, %r10
@@ -8676,7 +8676,7 @@ _sc_reduce_x64:
         movq	$0xa7ed9ce5a30a2c13, %rcx
         movq	%r12, %rax
         mulq	%rcx
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         addq	%rax, %r8
         adcq	%rdx, %rbp
         movq	%r13, %rax
@@ -8689,7 +8689,7 @@ _sc_reduce_x64:
         addq	%rbp, %r9
         adcq	%rax, %r10
         adcq	%rdx, %r11
-        mov	$0x00, %rbx
+        movq	$0x00, %rbx
         adcq	$0x00, %rbx
         movq	%r15, %rax
         mulq	%rcx
@@ -8699,7 +8699,7 @@ _sc_reduce_x64:
         movq	$0xeb2106215d086329, %rcx
         movq	%r12, %rax
         mulq	%rcx
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         addq	%rax, %r9
         adcq	%rdx, %rbp
         movq	%r13, %rax
@@ -8712,7 +8712,7 @@ _sc_reduce_x64:
         addq	%rbp, %r10
         adcq	%rax, %r11
         adcq	%rdx, %rbx
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         adcq	$0x00, %rbp
         movq	%r15, %rax
         mulq	%rcx
@@ -8962,7 +8962,7 @@ _sc_muladd_x64:
         movq	$0xa7ed9ce5a30a2c13, %rbx
         movq	%r12, %rax
         mulq	%rbx
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         addq	%rax, %r8
         adcq	%rdx, %rbp
         movq	%r13, %rax
@@ -8975,7 +8975,7 @@ _sc_muladd_x64:
         addq	%rbp, %r9
         adcq	%rax, %r10
         adcq	%rdx, %r11
-        mov	$0x00, %rsi
+        movq	$0x00, %rsi
         adcq	$0x00, %rsi
         movq	%r15, %rax
         mulq	%rbx
@@ -8985,7 +8985,7 @@ _sc_muladd_x64:
         movq	$0xeb2106215d086329, %rbx
         movq	%r12, %rax
         mulq	%rbx
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         addq	%rax, %r9
         adcq	%rdx, %rbp
         movq	%r13, %rax
@@ -8998,7 +8998,7 @@ _sc_muladd_x64:
         addq	%rbp, %r10
         adcq	%rax, %r11
         adcq	%rdx, %rsi
-        mov	$0x00, %rbp
+        movq	$0x00, %rbp
         adcq	$0x00, %rbp
         movq	%r15, %rax
         mulq	%rbx
@@ -11371,7 +11371,7 @@ _fe_sq2_avx2:
         adcxq	%rax, %r10
         adoxq	%r14, %r11
         adcxq	%rcx, %r11
-        mov	%r11, %rax
+        movq	%r11, %rax
         shldq	$0x01, %r10, %r11
         shldq	$0x01, %r9, %r10
         shldq	$0x01, %r8, %r9
@@ -12862,7 +12862,7 @@ _ge_p2_dbl_avx2:
         adcxq	%r9, %r12
         adoxq	%rbx, %r13
         adcxq	%rcx, %r13
-        mov	%r13, %r9
+        movq	%r13, %r9
         shldq	$0x01, %r12, %r13
         shldq	$0x01, %r11, %r12
         shldq	$0x01, %r10, %r11
@@ -15206,33 +15206,33 @@ _sc_reduce_avx2:
         adcq	$0x00, %r15
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rdx
-        mulx	%r12, %rcx, %rax
+        mulxq	%r12, %rcx, %rax
         addq	%rcx, %r8
         adcq	%rax, %r9
-        mulx	%r14, %rcx, %rax
+        mulxq	%r14, %rcx, %rax
         adcq	%rcx, %r10
         adcq	%rax, %r11
-        mov	$0x00, %rsi
+        movq	$0x00, %rsi
         adcq	$0x00, %rsi
-        mulx	%r13, %rcx, %rax
+        mulxq	%r13, %rcx, %rax
         addq	%rcx, %r9
         adcq	%rax, %r10
-        mulx	%r15, %rcx, %rax
+        mulxq	%r15, %rcx, %rax
         adcq	%rcx, %r11
         adcq	%rax, %rsi
         movq	$0xeb2106215d086329, %rdx
-        mulx	%r12, %rcx, %rax
+        mulxq	%r12, %rcx, %rax
         addq	%rcx, %r9
         adcq	%rax, %r10
-        mulx	%r14, %rcx, %rax
+        mulxq	%r14, %rcx, %rax
         adcq	%rcx, %r11
         adcq	%rax, %rsi
-        mov	$0x00, %rbx
+        movq	$0x00, %rbx
         adcq	$0x00, %rbx
-        mulx	%r13, %rcx, %rax
+        mulxq	%r13, %rcx, %rax
         addq	%rcx, %r10
         adcq	%rax, %r11
-        mulx	%r15, %rcx, %rax
+        mulxq	%r15, %rcx, %rax
         adcq	%rcx, %rsi
         adcq	%rax, %rbx
         subq	%r12, %r10
@@ -15265,21 +15265,21 @@ _sc_reduce_avx2:
         # Sub product of top 2 words and order
         #   * -5812631a5cf5d3ed
         movq	$0xa7ed9ce5a30a2c13, %rdx
-        mulx	%r12, %rbp, %rax
+        mulxq	%r12, %rbp, %rax
         movq	$0x00, %rsi
         addq	%rbp, %r8
         adcq	%rax, %r9
-        mulx	%r13, %rbp, %rax
+        mulxq	%r13, %rbp, %rax
         adcq	$0x00, %rsi
         addq	%rbp, %r9
         adcq	%rax, %rsi
         #   * -14def9dea2f79cd7
         movq	$0xeb2106215d086329, %rdx
-        mulx	%r12, %rbp, %rax
+        mulxq	%r12, %rbp, %rax
         movq	$0x00, %rbx
         addq	%rbp, %r9
         adcq	%rax, %r10
-        mulx	%r13, %rbp, %rax
+        mulxq	%r13, %rbp, %rax
         adcq	$0x00, %rbx
         addq	%rbp, %r10
         adcq	%rax, %rbx
@@ -15450,33 +15450,33 @@ _sc_muladd_avx2:
         adcq	$0x00, %rbp
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rdx
-        mulx	%r14, %rcx, %rax
+        mulxq	%r14, %rcx, %rax
         addq	%rcx, %r10
         adcq	%rax, %r11
-        mulx	%rbx, %rcx, %rax
+        mulxq	%rbx, %rcx, %rax
         adcq	%rcx, %r12
         adcq	%rax, %r13
-        mov	$0x00, %rsi
+        movq	$0x00, %rsi
         adcq	$0x00, %rsi
-        mulx	%r15, %rcx, %rax
+        mulxq	%r15, %rcx, %rax
         addq	%rcx, %r11
         adcq	%rax, %r12
-        mulx	%rbp, %rcx, %rax
+        mulxq	%rbp, %rcx, %rax
         adcq	%rcx, %r13
         adcq	%rax, %rsi
         movq	$0xeb2106215d086329, %rdx
-        mulx	%r14, %rcx, %rax
+        mulxq	%r14, %rcx, %rax
         addq	%rcx, %r11
         adcq	%rax, %r12
-        mulx	%rbx, %rcx, %rax
+        mulxq	%rbx, %rcx, %rax
         adcq	%rcx, %r13
         adcq	%rax, %rsi
-        mov	$0x00, %r8
+        movq	$0x00, %r8
         adcq	$0x00, %r8
-        mulx	%r15, %rcx, %rax
+        mulxq	%r15, %rcx, %rax
         addq	%rcx, %r12
         adcq	%rax, %r13
-        mulx	%rbp, %rcx, %rax
+        mulxq	%rbp, %rcx, %rax
         adcq	%rcx, %rsi
         adcq	%rax, %r8
         subq	%r14, %r12
@@ -15509,21 +15509,21 @@ _sc_muladd_avx2:
         # Sub product of top 2 words and order
         #   * -5812631a5cf5d3ed
         movq	$0xa7ed9ce5a30a2c13, %rdx
-        mulx	%r14, %r9, %rax
+        mulxq	%r14, %r9, %rax
         movq	$0x00, %rsi
         addq	%r9, %r10
         adcq	%rax, %r11
-        mulx	%r15, %r9, %rax
+        mulxq	%r15, %r9, %rax
         adcq	$0x00, %rsi
         addq	%r9, %r11
         adcq	%rax, %rsi
         #   * -14def9dea2f79cd7
         movq	$0xeb2106215d086329, %rdx
-        mulx	%r14, %r9, %rax
+        mulxq	%r14, %r9, %rax
         movq	$0x00, %r8
         addq	%r9, %r11
         adcq	%rax, %r12
-        mulx	%r15, %r9, %rax
+        mulxq	%r15, %r9, %rax
         adcq	$0x00, %r8
         addq	%r9, %r12
         adcq	%rax, %r8
