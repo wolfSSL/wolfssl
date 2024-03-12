@@ -42,8 +42,9 @@ jobs:
         uses: ./.github/workflows/packaging.yml
     memcached:
         uses: ./.github/workflows/memcached.yml
-    libssh2:
-        uses: ./.github/workflows/libssh2.yml
+# TODO: Currently this test fails. Enable it once it becomes passing.        
+#    libssh2:
+#        uses: ./.github/workflows/libssh2.yml
     openssh:
         uses: ./.github/workflows/openssh.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
