@@ -44,6 +44,17 @@ jobs:
           name: wolf-install-libssh2
           path: build-dir
 
+      - name: Check Docker Version
+        run: docker --version
+      - name: Install Latest Docker
+        run: |
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce
+      - name: Check Docker Version
+        run: docker --version
+
       - name: Build and test libssh2
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
@@ -60,4 +71,4 @@ jobs:
       - name: display log
         working-directory: ./libssh2
         if: always()
-        run: cat test-suite.log
+        run: cat tests/test-suite.log
