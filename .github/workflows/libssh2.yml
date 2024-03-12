@@ -56,3 +56,8 @@ jobs:
       - name: Confirm libssh2 built with wolfSSL
         working-directory: ./libssh2
         run: ldd src/.libs/libssh2.so | grep wolfssl
+
+      - name: display log
+        working-directory: ./libssh2
+        if: always()
+        run: cat test-suite.log
