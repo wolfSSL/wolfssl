@@ -5526,8 +5526,8 @@ void bench_sm4_gcm(void)
 
 exit:
 
-    WC_FREE_VAR(bench_additional);
-    WC_FREE_VAR(bench_tag);
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 #endif
 
