@@ -13341,7 +13341,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             else
         #endif
             if (ssl->options.client_psk_cb != NULL ||
-                                     ssl->options.client_psk_tls13_cb != NULL) {
+                ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default cipher suite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
@@ -13363,42 +13363,38 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                 }
-        #if defined(OPENSSL_EXTRA)
-                /* OpenSSL treats 0 as a PSK key length of 0
-                 * and meaning no PSK available.
-                 */
-                if (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                    return PSK_KEY_ERROR;
+                if (
+                #ifndef OPENSSL_EXTRA
+                    /* OpenSSL treats a PSK key length of 0
+                     * to indicate no PSK available.
+                     */
+                    ssl->arrays->psk_keySz == 0 ||
+                #endif
+                         (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+                     (int)ssl->arrays->psk_keySz != USE_HW_PSK)) {
+                    ret = PSK_KEY_ERROR;
                 }
-                if (ssl->arrays->psk_keySz > 0) {
-        #else
-                if (ssl->arrays->psk_keySz == 0 ||
-                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                    return PSK_KEY_ERROR;
-                }
-        #endif
-                ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+                else {
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
 
-                ssl->options.cipherSuite0 = cipherSuite0;
-                ssl->options.cipherSuite  = cipherSuite;
-                (void)cipherSuiteFlags;
-                ret = SetCipherSpecs(ssl);
+                    ssl->options.cipherSuite0 = cipherSuite0;
+                    ssl->options.cipherSuite  = cipherSuite;
+                    (void)cipherSuiteFlags;
+                    ret = SetCipherSpecs(ssl);
+                    if (ret == 0) {
+                        ret = TLSX_PreSharedKey_Use(
+                            &ssl->extensions,
+                                     (byte*)ssl->arrays->client_identity,
+                            (word16)XSTRLEN(ssl->arrays->client_identity),
+                            0, ssl->specs.mac_algorithm,
+                            cipherSuite0, cipherSuite, 0,
+                            NULL, ssl->heap);
+                    }
+                    if (ret == 0)
+                        usingPSK = 1;
+                }
                 if (ret != 0)
                     return ret;
-
-                ret = TLSX_PreSharedKey_Use(&ssl->extensions,
-                                  (byte*)ssl->arrays->client_identity,
-                                  (word16)XSTRLEN(ssl->arrays->client_identity),
-                                  0, ssl->specs.mac_algorithm,
-                                  cipherSuite0, cipherSuite, 0,
-                                  NULL, ssl->heap);
-                if (ret != 0)
-                    return ret;
-
-                usingPSK = 1;
-        #if defined(OPENSSL_EXTRA)
-                }
-        #endif
             }
     #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)

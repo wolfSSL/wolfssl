@@ -289,6 +289,14 @@
     #endif
 #endif
 
+
+#if defined(DEBUG_PK_CB) || defined(TEST_PK_PRIVKEY) || defined(TEST_PK_PSK)
+    #define WOLFSSL_PKMSG(...) printf(__VA_ARGS__)
+#else
+    #define WOLFSSL_PKMSG(...) WC_DO_NOTHING
+#endif
+
+
 #ifndef MY_EX_USAGE
 #define MY_EX_USAGE 2
 #endif
@@ -1807,7 +1815,6 @@ static WC_INLINE void tcp_set_blocking(SOCKET_T* sockfd)
     #endif
 }
 
-
 #ifndef NO_PSK
 
 /* identity is OpenSSL testing default for openssl s_client, keep same */
@@ -1817,6 +1824,8 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
 {
+    unsigned int ret;
+
     (void)ssl;
     (void)hint;
     (void)key_max_len;
@@ -1826,13 +1835,13 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
 
     if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
-           unsigned binary */
+         * unsigned binary */
         key[0] = 0x1a;
         key[1] = 0x2b;
         key[2] = 0x3c;
         key[3] = 0x4d;
 
-        return 4;   /* length of key in octets or 0 for error */
+        ret = 4;   /* length of key in octets or 0 for error */
     }
     else {
         int i;
@@ -1844,14 +1853,23 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
             key[i] = b;
         }
 
-        return 32;   /* length of key in octets or 0 for error */
+        ret = 32;   /* length of key in octets or 0 for error */
     }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
+    WOLFSSL_PKMSG("PSK Client using HW (Len %d, Hint %s)\n", ret, hint);
+    ret = (unsigned int)USE_HW_PSK;
+#endif
+
+    return ret;
 }
 
 
 static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         unsigned char* key, unsigned int key_max_len)
 {
+    unsigned int ret;
+
     (void)ssl;
     (void)key_max_len;
 
@@ -1861,13 +1879,13 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
 
     if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
-           unsigned binary */
+         * unsigned binary */
         key[0] = 0x1a;
         key[1] = 0x2b;
         key[2] = 0x3c;
         key[3] = 0x4d;
 
-        return 4;   /* length of key in octets or 0 for error */
+        ret = 4;   /* length of key in octets or 0 for error */
     }
     else {
         int i;
@@ -1879,8 +1897,14 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
             key[i] = b;
         }
 
-        return 32;   /* length of key in octets or 0 for error */
+        ret = 32;   /* length of key in octets or 0 for error */
     }
+#if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
+    WOLFSSL_PKMSG("PSK Server using HW (Len %d, Hint %s)\n", ret, identity);
+    ret = (unsigned int)USE_HW_PSK;
+#endif
+
+    return ret;
 }
 
 #ifdef WOLFSSL_TLS13
@@ -1888,6 +1912,7 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,
         unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
 {
+    unsigned int ret;
     int i;
     int b = 0x01;
     const char* userCipher = (const char*)wolfSSL_get_psk_callback_ctx(ssl);
@@ -1907,7 +1932,14 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
 
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
 
-    return 32;   /* length of key in octets or 0 for error */
+    ret = 32;   /* length of key in octets or 0 for error */
+
+#if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
+    WOLFSSL_PKMSG("PSK Client TLS 1.3 using HW (Len %d, Hint %s)\n", ret, hint);
+    ret = (unsigned int)USE_HW_PSK;
+#endif
+
+    return ret;
 }
 
 
@@ -1915,6 +1947,7 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
         const char* identity, unsigned char* key, unsigned int key_max_len,
         const char** ciphersuite)
 {
+    unsigned int ret;
     int i;
     int b = 0x01;
     int kIdLen = (int)XSTRLEN(kIdentityStr);
@@ -1938,7 +1971,15 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
 
-    return 32;   /* length of key in octets or 0 for error */
+    ret = 32;   /* length of key in octets or 0 for error */
+
+#if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
+    WOLFSSL_PKMSG("PSK Server TLS 1.3 using HW (Len %d, Hint %s)\n",
+        ret, identity);
+    ret = (unsigned int)USE_HW_PSK;
+#endif
+
+    return ret;
 }
 #endif
 
@@ -3085,12 +3126,6 @@ typedef struct PkCbInfo {
     int hasKeyGen;
 #endif
 } PkCbInfo;
-
-#if defined(DEBUG_PK_CB) || defined(TEST_PK_PRIVKEY)
-    #define WOLFSSL_PKMSG(...) printf(__VA_ARGS__)
-#else
-    #define WOLFSSL_PKMSG(...) WC_DO_NOTHING
-#endif
 
 #ifdef HAVE_ECC
 

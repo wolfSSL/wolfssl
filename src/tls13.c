@@ -1128,6 +1128,12 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
     }
     else
 #endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    if ((int)ssl->arrays->psk_keySz < 0) {
+        ret = PSK_KEY_ERROR;
+    }
+    else
+#endif
     {
     #if !defined(HAVE_FIPS) || \
         (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
@@ -3943,7 +3949,8 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
             ssl->options.cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
         }
         if (ssl->arrays->psk_keySz == 0 ||
-                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+            (int)ssl->arrays->psk_keySz != USE_HW_PSK)) {
             WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
@@ -3956,7 +3963,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
 #endif /* !WOLFSSL_PSK_ONE_ID */
 
         if (!clientHello && (psk->cipherSuite0 != suite[0] ||
-                                                psk->cipherSuite != suite[1])) {
+                             psk->cipherSuite  != suite[1])) {
             WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
@@ -5839,7 +5846,8 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
          *found = (*psk_keySz != 0);
     }
     if (*found) {
-        if (*psk_keySz > MAX_PSK_KEY_LEN) {
+        if (*psk_keySz > MAX_PSK_KEY_LEN &&
+            *((int*)psk_keySz) != USE_HW_PSK) {
             WOLFSSL_MSG("Key len too long in FindPsk()");
             ret = PSK_KEY_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
@@ -5894,29 +5902,27 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     ret = FindPskSuite(ssl, psk, ssl->arrays->psk_key, &ssl->arrays->psk_keySz,
                        suite, &found, foundSuite);
     if (ret == 0 && found) {
-        if ((ret == 0) && found) {
-            /* Default to ciphersuite if cb doesn't specify. */
-            ssl->options.resuming = 0;
-            /* Don't send certificate request when using PSK. */
-            ssl->options.verifyPeer = 0;
+        /* Default to ciphersuite if cb doesn't specify. */
+        ssl->options.resuming = 0;
+        /* Don't send certificate request when using PSK. */
+        ssl->options.verifyPeer = 0;
 
-            /* PSK age is always zero. */
-            if (psk->ticketAge != 0) {
-                ret = PSK_KEY_ERROR;
-                WOLFSSL_ERROR_VERBOSE(ret);
-            }
+        /* PSK age is always zero. */
+        if (psk->ticketAge != 0) {
+            ret = PSK_KEY_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
-        if ((ret == 0) && found) {
+        if (ret == 0) {
             /* Set PSK ciphersuite into SSL. */
             ssl->options.cipherSuite0 = foundSuite[0];
             ssl->options.cipherSuite  = foundSuite[1];
             ret = SetCipherSpecs(ssl);
         }
-        if ((ret == 0) && found) {
+        if (ret == 0) {
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
         }
-        if ((ret == 0) && found) {
+        if (ret == 0) {
             /* PSK negotiation has succeeded */
             ssl->options.isPSK = 1;
             /* SERVER: using PSK for peer authentication. */
@@ -7135,6 +7141,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.resuming) {
             ssl->options.resuming = 0;
+            ssl->arrays->psk_keySz = 0;
             XMEMSET(ssl->arrays->psk_key, 0, ssl->specs.hash_size);
         }
     #endif
