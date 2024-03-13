@@ -7480,7 +7480,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->key = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap, DYNAMIC_TYPE_ECC);
         if (kse->key == NULL) {
             WOLFSSL_MSG_EX("Failed to allocate %d bytes, ssl->heap: %p",
-                           (int)sizeof(ecc_key), (uintptr_t)ssl->heap);
+                           (int)sizeof(ecc_key), (wc_ptr_t)ssl->heap);
             WOLFSSL_MSG("EccTempKey Memory error!");
             return MEMORY_E;
         }

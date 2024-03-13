@@ -1517,7 +1517,7 @@ void wolfSSL_free(WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_free");
 
     if (ssl) {
-        WOLFSSL_MSG_EX("Free SSL: %p", (uintptr_t)ssl);
+        WOLFSSL_MSG_EX("Free SSL: %p", (wc_ptr_t)ssl);
         FreeSSL(ssl, ssl->ctx->heap);
     }
     else {
