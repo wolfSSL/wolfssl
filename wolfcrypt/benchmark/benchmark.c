@@ -5526,8 +5526,8 @@ void bench_sm4_gcm(void)
 
 exit:
 
-    WC_FREE_VAR(bench_additional);
-    WC_FREE_VAR(bench_tag);
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 #endif
 
@@ -10829,8 +10829,7 @@ void bench_sm2(int useDeviceID)
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
 #ifdef HAVE_ECC_VERIFY
-    WC_DECLARE_ARRAY(verify, int, BENCH_MAX_PENDING,
-                     sizeof(int), HEAP_HINT);
+    int verify[BENCH_MAX_PENDING];
 #endif
 #endif
     word32 x[BENCH_MAX_PENDING];
@@ -10967,10 +10966,10 @@ exit_ecdhe:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(genKey[i]), 1,
                             &times, agreeTimes, &pending)) {
-                    if (genKey[i].state == 0)
+                    if (genKey[i]->state == 0)
                         x[i] = ECC_MAX_SIG_SIZE;
                     ret = wc_ecc_sm2_sign_hash(digest[i], (word32)keySize,
-                            sig[i], x[i], &gRng, genKey[i]);
+                            sig[i], &x[i], &gRng, genKey[i]);
                     if (!bench_async_handle(&ret,
                                 BENCH_ASYNC_GET_DEV(genKey[i]), 1, &times,
                                 &pending)) {
@@ -11013,10 +11012,10 @@ exit_ecdsa_sign:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(genKey[i]), 1,
                             &times, agreeTimes, &pending)) {
-                    if (genKey[i].state == 0)
+                    if (genKey[i]->state == 0)
                         verify[i] = 0;
                     ret = wc_ecc_sm2_verify_hash(sig[i], x[i], digest[i],
-                                       (word32)keySize, verify[i], genKey[i]);
+                                       (word32)keySize, &verify[i], genKey[i]);
                     if (!bench_async_handle(&ret,
                                 BENCH_ASYNC_GET_DEV(genKey[i]), 1, &times,
                                 &pending)) {
