@@ -1116,6 +1116,100 @@ static int GetASN_BitString(const byte* input, word32 idx, int length)
     return 0;
 }
 
+#ifndef WOLFSSL_NO_ASN_STRICT
+/* Check a UTF8STRING's data is valid.
+ *
+ * @param [in] input   BER encoded data.
+ * @param [in] idx     Index of UTF8STRING data.
+ * @param [in] length  Length of input data.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when data is invalid.
+ */
+static int GetASN_UTF8String(const byte* input, word32 idx, int length)
+{
+    int ret = 0;
+    int i = 0;
+
+    while ((ret == 0) && (i < length)) {
+        int cnt;
+
+        /* Check code points and get count of following bytes. */
+        if ((input[idx + i] & 0x80) == 0x00) {
+            cnt = 0;
+        }
+        else if ((input[idx + i] & 0xe0) == 0xc0) {
+            cnt = 1;
+        }
+        else if ((input[idx + i] & 0xf0) == 0xe0) {
+            cnt = 2;
+        }
+        else if ((input[idx + i] & 0xf8) == 0xf0) {
+            cnt = 3;
+        }
+        else {
+            WOLFSSL_MSG("Invalid character in UTF8STRING\n");
+            ret = ASN_PARSE_E;
+            break;
+        }
+
+        /* Have checked first byte. */
+        i++;
+        /* Check each following byte. */
+        for (; cnt > 0; cnt--) {
+            /* Check we have enough data. */
+            if (i == length) {
+                WOLFSSL_MSG("Missing character in UTF8STRING\n");
+                ret = ASN_PARSE_E;
+                break;
+            }
+            /* Check following byte has top bit set. */
+            if ((input[idx + i] & 0x80) != 0x80) {
+                WOLFSSL_MSG("Invalid character in UTF8STRING\n");
+                ret = ASN_PARSE_E;
+                break;
+            }
+            i++;
+        }
+    }
+
+    return ret;
+}
+#endif
+
+/* Check an OBJECT IDENTIFIER's data is valid.
+ *
+ * X.690 8.19
+ *
+ * @param [in] input   BER encoded data.
+ * @param [in] idx     Index of OBJECT IDENTIFIER data.
+ * @param [in] length  Length of input data.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when data is invalid.
+ */
+static int GetASN_ObjectId(const byte* input, word32 idx, int length)
+{
+    int ret = 0;
+
+    /* OID data must be at least 3 bytes. */
+    if (length < 3) {
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        WOLFSSL_MSG_VSNPRINTF("OID length must be 3 or more: %d", len);
+    #else
+        WOLFSSL_MSG("OID length less than 3");
+    #endif
+        ret = ASN_PARSE_E;
+    }
+    /* Last octet of a subidentifier has bit 8 clear. Last octet must be last
+     * of a subidentifier. Ensure last octet hasn't got top bit set indicating.
+     */
+    else if ((input[idx + length - 1] & 0x80) != 0x00) {
+        WOLFSSL_MSG("OID last octet has top bit set");
+        ret = ASN_PARSE_E;
+    }
+
+    return ret;
+}
+
 /* Get the ASN.1 items from the BER encoding.
  *
  * @param [in] asn         ASN.1 item expected.
@@ -1581,11 +1675,20 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             idx++;
             len--;
         }
-        else if ((asn[i].tag == ASN_OBJECT_ID) && (len < 3)) {
-        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
-            WOLFSSL_MSG_VSNPRINTF("OID length must be 3 or more: %d", len);
-        #endif
-            return ASN_PARSE_E;
+    #ifndef WOLFSSL_NO_ASN_STRICT
+        else if ((asn[i].tag == ASN_UTF8STRING) ||
+                 (data[i].tag == ASN_UTF8STRING)) {
+            /* Check validity of data. */
+            err = GetASN_UTF8String(input, idx, len);
+            if (err != 0)
+                return err;
+        }
+    #endif
+        else if (asn[i].tag == ASN_OBJECT_ID) {
+            /* Check validity of data. */
+            err = GetASN_ObjectId(input, idx, len);
+            if (err != 0)
+                return err;
         }
 
         /* Don't parse data if only header required. */
