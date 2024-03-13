@@ -25,7 +25,12 @@
 */
 
 /* Define a macro to display user settings version in example code: */
-#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.6.6 Rev 5"
+#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.6.7"
+
+/* Due to limited build control, we'll ignore file warnings. */
+/* See https://github.com/arduino/arduino-cli/issues/631     */
+#undef  WOLFSSL_IGNORE_FILE_WARN
+#define WOLFSSL_IGNORE_FILE_WARN
 
 #define NO_FILESYSTEM
 #define USE_CERT_BUFFERS_2048

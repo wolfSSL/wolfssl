@@ -11,5 +11,7 @@ EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/README.md
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/wolfssl_client.ino
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/README.md
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/wolfssl_server.ino
+EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/README.md
+EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/wolfssl_version.ino
 EXTRA_DIST+= IDE/ARDUINO/wolfssl.h
 EXTRA_DIST+= IDE/ARDUINO/wolfssl-arduino.sh

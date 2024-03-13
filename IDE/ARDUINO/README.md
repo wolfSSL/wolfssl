@@ -129,6 +129,7 @@ rm -rf /mnt/c/workspace/wolfssl-$USER/IDE/ARDUINO/wolfSSL
 Publish wolfSSL from WSL to default Windows local library.
 
 ```bash
+cd /mnt/c/workspace/wolfssl-$USER/IDE/ARDUINO
 rm -rf /mnt/c/Users/$USER/Documents/Arduino/libraries/wolfSSL
 rm -rf /mnt/c/workspace/wolfssl-arduino/IDE/ARDUINO/wolfSSL
 ./wolfssl-arduino.sh INSTALL

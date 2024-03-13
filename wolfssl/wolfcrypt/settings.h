@@ -266,6 +266,11 @@
 /* #define WOLFSSL_MAXQ108X */
 
 #if defined(ARDUINO)
+    /* Due to limited build control, we'll ignore file warnings. */
+    /* See https://github.com/arduino/arduino-cli/issues/631     */
+    #undef  WOLFSSL_IGNORE_FILE_WARN
+    #define WOLFSSL_IGNORE_FILE_WARN
+
     /* we don't have the luxury of compiler options, so manually define */
     #if defined(__arm__)
         #undef  WOLFSSL_ARDUINO
