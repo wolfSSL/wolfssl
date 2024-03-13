@@ -43,7 +43,7 @@ Tested with:
 #define REPEAT_CONNECTION 0
 
 /* Edit this with your other TLS host server address to connect to: */
-#define WOLFSSL_TLS_SERVER_HOST "192.168.1.34"
+#define WOLFSSL_TLS_SERVER_HOST "192.168.1.39"
 
 /* wolfssl TLS examples communicate on port 11111 */
 #define WOLFSSL_PORT 11111
@@ -58,7 +58,7 @@ Tested with:
 #define RECONNECT_ATTEMPTS 20
 
 /* Optional stress test. Define to consume memory until exhausted: */
-#define MEMORY_STRESS_TEST
+/* #define MEMORY_STRESS_TEST */
 
 /* Choose client or server example, not both. */
 #define WOLFSSL_CLIENT_EXAMPLE
@@ -68,12 +68,12 @@ Tested with:
     /* the /workspace directory may contain a private config
      * excluded from GitHub with items such as WiFi passwords */
     #include MY_PRIVATE_CONFIG
-    const char* ssid PROGMEM = CONFIG_ESP_WIFI_SSID;
-    const char* password PROGMEM  = CONFIG_ESP_WIFI_PASSWORD;
+    static const char* ssid PROGMEM = MY_ARDUINO_WIFI_SSID;
+    static const char* password PROGMEM = MY_ARDUINO_WIFI_PASSWORD;
 #else
     /* when using WiFi capable boards: */
-    const char* ssid PROGMEM  = "your_SSID";
-    const char* password PROGMEM = "your_PASSWORD";
+    static const char* ssid PROGMEM  = "your_SSID";
+    static const char* password PROGMEM = "your_PASSWORD";
 #endif
 
 #define BROADCAST_ADDRESS "255.255.255.255"
@@ -135,7 +135,7 @@ Tested with:
 #elif defined(ARDUINO_SAMD_NANO_33_IOT)
     #define USING_WIFI
     #include <SPI.h>
-    #include <WiFiNINA.h>
+    #include <WiFiNINA.h> /* Needs Arduino WiFiNINA library installed manually */
     WiFiClient client;
 
 #elif defined(ARDUINO_ARCH_RP2040)
@@ -176,21 +176,20 @@ Tested with:
    || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 #endif
 
-const char host[] PROGMEM = WOLFSSL_TLS_SERVER_HOST; /* server to connect to */
-const int port PROGMEM = WOLFSSL_PORT; /* port on server to connect to */
-const int serial_baud PROGMEM = SERIAL_BAUD; /* local serial port to monitor */
+static const char host[] PROGMEM = WOLFSSL_TLS_SERVER_HOST; /* server to connect to */
+static const int port PROGMEM = WOLFSSL_PORT; /* port on server to connect to */
 
-WOLFSSL_CTX* ctx = NULL;
-WOLFSSL* ssl = NULL;
-char* wc_error_message = (char*)malloc(80 + 1);
-char errBuf[80];
+static WOLFSSL_CTX* ctx = NULL;
+static WOLFSSL* ssl = NULL;
+static char* wc_error_message = (char*)malloc(80 + 1);
+static char errBuf[80];
 
 #if defined(MEMORY_STRESS_TEST)
     #define MEMORY_STRESS_ITERATIONS 100
     #define MEMORY_STRESS_BLOCK_SIZE 1024
     #define MEMORY_STRESS_INITIAL (4*1024)
-    char* memory_stress[MEMORY_STRESS_ITERATIONS]; /* typically 1K per item */
-    int mem_ctr        = 0;
+    static char* memory_stress[MEMORY_STRESS_ITERATIONS]; /* typically 1K per item */
+    static int mem_ctr        = 0;
 #endif
 
 static int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx);
@@ -202,8 +201,8 @@ static int lng_index PROGMEM = 0; /* 0 = English */
     #include <malloc.h>
     extern char _end;
     extern "C" char *sbrk(int i);
-    char *ramstart=(char *)0x20070000;
-    char *ramend=(char *)0x20088000;
+    static char *ramstart=(char *)0x20070000;
+    static char *ramend=(char *)0x20088000;
 #endif
 
 /*****************************************************************************/
@@ -372,28 +371,31 @@ int setup_network(void) {
 #if defined(USING_WIFI)
     int status = WL_IDLE_STATUS;
 
-    if (WiFi.status() == WL_NO_MODULE) {
-        Serial.println("Communication with WiFi module failed!");
-        /* don't continue if no network */
-        while (true) ;
-    }
-
-    String fv = WiFi.firmwareVersion();
-    if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
-        Serial.println("Please upgrade the firmware");
-    }
-
     /* The ESP8266 & ESP32 support both AP and STA. We'll use STA: */
     #if defined(ESP8266) || defined(ESP32)
         WiFi.mode(WIFI_STA);
+    #else
+        String fv;
+        if (WiFi.status() == WL_NO_MODULE) {
+            Serial.println("Communication with WiFi module failed!");
+            /* don't continue if no network */
+            while (true) ;
+        }
+
+        fv = WiFi.firmwareVersion();
+        if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
+            Serial.println("Please upgrade the firmware");
+        }
     #endif
 
     Serial.print(F("Connecting to WiFi "));
     Serial.print(ssid);
+    status = WiFi.begin(ssid, password);
     while (status != WL_CONNECTED) {
-        status = WiFi.begin(ssid, password);
-        delay(5000);
+        delay(1000);
         Serial.print(F("."));
+        Serial.print(status);
+        status = WiFi.status();
     }
 
     Serial.println(F(" Connected!"));
@@ -598,9 +600,12 @@ int setup_certificates(void) {
 /*****************************************************************************/
 /*****************************************************************************/
 void setup(void) {
-    Serial.begin(serial_baud);
-    while (!Serial) {
+    int i = 0;
+    Serial.begin(SERIAL_BAUD);
+    while (!Serial && (i < 10)) {
         /* wait for serial port to connect. Needed for native USB port only */
+        delay(1000);
+        i++;
     }
     Serial.println(F(""));
     Serial.println(F(""));
@@ -623,9 +628,9 @@ void setup(void) {
 
     setup_hardware();
 
-    setup_datetime();
-
     setup_network();
+
+    setup_datetime();
 
     setup_wolfssl();
 

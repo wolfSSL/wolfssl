@@ -29,7 +29,7 @@
 ROOT_DIR="/wolfssl"
 
 # The Arduino Version will initially have a suffix appended during fine tuning stage.
-WOLFSSL_VERSION_ARUINO_SUFFIX="-Arduino.2"
+WOLFSSL_VERSION_ARUINO_SUFFIX="-Arduino.3"
 
 # For verbose copy, set CP_CMD="-v", otherwise clear it: CP_CMD="cp"
 # Do not set to empty string, as copy will fail with this: CP_CMD=""
@@ -241,6 +241,10 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     $CP_CMD ./sketches/wolfssl_server/wolfssl_server.ino ".${EXAMPLES_DIR}"/wolfssl_server/wolfssl_server.ino || exit 1
     $CP_CMD ./sketches/wolfssl_server/README.md          ".${EXAMPLES_DIR}"/wolfssl_server/README.md          || exit 1
 
+    echo "Copy wolfssl_server example...."
+    mkdir -p .${EXAMPLES_DIR}/wolfssl_version
+    $CP_CMD ./sketches/wolfssl_version/wolfssl_version.ino ".${EXAMPLES_DIR}"/wolfssl_version/wolfssl_version.ino || exit 1
+    $CP_CMD ./sketches/wolfssl_version/README.md           ".${EXAMPLES_DIR}"/wolfssl_version/README.md           || exit 1
 else
     echo "ERROR: You must be in the IDE/ARDUINO directory to run this script"
     exit 1
@@ -265,7 +269,7 @@ sed s/"$VERSION_PLACEHOLDER"/"$WOLFSSL_VERSION"/ "$PREPEND_FILE" > "$PREPEND_FIL
 cat "$PREPEND_FILE.tmp" ${TOP_DIR}/README.md > PREPENDED_README.md
 
 # Here we'll insert the wolfSSL version into the `library.properties.tmp` file, along with an Arduino version suffix.
-# The result should be something like version=5.6.601 (for the 1st incremental version on top of 5.6.6)
+# The result should be something like version=5.6.6.Arduino.1 (for the 1st incremental version on top of 5.6.6)
 sed            s/"$VERSION_PLACEHOLDER"/"$WOLFSSL_VERSION"/                              "$PROPERTIES_FILE_TEMPLATE" > "library.properties.tmp"
 sed -i.backup  s/"$ARDUINO_VERSION_SUFFIX_PLACEHOLDER"/"$WOLFSSL_VERSION_ARUINO_SUFFIX"/ "library.properties.tmp"
 
