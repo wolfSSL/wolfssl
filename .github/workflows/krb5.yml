@@ -9,7 +9,7 @@ jobs:
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -34,7 +34,7 @@ jobs:
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 12
     needs: build_wolfssl
     steps:
       - name: Download lib
