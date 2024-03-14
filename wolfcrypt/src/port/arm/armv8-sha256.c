@@ -1623,9 +1623,9 @@ int wc_Sha256Transform(wc_Sha256* sha256, const unsigned char* data)
     XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
 #endif
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-    Sha256Transform(sha256, data, 1);
+    Sha256Transform(sha256, (byte*)sha256->buffer, 1);
 #else
-    Transform_Sha256_Len(sha256, data, WC_SHA256_BLOCK_SIZE);
+    Transform_Sha256_Len(sha256, (byte*)sha256->buffer, WC_SHA256_BLOCK_SIZE);
 #endif
     return 0;
 }
