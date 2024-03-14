@@ -4791,11 +4791,11 @@ then
     ENABLED_DES3="yes"
 fi
 
-# DES3 ciphers
-AC_ARG_ENABLE([des3-ciphers],
-    [AS_HELP_STRING([--enable-des3-ciphers],[Enable DES3 ciphers (default: disabled unless des3 is enabled)])],
-    [ ENABLED_DES3_CIPHERS=$enableval ],
-    [ ENABLED_DES3_CIPHERS=no ]
+# DES3 TLS suites
+AC_ARG_ENABLE([des3-tls-suites],
+    [AS_HELP_STRING([--enable-des3-tls-suites],[Enable DES3 TLS cipher suites (default: disabled)])],
+    [ ENABLED_DES3_TLS_SUITES=$enableval ],
+    [ ENABLED_DES3_TLS_SUITES=no ]
     )
 
 # ARC4
@@ -8697,12 +8697,12 @@ else
     fi
 fi
 
-if test "x$ENABLED_DES3_CIPHERS" = "xno"
+if test "x$ENABLED_DES3_TLS_SUITES" = "xno"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DES3_CIPHERS"
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3_TLS_SUITES"
 else
     AS_IF([test "x$ENABLED_DES3" = "xno"],
-        [AC_MSG_ERROR([DES3 ciphers require DES3])])
+        [AC_MSG_ERROR([DES3 TLS suites require DES3])])
 fi
 
 if test "$ENABLED_AESGCM" != "no"
@@ -9503,7 +9503,7 @@ echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * DES3:                       $ENABLED_DES3"
-echo "   * DES3_CIPHERS:               $ENABLED_DES3_CIPHERS"
+echo "   * DES3 TLS Suites:            $ENABLED_DES3_TLS_SUITES"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
 echo "   * SM4-ECB:                    $ENABLED_SM4_ECB"
 echo "   * SM4-CBC:                    $ENABLED_SM4_CBC"
