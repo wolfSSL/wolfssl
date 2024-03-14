@@ -862,7 +862,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "bsr	%[a], %[i]	\n\t"                    \
         : [i] "=r" (vi)                                  \
         : [a] "r" (va)                                   \
-        : "cC"                                           \
+        : "cc"                                           \
     )
 
 #ifndef WOLFSSL_SP_DIV_WORD_HALF
