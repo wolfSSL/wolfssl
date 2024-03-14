@@ -325,6 +325,8 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <wolfssl/wolfcrypt/lms.h>
 #ifdef HAVE_LIBLMS
     #include <wolfssl/wolfcrypt/ext_lms.h>
+#else
+    #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
@@ -625,11 +627,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
+    #if !defined(WOLFSSL_SMALL_STACK)
+        #if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
+        #endif
+    #endif
     #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test(void);
-    #endif
-    #if defined(WOLFSSL_LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
-    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
     #endif
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
@@ -1753,15 +1757,17 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* if defined(WOLFSSL_HAVE_XMSS) */
 
 #if defined(WOLFSSL_HAVE_LMS)
-    #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
-    if ( (ret = lms_test()) != 0)
-        TEST_FAIL("LMS      test failed!\n", ret);
+    #if !defined(WOLFSSL_SMALL_STACK)
+        #if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
+    if ( (ret = lms_test_verify_only()) != 0)
+        TEST_FAIL("LMS Vfy  test failed!\n", ret);
     else
-        TEST_PASS("LMS      test passed!\n");
+        TEST_PASS("LMS Vfy  test passed!\n");
+        #endif
     #endif
 
-    #if defined(WOLFSSL_LMS_VERIFY_ONLY) && !defined(WOLFSSL_SMALL_STACK)
-    if ( (ret = lms_test_verify_only()) != 0)
+    #if !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    if ( (ret = lms_test()) != 0)
         TEST_FAIL("LMS      test failed!\n", ret);
     else
         TEST_PASS("LMS      test passed!\n");
@@ -3391,6 +3397,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     } /* END LARGE HASH TEST */
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
+
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+    unsigned char data_hb[WC_SHA256_BLOCK_SIZE] = {
+        0x61, 0x62, 0x63, 0x80, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18
+    };
+
+    ret = wc_Sha256HashBlock(&sha, data_hb, hash);
+    if (ret != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+    }
+    if (XMEMCMP(hash, b.output, WC_SHA256_DIGEST_SIZE) != 0) {
+{
+    for (int ii = 0; ii < WC_SHA256_DIGEST_SIZE; ii++)
+        fprintf(stderr, " %02x", hash[ii]);
+    fprintf(stderr, "\n");
+    for (int ii = 0; ii < WC_SHA256_DIGEST_SIZE; ii++)
+        fprintf(stderr, " %02x", b.output[ii]);
+    fprintf(stderr, "\n");
+}
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    }
+#endif
 
 exit:
 
@@ -37793,7 +37828,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     if (sigSz != WC_TEST_LMS_SIG_LEN) {
-        printf("error: got %d, expected %d\n", sigSz, WC_TEST_LMS_SIG_LEN);
+        printf("error: got %u, expected %d\n", sigSz, WC_TEST_LMS_SIG_LEN);
         return WC_TEST_RET_ENC_EC(sigSz);
     }
 
@@ -37827,7 +37862,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
             ret2 = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (byte *) msg,
                                      msgSz);
-            if (ret2 != -1) {
+            if ((ret2 != -1) && (ret2 != SIG_VERIFY_E)) {
                 /* Verify passed when it should have failed. */
                 return WC_TEST_RET_ENC_I(j);
             }
@@ -37848,13 +37883,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 
     wc_FreeRng(&rng);
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
-#if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY) && \
-    !defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
 
 /* A simple LMS verify only test.
  *
@@ -37868,7 +37907,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
  * */
 
 /* "wolfSSL LMS example message!" without null terminator. */
-static const byte lms_msg[28] =
+static byte lms_msg[28] =
 {
     0x77,0x6F,0x6C,0x66,0x53,0x53,0x4C,0x20,
     0x4C,0x4D,0x53,0x20,0x65,0x78,0x61,0x6D,
@@ -37890,7 +37929,7 @@ static const byte lms_L1H10W8_pub[HSS_MAX_PUBLIC_KEY_LEN] =
 
 #define LMS_L1H10W8_SIGLEN (1456)
 
-static const byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
+static byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
 {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
     0x00,0x00,0x00,0x04,0x18,0x70,0x09,0x2E,
@@ -38114,7 +38153,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     if (pubLen != HSS_MAX_PUBLIC_KEY_LEN) {
-        printf("error: got %d, expected %d\n", pubLen, HSS_MAX_PUBLIC_KEY_LEN);
+        printf("error: got %u, expected %d\n", pubLen, HSS_MAX_PUBLIC_KEY_LEN);
         return WC_TEST_RET_ENC_EC(pubLen);
     }
 
@@ -38122,7 +38161,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
     if (sigSz != LMS_L1H10W8_SIGLEN) {
-        printf("error: got %d, expected %d\n", sigSz, LMS_L1H10W8_SIGLEN);
+        printf("error: got %u, expected %d\n", sigSz, LMS_L1H10W8_SIGLEN);
         return WC_TEST_RET_ENC_EC(sigSz);
     }
 
@@ -38137,7 +38176,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     lms_msg[msgSz / 2] ^= 1;
     ret2 = wc_LmsKey_Verify(&verifyKey, lms_L1H10W8_sig, LMS_L1H10W8_SIGLEN,
                             (byte *) lms_msg, msgSz);
-    if (ret2 != -1) {
+    if ((ret2 != -1) && (ret2 != SIG_VERIFY_E)) {
         printf("error: wc_LmsKey_Verify returned %d, expected -1\n", ret2);
         return WC_TEST_RET_ENC_EC(ret);
     }
@@ -38159,7 +38198,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
         ret2 = wc_LmsKey_Verify(&verifyKey, lms_L1H10W8_sig,
                                 LMS_L1H10W8_SIGLEN,
                                 (byte *) lms_msg, msgSz);
-        if (ret2 != -1) {
+        if ((ret2 != -1) && (ret2 != SIG_VERIFY_E)) {
             /* Verify passed when it should have failed. */
             return WC_TEST_RET_ENC_I(j);
         }
@@ -38172,8 +38211,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     return ret;
 }
 
-#endif /* if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_LMS_VERIFY_ONLY) &&
-        *    !defined(WOLFSSL_SMALL_STACK) */
+#endif
+#endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) */
 
 static const int fiducial3 = WC_TEST_RET_LN; /* source code reference point --
                                               * see print_fiducials() below.

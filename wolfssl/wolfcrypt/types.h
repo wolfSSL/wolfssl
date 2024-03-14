@@ -1052,6 +1052,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SPHINCS      = 98,
         DYNAMIC_TYPE_SM4_BUFFER   = 99,
         DYNAMIC_TYPE_DEBUG_TAG    = 100,
+        DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
         DYNAMIC_TYPE_SNIFFER_PB          = 1002,

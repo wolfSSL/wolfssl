@@ -178,6 +178,8 @@
     #include <wolfssl/wolfcrypt/lms.h>
     #ifdef HAVE_LIBLMS
         #include <wolfssl/wolfcrypt/ext_lms.h>
+    #else
+        #include <wolfssl/wolfcrypt/wc_lms.h>
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
@@ -9448,7 +9450,7 @@ static const byte lms_pub_L4_H5_W8[60] =
     0x74,0x24,0x12,0xC8
 };
 
-static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
+static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
    /* WARNING: THIS IS AN INSECURE WRITE CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! Production applications should
@@ -9457,15 +9459,128 @@ static int lms_write_key_mem(const byte * priv, word32 privSz, void *context)
     return WC_LMS_RC_SAVED_TO_NV_MEMORY;
 }
 
-static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
+static int lms_read_key_mem(byte* priv, word32 privSz, void* context)
 {
    /* WARNING: THIS IS AN INSECURE READ CALLBACK THAT SHOULD ONLY
     * BE USED FOR TESTING PURPOSES! */
     XMEMCPY(priv, context, privSz);
     return WC_LMS_RC_READ_TO_MEMORY;
 }
+static byte lms_priv[HSS_MAX_PRIVATE_KEY_LEN];
 
-static void bench_lms_sign_verify(enum wc_LmsParm parm)
+static void bench_lms_keygen(int parm, byte* pub)
+{
+    WC_RNG      rng;
+    LmsKey      key;
+    int         ret;
+    word32      pubLen = HSS_MAX_PUBLIC_KEY_LEN;
+    int         times = 0;
+    int         count = 0;
+    double      start = 0.0F;
+    int         levels;
+    int         height;
+    int         winternitz;
+    const char* str = wc_LmsKey_ParmToStr(parm);
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) {
+        fprintf(stderr, "error: wc_InitRng failed: %d\n", ret);
+        return;
+    }
+
+    ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+    if (ret) {
+        printf("wc_LmsKey_Init failed: %d\n", ret);
+        wc_FreeRng(&rng);
+        return;
+    }
+
+    count = 0;
+    bench_stats_start(&count, &start);
+
+    do {
+        /* LMS is stateful. Async queuing not practical. */
+        for (times = 0; times < 1; ++times) {
+
+            wc_LmsKey_Free(&key);
+
+            ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
+            if (ret) {
+                printf("wc_LmsKey_Init failed: %d\n", ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_SetLmsParm(&key, parm);
+            if (ret) {
+                printf("wc_LmsKey_SetLmsParm failed: %d\n", ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_GetParameters(&key, &levels, &height, &winternitz);
+            if (ret) {
+                fprintf(stderr, "error: wc_LmsKey_GetParameters failed: %d\n",
+                    ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
+            if (ret) {
+                fprintf(stderr, "error: wc_LmsKey_SetWriteCb failed: %d\n",
+                    ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_SetReadCb(&key, lms_read_key_mem);
+            if (ret) {
+                fprintf(stderr, "error: wc_LmsKey_SetReadCb failed: %d\n", ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_SetContext(&key, (void*)lms_priv);
+            if (ret) {
+                fprintf(stderr, "error: wc_LmsKey_SetContext failed: %d\n",
+                    ret);
+                goto exit_lms_keygen;
+            }
+
+            ret = wc_LmsKey_MakeKey(&key, &rng);
+            if (ret) {
+                printf("wc_LmsKey_MakeKey failed: %d\n", ret);
+                goto exit_lms_keygen;
+            }
+
+            RECORD_MULTI_VALUE_STATS();
+        }
+
+        count += times;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+    bench_stats_asym_finish(str, levels * height, "keygen", 0,
+                            count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    ret = wc_LmsKey_ExportPubRaw(&key, pub, &pubLen);
+    if (ret) {
+        fprintf(stderr, "error: wc_LmsKey_ExportPubRaw failed: %d\n", ret);
+    }
+
+exit_lms_keygen:
+    wc_LmsKey_Free(&key);
+    wc_FreeRng(&rng);
+}
+
+static void bench_lms_sign_verify(int parm, byte* pub)
 {
     LmsKey       key;
     int          ret = 0;
@@ -9478,8 +9593,8 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     int          times = 0;
     int          count = 0;
     double       start = 0.0F;
-    byte         priv[HSS_MAX_PRIVATE_KEY_LEN];
     const char * str = wc_LmsKey_ParmToStr(parm);
+    DECLARE_MULTI_VALUE_STATS_VARS()
 
     ret = wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
     if (ret) {
@@ -9495,33 +9610,33 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
 
     switch (parm) {
     case WC_LMS_PARM_L2_H10_W2:
-        XMEMCPY(priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
-        XMEMCPY(key.pub, lms_pub_L2_H10_W2, sizeof(lms_pub_L2_H10_W2));
+        XMEMCPY(lms_priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
+        XMEMCPY(key.pub, lms_pub_L2_H10_W2, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_L2_H10_W4:
-        XMEMCPY(priv, lms_priv_L2_H10_W4, sizeof(lms_priv_L2_H10_W4));
-        XMEMCPY(key.pub, lms_pub_L2_H10_W4, sizeof(lms_pub_L2_H10_W4));
+        XMEMCPY(lms_priv, lms_priv_L2_H10_W4, sizeof(lms_priv_L2_H10_W4));
+        XMEMCPY(key.pub, lms_pub_L2_H10_W4, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_L3_H5_W4:
-        XMEMCPY(priv, lms_priv_L3_H5_W4, sizeof(lms_priv_L3_H5_W4));
-        XMEMCPY(key.pub, lms_pub_L3_H5_W4, sizeof(lms_pub_L3_H5_W4));
+        XMEMCPY(lms_priv, lms_priv_L3_H5_W4, sizeof(lms_priv_L3_H5_W4));
+        XMEMCPY(key.pub, lms_pub_L3_H5_W4, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_L3_H5_W8:
-        XMEMCPY(priv, lms_priv_L3_H5_W8, sizeof(lms_priv_L3_H5_W8));
-        XMEMCPY(key.pub, lms_pub_L3_H5_W8, sizeof(lms_pub_L3_H5_W8));
+        XMEMCPY(lms_priv, lms_priv_L3_H5_W8, sizeof(lms_priv_L3_H5_W8));
+        XMEMCPY(key.pub, lms_pub_L3_H5_W8, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_L3_H10_W4:
-        XMEMCPY(priv, lms_priv_L3_H10_W4, sizeof(lms_priv_L3_H10_W4));
-        XMEMCPY(key.pub, lms_pub_L3_H10_W4, sizeof(lms_pub_L3_H10_W4));
+        XMEMCPY(lms_priv, lms_priv_L3_H10_W4, sizeof(lms_priv_L3_H10_W4));
+        XMEMCPY(key.pub, lms_pub_L3_H10_W4, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_L4_H5_W8:
-        XMEMCPY(priv, lms_priv_L4_H5_W8, sizeof(lms_priv_L4_H5_W8));
-        XMEMCPY(key.pub, lms_pub_L4_H5_W8, sizeof(lms_pub_L4_H5_W8));
+        XMEMCPY(lms_priv, lms_priv_L4_H5_W8, sizeof(lms_priv_L4_H5_W8));
+        XMEMCPY(key.pub, lms_pub_L4_H5_W8, HSS_MAX_PUBLIC_KEY_LEN);
         break;
 
     case WC_LMS_PARM_NONE:
@@ -9529,9 +9644,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     case WC_LMS_PARM_L1_H15_W4:
     case WC_LMS_PARM_L2_H10_W8:
     case WC_LMS_PARM_L3_H5_W2:
-        printf("bench_lms_sign_verify: unsupported benchmark option: %d\n",
-               parm);
-        goto exit_lms_sign_verify;
+    default:
+        XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
+        break;
     }
 
     ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
@@ -9546,7 +9661,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
         goto exit_lms_sign_verify;
     }
 
-    ret = wc_LmsKey_SetContext(&key, (void *) priv);
+    ret = wc_LmsKey_SetContext(&key, (void*)lms_priv);
     if (ret) {
         fprintf(stderr, "error: wc_LmsKey_SetContext failed: %d\n", ret);
         goto exit_lms_sign_verify;
@@ -9555,35 +9670,68 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
     /* Even with saved priv/pub keys, we must still reload the private
      * key before using it. Reloading the private key is the bottleneck
      * for larger heights. Only print load time in debug builds. */
-#if defined(DEBUG_WOLFSSL)
+    count = 0;
     bench_stats_start(&count, &start);
-#endif /* if defined DEBUG_WOLFSSL*/
 
+#ifndef WOLFSSL_WC_LMS_SMALL
+    do {
+    #ifdef WOLFSSL_WC_LMS
+        key.priv.inited = 0;
+        key.state = WC_LMS_STATE_PARMSET;
+    #endif
+        ret = wc_LmsKey_Reload(&key);
+        if (ret) {
+            printf("wc_LmsKey_Reload failed: %d\n", ret);
+            goto exit_lms_sign_verify;
+        }
+        RECORD_MULTI_VALUE_STATS();
+
+        count++;
+
+        ret = wc_LmsKey_GetSigLen(&key, &sigSz);
+        if (ret) {
+            printf("wc_LmsKey_GetSigLen failed: %d\n", ret);
+            goto exit_lms_sign_verify;
+        }
+
+        ret = wc_LmsKey_GetPrivLen(&key, &privLen);
+        if (ret) {
+            printf("wc_LmsKey_GetPrivLen failed: %d\n", ret);
+            goto exit_lms_sign_verify;
+        }
+    #ifdef HAVE_LIBLMS
+        break;
+    #endif
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+
+    bench_stats_asym_finish(str, (int)privLen, "load", 0,
+                            count, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+    RESET_MULTI_VALUE_STATS_VARS();
+#else
     ret = wc_LmsKey_Reload(&key);
     if (ret) {
         printf("wc_LmsKey_Reload failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
-
-    count +=1;
-
     ret = wc_LmsKey_GetSigLen(&key, &sigSz);
     if (ret) {
         printf("wc_LmsKey_GetSigLen failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
-
     ret = wc_LmsKey_GetPrivLen(&key, &privLen);
     if (ret) {
         printf("wc_LmsKey_GetPrivLen failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
-
-#if defined(DEBUG_WOLFSSL)
-    bench_stats_check(start);
-    bench_stats_asym_finish(str, (int)privLen, "load", 0,
-                            count, start, ret);
-#endif /* if defined DEBUG_WOLFSSL*/
+#endif
 
     loaded = 1;
 
@@ -9598,22 +9746,29 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm)
 
     do {
         /* LMS is stateful. Async queuing not practical. */
-        for (times = 0; times < ntimes; ++times) {
-
+#ifndef WOLFSSL_WC_LMS_SMALL
+        for (times = 0; times < ntimes; ++times)
+#else
+        for (times = 0; times < 1; ++times)
+#endif
+        {
             ret = wc_LmsKey_Sign(&key, sig, &sigSz, (byte *) msg, msgSz);
             if (ret) {
                 printf("wc_LmsKey_Sign failed: %d\n", ret);
                 goto exit_lms_sign_verify;
             }
             RECORD_MULTI_VALUE_STATS();
+            if (!wc_LmsKey_SigsLeft(&key)) {
+                break;
+            }
         }
 
         count += times;
-    } while (bench_stats_check(start)
+    } while (wc_LmsKey_SigsLeft(&key) && (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
        || runs < minimum_runs
 #endif
-       );
+       ));
 
     bench_stats_asym_finish(str, (int)sigSz, "sign", 0,
                             count, start, ret);
@@ -9653,25 +9808,62 @@ exit_lms_sign_verify:
 
     if (loaded) {
         wc_LmsKey_Free(&key);
-        loaded = 0;
     }
-
-    if (sig != NULL) {
-        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sig = NULL;
-    }
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return;
 }
 
 void bench_lms(void)
 {
-    bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W2);
-    bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W4);
-    bench_lms_sign_verify(WC_LMS_PARM_L3_H5_W4);
-    bench_lms_sign_verify(WC_LMS_PARM_L3_H5_W8);
-    bench_lms_sign_verify(WC_LMS_PARM_L3_H10_W4);
-    bench_lms_sign_verify(WC_LMS_PARM_L4_H5_W8);
+    byte pub[HSS_MAX_PUBLIC_KEY_LEN];
+
+#ifdef BENCH_LMS_SLOW_KEYGEN
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
+    bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H15_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_L1_H15_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H15_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 2) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_L2_H10_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_L2_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#ifdef BENCH_LMS_SLOW_KEYGEN
+    bench_lms_keygen(WC_LMS_PARM_L2_H10_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L2_H10_W8, pub);
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 3)
+    bench_lms_keygen(WC_LMS_PARM_L3_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L3_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_L3_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L3_H5_W8, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 3) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_L3_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L3_H10_W4, pub);
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 4)
+    bench_lms_keygen(WC_LMS_PARM_L4_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L4_H5_W8, pub);
+#endif
+
+#if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
+    bench_lms_keygen(0x100, pub);
+    bench_lms_sign_verify(0x100, pub);
+#endif
+
     return;
 }
 
