@@ -6092,13 +6092,13 @@ int mp_montgomery_setup(fp_int *a, fp_digit *rho)
 
 #endif /* HAVE_ECC || (!NO_RSA && WC_RSA_BLINDING) */
 
-#ifdef HAVE_ECC
-
 /* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
     return fp_sqr(A, B);
 }
+
+#ifdef HAVE_ECC
 
 /* fast math conversion */
 int mp_div_2(fp_int * a, fp_int * b)
