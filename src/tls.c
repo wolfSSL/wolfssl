@@ -13364,7 +13364,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                 }
                 if (
-                #ifndef OPENSSL_EXTRA
+                #ifdef OPENSSL_EXTRA
                     /* OpenSSL treats a PSK key length of 0
                      * to indicate no PSK available.
                      */
@@ -13372,7 +13372,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 #endif
                          (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
                      (int)ssl->arrays->psk_keySz != USE_HW_PSK)) {
+                #ifndef OPENSSL_EXTRA
                     ret = PSK_KEY_ERROR;
+                #endif
                 }
                 else {
                     ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
