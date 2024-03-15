@@ -617,7 +617,7 @@ static int InitSha256(wc_Sha256* sha256)
     {
         int ret = 0;
 
-        if (sha224 == NULL || (data == NULL && len > 0)) {
+        if (sha256 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
         }
 
