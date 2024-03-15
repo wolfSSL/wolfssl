@@ -1128,9 +1128,9 @@ static int GetASN_BitString(const byte* input, word32 idx, int length)
 static int GetASN_UTF8String(const byte* input, word32 idx, int length)
 {
     int ret = 0;
-    int i = 0;
+    word32 i = 0;
 
-    while ((ret == 0) && (i < length)) {
+    while ((ret == 0) && ((int)i < length)) {
         int cnt;
 
         /* Check code points and get count of following bytes. */
@@ -1157,7 +1157,7 @@ static int GetASN_UTF8String(const byte* input, word32 idx, int length)
         /* Check each following byte. */
         for (; cnt > 0; cnt--) {
             /* Check we have enough data. */
-            if (i == length) {
+            if ((int)i == length) {
                 WOLFSSL_MSG("Missing character in UTF8STRING\n");
                 ret = ASN_PARSE_E;
                 break;
@@ -1202,7 +1202,7 @@ static int GetASN_ObjectId(const byte* input, word32 idx, int length)
     /* Last octet of a subidentifier has bit 8 clear. Last octet must be last
      * of a subidentifier. Ensure last octet hasn't got top bit set indicating.
      */
-    else if ((input[idx + length - 1] & 0x80) != 0x00) {
+    else if ((input[(int)idx + length - 1] & 0x80) != 0x00) {
         WOLFSSL_MSG("OID last octet has top bit set");
         ret = ASN_PARSE_E;
     }
