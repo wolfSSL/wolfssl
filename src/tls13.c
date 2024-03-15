@@ -1910,10 +1910,12 @@ end:
 #elif defined(WOLFSSL_ZEPHYR)
     word32 TimeNowInMilliseconds(void)
     {
+        int64_t t;
     #if defined(CONFIG_ARCH_POSIX)
         k_cpu_idle();
     #endif
-        return (word32)k_uptime_get() / 1000;
+        t = k_uptime_get(); /* returns current uptime in milliseconds */
+        return (word32)t;
     }
 
 #else
@@ -2201,10 +2203,12 @@ end:
 #elif defined(WOLFSSL_ZEPHYR)
     sword64 TimeNowInMilliseconds(void)
     {
+        int64_t t;
     #if defined(CONFIG_ARCH_POSIX)
         k_cpu_idle();
     #endif
-        return (sword64)k_uptime_get() / 1000;
+        t = k_uptime_get(); /* returns current uptime in milliseconds */
+        return (sword64)t;
     }
 
 #else
