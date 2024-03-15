@@ -6,6 +6,10 @@ if(CONFIG_WOLFSSL)
       target_compile_definitions(wolfSSL INTERFACE
         WOLFSSL_SETTINGS_FILE="${CONFIG_WOLFSSL_SETTINGS_FILE}"
       )
+      zephyr_include_directories(
+        ${APPLICATION_CONFIG_DIR}
+        ${APPLICATION_CONFIG_DIR}/src
+      )
     endif()
 
     zephyr_include_directories(
