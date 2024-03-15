@@ -112,7 +112,7 @@ struct KyberKey {
     void* heap;
 #if defined(WOLF_CRYPTO_CB)
     /* Device Id. */
-    int* devId;
+    int devId;
 #endif
     /* Flags indicating what is stored in the key. */
     int flags;

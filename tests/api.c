@@ -54328,7 +54328,7 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
-#ifdef HAVE_PQC
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
             ":P256_KYBER_LEVEL1"
 #endif
 #endif
