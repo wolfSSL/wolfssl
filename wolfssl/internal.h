@@ -1743,6 +1743,7 @@ enum Misc {
     AES_CCM_16_AUTH_SZ  = 16, /* AES-CCM-16 Auth Tag length */
     AES_CCM_8_AUTH_SZ   = 8,  /* AES-CCM-8 Auth Tag Length  */
     AESCCM_NONCE_SZ     = 12,
+    CCM_IMP_IV_SZ       = 4,  /* Size of GCM/CCM AEAD implicit IV */
 
     SM4_GCM_AUTH_SZ     = 16, /* SM4-GCM Auth Tag length    */
     SM4_GCM_NONCE_SZ    = 12, /* SM4 GCM Nonce length       */
