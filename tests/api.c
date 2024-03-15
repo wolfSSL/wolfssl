@@ -27834,11 +27834,11 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     struct tm tmpTimeStorage;
     struct tm* tmpTime = &tmpTimeStorage;
 #endif
-    #ifndef NO_PKCS7_STREAM
-        word32 z;
-        int ret;
-    #endif /* !NO_PKCS7_STREAM */
 #endif /* !NO_ASN && !NO_ASN_TIME */
+#ifndef NO_PKCS7_STREAM
+    word32 z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 
     XMEMSET(&hash, 0, sizeof(wc_HashAlg));
 
