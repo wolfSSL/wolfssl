@@ -69,7 +69,10 @@ extern "C" {
 /* PSA support */
 #ifdef CONFIG_MBEDTLS_PSA_CRYPTO_C
     #define WOLFSSL_HAVE_PSA
-    #define WOLFSSL_PSA_GLOBAL_LOCK
+    #ifndef SINGLE_THREADED
+        #define WOLFSSL_PSA_GLOBAL_LOCK
+    #endif
+    #define WC_NO_HASHDRBG /* use PSA RNG directly via wc_psa_get_random */
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -135,12 +138,6 @@ extern "C" {
 /* Algorithms */
 /* ------------------------------------------------------------------------- */
 /* RNG */
-#if 0
-    /* Example for disabling DRBG and using TRNG directly */
-    extern int cc310_random_generate(unsigned char* output, unsigned int size);
-    #define CUSTOM_RAND_GENERATE_BLOCK  cc310_random_generate
-    #define WC_NO_HASHDRBG
-#endif
 #ifndef WC_NO_HASHDRBG
     #define HAVE_HASHDRBG /* Use DRBG SHA2-256 and seed */
 #endif
@@ -173,6 +170,7 @@ extern "C" {
     #undef NO_RSA
     #define WC_RSA_BLINDING
     //#define WC_RSA_NO_PADDING
+    //#define RSA_LOW_MEM
 
     #if 0
         #define WOLFSSL_KEY_GEN /* For RSA Key gen only */
