@@ -102,6 +102,18 @@ else
     REPRODUCIBLE_BUILD_DEFAULT=no
 fi
 
+# Allow experimental settings
+AC_ARG_ENABLE([experimental],
+    [AS_HELP_STRING([--enable-experimental],[Allow experimental settings in the configuration (default: disabled)])],
+    [ ENABLED_EXPERIMENTAL=$enableval ],
+    [ ENABLED_EXPERIMENTAL=no ]
+    )
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    AS_IF([ test "$ENABLED_DISTRO" = "yes" && test "$ENABLED_EXPERIMENTAL" = "yes" ],[ AC_MSG_ERROR([--enable-distro and --enable-experimental are mutually exclusive.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+fi
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h])
 AC_CHECK_LIB([network],[socket])
@@ -1057,8 +1069,9 @@ fi
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
 AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
         LIBS="$LIBS -loqs"
 
@@ -1105,7 +1118,7 @@ AC_ARG_WITH([liboqs],
 #  - SHA3, Shake128 and Shake256, or
 #  - SHA256, SHA512, AES-CTR
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (requires --enable-experimental) (default: disabled)])],
     [ ENABLED_KYBER=$enableval ],
     [ ENABLED_KYBER=no ]
     )
@@ -1141,6 +1154,7 @@ done
 
 if test "$ENABLED_KYBER" != "no"
 then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([KYBER requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
     # Use liboqs if specified.
     if test "$ENABLED_LIBOQS" = "no"; then
@@ -1220,8 +1234,9 @@ fi
 ENABLED_LIBXMSS="no"
 trylibxmssdir=""
 AC_ARG_WITH([libxmss],
-    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([libxmss requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for libxmss])
 
         trylibxmssdir=$withval
@@ -1318,8 +1333,9 @@ fi
 ENABLED_LIBLMS="no"
 tryliblmsdir=""
 AC_ARG_WITH([liblms],
-    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([liblms requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liblms])
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
@@ -8185,10 +8201,12 @@ AC_ARG_ENABLE([sys-ca-certs],
     )
 
 AC_ARG_ENABLE([dual-alg-certs],
-    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (default: disabled)])],
+    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (requires --enable-experimental) (default: disabled)])],
     [ ENABLED_DUAL_ALG_CERTS=$enableval ],
     [ ENABLED_DUAL_ALG_CERTS=no ]
     )
+
+AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([dual-alg-certs requires --enable-experimental.]) ])
 
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
@@ -9430,6 +9448,12 @@ echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
 echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS"
 
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    echo "   * Experimental settings:      Allowed"
+else
+    echo "   * Experimental settings:      Forbidden"
+fi
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"

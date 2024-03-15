@@ -3262,6 +3262,15 @@ extern void uITRON4_free(void *p) ;
 #define WOLFSSL_NO_KYBER1024
 #endif
 
+#if (defined(HAVE_LIBOQS) ||                                            \
+     defined(WOLFSSL_WC_KYBER) ||                                       \
+     defined(HAVE_LIBXMSS) ||                                           \
+     defined(HAVE_LIBLMS) ||                                            \
+     defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
+    !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
+
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
     !defined(WOLFSSL_HAVE_KYBER)
 #error Please do not define HAVE_PQC yourself.
