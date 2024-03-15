@@ -1065,6 +1065,16 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
         #endif
         }
     }
+    /* check for invalid padding on negative integer.
+     * c.f. X.690 (ISO/IEC 8825-2:2003 (E)) 10.4.6; RFC 5280 4.1
+     */
+    else if ((length > 1) && (input[idx] == 0xff) &&
+             ((input[idx + 1] & 0x80) != 0)) {
+        WOLFSSL_MSG("Bad INTEGER encoding of negative");
+    #ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
+        return ASN_EXPECT_0_E;
+    #endif /* WOLFSSL_ASN_INT_LEAD_0_ANY */
+    }
     /* Check whether a leading zero byte was required. */
     else if (positive && (input[idx] & 0x80)) {
         WOLFSSL_MSG("INTEGER is negative");
