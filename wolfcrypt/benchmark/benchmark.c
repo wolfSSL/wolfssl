@@ -8768,12 +8768,12 @@ void bench_rsa(int useDeviceID)
     #elif defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_3072)
         bytes = 12;
     #endif
-        ret = mp_read_unsigned_bin(rsaKey[i].n, &tmp[bytes], rsaKeySz/8);
+        ret = mp_read_unsigned_bin(&rsaKey[i]->n, &tmp[bytes], rsaKeySz/8);
         if (ret != 0) {
             printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
             goto exit;
         }
-        ret = mp_set_int(rsaKey[i].e, WC_RSA_EXPONENT);
+        ret = mp_set_int(&rsaKey[i]->e, WC_RSA_EXPONENT);
         if (ret != 0) {
             printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
             goto exit;

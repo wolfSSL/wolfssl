@@ -16134,8 +16134,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             #ifdef WOLFSSL_CERT_GEN
             static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
             #endif
-            #if (defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)) \
-                && !defined(NO_ASN_TIME)
+            #if defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)
             static const char* rsaCaCertDerFile = CERT_ROOT "ca-cert.der";
             #endif
             #ifdef HAVE_PKCS7
