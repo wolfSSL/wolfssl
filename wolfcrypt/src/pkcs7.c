@@ -2596,6 +2596,10 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
             {
                 int szLeft = BER_OCTET_LENGTH;
 
+                if (in == NULL) {
+                    return BAD_FUNC_ARG;
+                }
+
                 if (szLeft + totalSz > (word32)inSz)
                     szLeft = inSz - totalSz;
 
@@ -2669,6 +2673,10 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
         XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
     }
     else {
+        if (in == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         switch (cipherType) {
             case WC_CIPHER_NONE:
                 if (!pkcs7->detached) {
@@ -8168,12 +8176,15 @@ static int wc_PKCS7_EncryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                         WOLFSSL_MSG("Not AES-GCM stream support compiled in");
                         ret = NOT_COMPILED_IN;
                     }
-                    ret = wc_AesGcmEncrypt(aes, out, in, inSz, iv, ivSz,
+                    else {
+                        ret = wc_AesGcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* async encrypt not available here, so block till done */
-                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
-                #endif
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        /* async encrypt not available here, so block till done */
+                        ret = wc_AsyncWait(ret, &aes->asyncDev,
+                            WC_ASYNC_FLAG_NONE);
+                    #endif
+                    }
                 #else
                     ret = wc_AesGcmEncryptInit(aes, key, keySz, iv, ivSz);
                     if (ret == 0) {
