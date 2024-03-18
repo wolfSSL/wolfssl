@@ -296,7 +296,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
  * read from the wire sane */
 #ifndef WOLFSSL_QUIC_MAX_RECORD_CAPACITY
     /* 1024*1024 -- 1 MB */
-    #define WOLFSSL_QUIC_MAX_RECORD_CAPACITY 1048576
+    #define WOLFSSL_QUIC_MAX_RECORD_CAPACITY (1048576)
 #endif
 
 #endif /* WOLFSSL_QUIC */
