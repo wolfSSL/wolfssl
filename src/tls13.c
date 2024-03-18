@@ -10382,7 +10382,8 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (sniff == NO_SNIFF) {
         /* Actually check verify data. */
-        if (XMEMCMP(input + *inOutIdx, mac, size) != 0){
+        if (size > WC_MAX_DIGEST_SIZE ||
+                XMEMCMP(input + *inOutIdx, mac, size) != 0){
             WOLFSSL_MSG("Verify finished error on hashes");
             SendAlert(ssl, alert_fatal, decrypt_error);
             WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
