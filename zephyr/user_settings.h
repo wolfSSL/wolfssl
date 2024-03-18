@@ -380,6 +380,33 @@ extern "C" {
     #endif
 #endif
 
+/* ------------------------------------------------------------------------- */
+/* Assembly Speedups for Symmetric Algorithms */
+/* ------------------------------------------------------------------------- */
+
+#ifdef CONFIG_WOLFCRYPT_ARMASM
+    #define WOLFSSL_ARMASM
+    #define WOLFSSL_NO_HASH_RAW
+    #define WOLFSSL_ARMASM_INLINE /* use inline .c versions */
+    #define WOLFSSL_ARMASM_NO_HW_CRYPTO /* enable if processor does not support aes/sha instructions */
+    #define WOLFSSL_ARMASM_NO_NEON
+
+    /* Default is ARMv8 */
+
+    #if 0 /* ARMv7 */
+        #define WOLFSSL_ARM_ARCH 7
+    #endif
+#endif
+
+#ifdef CONFIG_WOLFCRYPT_INTELASM
+    #define USE_INTEL_SPEEDUP
+    #define WOLFSSL_X86_64_BUILD /* 64-bit */
+    //#define WOLFSSL_X86_BUILD /* 32-bit */
+
+    /* Issues with building AESNI "_mm_aesimc_si128" always_inline */
+    //#define WOLFSSL_AESNI
+#endif
+
 
 /* ------------------------------------------------------------------------- */
 /* Debugging */

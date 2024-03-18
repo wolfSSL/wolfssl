@@ -128,6 +128,37 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/psa/psa_pkcbs.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/st/stm32.c)
 
+    if(CONFIG_WOLFCRYPT_ARMASM)
+      # tested with board: "qemu_kvm_arm64"
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-aes.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha256.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-poly1305.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha.c)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
+
+      set(MCPU_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
+      #set(MCPU_FLAGS "-mcpu=generic+crypto -mstrict-align")
+    endif()
+
+    if(CONFIG_WOLFCRYPT_INTELASM)
+      # tested with board: "qemu_x86_64"
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha256_asm.S)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha512_asm.S)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha3_asm.S)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/chacha_asm.S)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/poly1305_asm.S)
+
+      # issues with aesni
+      #zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_asm.S)
+      #zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_gcm_x86_asm.S)
+      #set(MCPU_FLAGS "-march=native -maes -msse4 -mpclmul ")
+    endif()
+
     zephyr_library_link_libraries(wolfSSL)
 
   	target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
