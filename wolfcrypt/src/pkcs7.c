@@ -2597,6 +2597,8 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
                 int szLeft = BER_OCTET_LENGTH;
 
                 if (in == NULL) {
+                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
                     return BAD_FUNC_ARG;
                 }
 
