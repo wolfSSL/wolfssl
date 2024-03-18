@@ -129,6 +129,13 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         consumed = missing;
 
         qr->len = qr_length(qr->data, qr->end);
+
+        /* sanity check on length read from wire before use */
+        if (qr->len > (len + qr->capacity)) {
+            ret = BUFFER_E;
+            goto cleanup;
+        }
+
         if (qr->len > qr->capacity) {
             uint8_t *ndata = (uint8_t*)XREALLOC(qr->data, qr->len, ssl->heap,
                                                 DYNAMIC_TYPE_TMP_BUFFER);
