@@ -6183,6 +6183,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                             contentDynamic = (byte*)XMALLOC(contentSz,
                                                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                             if (contentDynamic == NULL) {
+                            #ifndef NO_PKCS7_STREAM
+                                pkcs7->stream = stream;
+                            #endif
                                 ret = MEMORY_E;
                                 break;
                             }

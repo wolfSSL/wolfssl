@@ -44891,7 +44891,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
 
             /* encode Signed Encrypted Compressed FirmwarePkgData */
             encodedSz = wc_PKCS7_EncodeSignedEncryptedCompressedFPD(pkcs7,
-                    testVectors[i].encryptKey, testVectors[i].encryptKeySz,
+                    (byte*)testVectors[i].encryptKey, testVectors[i].encryptKeySz,
                     testVectors[i].privateKey, testVectors[i].privateKeySz,
                     testVectors[i].encryptOID, testVectors[i].signOID,
                     testVectors[i].hashOID, (byte*)testVectors[i].content,
@@ -45000,7 +45000,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
             XMEMSET(encryptedTmp, 0, encryptedTmpSz);
 
             /* decrypt inner encryptedData */
-            pkcs7->encryptionKey = testVectors[i].encryptKey;
+            pkcs7->encryptionKey = (byte*)testVectors[i].encryptKey;
             pkcs7->encryptionKeySz = testVectors[i].encryptKeySz;
 
             encryptedTmpSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
