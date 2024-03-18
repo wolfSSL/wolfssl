@@ -2304,7 +2304,9 @@ static int test_wolfSSL_CertManagerAPI(void)
 #endif
 
     ExpectIntEQ(wolfSSL_CertManager_up_ref(cm), 1);
-    wolfSSL_CertManagerFree(cm);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CertManagerFree(cm);
+    }
     wolfSSL_CertManagerFree(cm);
     cm = NULL;
 
