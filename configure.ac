@@ -8109,6 +8109,11 @@ then
         ENABLED_AESGCM_STREAM=yes
     fi
 
+    if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" = "yes"
+    then
+        ENABLED_LINUXKM_LKCAPI_REGISTER=all
+    fi
+
     for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
     do
         case "$lkcapi_alg" in
@@ -9446,14 +9451,7 @@ echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
-echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS"
 
-if test "$ENABLED_EXPERIMENTAL" = "yes"
-then
-    echo "   * Experimental settings:      Allowed"
-else
-    echo "   * Experimental settings:      Forbidden"
-fi
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
@@ -9461,6 +9459,12 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    echo "   * Experimental settings:      Allowed"
+else
+    echo "   * Experimental settings:      Forbidden"
+fi
 if test "$ENABLED_FIPS" = "yes"; then
 echo "   * FIPS:                       $FIPS_VERSION"
 else
@@ -9668,6 +9672,11 @@ echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
+
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS" && \
+echo "   * Linux kernel alg register:  $ENABLED_LINUXKM_LKCAPI_REGISTER"
+
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
