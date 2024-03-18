@@ -1015,10 +1015,9 @@ static int kyber_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
  *
  * @param  [in, out]  shake256  SHAKE-256 object.
  */
-void kyber_prf_init(wc_Shake* shake256)
+void kyber_prf_init(wc_Shake* prf)
 {
-    XMEMSET(shake256->s, 0, sizeof(shake256->s));
-
+    XMEMSET(prf->s, 0, sizeof(prf->s));
 }
 
 /* New/Initialize SHAKE-256 object.
@@ -1028,18 +1027,18 @@ void kyber_prf_init(wc_Shake* shake256)
  * @param  [in]       devId     Device id.
  * @return  0 on success always.
  */
-int kyber_prf_new(wc_Shake* shake256, void* heap, int devId)
+int kyber_prf_new(wc_Shake* prf, void* heap, int devId)
 {
-    return wc_InitShake256(shake256, heap, devId);
+    return wc_InitShake256(prf, heap, devId);
 }
 
 /* Free SHAKE-256 object.
  *
  * @param  [in, out]  shake256  SHAKE-256 object.
  */
-void kyber_prf_free(wc_Shake* shake256)
+void kyber_prf_free(wc_Shake* prf)
 {
-    wc_Shake256_Free(shake256);
+    wc_Shake256_Free(prf);
 }
 
 /* Create pseudo-random data from the key using SHAKE-256.
@@ -1340,8 +1339,8 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
  * @return  Difference of the two values with range 0..2.
  */
 #define ETA2_SUB(d, i) \
-    (((sword16)((d >> ((i) * 4 + 0)) & 0x3)) - \
-     ((sword16)((d >> ((i) * 4 + 2)) & 0x3)))
+    (((sword16)(((d) >> ((i) * 4 + 0)) & 0x3)) - \
+     ((sword16)(((d) >> ((i) * 4 + 2)) & 0x3)))
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta2 from uniform random bytes.
@@ -1448,8 +1447,8 @@ static void kyber_cbd_eta2(sword16* p, const byte* r)
  * @return  Difference of the two values with range 0..3.
  */
 #define ETA3_SUB(d, i) \
-    (((sword16)((d >> ((i) * 6 + 0)) & 0x7)) - \
-     ((sword16)((d >> ((i) * 6 + 3)) & 0x7)))
+    (((sword16)(((d) >> ((i) * 6 + 0)) & 0x7)) - \
+     ((sword16)(((d) >> ((i) * 6 + 3)) & 0x7)))
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta3 from uniform random bytes.
@@ -2041,7 +2040,7 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_10(v, i, j, k) \
-    ((((KYBER_V54 << 10) * v[i * KYBER_N + j + k]) + KYBER_V54_HALF) >> 54)
+    ((((KYBER_V54 << 10) * (v)[(i) * KYBER_N + (j) + (k)]) + KYBER_V54_HALF) >> 54)
 
 /* Compress value to 11 bits.
  *
@@ -2055,7 +2054,7 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_11(v, i, j, k) \
-    ((((KYBER_V53 << 11) * v[i * KYBER_N + j + k]) + KYBER_V53_HALF) >> 53)
+    ((((KYBER_V53 << 11) * (v)[(i) * KYBER_N + (j) + (k)]) + KYBER_V53_HALF) >> 53)
 
 #endif /* CONV_WITH_DIV */
 
@@ -2241,8 +2240,8 @@ void kyber_vec_compress_11(byte* r, sword16* v)
  * @return  Decompressed value.
  */
 #define DECOMP_10(v, i, j, k, t) \
-    v[i * KYBER_N + 4 * j + k] = \
-        (word16)((((word32)(t & 0x3ff) * KYBER_Q) + 512) >> 10)
+    v[(i) * KYBER_N + 4 * (j) + (k)] = \
+        (word16)((((word32)((t) & 0x3ff) * KYBER_Q) + 512) >> 10)
 
 /* Decompress an 11 bit value.
  *
@@ -2254,8 +2253,8 @@ void kyber_vec_compress_11(byte* r, sword16* v)
  * @return  Decompressed value.
  */
 #define DECOMP_11(v, i, j, k, t) \
-    v[i * KYBER_N + 8 * j + k] = \
-        (word16)((((word32)(t & 0x7ff) * KYBER_Q) + 1024) >> 11)
+    v[(i) * KYBER_N + 8 * (j) + (k)] = \
+        (word16)((((word32)((t) & 0x7ff) * KYBER_Q) + 1024) >> 11)
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_KYBER768)
 /* Decompress the byte array of packed 10 bits into vector of polynomials.
@@ -2474,7 +2473,7 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_4(p, i, j) \
-    ((((KYBER_V28 << 4) * p[i + j]) + KYBER_V28_HALF) >> 28)
+    ((((KYBER_V28 << 4) * (p)[(i) + (j)]) + KYBER_V28_HALF) >> 28)
 
 /* Compress value to 5 bits.
  *
@@ -2486,7 +2485,7 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
  * @return  Compressed value.
  */
 #define TO_COMP_WORD_5(p, i, j) \
-    ((((KYBER_V27 << 5) * p[i + j]) + KYBER_V27_HALF) >> 27)
+    ((((KYBER_V27 << 5) * (p)[(i) + (j)]) + KYBER_V27_HALF) >> 27)
 
 #endif /* CONV_WITH_DIV */
 
@@ -2644,7 +2643,7 @@ void kyber_compress_5(byte* b, sword16* p)
  * @return  Decompressed value.
  */
 #define DECOMP_4(p, i, j, t) \
-    p[i + j] = ((word16)((t) * KYBER_Q) + 8) >> 4
+    p[(i) + (j)] = ((word16)((t) * KYBER_Q) + 8) >> 4
 
 /* Decompress a 5 bit value.
  *
@@ -2655,7 +2654,7 @@ void kyber_compress_5(byte* b, sword16* p)
  * @return  Decompressed value.
  */
 #define DECOMP_5(p, i, j, t) \
-    p[i + j] = (((word32)((t) & 0x1f) * KYBER_Q) + 16) >> 5
+    p[(i) + (j)] = (((word32)((t) & 0x1f) * KYBER_Q) + 16) >> 5
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_KYBER768)
 /* Decompress the byte array of packed 4 bits into polynomial.
@@ -2781,7 +2780,7 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
  * @param  [in]   j    Index of bit in byte.
  */
 #define FROM_MSG_BIT(p, msg, i, j) \
-    p[8 * i + j] = ((sword16)0 - (sword16)((msg[i] >> j) & 1)) & KYBER_Q_1_HALF
+    p[8 * (i) + (j)] = ((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) & KYBER_Q_1_HALF
 
 /* Convert message to polynomial.
  *
@@ -2864,7 +2863,7 @@ void kyber_from_msg(sword16* p, const byte* msg)
  * @param  [in]   j   Index of bit in byte.
  */
 #define TO_MSG_BIT(m, p, i, j) \
-    m[i] |= ((word32)((KYBER_V31_2 * p[8 * i + j]) + KYBER_V31_HALF) >> 31) << j
+    (m)[i] |= ((word32)((KYBER_V31_2 * (p)[8 * (i) + (j)]) + KYBER_V31_HALF) >> 31) << (j)
 
 #endif /* CONV_WITH_DIV */
 
