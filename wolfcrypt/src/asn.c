@@ -36642,7 +36642,7 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 
         CALLOC_ASNSETDATA(dataASN, ocspNonceExtASN_Length, ret, req->heap);
 
-        if ((ret == 0) && (output != NULL)) {
+        if (ret == 0) {
             /* Set nonce extension OID and nonce. */
             SetASN_Buffer(&dataASN[OCSPNONCEEXTASN_IDX_EXT_OID], NonceObjId,
                     sizeof(NonceObjId));
