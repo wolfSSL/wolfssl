@@ -141,8 +141,8 @@ if(CONFIG_WOLFSSL)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha.c)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
 
-      set(MCPU_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
-      #set(MCPU_FLAGS "-mcpu=generic+crypto -mstrict-align")
+      # Note: The cmake/gcc-m-cpu.cmake make need updated to add "+crypto -mstrict-align"
+      set(TOOLCHAIN_C_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
     endif()
 
     if(CONFIG_WOLFCRYPT_INTELASM)
@@ -153,10 +153,10 @@ if(CONFIG_WOLFSSL)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/chacha_asm.S)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/poly1305_asm.S)
 
-      # issues with aesni
-      #zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_asm.S)
-      #zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_gcm_x86_asm.S)
-      #set(MCPU_FLAGS "-march=native -maes -msse4 -mpclmul ")
+      # AESNI
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_asm.S)
+      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_gcm_x86_asm.S)
+      set(TOOLCHAIN_C_FLAGS "-march=native -maes -msse4 -mpclmul ")
     endif()
 
     zephyr_library_link_libraries(wolfSSL)
