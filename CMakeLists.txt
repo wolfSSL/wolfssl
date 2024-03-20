@@ -42,16 +42,19 @@ else()
 endif()
 
 # shared library versioning
-# increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 43)
-# increment if source code has changed  set to zero if current is incremented
-set(LIBTOOL_REVISION 0)
-# increment if interfaces have been added set to zero if interfaces have been
-# removed or changed
-set(LIBTOOL_AGE 1)
+# increment if interfaces have been removed or changed
+set(WOLFSSL_LIBRARY_VERSION_FIRST 42)
 
-math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
-set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
+# increment if interfaces have been added
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
+set(WOLFSSL_LIBRARY_VERSION_SECOND 1)
+
+# increment if source code has changed
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
+# WOLFSSL_LIBRARY_VERSION_SECOND is incremented
+set(WOLFSSL_LIBRARY_VERSION_THIRD 0)
+
+set(LIBTOOL_FULL_VERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}.${WOLFSSL_LIBRARY_VERSION_SECOND}.${WOLFSSL_LIBRARY_VERSION_THIRD})
 
 set(WOLFSSL_DEFINITIONS)
 set(WOLFSSL_LINK_LIBS)
@@ -2210,7 +2213,7 @@ endif()
 
 set_target_properties(wolfssl
     PROPERTIES
-        SOVERSION ${LIBTOOL_SO_VERSION}
+        SOVERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}
         VERSION ${LIBTOOL_FULL_VERSION}
 )
 

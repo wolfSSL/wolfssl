@@ -32,7 +32,7 @@ if !BUILD_NO_LIBRARY
 lib_LTLIBRARIES+= src/libwolfssl@LIBSUFFIX@.la
 endif
 src_libwolfssl@LIBSUFFIX@_la_SOURCES =
-src_libwolfssl@LIBSUFFIX@_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${WOLFSSL_LIBRARY_VERSION}
+src_libwolfssl@LIBSUFFIX@_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-number ${WOLFSSL_LIBRARY_VERSION}
 src_libwolfssl@LIBSUFFIX@_la_LIBADD = $(LIBM) $(LIB_ADD) $(LIB_STATIC_ADD)
 src_libwolfssl@LIBSUFFIX@_la_CFLAGS = -DBUILDING_WOLFSSL $(AM_CFLAGS) -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(EXTRA_CFLAGS)\""
 src_libwolfssl@LIBSUFFIX@_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)

@@ -45,22 +45,20 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 
 # shared library versioning
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
-# these numbers don't always line up nicely with the library version.
+
+# increment if interfaces have been removed or changed
 WOLFSSL_LIBRARY_VERSION_FIRST=42
+
+# increment if interfaces have been added
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
 WOLFSSL_LIBRARY_VERSION_SECOND=1
+
+# increment if source code has changed
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
+# WOLFSSL_LIBRARY_VERSION_SECOND is incremented
 WOLFSSL_LIBRARY_VERSION_THIRD=0
-WOLFSSL_LIBRARY_VERSION=43:0:1
-#                        | | |
-#                 +------+ | +---+
-#                 |        |     |
-#                current:revision:age
-#                 |        |     |
-#                 |        |     +- increment if interfaces have been added
-#                 |        |        set to zero if interfaces have been removed
-#                 |        |        or changed
-#                 |        +- increment if source code has changed
-#                 |           set to zero if current is incremented
-#                 +- increment if interfaces have been added, removed or changed
+
+WOLFSSL_LIBRARY_VERSION=${WOLFSSL_LIBRARY_VERSION_FIRST}:${WOLFSSL_LIBRARY_VERSION_SECOND}:${WOLFSSL_LIBRARY_VERSION_THIRD}
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_FIRST])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_SECOND])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_THIRD])
