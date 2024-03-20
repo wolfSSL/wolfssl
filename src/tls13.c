@@ -5291,6 +5291,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ret = Dtls13ClientDoDowngrade(ssl);
                 if (ret != 0)
                     return ret;
+                ssl->options.tls1_3 = 0;
             }
 #endif /* WOLFSSL_DTLS13 */
         }
