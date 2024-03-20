@@ -1103,7 +1103,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][75] = {
+static const char* client_usage_msg[][78] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1318,9 +1318,13 @@ static const char* client_usage_msg[][75] = {
 #ifndef NO_PSK
         "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
 #endif
+#ifdef HAVE_RPK
+        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+#endif
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 75 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1542,10 +1546,14 @@ static const char* client_usage_msg[][75] = {
 #ifndef NO_PSK
         "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
 #endif
+#ifdef HAVE_RPK
+        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+#endif
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
         "\n"
         "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 75 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
         NULL,
     },
 #endif
@@ -1763,9 +1771,9 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* Examples repo link */
 #ifdef HAVE_PQC
     printf("%s", msg[++msgid]);     /* --pqc */
-    printf("%s", msg[++msgid]);     /* --pqc options */
-    printf("%s", msg[++msgid]);     /* more --pqc options */
-    printf("%s", msg[++msgid]);     /* more --pqc options */
+#endif
+#ifdef WOLFSSL_SRTP
+    printf("%s", msg[++msgid]);     /* dtls-srtp */
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
     printf("%s", msg[++msgid]); /* --sys-ca-certs */
@@ -1773,9 +1781,14 @@ static void Usage(void)
 #ifdef HAVE_SUPPORTED_CURVES
     printf("%s", msg[++msgid]); /* --onlyPskDheKe */
 #endif
-#ifdef WOLFSSL_SRTP
-    printf("%s", msg[++msgid]);     /* dtls-srtp */
+#ifndef NO_PSK
+    printf("%s", msg[++msgid]); /* --openssl-psk */
 #endif
+#ifdef HAVE_RPK
+    printf("%s", msg[++msgid]); /* --rpk */
+#endif
+    printf("%s", msg[++msgid]); /* --files-are-der */
+    printf("%s", msg[++msgid]); /* Documentation Hint */
 }
 
 #ifdef WOLFSSL_SRTP
@@ -1919,6 +1932,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         { "openssl-psk", 0, 265 },
 #endif
         { "quieter", 0, 266 },
+#ifdef HAVE_RPK
+        { "rpk", 0, 267 },
+#endif /* HAVE_RPK */
+        { "files-are-der", 0, 268 },
         { 0, 0, 0 }
     };
 #endif
@@ -2059,6 +2076,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int useDtlsCID = 0;
     char dtlsCID[DTLS_CID_BUFFER_SIZE] = { 0 };
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef HAVE_RPK
+    int useRPK = 0;
+#endif /* HAVE_RPK */
+    int fileFormat = WOLFSSL_FILETYPE_PEM;
 
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
@@ -2767,6 +2788,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 266:
                 quieter = 1;
                 break;
+            case 267:
+#ifdef HAVE_RPK
+                useRPK = 1;
+#endif /* HAVE_RPK */
+                break;
+            case 268:
+                fileFormat = WOLFSSL_FILETYPE_ASN1;
+                break;
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -3140,6 +3169,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
+#ifdef HAVE_RPK
+    if (useRPK) {
+        char ctype[] = {WOLFSSL_CERT_TYPE_RPK};
+        char stype[] = {WOLFSSL_CERT_TYPE_RPK};
+
+        wolfSSL_CTX_set_client_cert_type(ctx, ctype, sizeof(ctype)/sizeof(ctype[0]));
+        wolfSSL_CTX_set_server_cert_type(ctx, stype, sizeof(stype)/sizeof(stype[0]));
+        usePsk = 0;
+        #ifdef HAVE_CRL
+            disableCRL = 1;
+        #endif
+        doPeerCheck = 0;
+    }
+#endif /* HAVE_RPK */
+
     if (usePsk) {
 #ifndef NO_PSK
         const char *defaultCipherList = cipherList;
@@ -3272,7 +3316,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys("can't load client cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
-        if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
+        if (wolfSSL_CTX_use_certificate_chain_file_format(ctx, ourCert, fileFormat)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load client cert file, check file and run from"
@@ -3296,7 +3340,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             sizeof_client_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys("can't load client private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, fileFormat)
                                          != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load client private key file, check file and run "
@@ -3593,7 +3637,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("can't load client cert buffer");
         }
     #elif !defined(TEST_LOAD_BUFFER)
-        if (wolfSSL_use_certificate_chain_file(ssl, ourCert)
+        if (wolfSSL_use_certificate_chain_file_format(ssl, ourCert, fileFormat)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load client cert file, check file and run from"
@@ -3614,7 +3658,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             sizeof_client_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys("can't load client private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
-        if (wolfSSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_use_PrivateKey_file(ssl, ourKey, fileFormat)
                                          != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load client private key file, check file and run "
