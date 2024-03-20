@@ -2304,7 +2304,9 @@ static int test_wolfSSL_CertManagerAPI(void)
 #endif
 
     ExpectIntEQ(wolfSSL_CertManager_up_ref(cm), 1);
-    wolfSSL_CertManagerFree(cm);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CertManagerFree(cm);
+    }
     wolfSSL_CertManagerFree(cm);
     cm = NULL;
 
@@ -63330,10 +63332,12 @@ static int test_various_pathlen_chains(void)
 #endif /* NO_WOLFSSL_CLIENT && NO_WOLFSSL_SERVER */
     ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
     wolfSSL_CertManagerFree(cm);
+    cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
     wolfSSL_CertManagerFree(cm);
+    cm = NULL;
 
     /* Test chain J (Again only first ICA has pathLen set and it's set to 2,
      * this time followed by 3 ICA's, should fail */
@@ -63341,6 +63345,7 @@ static int test_various_pathlen_chains(void)
     ExpectIntLT(test_chainJ(cm), 0);
     ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
     wolfSSL_CertManagerFree(cm);
+    cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
