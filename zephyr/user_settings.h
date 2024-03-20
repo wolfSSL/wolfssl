@@ -388,13 +388,13 @@ extern "C" {
     #define WOLFSSL_ARMASM
     #define WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_ARMASM_INLINE /* use inline .c versions */
-    #define WOLFSSL_ARMASM_NO_HW_CRYPTO /* enable if processor does not support aes/sha instructions */
     #define WOLFSSL_ARMASM_NO_NEON
 
     /* Default is ARMv8 */
 
     #if 0 /* ARMv7 */
         #define WOLFSSL_ARM_ARCH 7
+        #define WOLFSSL_ARMASM_NO_HW_CRYPTO /* enable if processor does not support aes/sha instructions */
     #endif
 #endif
 
