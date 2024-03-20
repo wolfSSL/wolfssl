@@ -513,7 +513,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
 #define SIZE_FMT "%zu"
 #define SIZE_TYPE size_t
 #endif
-        if (rx_time && tx_time) {
+        if (rx_time > 0.0 && tx_time > 0.0) {
             printf(
                 "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
                 "\tRX      %8.3f ms (%8.3f MBps)\n"
