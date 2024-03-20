@@ -56,7 +56,6 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
-
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 
 #ifdef WOLFSSL_SHA512
@@ -606,6 +605,241 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #endif /* HAVE_HKDF && !NO_HMAC */
 
+#if defined(HAVE_HMAC_PRF_KDF) && !defined(NO_HMAC)
+/* HMAC PRF-based KDF
+ * NIST SP-800-108 - Recommendation for Key Derivation Using Pseudorandom
+ * Functions.
+ *
+ * Counter mode and Feedback mode are implemented.
+ *
+ * type             The hash algorithm type.
+ * inKey            The input key.
+ * inKeySz          The size of the input key.
+ * info             The application specific information.
+ * infoSz           The size of the application specific information.
+ * remainingInfo    The remaining application specific information when the
+ *                  counter is in the middle of the Fixed Input Data.
+ * remainingInfoSz  The size of the remaining application specific information
+ *                  when the counter is in the middle of the Fixed Input Data.
+ * iv               The initial value used in computing the first iteration in
+ *                  feedback mode.
+ * ivLen            The size of the iv used in computing the first iteration in
+ *                  feedback mode.
+ * out              The output keying material.
+ * outSz            The size of the output keying material.
+ * r                The length of the binary encoding of the counter in bytes.
+ * ctrLocation      The location of the counter in the Fixed Input Data. Either
+ *                  BEFORE_FIXED, AFTER_FIXED, or MIDDLE_FIXED.
+ * mode             0 for counter mode.
+ *                  1 for feedback mode.
+ * returns 0 on success, otherwise failure.
+ */
+static int wc_HMAC_PRF_KDF(int type, const byte* inKey, word32 inKeySz,
+                   const byte* info, word32 infoSz, const byte* remainingInfo,
+                   word32 remainingInfoSz, byte* iv, word32 ivLen, byte* out,
+                   word32 outSz, int r, int ctrLocation, int mode,
+                   void* heap, int devId)
+{
+    byte   tmp[WC_MAX_DIGEST_SIZE];
+#ifdef WOLFSSL_SMALL_STACK
+    Hmac*  myHmac;
+#else
+    Hmac   myHmac[1];
+#endif
+    int    i, ret = 0;
+    int    counterMod = 4 - r;
+    word32 hashSz;
+    word32 outIdx = 0;
+    word32 n = 0x01;
+    word64 digestRatioLimit;
+
+    ret = wc_HmacSizeByType(type);
+    if (ret < 0) {
+        return ret;
+    }
+    hashSz = (word32)ret;
+
+    if (inKey == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* NIST SP-800-108 states to error out when (L/h) > 2^r-1, for r in bits */
+    digestRatioLimit = 1;
+    for (i = 0; i < (r * 8); i++) {
+        digestRatioLimit *= 2;
+    }
+    digestRatioLimit -= 1;
+
+    if (outSz/hashSz > digestRatioLimit)
+        return BAD_FUNC_ARG;
+
+
+#ifdef WOLFSSL_SMALL_STACK
+    myHmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
+    if (myHmac == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    ret = wc_HmacInit(myHmac, heap, devId);
+    if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(myHmac, NULL, DYNAMIC_TYPE_HMAC);
+#endif
+        return ret;
+    }
+
+    ret = wc_HmacSetKey(myHmac, type, inKey, inKeySz);
+    if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(myHmac, NULL, DYNAMIC_TYPE_HMAC);
+#endif
+        return ret;
+    }
+
+    XMEMSET(tmp, 0, WC_MAX_DIGEST_SIZE);
+
+    while (outIdx < outSz) {
+        word32 left = outSz - outIdx;
+
+        if (mode == 1) {
+            /* Update with IV(i) then info for Feedback mode. */
+            if (ivLen > 0)
+                ret = wc_HmacUpdate(myHmac, iv, ivLen);
+            else
+                ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
+
+            if (ret != 0)
+                break;
+
+            ret = wc_HmacUpdate(myHmac, info, infoSz);
+            if (ret != 0)
+                break;
+        }
+        else {
+            /* Update with counter and info for Counter mode, order
+             * depends on specified counter location. */
+        #ifdef LITTLE_ENDIAN_ORDER
+            n = ByteReverseWord32(n);
+        #endif
+
+            if (ctrLocation == BEFORE_FIXED) {
+                ret = wc_HmacUpdate(myHmac, counterMod + (byte*)&n, r);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(myHmac, info, infoSz);
+                if (ret != 0)
+                    break;
+            }
+            else {
+                ret = wc_HmacUpdate(myHmac, info, infoSz);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(myHmac, counterMod + (byte*)&n, r);
+                if (ret != 0)
+                    break;
+                if (ctrLocation == MIDDLE_FIXED) {
+                    ret = wc_HmacUpdate(myHmac, remainingInfo, remainingInfoSz);
+                    if (ret != 0)
+                        break;
+                }
+            }
+        }
+
+        ret = wc_HmacFinal(myHmac, tmp);
+        if (ret != 0)
+            break;
+
+        left = min(left, hashSz);
+        XMEMCPY(out+outIdx, tmp, left);
+
+        /* Overwrite IV(i) with IV(i+1) for Feedback mode. */
+        if (mode == 1 && ivLen > 0)
+            XMEMCPY(iv, tmp, ivLen);
+
+        outIdx += hashSz;
+        n += 2;
+    }
+
+    wc_HmacFree(myHmac);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(myHmac, NULL, DYNAMIC_TYPE_HMAC);
+#endif
+
+    return ret;
+}
+
+/* HMAC PRF-based KDF Counter mode
+ * NIST SP-800-108 - Recommendation for Key Derivation Using Pseudorandom
+ * Functions.
+ *
+ * type             The hash algorithm type.
+ * inKey            The input key.
+ * inKeySz          The size of the input key.
+ * info             The application specific information.
+ * infoSz           The size of the application specific information.
+ * remainingInfo    The remaining application specific information when the
+ *                  counter is in the middle of the Fixed Input Data.
+ * remainingInfoSz  The size of the remaining application specific information
+ *                  when the counter is in the middle of the Fixed Input Data.
+ * out              The output keying material.
+ * outSz            The size of the output keying material.
+ * r                The length of the binary encoding of the counter in bytes.
+ * ctrLocation      The location of the counter in the Fixed Input Data. Either
+ *                  BEFORE_FIXED, AFTER_FIXED, or MIDDLE_FIXED.
+ * returns 0 on success, otherwise failure.
+ */
+int wc_HMAC_KDF_Counter(int type, const byte* inKey, word32 inKeySz,
+                   const byte* info, word32 infoSz, const byte* remainingInfo,
+                   word32 remainingInfoSz, byte* out, word32 outSz, int r,
+                   int ctrLocation, void* heap, int devId)
+{
+
+    if (r > 4 || r < 1) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ctrLocation != BEFORE_FIXED && ctrLocation != AFTER_FIXED &&
+        ctrLocation != MIDDLE_FIXED) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ctrLocation == MIDDLE_FIXED && remainingInfo == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_HMAC_PRF_KDF(type, inKey, inKeySz, info, infoSz, remainingInfo,
+            remainingInfoSz, NULL, 0, out, outSz, r, ctrLocation, 0, heap,
+            devId);
+}
+
+/* HMAC PRF-based KDF Feedback mode
+ * NIST SP-800-108 - Recommendation for Key Derivation Using Pseudorandom
+ * Functions.
+ *
+ * type             The hash algorithm type.
+ * inKey            The input key.
+ * inKeySz          The size of the input key.
+ * info             The application specific information.
+ * infoSz           The size of the application specific information.
+ * iv               The initial value used in computing the first iteration in
+ *                  feedback mode.
+ * ivLen            The size of the iv used in computing the first iteration in
+ *                  feedback mode.
+ * out              The output keying material.
+ * outSz            The size of the output keying material.
+ * returns 0 on success, otherwise failure.
+ */
+int wc_HMAC_KDF_Feedback(int type, const byte* inKey, word32 inKeySz,
+                   const byte* info, word32 infoSz, byte* iv,
+                   word32 ivLen, byte* out, word32 outSz,
+                   void* heap, int devId)
+{
+    /* Supply r of 4 bytes (32 bits) for feedback mode */
+    return wc_HMAC_PRF_KDF(type, inKey, inKeySz, info, infoSz, NULL,
+            0, iv, ivLen, out, outSz, 4, 0, 1, heap, devId);
+}
+#endif /* HAVE_HMAC_PRF_KDF && !NO_HMAC */
 
 #ifdef WOLFSSL_WOLFSSH
 
