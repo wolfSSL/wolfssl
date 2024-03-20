@@ -11408,6 +11408,47 @@ DNS_entry* AltNameNew(void* heap)
     return ret;
 }
 
+DNS_entry* AltNameDup(DNS_entry* from, void* heap)
+{
+    DNS_entry* ret;
+
+    ret = AltNameNew(heap);
+    if (ret == NULL) {
+        WOLFSSL_MSG("\tOut of Memory");
+        return NULL;
+    }
+
+    ret->type = from->type;
+    ret->len = from->len;
+
+
+    ret->name = CopyString(from->name, from->len, heap, DYNAMIC_TYPE_ALTNAME);
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    ret->ipString = CopyString(from->ipString, 0, heap, DYNAMIC_TYPE_ALTNAME);
+#endif
+#ifdef OPENSSL_ALL
+    ret->ridString = CopyString(from->ridString, 0, heap, DYNAMIC_TYPE_ALTNAME);
+#endif
+    if (ret->name == NULL
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+            || (from->ipString != NULL && ret->ipString == NULL)
+#endif
+#ifdef OPENSSL_ALL
+            || (from->ridString != NULL && ret->ridString == NULL)
+#endif
+            ) {
+        WOLFSSL_MSG("\tOut of Memory");
+        FreeAltNames(ret, heap);
+        return NULL;
+    }
+
+#ifdef WOLFSSL_FPKI
+    ret->oidSum = from->oidSum;
+#endif
+
+    return ret;
+}
+
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 

@@ -504,7 +504,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     /* and try again checking Cert in the CRL list.                         */
     /* When not set the folder or not use hash_dir, do nothing.             */
     if ((foundEntry == 0) && (ret != OCSP_WANT_READ)) {
-        if (crl->cm->x509_store_p != NULL) {
+        if (crl->cm != NULL && crl->cm->x509_store_p != NULL) {
             ret = LoadCertByIssuer(crl->cm->x509_store_p,
                           (WOLFSSL_X509_NAME*)issuerName, X509_LU_CRL);
             if (ret == WOLFSSL_SUCCESS) {
@@ -521,7 +521,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             ret = CRL_MISSING;
         }
 
-        if (crl->cm->cbMissingCRL) {
+        if (crl->cm != NULL && crl->cm->cbMissingCRL) {
             char url[256];
 
             WOLFSSL_MSG("Issuing missing CRL callback");
@@ -685,8 +685,8 @@ static WOLFSSL_X509_CRL* wolfSSL_X509_crl_new(WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_X509_CRL* ret;
 
-    ret = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), cm->heap,
-                DYNAMIC_TYPE_CRL);
+    ret = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL),
+            cm != NULL ? cm->heap : NULL, DYNAMIC_TYPE_CRL);
     if (ret != NULL) {
         if (InitCRL(ret, cm) < 0) {
             WOLFSSL_MSG("Unable to initialize new CRL structure");
@@ -883,6 +883,20 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 #endif
 
     return 0;
+}
+
+WOLFSSL_X509_CRL* wolfSSL_X509_CRL_dup(const WOLFSSL_X509_CRL* crl)
+{
+    WOLFSSL_X509_CRL* ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_dup");
+
+    ret = wolfSSL_X509_crl_new(crl->cm);
+    if (ret != NULL && DupX509_CRL(ret, crl) != 0) {
+        FreeCRL(ret, 1);
+        ret = NULL;
+    }
+    return ret;
 }
 
 /* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */

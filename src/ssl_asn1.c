@@ -2997,7 +2997,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
 {
     WOLFSSL_ENTER("wolfSSL_ASN1_GENERALIZEDTIME_free");
     if (asn1Time != NULL) {
-        XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
+        XFREE(asn1Time, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
 
@@ -3533,6 +3533,32 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
         if (out != NULL) {
             *out = ret;
         }
+    }
+
+    return ret;
+}
+
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
+{
+    WOLFSSL_ASN1_TIME* ret = s;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_UTCTIME_set");
+
+    if (ret == NULL) {
+        ret = wolfSSL_ASN1_TIME_new();
+        if (ret == NULL)
+            return NULL;
+    }
+
+    ret->length = GetFormattedTime(&t, ret->data, sizeof(ret->data));
+    if (ret->length + 1 != ASN_UTC_TIME_SIZE) {
+        /* Either snprintf error or t can't be represented in UTC format */
+        if (ret != s)
+            wolfSSL_ASN1_TIME_free(ret);
+        ret = NULL;
+    }
+    else {
+        ret->type = V_ASN1_UTCTIME;
     }
 
     return ret;

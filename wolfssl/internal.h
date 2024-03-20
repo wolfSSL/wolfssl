@@ -2689,6 +2689,14 @@ typedef struct ProcPeerCertArgs {
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         int ret, ProcPeerCertArgs* args);
+WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
+        ProcPeerCertArgs* args, int* outRet);
+
+WOLFSSL_LOCAL int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
+        WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
+        int cert_err, void* heap, int* x509Free);
+WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
+        WOLFSSL* ssl, void* heap, int x509Free);
 #endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
 #endif /* !defined NO_CERTS */
 
@@ -3050,7 +3058,7 @@ WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                        word16 size, void* heap);
 WOLFSSL_LOCAL byte TLSX_SNI_Status(TLSX* extensions, byte type);
 WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
-                                                                   void** data);
+                                                void** data, byte ignoreStatus);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,

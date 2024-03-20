@@ -1001,6 +1001,25 @@ WC_MISC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len,
 #endif /* WOLFCRYPT_ONLY && !NO_HASH_WRAPPER &&
         * (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
 
+WC_MISC_STATIC WC_INLINE char* CopyString(const char* src, int srcLen,
+        void* heap, int type) {
+    char* dst = NULL;
+
+    if (src == NULL)
+        return NULL;
+
+    if (srcLen <= 0)
+        srcLen = (int)XSTRLEN(src);
+
+    dst = (char*)XMALLOC(srcLen + 1, heap, type);
+    if (dst != NULL) {
+        XMEMCPY(dst, src, srcLen);
+        dst[srcLen] = '\0';
+    }
+
+    return dst;
+}
+
 #endif /* !WOLFSSL_MISC_INCLUDED && !NO_INLINE */
 
 #endif /* WOLF_CRYPT_MISC_C */

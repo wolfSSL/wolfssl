@@ -77,6 +77,8 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     if (buf == NULL || len == 0)
         return 0;
 
+    /* default no retry */
+    bio->flags &= ~(WOLFSSL_BIO_FLAG_READ|WOLFSSL_BIO_FLAG_RETRY);
     sz1 = wolfSSL_BIO_nread(bio, &pt, len);
     if (sz1 > 0) {
         XMEMCPY(buf, pt, sz1);
@@ -91,8 +93,10 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             }
         }
     }
-    if (sz1 == 0)
+    if (sz1 == 0) {
+        bio->flags |= WOLFSSL_BIO_FLAG_READ|WOLFSSL_BIO_FLAG_RETRY;
         sz1 = -1;
+    }
 
     return sz1;
 }
@@ -502,8 +506,11 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
     if (bio == NULL || data == NULL || len == 0)
         return 0;
 
+    /* default no retry */
+    bio->flags &= ~(WOLFSSL_BIO_FLAG_WRITE|WOLFSSL_BIO_FLAG_RETRY);
     sz1 = wolfSSL_BIO_nwrite(bio, &buf, len);
     if (sz1 == 0) {
+        bio->flags |= WOLFSSL_BIO_FLAG_WRITE|WOLFSSL_BIO_FLAG_RETRY;
         WOLFSSL_MSG("No room left to write");
         return WOLFSSL_BIO_ERROR;
     }
@@ -521,6 +528,8 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
         if (sz2 > 0) {
             XMEMCPY(buf, data, sz2);
             sz1 += sz2;
+            if (len > sz2)
+                bio->flags |= WOLFSSL_BIO_FLAG_WRITE|WOLFSSL_BIO_FLAG_RETRY;
         }
     }
 
