@@ -12,7 +12,7 @@ NOTE: This release switches the default ASN.1 parser to the new ASN template cod
 
 
 ## Vulnerabilities
-* [High] CVE-2024-0901 Potential denial of service and out of bounds read. Affects TLS 1.3 on the server side when connecting to a malicious TLS 1.3 client. If using TLS 1.3 on the server side it is recommended to update the version of wolfSSL used. Fixed in this GitHub pull request https://github.com/wolfSSL/wolfssl/pull/7099
+* [High] CVE-2024-0901 Potential denial of service and out of bounds read. Affects TLS 1.3 on the server side when accepting a connection from a malicious TLS 1.3 client. If using TLS 1.3 on the server side it is recommended to update the version of wolfSSL used. Fixed in this GitHub pull request https://github.com/wolfSSL/wolfssl/pull/7099
 
 
 * [Med] CVE-2024-1545 Fault Injection vulnerability in RsaPrivateDecryption function that potentially allows an attacker that has access to the same system with a victims process to perform a Rowhammer fault injection. Thanks to Junkai Liang, Zhi Zhang, Xin Zhang, Qingni Shen for the report (Peking University, The University of Western Australia)."
@@ -25,7 +25,7 @@ Fixed in this GitHub pull request https://github.com/wolfSSL/wolfssl/pull/7212
 
 ## New Feature Additions
 
-* Added --enable-experimental configure flag to gate out features that are considered to be experimental. Now liboqs, kyber, lms, xmss, and dual-alg-certs require the --enable-experimental flag.
+* Added --enable-experimental configure flag to gate out features that are currently experimental. Now liboqs, kyber, lms, xmss, and dual-alg-certs require the --enable-experimental flag.
 
 ### POST QUANTUM SUPPORT ADDITIONS
 * Experimental framework for using wolfSSL’s XMSS implementation (PR 7161)
@@ -76,7 +76,7 @@ Fixed in this GitHub pull request https://github.com/wolfSSL/wolfssl/pull/7212
 * Fix for checking result of MAC verify when no AAD is used with AES-GCM and Xilinx Xilsecure (PR 7051)
 * Fix for Aria sign use (PR 7082)
 * Fix for invalid `dh_ffdhe_test` test case using Intel QuickAssist (PR 7085)
-*Fixes for TI AES and SHA on TM4C with HW acceleration and add full AES GCM and CCM support with TLS (PR 7018)
+* Fixes for TI AES and SHA on TM4C with HW acceleration and add full AES GCM and CCM support with TLS (PR 7018)
 * Fixes for STM32 PKA use with ECC (PR 7098)
 * Fixes for TLS 1.3 with crypto callbacks to offload KDF / HMAC operation (PR 7070)
 * Fix include path for FSP 3.5 on Renesas RA6M4 (PR 7101)
