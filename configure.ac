@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2023 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.6.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.7.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -45,22 +45,20 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 
 # shared library versioning
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
-# these numbers don't always line up nicely with the library version.
+
+# increment if interfaces have been removed or changed
 WOLFSSL_LIBRARY_VERSION_FIRST=42
-WOLFSSL_LIBRARY_VERSION_SECOND=0
+
+# increment if interfaces have been added
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
+WOLFSSL_LIBRARY_VERSION_SECOND=1
+
+# increment if source code has changed
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
+# WOLFSSL_LIBRARY_VERSION_SECOND is incremented
 WOLFSSL_LIBRARY_VERSION_THIRD=0
-WOLFSSL_LIBRARY_VERSION=42:0:0
-#                        | | |
-#                 +------+ | +---+
-#                 |        |     |
-#                current:revision:age
-#                 |        |     |
-#                 |        |     +- increment if interfaces have been added
-#                 |        |        set to zero if interfaces have been removed
-#                 |        |        or changed
-#                 |        +- increment if source code has changed
-#                 |           set to zero if current is incremented
-#                 +- increment if interfaces have been added, removed or changed
+
+WOLFSSL_LIBRARY_VERSION=${WOLFSSL_LIBRARY_VERSION_FIRST}:${WOLFSSL_LIBRARY_VERSION_SECOND}:${WOLFSSL_LIBRARY_VERSION_THIRD}
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_FIRST])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_SECOND])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_THIRD])
@@ -102,6 +100,18 @@ else
     REPRODUCIBLE_BUILD_DEFAULT=no
 fi
 
+# Allow experimental settings
+AC_ARG_ENABLE([experimental],
+    [AS_HELP_STRING([--enable-experimental],[Allow experimental settings in the configuration (default: disabled)])],
+    [ ENABLED_EXPERIMENTAL=$enableval ],
+    [ ENABLED_EXPERIMENTAL=no ]
+    )
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    AS_IF([ test "$ENABLED_DISTRO" = "yes" && test "$ENABLED_EXPERIMENTAL" = "yes" ],[ AC_MSG_ERROR([--enable-distro and --enable-experimental are mutually exclusive.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+fi
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h])
 AC_CHECK_LIB([network],[socket])
@@ -1084,8 +1094,9 @@ fi
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
 AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
         LIBS="$LIBS -loqs"
 
@@ -1132,7 +1143,7 @@ AC_ARG_WITH([liboqs],
 #  - SHA3, Shake128 and Shake256, or
 #  - SHA256, SHA512, AES-CTR
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (requires --enable-experimental) (default: disabled)])],
     [ ENABLED_KYBER=$enableval ],
     [ ENABLED_KYBER=no ]
     )
@@ -1147,10 +1158,6 @@ do
     ENABLED_KYBER1024=yes
     ;;
   no)
-    ;;
-  wolfssl)
-    ENABLED_WC_KYBER=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
     ;;
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_SMALL"
@@ -1172,7 +1179,14 @@ done
 
 if test "$ENABLED_KYBER" != "no"
 then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([KYBER requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
+    # Use liboqs if specified.
+    if test "$ENABLED_LIBOQS" = "no"; then
+        ENABLED_WC_KYBER=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
+    fi
 
     if test "$ENABLED_KYBER512" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
@@ -1189,12 +1203,6 @@ then
         test "$enable_sha3" = "" && enable_sha3=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
-    else
-        # Default is to use liboqs. Make sure its enabled.
-        if test "$ENABLED_LIBOQS" = "no"; then
-            AC_MSG_ERROR([The default implementation for kyber is liboqs.
-            Please use --with-liboqs.])
-        fi
     fi
 fi
 
@@ -1251,8 +1259,9 @@ fi
 ENABLED_LIBXMSS="no"
 trylibxmssdir=""
 AC_ARG_WITH([libxmss],
-    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([libxmss requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for libxmss])
 
         trylibxmssdir=$withval
@@ -1316,6 +1325,10 @@ do
     LMS_VERIFY_ONLY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY"
     ;;
+  small)
+    ENABLED_WC_LMS=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS_SMALL"
+    ;;
   wolfssl)
     ENABLED_WC_LMS=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
@@ -1345,8 +1358,9 @@ fi
 ENABLED_LIBLMS="no"
 tryliblmsdir=""
 AC_ARG_WITH([liblms],
-    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([liblms requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liblms])
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
@@ -8279,6 +8293,11 @@ then
         ENABLED_AESGCM_STREAM=yes
     fi
 
+    if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" = "yes"
+    then
+        ENABLED_LINUXKM_LKCAPI_REGISTER=all
+    fi
+
     for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
     do
         case "$lkcapi_alg" in
@@ -8371,10 +8390,12 @@ AC_ARG_ENABLE([sys-ca-certs],
     )
 
 AC_ARG_ENABLE([dual-alg-certs],
-    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (default: disabled)])],
+    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (requires --enable-experimental) (default: disabled)])],
     [ ENABLED_DUAL_ALG_CERTS=$enableval ],
     [ ENABLED_DUAL_ALG_CERTS=no ]
     )
+
+AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([dual-alg-certs requires --enable-experimental.]) ])
 
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
@@ -9615,7 +9636,6 @@ echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
-echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS"
 
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
@@ -9624,6 +9644,12 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    echo "   * Experimental settings:      Allowed"
+else
+    echo "   * Experimental settings:      Forbidden"
+fi
 if test "$ENABLED_FIPS" = "yes"; then
 echo "   * FIPS:                       $FIPS_VERSION"
 else
@@ -9833,6 +9859,11 @@ echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
+
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS" && \
+echo "   * Linux kernel alg register:  $ENABLED_LINUXKM_LKCAPI_REGISTER"
+
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"

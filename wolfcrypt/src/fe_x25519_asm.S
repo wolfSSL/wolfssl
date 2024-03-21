@@ -1254,7 +1254,7 @@ cpuFlagsSet:
 	.long	0
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _cpuFlagsSet:
 	.long	0
 #endif /* __APPLE__ */
@@ -1266,7 +1266,7 @@ intelFlags:
 	.long	0
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _intelFlags:
 	.long	0
 #endif /* __APPLE__ */
@@ -1278,7 +1278,7 @@ fe_mul_p:
 	.quad	fe_mul_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_mul_p:
 	.quad	_fe_mul_x64
 #endif /* __APPLE__ */
@@ -1290,7 +1290,7 @@ fe_sq_p:
 	.quad	fe_sq_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_sq_p:
 	.quad	_fe_sq_x64
 #endif /* __APPLE__ */
@@ -1302,7 +1302,7 @@ fe_mul121666_p:
 	.quad	fe_mul121666_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_mul121666_p:
 	.quad	_fe_mul121666_x64
 #endif /* __APPLE__ */
@@ -1314,7 +1314,7 @@ fe_invert_p:
 	.quad	fe_invert_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_invert_p:
 	.quad	_fe_invert_x64
 #endif /* __APPLE__ */
@@ -1326,7 +1326,7 @@ curve25519_p:
 	.quad	curve25519_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _curve25519_p:
 	.quad	_curve25519_x64
 #endif /* __APPLE__ */
@@ -1339,7 +1339,7 @@ fe_sq2_p:
 	.quad	fe_sq2_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_sq2_p:
 	.quad	_fe_sq2_x64
 #endif /* __APPLE__ */
@@ -1351,7 +1351,7 @@ fe_pow22523_p:
 	.quad	fe_pow22523_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _fe_pow22523_p:
 	.quad	_fe_pow22523_x64
 #endif /* __APPLE__ */
@@ -1363,7 +1363,7 @@ ge_p1p1_to_p2_p:
 	.quad	ge_p1p1_to_p2_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_p1p1_to_p2_p:
 	.quad	_ge_p1p1_to_p2_x64
 #endif /* __APPLE__ */
@@ -1375,7 +1375,7 @@ ge_p1p1_to_p3_p:
 	.quad	ge_p1p1_to_p3_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_p1p1_to_p3_p:
 	.quad	_ge_p1p1_to_p3_x64
 #endif /* __APPLE__ */
@@ -1387,7 +1387,7 @@ ge_p2_dbl_p:
 	.quad	ge_p2_dbl_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_p2_dbl_p:
 	.quad	_ge_p2_dbl_x64
 #endif /* __APPLE__ */
@@ -1399,7 +1399,7 @@ ge_madd_p:
 	.quad	ge_madd_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_madd_p:
 	.quad	_ge_madd_x64
 #endif /* __APPLE__ */
@@ -1411,7 +1411,7 @@ ge_msub_p:
 	.quad	ge_msub_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_msub_p:
 	.quad	_ge_msub_x64
 #endif /* __APPLE__ */
@@ -1423,7 +1423,7 @@ ge_add_p:
 	.quad	ge_add_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_add_p:
 	.quad	_ge_add_x64
 #endif /* __APPLE__ */
@@ -1435,7 +1435,7 @@ ge_sub_p:
 	.quad	ge_sub_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _ge_sub_p:
 	.quad	_ge_sub_x64
 #endif /* __APPLE__ */
@@ -1447,7 +1447,7 @@ sc_reduce_p:
 	.quad	sc_reduce_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _sc_reduce_p:
 	.quad	_sc_reduce_x64
 #endif /* __APPLE__ */
@@ -1459,7 +1459,7 @@ sc_muladd_p:
 	.quad	sc_muladd_x64
 #else
 .section	__DATA,__data
-.p2align	2
+.p2align	3
 _sc_muladd_p:
 	.quad	_sc_muladd_x64
 #endif /* __APPLE__ */

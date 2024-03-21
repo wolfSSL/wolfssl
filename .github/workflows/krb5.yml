@@ -11,11 +11,15 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 5
     steps:
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-krb CFLAGS='-fsanitize=address'
+          configure: --enable-krb CC='gcc -fsanitize=address'
           install: true
 
       - name: Upload built lib
@@ -60,6 +64,10 @@ jobs:
         working-directory: ./krb5
         run: |
           patch -p1 < $GITHUB_WORKSPACE/osp/krb5/Patch-for-Kerberos-5-${{ matrix.ref }}.patch
+
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
 
       - name: Build krb5
         working-directory: ./krb5/src

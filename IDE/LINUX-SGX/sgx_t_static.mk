@@ -88,6 +88,7 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/signature.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c32.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c64.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_int.c\
 					$(WOLFSSL_ROOT)/src/ssl.c\
 					$(WOLFSSL_ROOT)/src/tls.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_encrypt.c\

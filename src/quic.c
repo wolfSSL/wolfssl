@@ -83,6 +83,11 @@ static QuicRecord *quic_record_make(WOLFSSL *ssl,
         }
         else {
             qr->capacity = qr->len = qr_length(data, len);
+            if (qr->capacity > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
+                WOLFSSL_MSG("QUIC length read larger than expected");
+                quic_record_free(ssl, qr);
+                return NULL;
+            }
         }
         if (qr->capacity == 0) {
             qr->capacity = 2*1024;
@@ -129,6 +134,14 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         consumed = missing;
 
         qr->len = qr_length(qr->data, qr->end);
+
+        /* sanity check on length read from wire before use */
+        if (qr->len > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
+            WOLFSSL_MSG("Length read for quic is larger than expected");
+            ret = BUFFER_E;
+            goto cleanup;
+        }
+
         if (qr->len > qr->capacity) {
             uint8_t *ndata = (uint8_t*)XREALLOC(qr->data, qr->len, ssl->heap,
                                                 DYNAMIC_TYPE_TMP_BUFFER);

@@ -460,10 +460,16 @@ WC_MISC_STATIC WC_INLINE void c16toa(word16 wc_u16, byte* c)
 /* convert 32 bit integer to opaque */
 WC_MISC_STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
 {
+#ifdef WOLFSSL_USE_ALIGN
     c[0] = (byte)((wc_u32 >> 24) & 0xff);
     c[1] = (byte)((wc_u32 >> 16) & 0xff);
     c[2] = (byte)((wc_u32 >>  8) & 0xff);
     c[3] =  (byte)(wc_u32        & 0xff);
+#elif defined(LITTLE_ENDIAN_ORDER)
+    *(word32*)c = ByteReverseWord32(wc_u32);
+#else
+    *(word32*)c = wc_u32;
+#endif
 }
 #endif
 
@@ -492,10 +498,16 @@ WC_MISC_STATIC WC_INLINE void ato16(const byte* c, word16* wc_u16)
 /* convert opaque to 32 bit integer */
 WC_MISC_STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
 {
+#ifdef WOLFSSL_USE_ALIGN
     *wc_u32 = ((word32)c[0] << 24) |
               ((word32)c[1] << 16) |
               ((word32)c[2] << 8) |
                (word32)c[3];
+#elif defined(LITTLE_ENDIAN_ORDER)
+    *wc_u32 = ByteReverseWord32(*(word32*)c);
+#else
+    *wc_u32 = *(word32*)c;
+#endif
 }
 
 /* convert opaque to 32 bit integer. Interpret as little endian. */

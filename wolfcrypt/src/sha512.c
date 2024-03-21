@@ -97,7 +97,7 @@
 #endif
 
 
-#if defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
         #undef  NO_AVX2_SUPPORT
@@ -328,7 +328,7 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif /* WOLFSSL_SHA512 */
 
 /* Hardware Acceleration */
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
     /*****
@@ -526,7 +526,7 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
     if (ret != 0)
         return ret;
 
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     Sha512_SetTransform();
 #endif
@@ -767,7 +767,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
         if (sha512->buffLen == WC_SHA512_BLOCK_SIZE) {
     #if defined(LITTLE_ENDIAN_ORDER)
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
             (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
             if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
@@ -802,7 +802,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
         }
     }
 
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (Transform_Sha512_Len_p != NULL) {
         word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
@@ -817,8 +817,9 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     }
     else
 #endif
-#if !defined(LITTLE_ENDIAN_ORDER) || (defined(USE_INTEL_SPEEDUP) && \
-        (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
+#if !defined(LITTLE_ENDIAN_ORDER) || (defined(WOLFSSL_X86_64_BUILD) && \
+        defined(USE_INTEL_SPEEDUP) && (defined(HAVE_INTEL_AVX1) || \
+        defined(HAVE_INTEL_AVX2)))
     {
         while (len >= WC_SHA512_BLOCK_SIZE) {
             XMEMCPY(local, data, WC_SHA512_BLOCK_SIZE);
@@ -826,7 +827,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
             data += WC_SHA512_BLOCK_SIZE;
             len  -= WC_SHA512_BLOCK_SIZE;
 
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
             (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
             if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
             {
@@ -956,7 +957,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
         sha512->buffLen += WC_SHA512_BLOCK_SIZE - sha512->buffLen;
 #if defined(LITTLE_ENDIAN_ORDER)
-    #if defined(USE_INTEL_SPEEDUP) && \
+    #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
@@ -1002,7 +1003,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
     /* store lengths */
 #if defined(LITTLE_ENDIAN_ORDER)
-    #if defined(USE_INTEL_SPEEDUP) && \
+    #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
@@ -1021,7 +1022,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 #endif
 
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
         ByteReverseWords64(&(sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
@@ -1226,13 +1227,13 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
         return MEMORY_E;
 #endif
 
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     Sha512_SetTransform();
 #endif
 
 #if defined(LITTLE_ENDIAN_ORDER)
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
 #endif
@@ -1469,7 +1470,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
         return ret;
     }
 
-#if defined(USE_INTEL_SPEEDUP) && \
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     Sha512_SetTransform();
 #endif

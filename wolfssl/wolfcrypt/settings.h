@@ -266,6 +266,11 @@
 /* #define WOLFSSL_MAXQ108X */
 
 #if defined(ARDUINO)
+    /* Due to limited build control, we'll ignore file warnings. */
+    /* See https://github.com/arduino/arduino-cli/issues/631     */
+    #undef  WOLFSSL_IGNORE_FILE_WARN
+    #define WOLFSSL_IGNORE_FILE_WARN
+
     /* we don't have the luxury of compiler options, so manually define */
     #if defined(__arm__)
         #undef  WOLFSSL_ARDUINO
@@ -3288,6 +3293,15 @@ extern void uITRON4_free(void *p) ;
 #define WOLFSSL_NO_KYBER1024
 #endif
 
+#if (defined(HAVE_LIBOQS) ||                                            \
+     defined(WOLFSSL_WC_KYBER) ||                                       \
+     defined(HAVE_LIBXMSS) ||                                           \
+     defined(HAVE_LIBLMS) ||                                            \
+     defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
+    !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
+
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
     !defined(WOLFSSL_HAVE_KYBER)
 #error Please do not define HAVE_PQC yourself.
@@ -3327,8 +3341,9 @@ extern void uITRON4_free(void *p) ;
     #define NO_SESSION_CACHE_REF
 #endif
 
-/* (D)TLS v1.3 requires 64-bit number wrappers */
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS)
+/* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
+    defined(WOLFSSL_WC_XMSS) || defined(WOLFSSL_WC_LMS)
     #undef WOLFSSL_W64_WRAPPER
     #define WOLFSSL_W64_WRAPPER
 #endif

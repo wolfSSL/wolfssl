@@ -97,10 +97,10 @@ L_aes_gcm_avx2_bswap_mask:
 L_aes_gcm_avx2_mod2_128:
 .long	0x1,0x0,0x0,0xc2000000
 .text
-.globl	AES_GCM_encrypt
-.type	AES_GCM_encrypt,@function
+.globl	AES_GCM_encrypt_aesni
+.type	AES_GCM_encrypt_aesni,@function
 .align	16
-AES_GCM_encrypt:
+AES_GCM_encrypt_aesni:
         pushl	%ebx
         pushl	%esi
         pushl	%edi
@@ -112,7 +112,7 @@ AES_GCM_encrypt:
         pxor	%xmm0, %xmm0
         pxor	%xmm2, %xmm2
         cmpl	$12, %edx
-        jne	L_AES_GCM_encrypt_iv_not_12
+        jne	L_AES_GCM_encrypt_aesni_iv_not_12
         # # Calculate values when IV is 12 bytes
         # Set counter based on IV
         movl	$0x1000000, %ecx
@@ -153,7 +153,7 @@ AES_GCM_encrypt:
         aesenc	%xmm3, %xmm5
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_calc_iv_12_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_12_last
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	176(%ebp), %xmm3
@@ -161,20 +161,20 @@ AES_GCM_encrypt:
         aesenc	%xmm3, %xmm5
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_calc_iv_12_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_12_last
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	208(%ebp), %xmm3
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_encrypt_calc_iv_12_last:
+L_AES_GCM_encrypt_aesni_calc_iv_12_last:
         aesenclast	%xmm3, %xmm1
         aesenclast	%xmm3, %xmm5
         pshufb	L_aes_gcm_bswap_mask, %xmm1
         movdqu	%xmm5, 80(%esp)
-        jmp	L_AES_GCM_encrypt_iv_done
-L_AES_GCM_encrypt_iv_not_12:
+        jmp	L_AES_GCM_encrypt_aesni_iv_done
+L_AES_GCM_encrypt_aesni_iv_not_12:
         # Calculate values when IV is not 12 bytes
         # H = Encrypt X(=0)
         movdqa	(%ebp), %xmm1
@@ -189,27 +189,27 @@ L_AES_GCM_encrypt_iv_not_12:
         aesenc	144(%ebp), %xmm1
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_calc_iv_1_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_1_aesenc_avx_last
         aesenc	%xmm5, %xmm1
         aesenc	176(%ebp), %xmm1
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_calc_iv_1_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_1_aesenc_avx_last
         aesenc	%xmm5, %xmm1
         aesenc	208(%ebp), %xmm1
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_encrypt_calc_iv_1_aesenc_avx_last:
+L_AES_GCM_encrypt_aesni_calc_iv_1_aesenc_avx_last:
         aesenclast	%xmm5, %xmm1
         pshufb	L_aes_gcm_bswap_mask, %xmm1
         # Calc counter
         # Initialization vector
         cmpl	$0x00, %edx
         movl	$0x00, %ecx
-        je	L_AES_GCM_encrypt_calc_iv_done
+        je	L_AES_GCM_encrypt_aesni_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_calc_iv_lt16
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_lt16
         andl	$0xfffffff0, %edx
-L_AES_GCM_encrypt_calc_iv_16_loop:
+L_AES_GCM_encrypt_aesni_calc_iv_16_loop:
         movdqu	(%esi,%ecx,1), %xmm4
         pshufb	L_aes_gcm_bswap_mask, %xmm4
         pxor	%xmm4, %xmm0
@@ -269,22 +269,22 @@ L_AES_GCM_encrypt_calc_iv_16_loop:
         pxor	%xmm6, %xmm0
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_calc_iv_16_loop
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_16_loop
         movl	160(%esp), %edx
         cmpl	%edx, %ecx
-        je	L_AES_GCM_encrypt_calc_iv_done
-L_AES_GCM_encrypt_calc_iv_lt16:
+        je	L_AES_GCM_encrypt_aesni_calc_iv_done
+L_AES_GCM_encrypt_aesni_calc_iv_lt16:
         subl	$16, %esp
         pxor	%xmm4, %xmm4
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_encrypt_calc_iv_loop:
+L_AES_GCM_encrypt_aesni_calc_iv_loop:
         movzbl	(%esi,%ecx,1), %eax
         movb	%al, (%esp,%ebx,1)
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_calc_iv_loop
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_loop
         movdqu	(%esp), %xmm4
         addl	$16, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm4
@@ -343,7 +343,7 @@ L_AES_GCM_encrypt_calc_iv_loop:
         pxor	%xmm5, %xmm6
         pxor	%xmm3, %xmm6
         pxor	%xmm6, %xmm0
-L_AES_GCM_encrypt_calc_iv_done:
+L_AES_GCM_encrypt_aesni_calc_iv_done:
         # T = Encrypt counter
         pxor	%xmm4, %xmm4
         shll	$3, %edx
@@ -418,29 +418,29 @@ L_AES_GCM_encrypt_calc_iv_done:
         aesenc	144(%ebp), %xmm4
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_calc_iv_2_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_2_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	176(%ebp), %xmm4
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_calc_iv_2_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_calc_iv_2_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	208(%ebp), %xmm4
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_encrypt_calc_iv_2_aesenc_avx_last:
+L_AES_GCM_encrypt_aesni_calc_iv_2_aesenc_avx_last:
         aesenclast	%xmm5, %xmm4
         movdqu	%xmm4, 80(%esp)
-L_AES_GCM_encrypt_iv_done:
+L_AES_GCM_encrypt_aesni_iv_done:
         movl	140(%esp), %esi
         # Additional authentication data
         movl	156(%esp), %edx
         cmpl	$0x00, %edx
-        je	L_AES_GCM_encrypt_calc_aad_done
+        je	L_AES_GCM_encrypt_aesni_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_encrypt_calc_aad_lt16
+        jl	L_AES_GCM_encrypt_aesni_calc_aad_lt16
         andl	$0xfffffff0, %edx
-L_AES_GCM_encrypt_calc_aad_16_loop:
+L_AES_GCM_encrypt_aesni_calc_aad_16_loop:
         movdqu	(%esi,%ecx,1), %xmm4
         pshufb	L_aes_gcm_bswap_mask, %xmm4
         pxor	%xmm4, %xmm2
@@ -500,22 +500,22 @@ L_AES_GCM_encrypt_calc_aad_16_loop:
         pxor	%xmm6, %xmm2
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_calc_aad_16_loop
+        jl	L_AES_GCM_encrypt_aesni_calc_aad_16_loop
         movl	156(%esp), %edx
         cmpl	%edx, %ecx
-        je	L_AES_GCM_encrypt_calc_aad_done
-L_AES_GCM_encrypt_calc_aad_lt16:
+        je	L_AES_GCM_encrypt_aesni_calc_aad_done
+L_AES_GCM_encrypt_aesni_calc_aad_lt16:
         subl	$16, %esp
         pxor	%xmm4, %xmm4
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_encrypt_calc_aad_loop:
+L_AES_GCM_encrypt_aesni_calc_aad_loop:
         movzbl	(%esi,%ecx,1), %eax
         movb	%al, (%esp,%ebx,1)
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_encrypt_calc_aad_loop
+        jl	L_AES_GCM_encrypt_aesni_calc_aad_loop
         movdqu	(%esp), %xmm4
         addl	$16, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm4
@@ -574,7 +574,7 @@ L_AES_GCM_encrypt_calc_aad_loop:
         pxor	%xmm5, %xmm6
         pxor	%xmm3, %xmm6
         pxor	%xmm6, %xmm2
-L_AES_GCM_encrypt_calc_aad_done:
+L_AES_GCM_encrypt_aesni_calc_aad_done:
         movdqu	%xmm2, 96(%esp)
         movl	132(%esp), %esi
         movl	136(%esp), %edi
@@ -595,7 +595,7 @@ L_AES_GCM_encrypt_calc_aad_done:
         xorl	%ebx, %ebx
         movl	152(%esp), %eax
         cmpl	$0x40, %eax
-        jl	L_AES_GCM_encrypt_done_64
+        jl	L_AES_GCM_encrypt_aesni_done_64
         andl	$0xffffffc0, %eax
         movdqa	%xmm2, %xmm6
         # H ^ 1
@@ -792,7 +792,7 @@ L_AES_GCM_encrypt_calc_aad_done:
         aesenc	%xmm3, %xmm7
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_enc_done
+        jl	L_AES_GCM_encrypt_aesni_enc_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -804,7 +804,7 @@ L_AES_GCM_encrypt_calc_aad_done:
         aesenc	%xmm3, %xmm7
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_enc_done
+        jl	L_AES_GCM_encrypt_aesni_enc_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -815,7 +815,7 @@ L_AES_GCM_encrypt_calc_aad_done:
         aesenc	%xmm3, %xmm6
         aesenc	%xmm3, %xmm7
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_encrypt_enc_done:
+L_AES_GCM_encrypt_aesni_enc_done:
         aesenclast	%xmm3, %xmm4
         aesenclast	%xmm3, %xmm5
         movdqu	(%esi), %xmm0
@@ -836,9 +836,9 @@ L_AES_GCM_encrypt_enc_done:
         movl	$0x40, %ebx
         movl	%esi, %ecx
         movl	%edi, %edx
-        jle	L_AES_GCM_encrypt_end_64
+        jle	L_AES_GCM_encrypt_aesni_end_64
         # More 64 bytes of input
-L_AES_GCM_encrypt_ghash_64:
+L_AES_GCM_encrypt_aesni_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
@@ -909,7 +909,7 @@ L_AES_GCM_encrypt_ghash_64:
         aesenc	%xmm3, %xmm7
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_encrypt_aesni_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -921,7 +921,7 @@ L_AES_GCM_encrypt_ghash_64:
         aesenc	%xmm3, %xmm7
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_encrypt_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_encrypt_aesni_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -932,7 +932,7 @@ L_AES_GCM_encrypt_ghash_64:
         aesenc	%xmm3, %xmm6
         aesenc	%xmm3, %xmm7
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_encrypt_aesenc_64_ghash_avx_done:
+L_AES_GCM_encrypt_aesni_aesenc_64_ghash_avx_done:
         aesenclast	%xmm3, %xmm4
         aesenclast	%xmm3, %xmm5
         movdqu	(%ecx), %xmm0
@@ -1045,8 +1045,8 @@ L_AES_GCM_encrypt_aesenc_64_ghash_avx_done:
         movdqu	%xmm6, 96(%esp)
         addl	$0x40, %ebx
         cmpl	%eax, %ebx
-        jl	L_AES_GCM_encrypt_ghash_64
-L_AES_GCM_encrypt_end_64:
+        jl	L_AES_GCM_encrypt_aesni_ghash_64
+L_AES_GCM_encrypt_aesni_end_64:
         movdqu	96(%esp), %xmm2
         # Block 1
         movdqa	L_aes_gcm_bswap_mask, %xmm4
@@ -1165,14 +1165,14 @@ L_AES_GCM_encrypt_end_64:
         pxor	%xmm0, %xmm6
         pxor	%xmm6, %xmm2
         movdqu	(%esp), %xmm1
-L_AES_GCM_encrypt_done_64:
+L_AES_GCM_encrypt_aesni_done_64:
         movl	152(%esp), %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_encrypt_done_enc
+        jge	L_AES_GCM_encrypt_aesni_done_enc
         movl	152(%esp), %eax
         andl	$0xfffffff0, %eax
         cmpl	%eax, %ebx
-        jge	L_AES_GCM_encrypt_last_block_done
+        jge	L_AES_GCM_encrypt_aesni_last_block_done
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         movdqu	64(%esp), %xmm4
@@ -1192,16 +1192,16 @@ L_AES_GCM_encrypt_done_64:
         aesenc	144(%ebp), %xmm4
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_block_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_block_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	176(%ebp), %xmm4
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_block_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_block_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	208(%ebp), %xmm4
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_encrypt_aesenc_block_aesenc_avx_last:
+L_AES_GCM_encrypt_aesni_aesenc_block_aesenc_avx_last:
         aesenclast	%xmm5, %xmm4
         movdqu	(%ecx), %xmm5
         pxor	%xmm5, %xmm4
@@ -1210,8 +1210,8 @@ L_AES_GCM_encrypt_aesenc_block_aesenc_avx_last:
         pxor	%xmm4, %xmm2
         addl	$16, %ebx
         cmpl	%eax, %ebx
-        jge	L_AES_GCM_encrypt_last_block_ghash
-L_AES_GCM_encrypt_last_block_start:
+        jge	L_AES_GCM_encrypt_aesni_last_block_ghash
+L_AES_GCM_encrypt_aesni_last_block_start:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         movdqu	64(%esp), %xmm4
@@ -1255,16 +1255,16 @@ L_AES_GCM_encrypt_last_block_start:
         pxor	%xmm5, %xmm2
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_gfmul_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_gfmul_last
         aesenc	%xmm5, %xmm4
         aesenc	176(%ebp), %xmm4
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_gfmul_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_gfmul_last
         aesenc	%xmm5, %xmm4
         aesenc	208(%ebp), %xmm4
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_encrypt_aesenc_gfmul_last:
+L_AES_GCM_encrypt_aesni_aesenc_gfmul_last:
         aesenclast	%xmm5, %xmm4
         movdqu	(%ecx), %xmm5
         pxor	%xmm5, %xmm4
@@ -1273,8 +1273,8 @@ L_AES_GCM_encrypt_aesenc_gfmul_last:
         pxor	%xmm4, %xmm2
         addl	$16, %ebx
         cmpl	%eax, %ebx
-        jl	L_AES_GCM_encrypt_last_block_start
-L_AES_GCM_encrypt_last_block_ghash:
+        jl	L_AES_GCM_encrypt_aesni_last_block_start
+L_AES_GCM_encrypt_aesni_last_block_ghash:
         pshufd	$0x4e, %xmm1, %xmm5
         pshufd	$0x4e, %xmm2, %xmm6
         movdqa	%xmm2, %xmm7
@@ -1314,11 +1314,11 @@ L_AES_GCM_encrypt_last_block_ghash:
         pxor	%xmm7, %xmm5
         pxor	%xmm4, %xmm5
         pxor	%xmm5, %xmm2
-L_AES_GCM_encrypt_last_block_done:
+L_AES_GCM_encrypt_aesni_last_block_done:
         movl	152(%esp), %ecx
         movl	%ecx, %edx
         andl	$15, %ecx
-        jz	L_AES_GCM_encrypt_aesenc_last15_enc_avx_done
+        jz	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_done
         movdqu	64(%esp), %xmm0
         pshufb	L_aes_gcm_bswap_epi64, %xmm0
         pxor	(%ebp), %xmm0
@@ -1333,21 +1333,21 @@ L_AES_GCM_encrypt_last_block_done:
         aesenc	144(%ebp), %xmm0
         cmpl	$11, 172(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_last15_enc_avx_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_aesenc_avx_last
         aesenc	%xmm5, %xmm0
         aesenc	176(%ebp), %xmm0
         cmpl	$13, 172(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_encrypt_aesenc_last15_enc_avx_aesenc_avx_last
+        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_aesenc_avx_last
         aesenc	%xmm5, %xmm0
         aesenc	208(%ebp), %xmm0
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_encrypt_aesenc_last15_enc_avx_aesenc_avx_last:
+L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_aesenc_avx_last:
         aesenclast	%xmm5, %xmm0
         subl	$16, %esp
         xorl	%ecx, %ecx
         movdqu	%xmm0, (%esp)
-L_AES_GCM_encrypt_aesenc_last15_enc_avx_loop:
+L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_loop:
         movzbl	(%esi,%ebx,1), %eax
         xorb	(%esp,%ecx,1), %al
         movb	%al, (%edi,%ebx,1)
@@ -1355,16 +1355,16 @@ L_AES_GCM_encrypt_aesenc_last15_enc_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_encrypt_aesenc_last15_enc_avx_loop
+        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_loop
         xorl	%eax, %eax
         cmpl	$16, %ecx
-        je	L_AES_GCM_encrypt_aesenc_last15_enc_avx_finish_enc
-L_AES_GCM_encrypt_aesenc_last15_enc_avx_byte_loop:
+        je	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_finish_enc
+L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_byte_loop:
         movb	%al, (%esp,%ecx,1)
         incl	%ecx
         cmpl	$16, %ecx
-        jl	L_AES_GCM_encrypt_aesenc_last15_enc_avx_byte_loop
-L_AES_GCM_encrypt_aesenc_last15_enc_avx_finish_enc:
+        jl	L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_byte_loop
+L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_finish_enc:
         movdqu	(%esp), %xmm0
         addl	$16, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm0
@@ -1408,8 +1408,8 @@ L_AES_GCM_encrypt_aesenc_last15_enc_avx_finish_enc:
         pxor	%xmm7, %xmm5
         pxor	%xmm4, %xmm5
         pxor	%xmm5, %xmm2
-L_AES_GCM_encrypt_aesenc_last15_enc_avx_done:
-L_AES_GCM_encrypt_done_enc:
+L_AES_GCM_encrypt_aesni_aesenc_last15_enc_avx_done:
+L_AES_GCM_encrypt_aesni_done_enc:
         movl	148(%esp), %edi
         movl	164(%esp), %ebx
         movl	152(%esp), %edx
@@ -1468,31 +1468,31 @@ L_AES_GCM_encrypt_done_enc:
         movdqu	80(%esp), %xmm4
         pxor	%xmm2, %xmm4
         cmpl	$16, %ebx
-        je	L_AES_GCM_encrypt_store_tag_16
+        je	L_AES_GCM_encrypt_aesni_store_tag_16
         xorl	%ecx, %ecx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_encrypt_store_tag_loop:
+L_AES_GCM_encrypt_aesni_store_tag_loop:
         movzbl	(%esp,%ecx,1), %eax
         movb	%al, (%edi,%ecx,1)
         incl	%ecx
         cmpl	%ebx, %ecx
-        jne	L_AES_GCM_encrypt_store_tag_loop
-        jmp	L_AES_GCM_encrypt_store_tag_done
-L_AES_GCM_encrypt_store_tag_16:
+        jne	L_AES_GCM_encrypt_aesni_store_tag_loop
+        jmp	L_AES_GCM_encrypt_aesni_store_tag_done
+L_AES_GCM_encrypt_aesni_store_tag_16:
         movdqu	%xmm4, (%edi)
-L_AES_GCM_encrypt_store_tag_done:
+L_AES_GCM_encrypt_aesni_store_tag_done:
         addl	$0x70, %esp
         popl	%ebp
         popl	%edi
         popl	%esi
         popl	%ebx
         ret
-.size	AES_GCM_encrypt,.-AES_GCM_encrypt
+.size	AES_GCM_encrypt_aesni,.-AES_GCM_encrypt_aesni
 .text
-.globl	AES_GCM_decrypt
-.type	AES_GCM_decrypt,@function
+.globl	AES_GCM_decrypt_aesni
+.type	AES_GCM_decrypt_aesni,@function
 .align	16
-AES_GCM_decrypt:
+AES_GCM_decrypt_aesni:
         pushl	%ebx
         pushl	%esi
         pushl	%edi
@@ -1504,7 +1504,7 @@ AES_GCM_decrypt:
         pxor	%xmm0, %xmm0
         pxor	%xmm2, %xmm2
         cmpl	$12, %edx
-        jne	L_AES_GCM_decrypt_iv_not_12
+        jne	L_AES_GCM_decrypt_aesni_iv_not_12
         # # Calculate values when IV is 12 bytes
         # Set counter based on IV
         movl	$0x1000000, %ecx
@@ -1545,7 +1545,7 @@ AES_GCM_decrypt:
         aesenc	%xmm3, %xmm5
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_decrypt_calc_iv_12_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_12_last
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	176(%ebp), %xmm3
@@ -1553,20 +1553,20 @@ AES_GCM_decrypt:
         aesenc	%xmm3, %xmm5
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_decrypt_calc_iv_12_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_12_last
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	208(%ebp), %xmm3
         aesenc	%xmm3, %xmm1
         aesenc	%xmm3, %xmm5
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_decrypt_calc_iv_12_last:
+L_AES_GCM_decrypt_aesni_calc_iv_12_last:
         aesenclast	%xmm3, %xmm1
         aesenclast	%xmm3, %xmm5
         pshufb	L_aes_gcm_bswap_mask, %xmm1
         movdqu	%xmm5, 80(%esp)
-        jmp	L_AES_GCM_decrypt_iv_done
-L_AES_GCM_decrypt_iv_not_12:
+        jmp	L_AES_GCM_decrypt_aesni_iv_done
+L_AES_GCM_decrypt_aesni_iv_not_12:
         # Calculate values when IV is not 12 bytes
         # H = Encrypt X(=0)
         movdqa	(%ebp), %xmm1
@@ -1581,27 +1581,27 @@ L_AES_GCM_decrypt_iv_not_12:
         aesenc	144(%ebp), %xmm1
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_calc_iv_1_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_1_aesenc_avx_last
         aesenc	%xmm5, %xmm1
         aesenc	176(%ebp), %xmm1
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_calc_iv_1_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_1_aesenc_avx_last
         aesenc	%xmm5, %xmm1
         aesenc	208(%ebp), %xmm1
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_decrypt_calc_iv_1_aesenc_avx_last:
+L_AES_GCM_decrypt_aesni_calc_iv_1_aesenc_avx_last:
         aesenclast	%xmm5, %xmm1
         pshufb	L_aes_gcm_bswap_mask, %xmm1
         # Calc counter
         # Initialization vector
         cmpl	$0x00, %edx
         movl	$0x00, %ecx
-        je	L_AES_GCM_decrypt_calc_iv_done
+        je	L_AES_GCM_decrypt_aesni_calc_iv_done
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_calc_iv_lt16
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_lt16
         andl	$0xfffffff0, %edx
-L_AES_GCM_decrypt_calc_iv_16_loop:
+L_AES_GCM_decrypt_aesni_calc_iv_16_loop:
         movdqu	(%esi,%ecx,1), %xmm4
         pshufb	L_aes_gcm_bswap_mask, %xmm4
         pxor	%xmm4, %xmm0
@@ -1661,22 +1661,22 @@ L_AES_GCM_decrypt_calc_iv_16_loop:
         pxor	%xmm6, %xmm0
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_calc_iv_16_loop
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_16_loop
         movl	224(%esp), %edx
         cmpl	%edx, %ecx
-        je	L_AES_GCM_decrypt_calc_iv_done
-L_AES_GCM_decrypt_calc_iv_lt16:
+        je	L_AES_GCM_decrypt_aesni_calc_iv_done
+L_AES_GCM_decrypt_aesni_calc_iv_lt16:
         subl	$16, %esp
         pxor	%xmm4, %xmm4
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_decrypt_calc_iv_loop:
+L_AES_GCM_decrypt_aesni_calc_iv_loop:
         movzbl	(%esi,%ecx,1), %eax
         movb	%al, (%esp,%ebx,1)
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_calc_iv_loop
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_loop
         movdqu	(%esp), %xmm4
         addl	$16, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm4
@@ -1735,7 +1735,7 @@ L_AES_GCM_decrypt_calc_iv_loop:
         pxor	%xmm5, %xmm6
         pxor	%xmm3, %xmm6
         pxor	%xmm6, %xmm0
-L_AES_GCM_decrypt_calc_iv_done:
+L_AES_GCM_decrypt_aesni_calc_iv_done:
         # T = Encrypt counter
         pxor	%xmm4, %xmm4
         shll	$3, %edx
@@ -1810,29 +1810,29 @@ L_AES_GCM_decrypt_calc_iv_done:
         aesenc	144(%ebp), %xmm4
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_calc_iv_2_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_2_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	176(%ebp), %xmm4
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_calc_iv_2_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_calc_iv_2_aesenc_avx_last
         aesenc	%xmm5, %xmm4
         aesenc	208(%ebp), %xmm4
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_decrypt_calc_iv_2_aesenc_avx_last:
+L_AES_GCM_decrypt_aesni_calc_iv_2_aesenc_avx_last:
         aesenclast	%xmm5, %xmm4
         movdqu	%xmm4, 80(%esp)
-L_AES_GCM_decrypt_iv_done:
+L_AES_GCM_decrypt_aesni_iv_done:
         movl	204(%esp), %esi
         # Additional authentication data
         movl	220(%esp), %edx
         cmpl	$0x00, %edx
-        je	L_AES_GCM_decrypt_calc_aad_done
+        je	L_AES_GCM_decrypt_aesni_calc_aad_done
         xorl	%ecx, %ecx
         cmpl	$16, %edx
-        jl	L_AES_GCM_decrypt_calc_aad_lt16
+        jl	L_AES_GCM_decrypt_aesni_calc_aad_lt16
         andl	$0xfffffff0, %edx
-L_AES_GCM_decrypt_calc_aad_16_loop:
+L_AES_GCM_decrypt_aesni_calc_aad_16_loop:
         movdqu	(%esi,%ecx,1), %xmm4
         pshufb	L_aes_gcm_bswap_mask, %xmm4
         pxor	%xmm4, %xmm2
@@ -1892,22 +1892,22 @@ L_AES_GCM_decrypt_calc_aad_16_loop:
         pxor	%xmm6, %xmm2
         addl	$16, %ecx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_calc_aad_16_loop
+        jl	L_AES_GCM_decrypt_aesni_calc_aad_16_loop
         movl	220(%esp), %edx
         cmpl	%edx, %ecx
-        je	L_AES_GCM_decrypt_calc_aad_done
-L_AES_GCM_decrypt_calc_aad_lt16:
+        je	L_AES_GCM_decrypt_aesni_calc_aad_done
+L_AES_GCM_decrypt_aesni_calc_aad_lt16:
         subl	$16, %esp
         pxor	%xmm4, %xmm4
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_decrypt_calc_aad_loop:
+L_AES_GCM_decrypt_aesni_calc_aad_loop:
         movzbl	(%esi,%ecx,1), %eax
         movb	%al, (%esp,%ebx,1)
         incl	%ecx
         incl	%ebx
         cmpl	%edx, %ecx
-        jl	L_AES_GCM_decrypt_calc_aad_loop
+        jl	L_AES_GCM_decrypt_aesni_calc_aad_loop
         movdqu	(%esp), %xmm4
         addl	$16, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm4
@@ -1966,7 +1966,7 @@ L_AES_GCM_decrypt_calc_aad_loop:
         pxor	%xmm5, %xmm6
         pxor	%xmm3, %xmm6
         pxor	%xmm6, %xmm2
-L_AES_GCM_decrypt_calc_aad_done:
+L_AES_GCM_decrypt_aesni_calc_aad_done:
         movdqu	%xmm2, 96(%esp)
         movl	196(%esp), %esi
         movl	200(%esp), %edi
@@ -1987,7 +1987,7 @@ L_AES_GCM_decrypt_calc_aad_done:
         xorl	%ebx, %ebx
         cmpl	$0x40, 216(%esp)
         movl	216(%esp), %eax
-        jl	L_AES_GCM_decrypt_done_64
+        jl	L_AES_GCM_decrypt_aesni_done_64
         andl	$0xffffffc0, %eax
         movdqa	%xmm2, %xmm6
         # H ^ 1
@@ -2116,8 +2116,8 @@ L_AES_GCM_decrypt_calc_aad_done:
         pxor	%xmm5, %xmm3
         movdqu	%xmm3, 48(%esp)
         cmpl	%esi, %edi
-        jne	L_AES_GCM_decrypt_ghash_64
-L_AES_GCM_decrypt_ghash_64_inplace:
+        jne	L_AES_GCM_decrypt_aesni_ghash_64
+L_AES_GCM_decrypt_aesni_ghash_64_inplace:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
@@ -2188,7 +2188,7 @@ L_AES_GCM_decrypt_ghash_64_inplace:
         aesenc	%xmm3, %xmm7
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_decryptinplace_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_decrypt_aesniinplace_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -2200,7 +2200,7 @@ L_AES_GCM_decrypt_ghash_64_inplace:
         aesenc	%xmm3, %xmm7
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_decryptinplace_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_decrypt_aesniinplace_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -2211,7 +2211,7 @@ L_AES_GCM_decrypt_ghash_64_inplace:
         aesenc	%xmm3, %xmm6
         aesenc	%xmm3, %xmm7
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_decryptinplace_aesenc_64_ghash_avx_done:
+L_AES_GCM_decrypt_aesniinplace_aesenc_64_ghash_avx_done:
         aesenclast	%xmm3, %xmm4
         aesenclast	%xmm3, %xmm5
         movdqu	(%ecx), %xmm0
@@ -2328,9 +2328,9 @@ L_AES_GCM_decryptinplace_aesenc_64_ghash_avx_done:
         movdqu	%xmm6, 96(%esp)
         addl	$0x40, %ebx
         cmpl	%eax, %ebx
-        jl	L_AES_GCM_decrypt_ghash_64_inplace
-        jmp	L_AES_GCM_decrypt_ghash_64_done
-L_AES_GCM_decrypt_ghash_64:
+        jl	L_AES_GCM_decrypt_aesni_ghash_64_inplace
+        jmp	L_AES_GCM_decrypt_aesni_ghash_64_done
+L_AES_GCM_decrypt_aesni_ghash_64:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         # Encrypt 64 bytes of counter
@@ -2401,7 +2401,7 @@ L_AES_GCM_decrypt_ghash_64:
         aesenc	%xmm3, %xmm7
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm3
-        jl	L_AES_GCM_decrypt_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_decrypt_aesni_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -2413,7 +2413,7 @@ L_AES_GCM_decrypt_ghash_64:
         aesenc	%xmm3, %xmm7
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm3
-        jl	L_AES_GCM_decrypt_aesenc_64_ghash_avx_done
+        jl	L_AES_GCM_decrypt_aesni_aesenc_64_ghash_avx_done
         aesenc	%xmm3, %xmm4
         aesenc	%xmm3, %xmm5
         aesenc	%xmm3, %xmm6
@@ -2424,7 +2424,7 @@ L_AES_GCM_decrypt_ghash_64:
         aesenc	%xmm3, %xmm6
         aesenc	%xmm3, %xmm7
         movdqa	224(%ebp), %xmm3
-L_AES_GCM_decrypt_aesenc_64_ghash_avx_done:
+L_AES_GCM_decrypt_aesni_aesenc_64_ghash_avx_done:
         aesenclast	%xmm3, %xmm4
         aesenclast	%xmm3, %xmm5
         movdqu	(%ecx), %xmm0
@@ -2541,19 +2541,19 @@ L_AES_GCM_decrypt_aesenc_64_ghash_avx_done:
         movdqu	%xmm6, 96(%esp)
         addl	$0x40, %ebx
         cmpl	%eax, %ebx
-        jl	L_AES_GCM_decrypt_ghash_64
-L_AES_GCM_decrypt_ghash_64_done:
+        jl	L_AES_GCM_decrypt_aesni_ghash_64
+L_AES_GCM_decrypt_aesni_ghash_64_done:
         movdqa	%xmm6, %xmm2
         movdqu	(%esp), %xmm1
-L_AES_GCM_decrypt_done_64:
+L_AES_GCM_decrypt_aesni_done_64:
         movl	216(%esp), %edx
         cmpl	%edx, %ebx
-        jge	L_AES_GCM_decrypt_done_dec
+        jge	L_AES_GCM_decrypt_aesni_done_dec
         movl	216(%esp), %eax
         andl	$0xfffffff0, %eax
         cmpl	%eax, %ebx
-        jge	L_AES_GCM_decrypt_last_block_done
-L_AES_GCM_decrypt_last_block_start:
+        jge	L_AES_GCM_decrypt_aesni_last_block_done
+L_AES_GCM_decrypt_aesni_last_block_start:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
         movdqu	(%ecx), %xmm5
@@ -2601,28 +2601,28 @@ L_AES_GCM_decrypt_last_block_start:
         pxor	%xmm5, %xmm2
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_aesenc_gfmul_last
+        jl	L_AES_GCM_decrypt_aesni_aesenc_gfmul_last
         aesenc	%xmm5, %xmm4
         aesenc	176(%ebp), %xmm4
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_aesenc_gfmul_last
+        jl	L_AES_GCM_decrypt_aesni_aesenc_gfmul_last
         aesenc	%xmm5, %xmm4
         aesenc	208(%ebp), %xmm4
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_decrypt_aesenc_gfmul_last:
+L_AES_GCM_decrypt_aesni_aesenc_gfmul_last:
         aesenclast	%xmm5, %xmm4
         movdqu	(%ecx), %xmm5
         pxor	%xmm5, %xmm4
         movdqu	%xmm4, (%edx)
         addl	$16, %ebx
         cmpl	%eax, %ebx
-        jl	L_AES_GCM_decrypt_last_block_start
-L_AES_GCM_decrypt_last_block_done:
+        jl	L_AES_GCM_decrypt_aesni_last_block_start
+L_AES_GCM_decrypt_aesni_last_block_done:
         movl	216(%esp), %ecx
         movl	%ecx, %edx
         andl	$15, %ecx
-        jz	L_AES_GCM_decrypt_aesenc_last15_dec_avx_done
+        jz	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_done
         movdqu	64(%esp), %xmm0
         pshufb	L_aes_gcm_bswap_epi64, %xmm0
         pxor	(%ebp), %xmm0
@@ -2637,23 +2637,23 @@ L_AES_GCM_decrypt_last_block_done:
         aesenc	144(%ebp), %xmm0
         cmpl	$11, 236(%esp)
         movdqa	160(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_aesenc_last15_dec_avx_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_aesenc_avx_last
         aesenc	%xmm5, %xmm0
         aesenc	176(%ebp), %xmm0
         cmpl	$13, 236(%esp)
         movdqa	192(%ebp), %xmm5
-        jl	L_AES_GCM_decrypt_aesenc_last15_dec_avx_aesenc_avx_last
+        jl	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_aesenc_avx_last
         aesenc	%xmm5, %xmm0
         aesenc	208(%ebp), %xmm0
         movdqa	224(%ebp), %xmm5
-L_AES_GCM_decrypt_aesenc_last15_dec_avx_aesenc_avx_last:
+L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_aesenc_avx_last:
         aesenclast	%xmm5, %xmm0
         subl	$32, %esp
         xorl	%ecx, %ecx
         movdqu	%xmm0, (%esp)
         pxor	%xmm4, %xmm4
         movdqu	%xmm4, 16(%esp)
-L_AES_GCM_decrypt_aesenc_last15_dec_avx_loop:
+L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_loop:
         movzbl	(%esi,%ebx,1), %eax
         movb	%al, 16(%esp,%ecx,1)
         xorb	(%esp,%ecx,1), %al
@@ -2661,7 +2661,7 @@ L_AES_GCM_decrypt_aesenc_last15_dec_avx_loop:
         incl	%ebx
         incl	%ecx
         cmpl	%edx, %ebx
-        jl	L_AES_GCM_decrypt_aesenc_last15_dec_avx_loop
+        jl	L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_loop
         movdqu	16(%esp), %xmm0
         addl	$32, %esp
         pshufb	L_aes_gcm_bswap_mask, %xmm0
@@ -2705,8 +2705,8 @@ L_AES_GCM_decrypt_aesenc_last15_dec_avx_loop:
         pxor	%xmm7, %xmm5
         pxor	%xmm4, %xmm5
         pxor	%xmm5, %xmm2
-L_AES_GCM_decrypt_aesenc_last15_dec_avx_done:
-L_AES_GCM_decrypt_done_dec:
+L_AES_GCM_decrypt_aesni_aesenc_last15_dec_avx_done:
+L_AES_GCM_decrypt_aesni_done_dec:
         movl	212(%esp), %esi
         movl	228(%esp), %ebp
         movl	216(%esp), %edx
@@ -2766,24 +2766,24 @@ L_AES_GCM_decrypt_done_dec:
         pxor	%xmm2, %xmm4
         movl	240(%esp), %edi
         cmpl	$16, %ebp
-        je	L_AES_GCM_decrypt_cmp_tag_16
+        je	L_AES_GCM_decrypt_aesni_cmp_tag_16
         subl	$16, %esp
         xorl	%ecx, %ecx
         xorl	%ebx, %ebx
         movdqu	%xmm4, (%esp)
-L_AES_GCM_decrypt_cmp_tag_loop:
+L_AES_GCM_decrypt_aesni_cmp_tag_loop:
         movzbl	(%esp,%ecx,1), %eax
         xorb	(%esi,%ecx,1), %al
         orb	%al, %bl
         incl	%ecx
         cmpl	%ebp, %ecx
-        jne	L_AES_GCM_decrypt_cmp_tag_loop
+        jne	L_AES_GCM_decrypt_aesni_cmp_tag_loop
         cmpb	$0x00, %bl
         sete	%bl
         addl	$16, %esp
         xorl	%ecx, %ecx
-        jmp	L_AES_GCM_decrypt_cmp_tag_done
-L_AES_GCM_decrypt_cmp_tag_16:
+        jmp	L_AES_GCM_decrypt_aesni_cmp_tag_done
+L_AES_GCM_decrypt_aesni_cmp_tag_16:
         movdqu	(%esi), %xmm5
         pcmpeqb	%xmm5, %xmm4
         pmovmskb	%xmm4, %edx
@@ -2791,7 +2791,7 @@ L_AES_GCM_decrypt_cmp_tag_16:
         xorl	%ebx, %ebx
         cmpl	$0xffff, %edx
         sete	%bl
-L_AES_GCM_decrypt_cmp_tag_done:
+L_AES_GCM_decrypt_aesni_cmp_tag_done:
         movl	%ebx, (%edi)
         addl	$0xb0, %esp
         popl	%ebp
@@ -2799,7 +2799,7 @@ L_AES_GCM_decrypt_cmp_tag_done:
         popl	%esi
         popl	%ebx
         ret
-.size	AES_GCM_decrypt,.-AES_GCM_decrypt
+.size	AES_GCM_decrypt_aesni,.-AES_GCM_decrypt_aesni
 #ifdef WOLFSSL_AESGCM_STREAM
 .text
 .globl	AES_GCM_init_aesni

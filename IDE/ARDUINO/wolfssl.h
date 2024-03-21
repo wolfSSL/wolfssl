@@ -1,4 +1,4 @@
-/* wc_lms.c
+/* wolfssl.h
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *
@@ -19,8 +19,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/wolfcrypt/settings.h>
+/* Edit with caution. This is an Arduino-library specific header for wolfSSL */
 
-#ifdef WOLFSSL_HAVE_LMS
-    #error "Contact wolfSSL to get the implementation of this file"
+#ifndef WOLFSSL_USER_SETTINGS
+    #define WOLFSSL_USER_SETTINGS
 #endif
+
+#include <Arduino.h>
+
+/* wolfSSL user_settings.h must be included from settings.h */
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
+
+int wolfSSL_Arduino_Serial_Print(const char *const s)
+{
+    /* See wolfssl/wolfcrypt/logging.c */
+    Serial.println(F(s));
+    return 0;
+};

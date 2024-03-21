@@ -89,6 +89,11 @@ enum wc_FuncNum {
 };
 #endif
 
+#if defined(ARDUINO)
+/* implemented in Arduino wolfssl.h */
+extern WOLFSSL_API int wolfSSL_Arduino_Serial_Print(const char* const s);
+#endif /* ARDUINO */
+
 typedef void (*wolfSSL_Logging_cb)(const int logLevel,
                                    const char *const logMessage);
 
