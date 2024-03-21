@@ -1871,9 +1871,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     if ( (ret = time_test()) != 0)
-        TEST_FAIL("time test failed!\n", ret);
+        TEST_FAIL("time     test failed!\n", ret);
     else
-        TEST_PASS("time test passed!\n");
+        TEST_PASS("time     test passed!\n");
 #endif
 
 #if defined(__INCLUDE_NUTTX_CONFIG_H)
@@ -2438,8 +2438,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
 {
     wc_test_ret_t ret;
     /* ASN1 encoded date buffer */
-    WOLFSSL_SMALL_STACK_STATIC const byte dateBuf[] = {0x17, 0x0d, 0x31, 0x36, 0x30, 0x38, 0x31, 0x31,
-                            0x32, 0x30, 0x30, 0x37, 0x33, 0x37, 0x5a};
+    WOLFSSL_SMALL_STACK_STATIC const byte dateBuf[] = {
+        0x17, 0x0d, 0x31, 0x36, 0x30, 0x38, 0x31, 0x31,
+        0x32, 0x30, 0x30, 0x37, 0x33, 0x37, 0x5a
+    };
     byte format;
     int length;
     const byte* datePart;
@@ -16220,6 +16222,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             CERT_ROOT "test" CERT_PATH_SEP "cert-ext-ia.der";
     static const char* certExtNct =
             CERT_ROOT "test" CERT_PATH_SEP "cert-ext-nct.der";
+#ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
+    static const char* certBadNegInt =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-bad-neg-int.der";
+#endif
+    static const char* certBadOid =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-bad-oid.der";
+#ifndef WOLFSSL_NO_ASN_STRICT
+    static const char* certBadUtf8 =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-bad-utf8.der";
+#endif
 #endif
 
 #ifndef NO_WRITE_TEMP_FILES
@@ -16469,6 +16481,68 @@ done:
     return ret;
 }
 
+static wc_test_ret_t cert_load_bad(const char* fname, byte* tmp, int err)
+{
+    wc_test_ret_t ret;
+    DecodedCert   cert;
+    XFILE         file;
+    size_t        bytes;
+
+    file = XFOPEN(fname, "rb");
+    if (!file) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    }
+    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+    XFCLOSE(file);
+    if (bytes == 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    }
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != err) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    }
+    ret = 0;
+
+done:
+    return ret;
+}
+
+static wc_test_ret_t cert_bad_asn1_test(void)
+{
+    wc_test_ret_t ret = 0;
+    byte*       tmp;
+
+    tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = WC_TEST_RET_ENC_ERRNO;
+    }
+
+#ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
+    if (ret == 0) {
+        /* Serial number: 0xff 0xa8. 0xff and top bit set on next byte invalid.
+         */
+        ret = cert_load_bad(certBadNegInt, tmp, ASN_EXPECT_0_E);
+    }
+#endif
+    if (ret == 0) {
+        /* Subject name OID: 55 04 f4. Last byte with top bit set invalid. */
+        ret = cert_load_bad(certBadOid, tmp, ASN_PARSE_E);
+    }
+#ifndef WOLFSSL_NO_ASN_STRICT
+    if (ret == 0) {
+        /* Issuer name UTF8STRING: df 52 4e 44. Top bit of second byte not set.
+         */
+        ret = cert_load_bad(certBadUtf8, tmp, ASN_PARSE_E);
+    }
+#endif
+
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cert_test(void)
 {
 #if !defined(NO_FILESYSTEM)
@@ -16542,6 +16616,8 @@ done:
 
     if (ret == 0)
         ret = cert_asn1_test();
+    if (ret == 0)
+        ret = cert_bad_asn1_test();
 
     return ret;
 }
