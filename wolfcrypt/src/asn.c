@@ -1209,8 +1209,8 @@ static int GetASN_ObjectId(const byte* input, word32 idx, int length)
     #endif
         ret = ASN_PARSE_E;
     }
-    /* Last octet of a subidentifier has bit 8 clear. Last octet must be last
-     * of a subidentifier. Ensure last octet hasn't got top bit set indicating.
+    /* Last octet of a sub-identifier has bit 8 clear. Last octet must be last
+     * of a subidentifier. Ensure last octet hasn't got top bit set.
      */
     else if ((input[(int)idx + length - 1] & 0x80) != 0x00) {
         WOLFSSL_MSG("OID last octet has top bit set");
