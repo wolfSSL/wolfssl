@@ -1,6 +1,6 @@
 /* test.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18697,7 +18697,9 @@ static wc_test_ret_t rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     word32      idx3 = 0;
 #if (!defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)) \
     || !defined(USE_CERT_BUFFERS_256)
-    XFILE       file3;
+    #ifndef NO_FILESYSTEM
+        XFILE       file3;
+    #endif
 #endif
     wc_test_ret_t ret;
 
@@ -18750,20 +18752,29 @@ static wc_test_ret_t rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 
     /* Get Cert Key */
-#ifdef USE_CERT_BUFFERS_256
-    XMEMCPY(tmp, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
-    bytes3 = sizeof_ecc_key_pub_der_256;
-#else
-    file3 = XFOPEN(eccKeyPubFileDer, "rb");
-    if (!file3) {
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
+    #if defined(USE_CERT_BUFFERS_256)
+    {
+        XMEMCPY(tmp, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
+        bytes3 = sizeof_ecc_key_pub_der_256;
     }
+    #elif !defined(NO_FILESYSTEM)
+    {
+        file3 = XFOPEN(eccKeyPubFileDer, "rb");
+        if (!file3) {
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
+        }
 
-    bytes3 = XFREAD(tmp, 1, FOURK_BUF, file3);
-    XFCLOSE(file3);
-    if (bytes3 == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
-#endif
+        bytes3 = XFREAD(tmp, 1, FOURK_BUF, file3);
+        XFCLOSE(file3);
+        if (bytes3 == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
+    }
+    #else
+    {
+        WOLFSSL_MSG("No file system and USE_CERT_BUFFERS_256 not defined.(1)");
+        ERROR_OUT(ASN_PARSE_E, exit_rsa);
+    }
+    #endif
 
     ret = wc_ecc_init_ex(caEccKeyPub, HEAP_HINT, devId);
     if (ret != 0)
@@ -27343,10 +27354,12 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
     wc_ecc_init_ex(key, HEAP_HINT, devId);
 
 #ifndef NO_ECC256
-#ifdef USE_CERT_BUFFERS_256
-    XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
-    tmpSz = (size_t)sizeof_ecc_key_der_256;
-#else
+#if defined(USE_CERT_BUFFERS_256)
+    {
+        XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
+        tmpSz = (size_t)sizeof_ecc_key_der_256;
+    }
+#elif !defined(NO_FILESYSTEM)
     {
         XFILE file = XFOPEN(eccKeyDerFile, "rb");
         if (!file) {
@@ -27357,6 +27370,11 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
         XFCLOSE(file);
         if (tmpSz == 0)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    }
+#else
+    {
+        WOLFSSL_MSG("No file system and USE_CERT_BUFFERS_256 not defined.(2)");
+        ERROR_OUT(ASN_PARSE_E, done);
     }
 #endif /* USE_CERT_BUFFERS_256 */
 
@@ -28889,10 +28907,12 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
     ((defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
      (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)))
     /* Use test ECC key - ensure real private "d" exists */
-    #ifdef USE_CERT_BUFFERS_256
-    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
-        sizeof_ecc_key_der_256);
-    #else
+    #if defined(USE_CERT_BUFFERS_256)
+    {
+        ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
+                                     sizeof_ecc_key_der_256);
+    }
+    #elif !defined(NO_FILESYSTEM)
     {
         XFILE file = XFOPEN(eccKeyDerFile, "rb");
         byte der[128];
@@ -28905,6 +28925,12 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
         if (derSz == 0)
             ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
         ret = wc_EccPrivateKeyDecode(der, &idx, key, derSz);
+    }
+    #else
+    {
+        (void)idx;
+        WOLFSSL_MSG("No file system and USE_CERT_BUFFERS_256 not defined.(3)");
+        ERROR_OUT(ASN_PARSE_E, done);
     }
     #endif
     if (ret != 0) {
@@ -29834,9 +29860,9 @@ static wc_test_ret_t ecc_test_cert_gen(WC_RNG* rng)
     ecc_key certPubKey[1];
 #endif
     int         certSz;
-    size_t      bytes;
+    size_t      bytes = 0;
     word32      idx = 0;
-#ifndef USE_CERT_BUFFERS_256
+#if !defined(USE_CERT_BUFFERS_256) && !defined(NO_FILESYSTEM)
     XFILE       file;
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -29867,38 +29893,46 @@ static wc_test_ret_t ecc_test_cert_gen(WC_RNG* rng)
     /* Get cert private key */
 #ifdef ENABLE_ECC384_CERT_GEN_TEST
     /* Get Cert Key 384 */
-#ifdef USE_CERT_BUFFERS_256
-    XMEMCPY(der, ca_ecc_key_der_384, sizeof_ca_ecc_key_der_384);
-    bytes = sizeof_ca_ecc_key_der_384;
-#else
-    file = XFOPEN(eccCaKey384File, "rb");
-    if (!file) {
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
-    }
+    #ifdef USE_CERT_BUFFERS_256
+        XMEMCPY(der, ca_ecc_key_der_384, sizeof_ca_ecc_key_der_384);
+        bytes = sizeof_ca_ecc_key_der_384;
+    #elif !defined(NO_FILESYSTEM)
+        file = XFOPEN(eccCaKey384File, "rb");
+        if (!file) {
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
+        }
 
-    bytes = XFREAD(der, 1, FOURK_BUF, file);
-    XFCLOSE(file);
-    if (bytes == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
-    (void)eccCaKeyFile;
-#endif /* USE_CERT_BUFFERS_256 */
+        bytes = XFREAD(der, 1, FOURK_BUF, file);
+        XFCLOSE(file);
+        if (bytes == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
+        (void)eccCaKeyFile;
+    #else
+        WOLFSSL_MSG("No file system and USE_CERT_BUFFERS_256 not defined.(4)");
+        ERROR_OUT(ASN_PARSE_E, exit);
+    #endif /* USE_CERT_BUFFERS_256 */
+
+    /* end if ENABLE_ECC384_CERT_GEN_TEST */
 #else
-#ifdef USE_CERT_BUFFERS_256
-    XMEMCPY(der, ca_ecc_key_der_256, sizeof_ca_ecc_key_der_256);
-    bytes = sizeof_ca_ecc_key_der_256;
-#else
-    file = XFOPEN(eccCaKeyFile, "rb");
-    if (!file) {
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
-    }
-    bytes = XFREAD(der, 1, FOURK_BUF, file);
-    XFCLOSE(file);
-    if (bytes == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
-#ifdef ENABLE_ECC384_CERT_GEN_TEST
-    (void)eccCaKey384File;
-#endif
-#endif /* USE_CERT_BUFFERS_256 */
+    /* !ENABLE_ECC384_CERT_GEN_TEST */
+
+    #ifdef USE_CERT_BUFFERS_256
+        XMEMCPY(der, ca_ecc_key_der_256, sizeof_ca_ecc_key_der_256);
+        bytes = sizeof_ca_ecc_key_der_256;
+    #else
+        file = XFOPEN(eccCaKeyFile, "rb");
+        if (!file) {
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
+        }
+        bytes = XFREAD(der, 1, FOURK_BUF, file);
+        XFCLOSE(file);
+        if (bytes == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
+
+        #ifdef ENABLE_ECC384_CERT_GEN_TEST
+            (void)eccCaKey384File;
+        #endif
+    #endif /* USE_CERT_BUFFERS_256 */
 #endif /* ENABLE_ECC384_CERT_GEN_TEST */
 
     /* Get CA Key */
@@ -29959,23 +29993,28 @@ static wc_test_ret_t ecc_test_cert_gen(WC_RNG* rng)
 #endif /* WOLFSSL_CERT_EXT */
 
 #ifdef ENABLE_ECC384_CERT_GEN_TEST
-#if defined(USE_CERT_BUFFERS_256)
-    ret = wc_SetIssuerBuffer(myCert, ca_ecc_cert_der_384,
-                                      sizeof_ca_ecc_cert_der_384);
+    #if defined(USE_CERT_BUFFERS_256)
+        ret = wc_SetIssuerBuffer(myCert, ca_ecc_cert_der_384,
+                                         sizeof_ca_ecc_cert_der_384);
+    #elif !defined(NO_FILESYSTEM)
+        ret = wc_SetIssuer(myCert, eccCaCert384File);
+        (void)eccCaCertFile;
+    #else
+        /* not testing with embedded, no file system target */
+        ERROR_OUT(ASN_PARSE_E, exit);
+    #endif /* USE_CERT_BUFFERS_256 */
+
 #else
-    ret = wc_SetIssuer(myCert, eccCaCert384File);
-    (void)eccCaCertFile;
-#endif
-#else
-#if defined(USE_CERT_BUFFERS_256)
-    ret = wc_SetIssuerBuffer(myCert, ca_ecc_cert_der_256,
-                                      sizeof_ca_ecc_cert_der_256);
-#else
-    ret = wc_SetIssuer(myCert, eccCaCertFile);
-    #ifdef ENABLE_ECC384_CERT_GEN_TEST
-    (void)eccCaCert384File;
+    /* not ENABLE_ECC384_CERT_GEN_TEST */
+    #if defined(USE_CERT_BUFFERS_256)
+        ret = wc_SetIssuerBuffer(myCert, ca_ecc_cert_der_256,
+                                          sizeof_ca_ecc_cert_der_256);
+    #else
+        ret = wc_SetIssuer(myCert, eccCaCertFile);
+        #ifdef ENABLE_ECC384_CERT_GEN_TEST
+        (void)eccCaCert384File;
+        #endif
     #endif
-#endif
 #endif /* ENABLE_ECC384_CERT_GEN_TEST */
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
