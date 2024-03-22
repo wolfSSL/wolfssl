@@ -5869,6 +5869,8 @@ struct WOLFSSL {
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
+        TlsSecretCb     tlsSecretCb;
+        void*           tlsSecretCtx;
     #ifdef WOLFSSL_TLS13
         Tls13SecretCb   tls13SecretCb;
         void*           tls13SecretCtx;
@@ -6747,6 +6749,11 @@ WOLFSSL_LOCAL int wolfSSL_quic_keys_active(WOLFSSL* ssl, enum encrypt_side side)
 #if defined(SHOW_SECRETS) && defined(WOLFSSL_SSLKEYLOGFILE)
 WOLFSSL_LOCAL int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
     int secretSz, void* ctx);
+#endif
+
+#if defined(SHOW_SECRETS)
+WOLFSSL_LOCAL int tlsShowSecrets(WOLFSSL* ssl, void* secret,
+        int secretSz, void* ctx);
 #endif
 
 /* Optional Pre-Master-Secret logging for Wireshark */

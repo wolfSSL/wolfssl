@@ -586,47 +586,13 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
                       ssl->specs.mac_algorithm, ssl->heap, ssl->devId);
         }
     }
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tlsSecretCb != NULL) {
+        ret = ssl->tlsSecretCb(ssl, ssl->arrays->masterSecret,
+                SECRET_LEN, ssl->tlsSecretCtx);
+    }
+#endif /* HAVE_SECRET_CALLBACK */
     if (ret == 0) {
-    #ifdef SHOW_SECRETS
-        /* Wireshark Pre-Master-Secret Format:
-         *  CLIENT_RANDOM <clientrandom> <mastersecret>
-         */
-        const char* CLIENT_RANDOM_LABEL = "CLIENT_RANDOM";
-        int i, pmsPos = 0;
-        char pmsBuf[13 + 1 + 64 + 1 + 96 + 1 + 1];
-
-        XSNPRINTF(&pmsBuf[pmsPos], sizeof(pmsBuf) - pmsPos, "%s ",
-            CLIENT_RANDOM_LABEL);
-        pmsPos += XSTRLEN(CLIENT_RANDOM_LABEL) + 1;
-        for (i = 0; i < RAN_LEN; i++) {
-            XSNPRINTF(&pmsBuf[pmsPos], sizeof(pmsBuf) - pmsPos, "%02x",
-                ssl->arrays->clientRandom[i]);
-            pmsPos += 2;
-        }
-        XSNPRINTF(&pmsBuf[pmsPos], sizeof(pmsBuf) - pmsPos, " ");
-        pmsPos += 1;
-        for (i = 0; i < SECRET_LEN; i++) {
-            XSNPRINTF(&pmsBuf[pmsPos], sizeof(pmsBuf) - pmsPos, "%02x",
-                ssl->arrays->masterSecret[i]);
-            pmsPos += 2;
-        }
-        XSNPRINTF(&pmsBuf[pmsPos], sizeof(pmsBuf) - pmsPos, "\n");
-        pmsPos += 1;
-
-        /* print master secret */
-        puts(pmsBuf);
-
-        #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SSLKEYLOGFILE)
-        {
-            FILE* f = XFOPEN(WOLFSSL_SSLKEYLOGFILE_OUTPUT, "a");
-            if (f != XBADFILE) {
-                XFWRITE(pmsBuf, 1, pmsPos, f);
-                XFCLOSE(f);
-            }
-        }
-        #endif
-    #endif /* SHOW_SECRETS */
-
         ret = DeriveTlsKeys(ssl);
     }
 
