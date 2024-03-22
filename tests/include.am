@@ -64,6 +64,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-fails.conf \
               tests/test-chains.conf \
               tests/test-altchains.conf \
+              tests/test-altchains-rsa.conf \
               tests/test-trustpeer.conf \
               tests/test-dhprime.conf \
               tests/test-p521.conf \

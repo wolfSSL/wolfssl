@@ -1387,6 +1387,19 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+
+#ifndef NO_RSA
+    /* tests for alt chains with an unrelated RSA cert. If RSA is disabled,
+     * these tests would fail with unknown OID */
+    XSTRLCPY(argv0[1], "tests/test-altchains-rsa.conf", sizeof(argv0[1]));
+    printf("starting certificate alternate chain cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* NO_RSA */
 #else
     /* tests for chains */
     XSTRLCPY(argv0[1], "tests/test-chains.conf", sizeof(argv0[1]));
@@ -1397,7 +1410,7 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-#endif
+#endif /* WOLFSSL_ALT_CERT_CHAINS */
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     /* tests for trusted peer cert */
