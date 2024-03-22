@@ -426,7 +426,7 @@ AS_CASE([$ENABLED_FIPS],
     ],
     # Should always remain one ahead of the latest so as not to be confused with
     # the latest
-    [ready],[
+    [ready|v6-ready],[
         FIPS_VERSION="ready"
         HAVE_FIPS_VERSION=6
         HAVE_FIPS_VERSION_MAJOR=7
@@ -438,10 +438,10 @@ AS_CASE([$ENABLED_FIPS],
     ],
     [dev],[
         FIPS_VERSION="dev"
-        HAVE_FIPS_VERSION=7
-        HAVE_FIPS_VERSION_MINOR=0
-        ENABLED_FIPS="yes"
-        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+         HAVE_FIPS_VERSION=7
+         HAVE_FIPS_VERSION_MINOR=0
+         ENABLED_FIPS="yes"
+         # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, v6, ready, dev, rand, no, disabled)])
@@ -5379,7 +5379,7 @@ fi
 
 # Set SHAKE128 flags
 # FIPS traditionally does not support SHAKE 128, v6 does
-AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$HAVE_FIPS_VERSION" != "x6"],
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE128="no"])
 
 if test "$ENABLED_SHAKE128" != "no" && test "$ENABLED_32BIT" = "no"
@@ -5395,7 +5395,7 @@ fi
 
 # Set SHAKE256 flags
 # FIPS traditionally does not support SHAKE 256, v6 does
-AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$HAVE_FIPS_VERSION" != "x6"],
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE256="no"])
 
 if test "$ENABLED_SHAKE256" != "no" && test "$ENABLED_32BIT" = "no"
