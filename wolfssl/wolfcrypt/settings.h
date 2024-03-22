@@ -3486,6 +3486,19 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* if configure.ac turned on, HAVE_ENTROPY_MEMUSE will be set */
+#ifdef HAVE_ENTROPY_MEMUSE
+    #ifndef HAVE_WOLFENTROPY
+        #define HAVE_WOLFENTROPY
+    #endif
+#elif defined(HAVE_WOLFENTROPY)
+    /* else if user_settings.h only defined HAVE_WOLFENTROPY
+     * also define HAVE_ENTROPY_MEMUSE */
+    #ifndef HAVE_ENTROPY_MEMUSE
+        #define HAVE_ENTROPY_MEMUSE
+    #endif
+#endif /* HAVE_ENTROPY_MEMUSE */
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

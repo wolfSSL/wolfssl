@@ -79,19 +79,16 @@
     /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64 */
     /* logic to choose right key ECC size */
     #if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 112
-#error "NO"
         #define KEY14 14
     #else
         #define KEY14 32
     #endif
     #if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 128
-#error "NO2"
         #define KEY16 16
     #else
         #define KEY16 32
     #endif
     #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
-#error "NO3"
         #define KEY20 20
     #else
         #define KEY20 32
