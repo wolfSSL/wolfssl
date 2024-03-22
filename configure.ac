@@ -438,10 +438,10 @@ AS_CASE([$ENABLED_FIPS],
     ],
     [dev],[
         FIPS_VERSION="dev"
-         HAVE_FIPS_VERSION=7
-         HAVE_FIPS_VERSION_MINOR=0
-         ENABLED_FIPS="yes"
-         # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+        HAVE_FIPS_VERSION=7
+        HAVE_FIPS_VERSION_MINOR=0
+        ENABLED_FIPS="yes"
+        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, v6, ready, dev, rand, no, disabled)])
