@@ -400,7 +400,7 @@ AS_CASE([$ENABLED_FIPS],
         DEF_FAST_MATH="yes"
     ],
     [v5-ready],[
-        FIPS_VERSION="ready"
+        FIPS_VERSION="v5-ready"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
@@ -428,7 +428,7 @@ AS_CASE([$ENABLED_FIPS],
     # the latest
     [ready|v6-ready],[
         FIPS_VERSION="ready"
-        HAVE_FIPS_VERSION=6
+        HAVE_FIPS_VERSION=7
         HAVE_FIPS_VERSION_MAJOR=7
         HAVE_FIPS_VERSION_MINOR=0
         HAVE_FIPS_VERSION_PATCH=0
@@ -4922,7 +4922,7 @@ AC_ARG_ENABLE([aeskeywrap],
 
 # FIPS feature and macro setup
 AS_CASE([$FIPS_VERSION],
-    [v6|ready],[ # FIPS 140-3 SRTP-KDF
+    [v6|ready|dev],[ # FIPS 140-3 SRTP-KDF
         AM_CFLAGS="$AM_CFLAGS \
             -DHAVE_FIPS \
             -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
@@ -5070,7 +5070,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
 
     ],
-    [v5*|dev], [ # FIPS 140-3
+    [v5*], [ # FIPS 140-3
 
         AM_CFLAGS="$AM_CFLAGS \
             -DHAVE_FIPS \
@@ -9329,7 +9329,7 @@ AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 0])
 AM_CONDITIONAL([BUILD_FIPS_RAND],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V5],[test "$HAVE_FIPS_VERSION" = 5])
-AM_CONDITIONAL([BUILD_FIPS_V6],[test "$HAVE_FIPS_VERSION" = 6])
+AM_CONDITIONAL([BUILD_FIPS_V6],[test $HAVE_FIPS_VERSION -ge 6])
 AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "$HAVE_FIPS_VERSION" -ge 2 ])
     # BUILD_FIPS_CURRENT is for builds after cert 2425.
 AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
