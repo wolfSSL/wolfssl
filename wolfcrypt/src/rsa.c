@@ -4948,7 +4948,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         XFREE(buf, key->heap, DYNAMIC_TYPE_RSA);
     }
 #else
-        ForceZero(buf, primeSz);
+    ForceZero(buf, primeSz);
 #endif
 
     if (err == MP_OKAY && mp_cmp(p, q) < 0) {
