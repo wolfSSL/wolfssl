@@ -4724,6 +4724,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifndef WOLFSSL_NO_MALLOC
     byte* buf = NULL;
 #else
+    /* RSA_MAX_SIZE is the size of n in bits. */
     byte buf[RSA_MAX_SIZE/16];
 #endif
 #endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 */
@@ -4946,6 +4947,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         ForceZero(buf, primeSz);
         XFREE(buf, key->heap, DYNAMIC_TYPE_RSA);
     }
+#else
+        ForceZero(buf, primeSz);
 #endif
 
     if (err == MP_OKAY && mp_cmp(p, q) < 0) {
