@@ -26018,9 +26018,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #else
             keyInt = GetRsaInt(key, i);
             ret = mp_unsigned_bin_size(keyInt);
-            if (ret < 0) {
-                return ret;
-            }
+            if (ret < 0)
+                break;
             ret = 0;
             /* This won't overrun output due to the outLen check above */
             mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, output + j);
