@@ -105,7 +105,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
  * @param cipherSuite  [in]
  * @param specs        [out] CipherSpecs
  * @param opts         [in/out] Options can be NULL
- * @return
+ * @return int (less than 0 on fail, 0 on success)
  */
 int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
                       CipherSpecs* specs, Options* opts)
