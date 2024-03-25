@@ -25944,7 +25944,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     mp_int* keyInt;
+#ifndef WOLFSSL_NO_MALLOC
     byte* tmps[RSA_INTS];
+#endif
 
     if (key == NULL)
         return BAD_FUNC_ARG;
@@ -25952,25 +25954,17 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     if (key->type != RSA_PRIVATE)
         return BAD_FUNC_ARG;
 
-    XMEMSET(tmps, 0, sizeof(tmps));
-
+#ifndef WOLFSSL_NO_MALLOC
     for (i = 0; i < RSA_INTS; i++)
         tmps[i] = NULL;
+#endif
 
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
         keyInt = GetRsaInt(key, i);
         ret = mp_unsigned_bin_size(keyInt);
-        if (ret < 0) {
-#ifndef WOLFSSL_NO_MALLOC
-            /* free outstanding tmps */
-            for (i = 0; i < RSA_INTS; i++) {
-                if (tmps[i] != NULL)
-                    XFREE(tmps[i], key->heap, DYNAMIC_TYPE_RSA);
-            }
-#endif
-            return ret;
-        }
+        if (ret < 0)
+            break;
         rawLen = (word32)ret + 1;
         ret = 0;
 #ifndef WOLFSSL_NO_MALLOC
@@ -25982,8 +25976,10 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
                 break;
             }
         }
-#endif
         mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, tmps[i]);
+#else
+        mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, NULL);
+#endif
         if (mpSz < 0) {
             ret = mpSz;
             break;
@@ -26025,8 +26021,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             if (ret < 0) {
                 return ret;
             }
-            rawLen = (word32)ret + 1;
             ret = 0;
+            /* This won't overrun output due to the outLen check above */
             mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, output + j);
             if (mpSz < 0) {
                 ret = mpSz;
@@ -26037,10 +26033,12 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         }
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     for (i = 0; i < RSA_INTS; i++) {
         if (tmps[i])
             XFREE(tmps[i], key->heap, DYNAMIC_TYPE_RSA);
     }
+#endif
 
     if (ret == 0)
         ret = (int)outLen;
