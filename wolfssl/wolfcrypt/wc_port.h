@@ -80,7 +80,7 @@
             #endif
         #endif /* WOLFSSL_SGX */
     #endif
-    #ifndef SINGLE_THREADED
+    #if !defined(SINGLE_THREADED) && !defined(_WIN32_WCE)
         #include <process.h>
     #endif
 #elif defined(THREADX)
@@ -342,7 +342,11 @@
 #endif
 #elif defined(_MSC_VER)
     /* Use MSVC compiler intrinsics for atomic ops */
-    #include <intrin.h>
+    #ifdef _WIN32_WCE
+        #include <armintr.h>
+    #else
+        #include <intrin.h>
+    #endif
     typedef volatile long wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_OPS
 #endif

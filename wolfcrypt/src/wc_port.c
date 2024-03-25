@@ -3430,7 +3430,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #ifndef SINGLE_THREADED
 
 /* Environment-specific multi-thread implementation check  */
-#if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
+#if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS) && \
+    !defined(_WIN32_WCE)
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
     {
