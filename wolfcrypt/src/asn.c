@@ -25938,7 +25938,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret = 0, i;
     int mpSz;
-        word32 rawLen;
+    word32 rawLen;
     word32 seqSz = 0, verSz = 0, intTotalLen = 0, outLen = 0;
     word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
@@ -25966,7 +25966,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             /* free outstanding tmps */
             for (i = 0; i < RSA_INTS; i++) {
                 if (tmps[i] != NULL)
-                    XFREE(tmps[i]);
+                    XFREE(tmps[i], key->heap, DYNAMIC_TYPE_RSA);
             }
 #endif
             return ret;
@@ -26020,19 +26020,19 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             XMEMCPY(output + j, tmps[i], sizes[i]);
             j += sizes[i];
 #else
-        keyInt = GetRsaInt(key, i);
-        ret = mp_unsigned_bin_size(keyInt);
-        if (ret < 0) {
-            return ret;
-        }
-        rawLen = (word32)ret + 1;
-        ret = 0;
-        mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, output + j);
-        if (mpSz < 0) {
-            ret = mpSz;
-            break;
-        }
-        j += mpSz;
+            keyInt = GetRsaInt(key, i);
+            ret = mp_unsigned_bin_size(keyInt);
+            if (ret < 0) {
+                return ret;
+            }
+            rawLen = (word32)ret + 1;
+            ret = 0;
+            mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, output + j);
+            if (mpSz < 0) {
+                ret = mpSz;
+                break;
+            }
+            j += mpSz;
 #endif
         }
     }
