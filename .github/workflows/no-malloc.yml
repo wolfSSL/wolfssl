@@ -22,6 +22,7 @@ jobs:
 
       - name: Test wolfSSL
         run: |
+          ./autogen.sh
           ./configure ${{ matrix.config }}
           make check
 
