@@ -138,6 +138,7 @@ dist_example_DATA=
 
 ACLOCAL_AMFLAGS= -I m4
 
+EXTRA_DIST+= .cyignore
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
 EXTRA_DIST+= wolfssl64.sln
