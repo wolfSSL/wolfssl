@@ -41672,7 +41672,9 @@ static int myOriEncryptCb(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* oriType,
     int i;
 
     /* make sure buffers are large enough */
-    if ((*oriValueSz < (2 + cekSz)) || (*oriTypeSz < sizeof(oriType)))
+    if (*oriValueSz < (2 + cekSz))
+        return WC_TEST_RET_ENC_NC;
+    if (*oriTypeSz < sizeof(asnDataOid))
         return WC_TEST_RET_ENC_NC;
 
     /* our simple encryption algorithm will be take the bitwise complement */
