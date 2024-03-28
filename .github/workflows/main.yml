@@ -50,3 +50,6 @@ jobs:
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml
+    ocsp:
+        uses: ./.github/workflows/ocsp.yml
+

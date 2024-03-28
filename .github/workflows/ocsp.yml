@@ -1,0 +1,28 @@
+name: OCSP Test
+
+on:
+  workflow_call:
+
+jobs:
+  ocsp_stapling:
+    name: ocsp stapling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+
+      - name: Build wolfSSL
+        run: autoreconf -ivf && ./configure --enable-ocsp --enable-ocspstapling && make
+
+      - name: Start OCSP responder 1
+        run: openssl ocsp -port 22221 -ndays 1000 -index certs/ocsp/index-intermediate1-ca-issued-certs.txt -rsigner certs/ocsp/ocsp-responder-cert.pem -rkey certs/ocsp/ocsp-responder-key.pem -CA certs/ocsp/intermediate1-ca-cert.pem &
+
+      - name: Start OCSP responder 2
+        run: openssl ocsp -port 22220 -ndays 1000 -index certs/ocsp/index-ca-and-intermediate-cas.txt -rsigner certs/ocsp/ocsp-responder-cert.pem -rkey certs/ocsp/ocsp-responder-key.pem -CA certs/ocsp/root-ca-cert.pem &
+
+      - name: Start TLS server
+        run: ./examples/server/server -p 11111 -c ./certs/ocsp/server1-cert.pem -k ./certs/ocsp/server1-key.pem -d &
+
+      - name: Test Look Up
+        run: ./examples/client/client -A ./certs/ocsp/root-ca-cert.pem -o
