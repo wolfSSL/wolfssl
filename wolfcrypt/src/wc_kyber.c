@@ -203,7 +203,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     byte* pubSeed = buf;
     byte* noiseSeed = buf + KYBER_SYM_SZ;
     sword16* a = NULL;
-    sword16* e;
+    sword16* e = NULL;
     int ret = 0;
     int kp = 0;
 
@@ -528,7 +528,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     byte msg[2 * KYBER_SYM_SZ];
     byte kr[2 * KYBER_SYM_SZ + 1];
     int ret = 0;
-    unsigned int ctSz;
+    unsigned int ctSz = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
@@ -742,8 +742,8 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     byte kr[2 * KYBER_SYM_SZ + 1];
     int ret = 0;
     unsigned int ctSz = 0;
-    unsigned int i;
-    int fail;
+    unsigned int i = 0;
+    int fail = 0;
 #ifndef USE_INTEL_SPEEDUP
     byte* cmp = NULL;
 #else
