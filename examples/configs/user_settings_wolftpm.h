@@ -131,7 +131,7 @@ extern "C" {
 #else
     #define NO_RSA
 #endif
-#ifndef USE_LOW_RESOURCE /* ECC */
+#if 1 /* ECC - needed for encrypt ECC salt */
     #define HAVE_ECC
     #define ECC_USER_CURVES /* default to only SECP256R1 */
 #endif

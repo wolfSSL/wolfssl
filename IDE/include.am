@@ -60,6 +60,7 @@ include IDE/apple-universal/include.am
 include IDE/MPLABX16/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
+include IDE/Infineon/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif
 EXTRA_DIST+= IDE/OPENSTM32/README.md
