@@ -1136,7 +1136,9 @@ static int test_dual_alg_support(void)
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
      * call to do_dual_alg_tls13_connection(). Its expecting a failed connection
-     * because the signature won't verify. */
+     * because the signature won't verify. The exception is if
+     * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verfication happens
+     * and this is no longer a negative test. */
     rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
@@ -1144,9 +1146,15 @@ static int test_dual_alg_support(void)
                                           wrongPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
+                server, serverSz, serverKey, (word32)serverKeySz, 0),
+                TEST_SUCCESS);
+#else
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 1),
                 TEST_SUCCESS);
+#endif
 
     /* Lets see if CertManager can find the new extensions */
     extCount = 0;
