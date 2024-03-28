@@ -5749,7 +5749,7 @@ fi
 AC_ARG_ENABLE([ticket-nonce-malloc],
     [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled)])],
     [ ENABLED_TICKET_NONCE_MALLOC=$enableval ],
-    [ ENABLED_TICKET_NONCE_MALLOC=no ]
+    [ ENABLED_TICKET_NONCE_MALLOC=no_implicit ]
     )
 
 if test "$ENABLED_TICKET_NONCE_MALLOC" = "yes"
@@ -6760,6 +6760,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+
+    # support longer session ticket nonce
+    if test "$ENABLED_TICKET_NONCE_MALLOC" = "no_implicit"
+    then
+        ENABLED_TICKET_NONCE_MALLOC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
+    fi
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
