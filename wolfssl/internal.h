@@ -3575,7 +3575,7 @@ struct WOLFSSL_CTX {
     int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
-    byte        privateKeyType:6;
+    byte        privateKeyType;
     byte        privateKeyId:1;
     byte        privateKeyLabel:1;
     int         privateKeySz;
@@ -4548,7 +4548,7 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
-    byte            keyType:6;             /* Type of key: RSA, ECC, Ed25519 */
+    byte            keyType;               /* Type of key: RSA, ECC, Ed25519 */
     byte            keyId:1;               /* Key data is an id not data */
     byte            keyLabel:1;            /* Key data is a label not data */
     int             keySz;                 /* Size of RSA key */

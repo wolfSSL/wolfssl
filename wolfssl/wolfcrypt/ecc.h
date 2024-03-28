@@ -131,6 +131,10 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_SM2
+    #define WOLFSSL_SM2_KEY_BITS   256
+#endif
+
 
 /* calculate max ECC bytes */
 #if ((MAX_ECC_BITS * 2) % 8) == 0
