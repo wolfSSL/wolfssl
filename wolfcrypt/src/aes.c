@@ -1915,6 +1915,7 @@ static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
      ((word32)(t)[o2] <<  8) | ((word32)(t)[o3] <<  0))
 #endif
 
+#ifndef HAVE_CUDA
 /* Encrypt a block using AES.
  *
  * @param [in]  aes       AES object.
@@ -2215,6 +2216,11 @@ static void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
     }
 }
 #endif
+#else
+extern void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+        word32 r);
+extern void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz);
+#endif /* HAVE_CUDA */
 
 #else
 
@@ -2710,6 +2716,7 @@ static void bs_encrypt(bs_word* state, bs_word* rk, word32 r)
     bs_inv_transpose(state, trans);
 }
 
+#ifndef HAVE_CUDA
 /* Encrypt a block using AES.
  *
  * @param [in]  aes       AES object.
@@ -2761,6 +2768,11 @@ static void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
     }
 }
 #endif
+#else
+extern void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+        word32 r);
+extern void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz);
+#endif /* HAVE_CUDA */
 
 #endif /* !WC_AES_BITSLICED */
 

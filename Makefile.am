@@ -310,3 +310,5 @@ merge-clean:
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
 
+%.o: %.cu
+	nvcc -dc $(CUDAFLAGS) $< -o $@
