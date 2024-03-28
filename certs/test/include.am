@@ -29,7 +29,10 @@ EXTRA_DIST += \
          certs/test/cert-ext-joi.cfg \
          certs/test/cert-ext-multiple.cfg \
          certs/test/cert-ext-multiple.der \
-         certs/test/cert-ext-multiple.pem
+         certs/test/cert-ext-multiple.pem \
+         certs/test/cert-bad-neg-int.der \
+         certs/test/cert-bad-oid.der \
+         certs/test/cert-bad-utf8.der
 
 # The certs/server-cert with the last byte (signature byte) changed
 EXTRA_DIST += \
