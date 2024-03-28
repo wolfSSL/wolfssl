@@ -343,7 +343,7 @@
         #endif
     #endif
 
-    #if !defined(NO_RSA) && !defined(NO_DES3)
+    #if !defined(NO_RSA) && !defined(NO_DES3) && !defined(NO_DES3_TLS_SUITES)
         #if !defined(NO_SHA)
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
@@ -500,7 +500,7 @@
             #if defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
             #endif
-            #if !defined(NO_DES3)
+            #if !defined(NO_DES3) && !defined(NO_DES3_TLS_SUITES)
                 #define BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
         #endif
@@ -686,7 +686,8 @@
             #endif
         #endif
         #if !defined(NO_DES3) && !(defined(WSSL_HARDEN_TLS) && \
-                                           WSSL_HARDEN_TLS > 112)
+                                           WSSL_HARDEN_TLS > 112) && \
+            !defined(NO_DES3_TLS_SUITES)
             /* 3DES offers only 112 bits of security.
              * Using guidance from section 5.6.1
              * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
