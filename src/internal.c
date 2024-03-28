@@ -10561,8 +10561,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 #else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
-    int newSz = size + ssl->buffers.outputBuffer.idx +
-                ssl->buffers.outputBuffer.length;
+    size_t newSz;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
@@ -10573,6 +10572,12 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         align *= 2;
 #endif
 
+    newSz = ssl->buffers.outputBuffer.idx + ssl->buffers.outputBuffer.length;
+    if (newSz + (size_t)size + (size_t)align < newSz)
+        return BUFFER_E;
+    newSz += (size_t)size;
+    if (newSz >= 0xffffffffU)
+        return BUFFER_E;
     tmp = (byte*)XMALLOC(newSz + align, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     WOLFSSL_MSG("growing output buffer");
 
@@ -10588,7 +10593,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     /* can be from IO memory pool which does not need copy if same buffer */
     if (ssl->buffers.outputBuffer.length &&
             tmp == ssl->buffers.outputBuffer.buffer) {
-        ssl->buffers.outputBuffer.bufferSize = newSz;
+        ssl->buffers.outputBuffer.bufferSize = (word32)newSz;
         return 0;
     }
 #endif
@@ -10613,7 +10618,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         ssl->buffers.outputBuffer.offset = 0;
 
     ssl->buffers.outputBuffer.buffer = tmp;
-    ssl->buffers.outputBuffer.bufferSize = newSz;
+    ssl->buffers.outputBuffer.bufferSize = (word32)newSz;
     return 0;
 }
 
@@ -28384,7 +28389,7 @@ static int SigAlgoCachesMsgs(int sigAlgo)
 }
 
 static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
-    const byte* data, int sz, byte sigAlgo)
+    const byte* data, word32 sz, byte sigAlgo)
 {
     int ret = 0;
     int digest_sz = wc_HashGetDigestSize(hashType);
@@ -28394,11 +28399,17 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
     }
 
     if (ret == 0) {
+        size_t new_size = SEED_LEN;
         /* buffer for signature */
-        ssl->buffers.sig.buffer = (byte*)XMALLOC(SEED_LEN + sz, ssl->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-        if (ssl->buffers.sig.buffer == NULL) {
+        if (new_size + sz < new_size)
             ret = MEMORY_E;
+        else {
+            new_size += sz;
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(new_size, ssl->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
+            if (ssl->buffers.sig.buffer == NULL) {
+                ret = MEMORY_E;
+            }
         }
     }
     if (ret == 0) {
@@ -30434,14 +30445,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     enum wc_HashType hashType;
-                    word16 verifySz;
+                    word32 verifySz;
                     byte sigAlgo;
 
                     if (ssl->options.usingAnon_cipher) {
                         break;
                     }
 
-                    verifySz = (word16)(args->idx - args->begin);
+                    verifySz = (args->idx - args->begin);
                     if (verifySz > MAX_DH_SZ) {
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
                     }
@@ -33377,7 +33388,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         word32 exportSz;
     #endif
-        int    sendSz;
+        size_t sendSz;
         int    inputSz;
     } SskeArgs;
 
