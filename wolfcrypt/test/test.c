@@ -16488,6 +16488,9 @@ static wc_test_ret_t cert_load_bad(const char* fname, byte* tmp, int err)
     XFILE         file;
     size_t        bytes;
 
+    if ((fname == NULL) || (tmp == NULL)) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
     file = XFOPEN(fname, "rb");
     if (!file) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
