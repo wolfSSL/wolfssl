@@ -35,6 +35,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_PBKDF_sanity(void);
+#endif
 /*
  * hashType renamed to typeH to avoid shadowing global declaration here:
  * wolfssl/wolfcrypt/asn.h line 173 in enum Oid_Types

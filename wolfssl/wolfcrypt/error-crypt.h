@@ -73,8 +73,8 @@ enum {
     VAR_STATE_CHANGE_E = -126,  /* var state modified by different thread */
     FIPS_DEGRADED_E    = -127,  /* FIPS Module in degraded mode */
 
-    /* -128 unused. */
-    /* -129 unused. */
+    FIPS_CODE_SZ_E     = -128,  /* Module CODE too big */
+    FIPS_DATA_SZ_E     = -129,  /* Module DATA too big */
 
     RSA_WRONG_TYPE_E   = -130,  /* RSA wrong block type for RSA function */
     RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or
@@ -107,12 +107,14 @@ enum {
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
     ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
-    /* -159 unused. */
+    KDF_SRTP_KAT_FIPS_E = -159, /* SRTP-KDF Known Answer Test Failure */
     ASN_CRIT_EXT_E     = -160,  /* ASN unsupported critical extension */
     ASN_ALT_NAME_E     = -161,  /* ASN alternate name error */
     ASN_NO_PEM_HEADER  = -162,  /* ASN no PEM header found */
-
-    /* -163..-169 unused. */
+    ED25519_KAT_FIPS_E = -163,  /* Ed25519 Known answer test failure */
+    ED448_KAT_FIPS_E   = -164,  /* Ed448 Known answer test failure */
+    PBKDF2_KAT_FIPS_E  = -165,  /* PBKDF2 Known answer test failure */
+    /* -166..-169 unused. */
 
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
@@ -188,10 +190,11 @@ enum {
     WC_INIT_E           = -228,  /* wolfcrypt failed to initialize */
     SIG_VERIFY_E        = -229,  /* wolfcrypt signature verify error */
     BAD_COND_E          = -230,  /* Bad condition variable operation */
-    SIG_TYPE_E          = -231,  /* Signature Type not enabled/available */
+    SIG_TYPE_E          = -231,  /* Signature Type not enabled/available
+                                  * NOTE: 1024-bit sign disabled in FIPS mode */
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
 
-    /* -233 unused. */
+    FIPS_INVALID_VER_E  = -233,  /* Invalid FIPS Version defined */
 
     WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
     ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */

@@ -22438,7 +22438,9 @@ static int test_wc_ed25519_import_private_key(void)
     ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
 
 #ifdef HAVE_ED25519_KEY_EXPORT
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed25519_export_private(&key, bothKeys, &bothKeysSz), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(wc_ed25519_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
         &key, 1), 0);
     ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
@@ -22505,6 +22507,7 @@ static int test_wc_ed25519_export(void)
         pubKey, sizeof(pubKey), &key, 1), 0);
 #endif
 
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed25519_export_public(&key, pub, &pubSz), 0);
     ExpectIntEQ(pubSz, ED25519_KEY_SIZE);
     ExpectIntEQ(XMEMCMP(key.p, pub, pubSz), 0);
@@ -22523,6 +22526,7 @@ static int test_wc_ed25519_export(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed25519_export_private_only(&key, priv, NULL),
         BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&key);
@@ -22630,6 +22634,7 @@ static int test_wc_ed25519_exportKey(void)
         pubKey, sizeof(pubKey), &key, 1), 0);
 #endif
 
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed25519_export_private(&key, privOnly, &privOnlySz), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_ed25519_export_private(NULL, privOnly, &privOnlySz),
@@ -22650,6 +22655,7 @@ static int test_wc_ed25519_exportKey(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed25519_export_key(&key, priv, &privSz, pub, NULL),
         BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     /* Cross check output. */
     ExpectIntEQ(XMEMCMP(priv, privOnly, privSz), 0);
@@ -23383,7 +23389,9 @@ static int test_wc_ed448_import_private_key(void)
     ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
 
 #ifdef HAVE_ED448_KEY_EXPORT
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed448_export_private(&key, bothKeys, &bothKeysSz), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(wc_ed448_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
         &key, 1), 0);
     ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
@@ -23439,6 +23447,7 @@ static int test_wc_ed448_export(void)
     ExpectIntEQ(wc_ed448_export_public(&key, NULL, &pubSz), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed448_export_public(&key, pub, NULL), BAD_FUNC_ARG);
 
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed448_export_private_only(&key, priv, &privSz), 0);
     ExpectIntEQ(privSz, ED448_KEY_SIZE);
     ExpectIntEQ(XMEMCMP(key.k, priv, privSz), 0);
@@ -23448,6 +23457,7 @@ static int test_wc_ed448_export(void)
     ExpectIntEQ(wc_ed448_export_private_only(&key, NULL, &privSz),
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed448_export_private_only(&key, priv, NULL), BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&key);
@@ -23517,6 +23527,7 @@ static int test_wc_ed448_exportKey(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_ed448_export_private(&key, privOnly, &privOnlySz), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_ed448_export_private(NULL, privOnly, &privOnlySz),
@@ -23536,6 +23547,7 @@ static int test_wc_ed448_exportKey(void)
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_ed448_export_key(&key, priv, &privSz, pub, NULL),
         BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     /* Cross check output. */
     ExpectIntEQ(XMEMCMP(priv, privOnly, privSz), 0);
@@ -24398,10 +24410,15 @@ static int test_wc_ecc_import_x963(void)
     ExpectIntEQ(wc_ecc_init(&pubKey), 0);
     ExpectIntEQ(wc_ecc_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+#if FIPS_VERSION3_GE(6,0,0)
+    ret = wc_ecc_make_key(&rng, KEY32, &key);
+#else
     ret = wc_ecc_make_key(&rng, KEY24, &key);
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+
     ExpectIntEQ(ret, 0);
 
     PRIVATE_KEY_UNLOCK();
@@ -25099,7 +25116,11 @@ static int test_wc_ecc_shared_secret_ssh(void)
     WC_RNG  rng;
     int     ret;
     int     keySz = KEY32;
+#if FIPS_VERSION3_GE(6,0,0)
+    int     key2Sz = KEY28;
+#else
     int     key2Sz = KEY24;
+#endif
     byte    secret[KEY32];
     word32  secretLen = keySz;
 
@@ -25398,9 +25419,17 @@ static int test_wc_ecc_sig_size_calc(void)
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+#if FIPS_VERSION3_GE(6,0,0)
+    ExpectIntEQ(ret, BAD_FUNC_ARG);
+#else
     ExpectIntEQ(ret, 0);
+#endif
+#if FIPS_VERSION3_LT(6,0,0)
     sz = key.dp->size;
     ExpectIntGT(wc_ecc_sig_size_calc(sz), 0);
+#else
+    (void) sz;
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
@@ -51783,6 +51812,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    PRIVATE_KEY_UNLOCK();
     /* Call with NULL for out buffer to get necessary length. */
     ExpectIntEQ(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
         sizeof_server_key_der_2048, NULL, &encKeySz, password, passwordSz,
@@ -51803,6 +51833,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     /* Check that the decrypted key matches the key prior to encryption. */
     ExpectIntEQ(XMEMCMP(encKey + tradIdx, server_key_der_2048,
         sizeof_server_key_der_2048), 0);
+    PRIVATE_KEY_LOCK();
 
     XFREE(encKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);

@@ -36,6 +36,11 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA3_sanity(void);
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -135,7 +140,10 @@ struct wc_Sha3 {
 #endif
 
 #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
-typedef wc_Sha3 wc_Shake;
+    #ifndef WC_SHAKE_TYPE_DEFINED
+        typedef wc_Sha3 wc_Shake;
+        #define WC_SHAKE_TYPE_DEFINED
+    #endif
 #endif
 
 WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId);

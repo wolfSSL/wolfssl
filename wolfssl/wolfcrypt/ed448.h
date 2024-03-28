@@ -47,6 +47,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_ed448_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_ED448_sanity(void);
+#endif
 
 /* info about EdDSA curve specifically ed448, defined as an elliptic curve
  * over GF(p)
@@ -71,11 +75,6 @@ enum {
     Ed448    = 0,
     Ed448ph  = 1
 };
-
-#ifndef WC_ED448KEY_TYPE_DEFINED
-    typedef struct ed448_key ed448_key;
-    #define WC_ED448KEY_TYPE_DEFINED
-#endif
 
 /* An ED448 Key */
 struct ed448_key {
@@ -102,6 +101,10 @@ struct ed448_key {
 #endif
 };
 
+#ifndef WC_ED448KEY_TYPE_DEFINED
+    typedef struct ed448_key ed448_key;
+    #define WC_ED448KEY_TYPE_DEFINED
+#endif
 
 WOLFSSL_API
 int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,

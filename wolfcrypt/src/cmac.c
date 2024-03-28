@@ -59,6 +59,15 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_cmac_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000003 };
+    int wolfCrypt_FIPS_CMAC_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #ifdef WOLFSSL_HASH_KEEP
 /* Some hardware have issues with update, this function stores the data to be
  * hashed into an array. Once ready, the Final operation is called on all of the

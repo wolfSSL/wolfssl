@@ -31,8 +31,7 @@
 
 #ifdef HAVE_ECC
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -83,6 +82,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_ecc_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_ECC_sanity(void);
+#endif
 
 /* Enable curve B parameter if needed */
 #if defined(HAVE_COMP_KEY) || defined(ECC_CACHE_CURVE)
@@ -131,6 +134,10 @@
     #endif
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    #define WC_ECC_FIPS_SIG_MIN 224
+    #define WC_ECC_FIPS_GEN_MIN (WC_ECC_FIPS_SIG_MIN/8)
+#endif
 
 /* calculate max ECC bytes */
 #if ((MAX_ECC_BITS * 2) % 8) == 0
@@ -209,13 +216,13 @@ typedef enum ecc_curve_id {
     ECC_CURVE_DEF = 0, /* NIST or SECP */
 
     /* NIST Prime Curves */
-    ECC_SECP192R1,
+    ECC_SECP192R1, /* 1 */
     ECC_PRIME192V2,
     ECC_PRIME192V3,
     ECC_PRIME239V1,
     ECC_PRIME239V2,
     ECC_PRIME239V3,
-    ECC_SECP256R1,
+    ECC_SECP256R1, /* 7 */
 
     /* SECP Curves */
     ECC_SECP112R1,
@@ -224,9 +231,9 @@ typedef enum ecc_curve_id {
     ECC_SECP128R2,
     ECC_SECP160R1,
     ECC_SECP160R2,
-    ECC_SECP224R1,
-    ECC_SECP384R1,
-    ECC_SECP521R1,
+    ECC_SECP224R1, /* 14 */
+    ECC_SECP384R1, /* 15 */
+    ECC_SECP521R1, /* 16 */
 
     /* Koblitz */
     ECC_SECP160K1,
