@@ -6402,8 +6402,14 @@ void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
     byte havePSK = 0;
     byte haveAnon = 0;
     byte haveRSA = 0;
+    byte haveECC = 0;
 #ifndef NO_RSA
     haveRSA = 1;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+    /* Advertise ECC support in TLS 1.3 connections since it is independent of
+     * chosen ciphersuite. */
+    haveECC = 1;
 #endif
 #ifndef NO_PSK
     havePSK = ctx->havePSK;
@@ -6415,7 +6421,7 @@ void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
     keySz = ctx->privateKeySz;
 #endif
     InitSuites_EitherSide(ctx->suites, ctx->method->version, keySz,
-            haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, ctx->haveECC,
+            haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, haveECC,
             ctx->haveStaticECC, ctx->haveFalconSig, ctx->haveDilithiumSig,
             haveAnon, ctx->method->side);
 }
@@ -6426,6 +6432,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
     byte havePSK = 0;
     byte haveAnon = 0;
     byte haveRSA = 0;
+    byte haveECC = 0;
     byte haveMcast = 0;
 
     (void)haveAnon; /* Squash unused var warnings */
@@ -6436,6 +6443,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
 
 #ifndef NO_RSA
     haveRSA = 1;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+    /* Advertise ECC support in TLS 1.3 connections since it is independent of
+     * chosen ciphersuite. */
+    haveECC = 1;
 #endif
 #ifndef NO_PSK
     havePSK = (byte)ssl->options.havePSK;
@@ -6470,7 +6482,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
     if (ssl->suites != NULL) {
         InitSuites_EitherSide(ssl->suites, ssl->version, keySz, haveRSA,
                 havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
-                ssl->options.haveECC, ssl->options.haveStaticECC,
+                haveECC, ssl->options.haveStaticECC,
                 ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
                 ssl->options.useAnon, ssl->options.side);
     }
