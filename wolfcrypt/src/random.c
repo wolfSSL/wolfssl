@@ -128,6 +128,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
+#elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
+    #include "cyhal_trng.h" /* Infineon/Cypress HAL RNG implementation */
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
@@ -3830,6 +3832,40 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             output += len;
         }
         return ret;
+    }
+
+#elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
+
+    /* Infineon/Cypress HAL RNG implementation */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        cyhal_trng_t obj;
+        cy_rslt_t result;
+        uint32_t val;
+        word32 i = 0;
+
+        (void)os;
+
+        result = cyhal_trng_init(&obj);
+        if (result == CY_RSLT_SUCCESS) {
+            while (i < sz) {
+                /* If not aligned or there is odd/remainder add single byte */
+                if( (i + sizeof(word32)) > sz ||
+                    ((wc_ptr_t)&output[i] % sizeof(word32)) != 0
+                ) {
+                    val = cyhal_trng_generate(&obj);
+                    output[i++] = (byte)val;
+                }
+                else {
+                    /* Use native 32 instruction */
+                    val = cyhal_trng_generate(&obj);
+                    *((uint32_t*)&output[i]) = val;
+                    i += sizeof(word32);
+                }
+            }
+            cyhal_trng_free(&obj);
+        }
+        return 0;
     }
 
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) || \
