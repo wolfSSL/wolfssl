@@ -846,11 +846,11 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                         pubKey, &pubKeyLen, keytype);
     if (ret == 0) {
         if (pubKeyLen == 0) {
-            ret = wc_falcon_import_private_only(input, inSz, key);
+            ret = wc_falcon_import_private_key(input, inSz, NULL, 0, key);
         }
         else {
-            ret = wc_falcon_import_private_key(privKey, privKeyLen,
-                                               pubKey, pubKeyLen, key);
+            ret = wc_falcon_import_private_key(input, inSz, pubKey,
+                                               pubKeyLen, key);
         }
     }
     return ret;
@@ -912,7 +912,7 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
     word32 pubKeyLen = (word32)sizeof(pubKey);
     int    keytype = 0;
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 

@@ -9583,7 +9583,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
             case WOLFSSL_CKS_SIGSPEC_EXTERNAL:
             default:
                 /* All other values (including external) are not. */
-                return WOLFSSL_NOT_IMPLEMENTED;
+                return BAD_FUNC_ARG;
         }
     }
 
@@ -9618,7 +9618,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
         for (j = 0; j < length; j++) {
             if (ssl->sigSpec[i] == input[j]) {
                 /* Got the match, set to this one. */
-                ret = wolfSSL_UseCKS(ssl, &ssl->peerSigSpec[i], 1);
+                ret = wolfSSL_UseCKS(ssl, &ssl->sigSpec[i], 1);
                 if (ret == WOLFSSL_SUCCESS) {
                     ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap);
                     TLSX_SetResponse(ssl, TLSX_CKS);

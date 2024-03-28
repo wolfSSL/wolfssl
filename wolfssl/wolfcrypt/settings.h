@@ -2008,6 +2008,7 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_DH_CONST
     #define WOLFSSL_HAVE_MAX
     #define NO_WRITEV
+    #define NO_STDLIB_ISASCII
 
     #define USE_FLAT_BENCHMARK_H
     #define USE_FLAT_TEST_H

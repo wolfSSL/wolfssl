@@ -969,6 +969,9 @@ enum Misc_ASN {
     MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
                           MAX_VERSION_SZ, /* Maximum size of a DSA Private
                                       key taken from DsaKeyIntsToDer. */
+#if defined(HAVE_PQC)
+    MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of a Dilithium public key. */
+#endif
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
@@ -1015,7 +1018,11 @@ enum Misc_ASN {
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
+#if defined(HAVE_PQC)
+    MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
+#else
     MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
+#endif
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
 #else
@@ -2017,10 +2024,9 @@ struct Signer {
     word32 cm_idx;
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    /* The Subject Alternative Public Key Info (SAPKI) will NOT be cached.
-     * Caching of it is NOT SUPPORTED yet. */
-    byte *sapkiDer;
-    int sapkiLen;
+    word32  sapkiOID; /* key type */
+    byte*   sapkiDer;
+    int     sapkiLen;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
     byte type;
 
@@ -2308,7 +2314,8 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                               int maxIdx);
 WOLFSSL_LOCAL int GetNameHash_ex(const byte* source, word32* idx, byte* hash,
                                  int maxIdx, word32 sigOID);
-WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der);
+WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz,
+                                         DecodedCert* der, int checkAlt);
 WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                                      const byte* pubKey, word32 pubKeySz, enum Key_Sum ks);
 WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g);

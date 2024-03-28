@@ -1144,9 +1144,9 @@ static int test_dual_alg_support(void)
                                           wrongPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
-    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
-                server, serverSz, serverKey, (word32)serverKeySz, 1),
-                TEST_SUCCESS);
+    ExpectTrue(do_dual_alg_tls13_connection(root, rootSz,
+               server, serverSz, serverKey, (word32)serverKeySz, 1)
+               != TEST_SUCCESS);
 
     /* Lets see if CertManager can find the new extensions */
     extCount = 0;

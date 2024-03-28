@@ -10172,6 +10172,15 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
     #ifndef NO_DSA
         DsaKey* dsa = NULL;
     #endif
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        falcon_key* falcon = NULL;
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        dilithium_key* dilithium = NULL;
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+        sphincs_key* sphincs = NULL;
+    #endif
         WC_RNG rng;
         word32 idx = 0;
 
@@ -10298,6 +10307,148 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             key = (void*)dsa;
         }
     #endif
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        if ((x509->pubKeyOID == FALCON_LEVEL1k) ||
+            (x509->pubKeyOID == FALCON_LEVEL5k)) {
+            falcon = (falcon_key*)XMALLOC(sizeof(falcon_key), NULL,
+                                          DYNAMIC_TYPE_FALCON);
+            if (falcon == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for falcon_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            ret = wc_falcon_init(falcon);
+            if (ret != 0) {
+                XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+
+            if (x509->pubKeyOID == FALCON_LEVEL1k) {
+                type = FALCON_LEVEL1_TYPE;
+                wc_falcon_set_level(falcon, 1);
+            }
+            else if (x509->pubKeyOID == FALCON_LEVEL5k) {
+                type = FALCON_LEVEL5_TYPE;
+                wc_falcon_set_level(falcon, 5);
+            }
+
+            ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx, falcon,
+                                            x509->pubKey.length);
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                wc_falcon_free(falcon);
+                XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)falcon;
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        if ((x509->pubKeyOID == DILITHIUM_LEVEL2k) ||
+            (x509->pubKeyOID == DILITHIUM_LEVEL3k) ||
+            (x509->pubKeyOID == DILITHIUM_LEVEL5k)) {
+            dilithium = (dilithium_key*)XMALLOC(sizeof(dilithium_key), NULL,
+                                          DYNAMIC_TYPE_DILITHIUM);
+            if (dilithium == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for dilithium_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            ret = wc_dilithium_init(dilithium);
+            if (ret != 0) {
+                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+
+            if (x509->pubKeyOID == DILITHIUM_LEVEL2k) {
+                type = DILITHIUM_LEVEL2_TYPE;
+                wc_dilithium_set_level(dilithium, 2);
+            }
+            else if (x509->pubKeyOID == DILITHIUM_LEVEL3k) {
+                type = DILITHIUM_LEVEL3_TYPE;
+                wc_dilithium_set_level(dilithium, 3);
+            }
+            else if (x509->pubKeyOID == DILITHIUM_LEVEL5k) {
+                type = DILITHIUM_LEVEL5_TYPE;
+                wc_dilithium_set_level(dilithium, 5);
+            }
+
+            ret = wc_Dilithium_PublicKeyDecode(x509->pubKey.buffer, &idx,
+                                    dilithium, x509->pubKey.length);
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                wc_dilithium_free(dilithium);
+                XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)dilithium;
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+        if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
+            (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
+            (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL5k)) {
+            sphincs = (sphincs_key*)XMALLOC(sizeof(sphincs_key), NULL,
+                                          DYNAMIC_TYPE_SPHINCS);
+            if (sphincs == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for sphincs_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            ret = wc_sphincs_init(sphincs);
+            if (ret != 0) {
+                XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+
+            if (x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) {
+                type = SPHINCS_FAST_LEVEL1_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 1, FAST_VARIANT);
+            }
+            else if (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) {
+                type = SPHINCS_FAST_LEVEL3_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 3, FAST_VARIANT);
+            }
+            else if (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) {
+                type = SPHINCS_FAST_LEVEL5_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 5, FAST_VARIANT);
+            }
+            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) {
+                type = SPHINCS_SMALL_LEVEL1_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 1, SMALL_VARIANT);
+            }
+            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) {
+                type = SPHINCS_SMALL_LEVEL3_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 3, SMALL_VARIANT);
+            }
+            else if (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) {
+                type = SPHINCS_SMALL_LEVEL5_TYPE;
+                wc_sphincs_set_level_and_optim(sphincs, 5, SMALL_VARIANT);
+            }
+
+            ret = wc_Sphincs_PublicKeyDecode(x509->pubKey.buffer, &idx, sphincs,
+                                             x509->pubKey.length);
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                wc_sphincs_free(sphincs);
+                XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)sphincs;
+        }
+    #endif
         if (key == NULL) {
             WOLFSSL_MSG("No public key found for certificate");
             XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -10396,6 +10547,32 @@ cleanup:
         if (x509->pubKeyOID == DSAk) {
             wc_FreeDsaKey(dsa);
             XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        if ((x509->pubKeyOID == FALCON_LEVEL1k) ||
+            (x509->pubKeyOID == FALCON_LEVEL5k)) {
+            wc_falcon_free(falcon);
+            XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        if ((x509->pubKeyOID == DILITHIUM_LEVEL2k) ||
+            (x509->pubKeyOID == DILITHIUM_LEVEL3k) ||
+            (x509->pubKeyOID == DILITHIUM_LEVEL5k)) {
+            wc_dilithium_free(dilithium);
+            XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+        }
+    #endif
+    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+        if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
+            (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
+            (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL1k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL3k) ||
+            (x509->pubKeyOID == SPHINCS_SMALL_LEVEL5k)) {
+            wc_sphincs_free(sphincs);
+            XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
         }
     #endif
         XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
