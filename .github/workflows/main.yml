@@ -52,4 +52,5 @@ jobs:
 #        uses: ./.github/workflows/haproxy.yml
     ocsp:
         uses: ./.github/workflows/ocsp.yml
-
+    no-malloc:
+        uses: ./.github/workflows/no-malloc.yml
