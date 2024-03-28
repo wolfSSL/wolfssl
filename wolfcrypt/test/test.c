@@ -18999,7 +18999,7 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #ifndef WOLFSSL_NO_MALLOC
     byte*  der = NULL;
 #else
-    byte der[FOURK_BUF];
+    byte der[1024];
 #endif
 #ifndef WOLFSSL_CRYPTOCELL
     word32 idx = 0;
