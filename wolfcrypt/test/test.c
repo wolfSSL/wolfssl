@@ -2128,7 +2128,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
     #ifndef WOLFSSL_NO_MALLOC
         byte* pem;
     #else
-        byte pem[FOURK_BUF];
+        byte pem[1024];
     #endif
         int pemSz;
 
