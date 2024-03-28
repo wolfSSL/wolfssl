@@ -37,6 +37,8 @@ extern "C" {
 #define NO_WRITEV
 #define NO_MAIN_DRIVER
 #define WOLFSSL_IGNORE_FILE_WARN /* ignore file include warnings */
+#define WOLFSSL_SMALL_STACK /* limit stack usage */
+#define BENCH_EMBEDDED
 
 /* TLS (allow TLS v1.3 or v1.2) */
 #define WOLFSSL_TLS13
@@ -132,6 +134,13 @@ extern "C" {
 #define HAVE_X963_KDF
 #define WOLFSSL_BASE64_ENCODE
 
+#if 1
+    #define HAVE_SESSION_TICKETS
+    #define SMALL_SESSION_CACHE
+#else
+    #define NO_SESSION_CACHE
+#endif
+
 /* Disables */
 #define NO_PKCS8
 #define NO_PKCS12
@@ -145,9 +154,12 @@ extern "C" {
 #define WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE256
 
-/* Low Resource Options */
-#define NO_ERROR_STRINGS
-#define NO_SESSION_CACHE
+/* Logging */
+#ifdef ENABLE_SECURE_SOCKETS_LOGS
+    #define DEBUG_WOLFSSL
+#else
+    #define NO_ERROR_STRINGS
+#endif
 
 #ifdef __cplusplus
 }
