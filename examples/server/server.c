@@ -513,14 +513,19 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
 #define SIZE_FMT "%zu"
 #define SIZE_TYPE size_t
 #endif
-        printf(
-            "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
-            "\tRX      %8.3f ms (%8.3f MBps)\n"
-            "\tTX      %8.3f ms (%8.3f MBps)\n",
-            (SIZE_TYPE)throughput,
-            rx_time * 1000, throughput / rx_time / 1024 / 1024,
-            tx_time * 1000, throughput / tx_time / 1024 / 1024
-        );
+        if (rx_time > 0.0 && tx_time > 0.0) {
+            printf(
+                "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
+                "\tRX      %8.3f ms (%8.3f MBps)\n"
+                "\tTX      %8.3f ms (%8.3f MBps)\n",
+                (SIZE_TYPE)throughput,
+                rx_time * 1000, throughput / rx_time / 1024 / 1024,
+                tx_time * 1000, throughput / tx_time / 1024 / 1024
+            );
+        }
+        else {
+            printf("Invalid rx_time: %f or tx_time: %f\n", rx_time, tx_time);
+        }
     }
 
     return 0;
