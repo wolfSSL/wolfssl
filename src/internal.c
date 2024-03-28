@@ -9768,7 +9768,12 @@ ProtocolVersion MakeDTLSv1_3(void)
 
     word32 LowResTimer(void)
     {
-        return k_uptime_get() / 1000;
+        int64_t t;
+    #if defined(CONFIG_ARCH_POSIX)
+        k_cpu_idle();
+    #endif
+        t = k_uptime_get(); /* returns current uptime in milliseconds */
+        return (word32)(t / 1000);
     }
 
 #elif defined(WOLFSSL_LINUXKM)
