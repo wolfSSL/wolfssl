@@ -14429,7 +14429,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
             preallocNonce = NULL;
 #else
-            output->ticketNonce.data = XREALLOC(preallocNonce,
+            output->ticketNonce.data = (byte*)XREALLOC(preallocNonce,
                 preallocNonceLen, output->heap, DYNAMIC_TYPE_SESSION_TICK);
             if (output->ticketNonce.data != NULL) {
                 /* don't free the reallocated pointer */
