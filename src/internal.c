@@ -14288,7 +14288,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
             c24to32(input + args->idx, &listSz);
-            args->idx += OPAQUE24_LEN;
+#ifdef HAVE_RPK
+            /*
+             * If this is RPK from the peer, then single cert (if TLS1.2).
+             * So, ListSz location is same as CertSz location, so fake
+             * we have just seen this ListSz.
+             */
+            if (!IsAtLeastTLSv1_3(ssl->version) &&
+                ((ssl->options.side == WOLFSSL_SERVER_END &&
+                  ssl->options.rpkState.received_ClientCertTypeCnt == 1 &&
+                  ssl->options.rpkState.received_ClientCertTypes[0] == WOLFSSL_CERT_TYPE_RPK) ||
+                 (ssl->options.side == WOLFSSL_CLIENT_END &&
+                  ssl->options.rpkState.received_ServerCertTypeCnt == 1 &&
+                  ssl->options.rpkState.received_ServerCertTypes[0] == WOLFSSL_CERT_TYPE_RPK))) {
+                listSz += OPAQUE24_LEN;
+            } else
+#endif /* HAVE_RPK */
+            {
+                args->idx += OPAQUE24_LEN;
+            }
             if (listSz > MAX_CERTIFICATE_SZ) {
                 ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
@@ -23076,6 +23094,9 @@ int SendCertificate(WOLFSSL* ssl)
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
     word32 length, maxFragment;
+#ifdef HAVE_RPK
+    int    usingRpkTls12 = 0;
+#endif /* HAVE_RPK */
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
     WOLFSSL_ENTER("SendCertificate");
@@ -23084,6 +23105,21 @@ int SendCertificate(WOLFSSL* ssl)
         WOLFSSL_MSG("Not sending certificate msg. Using PSK or ANON cipher.");
         return 0;  /* not needed */
     }
+
+#ifdef HAVE_RPK
+    if (!IsAtLeastTLSv1_3(ssl->version)) {
+        /* If this is (D)TLS1.2 and RPK, then single cert, not list. */
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            if (ssl->options.rpkState.sending_ServerCertTypeCnt == 1 &&
+                ssl->options.rpkState.sending_ServerCertTypes[0] == WOLFSSL_CERT_TYPE_RPK)
+                usingRpkTls12 = 1;
+        } else if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1 &&
+                ssl->options.rpkState.sending_ClientCertTypes[0] == WOLFSSL_CERT_TYPE_RPK)
+                usingRpkTls12 = 1;
+        }
+    }
+#endif /* HAVE_RPK */
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
     #ifdef OPENSSL_EXTRA
@@ -23107,10 +23143,19 @@ int SendCertificate(WOLFSSL* ssl)
             return BUFFER_ERROR;
         }
         certSz = ssl->buffers.certificate->length;
-        headerSz = 2 * CERT_HEADER_SZ;
+#ifdef HAVE_RPK
+        if (usingRpkTls12) {
+            headerSz = 1 * CERT_HEADER_SZ;
+            listSz = certSz;
+        } else {
+#endif /* HAVE_RPK */
+            headerSz = 2 * CERT_HEADER_SZ;
+            listSz = certSz + CERT_HEADER_SZ;
+#ifdef HAVE_RPK
+        }
+#endif /* HAVE_RPK */
         /* list + cert size */
         length = certSz + headerSz;
-        listSz = certSz + CERT_HEADER_SZ;
 
         /* may need to send rest of chain, already has leading size(s) */
         if (certSz && ssl->buffers.certChain) {
@@ -23203,12 +23248,18 @@ int SendCertificate(WOLFSSL* ssl)
             }
 
             /* list total */
-            c32to24(listSz, output + i);
-            if (ssl->options.dtls || !IsEncryptionOn(ssl, 1))
-                HashRaw(ssl, output + i, CERT_HEADER_SZ);
-            i += CERT_HEADER_SZ;
-            length -= CERT_HEADER_SZ;
-            fragSz -= CERT_HEADER_SZ;
+#ifdef HAVE_RPK
+            if (!usingRpkTls12) {
+#endif /* HAVE_RPK */
+                c32to24(listSz, output + i);
+                if (ssl->options.dtls || !IsEncryptionOn(ssl, 1))
+                    HashRaw(ssl, output + i, CERT_HEADER_SZ);
+                i += CERT_HEADER_SZ;
+                length -= CERT_HEADER_SZ;
+                fragSz -= CERT_HEADER_SZ;
+#ifdef HAVE_RPK
+            }
+#endif /* HAVE_RPK */
             if (certSz) {
                 c32to24(certSz, output + i);
                 if (ssl->options.dtls || !IsEncryptionOn(ssl, 1))
