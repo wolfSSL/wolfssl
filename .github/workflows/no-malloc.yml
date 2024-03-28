@@ -1,0 +1,34 @@
+name: No Malloc Tests
+
+on:
+  workflow_call:
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC"',
+        ]
+    name: make check
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make
+          ./wolfcrypt/test/testwolfcrypt
+
+      - name: Print errors 
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi
