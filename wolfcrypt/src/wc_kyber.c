@@ -364,12 +364,12 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     unsigned char* ct)
 {
     int ret = 0;
-    sword16* sp;
-    sword16* ep;
-    sword16* k;
-    sword16* epp;
-    unsigned int kp;
-    unsigned int compVecSz;
+    sword16* sp = NULL;
+    sword16* ep = NULL;
+    sword16* k = NULL;
+    sword16* epp = NULL;
+    unsigned int kp = 0;
+    unsigned int compVecSz = 0;
 #ifndef USE_INTEL_SPEEDUP
     sword16* at = NULL;
 #else
@@ -636,7 +636,7 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
     int ret = 0;
     sword16* v;
     sword16* mp;
-    unsigned int kp;
+    unsigned int kp = 0;
     unsigned int compVecSz;
 #ifndef USE_INTEL_SPEEDUP
     sword16* bp = NULL;
@@ -741,7 +741,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     byte msg[2 * KYBER_SYM_SZ];
     byte kr[2 * KYBER_SYM_SZ + 1];
     int ret = 0;
-    unsigned int ctSz;
+    unsigned int ctSz = 0;
     unsigned int i;
     int fail;
 #ifndef USE_INTEL_SPEEDUP
