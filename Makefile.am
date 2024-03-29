@@ -312,3 +312,8 @@ merge-clean:
 
 %.o: %.cu
 	nvcc -dc $(CUDAFLAGS) $< -o $@
+
+.cu.lo:
+#	$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
+#	$(LIBTOOL) --tag=CC --mode=compile nvcc --compile $(NVCC_FLAGS) $(AM_CFLAGS) -o $@ $< -static
+	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static

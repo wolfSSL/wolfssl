@@ -994,7 +994,7 @@ static const FLASH_QUALIFIER word32 rcon[] = {
 #endif
 
 #ifndef WOLFSSL_AES_SMALL_TABLES
-static const FLASH_QUALIFIER word32 Te[4][256] = {
+const FLASH_QUALIFIER word32 Te[4][256] = {
 {
     0xc66363a5U, 0xf87c7c84U, 0xee777799U, 0xf67b7b8dU,
     0xfff2f20dU, 0xd66b6bbdU, 0xde6f6fb1U, 0x91c5c554U,
@@ -1577,7 +1577,10 @@ static const FLASH_QUALIFIER byte Td4[256] =
 #define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
 
 #ifdef WOLFSSL_AES_SMALL_TABLES
-static const byte Tsbox[256] = {
+#ifdef HAVE_CUDA
+__device__
+#endif
+const byte Tsbox[256] = {
     0x63U, 0x7cU, 0x77U, 0x7bU, 0xf2U, 0x6bU, 0x6fU, 0xc5U,
     0x30U, 0x01U, 0x67U, 0x2bU, 0xfeU, 0xd7U, 0xabU, 0x76U,
     0xcaU, 0x82U, 0xc9U, 0x7dU, 0xfaU, 0x59U, 0x47U, 0xf0U,
