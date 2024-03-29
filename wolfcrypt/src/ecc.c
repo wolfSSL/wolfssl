@@ -4279,8 +4279,11 @@ static int wc_ecc_cmp_param(const char* curveParam,
     if (param == NULL || curveParam == NULL)
         return BAD_FUNC_ARG;
 
-    if (encType == WC_TYPE_HEX_STR)
-        return XSTRNCMP(curveParam, (char*) param, paramSz);
+    if (encType == WC_TYPE_HEX_STR) {
+        if ((word32)XSTRLEN(curveParam) != paramSz)
+            return -1;
+        return (XSTRNCMP(curveParam, (char*) param, paramSz) == 0) ? 0 : -1;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
