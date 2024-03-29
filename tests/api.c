@@ -878,7 +878,10 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz),
@@ -886,11 +889,17 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
@@ -981,7 +990,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     ExpectNotNull(file = fopen(serverKeyFile, "rb"));
     ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file),
                 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&serverKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(serverKeyBuf, &idx, &serverKey,
@@ -989,7 +1001,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey,
@@ -997,11 +1012,17 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,

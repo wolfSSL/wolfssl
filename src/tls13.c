@@ -9942,7 +9942,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     break;
                 default:
                     ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
-                    break;
                 }
 
                 if (ret != 0)
