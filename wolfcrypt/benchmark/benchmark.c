@@ -12998,13 +12998,13 @@ void bench_sphincsKeySign(byte level, byte optim)
 
     double current_time(int reset)
     {
+        int64_t t;
         (void)reset;
-
      #if defined(CONFIG_ARCH_POSIX)
          k_cpu_idle();
      #endif
-
-        return (double)k_uptime_get() / 1000;
+        t = k_uptime_get(); /* returns current uptime in milliseconds */
+        return (double)(t / 1000);
     }
 
 #elif defined(WOLFSSL_NETBURNER)
