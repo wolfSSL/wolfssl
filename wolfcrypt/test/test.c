@@ -2125,7 +2125,11 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         XFILE pemFile;
     #endif
+    #ifndef WOLFSSL_NO_MALLOC
         byte* pem;
+    #else
+        byte pem[1024];
+    #endif
         int pemSz;
 
         /* calculate PEM size */
@@ -2133,10 +2137,15 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
         if (pemSz < 0) {
             return WC_TEST_RET_ENC(calling_line, 2, WC_TEST_RET_TAG_I);
         }
+    #ifndef WOLFSSL_NO_MALLOC
         pem = (byte*)XMALLOC(pemSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             return WC_TEST_RET_ENC(calling_line, 3, WC_TEST_RET_TAG_I);
         }
+    #else
+        if (pemSz > (int)sizeof(pem))
+            return BAD_FUNC_ARG;
+    #endif
         /* Convert to PEM */
         pemSz = wc_DerToPem(der, derSz, pem, pemSz, pemType);
         if (pemSz < 0) {
@@ -19001,7 +19010,11 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     RsaKey genKey[1];
 #endif
     wc_test_ret_t ret;
+#ifndef WOLFSSL_NO_MALLOC
     byte*  der = NULL;
+#else
+    byte der[1024];
+#endif
 #ifndef WOLFSSL_CRYPTOCELL
     word32 idx = 0;
 #endif
@@ -19046,11 +19059,12 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
+#ifndef WOLFSSL_NO_MALLOC
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
     }
-
+#endif
     derSz = wc_RsaKeyToDer(genKey, der, FOURK_BUF);
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(derSz), exit_rsa);
@@ -19086,10 +19100,12 @@ exit_rsa:
     wc_FreeRsaKey(genKey);
 #endif
 
+#ifndef WOLFSSL_NO_MALLOC
     if (der != NULL) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         der = NULL;
     }
+#endif
 
     return ret;
 }
