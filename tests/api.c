@@ -68186,6 +68186,9 @@ static int test_tls13_rpk_handshake(void)
     int typeCnt_c;
     int typeCnt_s;
     int tp;
+#if defined(WOLFSSL_ALWAYS_VERIFY_CB)
+    int isServer;
+#endif
 
     (void)err;
     (void)typeCnt_c;
@@ -68805,7 +68808,7 @@ static int test_tls13_rpk_handshake(void)
                                                         WOLFSSL_SUCCESS);
 
     /* set certificate verify callback to both client and server */
-    int isServer = 0;
+    isServer = 0;
     wolfSSL_SetCertCbCtx(ssl_c, &isServer);
     wolfSSL_set_verify(ssl_c, SSL_VERIFY_PEER, MyRpkVerifyCb);
 
