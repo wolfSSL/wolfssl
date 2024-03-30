@@ -25938,13 +25938,13 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret = 0, i;
     int mpSz;
-    word32 rawLen;
     word32 seqSz = 0, verSz = 0, intTotalLen = 0, outLen = 0;
     word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     mp_int* keyInt;
 #ifndef WOLFSSL_NO_MALLOC
+    word32 rawLen;
     byte* tmps[RSA_INTS];
 #endif
 
@@ -25965,9 +25965,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         ret = mp_unsigned_bin_size(keyInt);
         if (ret < 0)
             break;
+#ifndef WOLFSSL_NO_MALLOC
         rawLen = (word32)ret + 1;
         ret = 0;
-#ifndef WOLFSSL_NO_MALLOC
         if (output != NULL) {
             tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
                                  DYNAMIC_TYPE_RSA);
@@ -25978,6 +25978,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         }
         mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, tmps[i]);
 #else
+        ret = 0;
         mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, NULL);
 #endif
         if (mpSz < 0) {
