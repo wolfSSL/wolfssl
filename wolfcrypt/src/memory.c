@@ -587,10 +587,10 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
     unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
-    int ret;
-    WOLFSSL_HEAP*      heap;
-    WOLFSSL_HEAP_HINT* hint;
+    WOLFSSL_HEAP*      heap = NULL;
+    WOLFSSL_HEAP_HINT* hint = NULL;
     word32 idx = 0;
+    int ret;
 
     if (pHint == NULL || buf == NULL) {
         return BAD_FUNC_ARG;
