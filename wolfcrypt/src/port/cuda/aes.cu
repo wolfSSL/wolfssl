@@ -322,7 +322,7 @@ __device__ static const byte Tsbox[256] = {
  * @param [out] outBlock  Encrypted block.
  * @param [in]  r         Rounds divided by 2.
  */
-__global__ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+__global__ void AesEncrypt_C_CUDA(Aes* aes, const byte* inBlock, byte* outBlock,
         word32 r)
 {
     word32 s0, s1, s2, s3;
@@ -597,6 +597,12 @@ __global__ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
 }
 
+void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+        word32 r)
+{
+    AesEncrypt_C_CUDA<<<1,1>>>(aes, inBlock, outBlock, r);
+}
+
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
     !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM))
 /* Encrypt a number of blocks using AES.
@@ -611,7 +617,7 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
     word32 i;
 
     for (i = 0; i < sz; i += AES_BLOCK_SIZE) {
-        AesEncrypt_C<<<1,1>>>(aes, in, out, aes->rounds >> 1);
+        AesEncrypt_C(aes, in, out, aes->rounds >> 1);
         in += AES_BLOCK_SIZE;
         out += AES_BLOCK_SIZE;
     }
@@ -628,7 +634,7 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
  * @param [in]  r         Rounds divided by 2.
  */
 __global__
-void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+void AesEncrypt_C_CUDA(Aes* aes, const byte* inBlock, byte* outBlock,
         word32 r)
 {
     bs_word state[AES_BLOCK_BITS];
@@ -641,6 +647,12 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     bs_encrypt(state, aes->bs_key, aes->rounds);
 
     XMEMCPY(outBlock, state, AES_BLOCK_SIZE);
+}
+
+void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
+        word32 r)
+{
+    AesEncrypt_C_CUDA<<<1,1>>>(aes, inBlock, outBlock, r);
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
