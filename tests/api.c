@@ -146,6 +146,7 @@
 #endif
 #include <wolfssl/error-ssl.h>
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/test.h>
