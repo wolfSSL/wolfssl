@@ -947,6 +947,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     *out = outBuf;
     wc_FreeRsaKey(&caKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
