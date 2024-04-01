@@ -521,7 +521,7 @@ struct wc_Memory {
 /* returns amount of memory used on success. On error returns negative value
    wc_Memory** list is the list that new buckets are prepended to
  */
-static int create_memory_buckets(byte* buffer, word32 bufSz,
+static int wc_create_memory_buckets(byte* buffer, word32 bufSz,
                               word32 buckSz, word32 buckNum, wc_Memory** list) {
     word32 i;
     byte*  pt  = buffer;
@@ -562,19 +562,87 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
     return ret;
 }
 
-int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
+static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
+                                                             WOLFSSL_HEAP* heap)
 {
-    word32 wc_MemSz[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
-    word32 wc_Dist[WOLFMEM_DEF_BUCKETS]  = { WOLFMEM_DIST };
+    word32 ava = sz;
+    byte*  pt  = buffer;
+    int    ret = 0;
+    word32 memSz = (word32)sizeof(wc_Memory);
+    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
-    if (heap == NULL) {
+    WOLFSSL_ENTER("wc_partition_static_memory");
+
+    if (buffer == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* align pt */
+    while ((wc_ptr_t)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+        *pt = 0x00;
+        pt++;
+        ava--;
+    }
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+    fprintf(stderr, "Allocated %d bytes for static memory @ %p\n", ava, pt);
+#endif
+
+    /* divide into chunks of memory and add them to available list */
+    while (ava >= (heap->sizeList[0] + padSz + memSz)) {
+        /* creating only IO buffers from memory passed in, max TLS is 16k */
+        if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
+            if ((ret = wc_create_memory_buckets(pt, ava,
+                                          WOLFMEM_IO_SZ, 1, &(heap->io))) < 0) {
+                WOLFSSL_LEAVE("wc_partition_static_memory", ret);
+                return ret;
+            }
+
+            /* check if no more room left for creating IO buffers */
+            if (ret == 0) {
+                break;
+            }
+
+            /* advance pointer in buffer for next buckets and keep track
+               of how much memory is left available */
+            pt  += ret;
+            ava -= ret;
+        }
+        else {
+            int i;
+            /* start at largest and move to smaller buckets */
+            for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
+                if ((heap->sizeList[i] + padSz + memSz) <= ava) {
+                    if ((ret = wc_create_memory_buckets(pt, ava,
+                                    heap->sizeList[i], heap->distList[i],
+                                    &(heap->ava[i]))) < 0) {
+                        WOLFSSL_LEAVE("wc_partition_static_memory", ret);
+                        return ret;
+                    }
+
+                    /* advance pointer in buffer for next buckets and keep track
+                       of how much memory is left available */
+                    pt  += ret;
+                    ava -= ret;
+                }
+            }
+        }
+    }
+
+    return 1;
+}
+
+static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
+        unsigned int* sizeList, unsigned int* distList)
+{
+    if (heap == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
         return BAD_FUNC_ARG;
     }
 
     XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
 
-    XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
-    XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
+    XMEMCPY(heap->sizeList, sizeList, listSz * sizeof(sizeList[0]));
+    XMEMCPY(heap->distList, distList, listSz * sizeof(distList[0]));
 
     if (wc_InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");
@@ -584,8 +652,10 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
     return 0;
 }
 
-int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
-    unsigned char* buf, unsigned int sz, int flag, int maxSz)
+int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
+        unsigned int listSz,
+        unsigned int* memSzList, unsigned int* memDistList,
+        unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap = NULL;
     WOLFSSL_HEAP_HINT* hint = NULL;
@@ -607,7 +677,7 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
         hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
         idx += sizeof(WOLFSSL_HEAP_HINT);
 
-        ret = wolfSSL_init_memory_heap(heap);
+        ret = wc_init_memory_heap(heap, listSz, memSzList, memDistList);
         if (ret != 0) {
             return ret;
         }
@@ -627,7 +697,7 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
         heap = hint->memory;
     }
 
-    ret = wolfSSL_load_static_memory(buf + idx, sz - idx, flag, heap);
+    ret = wc_partition_static_memory(buf + idx, sz - idx, flag, heap);
     if (ret != 1) {
         WOLFSSL_MSG("Error partitioning memory");
         return -1;
@@ -649,73 +719,15 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
     return 0;
 }
 
-int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
-                                                             WOLFSSL_HEAP* heap)
+int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
+    unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
-    word32 ava = sz;
-    byte*  pt  = buffer;
-    int    ret = 0;
-    word32 memSz = (word32)sizeof(wc_Memory);
-    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
+    word32 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
+    word32 distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
 
-    WOLFSSL_ENTER("wolfSSL_load_static_memory");
-
-    if (buffer == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* align pt */
-    while ((wc_ptr_t)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
-        *pt = 0x00;
-        pt++;
-        ava--;
-    }
-
-#ifdef WOLFSSL_DEBUG_MEMORY
-    fprintf(stderr, "Allocated %d bytes for static memory @ %p\n", ava, pt);
-#endif
-
-    /* divide into chunks of memory and add them to available list */
-    while (ava >= (heap->sizeList[0] + padSz + memSz)) {
-        /* creating only IO buffers from memory passed in, max TLS is 16k */
-        if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
-            if ((ret = create_memory_buckets(pt, ava,
-                                          WOLFMEM_IO_SZ, 1, &(heap->io))) < 0) {
-                WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
-                return ret;
-            }
-
-            /* check if no more room left for creating IO buffers */
-            if (ret == 0) {
-                break;
-            }
-
-            /* advance pointer in buffer for next buckets and keep track
-               of how much memory is left available */
-            pt  += ret;
-            ava -= ret;
-        }
-        else {
-            int i;
-            /* start at largest and move to smaller buckets */
-            for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
-                if ((heap->sizeList[i] + padSz + memSz) <= ava) {
-                    if ((ret = create_memory_buckets(pt, ava, heap->sizeList[i],
-                                     heap->distList[i], &(heap->ava[i]))) < 0) {
-                        WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
-                        return ret;
-                    }
-
-                    /* advance pointer in buffer for next buckets and keep track
-                       of how much memory is left available */
-                    pt  += ret;
-                    ava -= ret;
-                }
-            }
-        }
-    }
-
-    return 1;
+    return wc_LoadStaticMemory_ex(pHint,
+            WOLFMEM_DEF_BUCKETS, sizeList, distList,
+            buf, sz, flag, maxSz);
 }
 
 
