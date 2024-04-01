@@ -27683,7 +27683,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
     }
 
 #ifdef WOLFSSL_CUSTOM_OID
-    if (ret == 0) && (type == ASN_CUSTOM_NAME) {
+    if (ret == 0 && type == ASN_CUSTOM_NAME) {
         if (cname == NULL || cname->custom.oidSz == 0) {
             name->used = 0;
             return 0;
