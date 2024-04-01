@@ -78,11 +78,15 @@
             #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
                     && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
                     && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
-                #include <netdb.h>
+                #ifdef HAVE_NETDB_H
+                    #include <netdb.h>
+                #endif
                 #ifdef __PPU
                     #include <netex/errno.h>
                 #else
-                    #include <sys/ioctl.h>
+                    #ifdef HAVE_SYS_IOCTL_H
+                        #include <sys/ioctl.h>
+                    #endif
                 #endif
             #endif
         #endif
