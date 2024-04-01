@@ -1074,6 +1074,7 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     wc_FreeRsaKey(&caKey);
     wc_FreeRsaKey(&serverKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
