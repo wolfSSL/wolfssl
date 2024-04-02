@@ -1378,9 +1378,9 @@ static const char* bench_result_words3[][5] = {
         /*           unsigned int max       =              4,294,967,295    */
         uint64_t thisVal = 0; /* CPU counter, "this current value" as read. */
         uint64_t thisIncrement = 0; /* The adjusted increment amount.       */
-        uint64_t expected_diff = 0; /* FreeRTOS esimated expected CPU diff. */
+        uint64_t expected_diff = 0; /* FreeRTOS estimated expected CPU diff.*/
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-        uint32_t tickCount = 0; /* Currrent rtos tick counter.              */
+        uint32_t tickCount = 0; /* Current rtos tick counter.               */
         uint32_t tickDiff = 0;  /* Tick difference from last check.         */
         uint32_t tickBeginDiff = 0; /* Tick difference from beginning.      */
     #endif
@@ -1459,7 +1459,7 @@ static const char* bench_result_words3[][5] = {
             if (expected_diff > UINT_MAX) {
                 /* The number of cycles expected from FreeRTOS ticks is
                  * greater than the maximum size of an unsigned 32-bit
-                 * integer, meaning multiple overflows occured. */
+                 * integer, meaning multiple overflows occurred. */
                 #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
                     ESP_LOGW(TAG, "expected_diff > UINT_MAX (%u)", UINT_MAX);
                 #endif
@@ -1538,7 +1538,7 @@ static const char* bench_result_words3[][5] = {
             _esp_cpu_count_last = esp_cpu_get_cycle_count();
         #else
             /* TODO: Why doesn't esp_cpu_get_cycle_count work for Xtensa
-             * when resetting CPU cycle counter? FreeRTOS tick collison?
+             * when resetting CPU cycle counter? FreeRTOS tick collision?
              *    thisVal = esp_cpu_get_cycle_count(); See also, above
              * or thisVal = xthal_get_ccount(); */
             #if ESP_IDF_VERSION_MAJOR < 5

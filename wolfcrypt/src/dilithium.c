@@ -290,7 +290,7 @@ int wc_dilithium_init_id(dilithium_key* key, const unsigned char* id, int len,
         key->idLen = len;
     }
 
-    /* Set the maxiumum level here */
+    /* Set the maximum level here */
     wc_dilithium_set_level(key, 5);
 
     return ret;
@@ -317,7 +317,7 @@ int wc_dilithium_init_label(dilithium_key* key, const char* label, void* heap,
         key->labelLen = labelLen;
     }
 
-    /* Set the maxiumum level here */
+    /* Set the maximum level here */
     wc_dilithium_set_level(key, 5);
 
     return ret;

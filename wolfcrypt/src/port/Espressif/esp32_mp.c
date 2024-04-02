@@ -413,7 +413,7 @@ static int esp_mp_hw_lock(void)
         {
             /* Note these names are different from those in the documentation!
              *
-             * Documenation lists the same names as the ESP32-C3:
+             * Documentation lists the same names as the ESP32-C3:
              *
              * DPORT_REG_SET_BIT((volatile void *)(SYSTEM_PERIP_CLK_EN1_REG),
              *                   SYSTEM_CRYPTO_RSA_CLK_EN );

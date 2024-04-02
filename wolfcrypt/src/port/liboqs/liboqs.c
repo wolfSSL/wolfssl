@@ -60,7 +60,7 @@ static void wolfSSL_liboqsGetRandomData(uint8_t* buffer, size_t numOfBytes)
         ret = wc_RNG_GenerateBlock(liboqsCurrentRNG, buffer,
                                    numOfBytes_word32);
         if (ret != 0) {
-            /* ToDo: liboqs exits programm if RNG fails,
+            /* ToDo: liboqs exits program if RNG fails,
              * not sure what to do here
              */
             WOLFSSL_MSG_EX(

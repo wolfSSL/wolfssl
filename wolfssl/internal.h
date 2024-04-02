@@ -2865,7 +2865,7 @@ typedef enum {
     TLSX_KEY_QUIC_TP_PARAMS         = 0x0039, /* RFC 9001, ch. 8.2 */
     #endif
     #ifdef WOLFSSL_DUAL_ALG_CERTS
-    TLSX_CKS                        = 0xff92, /* X9.146; ff indcates personal
+    TLSX_CKS                        = 0xff92, /* X9.146; ff indicates personal
                                                * use and 92 is hex for 146. */
     #endif
 #endif
