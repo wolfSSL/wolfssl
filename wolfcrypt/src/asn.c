@@ -21121,7 +21121,13 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
                 ret = ASN_PARSE_E;
             }
         #else
-            WOLFSSL_MSG("Certificate Policy extension not supported yet.");
+            WOLFSSL_MSG("Certificate Policy extension not supported.");
+            #ifndef WOLFSSL_NO_ASN_STRICT
+            if (critical) {
+                WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
+                ret = ASN_CRIT_EXT_E;
+            }
+            #endif
         #endif
             break;
 
