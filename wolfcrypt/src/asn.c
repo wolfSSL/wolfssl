@@ -23813,10 +23813,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                             DYNAMIC_TYPE_DCERT);
                     if (der == NULL) {
                         ret = MEMORY_E;
-                    }
+                    } else
                 #endif /* ! WOLFSSL_SMALL_STACK */
 
-                    if (ret == 0) {
+                    {
                         ret = wc_GeneratePreTBS(cert, der, MAX_CERT_VERIFY_SZ);
 
                         if (ret > 0) {
