@@ -2617,6 +2617,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 */
 int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
 {
+   int err = MP_OKAY;
 #if !defined(WOLFSSL_SP_MATH)
    DECL_MP_INT_SIZE_DYN(t1, mp_bitsused(modulus), MAX_ECC_BITS_USE);
    DECL_MP_INT_SIZE_DYN(t2, mp_bitsused(modulus), MAX_ECC_BITS_USE);
@@ -2626,7 +2627,6 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
    DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
 #endif
    mp_int *x, *y, *z;
-   int    err;
 
    (void)ct;
 
@@ -2844,7 +2844,7 @@ done:
    err = ECC_BAD_ARG_E;
 #endif
 
-   WOLFSSL_LEAVE("ecc_map_ex (SP Math)");
+   WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
    return err;
 #endif /* WOLFSSL_SP_MATH */
 }
