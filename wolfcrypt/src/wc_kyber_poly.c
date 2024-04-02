@@ -50,7 +50,7 @@ static word32 cpuid_flags = 0;
 /* Used in Barrett Reduction:
  *    r = a mod q
  * => r = a - ((V * a) >> 26) * q), as V based on 2^26
- * V is the mulitplier that gets the quotient after shifting.
+ * V is the multiplier that gets the quotient after shifting.
  */
 #define KYBER_V          (((1U << 26) + (KYBER_Q / 2)) / KYBER_Q)
 

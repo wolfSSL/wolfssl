@@ -431,7 +431,7 @@ Std_ReturnType Crypto_ProcessJob(uint32 objectId, Crypto_JobType* job)
                 break;
 
             default:
-                WOLFSSL_MSG("Unsuported Crypto service");
+                WOLFSSL_MSG("Unsupported Crypto service");
                 ret = E_NOT_OK;
                 break;
         }

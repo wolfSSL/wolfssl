@@ -516,7 +516,7 @@ typedef struct Cert {
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     /* These will not point to managed buffers. They will point to buffers that
-     * are managed by others. No cleanup neccessary. */
+     * are managed by others. No cleanup necessary. */
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
     int sapkiLen;

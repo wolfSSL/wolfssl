@@ -76,7 +76,7 @@ static int esp_ShowMacroStatus_need_header = 0;
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-/* big nums can be very long, perhaps unitialized, so limit displayed words */
+/* big nums can be very long, perhaps uninitialized, so limit displayed words */
 #define MAX_WORDS_ESP_SHOW_MP 32
 
 /*
