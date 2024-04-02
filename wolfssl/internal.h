@@ -5869,6 +5869,8 @@ struct WOLFSSL {
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
+        TicketParseCb   ticketParseCb;
+        void*           ticketParseCtx;
         TlsSecretCb     tlsSecretCb;
         void*           tlsSecretCtx;
     #ifdef WOLFSSL_TLS13

@@ -8191,7 +8191,7 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_set_session_secret_cb");
     if (ssl == NULL)
-        return WOLFSSL_FATAL_ERROR;
+        return WOLFSSL_FAILURE;
 
     ssl->sessionSecretCb = cb;
     ssl->sessionSecretCtx = ctx;
@@ -8200,6 +8200,19 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
         ssl->session->sessionIDSz = 0;
         ssl->options.resuming = 1;
     }
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_set_session_ticket_ext_cb(WOLFSSL* ssl, TicketParseCb cb,
+        void *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_set_session_ticket_ext_cb");
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
+    ssl->ticketParseCb = cb;
+    ssl->ticketParseCtx = ctx;
 
     return WOLFSSL_SUCCESS;
 }

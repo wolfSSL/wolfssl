@@ -35942,6 +35942,47 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
+
+#ifdef HAVE_SECRET_CALLBACK
+        if (ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) {
+            int secretSz = SECRET_LEN;
+            WOLFSSL_MSG("Calling session secret callback");
+            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                       RAN_LEN);
+            if (ret == 0) {
+                ret = ssl->sessionSecretCb(ssl, ssl->arrays->masterSecret,
+                                              &secretSz, ssl->sessionSecretCtx);
+                if (secretSz != SECRET_LEN)
+                    ret = SESSION_SECRET_CB_E;
+            }
+            if (ret == 0)
+                ret = MatchSuite(ssl, clSuites);
+            if (ret == 0) {
+                #ifdef NO_OLD_TLS
+                    ret = DeriveTlsKeys(ssl);
+                #else
+                    #ifndef NO_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                    #endif
+                        if (!ssl->options.tls)
+                            ret = DeriveKeys(ssl);
+                #endif
+                /* SERVER: peer auth based on session secret. */
+                ssl->options.peerAuthGood = (ret == 0);
+                ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+            }
+            if (ret != 0)
+                WOLFSSL_ERROR_VERBOSE(ret);
+            WOLFSSL_LEAVE("HandleTlsResumption", ret);
+            return ret;
+        }
+#endif /* HAVE_SECRET_CALLBACK */
+
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket == 1) {
             session = ssl->session;
@@ -36601,6 +36642,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.haveSessionId = 1;
 
         /* ProcessOld uses same resume code */
+        WOLFSSL_MSG_EX("ssl->options.resuming %d", ssl->options.resuming);
         if (ssl->options.resuming) {
             ret = HandleTlsResumption(ssl, clSuites);
             if (ret != 0)
@@ -37982,6 +38024,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_START(WC_FUNC_TICKET_DO);
         WOLFSSL_ENTER("DoClientTicket");
 
+#ifdef HAVE_SECRET_CALLBACK
+        if (ssl->ticketParseCb != NULL) {
+            decryptRet = WOLFSSL_TICKET_RET_OK;
+            if (!ssl->ticketParseCb(ssl, input, len, ssl->ticketParseCtx)) {
+                /* Failure kills the connection */
+                decryptRet = WOLFSSL_TICKET_RET_FATAL;
+            }
+            else {
+                if (wolfSSL_set_SessionTicket(ssl, input, len) !=
+                        WOLFSSL_SUCCESS)
+                    decryptRet = WOLFSSL_TICKET_RET_REJECT;
+            }
+            goto cleanup;
+        }
+        else
+#endif
 #ifdef WOLFSSL_TLS13
         if (len == ID_LEN && IsAtLeastTLSv1_3(ssl->version)) {
             /* This is a stateful ticket. We can be sure about this because
@@ -37996,7 +38054,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else
 #endif
+        if (len >= sizeof(*it))
             decryptRet = DoDecryptTicket(ssl, input, len, &it);
+        else
+            WOLFSSL_MSG("Ticket is smaller than InternalTicket. Rejecting.");
+
 
         if (decryptRet != WOLFSSL_TICKET_RET_OK &&
                 decryptRet != WOLFSSL_TICKET_RET_CREATE) {

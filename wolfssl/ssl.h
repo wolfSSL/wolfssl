@@ -1366,8 +1366,12 @@ WOLFSSL_ABI WOLFSSL_API long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx
 typedef int (*SessionSecretCb)(WOLFSSL* ssl, void* secret, int* secretSz,
                                void* ctx);
 /* This callback is used to set the master secret during resumption */
-WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb,
-                                               void*);
+WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb,
+                                               void* ctx);
+typedef int (*TicketParseCb)(WOLFSSL *ssl, const unsigned char *data,
+                                            int len, void *ctx);
+WOLFSSL_API int wolfSSL_set_session_ticket_ext_cb(WOLFSSL* ssl,
+        TicketParseCb cb, void *ctx);
 typedef int (*TlsSecretCb)(WOLFSSL* ssl, void* secret, int secretSz,
                                void* ctx);
 /* This callback is used to log the secret for TLS <= 1.2 */
