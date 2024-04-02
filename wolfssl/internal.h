@@ -6419,6 +6419,7 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
+WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);

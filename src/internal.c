@@ -33507,6 +33507,24 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 
+    /* search suites for specific one, idx on success, negative on error */
+    int FindSuite(const Suites* suites, byte first, byte second)
+    {
+        int i;
+
+        if (suites == NULL || suites->suiteSz == 0) {
+            WOLFSSL_MSG("Suites pointer error or suiteSz 0");
+            return SUITES_ERROR;
+        }
+
+        for (i = 0; i < suites->suiteSz-1; i += SUITE_LEN) {
+            if (suites->suites[i]   == first &&
+                suites->suites[i+1] == second )
+                return i;
+        }
+
+        return MATCH_SUITE_ERROR;
+    }
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -35425,30 +35443,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         return ret;
     }
-
-#if defined(HAVE_SERVER_RENEGOTIATION_INFO) || defined(HAVE_FALLBACK_SCSV) || \
-                                                            defined(OPENSSL_ALL)
-
-    /* search suites for specific one, idx on success, negative on error */
-    static int FindSuite(Suites* suites, byte first, byte second)
-    {
-        int i;
-
-        if (suites == NULL || suites->suiteSz == 0) {
-            WOLFSSL_MSG("Suites pointer error or suiteSz 0");
-            return SUITES_ERROR;
-        }
-
-        for (i = 0; i < suites->suiteSz-1; i += SUITE_LEN) {
-            if (suites->suites[i]   == first &&
-                suites->suites[i+1] == second )
-                return i;
-        }
-
-        return MATCH_SUITE_ERROR;
-    }
-
-#endif
 
 #endif /* !WOLFSSL_NO_TLS12 */
 

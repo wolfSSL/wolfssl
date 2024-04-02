@@ -15688,6 +15688,24 @@ static long wolf_set_options(long old_op, long op)
     return old_op | op;
 }
 
+static int FindHashSig(const Suites* suites, byte first, byte second)
+{
+    word16 i;
+
+    if (suites == NULL || suites->hashSigAlgoSz == 0) {
+        WOLFSSL_MSG("Suites pointer error or suiteSz 0");
+        return SUITES_ERROR;
+    }
+
+    for (i = 0; i < suites->hashSigAlgoSz-1; i += 2) {
+        if (suites->hashSigAlgo[i]   == first &&
+            suites->hashSigAlgo[i+1] == second )
+            return i;
+    }
+
+    return MATCH_SUITE_ERROR;
+}
+
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
@@ -15703,21 +15721,25 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     ssl->options.mask = wolf_set_options(ssl->options.mask, op);
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
+        WOLFSSL_MSG("Disabling TLS 1.3");
         if (ssl->version.minor == TLSv1_3_MINOR)
             ssl->version.minor = TLSv1_2_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("Disabling TLS 1.2");
         if (ssl->version.minor == TLSv1_2_MINOR)
             ssl->version.minor = TLSv1_1_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("Disabling TLS 1.1");
         if (ssl->version.minor == TLSv1_1_MINOR)
             ssl->version.minor = TLSv1_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("Disabling TLS 1.0");
         if (ssl->version.minor == TLSv1_MINOR)
             ssl->version.minor = SSLv3_MINOR;
     }
@@ -15751,11 +15773,53 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     if (ssl->options.side != WOLFSSL_NEITHER_END) {
         if (AllocateSuites(ssl) != 0)
             return 0;
-        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.useAnon, TRUE, ssl->options.side);
+        if (!ssl->suites->setSuites) {
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
+                       havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
+                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                       ssl->options.haveFalconSig,
+                       ssl->options.haveDilithiumSig, ssl->options.useAnon,
+                       TRUE, ssl->options.side);
+        }
+        else {
+            /* Only preserve overlapping suites */
+            Suites tmpSuites;
+            word16 in, out, haveECDSAsig = 0;
+            word16 haveStaticECC = ssl->options.haveStaticECC;
+#ifdef NO_RSA
+            haveECDSAsig = 1;
+            haveStaticECC = 1;
+#endif
+            XMEMSET(&tmpSuites, 0, sizeof(Suites));
+            /* Get all possible ciphers and sigalgs for the version. Following
+             * options limit the allowed ciphers so let's try to get as many as
+             * possible.
+             * - haveStaticECC turns off haveRSA
+             * - haveECDSAsig turns off haveRSAsig */
+            InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
+                    haveStaticECC, 1, 1, 1, 1, ssl->options.side);
+            for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
+                if (FindSuite(&tmpSuites, ssl->suites->suites[in],
+                        ssl->suites->suites[in+1]) >= 0) {
+                    ssl->suites->suites[out] = ssl->suites->suites[in];
+                    ssl->suites->suites[out+1] = ssl->suites->suites[in+1];
+                    out += SUITE_LEN;
+                }
+            }
+            ssl->suites->suiteSz = out;
+            for (in = 0, out = 0; in < ssl->suites->hashSigAlgoSz; in += 2) {
+                if (FindHashSig(&tmpSuites, ssl->suites->hashSigAlgo[in],
+                    ssl->suites->hashSigAlgo[in+1]) >= 0) {
+                    ssl->suites->hashSigAlgo[out] =
+                            ssl->suites->hashSigAlgo[in];
+                    ssl->suites->hashSigAlgo[out+1] =
+                            ssl->suites->hashSigAlgo[in+1];
+                    out += 2;
+                }
+            }
+            ssl->suites->hashSigAlgoSz = out;
+        }
+
     }
 
     return ssl->options.mask;
