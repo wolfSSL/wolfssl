@@ -2517,7 +2517,7 @@ static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
 }
 
 
-/* Used for encoding the content, potentially one octet chunck at a time if
+/* Used for encoding the content, potentially one octet chunk at a time if
  * in streaming mode with IO callbacks set.
  * Can handle the cipher types:
  *      - WC_CIPHER_NONE, used for encoding signed bundle where no encryption is
@@ -9746,7 +9746,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         StreamOctetString(NULL, encryptedOutSz, NULL, &streamSz, &tmpIdx);
         totalSz += (streamSz - encryptedOutSz);
 
-        /* resize encrytped content buffer */
+        /* resize encrypted content buffer */
         if (encryptedContent != NULL) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         encryptedContent = (byte*)XMALLOC(streamSz, pkcs7->heap,

@@ -282,7 +282,7 @@ int wc_falcon_init_id(falcon_key* key, const unsigned char* id, int len,
         key->idLen = len;
     }
 
-    /* Set the maxiumum level here */
+    /* Set the maximum level here */
     wc_falcon_set_level(key, 5);
 
     return ret;
@@ -309,7 +309,7 @@ int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
         key->labelLen = labelLen;
     }
 
-    /* Set the maxiumum level here */
+    /* Set the maximum level here */
     wc_falcon_set_level(key, 5);
 
     return ret;

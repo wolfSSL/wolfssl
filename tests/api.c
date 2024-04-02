@@ -1156,7 +1156,7 @@ static int test_dual_alg_support(void)
                 SSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server, serverSz,
                 SSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    /* There is only 1 unknown exension (1.2.3.4.5). The other ones are known
+    /* There is only 1 unknown extension (1.2.3.4.5). The other ones are known
      * because they are for the dual alg extensions. */
     ExpectIntEQ(extCount, 1);
     wolfSSL_CertManagerFree(cm);
