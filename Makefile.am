@@ -311,7 +311,7 @@ merge-clean:
 	@find ./ | $(GREP) \~$$ | xargs rm -f
 
 %.o: %.cu
-	nvcc -dc $(CUDAFLAGS) $< -o $@
+	$(NVCC) -dc $(CUDAFLAGS) -o $@ $<
 
 .cu.lo:
 #	$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
