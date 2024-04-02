@@ -1216,6 +1216,14 @@ if(WOLFSSL_OPENSSH OR
     override_cache(WOLFSSL_DES3 "yes")
 endif()
 
+# DES3 TLS Suites
+set(WOLFSSL_DES3_TLS_SUITES_STRING "Enable DES3 TLS cipher suites (default: disabled)")
+add_option("WOLFSSL_DES3_TLS_SUITES" ${WOLFSSL_DES3_TLS_SUITES_STRING} "no" "yes;no")
+
+if(NOT WOLFSSL_DES3_TLS_SUITES)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_DES3_TLS_SUITES")
+endif()
+
 # ARC4
 set(WOLFSSL_ARC4_HELP_STRING "Enable ARC4 (default: disabled)")
 add_option("WOLFSSL_ARC4" ${WOLFSSL_ARC4_HELP_STRING} "no" "yes;no")
