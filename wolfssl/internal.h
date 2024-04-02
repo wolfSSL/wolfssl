@@ -1560,7 +1560,6 @@ enum Misc {
 #endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE */
-    MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
     MAX_PLAINTEXT_SZ   = (1 << 14),        /* Max plaintext sz   */
     MAX_TLS_CIPHER_SZ  = (1 << 14) + 2048, /* Max TLS encrypted data sz */
 #ifdef WOLFSSL_TLS13
@@ -2273,6 +2272,8 @@ enum {
 
 
 /* determine maximum record size */
+#define MAX_RECORD_SIZE 16384  /* 2^14, max size by standard */
+
 #ifdef RECORD_SIZE
     /* user supplied value */
     #if RECORD_SIZE < 128 || RECORD_SIZE > MAX_RECORD_SIZE
