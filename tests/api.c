@@ -878,7 +878,10 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz),
@@ -886,11 +889,17 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
@@ -938,6 +947,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     *out = outBuf;
     wc_FreeRsaKey(&caKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
@@ -981,7 +991,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     ExpectNotNull(file = fopen(serverKeyFile, "rb"));
     ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file),
                 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&serverKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(serverKeyBuf, &idx, &serverKey,
@@ -989,7 +1002,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey,
@@ -997,11 +1013,17 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
@@ -1052,6 +1074,7 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     wc_FreeRsaKey(&caKey);
     wc_FreeRsaKey(&serverKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
@@ -1136,7 +1159,9 @@ static int test_dual_alg_support(void)
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
      * call to do_dual_alg_tls13_connection(). Its expecting a failed connection
-     * because the signature won't verify. */
+     * because the signature won't verify. The exception is if
+     * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verfication happens
+     * and this is no longer a negative test. */
     rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
@@ -1144,9 +1169,15 @@ static int test_dual_alg_support(void)
                                           wrongPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
+                server, serverSz, serverKey, (word32)serverKeySz, 0),
+                TEST_SUCCESS);
+#else
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 1),
                 TEST_SUCCESS);
+#endif
 
     /* Lets see if CertManager can find the new extensions */
     extCount = 0;
