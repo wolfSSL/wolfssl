@@ -3318,6 +3318,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_W64_WRAPPER
 #endif
 
+/* wc_xmss_impl requires these misc.c functions. */
+#ifdef WOLFSSL_WC_XMSS
+    #undef  WOLFSSL_NO_INT_ENCODE
+    #undef  WOLFSSL_NO_INT_DECODE
+#endif
+
 /* DTLS v1.3 requires AES ECB if using AES */
 #if defined(WOLFSSL_DTLS13) && !defined(NO_AES) && \
     !defined(WOLFSSL_AES_DIRECT)
