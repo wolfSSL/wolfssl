@@ -8346,8 +8346,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif /* HAVE_PQC */
 
             default:
+                /* In this case, there was an OID that we didn't recognize.
+                 * This is an error. Use not compiled in because likely the
+                 * given algorithm was not enabled. */
+                ret = NOT_COMPILED_IN;
                 WOLFSSL_MSG("No alt key size check done on certificate");
-                break; /* do no check if not a case for the key */
+                break;
         }
 
         if (ssl != NULL) {
@@ -16686,6 +16690,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int ret = WOLFSSL_FAILURE;
 
+        if (ctx == NULL || id == NULL) {
+            return ret;
+        }
+
         FreeDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                                                               ctx->heap) == 0) {
@@ -16706,8 +16714,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                             int devId)
     {
         int ret = WOLFSSL_FAILURE;
-        word32 sz = (word32)XSTRLEN(label) + 1;
+        word32 sz;
 
+        if (ctx == NULL || label == NULL) {
+            return ret;
+        }
+
+        sz = (word32)XSTRLEN(label) + 1;
         FreeDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                                                               ctx->heap) == 0) {
@@ -17000,6 +17013,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int ret = WOLFSSL_FAILURE;
 
+        if (ssl == NULL || id == NULL) {
+            return ret;
+        }
+
         if (ssl->buffers.weOwnAltKey)
             FreeDer(&ssl->buffers.altKey);
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
@@ -17022,8 +17039,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                         int devId)
     {
         int ret = WOLFSSL_FAILURE;
-        word32 sz = (word32)XSTRLEN(label) + 1;
+        word32 sz;
 
+        if (ssl == NULL || label == NULL) {
+            return ret;
+        }
+
+        sz = (word32)XSTRLEN(label) + 1;
         if (ssl->buffers.weOwnAltKey)
             FreeDer(&ssl->buffers.altKey);
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
