@@ -168,8 +168,7 @@ on the specific device platform.
     #define HAVE_INTEL_RORX
 #endif
 
-
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+#if defined(LITTLE_ENDIAN_ORDER)
     #if ( defined(CONFIG_IDF_TARGET_ESP32C2) || \
           defined(CONFIG_IDF_TARGET_ESP8684) || \
           defined(CONFIG_IDF_TARGET_ESP32C3) || \
@@ -182,20 +181,24 @@ on the specific device platform.
          * depending on if HW is active or not. */
         #define SHA256_REV_BYTES(ctx) \
             (esp_sha_need_byte_reversal(ctx))
+    #elif defined(FREESCALE_MMCAU_SHA)
+        #define SHA256_REV_BYTES(ctx)       1 /* reverse needed on final */
     #endif
 #endif
 #ifndef SHA256_REV_BYTES
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+    #if defined(LITTLE_ENDIAN_ORDER)
         #define SHA256_REV_BYTES(ctx)       1
     #else
         #define SHA256_REV_BYTES(ctx)       0
     #endif
 #endif
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA) && \
+#if defined(LITTLE_ENDIAN_ORDER) && \
         defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     #define SHA256_UPDATE_REV_BYTES(ctx) \
         (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+#elif defined(FREESCALE_MMCAU_SHA)
+    #define SHA256_UPDATE_REV_BYTES(ctx)    0 /* reverse not needed on update */
 #else
     #define SHA256_UPDATE_REV_BYTES(ctx)    SHA256_REV_BYTES(ctx)
 #endif
