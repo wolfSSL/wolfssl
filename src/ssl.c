@@ -8096,6 +8096,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         keySz = 0;
         /* check alternative key size of cert */
         switch (cert->sapkiOID) {
+            case 0:
+                if (cert->sapkiLen != 0)
+                    ret = NOT_COMPILED_IN;
+                break;
         #ifndef NO_RSA
             #ifdef WC_RSA_PSS
             case RSAPSSk:
