@@ -50,8 +50,8 @@ This library contains implementation for the random number generator.
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$c")
-        #pragma const_seg(".fipsB$c")
+        #pragma code_seg(".fipsA$i")
+        #pragma const_seg(".fipsB$i")
     #endif
 #endif
 
@@ -1486,7 +1486,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
  * @return  ENTROPY_RT_E or ENTROPY_APT_E on failure.
  * @return  BAD_MUTEX_E when unable to lock mutex.
  */
-int wc_Entropy_OnDemandTest()
+int wc_Entropy_OnDemandTest(void)
 {
     int ret = 0;
 
@@ -1514,7 +1514,7 @@ int wc_Entropy_OnDemandTest()
  * @return  0 on success.
  * @return  Negative on failure.
  */
-int Entropy_Init()
+int Entropy_Init(void)
 {
     int ret = 0;
 
@@ -1551,7 +1551,7 @@ int Entropy_Init()
 
 /* Finalize the data associated with the MemUse Entropy source.
  */
-void Entropy_Final()
+void Entropy_Final(void)
 {
     /* Only finalize when initialized. */
     if (entropy_memuse_initialized) {
