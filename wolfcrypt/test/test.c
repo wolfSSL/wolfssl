@@ -30991,11 +30991,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif /* HAVE_ECC160 */
 #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+#if !FIPS_VERSION3_GE(6,0,0)
     ret = ecc_test_curve(&rng, 24, ECC_CURVE_DEF);
     if (ret < 0) {
         printf("keySize=24, Default\n");
         goto done;
     }
+#endif
 #endif /* HAVE_ECC192 */
 #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
     ret = ecc_test_curve(&rng, 28, ECC_CURVE_DEF);
