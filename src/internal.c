@@ -3209,22 +3209,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
-    (void)tls;  /* shut up compiler */
-    (void)tls1_2;
-    (void)dtls;
-    (void)haveDH;
-    (void)havePSK;
-    (void)haveStaticRSA;
-    (void)haveStaticECC;
-    (void)haveECC;
-    (void)side;
-    (void)haveRSA;    /* some builds won't read */
-    (void)haveRSAsig; /* non ecc builds won't read */
-    (void)haveAnon;   /* anon ciphers optional */
-    (void)haveNull;
-    (void)haveFalconSig;
-    (void)haveDilithiumSig;
-
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
         return;
@@ -4241,18 +4225,27 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     suites->suiteSz = idx;
 
     if (suites->hashSigAlgoSz == 0) {
-        int haveSig = 0;
-        haveSig |= (haveRSAsig | haveRSA) ? SIG_RSA : 0;
-        haveSig |= (haveECDSAsig | haveECC) ? SIG_ECDSA : 0;
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-        haveSig |= (haveECDSAsig | haveECC) ? SIG_SM2 : 0;
-    #endif
-        haveSig |= haveFalconSig ? SIG_FALCON : 0;
-        haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
-        haveSig &= ~SIG_ANON;
-        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, tls1_2, keySz,
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, SIG_ALL, tls1_2, keySz,
             &suites->hashSigAlgoSz);
     }
+
+    /* Moved to the end as we set some of the vars but never use them */
+    (void)tls;  /* shut up compiler */
+    (void)tls1_2;
+    (void)dtls;
+    (void)haveDH;
+    (void)havePSK;
+    (void)haveStaticRSA;
+    (void)haveStaticECC;
+    (void)haveECC;
+    (void)haveECDSAsig;
+    (void)side;
+    (void)haveRSA;    /* some builds won't read */
+    (void)haveRSAsig; /* non ecc builds won't read */
+    (void)haveAnon;   /* anon ciphers optional */
+    (void)haveNull;
+    (void)haveFalconSig;
+    (void)haveDilithiumSig;
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \

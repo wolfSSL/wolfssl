@@ -7633,10 +7633,6 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     word32 reqSz;
     word16 hashSigAlgoSz = 0;
     SignatureAlgorithms* sa;
-    int haveSig = SIG_RSA | SIG_ECDSA | SIG_FALCON | SIG_DILITHIUM;
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    haveSig |= SIG_SM2;
-#endif
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendTls13CertificateRequest");
@@ -7647,12 +7643,12 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         return SIDE_ERROR;
 
     /* Get the length of the hashSigAlgo buffer */
-    InitSuitesHashSigAlgo(NULL, haveSig, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(NULL, SIG_ALL, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
     if (sa == NULL)
         return MEMORY_ERROR;
-    InitSuitesHashSigAlgo(sa->hashSigAlgo, haveSig, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(sa->hashSigAlgo, SIG_ALL, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
     if (ret != 0) {

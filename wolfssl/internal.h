@@ -4039,6 +4039,9 @@ enum KeyExchangeAlgorithm {
 #define SIG_FALCON      0x08
 #define SIG_DILITHIUM   0x10
 #define SIG_ANON        0x20
+/* SIG_ANON is omitted by default */
+#define SIG_ALL         (SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | \
+                         SIG_DILITHIUM)
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
