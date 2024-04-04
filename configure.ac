@@ -4923,6 +4923,7 @@ AC_ARG_ENABLE([certservice],
 
 if test "$ENABLED_CUDA" = "yes"
 then
+    CC=nvcc
     AM_CFLAGS="$AM_CFLAGS -DWC_CUDA -DHAVE_CUDA"
 fi
 
