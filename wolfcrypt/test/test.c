@@ -8354,7 +8354,8 @@ static const int fiducial1 = WC_TEST_RET_LN; /* source code reference point --
 #if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_XTS)
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
-    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
 static wc_test_ret_t EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
@@ -8458,7 +8459,8 @@ EVP_TEST_END:
 
     return ret;
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(6,0,0) */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY && !HAVE_SELFTEST */
 #endif /* WOLFSSL_AES_OFB || WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB

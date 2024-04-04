@@ -1836,6 +1836,15 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
                 break;
             }
         }
+        /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
+         * both keysize == 0 and curve_id == 0 ensure we select an appropriate
+         * keysize here when relying on default selection */
+        #if FIPS_VERSION3_GE(6,0,0)
+        if (ecc_sets[x].size < WC_ECC_FIPS_GEN_MIN) {
+            WOLFSSL_MSG("ECC curve too small for FIPS mode");
+            return ECC_CURVE_OID_E;
+        }
+        #endif
         if (ecc_sets[x].size == 0) {
             WOLFSSL_MSG("ECC Curve not found");
             return ECC_CURVE_OID_E;

@@ -13106,7 +13106,11 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         /* Check if we know which internal curve index to use. */
         if (key->group->curve_idx < 0) {
             /* Generate key using the default curve. */
+#if FIPS_VERSION3_GE(6,0,0)
+            key->group->curve_idx = ECC_SECP256R1; /* FIPS default to 256 */
+#else
             key->group->curve_idx = ECC_CURVE_DEF;
+#endif
         }
 
         /* Create a random number generator. */
@@ -13120,11 +13124,30 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         /* NIDToEccEnum returns -1 for invalid NID so if key->group->curve_nid
          * is 0 then pass ECC_CURVE_DEF as arg */
         int eccEnum = key->group->curve_nid ?
+#if FIPS_VERSION3_GE(6,0,0)
+            NIDToEccEnum(key->group->curve_nid) : ECC_SECP256R1;
+#else
             NIDToEccEnum(key->group->curve_nid) : ECC_CURVE_DEF;
+#endif
         /* Get the internal EC key. */
         ecc_key* ecKey = (ecc_key*)key->internal;
         /* Make the key using internal API. */
-        int ret = wc_ecc_make_key_ex(rng, 0, ecKey, eccEnum);
+        int ret = 0;
+
+#if FIPS_VERSION3_GE(6,0,0)
+        /* In the case of FIPS only allow key generation with approved curves */
+        if (eccEnum != ECC_SECP256R1 && eccEnum != ECC_SECP224R1 &&
+            eccEnum != ECC_SECP384R1 && eccEnum != ECC_SECP521R1) {
+            WOLFSSL_MSG("Unsupported curve selected in FIPS mode");
+            res = 0;
+        }
+        if (res == 1) {
+#endif
+        ret  = wc_ecc_make_key_ex(rng, 0, ecKey, eccEnum);
+#if FIPS_VERSION3_GE(6,0,0)
+        }
+#endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT)
         /* Wait on asynchronouse operation. */
         ret = wc_AsyncWait(ret, &ecKey->asyncDev, WC_ASYNC_FLAG_NONE);
