@@ -517,6 +517,22 @@ int IsTLS(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_MINOR)
         return 1;
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR)
+        return 1;
+#endif
+
+    return 0;
+}
+
+int IsTLS_ex(const ProtocolVersion pv)
+{
+    if (pv.major == SSLv3_MAJOR && pv.minor >=TLSv1_MINOR)
+        return 1;
+#ifdef WOLFSSL_DTLS
+    if (pv.major == DTLS_MAJOR)
+        return 1;
+#endif
 
     return 0;
 }

@@ -6186,6 +6186,7 @@ WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(ProtocolVersion pv);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);

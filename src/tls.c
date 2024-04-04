@@ -300,6 +300,86 @@ ProtocolVersion MakeTLSv1_3(void)
 }
 #endif
 
+#if defined(HAVE_SUPPORTED_CURVES)
+/* Sets the key exchange groups in rank order on a context.
+ *
+ * ctx     SSL/TLS context object.
+ * groups  Array of groups.
+ * count   Number of groups in array.
+ * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3 or
+ * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
+{
+    int ret, i;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
+    if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+        return BAD_FUNC_ARG;
+    if (!IsTLS_ex(ctx->method->version))
+        return BAD_FUNC_ARG;
+
+    ctx->numGroups = 0;
+    #if !defined(NO_TLS)
+    TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+    #endif /* !NO_TLS */
+    for (i = 0; i < count; i++) {
+        /* Call to wolfSSL_CTX_UseSupportedCurve also checks if input groups
+         * are valid */
+        if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, (word16)groups[i]))
+                != WOLFSSL_SUCCESS) {
+    #if !defined(NO_TLS)
+            TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+    #endif /* !NO_TLS */
+            return ret;
+        }
+        ctx->group[i] = (word16)groups[i];
+    }
+    ctx->numGroups = (byte)count;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Sets the key exchange groups in rank order.
+ *
+ * ssl     SSL/TLS object.
+ * groups  Array of groups.
+ * count   Number of groups in array.
+ * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3 or
+ * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
+{
+    int ret, i;
+
+    WOLFSSL_ENTER("wolfSSL_set_groups");
+    if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
+        return BAD_FUNC_ARG;
+    if (!IsTLS_ex(ssl->version))
+        return BAD_FUNC_ARG;
+
+    ssl->numGroups = 0;
+    #if !defined(NO_TLS)
+    TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+    #endif /* !NO_TLS */
+    for (i = 0; i < count; i++) {
+        /* Call to wolfSSL_UseSupportedCurve also checks if input groups
+                 * are valid */
+        if ((ret = wolfSSL_UseSupportedCurve(ssl, (word16)groups[i]))
+                != WOLFSSL_SUCCESS) {
+    #if !defined(NO_TLS)
+            TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+    #endif /* !NO_TLS */
+            return ret;
+        }
+        ssl->group[i] = (word16)groups[i];
+    }
+    ssl->numGroups = (byte)count;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_SUPPORTED_CURVES */
+
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_EXTENDED_MASTER
@@ -4675,6 +4755,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
     int             ephmSuite = 0;
     word16          octets    = 0; /* according to 'ecc_set_type ecc_sets[];' */
     int             key       = 0; /* validate key       */
+    int             foundCurve = 0; /* Found at least one supported curve */
 
     (void)oid;
 
@@ -4836,6 +4917,8 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
             default: continue; /* unsupported curve */
         }
 
+        foundCurve = 1;
+
     #ifdef HAVE_ECC
         /* Set default Oid */
         if (defOid == 0 && ssl->eccTempKeySz <= octets && defSz > octets) {
@@ -4979,6 +5062,10 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
             }
         }
     }
+
+    /* Check we found at least one supported curve */
+    if (!foundCurve)
+        return 0;
 
     *ecdhCurveOID = ssl->ecdhCurveOID;
     /* Choose the default if it is at the required strength. */

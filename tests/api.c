@@ -40475,6 +40475,86 @@ static int test_wolfSSL_set1_curves_list(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+static int test_wolfSSL_curves_mismatch_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    static int counter = 0;
+    EXPECT_DECLS;
+
+    if (counter % 2) {
+        ExpectIntEQ(wolfSSL_CTX_set1_curves_list(ctx, "P-256"),
+                WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_CTX_set1_curves_list(ctx, "P-384"),
+                WOLFSSL_SUCCESS);
+    }
+
+    /* Ciphersuites that require curves */
+    wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES256-GCM-SHA384:"
+            "TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-GCM-SHA256:"
+            "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
+            "ECDHE-ECDSA-AES128-GCM-SHA256:"
+            "ECDHE-RSA-AES128-GCM-SHA256");
+
+    counter++;
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_curves_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* desc;
+        int client_last_err;
+        int server_last_err;
+    } test_params[] = {
+#ifdef WOLFSSL_TLS13
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3",
+                FATAL_ERROR, BAD_KEY_SHARE_DATA},
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2",
+                FATAL_ERROR, MATCH_SUITE_ERROR},
+#endif
+#ifndef NO_OLD_TLS
+        {wolfTLSv1_1_client_method, wolfTLSv1_1_server_method, "TLS 1.1",
+                FATAL_ERROR, MATCH_SUITE_ERROR},
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(test_params) && !EXPECT_FAIL(); i++) {
+        XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+        XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+        printf("\tTesting with %s...\n", test_params[i].desc);
+
+        func_cb_client.ctx_ready = &test_wolfSSL_curves_mismatch_ctx_ready;
+        func_cb_server.ctx_ready = &test_wolfSSL_curves_mismatch_ctx_ready;
+
+        func_cb_client.method = test_params[i].client_meth;
+        func_cb_server.method = test_params[i].server_meth;
+
+        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+            &func_cb_server, NULL), TEST_FAIL);
+        ExpectIntEQ(func_cb_client.last_err, test_params[i].client_last_err);
+        ExpectIntEQ(func_cb_server.last_err, test_params[i].server_last_err);
+
+        if (!EXPECT_SUCCESS())
+            break;
+        printf("\t%s passed\n", test_params[i].desc);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_set1_sigalgs_list(void)
 {
     EXPECT_DECLS;
@@ -72292,6 +72372,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_configure_args),
     TEST_DECL(test_wolfSSL_sk_SSL_CIPHER),
     TEST_DECL(test_wolfSSL_set1_curves_list),
+    TEST_DECL(test_wolfSSL_curves_mismatch),
     TEST_DECL(test_wolfSSL_set1_sigalgs_list),
 
     TEST_DECL(test_wolfSSL_OtherName),

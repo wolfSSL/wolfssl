@@ -2692,6 +2692,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 #ifdef HAVE_ECC
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
     if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
         return BAD_FUNC_ARG;
@@ -2707,6 +2708,7 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
+    WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
     if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
         return BAD_FUNC_ARG;
@@ -3349,7 +3351,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 #endif /* NO_TLS */
 }
 
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA)
 int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count)
 {
@@ -3420,7 +3422,7 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     return wolfSSL_set_groups(ssl, _groups, count) == WOLFSSL_SUCCESS ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
-#endif /* OPENSSL_EXTRA && WOLFSSL_TLS13 */
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SUPPORTED_CURVES */
 
 /* Application-Layer Protocol Negotiation */
@@ -7877,6 +7879,8 @@ WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp)
 /* Set Temp CTX EC-DHE size in octets, can be 14 - 66 (112 - 521 bit) */
 int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_SetTmpEC_DHE_Sz");
+
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
@@ -7911,6 +7915,8 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 /* Set Temp SSL EC-DHE size in octets, can be 14 - 66 (112 - 521 bit) */
 int wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL* ssl, word16 sz)
 {
+    WOLFSSL_ENTER("wolfSSL_SetTmpEC_DHE_Sz");
+
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
@@ -15819,7 +15825,6 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
             }
             ssl->suites->hashSigAlgoSz = out;
         }
-
     }
 
     return ssl->options.mask;
@@ -21356,20 +21361,29 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
-    if (curve_id >= WOLFSSL_FFDHE_START) {
-        /* DH parameters are never disabled. */
-        return 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_curve_is_disabled");
+    WOLFSSL_MSG_EX("wolfSSL_curve_is_disabled checking for %d", curve_id);
+
+    /* (curve_id >= WOLFSSL_FFDHE_START) - DH parameters are never disabled. */
+    if (curve_id < WOLFSSL_FFDHE_START) {
+        if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
+            WOLFSSL_MSG("Curve id out of supported range");
+            /* Disabled if not in valid range. */
+            ret = 1;
+        }
+        else if (curve_id >= 32) {
+            /* 0 is for invalid and 1-14 aren't used otherwise. */
+            ret = (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
+        }
+        else {
+            ret = (ssl->disabledCurves & (1U << curve_id)) != 0;
+        }
     }
-    if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
-        WOLFSSL_MSG("Curve id out of supported range");
-        /* Disabled if not in valid range. */
-        return 1;
-    }
-    if (curve_id >= 32) {
-        /* 0 is for invalid and 1-14 aren't used otherwise. */
-        return (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
-    }
-    return (ssl->disabledCurves & (1U << curve_id)) != 0;
+
+    WOLFSSL_LEAVE("wolfSSL_curve_is_disabled", ret);
+    return ret;
 }
 
 #if (defined(HAVE_ECC) || \
@@ -21504,7 +21518,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             disabled &= ~(1U << curve);
         }
     #ifdef HAVE_SUPPORTED_CURVES
-    #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
+    #if !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate
          * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
          * The order in (ssl|ctx)->groups will then be respected
@@ -21545,6 +21559,7 @@ leave:
 
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_set1_curves_list");
     if (ctx == NULL || names == NULL) {
         WOLFSSL_MSG("ctx or names was NULL");
         return WOLFSSL_FAILURE;
@@ -21554,6 +21569,7 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 
 int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 {
+    WOLFSSL_ENTER("wolfSSL_set1_curves_list");
     if (ssl == NULL || names == NULL) {
         WOLFSSL_MSG("ssl or names was NULL");
         return WOLFSSL_FAILURE;
