@@ -278,3 +278,5 @@
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_tsip_GenerateRandBlock
+/* use original ASN parsing */
+#define WOLFSSL_ASN_ORIGINAL
