@@ -75,13 +75,9 @@ extern "C" {
 #define WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
 
 /* DTLS */
-#if 0
-    #define WOLFSSL_DTLS
-    #define WOLFSSL_MULTICAST
-
-    /* DTLS v1.3 is not yet included with enable-all */
-    //#define WOLFSSL_DTLS13
-#endif
+#define WOLFSSL_DTLS
+// #define WOLFSSL_MULTICAST
+#define WOLFSSL_DTLS13
 
 /* DG Disabled SSLv3 and TLSv1.0 - should avoid using */
 //#define WOLFSSL_ALLOW_SSLV3
