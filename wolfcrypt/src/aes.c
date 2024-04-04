@@ -44,8 +44,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$g")
-        #pragma const_seg(".fipsB$g")
+        #pragma code_seg(".fipsA$b")
+        #pragma const_seg(".fipsB$b")
     #endif
 #endif
 
