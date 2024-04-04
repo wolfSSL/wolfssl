@@ -47112,7 +47112,7 @@ static int test_wolfSSL_sigalg_info(void)
     word16 idx = 0;
     int allSigAlgs = SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | SIG_DILITHIUM;
 
-    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
+    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs, 1, 0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
         int hashAlgo = 0;
         int sigAlgo = 0;
@@ -47124,7 +47124,7 @@ static int test_wolfSSL_sigalg_info(void)
         ExpectIntNE(sigAlgo, 0);
     }
 
-    InitSuitesHashSigAlgo_ex2(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
+    InitSuitesHashSigAlgo(hashSigAlgo, allSigAlgs | SIG_ANON, 1,
             0xFFFFFFFF, &len);
     for (idx = 0; idx < len; idx += 2) {
         int hashAlgo = 0;

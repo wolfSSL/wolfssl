@@ -3048,7 +3048,7 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     }
 }
 
-void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int haveSig, int tls1_2,
+void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     int keySz, word16* len)
 {
     word16 idx = 0;
@@ -3153,30 +3153,6 @@ void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int haveSig, int tls1_2,
 #endif
 
     *len = idx;
-}
-
-void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
-    int haveFalconSig, int haveDilithiumSig, int haveAnon, int tls1_2,
-    int keySz)
-{
-    InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
-            haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
-            &suites->hashSigAlgoSz);
-}
-
-void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
-    int haveRSAsig, int haveFalconSig, int haveDilithiumSig, int haveAnon,
-    int tls1_2, int keySz, word16* len)
-{
-    int have = 0;
-
-    if (haveECDSAsig)     have |= SIG_ECDSA;
-    if (haveRSAsig)       have |= SIG_RSA;
-    if (haveFalconSig)    have |= SIG_FALCON;
-    if (haveDilithiumSig) have |= SIG_DILITHIUM;
-    if (haveAnon)         have |= SIG_ANON;
-
-    InitSuitesHashSigAlgo_ex2(hashSigAlgo, have, tls1_2, keySz, len);
 }
 
 int AllocateCtxSuites(WOLFSSL_CTX* ctx)
@@ -4274,7 +4250,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
         haveSig |= haveFalconSig ? SIG_FALCON : 0;
         haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
         haveSig &= ~SIG_ANON;
-        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, tls1_2, keySz,
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, tls1_2, keySz,
             &suites->hashSigAlgoSz);
     }
 }
@@ -26729,7 +26705,7 @@ static int ParseCipherList(Suites* suites,
     #endif
         {
             suites->suiteSz   = (word16)idx;
-            InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+            InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
                  &suites->hashSigAlgoSz);
         }
 
@@ -26913,7 +26889,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         haveSig |= haveFalconSig ? SIG_FALCON : 0;
         haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
         haveSig |= haveAnon ? SIG_ANON : 0;
-        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
             &suites->hashSigAlgoSz);
 #ifdef HAVE_RENEGOTIATION_INDICATION
         if (ctx->method->side == WOLFSSL_CLIENT_END) {

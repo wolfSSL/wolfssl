@@ -2355,16 +2355,8 @@ typedef struct CipherSuite {
 #endif
 } CipherSuite;
 
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                         int haveRSAsig, int haveFalconSig,
-                                         int haveDilithiumSig, int haveAnon,
-                                         int tls1_2, int keySz);
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
-                                            int haveRSAsig, int haveFalconSig,
-                                            int haveDilithiumSig, int haveAnon,
-                                            int tls1_2, int keySz, word16* len);
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
-WOLFSSL_API void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int have,
+WOLFSSL_API void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                              int tls1_2, int keySz,
                                              word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
@@ -4040,7 +4032,7 @@ enum KeyExchangeAlgorithm {
     ecc_static_diffie_hellman_kea       /* for verify suite only */
 };
 
-/* Used with InitSuitesHashSigAlgo_ex2 */
+/* Used with InitSuitesHashSigAlgo */
 #define SIG_ECDSA       0x01
 #define SIG_RSA         0x02
 #define SIG_SM2         0x04
