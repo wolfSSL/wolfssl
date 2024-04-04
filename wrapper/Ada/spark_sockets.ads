@@ -83,7 +83,10 @@ package SPARK_Sockets with SPARK_Mode is
       end case;
    end record;
 
-   procedure Create_Socket (Socket : in out Optional_Socket) with
+   procedure Create_Stream_Socket (Socket : in out Optional_Socket) with
+      Pre => not Socket.Exists;
+
+   procedure Create_Datagram_Socket (Socket : in out Optional_Socket) with
       Pre => not Socket.Exists;
 
    function Connect_Socket (Socket : Socket_Type;
@@ -115,6 +118,8 @@ package SPARK_Sockets with SPARK_Mode is
    --  The queue length of 15 is an example value that should be
    --  appropriate in usual cases. It can be adjusted according to each
    --  application's particular requirements.
+
+   function Receive_Socket (Socket : Socket_Type) return Subprogram_Result;
 
    procedure Accept_Socket (Server  : Socket_Type;
                             Socket  : out Optional_Socket;
