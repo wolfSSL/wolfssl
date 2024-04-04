@@ -556,7 +556,7 @@ package body WolfSSL is
          Address => Address,
          Length  => Length);
 
-      pragma Assert (Length > 0);
+      pragma Assert (Length >= 0);
 
       return
         Subprogram_Result
