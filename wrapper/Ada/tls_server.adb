@@ -347,11 +347,7 @@ package body Tls_Server with SPARK_Mode is
 
             Result := WolfSSL.Shutdown (Ssl);
 
-            if DTLS then
-               exit;
-            end if;
-
-            exit when Result = Success;
+            exit when DTLS or Result = Success;
             delay 0.001;  --  Delay is expressed in seconds.
 
          end loop;

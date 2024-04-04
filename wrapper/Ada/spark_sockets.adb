@@ -43,7 +43,7 @@ package body SPARK_Sockets is
       GNAT.Sockets.Create_Socket (S, Family, Mode);
       Socket := (Exists => True, Socket => S);
    exception
-      when E : others =>
+      when others =>
          Socket := (Exists => False);
    end Create_Socket;
 
