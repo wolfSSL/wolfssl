@@ -271,7 +271,6 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       if DTLS then
-      --  Set DTLS peer.
          Result := WolfSSL.DTLS_Set_Peer(Ssl     => Ssl,
                                          Address => A);
          if Result /= Success then
