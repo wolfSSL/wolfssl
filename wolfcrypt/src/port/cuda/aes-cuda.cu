@@ -68,9 +68,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-#if defined(WOLFSSL_TI_CRYPT)
-    #include <wolfcrypt/src/port/ti/ti-aes.c>
-#else
 
 #include <wolfssl/wolfcrypt/logging.h>
 
@@ -83,6 +80,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 //    #include <wolfcrypt/src/misc.c>
 #endif
 /* This routine performs a left circular arithmetic shift of <x> by <y> value. */
+
+extern "C" {
+
+#if !defined(WOLFSSL_TI_CRYPT)
 
 #define rotlFixed(x, y) ( (x << y) | (x >> (sizeof(x) * 8 - y)) )
 
@@ -985,3 +986,4 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 
 #endif /* !WOLFSSL_TI_CRYPT */
 
+} /* extern "C" */
