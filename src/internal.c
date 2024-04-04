@@ -12454,7 +12454,8 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
         name->sz = (int)XSTRLEN(name->name) + 1;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
         name->rawLen = min(dCert->subjectRawLen, ASN_NAME_MAX);
-        XMEMCPY(name->raw, dCert->subjectRaw, name->rawLen);
+        if (name->rawLen > 0)
+            XMEMCPY(name->raw, dCert->subjectRaw, name->rawLen);
 #endif
     }
     else {
@@ -12464,7 +12465,7 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) \
     && (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
         name->rawLen = min(dCert->issuerRawLen, ASN_NAME_MAX);
-        if (name->rawLen) {
+        if (name->rawLen > 0) {
             XMEMCPY(name->raw, dCert->issuerRaw, name->rawLen);
         }
 #endif
