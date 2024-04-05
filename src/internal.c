@@ -27682,7 +27682,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
  * length  The length of a signature.
  * returns 0 on success, otherwise failure.
  */
-int DecodePrivateKey(WOLFSSL *ssl, word16* length)
+int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 {
     int      ret = BAD_FUNC_ARG;
     int      keySz;
@@ -27697,7 +27697,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
         #endif
         ) {
-            *length = (word16)GetPrivateKeySigSize(ssl);
+            *length = GetPrivateKeySigSize(ssl);
             return 0;
         }
         else
@@ -27747,7 +27747,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)ssl->buffers.keySz;
+                *length = ssl->buffers.keySz;
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -27773,7 +27773,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
+                *length = wc_ecc_sig_size_calc(ssl->buffers.keySz);
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -27808,7 +27808,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_falcon_sig_size((falcon_key*)ssl->hsKey);
+                *length = wc_falcon_sig_size((falcon_key*)ssl->hsKey);
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -27847,7 +27847,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_dilithium_sig_size(
+                *length = wc_dilithium_sig_size(
                                     (dilithium_key*)ssl->hsKey);
             }
     #else
@@ -27901,7 +27901,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             }
 
             /* Return the maximum signature length. */
-            *length = (word16)keySz;
+            *length = keySz;
 
             goto exit_dpk;
         }
@@ -27961,7 +27961,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             }
 
             /* Return the maximum signature length. */
-            *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
+            *length = wc_ecc_sig_size((ecc_key*)ssl->hsKey);
 
             goto exit_dpk;
         }
@@ -28238,7 +28238,7 @@ exit_dpk:
 /* This is just like the above, but only consider RSA, ECC, Falcon and
  * Dilthium; Furthermore, use the alternative key, not the native key.
  */
-int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
+int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
 {
     int      ret = BAD_FUNC_ARG;
     int      keySz;
@@ -28289,7 +28289,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)ssl->buffers.altKeySz;
+                *length = ssl->buffers.altKeySz;
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -28315,7 +28315,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.altKeySz);
+                *length = wc_ecc_sig_size_calc(ssl->buffers.altKeySz);
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -28350,8 +28350,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)
-                            wc_falcon_sig_size((falcon_key*)ssl->hsAltKey);
+                *length = wc_falcon_sig_size((falcon_key*)ssl->hsAltKey);
             }
     #else
             ret = NOT_COMPILED_IN;
@@ -28393,7 +28392,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_dilithium_sig_size(
+                *length = wc_dilithium_sig_size(
                                     (dilithium_key*)ssl->hsAltKey);
             }
     #else
@@ -28448,7 +28447,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
             }
 
             /* Return the maximum signature length. */
-            *length = (word16)keySz;
+            *length = keySz;
 
             goto exit_dapk;
         }
@@ -28509,7 +28508,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word16* length)
             }
 
             /* Return the maximum signature length. */
-            *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsAltKey);
+            *length = wc_ecc_sig_size((ecc_key*)ssl->hsAltKey);
 
             goto exit_dapk;
         }
@@ -28828,7 +28827,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         int                sendSz;
         int                idSz;
         int                ret;
-        word16             extSz = 0;
+        word32             extSz = 0;
         const Suites*      suites;
 
         if (ssl == NULL) {
@@ -32636,7 +32635,7 @@ typedef struct ScvArgs {
     word32 sigSz;
     int    sendSz;
     int    inputSz;
-    word16 length;
+    word32 length;
     byte   sigAlgo;
 } ScvArgs;
 
@@ -32855,7 +32854,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 }
 
                 /* prepend hdr */
-                c16toa(args->length, args->verify + args->extraSz);
+                c16toa((word16)args->length, args->verify + args->extraSz);
             }
             #ifdef WC_RSA_PSS
             else if (args->sigAlgo == rsa_pss_sa_algo) {
@@ -32865,7 +32864,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 args->sigSz = ENCRYPT_LEN;
 
                 /* prepend hdr */
-                c16toa(args->length, args->verify + args->extraSz);
+                c16toa((word16)args->length, args->verify + args->extraSz);
             }
             #endif
         #endif /* !NO_RSA */
@@ -33044,7 +33043,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #endif
                     args->length = (word16)ssl->buffers.sig.length;
                     /* prepend hdr */
-                    c16toa(args->length, args->verify + args->extraSz);
+                    c16toa((word16)args->length, args->verify + args->extraSz);
                     XMEMCPY(args->verify + args->extraSz + VERIFY_HEADER,
                             ssl->buffers.sig.buffer, ssl->buffers.sig.length);
                     break;
@@ -34462,7 +34461,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #endif
                             case rsa_sa_algo:
                             {
-                                word16 keySz;
+                                word32 keySz;
 
                                 ssl->buffers.keyType = rsa_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
@@ -34480,7 +34479,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #endif
                             case ecc_dsa_sa_algo:
                             {
-                                word16 keySz;
+                                word32 keySz;
 
                                 ssl->buffers.keyType = ecc_dsa_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
@@ -34495,7 +34494,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                             {
-                                word16 keySz;
+                                word32 keySz;
 
                                 ssl->buffers.keyType = ed25519_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
@@ -34511,7 +34510,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifdef HAVE_ED448
                             case ed448_sa_algo:
                             {
-                                word16 keySz;
+                                word32 keySz;
 
                                 ssl->buffers.keyType = ed448_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
@@ -34714,7 +34713,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         preSigSz  = args->length;
 
                         if (!ssl->options.usingAnon_cipher) {
-                            word16 keySz = 0;
+                            word32 keySz = 0;
 
                             /* sig length */
                             args->length += LENGTH_SZ;
@@ -38962,7 +38961,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
-                        word16 keySz;
+                        word32 keySz;
 
                         ssl->buffers.keyType = rsa_sa_algo;
                         ret = DecodePrivateKey(ssl, &keySz);
@@ -39082,7 +39081,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         if (ssl->specs.static_ecdh &&
                                           ssl->ecdhCurveOID != ECC_X25519_OID &&
                                           ssl->ecdhCurveOID != ECC_X448_OID) {
-                            word16 keySz;
+                            word32 keySz;
 
                             ssl->buffers.keyType = ecc_dsa_sa_algo;
                             ret = DecodePrivateKey(ssl, &keySz);
