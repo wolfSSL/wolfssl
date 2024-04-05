@@ -105,7 +105,7 @@ package body Tls_Server with SPARK_Mode is
       Ch : Character;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS   : Boolean := False;
+      DTLS : Boolean;
       Shall_Continue : Boolean := True;
 
       Input  : WolfSSL.Read_Result;
@@ -271,7 +271,11 @@ package body Tls_Server with SPARK_Mode is
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
@@ -285,7 +289,11 @@ package body Tls_Server with SPARK_Mode is
             Put_Line ("ERROR: Failed to set the file descriptor.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
@@ -297,7 +305,11 @@ package body Tls_Server with SPARK_Mode is
             Put_Line ("Accept error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
@@ -310,7 +322,11 @@ package body Tls_Server with SPARK_Mode is
             Put_Line ("Read error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
