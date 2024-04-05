@@ -67498,7 +67498,7 @@ static int test_tls13_rpk_handshake(void)
     certType_s[1] = WOLFSSL_CERT_TYPE_X509;
     typeCnt_s = 2;
 
-    /*  both clien and server do not call client/server_cert_type APIs,
+    /*  both client and server do not call client/server_cert_type APIs,
      *  expecting default settings works and no negotiation performed.
      */
 
@@ -67519,6 +67519,9 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                             WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
+
+    (void)typeCnt_c;
+    (void)typeCnt_s;
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -67551,7 +67554,7 @@ static int test_tls13_rpk_handshake(void)
     certType_s[1] = WOLFSSL_CERT_TYPE_X509;
     typeCnt_s = 2;
 
-    /*  both clien and server do not call client/server_cert_type APIs,
+    /*  both client and server do not call client/server_cert_type APIs,
      *  expecting default settings works and no negotiation performed.
      */
 
@@ -67574,6 +67577,9 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
+
+    (void)typeCnt_c;
+    (void)typeCnt_s;
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -67733,12 +67739,9 @@ static int test_tls13_rpk_handshake(void)
             svrKeyFile,      WOLFSSL_FILETYPE_PEM )
         , 0);
 
-    /* set client certificate type in client end */
-    certType_c[0] = WOLFSSL_CERT_TYPE_RPK;
-    certType_c[1] = WOLFSSL_CERT_TYPE_X509;
-    typeCnt_c = 2;
-
-    /* client indicates both RPK and x509 certs are available but loaded RPK
+    /* set client certificate type in client end
+     *
+     * client indicates both RPK and x509 certs are available but loaded RPK
      * cert only. It does not have client add client-cert-type extension in CH.
      */
     certType_c[0] = WOLFSSL_CERT_TYPE_RPK;

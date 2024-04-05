@@ -11212,8 +11212,10 @@ static int TLSX_ClientCertificateType_GetSize(WOLFSSL* ssl, byte msgType)
         ret = (int)(OPAQUE8_LEN + cnt * OPAQUE8_LEN);
     }
     else if (msgType == server_hello || msgType == encrypted_extensions) {
-        /* sever side */
+        /* server side */
         cnt = ssl->options.rpkState.sending_ClientCertTypeCnt;/* must be one */
+        if (cnt != 1)
+            return SANITY_MSG_E;
         ret = OPAQUE8_LEN;
     }
     else {
