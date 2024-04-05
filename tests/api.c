@@ -878,7 +878,10 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz),
@@ -886,11 +889,17 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
@@ -938,6 +947,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     *out = outBuf;
     wc_FreeRsaKey(&caKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
@@ -981,7 +991,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     ExpectNotNull(file = fopen(serverKeyFile, "rb"));
     ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file),
                 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&serverKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(serverKeyBuf, &idx, &serverKey,
@@ -989,7 +1002,10 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(caKeyBuf, 0, caKeySz);
     ExpectNotNull(file = fopen(caKeyFile, "rb"));
     ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey,
@@ -997,11 +1013,17 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     XMEMSET(sapkiBuf, 0, sapkiSz);
     ExpectNotNull(file = fopen(sapkiFile, "rb"));
     ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     XMEMSET(altPrivBuf, 0, altPrivSz);
     ExpectNotNull(file = fopen(altPrivFile, "rb"));
     ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
-    fclose(file);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
     wc_ecc_init(&altCaKey);
     idx = 0;
     ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
@@ -1052,6 +1074,7 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     wc_FreeRsaKey(&caKey);
     wc_FreeRsaKey(&serverKey);
     wc_FreeRng(&rng);
+    wc_FreeDecodedCert(&preTBS);
     return outSz;
 }
 
@@ -1136,7 +1159,9 @@ static int test_dual_alg_support(void)
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
      * call to do_dual_alg_tls13_connection(). Its expecting a failed connection
-     * because the signature won't verify. */
+     * because the signature won't verify. The exception is if
+     * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verfication happens
+     * and this is no longer a negative test. */
     rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
@@ -1144,9 +1169,15 @@ static int test_dual_alg_support(void)
                                           wrongPrivFile, keyFile, root, rootSz);
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
+                server, serverSz, serverKey, (word32)serverKeySz, 0),
+                TEST_SUCCESS);
+#else
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 1),
                 TEST_SUCCESS);
+#endif
 
     /* Lets see if CertManager can find the new extensions */
     extCount = 0;
@@ -1156,7 +1187,7 @@ static int test_dual_alg_support(void)
                 SSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server, serverSz,
                 SSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    /* There is only 1 unknown exension (1.2.3.4.5). The other ones are known
+    /* There is only 1 unknown extension (1.2.3.4.5). The other ones are known
      * because they are for the dual alg extensions. */
     ExpectIntEQ(extCount, 1);
     wolfSSL_CertManagerFree(cm);
@@ -26871,6 +26902,43 @@ static int rsaSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
 }
 #endif
 
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
+typedef struct encodeSignedDataStream {
+    byte out[FOURK_BUF*3];
+    int  idx;
+    word32 outIdx;
+} encodeSignedDataStream;
+
+
+/* content is 8k of partially created bundle */
+static int GetContentCB(PKCS7* pkcs7, byte** content, void* ctx)
+{
+    int ret = 0;
+    encodeSignedDataStream* strm = (encodeSignedDataStream*)ctx;
+
+    if (strm->outIdx  < pkcs7->contentSz) {
+        ret = (pkcs7->contentSz > strm->outIdx + FOURK_BUF)?
+                FOURK_BUF : pkcs7->contentSz - strm->outIdx;
+        *content = strm->out + strm->outIdx;
+        strm->outIdx += ret;
+    }
+
+    (void)pkcs7;
+    return ret;
+}
+
+static int StreamOutputCB(PKCS7* pkcs7, const byte* output, word32 outputSz,
+    void* ctx)
+{
+    encodeSignedDataStream* strm = (encodeSignedDataStream*)ctx;
+
+    XMEMCPY(strm->out + strm->idx, output, outputSz);
+    strm->idx += outputSz;
+    (void)pkcs7;
+    return 0;
+}
+#endif
+
 
 /*
  * Testing wc_PKCS7_EncodeSignedData()
@@ -26999,6 +27067,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     /* reinitialize and test setting stream mode */
     {
         int signedSz;
+        encodeSignedDataStream strm;
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
@@ -27019,8 +27088,9 @@ static int test_wc_PKCS7_EncodeSignedData(void)
             pkcs7->rng = &rng;
         }
         ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 0);
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(NULL, 1), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(NULL, 1, NULL, NULL, NULL),
+            BAD_FUNC_ARG);
         ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 1);
 
         ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, output,
@@ -27033,6 +27103,39 @@ static int test_wc_PKCS7_EncodeSignedData(void)
 
         /* use exact signed buffer size since BER encoded */
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, signedSz), 0);
+        wc_PKCS7_Free(pkcs7);
+
+        /* now try with using callbacks for IO */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+        if (pkcs7 != NULL) {
+            pkcs7->contentSz  = FOURK_BUF*2;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = (word32)sizeof(key);
+            pkcs7->encryptOID = RSAk;
+        #ifdef NO_SHA
+            pkcs7->hashOID = SHA256h;
+        #else
+            pkcs7->hashOID = SHAh;
+        #endif
+            pkcs7->rng = &rng;
+        }
+        XMEMSET(&strm, 0, sizeof(strm));
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, GetContentCB,
+            StreamOutputCB, (void*)&strm), 0);
+
+        ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, NULL, 0), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+        /* use exact signed buffer size since BER encoded */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out, signedSz), 0);
     }
 #endif
 #ifndef NO_PKCS7_STREAM
@@ -27762,11 +27865,11 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     struct tm tmpTimeStorage;
     struct tm* tmpTime = &tmpTimeStorage;
 #endif
-    #ifndef NO_PKCS7_STREAM
-        word32 z;
-        int ret;
-    #endif /* !NO_PKCS7_STREAM */
 #endif /* !NO_ASN && !NO_ASN_TIME */
+#ifndef NO_PKCS7_STREAM
+    word32 z;
+    int ret;
+#endif /* !NO_PKCS7_STREAM */
 
     XMEMSET(&hash, 0, sizeof(wc_HashAlg));
 
@@ -28594,7 +28697,9 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
     #ifdef ASN_BER_TO_DER
-        /* test setting stream mode */
+        encodeSignedDataStream strm;
+
+        /* test setting stream mode, the first one using IO callbacks */
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (testVectors + i)->cert,
                                     (word32)(testVectors + i)->certSz), 0);
         if (pkcs7 != NULL) {
@@ -28602,7 +28707,8 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->rng = &rng;
         #endif
 
-            pkcs7->content       = (byte*)(testVectors + i)->content;
+            if (i != 0)
+                pkcs7->content       = (byte*)(testVectors + i)->content;
             pkcs7->contentSz     = (testVectors + i)->contentSz;
             pkcs7->contentOID    = (testVectors + i)->contentOID;
             pkcs7->encryptOID    = (testVectors + i)->encryptOID;
@@ -28611,16 +28717,61 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->privateKey    = (testVectors + i)->privateKey;
             pkcs7->privateKeySz  = (testVectors + i)->privateKeySz;
         }
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1), 0);
 
-        ExpectIntGE(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
-            (word32)sizeof(output)), 0);
+        if (i == 0) {
+            XMEMSET(&strm, 0, sizeof(strm));
+            ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, GetContentCB,
+                StreamOutputCB, (void*)&strm), 0);
+            encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, NULL, 0);
+        }
+        else {
+            ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+            encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
+                (word32)sizeof(output));
+        }
 
-        decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-            (word32)encodedSz, decoded, (word32)sizeof(decoded));
-        ExpectIntGE(decodedSz, 0);
-        /* Verify the size of each buffer. */
-        ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+        switch ((testVectors + i)->encryptOID) {
+        #ifndef NO_DES3
+            case DES3b:
+            case DESb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef HAVE_AESCCM
+        #ifdef WOLFSSL_AES_128
+            case AES128CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+            case AES192CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+            case AES256CCMb:
+                ExpectIntEQ(encodedSz, BAD_FUNC_ARG);
+                break;
+        #endif
+        #endif
+            default:
+                ExpectIntGE(encodedSz, 0);
+        }
+
+        if (encodedSz > 0) {
+            if (i == 0) {
+                decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                    strm.out, (word32)encodedSz, decoded,
+                    (word32)sizeof(decoded));
+            }
+            else {
+                decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+                    (word32)encodedSz, decoded, (word32)sizeof(decoded));
+            }
+            ExpectIntGE(decodedSz, 0);
+            /* Verify the size of each buffer. */
+            ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+        }
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -54208,7 +54359,7 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
-#ifdef HAVE_PQC
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
             ":P256_KYBER_LEVEL1"
 #endif
 #endif
@@ -67347,7 +67498,7 @@ static int test_tls13_rpk_handshake(void)
     certType_s[1] = WOLFSSL_CERT_TYPE_X509;
     typeCnt_s = 2;
 
-    /*  both clien and server do not call client/server_cert_type APIs,
+    /*  both client and server do not call client/server_cert_type APIs,
      *  expecting default settings works and no negotiation performed.
      */
 
@@ -67368,6 +67519,9 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                             WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
+
+    (void)typeCnt_c;
+    (void)typeCnt_s;
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -67400,7 +67554,7 @@ static int test_tls13_rpk_handshake(void)
     certType_s[1] = WOLFSSL_CERT_TYPE_X509;
     typeCnt_s = 2;
 
-    /*  both clien and server do not call client/server_cert_type APIs,
+    /*  both client and server do not call client/server_cert_type APIs,
      *  expecting default settings works and no negotiation performed.
      */
 
@@ -67423,6 +67577,9 @@ static int test_tls13_rpk_handshake(void)
     ExpectIntEQ(wolfSSL_get_negotiated_server_cert_type(ssl_s, &tp),
                                                         WOLFSSL_SUCCESS);
     ExpectIntEQ(tp, WOLFSSL_CERT_TYPE_UNKNOWN);
+
+    (void)typeCnt_c;
+    (void)typeCnt_s;
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -67582,12 +67739,9 @@ static int test_tls13_rpk_handshake(void)
             svrKeyFile,      WOLFSSL_FILETYPE_PEM )
         , 0);
 
-    /* set client certificate type in client end */
-    certType_c[0] = WOLFSSL_CERT_TYPE_RPK;
-    certType_c[1] = WOLFSSL_CERT_TYPE_X509;
-    typeCnt_c = 2;
-
-    /* client indicates both RPK and x509 certs are available but loaded RPK
+    /* set client certificate type in client end
+     *
+     * client indicates both RPK and x509 certs are available but loaded RPK
      * cert only. It does not have client add client-cert-type extension in CH.
      */
     certType_c[0] = WOLFSSL_CERT_TYPE_RPK;

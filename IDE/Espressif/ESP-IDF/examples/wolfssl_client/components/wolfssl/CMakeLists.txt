@@ -158,8 +158,8 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
     idf_component_register(
                             REQUIRES "${COMPONENT_REQUIRES}"
                             PRIV_REQUIRES # esp_hw_support
-                                          esp_timer
-                                          driver # this will typically only be needed for wolfSSL benchmark
+                                          # esp_timer
+                                          # driver # this will typically only be needed for wolfSSL benchmark
                            )
 
 else()

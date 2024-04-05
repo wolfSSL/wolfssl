@@ -138,8 +138,7 @@ dist_example_DATA=
 
 ACLOCAL_AMFLAGS= -I m4
 
-EXTRA_DIST+= lib/dummy
-
+EXTRA_DIST+= .cyignore
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
 EXTRA_DIST+= wolfssl64.sln
@@ -152,7 +151,6 @@ EXTRA_DIST+= README
 EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
-EXTRA_DIST+= IPP
 EXTRA_DIST+= LPCExpresso.cproject
 EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc

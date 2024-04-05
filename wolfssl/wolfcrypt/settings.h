@@ -266,6 +266,11 @@
 /* #define WOLFSSL_MAXQ108X */
 
 #if defined(ARDUINO)
+    /* Due to limited build control, we'll ignore file warnings. */
+    /* See https://github.com/arduino/arduino-cli/issues/631     */
+    #undef  WOLFSSL_IGNORE_FILE_WARN
+    #define WOLFSSL_IGNORE_FILE_WARN
+
     /* we don't have the luxury of compiler options, so manually define */
     #if defined(__arm__)
         #undef  WOLFSSL_ARDUINO
@@ -301,22 +306,61 @@
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
-#define WOLFSSL_MAKE_FIPS_VERSION(major, minor) (((major) * 256) + (minor))
+/*------------------------------------------------------------*/
+#define WOLFSSL_MAKE_FIPS_VERSION3(major, minor, patch) \
+                                (((major) * 65536) + ((minor) * 256) + (patch))
+#define WOLFSSL_MAKE_FIPS_VERSION(major, minor) \
+                                  WOLFSSL_MAKE_FIPS_VERSION3(major, minor, 0)
+
 #if !defined(HAVE_FIPS)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(0,0)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(0,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(1,0)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(1,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION_MINOR)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,0)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
+#elif !defined(HAVE_FIPS_VERSION_PATCH)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION, \
+                                       HAVE_FIPS_VERSION_MINOR, 0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #else
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,HAVE_FIPS_VERSION_MINOR)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
+                                       HAVE_FIPS_VERSION_MINOR, \
+                                       HAVE_FIPS_VERSION_PATCH)
+    #define WOLFSSL_FIPS_VERSION2_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
+                                       HAVE_FIPS_VERSION_MINOR, \
+                                       0)
 #endif
 
-#define FIPS_VERSION_LT(major,minor) (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_LE(major,minor) (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_EQ(major,minor) (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_GE(major,minor) (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_GT(major,minor) (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_LT(major,minor) \
+           (WOLFSSL_FIPS_VERSION2_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_LE(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_EQ(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GE(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GT(major,minor) \
+           (WOLFSSL_FIPS_VERSION2_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+
+#define FIPS_VERSION3_LT(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_LE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_EQ(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_GE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_GT(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+/*------------------------------------------------------------*/
+
 
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
@@ -2003,6 +2047,7 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_DH_CONST
     #define WOLFSSL_HAVE_MAX
     #define NO_WRITEV
+    #define NO_STDLIB_ISASCII
 
     #define USE_FLAT_BENCHMARK_H
     #define USE_FLAT_TEST_H
@@ -3257,6 +3302,15 @@ extern void uITRON4_free(void *p) ;
 #define WOLFSSL_NO_KYBER1024
 #endif
 
+#if (defined(HAVE_LIBOQS) ||                                            \
+     defined(WOLFSSL_WC_KYBER) ||                                       \
+     defined(HAVE_LIBXMSS) ||                                           \
+     defined(HAVE_LIBLMS) ||                                            \
+     defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
+    !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
+
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
     !defined(WOLFSSL_HAVE_KYBER)
 #error Please do not define HAVE_PQC yourself.
@@ -3296,8 +3350,9 @@ extern void uITRON4_free(void *p) ;
     #define NO_SESSION_CACHE_REF
 #endif
 
-/* (D)TLS v1.3 requires 64-bit number wrappers */
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS)
+/* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
+    defined(WOLFSSL_WC_XMSS) || defined(WOLFSSL_WC_LMS)
     #undef WOLFSSL_W64_WRAPPER
     #define WOLFSSL_W64_WRAPPER
 #endif

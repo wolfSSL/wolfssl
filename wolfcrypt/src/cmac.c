@@ -460,7 +460,8 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
     Cmac cmac[1];
 #endif
 
-    if (check == NULL || (in == NULL && inSz > 0) || key == NULL || keySz == 0) {
+    if (check == NULL || checkSz == 0 || (in == NULL && inSz > 0) ||
+            key == NULL || keySz == 0) {
         return BAD_FUNC_ARG;
     }
 

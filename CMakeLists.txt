@@ -28,7 +28,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.6.6 LANGUAGES C ASM)
+project(wolfssl VERSION 5.7.0 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -42,16 +42,19 @@ else()
 endif()
 
 # shared library versioning
-# increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 42)
-# increment if source code has changed  set to zero if current is incremented
-set(LIBTOOL_REVISION 0)
-# increment if interfaces have been added set to zero if interfaces have been
-# removed or changed
-set(LIBTOOL_AGE 0)
+# increment if interfaces have been removed or changed
+set(WOLFSSL_LIBRARY_VERSION_FIRST 42)
 
-math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
-set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
+# increment if interfaces have been added
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
+set(WOLFSSL_LIBRARY_VERSION_SECOND 1)
+
+# increment if source code has changed
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
+# WOLFSSL_LIBRARY_VERSION_SECOND is incremented
+set(WOLFSSL_LIBRARY_VERSION_THIRD 0)
+
+set(LIBTOOL_FULL_VERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}.${WOLFSSL_LIBRARY_VERSION_SECOND}.${WOLFSSL_LIBRARY_VERSION_THIRD})
 
 set(WOLFSSL_DEFINITIONS)
 set(WOLFSSL_LINK_LIBS)
@@ -1213,6 +1216,14 @@ if(WOLFSSL_OPENSSH OR
     override_cache(WOLFSSL_DES3 "yes")
 endif()
 
+# DES3 TLS Suites
+set(WOLFSSL_DES3_TLS_SUITES_STRING "Enable DES3 TLS cipher suites (default: disabled)")
+add_option("WOLFSSL_DES3_TLS_SUITES" ${WOLFSSL_DES3_TLS_SUITES_STRING} "no" "yes;no")
+
+if(NOT WOLFSSL_DES3_TLS_SUITES)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_DES3_TLS_SUITES")
+endif()
+
 # ARC4
 set(WOLFSSL_ARC4_HELP_STRING "Enable ARC4 (default: disabled)")
 add_option("WOLFSSL_ARC4" ${WOLFSSL_ARC4_HELP_STRING} "no" "yes;no")
@@ -2210,7 +2221,7 @@ endif()
 
 set_target_properties(wolfssl
     PROPERTIES
-        SOVERSION ${LIBTOOL_SO_VERSION}
+        SOVERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}
         VERSION ${LIBTOOL_FULL_VERSION}
 )
 

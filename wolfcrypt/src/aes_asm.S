@@ -1095,12 +1095,13 @@ DECB_END_4:
 void AES_128_Key_Expansion_AESNI(const unsigned char* userkey,
    unsigned char* key_schedule);
 */
-.align  16,0x90
 #ifndef __APPLE__
 .globl AES_128_Key_Expansion_AESNI
+.align  16,0x90
 AES_128_Key_Expansion_AESNI:
 #else
 .globl _AES_128_Key_Expansion_AESNI
+.p2align  4
 _AES_128_Key_Expansion_AESNI:
 #endif
 # parameter 1: %rdi
@@ -1971,12 +1972,13 @@ DECB_END_4:
 void AES_128_Key_Expansion_AESNI(const unsigned char* userkey,
    unsigned char* key_schedule);
 */
-.align  16,0x90
 #ifndef __APPLE__
 .globl AES_128_Key_Expansion_AESNI
+.align  16,0x90
 AES_128_Key_Expansion_AESNI:
 #else
 .globl _AES_128_Key_Expansion_AESNI
+.p2align  4
 _AES_128_Key_Expansion_AESNI:
 #endif
         # parameter 1: stack[4] => %eax

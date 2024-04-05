@@ -128,6 +128,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
+#elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
+    #include "cyhal_trng.h" /* Infineon/Cypress HAL RNG implementation */
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
@@ -1648,7 +1650,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         seedSz = MAX_SEED_SZ;
     }
 
-    if (wc_RNG_HealthTestLocal(0, rng->heap, devId) == 0) {
+    ret = wc_RNG_HealthTestLocal(0, rng->heap, devId);
+    if (ret != 0) {
+        #if defined(DEBUG_WOLFSSL)
+        WOLFSSL_MSG_EX("wc_RNG_HealthTestLocal failed err = %d", ret);
+        #endif
+        ret = DRBG_CONT_FAILURE;
+    }
+    else {
     #ifndef WOLFSSL_SMALL_STACK
         byte seed[MAX_SEED_SZ];
     #else
@@ -1720,10 +1729,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(seed, rng->heap, DYNAMIC_TYPE_SEED);
     #endif
-    }
-    else {
-        ret = DRBG_CONT_FAILURE;
-    }
+    } /* else swc_RNG_HealthTestLocal was successful */
 
     if (ret == DRBG_SUCCESS) {
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -2227,15 +2233,31 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
         const byte* seedB = seedB_data;
         const byte* outputB = outputB_data;
 #endif
+#if defined(DEBUG_WOLFSSL)
+        WOLFSSL_MSG_EX("RNG_HEALTH_TEST_CHECK_SIZE = %d",
+                        RNG_HEALTH_TEST_CHECK_SIZE);
+        WOLFSSL_MSG_EX("sizeof(seedB_data)         = %d",
+                        (int)sizeof(outputB_data));
+#endif
         ret = wc_RNG_HealthTest_ex(0, NULL, 0,
                                    seedB, sizeof(seedB_data),
                                    NULL, 0,
                                    check, RNG_HEALTH_TEST_CHECK_SIZE,
                                    heap, devId);
-        if (ret == 0) {
-            if (ConstantCompare(check, outputB,
-                                RNG_HEALTH_TEST_CHECK_SIZE) != 0)
+        if (ret != 0) {
+            #if defined(DEBUG_WOLFSSL)
+            WOLFSSL_MSG_EX("RNG_HealthTest failed: err = %d", ret);
+            #endif
+        }
+        else {
+            ret = ConstantCompare(check, outputB,
+                                RNG_HEALTH_TEST_CHECK_SIZE);
+            if (ret != 0) {
+                #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG_EX("Random ConstantCompare failed: err = %d", ret);
+                #endif
                 ret = -1;
+            }
         }
 
         /* The previous test cases use a large seed instead of a seed and nonce.
@@ -3490,7 +3512,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             if (sz < len)
                 len = sz;
         /* Get an Arduino framework random number */
-        #if defined(__arm__)
+        #if defined(ARDUINO_SAMD_NANO_33_IOT) || \
+            defined(ARDUINO_ARCH_RP2040)
+            /* Known, tested boards working with random() */
+            rand = random();
+        #elif defined(ARDUINO_SAM_DUE)
             /* See: https://github.com/avrxml/asf/tree/master/sam/utils/cmsis/sam3x/include */
             #if defined(__SAM3A4C__)
                 #ifndef TRNG
@@ -3534,10 +3560,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             #warning "Not yet tested on STM32 targets"
             rand = random();
         #else
-            /* TODO: Pull requests appreciated for new targets */
-            #warning "Not yet tested on this target"
+            /* TODO: Pull requests appreciated for new targets.
+             * Do *all* other Arduino boards support random()?
+             * Probably not 100%, but most will likely work: */
             rand = random();
         #endif
+
             XMEMCPY(output, &rand, len);
             output += len;
             sz -= len;
@@ -3804,6 +3832,40 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             output += len;
         }
         return ret;
+    }
+
+#elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
+
+    /* Infineon/Cypress HAL RNG implementation */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        cyhal_trng_t obj;
+        cy_rslt_t result;
+        uint32_t val;
+        word32 i = 0;
+
+        (void)os;
+
+        result = cyhal_trng_init(&obj);
+        if (result == CY_RSLT_SUCCESS) {
+            while (i < sz) {
+                /* If not aligned or there is odd/remainder add single byte */
+                if( (i + sizeof(word32)) > sz ||
+                    ((wc_ptr_t)&output[i] % sizeof(word32)) != 0
+                ) {
+                    val = cyhal_trng_generate(&obj);
+                    output[i++] = (byte)val;
+                }
+                else {
+                    /* Use native 32 instruction */
+                    val = cyhal_trng_generate(&obj);
+                    *((uint32_t*)&output[i]) = val;
+                    i += sizeof(word32);
+                }
+            }
+            cyhal_trng_free(&obj);
+        }
+        return 0;
     }
 
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) || \

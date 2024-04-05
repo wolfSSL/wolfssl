@@ -32,7 +32,7 @@ if !BUILD_NO_LIBRARY
 lib_LTLIBRARIES+= src/libwolfssl@LIBSUFFIX@.la
 endif
 src_libwolfssl@LIBSUFFIX@_la_SOURCES =
-src_libwolfssl@LIBSUFFIX@_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${WOLFSSL_LIBRARY_VERSION}
+src_libwolfssl@LIBSUFFIX@_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-number ${WOLFSSL_LIBRARY_VERSION}
 src_libwolfssl@LIBSUFFIX@_la_LIBADD = $(LIBM) $(LIB_ADD) $(LIB_STATIC_ADD)
 src_libwolfssl@LIBSUFFIX@_la_CFLAGS = -DBUILDING_WOLFSSL $(AM_CFLAGS) -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(EXTRA_CFLAGS)\""
 src_libwolfssl@LIBSUFFIX@_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
@@ -79,21 +79,27 @@ if BUILD_SHA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha.c
 endif
 
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha256_asm.S
+endif
 endif
 
 if BUILD_SHA512
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif
 endif
 endif
 
 if BUILD_SHA3
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
+endif
 endif
 endif
 
@@ -202,9 +208,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha256-asm
 endif !BUILD_ARMASM_INLINE
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha256.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha256_asm.S
 endif BUILD_INTELASM
+endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
@@ -230,9 +238,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha512-asm
 endif !BUILD_ARMASM_INLINE
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512_asm.S
 endif BUILD_INTELASM
+endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif BUILD_SHA512
@@ -246,8 +256,10 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha3-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
+endif
 endif
 endif
 
@@ -328,9 +340,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha256-a
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha256-asm.S
 endif !BUILD_ARMASM_INLINE
 else
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha256_asm.S
 endif BUILD_INTELASM
+endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif !BUILD_FIPS_CURRENT
@@ -473,9 +487,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha512-asm
 endif !BUILD_ARMASM_INLINE
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512_asm.S
 endif BUILD_INTELASM
+endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif BUILD_SHA512
@@ -491,8 +507,10 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha3-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
+endif
 endif
 endif
 endif !BUILD_FIPS_CURRENT
@@ -535,8 +553,10 @@ endif !BUILD_FIPS_CURRENT
 if !BUILD_FIPS_CURRENT
 if BUILD_SM3
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm3.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm3_asm.S
+endif
 endif
 endif BUILD_SM3
 endif !BUILD_FIPS_CURRENT
@@ -602,8 +622,10 @@ if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-poly1305.c
 endif
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/poly1305.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/poly1305_asm.S
+endif
 endif
 endif
 
@@ -664,8 +686,10 @@ if BUILD_ARMASM_NEON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha_asm.S
+endif
 endif
 endif
 if BUILD_POLY1305
@@ -702,14 +726,17 @@ if !BUILD_FIPS_CURRENT
 if BUILD_WC_KYBER
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber_poly.c
+if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber_asm.S
+endif
 endif
 endif
 endif
 
 if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms_impl.c
 endif
 
 if BUILD_WC_XMSS
@@ -730,7 +757,9 @@ if BUILD_CURVE25519_SMALL
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
 if BUILD_INTELASM
+if !BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+endif !BUILD_X86_ASM
 else
 if BUILD_ARMASM
 if BUILD_ARMASM_NEON
@@ -766,7 +795,9 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ge_operations.c
 if !BUILD_FEMATH
 if BUILD_INTELASM
+if !BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+endif !BUILD_X86_ASM
 else
 if BUILD_ARMASM
 if BUILD_ARMASM_NEON

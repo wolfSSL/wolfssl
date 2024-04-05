@@ -2617,6 +2617,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 */
 int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
 {
+   int err = MP_OKAY;
 #if !defined(WOLFSSL_SP_MATH)
    DECL_MP_INT_SIZE_DYN(t1, mp_bitsused(modulus), MAX_ECC_BITS_USE);
    DECL_MP_INT_SIZE_DYN(t2, mp_bitsused(modulus), MAX_ECC_BITS_USE);
@@ -2626,7 +2627,6 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
    DECL_MP_INT_SIZE_DYN(rz, mp_bitsused(modulus), MAX_ECC_BITS_USE);
 #endif
    mp_int *x, *y, *z;
-   int    err;
 
    (void)ct;
 
@@ -2814,7 +2814,10 @@ done:
    }
 
    return err;
+   /* end !defined(WOLFSSL_SP_MATH) */
+
 #else
+   /* begin defined(WOLFSSL_SP_MATH) */
    if (P == NULL || modulus == NULL)
        return ECC_BAD_ARG_E;
 
@@ -2823,26 +2826,27 @@ done:
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
    if ((mp_count_bits(modulus) == 256) && (!mp_is_bit_set(modulus, 224))) {
-       return sp_ecc_map_sm2_256(P->x, P->y, P->z);
+       err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
    }
-#endif
-#ifndef WOLFSSL_SP_NO_256
+#elif defined(WOLFSSL_SP_NO_256)
    if (mp_count_bits(modulus) == 256) {
-       return sp_ecc_map_256(P->x, P->y, P->z);
+       err = sp_ecc_map_256(P->x, P->y, P->z);
    }
-#endif
-#ifdef WOLFSSL_SP_384
+#elif defined(WOLFSSL_SP_384)
    if (mp_count_bits(modulus) == 384) {
-       return sp_ecc_map_384(P->x, P->y, P->z);
+       err = sp_ecc_map_384(P->x, P->y, P->z);
    }
-#endif
-#ifdef WOLFSSL_SP_521
+#elif defined(WOLFSSL_SP_521)
    if (mp_count_bits(modulus) == 521) {
-       return sp_ecc_map_521(P->x, P->y, P->z);
+       err = sp_ecc_map_521(P->x, P->y, P->z);
    }
+#else
+   err = ECC_BAD_ARG_E;
 #endif
-   return ECC_BAD_ARG_E;
-#endif
+
+   WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
+   return err;
+#endif /* WOLFSSL_SP_MATH */
 }
 #endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
 
@@ -4011,6 +4015,7 @@ static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
 #ifndef ALT_ECC_SIZE
    err = mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL);
    if (err != MP_OKAY) {
+      WOLFSSL_MSG("mp_init_multi failed.");
    #ifndef WOLFSSL_NO_MALLOC
       XFREE(p, heap, DYNAMIC_TYPE_ECC);
    #endif
@@ -4028,13 +4033,15 @@ static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
    *point = p;
    (void)heap;
    return err;
-}
+} /* wc_ecc_new_point_ex */
+
 ecc_point* wc_ecc_new_point_h(void* heap)
 {
     ecc_point* p = NULL;
     (void)wc_ecc_new_point_ex(&p, heap);
     return p;
 }
+
 ecc_point* wc_ecc_new_point(void)
 {
    ecc_point* p = NULL;
@@ -4272,8 +4279,11 @@ static int wc_ecc_cmp_param(const char* curveParam,
     if (param == NULL || curveParam == NULL)
         return BAD_FUNC_ARG;
 
-    if (encType == WC_TYPE_HEX_STR)
-        return XSTRNCMP(curveParam, (char*) param, paramSz);
+    if (encType == WC_TYPE_HEX_STR) {
+        if ((word32)XSTRLEN(curveParam) != paramSz)
+            return -1;
+        return (XSTRNCMP(curveParam, (char*) param, paramSz) == 0) ? 0 : -1;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);

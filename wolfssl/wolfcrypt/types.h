@@ -430,6 +430,9 @@ typedef struct w64wrapper {
 
     #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
 
+    #define WC_SAFE_SUM_WORD32(in1, in2, out) ((in2) <= 0xffffffffU - (in1) ? \
+                ((out) = (in1) + (in2), 1) : ((out) = 0xffffffffU, 0))
+
     /* idea to add global alloc override by Moises Guimaraes  */
     /* default to libc stuff */
     /* XREALLOC is used once in normal math lib, not in fast math lib */
@@ -1052,6 +1055,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SPHINCS      = 98,
         DYNAMIC_TYPE_SM4_BUFFER   = 99,
         DYNAMIC_TYPE_DEBUG_TAG    = 100,
+        DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
         DYNAMIC_TYPE_SNIFFER_PB          = 1002,

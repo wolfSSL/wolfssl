@@ -34,7 +34,7 @@ jobs:
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 6
+    timeout-minutes: 10
     needs: build_wolfssl
     steps:
       - name: Download lib
@@ -50,10 +50,14 @@ jobs:
                      linux-libc-dev man2html libcmocka-dev python3-docutils \
                      libtool automake autoconf libnl-genl-3-dev libnl-genl-3-200
 
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
       - if: ${{ matrix.ref != 'master' }}
         name: Build and test openvpn with fsanitize
         run: |
-          echo 'extra_c_flags=CFLAGS="-fsanitize=address -fno-omit-frame-pointer -O2"' >> $GITHUB_ENV
+          echo 'extra_c_flags=CC="gcc -fsanitize=address" CFLAGS="-fno-omit-frame-pointer -O2"' >> $GITHUB_ENV
 
       - name: Build and test openvpn
         uses: wolfSSL/actions-build-autotools-project@v1

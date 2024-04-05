@@ -3089,8 +3089,8 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
     return size;
 }
 
-static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
-                                                                 byte isRequest)
+static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
+                          byte isRequest)
 {
     /* shut up compiler warnings */
     (void) csr; (void) output; (void) isRequest;
@@ -3119,6 +3119,9 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                     if (ret > 0) {
                         length = (word16)ret;
                     }
+                    else {
+                        return ret;
+                    }
                 }
 
                 c16toa(length, output + offset);
@@ -3127,7 +3130,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
             break;
         }
 
-        return offset;
+        return (int)offset;
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
@@ -3555,7 +3558,7 @@ static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
     return size;
 }
 
-static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
+static int TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                                                    byte* output, byte isRequest)
 {
     /* shut up compiler warnings */
@@ -3600,6 +3603,9 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                         if (ret > 0) {
                             length = (word16)ret;
                         }
+                        else {
+                            return ret;
+                        }
                     }
 
                     c16toa(length, output + offset);
@@ -3611,7 +3617,7 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
         /* list size */
         c16toa(offset - OPAQUE16_LEN, output);
 
-        return offset;
+        return (int)offset;
     }
 #endif
 
@@ -7474,7 +7480,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->key = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap, DYNAMIC_TYPE_ECC);
         if (kse->key == NULL) {
             WOLFSSL_MSG_EX("Failed to allocate %d bytes, ssl->heap: %p",
-                           (int)sizeof(ecc_key), (uintptr_t)ssl->heap);
+                           (int)sizeof(ecc_key), (wc_ptr_t)ssl->heap);
             WOLFSSL_MSG("EccTempKey Memory error!");
             return MEMORY_E;
         }
@@ -8431,7 +8437,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         XMEMCPY(ssl->arrays->preMasterSecret, keyShareEntry->ke,
                 keyShareEntry->keLen);
         ssl->arrays->preMasterSz = keyShareEntry->keLen;
-        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_SECRET)
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_SECRET);
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
         return 0;
@@ -9577,7 +9583,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
             case WOLFSSL_CKS_SIGSPEC_EXTERNAL:
             default:
                 /* All other values (including external) are not. */
-                return WOLFSSL_NOT_IMPLEMENTED;
+                return BAD_FUNC_ARG;
         }
     }
 
@@ -9612,7 +9618,7 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
         for (j = 0; j < length; j++) {
             if (ssl->sigSpec[i] == input[j]) {
                 /* Got the match, set to this one. */
-                ret = wolfSSL_UseCKS(ssl, &ssl->peerSigSpec[i], 1);
+                ret = wolfSSL_UseCKS(ssl, &ssl->sigSpec[i], 1);
                 if (ret == WOLFSSL_SUCCESS) {
                     ret = TLSX_UseCKS(&ssl->extensions, ssl, ssl->heap);
                     TLSX_SetResponse(ssl, TLSX_CKS);
@@ -11206,8 +11212,10 @@ static int TLSX_ClientCertificateType_GetSize(WOLFSSL* ssl, byte msgType)
         ret = (int)(OPAQUE8_LEN + cnt * OPAQUE8_LEN);
     }
     else if (msgType == server_hello || msgType == encrypted_extensions) {
-        /* sever side */
+        /* server side */
         cnt = ssl->options.rpkState.sending_ClientCertTypeCnt;/* must be one */
+        if (cnt != 1)
+            return SANITY_MSG_E;
         ret = OPAQUE8_LEN;
     }
     else {
@@ -12614,15 +12622,23 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension to write");
-                offset += CSR_WRITE((CertificateStatusRequest*)extension->data,
+                ret = CSR_WRITE((CertificateStatusRequest*)extension->data,
                         output + offset, isRequest);
+                if (ret > 0) {
+                    offset += (word16)ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
                 WOLFSSL_MSG("Certificate Status Request v2 extension to write");
-                offset += CSR2_WRITE(
+                ret = CSR2_WRITE(
                         (CertificateStatusRequestItemV2*)extension->data,
                         output + offset, isRequest);
+                if (ret > 0) {
+                    offset += (word16)ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -13327,7 +13343,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             else
         #endif
             if (ssl->options.client_psk_cb != NULL ||
-                                     ssl->options.client_psk_tls13_cb != NULL) {
+                ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default cipher suite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
@@ -13349,42 +13365,40 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                 }
-        #if defined(OPENSSL_EXTRA)
-                /* OpenSSL treats 0 as a PSK key length of 0
-                 * and meaning no PSK available.
-                 */
-                if (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                    return PSK_KEY_ERROR;
+                if (
+                #ifdef OPENSSL_EXTRA
+                    /* OpenSSL treats a PSK key length of 0
+                     * to indicate no PSK available.
+                     */
+                    ssl->arrays->psk_keySz == 0 ||
+                #endif
+                         (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+                     (int)ssl->arrays->psk_keySz != USE_HW_PSK)) {
+                #ifndef OPENSSL_EXTRA
+                    ret = PSK_KEY_ERROR;
+                #endif
                 }
-                if (ssl->arrays->psk_keySz > 0) {
-        #else
-                if (ssl->arrays->psk_keySz == 0 ||
-                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                    return PSK_KEY_ERROR;
-                }
-        #endif
-                ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+                else {
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
 
-                ssl->options.cipherSuite0 = cipherSuite0;
-                ssl->options.cipherSuite  = cipherSuite;
-                (void)cipherSuiteFlags;
-                ret = SetCipherSpecs(ssl);
+                    ssl->options.cipherSuite0 = cipherSuite0;
+                    ssl->options.cipherSuite  = cipherSuite;
+                    (void)cipherSuiteFlags;
+                    ret = SetCipherSpecs(ssl);
+                    if (ret == 0) {
+                        ret = TLSX_PreSharedKey_Use(
+                            &ssl->extensions,
+                                     (byte*)ssl->arrays->client_identity,
+                            (word16)XSTRLEN(ssl->arrays->client_identity),
+                            0, ssl->specs.mac_algorithm,
+                            cipherSuite0, cipherSuite, 0,
+                            NULL, ssl->heap);
+                    }
+                    if (ret == 0)
+                        usingPSK = 1;
+                }
                 if (ret != 0)
                     return ret;
-
-                ret = TLSX_PreSharedKey_Use(&ssl->extensions,
-                                  (byte*)ssl->arrays->client_identity,
-                                  (word16)XSTRLEN(ssl->arrays->client_identity),
-                                  0, ssl->specs.mac_algorithm,
-                                  cipherSuite0, cipherSuite, 0,
-                                  NULL, ssl->heap);
-                if (ret != 0)
-                    return ret;
-
-                usingPSK = 1;
-        #if defined(OPENSSL_EXTRA)
-                }
-        #endif
             }
     #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -13558,7 +13572,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
 #endif
 
 /** Tells the buffered size of extensions to be sent into the client hello. */
-int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
+int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 {
     int ret = 0;
     word16 length = 0;
@@ -13788,7 +13802,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
 #endif
 
 /** Writes the extensions to be sent into the client hello. */
-int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
+int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
 {
     int ret = 0;
     word16 offset = 0;

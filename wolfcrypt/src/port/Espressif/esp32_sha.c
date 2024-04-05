@@ -128,7 +128,7 @@ static const char* TAG = "wolf_hw_sha";
     #ifdef WOLFSSL_DEBUG_MUTEX
         static portMUX_TYPE sha_crit_sect = portMUX_INITIALIZER_UNLOCKED;
         WC_ESP32SHA* stray_ctx;
-        /* each ctx keeps track of the intializer for HW. when debugging
+        /* each ctx keeps track of the initializer for HW. when debugging
          * we'll have a global variable to indicate which has the lock. */
         static int _sha_lock_count = 0;
         static int _sha_call_count = 0;
@@ -227,10 +227,13 @@ int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type)
 #if defined(CONFIG_IDF_TARGET_ESP32) || \
     defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
     switch (hash_type) { /* check each wolfSSL hash type WC_[n] */
+
+        #ifndef NO_SHA
         case WC_HASH_TYPE_SHA:
             ctx->sha_type = SHA1; /* assign Espressif SHA HW type */
             ret = esp_sha_init_ctx(ctx);
             break;
+        #endif
 
         case WC_HASH_TYPE_SHA224:
         #if defined(CONFIG_IDF_TARGET_ESP32S2) || \
@@ -333,7 +336,6 @@ int esp_sha_init(WC_ESP32SHA* ctx, enum wc_HashType hash_type)
     return ret;
 }
 
-#ifndef NO_SHAx /* TODO cannot currently turn off SHA */
 /* we'll call a separate init as there's only 1 HW acceleration */
 int esp_sha_init_ctx(WC_ESP32SHA* ctx)
 {
@@ -522,6 +524,7 @@ int esp_sha_init_ctx(WC_ESP32SHA* ctx)
                     * We assume all issues handled, above. */
 } /* esp_sha_init_ctx */
 
+#ifndef NO_SHA
 /*
 ** internal SHA ctx copy for ESP HW
 */
@@ -1127,7 +1130,7 @@ int esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx)
         #ifdef WOLFSSL_DEBUG_MUTEX
             ESP_LOGE(TAG, "\n>>>> esp_sha_release_unfinished_lock %x\n", ret);
         #endif
-            /* unlock only if this ctx is the intializer of the lock */
+            /* unlock only if this ctx is the initializer of the lock */
         #ifdef SINGLE_THREADED
         {
             ret = esp_sha_hw_unlock(ctx);

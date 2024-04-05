@@ -174,6 +174,10 @@ jobs:
         run: |
           echo "nginx_c_flags=-O0" >> $GITHUB_ENV
 
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
       - name: Build nginx with sanitizer
         working-directory: nginx
         run: |

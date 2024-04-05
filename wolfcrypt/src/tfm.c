@@ -1104,9 +1104,9 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
 
    bmax = ((unsigned int)b + DIGIT_BIT - 1) / DIGIT_BIT;
 
-   /* If a is negative and bmax is larger than FP_SIZE, then the
+   /* If a is negative and bmax is greater than or equal to FP_SIZE, then the
     * result can't fit within c. Just return. */
-   if (c->sign == FP_NEG && bmax > FP_SIZE) {
+   if (c->sign == FP_NEG && bmax >= FP_SIZE) {
       return;
    }
 
@@ -6092,13 +6092,13 @@ int mp_montgomery_setup(fp_int *a, fp_digit *rho)
 
 #endif /* HAVE_ECC || (!NO_RSA && WC_RSA_BLINDING) */
 
-#ifdef HAVE_ECC
-
 /* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
     return fp_sqr(A, B);
 }
+
+#ifdef HAVE_ECC
 
 /* fast math conversion */
 int mp_div_2(fp_int * a, fp_int * b)

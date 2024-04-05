@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
-
+#include <wolfssl/wolfcrypt/sha256.h>
 #ifdef WOLFSSL_PREFIX
 #include "prefix_sha.h"
 #endif
@@ -151,7 +151,7 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
  * to Sha256, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA256_CTX {
     /* big enough to hold wolfcrypt Sha256, but check on init */
-    ALIGN16 void* holder[(274 + CTX_SHA_HW_ADDER + WC_ASYNC_DEV_SIZE) /
+    ALIGN16 void* holder[sizeof(wc_Sha256) /
         sizeof(void*)];
 #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     ALIGN16 void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
