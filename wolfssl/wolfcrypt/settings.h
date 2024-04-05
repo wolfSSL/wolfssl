@@ -306,22 +306,61 @@
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
-#define WOLFSSL_MAKE_FIPS_VERSION(major, minor) (((major) * 256) + (minor))
+/*------------------------------------------------------------*/
+#define WOLFSSL_MAKE_FIPS_VERSION3(major, minor, patch) \
+                                (((major) * 65536) + ((minor) * 256) + (patch))
+#define WOLFSSL_MAKE_FIPS_VERSION(major, minor) \
+                                  WOLFSSL_MAKE_FIPS_VERSION3(major, minor, 0)
+
 #if !defined(HAVE_FIPS)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(0,0)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(0,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(1,0)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(1,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION_MINOR)
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,0)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
+#elif !defined(HAVE_FIPS_VERSION_PATCH)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION, \
+                                       HAVE_FIPS_VERSION_MINOR, 0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #else
-    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,HAVE_FIPS_VERSION_MINOR)
+    #define WOLFSSL_FIPS_VERSION_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
+                                       HAVE_FIPS_VERSION_MINOR, \
+                                       HAVE_FIPS_VERSION_PATCH)
+    #define WOLFSSL_FIPS_VERSION2_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
+                                       HAVE_FIPS_VERSION_MINOR, \
+                                       0)
 #endif
 
-#define FIPS_VERSION_LT(major,minor) (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_LE(major,minor) (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_EQ(major,minor) (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_GE(major,minor) (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
-#define FIPS_VERSION_GT(major,minor) (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_LT(major,minor) \
+           (WOLFSSL_FIPS_VERSION2_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_LE(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_EQ(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GE(major,minor) \
+          (WOLFSSL_FIPS_VERSION2_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GT(major,minor) \
+           (WOLFSSL_FIPS_VERSION2_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+
+#define FIPS_VERSION3_LT(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_LE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_EQ(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_GE(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+#define FIPS_VERSION3_GT(major,minor,patch) \
+    (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
+/*------------------------------------------------------------*/
+
 
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
