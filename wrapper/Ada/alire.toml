@@ -1,4 +1,4 @@
-name = "wolfss_ada"
+name = "wolfssl_ada"
 description = "WolfSSL encryption library and its Ada bindings"
 version = "5.7.0-dev"
 
