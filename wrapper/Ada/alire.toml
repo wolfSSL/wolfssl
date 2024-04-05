@@ -1,0 +1,15 @@
+name = "wolfss_ada"
+description = "WolfSSL encryption library and its Ada bindings"
+version = "5.7.0-dev"
+
+authors = ["Fernando Oleo Blanco"]
+maintainers = ["Fernando Oleo Blanco <irvise@irvise.xyz>"]
+maintainers-logins = ["Irvise"]
+licenses = "GPL-2.0-only"
+website = "https://www.wolfssl.com/"
+project-files = ["wolfssl.gpr"]
+tags = ["ssl", "tls", "embedded", "spark"]
+
+#[origin]
+#url="https://github.com/wolfSSL/wolfssl/releases/download/v5.6.6-stable/wolfssl-5.6.6.zip"
+#hashes=['sha512:2d95d333c0b092dd7eface1b20221c33787cc847af11848c1eb845c5bd46e167b142cea09096c4981db94f8705f3e8499c2def2c6a648468e98442ba7b43c015']
