@@ -4238,7 +4238,7 @@ typedef struct Sch13Args {
     byte*  output;
     word32 idx;
     int    sendSz;
-    word16 length;
+    word32 length;
 #if defined(HAVE_ECH)
     int clientRandomOffset;
     int preXLength;
@@ -7626,7 +7626,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    ret;
     int    sendSz;
     word32 i;
-    word16 reqSz;
+    word32 reqSz;
     word16 hashSigAlgoSz = 0;
     SignatureAlgorithms* sa;
     int haveSig = SIG_RSA | SIG_ECDSA | SIG_FALCON | SIG_DILITHIUM;
@@ -8922,7 +8922,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-                ret = DecodePrivateKey(ssl, (word16*)&args->sigLen);
+                ret = DecodePrivateKey(ssl, &args->sigLen);
                 if (ret != 0)
                     goto exit_scv;
             }
@@ -9024,7 +9024,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                 /* After this call, args->altSigLen has the length we need for
                  * the alternative signature. */
-                ret = DecodeAltPrivateKey(ssl, (word16*)&args->altSigLen);
+                ret = DecodeAltPrivateKey(ssl, &args->altSigLen);
                 if (ret != 0)
                     goto exit_scv;
 
@@ -9639,8 +9639,8 @@ typedef struct Dcv13Args {
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     byte   altSigAlgo;
     byte*  altSigData;
-    word16 altSigDataSz;
-    word16 altSignatureSz;
+    word32 altSigDataSz;
+    word32 altSignatureSz;
     byte   altPeerAuthGood;
 #endif
 } Dcv13Args;
@@ -10065,10 +10065,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * with their size as 16-bit integeter prior in memory. Hence,
                  * we can decode both lengths here now. */
                 word32 tmpIdx = args->idx;
-                ato16(input + tmpIdx, (word16*)&args->sigSz);
+                ato32(input + tmpIdx, &args->sigSz);
 
                 tmpIdx += OPAQUE16_LEN + args->sigSz;
-                ato16(input + tmpIdx, (word16*)&args->altSignatureSz);
+                ato32(input + tmpIdx, &args->altSignatureSz);
 
                 if (args->sz != (args->sigSz + args->altSignatureSz +
                                     OPAQUE16_LEN + OPAQUE16_LEN)) {

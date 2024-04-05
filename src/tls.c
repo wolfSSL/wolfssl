@@ -13570,7 +13570,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
 #endif
 
 /** Tells the buffered size of extensions to be sent into the client hello. */
-int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
+int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 {
     int ret = 0;
     word16 length = 0;
@@ -13800,7 +13800,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
 #endif
 
 /** Writes the extensions to be sent into the client hello. */
-int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
+int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
 {
     int ret = 0;
     word16 offset = 0;
