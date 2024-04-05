@@ -2175,9 +2175,9 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
                                        void* heap, int devId);
 #endif
-WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
+WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* length);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word16* length);
+WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word32* length);
 #endif
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
@@ -2988,9 +2988,9 @@ WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType,
-                                         word16* pLength);
+                                         word32* pLength);
 WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
-                                       byte msgType, word16* pOffset);
+                                       byte msgType, word32* pOffset);
 #endif
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
