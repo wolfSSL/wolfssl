@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2023 wolfSSL Inc.
+# Copyright (C) 2006-2024 wolfSSL Inc.
 #
 # This file is part of wolfSSL.
 #
@@ -56,13 +56,15 @@ CFLAGS +=-DWOLFSSL_USER_SETTINGS
 # The root is 7 directories up from here:
 WOLFSSL_ROOT := ../../../../../../..
 
-# NOTE: The wolfSSL include diretory (e.g. user_settings.h) is
+# NOTE: The wolfSSL include directory (e.g. user_settings.h) is
 # located HERE in THIS project, and *not* in the wolfSSL root.
-COMPONENT_ADD_INCLUDEDIRS := ./include
+COMPONENT_ADD_INCLUDEDIRS := .
+COMPONENT_ADD_INCLUDEDIRS += include
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/.
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt/port/Espressif
+COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)wolfssl/wolfcrypt/port/Espressif
 # COMPONENT_ADD_INCLUDEDIRS += $ENV(IDF_PATH)/components/freertos/include/freertos
 # COMPONENT_ADD_INCLUDEDIRS += "$ENV(IDF_PATH)/soc/esp32s3/include/soc"
 
@@ -142,15 +144,15 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed25519.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed448.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/error.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/evp.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_kyber.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)wolfcrypt/src/ext_kyber.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_lms.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_xmss.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/falcon.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fe_448.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fe_low_mem.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fe_operations.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fips.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fips_test.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fips.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/fips_test.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ge_448.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ge_low_mem.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ge_operations.o
@@ -223,6 +225,9 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp32_aes.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp32_mp.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp32_sha.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp32_util.o
+COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp_sdk_mem_lib.o
+COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp_sdk_time_lib.o
+COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.o
 
 ##
 ## wolfcrypt benchmark  (optional)
@@ -242,3 +247,4 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp32_util.o
 ## wolfcrypt
 ##
 # COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
+COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)wolfcrypt/src

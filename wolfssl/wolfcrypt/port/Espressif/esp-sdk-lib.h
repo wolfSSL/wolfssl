@@ -1,4 +1,4 @@
-/* wifi_connect.h
+/* esp-sdk-lib.h
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *
@@ -18,20 +18,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#ifndef _WIFI_CONNECT_H_
-#define _WIFI_CONNECT_H_
+#ifndef __ESP_SDK_LIB_H__
 
-/* ESP lwip */
-#define EXAMPLE_ESP_MAXIMUM_RETRY       CONFIG_ESP_MAXIMUM_RETRY
+#define __ESP_SDK_LIB_H__
 
-#define TLS_SMP_WIFI_SSID                CONFIG_WIFI_SSID
-#define TLS_SMP_WIFI_PASS                CONFIG_WIFI_PASSWORD
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.      */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here.   */
+#include <wolfssl/wolfcrypt/settings.h>
 
-#define USE_WIFI_EXAMPLE
-#ifdef USE_WIFI_EXAMPLE
-    #include "esp_netif.h"
-    #include "protocol_examples_common.h" /* see project CMakeLists.txt */
+#if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF   */
+
+/* WOLFSSL_USER_SETTINGS must be defined, typically in the CMakeLists.txt: */
+/*    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")        */
+#ifndef WOLFSSL_USER_SETTINGS
+    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
 #endif
+
+/* FreeRTOS */
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
+
+/* Espressif */
+#include "sdkconfig.h" /* ensure ESP-IDF settings are available everywhere */
+#include <esp_idf_version.h>
+#include <esp_log.h>
+
+#define ESP_SDK_MEM_LIB_VERSION 1
 
 /**
  ******************************************************************************
@@ -106,7 +119,8 @@
         /* tyically from ESP32 with ESP-IDF v4 ot v5 */
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
     #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
-        /* tyically from ESP8266 rtos-sdk/v3.4 */
+        /* typically from ESP8266 rtos-sdk/v3.4 */
+        #undef  EXAMPLE_ESP_WIFI_SSID
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_EXAMPLE_WIFI_SSID
     #else
         #define EXAMPLE_ESP_WIFI_SSID "MYSSID_WIFI_CONNECT"
@@ -116,18 +130,100 @@
         /* tyically from ESP32 with ESP-IDF v4 or v5 */
         #define EXAMPLE_ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
     #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
-        /* tyically from ESP8266 rtos-sdk/v3.4 */
+        /* typically from ESP8266 rtos-sdk/v3.4 */
+        #undef  EXAMPLE_ESP_WIFI_PASS
         #define EXAMPLE_ESP_WIFI_PASS CONFIG_EXAMPLE_WIFI_PASSWORD
     #else
         #define EXAMPLE_ESP_WIFI_PASS "MYPASSWORD_WIFI_CONNECT"
     #endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+WOLFSSL_LOCAL esp_err_t esp_sdk_time_mem_init(void);
+
+WOLFSSL_LOCAL esp_err_t sdk_var_whereis(const char* v_name, void* v);
+
+WOLFSSL_LOCAL intptr_t esp_sdk_stack_pointer(void);
+
+/******************************************************************************
+* Time helpers
+******************************************************************************/
+WOLFSSL_LOCAL esp_err_t esp_sdk_time_lib_init(void);
+
+/* a function to show the current data and time */
+WOLFSSL_LOCAL esp_err_t esp_show_current_datetime(void);
+
+/* worst case, if GitHub time not available, used fixed time */
+WOLFSSL_LOCAL esp_err_t set_fixed_default_time(void);
+
+/* set time from string (e.g. GitHub commit time) */
+WOLFSSL_LOCAL esp_err_t set_time_from_string(const char* time_buffer);
+
+/* set time from NTP servers,
+ * also initially calls set_fixed_default_time or set_time_from_string */
+WOLFSSL_LOCAL esp_err_t set_time(void);
+
+/* wait NTP_RETRY_COUNT seconds before giving up on NTP time */
+WOLFSSL_LOCAL esp_err_t set_time_wait_for_ntp(void);
+
+#ifndef NO_ESP_SDK_WIFI
+
+/******************************************************************************
+* WiFi helpers
+******************************************************************************/
+/* ESP lwip */
+#define EXAMPLE_ESP_MAXIMUM_RETRY       CONFIG_ESP_MAXIMUM_RETRY
+
+#define TLS_SMP_WIFI_SSID                CONFIG_WIFI_SSID
+#define TLS_SMP_WIFI_PASS                CONFIG_WIFI_PASSWORD
+
+/* Optionally enable WiFi. Typically not used for wolfcrypt tests */
+/* #define USE_WIFI_EXAMPLE */
+#ifdef USE_WIFI_EXAMPLE
+    #include "esp_netif.h"
+    #if defined(CONFIG_IDF_TARGET_ESP8266)
+        /* TODO find and implement ESP8266 example include */
+    #else
+        #include "protocol_examples_common.h" /* see project CMakeLists.txt */
+    #endif
+#endif
+
+
 /* ESP lwip */
 #define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
 
-int wifi_init_sta(void);
+WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_lib_init(void);
 
-int wifi_show_ip(void);
+WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_init_sta(void);
 
-#endif /* _WIFI_CONNECT_H_ */
+WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_show_ip(void);
+
+#endif /* !NO_ESP_SDK_WIFI */
+
+
+/******************************************************************************
+* Debug helpers
+******************************************************************************/
+WOLFSSL_LOCAL esp_err_t sdk_init_meminfo(void);
+WOLFSSL_LOCAL void* wc_debug_pvPortMalloc(size_t size,
+                                const char* file, int line, const char* fname);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+/* Check for traps */
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    #if !defined(NO_SESSION_CACHE)    && \
+        !defined(MICRO_SESSION_CACHE) && \
+        !defined(SMALL_SESSION_CACHE)
+        #warning "Limited DRAM/IRAM on ESP8266. Check session cache settings"
+    #endif
+#endif
+
+#endif /* WOLFSSL_ESPIDF */
+
+#endif /* __ESP_SDK_LIB_H__ */

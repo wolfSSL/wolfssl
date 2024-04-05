@@ -68,6 +68,19 @@ Linux Server
 ./examples/server/server                   -v 4 -l TLS13-SM4-CCM-SM3 -c ./certs/sm2/server-sm2.pem -k ./certs/sm2/server-sm2-priv.pem -A ./certs/sm2/client-sm2.pem -V
 ```
 
+#### ESP32 Client to WSL Linux Server
+
+In Windows Powershell, (elevated permissions) forward the port _after_ starting the listening server:
+
+```bash
+netsh interface portproxy add v4tov4 listenport=11111 listenaddress=0.0.0.0 connectport=11111 connectaddress=127.0.0.1
+```
+
+After the server exits, remove the port proxy forward:
+
+```bash
+netsh interface portproxy delete v4tov4 listenport=11111 listenaddress=0.0.0.0
+```
 
 Cipers to consider
 

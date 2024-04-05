@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -234,24 +234,15 @@ void app_main(void)
 
     /* done */
     while (1) {
-        ESP_LOGV(TAG, "\n\nLoop...\n\n");
-#ifdef INCLUDE_uxTaskGetStackHighWaterMark
-        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
-
-        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                     - uxTaskGetStackHighWaterMark(NULL));
-        ESP_LOGI(TAG, "Stack delta: %d\n", stack_start
-                                     - uxTaskGetStackHighWaterMark(NULL));
-#endif
 
 #if defined(SINGLE_THREADED)
         ESP_LOGV(TAG, "\n\nDone!\n\n");
         while (1);
 #else
-        vTaskDelay(60000);
+        /* Delete this main task to free up memory */
         ESP_LOGV(TAG, "\n\nvTaskDelete...\n\n");
         vTaskDelete(NULL);
 #endif
-    } /* done whle */
+    } /* done while */
 
 } /* app_main */

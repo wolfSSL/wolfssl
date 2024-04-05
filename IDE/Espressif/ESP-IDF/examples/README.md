@@ -10,9 +10,9 @@ These are the core examples for wolfSSL:
 
 - [Test](./wolfssl_test/README.md)
 
-- [TLS Client](./wolfssl_client/README.md)
+- [TLS Client](./wolfssl_client/README.md). See also [CLI Client](https://github.com/wolfSSL/wolfssl/tree/master/examples/client) and [more TLS examples](https://github.com/wolfSSL/wolfssl-examples/tree/master/tls).
 
-- [TLS Server](./wolfssl_server/README.md)
+- [TLS Server](./wolfssl_server/README.md). See also [CLI Server](https://github.com/wolfSSL/wolfssl/tree/master/examples/server) 
 
 ## Other Espressif wolfSSL Examples
 

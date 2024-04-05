@@ -70,6 +70,29 @@ To view disassembly, add `__attribute__((section(".iram1")))` decorator. Foe exa
 static int __attribute__((section(".iram1"))) memblock_peek(volatile u_int32_t mem_address)
 ```
 
+### VisualGDB
+
+Each project example has a `VisuaGDB` directory with sample project files for [Sysprogs VisualGDB](https://visualgdb.com).
+
+For installing multiple toolchains, see the [documentation](https://visualgdb.com/documentation/espidf/).
+
+The library naming format used at wolfSSL:
+
+```
+HKEY_CURRENT_USER\Software\Sysprogs\GNUToolchains
+```
+
+| Registry String Value Name       | Value Data             |
+| -------------------------------- |----------------------- |
+| `SysGCC-xtensa-lx106-elf-8.4.0`  | `C:\SysGCC\esp8266`    |
+| `SysGCC-xtensa-esp32-elf-8.4.0`  | `C:\SysGCC\esp32-8.4`  |
+| `SysGCC-xtensa-esp32-elf-13.2.0` | `C:\SysGCC\esp32`      |
+| `SysGCC-xtensa-esp32-elf-12.4.0` | `C:\SysGCC\esp32-12.4` |
+| `SysGCC-xtensa-esp32-elf-11.2.0` | `C:\SysGCC\esp32-11.2` |
+
+Note the latest toolchain value is the default install name of `C:\SysGCC\esp32`.
+
+
 ### Benchmarks
 
 w/ `USE_FAST_MATH` and `WOLFSSL_SMALL_STACK` options

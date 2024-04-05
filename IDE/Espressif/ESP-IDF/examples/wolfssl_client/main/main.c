@@ -124,6 +124,7 @@ void my_atmel_free(int slotId)
 void app_main(void)
 {
     int stack_start = 0;
+    int this_heap = 0;
     esp_err_t ret = 0;
     ESP_LOGI(TAG, "---------------- wolfSSL TLS Client Example ------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
@@ -260,7 +261,6 @@ void app_main(void)
 
     /* HWM is maximum amount of stack space that has been unused, in bytes
      * not words (unlike vanilla freeRTOS). */
-    int this_heap;
     this_heap = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Initial Stack Used (before wolfSSL Server): %d bytes",
                    CONFIG_ESP_MAIN_TASK_STACK_SIZE
