@@ -409,7 +409,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
     WOLFSSL_MSG("Connect to wolfSSL on the server side");
     /* Connect to wolfSSL on the server side */
     ret_i = wolfSSL_connect(ssl);
-    if (wolfSSL_connect(ssl) == SSL_SUCCESS) {
+    if (ret_i == SSL_SUCCESS) {
 #ifdef DEBUG_WOLFSSL
         ShowCiphers(ssl);
 #endif
