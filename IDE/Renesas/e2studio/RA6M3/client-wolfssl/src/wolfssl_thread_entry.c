@@ -93,7 +93,7 @@ void wolfssl_thread_entry(void *pvParameters) {
                                     FREERTOS_SOCK_STREAM,
                                     FREERTOS_IPPROTO_TCP);
     configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
-    FreeRTOS_bind(xClientSocket, &xRemoteAddress, sizeof(xSize));
+    FreeRTOS_bind(xClientSocket, &xRemoteAddress, xSize);
 
     /* Client Socket Connect */
     ret = FreeRTOS_connect(xClientSocket,
