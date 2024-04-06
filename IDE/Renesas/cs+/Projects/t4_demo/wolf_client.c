@@ -143,7 +143,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
 	        return;
 	    }
 	    if((dst_addr.portno = getPort(args->argv[2])) == 0){
-		printf("ERROR: IP address\n");
+		printf("ERROR: Port number\n");
 	        return;
 	    }
     }
