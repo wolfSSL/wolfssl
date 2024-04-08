@@ -17206,9 +17206,6 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case COMPRESSION_ERROR:
         why = decode_error;
         break;
-    case MATCH_SUITE_ERROR:
-        why = illegal_parameter;
-        break;
     case VERIFY_FINISHED_ERROR:
     case SIG_VERIFY_E:
         why = decrypt_error;
@@ -17221,6 +17218,7 @@ int SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case ECC_OUT_OF_RANGE_E:
         why = bad_record_mac;
         break;
+    case MATCH_SUITE_ERROR:
     case VERSION_ERROR:
     default:
         why = handshake_failure;
