@@ -47,12 +47,18 @@ package body Tls_Client with SPARK_Mode is
       Ada.Text_IO.Put (Text);
    end Put;
 
-   procedure Put (Number : Natural) is
+   procedure Put (Number : Natural)
+   with
+     Annotate => (GNATprove, Might_Not_Return)
+   is
    begin
       Natural_IO.Put (Item => Number, Width => 0, Base => 10);
    end Put;
 
-   procedure Put (Number : Byte_Index) is
+   procedure Put (Number : Byte_Index)
+   with
+     Annotate => (GNATprove, Might_Not_Return)
+   is
    begin
       Natural_IO.Put (Item => Natural (Number), Width => 0, Base => 10);
    end Put;
@@ -137,7 +143,7 @@ package body Tls_Client with SPARK_Mode is
       Output : WolfSSL.Write_Result;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS   : Boolean := False;
+      DTLS   : Boolean;
    begin
       Result := WolfSSL.Initialize;
       if Result /= Success then
