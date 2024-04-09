@@ -66610,7 +66610,7 @@ static int test_extra_alerts_wrong_cs(void)
     ExpectIntNE(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-    ExpectIntEQ(h.last_tx.code, illegal_parameter);
+    ExpectIntEQ(h.last_tx.code, handshake_failure);
     ExpectIntEQ(h.last_tx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
