@@ -34812,7 +34812,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
     WOLFSSL_SMALL_STACK_STATIC const byte* sigs[] = {sig1, sig2, sig3, sig4, sig5, sig6};
     #define SIGSZ sizeof(sig1)
 
-    PEDANTIC_EXTENSION WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { };
+    PEDANTIC_EXTENSION WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { 0 };
     WOLFSSL_SMALL_STACK_STATIC const byte msg2[]  = { 0x03 };
     WOLFSSL_SMALL_STACK_STATIC const byte msg3[]  = { 0x64, 0xa6, 0x5f, 0x3c, 0xde, 0xdc, 0xdd,
                                   0x66, 0x81, 0x1e, 0x29, 0x15 };
