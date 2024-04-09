@@ -37784,6 +37784,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     int           j     = 0;
     int           ret2  = -1;
     int           ret   = -1;
+    int           n_diff = 0;
     WOLFSSL_ENTER("xmss_test_verify_only");
 
     XMEMSET(pub_raw, 0, sizeof(pub_raw));
@@ -37837,7 +37838,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
         return WC_TEST_RET_ENC_EC(pub_len);
     }
 
-    int n_diff = XMEMCMP(pub_raw, xmss_pub, sizeof(xmss_pub));
+    n_diff = XMEMCMP(pub_raw, xmss_pub, sizeof(xmss_pub));
 
     if (n_diff != 0) {
         printf("error: exported and imported pub raw do not match: %d\n",
