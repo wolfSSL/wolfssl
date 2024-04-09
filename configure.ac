@@ -4902,6 +4902,7 @@ AC_ARG_ENABLE([pwdbased],
     )
 
 # MemUse Entropy
+# wolfEntropy Software Jitter SP800-90B certifiable entropy source
 AC_ARG_ENABLE([wolfEntropy],
     [AS_HELP_STRING([--enable-wolfEntropy],[Enable memuse entropy support (default: disabled)])],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ],
@@ -5060,10 +5061,6 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "x$ENABLED_AESKEYWRAP" != "xyes"],
             [ENABLED_AESKEYWRAP="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP"])
-
-# wolfEntropy Software Jitter SP800-90B certifiable entropy source
-        AS_IF([test "x$ENABLED_ENTROPY_MEMUSE" != "xyes"],
-            [ENABLED_ENTROPY_MEMUSE="yes"])
 
 # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],

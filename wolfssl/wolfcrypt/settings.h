@@ -314,32 +314,40 @@
 
 #if !defined(HAVE_FIPS)
     #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(0,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION)
     #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION3(1,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION_MINOR)
     #define WOLFSSL_FIPS_VERSION_CODE \
             WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,0,0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #elif !defined(HAVE_FIPS_VERSION_PATCH)
     #define WOLFSSL_FIPS_VERSION_CODE \
             WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION, \
                                        HAVE_FIPS_VERSION_MINOR, 0)
+    #define WOLFSSL_FIPS_VERSION2_CODE WOLFSSL_FIPS_VERSION_CODE
 #else
     #define WOLFSSL_FIPS_VERSION_CODE \
             WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
                                        HAVE_FIPS_VERSION_MINOR, \
                                        HAVE_FIPS_VERSION_PATCH)
+    #define WOLFSSL_FIPS_VERSION2_CODE \
+            WOLFSSL_MAKE_FIPS_VERSION3(HAVE_FIPS_VERSION,\
+                                       HAVE_FIPS_VERSION_MINOR, \
+                                       0)
 #endif
 
 #define FIPS_VERSION_LT(major,minor) \
-           (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+           (WOLFSSL_FIPS_VERSION2_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 #define FIPS_VERSION_LE(major,minor) \
-           (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+          (WOLFSSL_FIPS_VERSION2_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 #define FIPS_VERSION_EQ(major,minor) \
-           (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+          (WOLFSSL_FIPS_VERSION2_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 #define FIPS_VERSION_GE(major,minor) \
-           (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+          (WOLFSSL_FIPS_VERSION2_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 #define FIPS_VERSION_GT(major,minor) \
-            (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+           (WOLFSSL_FIPS_VERSION2_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
 
 #define FIPS_VERSION3_LT(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
@@ -3486,7 +3494,8 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-/* if configure.ac turned on, HAVE_ENTROPY_MEMUSE will be set */
+/* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
+ * also define HAVE_WOLFENTROPY */
 #ifdef HAVE_ENTROPY_MEMUSE
     #ifndef HAVE_WOLFENTROPY
         #define HAVE_WOLFENTROPY
