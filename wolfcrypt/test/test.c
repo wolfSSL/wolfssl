@@ -37775,14 +37775,19 @@ static /* not const */ byte xmss_sig[2500] =
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 {
-    XmssKey      verifyKey;
-    word32       pkSz  = 0;
-    word32       sigSz = 0;
-    const char * param = "XMSS-SHA2_10_256";
-    int          j     = 0;
-    int          ret2  = -1;
-    int          ret   = -1;
+    XmssKey       verifyKey;
+    unsigned char pub_raw[XMSS_SHA256_PUBLEN];
+    word32        pub_len = sizeof(pub_raw);
+    word32        pkSz  = 0;
+    word32        sigSz = 0;
+    const char *  param = "XMSS-SHA2_10_256";
+    int           j     = 0;
+    int           ret2  = -1;
+    int           ret   = -1;
+    int           n_diff = 0;
     WOLFSSL_ENTER("xmss_test_verify_only");
+
+    XMEMSET(pub_raw, 0, sizeof(pub_raw));
 
     ret = wc_XmssKey_Init(&verifyKey, NULL, INVALID_DEVID);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
@@ -37818,6 +37823,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     if (ret != 0) {
         printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Now test the ExportPubRaw API, verify we recover the original pub. */
+    ret = wc_XmssKey_ExportPubRaw(&verifyKey, pub_raw, &pub_len);
+    if (ret != 0) {
+        printf("error: wc_XmssKey_ExportPubRaw returned %d, expected 0\n", ret);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (pub_len != XMSS_SHA256_PUBLEN) {
+        printf("error: xmss pub len %d, expected %d\n", pub_len,
+               XMSS_SHA256_PUBLEN);
+        return WC_TEST_RET_ENC_EC(pub_len);
+    }
+
+    n_diff = XMEMCMP(pub_raw, xmss_pub, sizeof(xmss_pub));
+
+    if (n_diff != 0) {
+        printf("error: exported and imported pub raw do not match: %d\n",
+               n_diff);
+        return WC_TEST_RET_ENC_EC(n_diff);
     }
 
     /* Flip bits in message. This should fail. */
