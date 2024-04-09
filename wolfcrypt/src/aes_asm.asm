@@ -40,7 +40,7 @@ IFDEF HAVE_FIPS
 ENDIF
 
 IF fips_version GE 2
-  fipsAbc SEGMENT ALIAS(".fipsA$bc") 'CODE'
+  fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
 ELSE
   _text SEGMENT
 ENDIF
@@ -1523,7 +1523,7 @@ MAKE_RK256_b:
 
 
 IF fips_version GE 2
-  fipsAbc ENDS
+  fipsAb ENDS
 ELSE
   _text ENDS
 ENDIF
