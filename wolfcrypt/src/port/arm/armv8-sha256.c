@@ -33,7 +33,7 @@
     #undef HAVE_FIPS
 #else
     #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(6,0,0)
-        /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
         #define FIPS_NO_WRAPPERS
     #endif
 #endif
