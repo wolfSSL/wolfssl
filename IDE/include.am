@@ -7,6 +7,7 @@ include IDE/XCODE-FIPSv2/include.am
 include IDE/XCODE-FIPSv5/include.am
 include IDE/WIN/include.am
 include IDE/WIN10/include.am
+include IDE/WIN-SRTP-KDF-140-3/include.am
 include IDE/WIN-SGX/include.am
 include IDE/LINUX-SGX/include.am
 include IDE/WORKBENCH/include.am
