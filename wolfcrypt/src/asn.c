@@ -18251,6 +18251,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
+    #ifdef OPENSSL_ALL
     /* GeneralName choice: registeredID */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
         ret = SetDNSEntry(cert, (const char*)(input + idx), len,
@@ -18259,6 +18260,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
+    #endif
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
     /* GeneralName choice: otherName */
