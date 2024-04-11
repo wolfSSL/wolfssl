@@ -9696,7 +9696,12 @@ ProtocolVersion MakeDTLSv1_3(void)
 
 #elif defined(FREERTOS)
 
-    #include "task.h"
+    #ifdef PLATFORMIO
+        #include <freertos/FreeRTOS.h>
+        #include <freertos/task.h>
+    #else
+        #include "task.h"
+    #endif
 
     unsigned int LowResTimer(void)
     {
