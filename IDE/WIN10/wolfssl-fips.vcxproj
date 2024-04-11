@@ -298,7 +298,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\sp_x86_64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
     <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
     <ClCompile Include="..\..\wolfcrypt\src\random.c" />
     <ClCompile Include="..\..\wolfcrypt\src\rsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha.c" />
