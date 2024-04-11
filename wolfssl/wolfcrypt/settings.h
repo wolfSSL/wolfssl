@@ -3478,6 +3478,10 @@ extern void uITRON4_free(void *p) ;
     #error "Found both ESPIDF and ARDUINO. Pick one."
 #endif
 
+#if defined(HAVE_FIPS) && defined(HAVE_PKCS11)
+    #error "PKCS11 not allowed with FIPS enabled (Crypto outside boundary)"
+#endif
+
 #if defined(WOLFSSL_CAAM_BLOB)
     #ifndef WOLFSSL_CAAM
         #error "WOLFSSL_CAAM_BLOB requires WOLFSSL_CAAM"
@@ -3489,6 +3493,20 @@ extern void uITRON4_free(void *p) ;
         #error "HAVE_ED25519 requires WOLFSSL_SHA512"
     #endif
 #endif
+
+/* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
+ * also define HAVE_WOLFENTROPY */
+#ifdef HAVE_ENTROPY_MEMUSE
+    #ifndef HAVE_WOLFENTROPY
+        #define HAVE_WOLFENTROPY
+    #endif
+#elif defined(HAVE_WOLFENTROPY)
+    /* else if user_settings.h only defined HAVE_WOLFENTROPY
+     * also define HAVE_ENTROPY_MEMUSE */
+    #ifndef HAVE_ENTROPY_MEMUSE
+        #define HAVE_ENTROPY_MEMUSE
+    #endif
+#endif /* HAVE_ENTROPY_MEMUSE */
 
 #ifdef __cplusplus
     }   /* extern "C" */

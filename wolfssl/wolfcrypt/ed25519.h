@@ -45,6 +45,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_ed25519_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_ED25519_sanity(void);
+#endif
 
 /* info about EdDSA curve specifically ed25519, defined as an elliptic curve
    over GF(p) */
@@ -69,11 +73,6 @@ enum {
     Ed25519ctx = 0,
     Ed25519ph  = 1
 };
-
-#ifndef WC_ED25519KEY_TYPE_DEFINED
-    typedef struct ed25519_key ed25519_key;
-    #define WC_ED25519KEY_TYPE_DEFINED
-#endif
 
 /* ED25519 Flags */
 enum {
@@ -110,6 +109,11 @@ struct ed25519_key {
     int sha_clean_flag;
 #endif
 };
+
+#ifndef WC_ED25519KEY_TYPE_DEFINED
+    typedef struct ed25519_key ed25519_key;
+    #define WC_ED25519KEY_TYPE_DEFINED
+#endif
 
 
 WOLFSSL_API

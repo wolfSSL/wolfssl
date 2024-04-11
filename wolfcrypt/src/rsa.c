@@ -35,15 +35,13 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 #ifndef NO_RSA
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
        #ifdef USE_WINDOWS_API
-               #pragma code_seg(".fipsA$e")
-               #pragma const_seg(".fipsB$e")
+               #pragma code_seg(".fipsA$j")
+               #pragma const_seg(".fipsB$j")
        #endif
 #endif
 
@@ -108,6 +106,14 @@ RSA Key Size Configuration:
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_rsa_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000012 };
+    int wolfCrypt_FIPS_RSA_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 enum {
     RSA_STATE_NONE = 0,
@@ -120,7 +126,6 @@ enum {
     RSA_STATE_DECRYPT_UNPAD,
     RSA_STATE_DECRYPT_RES
 };
-
 
 static void wc_RsaCleanup(RsaKey* key)
 {

@@ -71,8 +71,8 @@ on the specific device platform.
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$d")
-        #pragma const_seg(".fipsB$d")
+        #pragma code_seg(".fipsA$l")
+        #pragma const_seg(".fipsB$l")
     #endif
 #endif
 
@@ -141,6 +141,14 @@ on the specific device platform.
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_sha256_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000014 };
+    int wolfCrypt_FIPS_SHA256_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \

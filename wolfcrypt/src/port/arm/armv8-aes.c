@@ -35,13 +35,28 @@
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-#define FIPS_NO_WRAPPERS
+#if FIPS_VERSION3_LT(6,0,0) && defined(HAVE_FIPS)
+    #undef HAVE_FIPS
+#else
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+        #define FIPS_NO_WRAPPERS
+    #endif
 #endif
 
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
 #include <wolfssl/wolfcrypt/aes.h>
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
+                                             { 0x1a2b3c4d, 0x00000002 };
+    int wolfCrypt_FIPS_AES_sanity(void)
+    {
+        return 0;
+    }
+#endif
+
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

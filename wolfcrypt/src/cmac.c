@@ -39,8 +39,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$n")
-        #pragma const_seg(".fipsB$n")
+        #pragma code_seg(".fipsA$c")
+        #pragma const_seg(".fipsB$c")
     #endif
 #endif
 
@@ -57,6 +57,15 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_cmac_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000003 };
+    int wolfCrypt_FIPS_CMAC_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_KEEP

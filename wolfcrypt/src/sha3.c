@@ -29,13 +29,13 @@
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
    !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$l")
-        #pragma const_seg(".fipsB$l")
+        #pragma code_seg(".fipsA$n")
+        #pragma const_seg(".fipsB$n")
     #endif
 #endif
 
@@ -50,6 +50,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000016 };
+    int wolfCrypt_FIPS_SHA3_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #if !defined(WOLFSSL_ARMASM) || !defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
 

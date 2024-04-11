@@ -28,6 +28,16 @@
 
 #ifndef NO_PWDBASED
 
+#if FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$h")
+               #pragma const_seg(".fipsB$h")
+       #endif
+#endif
+
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -41,6 +51,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000010 };
+    int wolfCrypt_FIPS_PBKDF_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #ifdef HAVE_PBKDF1
 
@@ -214,7 +232,17 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     if (ret == 0) {
         word32 i = 1;
         /* use int hashType here, since HMAC FIPS uses the old unique value */
+    #if FIPS_VERSION3_GE(6,0,0)
+        {
+            /* Allow passwords that are less than 14-bytes for compatibility
+             * / interoperability, only since module v6.0.0 */
+            int allowShortPasswd = 1;
+            ret = wc_HmacSetKey_ex(hmac, hashType, passwd, (word32)pLen,
+                                   allowShortPasswd);
+        }
+    #else
         ret = wc_HmacSetKey(hmac, hashType, passwd, (word32)pLen);
+    #endif
 
         while (ret == 0 && kLen) {
             int currentLen;

@@ -257,6 +257,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
@@ -518,6 +519,16 @@ static                  wc_test_ret_t  hkdf_test(void);
 #else
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
 #endif
+#endif /* HAVE_HKDF && ! NO_HMAC */
+#ifdef WOLFSSL_HAVE_PRF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#ifdef WOLFSSL_BASE16
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
+#endif /* WOLFSSL_BASE16 */
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
 #ifdef WOLFSSL_TLS13
@@ -1051,6 +1062,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_LINUXKM)
     wolfCrypt_SetCb_fips(myFipsCb);
+    #if FIPS_VERSION3_GE(6,0,0)
+        printf("FIPS module version in use: %s\n",
+               wolfCrypt_GetVersion_fips());
+    #endif
 #endif
 
 #if !defined(NO_BIG_INT)
@@ -1361,6 +1376,28 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+    PRIVATE_KEY_UNLOCK();
+    if ( (ret = prf_test()) != 0)
+        TEST_FAIL("PRF         test failed!\n", ret);
+    else
+        TEST_PASS("PRF         test passed!\n");
+    PRIVATE_KEY_LOCK();
+#endif
+
+#ifdef WOLFSSL_HAVE_PRF
+#if defined (HAVE_HKDF) && !defined(NO_HMAC)
+#ifdef WOLFSSL_BASE16
+    PRIVATE_KEY_UNLOCK();
+    if ( (ret = tls12_kdf_test()) != 0)
+        TEST_FAIL("TLSv1.2 KDF test failed!\n", ret);
+    else
+        TEST_PASS("TLSv1.2 KDF test passed!\n");
+    PRIVATE_KEY_LOCK();
+#endif /* WOLFSSL_BASE16 */
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
+
 #ifdef WOLFSSL_TLS13
     PRIVATE_KEY_UNLOCK();
     if ( (ret = tls13_kdf_test()) != 0)
@@ -1385,10 +1422,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WC_SRTP_KDF)
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = srtpkdf_test()) != 0)
         TEST_FAIL("SRTP KDF test failed!\n", ret);
     else
         TEST_PASS("SRTP KDF test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
@@ -1620,10 +1659,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #ifndef NO_PWDBASED
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = pwdbased_test()) != 0)
         TEST_FAIL("PWDBASED test failed!\n", ret);
     else
         TEST_PASS("PWDBASED test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
@@ -1713,10 +1754,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #ifdef HAVE_ED25519
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = ed25519_test()) != 0)
         TEST_FAIL("ED25519  test failed!\n", ret);
     else
         TEST_PASS("ED25519  test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef HAVE_CURVE448
@@ -1727,10 +1770,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #ifdef HAVE_ED448
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = ed448_test()) != 0)
         TEST_FAIL("ED448    test failed!\n", ret);
     else
         TEST_PASS("ED448    test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif
 
 #ifdef WOLFSSL_HAVE_KYBER
@@ -2202,9 +2247,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -124, -128, -129, -159, -163, -164,
-                      -165, -166, -167, -168, -169, -233,   0 };
-    WOLFSSL_ENTER("error_test !NO_ERROR_STRINGS");
+    int missing[] = { -124, -166, -167, -168, -169,   0 };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
@@ -5872,9 +5915,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     test_hmac[0] = a;
     test_hmac[1] = b;
     test_hmac[2] = c;
+#if FIPS_VERSION3_GE(6,0,0)
+    int allowShortKeyWithFips = 1;
+#endif
 
     for (i = 0; i < times; ++i) {
-#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
+#if defined(HAVE_CAVIUM) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))
         if (i == 1)
             continue; /* cavium can't handle short keys, fips not allowed */
 #endif
@@ -5884,6 +5930,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 
         ret = wc_HmacSetKey(&hmac, WC_SHA, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
+#if FIPS_VERSION3_GE(6,0,0)
+        if (i == 1) {
+            if (ret != HMAC_MIN_KEYLEN_E)
+                return WC_TEST_RET_ENC_EC(ret);
+            /* Now use the ex and allow short keys with FIPS option */
+            ret = wc_HmacSetKey_ex(&hmac, WC_SHA, (byte*) keys[i],
+                               (word32)XSTRLEN(keys[i]), allowShortKeyWithFips);
+        }
+#endif
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
         ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
@@ -8299,7 +8354,8 @@ static const int fiducial1 = WC_TEST_RET_LN; /* source code reference point --
 #if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_XTS)
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
-    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
 static wc_test_ret_t EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
@@ -8403,7 +8459,8 @@ EVP_TEST_END:
 
     return ret;
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(6,0,0) */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY && !HAVE_SELFTEST */
 #endif /* WOLFSSL_AES_OFB || WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB
@@ -9110,7 +9167,7 @@ EVP_TEST_END:
         return ret;
     }
 
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0))
     static wc_test_ret_t aescfb1_test(void)
     {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -9712,7 +9769,7 @@ static wc_test_ret_t aes_key_size_test(void)
     return ret;
 }
 
-#if defined(WOLFSSL_AES_XTS)
+#if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
 
 /* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
 #ifdef WOLFSSL_AES_128
@@ -24978,6 +25035,116 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sshkdf_test(void)
 
 #endif /* WOLFSSL_WOLFSSH */
 
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#define DIGL 12
+#define SECL 48
+#define LBSL 63
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
+{
+    int ret;
+    byte dig[DIGL] = {0};
+    byte secret[SECL] = {
+                          0x10, 0xbc, 0xb4, 0xa2, 0xe8, 0xdc, 0xf1, 0x9b, 0x4c,
+                          0x51, 0x9c, 0xed, 0x31, 0x1b, 0x51, 0x57, 0x02, 0x3f,
+                          0xa1, 0x7d, 0xfb, 0x0e, 0xf3, 0x4e, 0x8f, 0x6f, 0x71,
+                          0xa3, 0x67, 0x76, 0x6b, 0xfa, 0x5d, 0x46, 0x4a, 0xe8,
+                          0x61, 0x18, 0x81, 0xc4, 0x66, 0xcc, 0x6f, 0x09, 0x99,
+                          0x9d, 0xfc, 0x47
+                        };
+    byte lablSd[LBSL] = {
+                          0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x20, 0x66, 0x69,
+                          0x6e, 0x69, 0x73, 0x68, 0x65, 0x64, 0x0b, 0x46, 0xba,
+                          0x56, 0xbf, 0x1f, 0x5d, 0x99, 0xff, 0xe9, 0xbb, 0x43,
+                          0x01, 0xe7, 0xca, 0x2c, 0x00, 0xdf, 0x9a, 0x39, 0x6e,
+                          0xcf, 0x6d, 0x15, 0x27, 0x4d, 0xf2, 0x93, 0x96, 0x4a,
+                          0x91, 0xde, 0x5c, 0xc0, 0x47, 0x7c, 0xa8, 0xae, 0xcf,
+                          0x5d, 0x93, 0x5f, 0x4c, 0x92, 0xcc, 0x98, 0x5b, 0x43
+                        };
+    byte expected[DIGL] = {
+                            0xee, 0xcb, 0xb1, 0x30, 0xf2, 0xcd, 0xb3, 0x4a,
+                            0xbe, 0xda, 0xc1, 0xf6
+                          };
+    int digL = DIGL;
+    int secL = SECL;
+    int lblsdL = LBSL;
+    int hash_type = sha384_mac;
+
+    ret = wc_PRF(dig, digL, secret, secL, lablSd, lblsdL, hash_type,
+                 HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        printf("Failed w/ code: %d\n", ret);
+        return ret;
+    }
+
+    if (XMEMCMP(expected, dig, DIGL) != 0) {
+        printf("Got unexpected digest\n");
+        return -1;
+    }
+
+    if (ret != 0)
+        return -1;
+
+    return 0;
+}
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
+
+#ifdef WOLFSSL_HAVE_PRF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#ifdef WOLFSSL_BASE16
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
+{
+    const char* preMasterSecret = "D06F9C19BFF49B1E91E4EFE97345D089"
+                                  "4E6C2E6C34A165B24540E2970875D641"
+                                  "2AA6515871B389B4C199BB8389C71CED";
+    const char* helloRandom     = "162B81EDFBEAE4F25240320B87E7651C"
+                                  "865564191DD782DB0B9ECA275FBA1BB9"
+                                  "5A1DA3DF436D68DA86C5E7B4B4A36E46"
+                                  "B977C61767983A31BE270D74517BD0F6";
+    const char* masterSecret    = "EB38B8D89B98B1C266DE44BB3CA14E83"
+                                  "C32F009F9955B1D994E61D3C51EE8760"
+                                  "90B4EF89CC7AF42F46E72201BFCC7977";
+    const char* label           = "master secret";
+
+    byte pms[48] = {0};
+    byte seed[64] = {0};
+    byte ms[48] = {0};
+    byte result[48] = {0};
+
+    word32 pmsSz    = (word32)sizeof(pms);
+    word32 seedSz   = (word32)sizeof(seed);
+    word32 msSz     = (word32)sizeof(ms);
+    int ret;
+
+    ret = Base16_Decode((const byte*)preMasterSecret,
+                        (word32)XSTRLEN(preMasterSecret), pms, &pmsSz);
+    if (ret != 0)
+        return ret;
+    ret = Base16_Decode((const byte*)helloRandom,
+                        (word32)XSTRLEN(helloRandom), seed, &seedSz);
+    if (ret != 0)
+        return ret;
+    ret = Base16_Decode((const byte*)masterSecret,
+                        (word32)XSTRLEN(masterSecret), ms, &msSz);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_PRF_TLS(result, msSz, pms, pmsSz,
+            (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
+            1, sha256_mac, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        if (ret == FIPS_PRIVATE_KEY_LOCKED_E) {
+            printf("    wc_PRF_TLSv12: Private key locked.\n");
+        }
+        return -1;
+    }
+
+    if (XMEMCMP(result, ms, msSz) != 0)
+        return -1;
+    return 0;
+}
+#endif /* WOLFSSL_BASE16 */
+#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef WOLFSSL_TLS13
 
@@ -28337,6 +28504,15 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
     wc_test_ret_t ret;
     WOLFSSL_MSG_EX("ecc_test_curve keySize = %d", keySize);
 
+#if FIPS_VERSION3_GE(6,0,0)
+    printf("keySize is %d\n", keySize);
+    if (keySize < WC_ECC_FIPS_GEN_MIN) {
+        ret = 0;
+        goto skip_A;
+    }
+#endif
+
+
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, curve_id,
         NULL);
     if (ret < 0) {
@@ -28352,12 +28528,21 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
         }
     }
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
-
+#if FIPS_VERSION3_GE(6,0,0)
+  skip_A:
+#endif
 #ifdef HAVE_ECC_VECTOR_TEST
     ret = ecc_test_vector(keySize);
     if (ret < 0) {
         printf("ecc_test_vector %d failed!\n", keySize);
         return ret;
+    }
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    if (keySize < WC_ECC_FIPS_GEN_MIN) {
+        ret = 0;
+        goto skip_B;
     }
 #endif
 
@@ -28386,6 +28571,9 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
             return ret;
         }
     }
+#endif
+#if FIPS_VERSION3_GE(6,0,0)
+  skip_B:
 #endif
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
     return 0;
@@ -30803,11 +30991,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     }
 #endif /* HAVE_ECC160 */
 #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+#if !FIPS_VERSION3_GE(6,0,0)
     ret = ecc_test_curve(&rng, 24, ECC_CURVE_DEF);
     if (ret < 0) {
         printf("keySize=24, Default\n");
         goto done;
     }
+#endif
 #endif /* HAVE_ECC192 */
 #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
     ret = ecc_test_curve(&rng, 28, ECC_CURVE_DEF);
@@ -34622,7 +34812,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
     WOLFSSL_SMALL_STACK_STATIC const byte* sigs[] = {sig1, sig2, sig3, sig4, sig5, sig6};
     #define SIGSZ sizeof(sig1)
 
-    PEDANTIC_EXTENSION WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { };
+    PEDANTIC_EXTENSION WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { 0 };
     WOLFSSL_SMALL_STACK_STATIC const byte msg2[]  = { 0x03 };
     WOLFSSL_SMALL_STACK_STATIC const byte msg3[]  = { 0x64, 0xa6, 0x5f, 0x3c, 0xde, 0xdc, 0xdd,
                                   0x66, 0x81, 0x1e, 0x29, 0x15 };

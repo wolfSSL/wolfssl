@@ -55,6 +55,11 @@ typedef struct Gcm {
 #endif /* GCM_TABLE */
 } Gcm;
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_AES_sanity(void);
+#endif
+
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
 #ifdef WOLFSSL_ARMASM
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
@@ -400,14 +405,20 @@ struct Aes {
 #endif
 
 #ifdef WOLFSSL_AES_XTS
-typedef struct XtsAes {
-    Aes aes;
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-    Aes aes_decrypt;
+    struct XtsAes {
+        Aes aes;
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        Aes aes_decrypt;
+    #endif
+        Aes tweak;
+    };
+
+    #ifndef WC_AESXTS_TYPE_DEFINED
+        typedef struct XtsAes XtsAes;
+        #define WC_AESXTS_TYPE_DEFINED
+    #endif
 #endif
-    Aes tweak;
-} XtsAes;
-#endif
+
 
 #if (!defined(WC_AESFREE_IS_MANDATORY)) &&                              \
     (defined(WC_DEBUG_CIPHER_LIFECYCLE) ||                              \

@@ -50,8 +50,8 @@ This library contains implementation for the random number generator.
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$c")
-        #pragma const_seg(".fipsB$c")
+        #pragma code_seg(".fipsA$i")
+        #pragma const_seg(".fipsB$i")
     #endif
 #endif
 
@@ -151,6 +151,15 @@ This library contains implementation for the random number generator.
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_RNG)
 #include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000011 };
+    int wolfCrypt_FIPS_DRBG_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
@@ -613,6 +622,9 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     }
 
     if (drbg->reseedCtr == RESEED_INTERVAL) {
+#if FIPS_VERSION3_GE(6,0,0)
+        printf("Reseed triggered\n");
+#endif
         return DRBG_NEED_RESEED;
     }
     else {
@@ -1474,7 +1486,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
  * @return  ENTROPY_RT_E or ENTROPY_APT_E on failure.
  * @return  BAD_MUTEX_E when unable to lock mutex.
  */
-int wc_Entropy_OnDemandTest()
+int wc_Entropy_OnDemandTest(void)
 {
     int ret = 0;
 
@@ -1502,7 +1514,7 @@ int wc_Entropy_OnDemandTest()
  * @return  0 on success.
  * @return  Negative on failure.
  */
-int Entropy_Init()
+int Entropy_Init(void)
 {
     int ret = 0;
 
@@ -1539,7 +1551,7 @@ int Entropy_Init()
 
 /* Finalize the data associated with the MemUse Entropy source.
  */
-void Entropy_Final()
+void Entropy_Final(void)
 {
     /* Only finalize when initialized. */
     if (entropy_memuse_initialized) {

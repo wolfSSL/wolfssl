@@ -30,15 +30,13 @@
 
 #ifndef NO_KDF
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
-
+#if FIPS_VERSION3_GE(5,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$m")
-        #pragma const_seg(".fipsB$m")
+        #pragma code_seg(".fipsA$h")
+        #pragma const_seg(".fipsB$h")
     #endif
 #endif
 
@@ -56,6 +54,14 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_kdf_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000009 };
+    int wolfCrypt_FIPS_KDF_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 

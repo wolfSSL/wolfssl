@@ -30,15 +30,13 @@
 
 #ifndef NO_HMAC
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$b")
-        #pragma const_seg(".fipsB$b")
+        #pragma code_seg(".fipsA$g")
+        #pragma const_seg(".fipsB$g")
     #endif
 #endif
 
@@ -64,6 +62,14 @@
     #define wc_HmacFinal   wc_HmacFinal_Software
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_hmac_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000008 };
+    int wolfCrypt_FIPS_HMAC_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 int wc_HmacSizeByType(int type)
 {
@@ -237,7 +243,8 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
 }
 
 
-int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
+int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
+                     int allowFlag)
 {
 #ifndef WOLFSSL_MAXQ108X
     byte*  ip;
@@ -259,7 +266,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return BAD_FUNC_ARG;
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     /* if set key has already been run then make sure and free existing */
     /* This is for async and PIC32MZ situations, and just normally OK,
        provided the user calls wc_HmacInit() first. That function is not
@@ -277,12 +284,40 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     if (ret != 0)
         return ret;
 
-#ifdef HAVE_FIPS
-    if (length < HMAC_FIPS_MIN_KEY) {
-        WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
-        return HMAC_MIN_KEYLEN_E;
+    /* Regarding the password length:
+     * SP800-107r1 ss 5.3.2 states: "An HMAC key shall have a security strength
+     * that meets or exceeds the security strength required to protect the data
+     * over which the HMAC is computed" then refers to SP800-133 for HMAC keys
+     * generation.
+     *
+     * SP800-133r2 ss 6.2.3 states: "When a key is generated from a password,
+     * the entropy provided (and thus, the maximum security strength that can be
+     * supported by the generated key) shall be considered to be zero unless the
+     * password is generated using an approved RBG"
+     *
+     * wolfSSL Notes: The statement from SP800-133r2 applies to
+     * all password lengths. Any human generated password is considered to have
+     * 0 security strength regardless of length, there is no minimum length that
+     * is OK or will provide any amount of security strength other than 0. If
+     * a security strength is required users shall generate random passwords
+     * using a FIPS approved RBG of sufficient length that any HMAC key
+     * generated from that password can claim to inherit the needed security
+     * strength from that input.
+     */
+
+    /* In light of the above, Loosen past restriction that limited passwords to
+     * no less than 14-bytes to allow for shorter Passwords.
+     * User needs to pass true (non-zero) to override historical behavior that
+     * prevented use of any password less than 14-bytes. ALL non-RBG generated
+     * passwords shall inherit a security strength of zero
+     * (no security strength)
+     */
+    if (!allowFlag) {
+        if (length < HMAC_FIPS_MIN_KEY) {
+            WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
+            return HMAC_MIN_KEYLEN_E;
+        }
     }
-#endif
 
 #ifdef WOLF_CRYPTO_CB
     hmac->keyRaw = key; /* use buffer directly */
@@ -564,6 +599,16 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #endif /* WOLFSSL_MAXQ108X */
 }
 
+int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
+{
+    int allowFlag;
+    #if defined(HAVE_FIPS)
+        allowFlag = 0; /* default false for FIPS cases */
+    #else
+        allowFlag = 1; /* default true for all non-FIPS cases */
+    #endif
+    return wc_HmacSetKey_ex(hmac, type, key, length, allowFlag);
+}
 
 static int HmacKeyInnerHash(Hmac* hmac)
 {

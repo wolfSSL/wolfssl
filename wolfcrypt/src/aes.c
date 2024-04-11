@@ -39,15 +39,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$g")
-        #pragma const_seg(".fipsB$g")
+        #pragma code_seg(".fipsA$b")
+        #pragma const_seg(".fipsB$b")
     #endif
 #endif
 
@@ -112,6 +110,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #ifdef _MSC_VER
     /* 4127 warning constant while(1)  */
     #pragma warning(disable: 4127)
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000002 };
+    int wolfCrypt_FIPS_AES_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 /* Define AES implementation includes and functions */
@@ -6381,7 +6388,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
 
-    if (aes == NULL) {
+    if (aes == NULL || key == NULL) {
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
 #endif
@@ -12695,6 +12702,14 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     aes = &xaes->aes;
 
+/* FIPS TODO: SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+ * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+ * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes or
+ * 134,217,728-bits) Add helpful printout and message along with BAD_FUNC_ARG
+ * return whenever sz / AES_BLOCK_SIZE > 1,048,576 or equal to that and sz is
+ * not a sequence of complete blocks.
+ */
+
     if (aes->keylen == 0) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
         return BAD_FUNC_ARG;
@@ -12922,6 +12937,14 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #else
     aes = &xaes->aes;
 #endif
+
+/* FIPS TODO: SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+ * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+ * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes or
+ * 134,217,728-bits) Add helpful printout and message along with BAD_FUNC_ARG
+ * return whenever sz / AES_BLOCK_SIZE > 1,048,576 or equal to that and sz is
+ * not a sequence of complete blocks.
+ */
 
     if (aes->keylen == 0) {
         WOLFSSL_MSG("wc_AesXtsDecrypt called with unset decryption key.");

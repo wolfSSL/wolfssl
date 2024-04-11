@@ -38,6 +38,15 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_ED448
+#if FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$f")
+               #pragma const_seg(".fipsB$f")
+       #endif
+#endif
 
 #include <wolfssl/wolfcrypt/ed448.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -56,6 +65,14 @@
 static const byte ed448Ctx[ED448CTX_SIZE+1] = "SigEd448";
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_ed448_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000007 };
+    int wolfCrypt_FIPS_ED448_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 static int ed448_hash_init(ed448_key* key, wc_Shake *sha)
 {

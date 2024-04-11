@@ -36,6 +36,15 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_ED25519
+#if FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$f")
+               #pragma const_seg(".fipsB$f")
+       #endif
+#endif
 
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/ge_operations.h>
@@ -46,6 +55,15 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_ed25519_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000006 };
+    int wolfCrypt_FIPS_ED25519_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #ifdef FREESCALE_LTC_ECC
