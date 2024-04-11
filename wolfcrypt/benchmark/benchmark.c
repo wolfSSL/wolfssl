@@ -12801,7 +12801,13 @@ void bench_sphincsKeySign(byte level, byte optim)
 
 #elif defined(FREERTOS)
 
-    #include "task.h"
+    #ifdef PLATFORMIO
+        #include <freertos/FreeRTOS.h>
+        #include <freertos/task.h>
+    #else
+        #include "task.h"
+    #endif
+
 #if defined(WOLFSSL_ESPIDF)
     /* prototype definition */
     int construct_argv();
