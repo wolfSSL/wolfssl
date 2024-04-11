@@ -633,7 +633,7 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 }
 
 static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
-        unsigned int* sizeList, unsigned int* distList)
+        const unsigned int* sizeList, const unsigned int* distList)
 {
     if (heap == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
         return BAD_FUNC_ARG;
@@ -653,9 +653,9 @@ static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
 }
 
 int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-        unsigned int listSz,
-        unsigned int* memSzList, unsigned int* memDistList,
-        unsigned char* buf, unsigned int sz, int flag, int maxSz)
+        unsigned int listSz, const unsigned int* memSzList,
+        const unsigned int* memDistList, unsigned char* buf,
+        unsigned int sz, int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap = NULL;
     WOLFSSL_HEAP_HINT* hint = NULL;
@@ -743,17 +743,16 @@ int wolfSSL_MemoryPaddingSz(void)
 
 /* Used to calculate memory size for optimum use with buckets.
    returns the suggested size rounded down to the nearest bucket. */
-int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
+int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
+        const unsigned int *sizeList, const unsigned int *distList,
+        byte* buffer, word32 sz, int flag)
 {
-    word32 bucketSz[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_BUCKETS};
-    word32 distList[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_DIST};
-
     word32 ava = sz;
     byte*  pt  = buffer;
     word32 memSz = (word32)sizeof(wc_Memory);
     word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
-    WOLFSSL_ENTER("wolfSSL_static_size");
+    WOLFSSL_ENTER("wolfSSL_StaticBufferSz_ex");
 
     if (buffer == NULL) {
         return BAD_FUNC_ARG;
@@ -776,23 +775,36 @@ int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
     else {
         int i, k;
 
-        if (ava < (bucketSz[0] + padSz + memSz)) {
+        if (ava < (sizeList[0] + padSz + memSz)) {
             return 0; /* not enough room for even one bucket */
         }
 
-        while ((ava >= (bucketSz[0] + padSz + memSz)) && (ava > 0)) {
+        while ((ava >= (sizeList[0] + padSz + memSz)) && (ava > 0)) {
             /* start at largest and move to smaller buckets */
-            for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
+            for (i = (listSz- 1); i >= 0; i--) {
                 for (k = distList[i]; k > 0; k--) {
-                    if ((bucketSz[i] + padSz + memSz) <= ava) {
-                        ava -= bucketSz[i] + padSz + memSz;
+                    if ((sizeList[i] + padSz + memSz) <= ava) {
+                        ava -= sizeList[i] + padSz + memSz;
                     }
                 }
             }
         }
     }
 
+    WOLFSSL_LEAVE("wolfSSL_StaticBufferSz_ex", sz - ava);
     return sz - ava; /* round down */
+}
+
+
+/* Calls wolfSSL_StaticBufferSz_ex with the static memory pool config
+ * used by wolfSSL by default. */
+int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
+{
+    word32 bucketSz[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_BUCKETS};
+    word32 distList[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_DIST};
+
+    return wolfSSL_StaticBufferSz_ex(WOLFMEM_MAX_BUCKETS, bucketSz, distList,
+        buffer, sz, flag);
 }
 
 
