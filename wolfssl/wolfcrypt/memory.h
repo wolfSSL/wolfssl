@@ -217,8 +217,9 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     } WOLFSSL_HEAP_HINT;
 
     WOLFSSL_API int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-            unsigned int listSz, unsigned int *sizeList, unsigned int *distList,
-            unsigned char* buf, unsigned int sz, int flag, int max);
+            unsigned int listSz, const unsigned int *sizeList,
+            const unsigned int *distList, unsigned char* buf, unsigned int sz,
+            int flag, int max);
     WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
             unsigned char* buf, unsigned int sz, int flag, int max);
 
@@ -227,6 +228,9 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
     WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
 
+    WOLFSSL_API int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
+            const unsigned int *sizeList, const unsigned int *distList,
+            byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
 #endif /* WOLFSSL_STATIC_MEMORY */
