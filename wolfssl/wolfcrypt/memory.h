@@ -223,7 +223,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
             unsigned char* buf, unsigned int sz, int flag, int max);
 
-    WOLFSSL_LOCAL int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
+    WOLFSSL_API int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
                                                       WOLFSSL_MEM_STATS* stats);
     WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
     WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
