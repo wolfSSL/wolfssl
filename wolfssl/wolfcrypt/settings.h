@@ -3313,13 +3313,14 @@ extern void uITRON4_free(void *p) ;
 /* (D)TLS v1.3 requires 64-bit number wrappers as does XMSS and LMS. */
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS_DROP_STATS) || \
     (defined(WOLFSSL_WC_XMSS) && (!defined(WOLFSSL_XMSS_MAX_HEIGHT) || \
-    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || defined(WOLFSSL_WC_LMS)
+    WOLFSSL_XMSS_MAX_HEIGHT > 32)) || (defined(WOLFSSL_WC_LMS) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY))
     #undef WOLFSSL_W64_WRAPPER
     #define WOLFSSL_W64_WRAPPER
 #endif
 
-/* wc_xmss_impl requires these misc.c functions. */
-#ifdef WOLFSSL_WC_XMSS
+/* wc_xmss and wc_lms require these misc.c functions. */
+#if defined(WOLFSSL_WC_XMSS) || defined(WOLFSSL_WC_LMS)
     #undef  WOLFSSL_NO_INT_ENCODE
     #undef  WOLFSSL_NO_INT_DECODE
 #endif
