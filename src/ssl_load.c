@@ -2911,6 +2911,91 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
     return ret;
 }
 
+#ifdef WOLFSSL_WIN_USER_CA_CERTS
+static int LoadUserCaCertsWindows(WOLFSSL_CTX* ctx, const char* userStore,
+                                  const char* userDwFlags, const char* userPvPara) {
+    int ret = WOLFSSL_SUCCESS;
+    HANDLE handle = NULL;
+    PCCERT_CONTEXT certCtx = NULL;
+    LPCSTR storeProvider = (LPCSTR)userStore;
+    DWORD dwFlags;
+    const void* pvPara = userPvPara;
+
+    dwFlags = WinStrToDwFlags(userDwFlags);
+    if (!dwFlags) {
+        WOLFSSL_MSG("Invalid/unsupported dwFlags passed to LoadUserCaCertsWindows.");
+        return WOLFSSL_FAILURE;
+    }
+
+    handle = CertOpenStore(userStores, X509_ASN_ENCODING, NULL, dwFlags,
+                           userPvPara);
+    if (handle != NULL) {
+        while ((certCtx = CertEnumCertificatesInStore(handle, certCtx))
+                != NULL) {
+            if (certCtx->dwCertEncodingType == X509_ASN_ENCODING) {
+                if (ret = ProcessBuffer(ctx, certCtx->pbCertEncoded,
+                        certCtx->cbCertEncoded, WOLFSSL_FILETYPE_ASN1,
+                        CA_TYPE, NULL, NULL, 0,
+                        GET_VERIFY_SETTING_CTX(ctx)) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG_EX("Failed to process user cert: %d.", ret);
+                }
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG_EX("Failed to open user cert store.  Error: 0x%x.", GetLastError());
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (handle != NULL && !CertCloseStore(handle, 0)) {
+        WOLFSSL_MSG_EX("Failed to close user cert store.");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    return ret;
+}
+
+DWORD WinStrToDwFlags(const char* dwFlags) {
+    if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_CURRENT_SERVICE")) {
+        return CERT_SYSTEM_STORE_CURRENT_SERVICE;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_CURRENT_USER")) {
+        return CERT_SYSTEM_STORE_CURRENT_USER;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY")) {
+        return CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_LOCAL_MACHINE")) {
+        return CERT_SYSTEM_STORE_LOCAL_MACHINE;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE")) {
+        return CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY")) {
+        return CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_SERVICES")) {
+        return CERT_SYSTEM_STORE_SERVICES;
+    }
+    else if (!XSTRCMP(dwFlags, "CERT_SYSTEM_STORE_USERS")) {
+        return CERT_SYSTEM_STORE_USERS;
+    }
+
+    return NULL;
+}
+
+int wolfSSL_CTX_load_windows_user_CA_certs(WOLFSSL_CTX* ctx, const char* userStore,
+                                           const char* userDwFlags, const char* userPvPara) {
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_load_windows_user_CA_certs");
+    ret = LoadUserCaCertsWindows(ctx, userStore, userDwFlags, userPvPara);
+    WOLFSSL_LEAVE("wolfSSL_CTX_load_windows_user_CA_certs", ret);
+
+    return ret;
+}
+#endif
+
 #elif defined(__APPLE__)
 
 #if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H) \
