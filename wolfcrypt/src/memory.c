@@ -662,7 +662,7 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
     word32 idx = 0;
     int ret;
 
-    if (pHint == NULL || buf == NULL) {
+    if (pHint == NULL || buf == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
         return BAD_FUNC_ARG;
     }
 
@@ -754,7 +754,7 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
 
     WOLFSSL_ENTER("wolfSSL_StaticBufferSz_ex");
 
-    if (buffer == NULL) {
+    if (buffer == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
         return BAD_FUNC_ARG;
     }
 
@@ -781,7 +781,7 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
 
         while ((ava >= (sizeList[0] + padSz + memSz)) && (ava > 0)) {
             /* start at largest and move to smaller buckets */
-            for (i = (listSz- 1); i >= 0; i--) {
+            for (i = (listSz - 1); i >= 0; i--) {
                 for (k = distList[i]; k > 0; k--) {
                     if ((sizeList[i] + padSz + memSz) <= ava) {
                         ava -= sizeList[i] + padSz + memSz;
@@ -800,10 +800,10 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
  * used by wolfSSL by default. */
 int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
 {
-    word32 bucketSz[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_BUCKETS};
-    word32 distList[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_DIST};
+    word32 bucketSz[WOLFMEM_DEF_BUCKETS] = {WOLFMEM_BUCKETS};
+    word32 distList[WOLFMEM_DEF_BUCKETS] = {WOLFMEM_DIST};
 
-    return wolfSSL_StaticBufferSz_ex(WOLFMEM_MAX_BUCKETS, bucketSz, distList,
+    return wolfSSL_StaticBufferSz_ex(WOLFMEM_DEF_BUCKETS, bucketSz, distList,
         buffer, sz, flag);
 }
 
