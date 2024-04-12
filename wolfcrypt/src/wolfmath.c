@@ -167,7 +167,8 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
 
-#if defined(WC_RSA_BLINDING) || defined(WOLFCRYPT_HAVE_SAKKE)
+#if defined(WC_RSA_BLINDING) || defined(WOLFCRYPT_HAVE_SAKKE) || \
+    defined(WOLFSSL_ECC_BLIND_K)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
@@ -221,7 +222,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 
     return ret;
 }
-#endif /* WC_RSA_BLINDING || WOLFCRYPT_HAVE_SAKKE */
+#endif /* WC_RSA_BLINDING || WOLFCRYPT_HAVE_SAKKE || WOLFSSL_ECC_BLIND_K */
 #endif /* !WC_NO_RNG */
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_EXPORT_INT)
