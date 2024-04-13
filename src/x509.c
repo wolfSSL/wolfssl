@@ -11726,7 +11726,7 @@ err:
 #ifndef NO_FILESYSTEM
     WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read(
             XFILE fp, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
-            pem_password_cb* cb, void* u)
+            wc_pem_password_cb* cb, void* u)
     {
         WOLFSSL_BIO* fileBio = wolfSSL_BIO_new_fp(fp, BIO_NOCLOSE);
         WOLF_STACK_OF(WOLFSSL_X509_INFO)* ret = NULL;
