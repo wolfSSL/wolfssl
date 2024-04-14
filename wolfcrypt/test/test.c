@@ -28507,7 +28507,6 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 #if FIPS_VERSION3_GE(6,0,0)
     printf("keySize is %d\n", keySize);
     if (keySize < WC_ECC_FIPS_GEN_MIN) {
-        ret = 0;
         goto skip_A;
     }
 #endif
@@ -28541,7 +28540,6 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 
 #if FIPS_VERSION3_GE(6,0,0)
     if (keySize < WC_ECC_FIPS_GEN_MIN) {
-        ret = 0;
         goto skip_B;
     }
 #endif
