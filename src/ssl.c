@@ -27958,7 +27958,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
         /* ptr for WOLFSSL_EVP_PKEY struct is expected to be DER format */
         return wolfSSL_CTX_use_PrivateKey_buffer(ctx,
                                        (const unsigned char*)pkey->pkey.ptr,
-                                       pkey->pkey_sz, SSL_FILETYPE_ASN1);
+                                       pkey->pkey_sz, WOLFSSL_FILETYPE_ASN1);
     }
 
     WOLFSSL_MSG("wolfSSL private key not set");
@@ -28619,7 +28619,7 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
         return WOLFSSL_FAILURE;
     }
     ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, (const unsigned char*)maxDerBuf,
-                                                    derSize, SSL_FILETYPE_ASN1);
+                                                    derSize, WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_CTX_USE_PrivateKey_buffer() failure");
         XFREE(maxDerBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

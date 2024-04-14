@@ -8791,11 +8791,11 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 
     if (key->type == EVP_PKEY_DSA) {
         if (wolfSSL_DSA_LoadDer(local, (const unsigned char*)key->pkey.ptr,
-                    key->pkey_sz) != SSL_SUCCESS) {
+                    key->pkey_sz) != WOLFSSL_SUCCESS) {
             /* now try public key */
             if (wolfSSL_DSA_LoadDer_ex(local,
                         (const unsigned char*)key->pkey.ptr, key->pkey_sz,
-                        WOLFSSL_DSA_LOAD_PUBLIC) != SSL_SUCCESS) {
+                        WOLFSSL_DSA_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
                 wolfSSL_DSA_free(local);
                 local = NULL;
             }
@@ -8986,7 +8986,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
                 return NULL;
             }
             if (wolfSSL_DH_LoadDer(local, (const unsigned char*)key->pkey.ptr,
-                        key->pkey_sz) != SSL_SUCCESS) {
+                        key->pkey_sz) != WOLFSSL_SUCCESS) {
                 wolfSSL_DH_free(local);
                 WOLFSSL_MSG("Error wolfSSL_DH_LoadDer");
                 local = NULL;
