@@ -618,23 +618,17 @@ __device__ static const byte Tsbox[256] = {
  * @param [in]  r         Rounds divided by 2.
  * @param [in]  sz        Size of the block
  */
-__global__ void AesEncrypt_C_CUDA(Aes* aes, const byte* inBlockBase, byte* outBlockBase,
+__global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* outBlockBase,
         word32 r, word32 sz)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
     word32 sBox;
-    const word32* rk;
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     const byte* inBlock = inBlockBase;
     byte* outBlock = outBlockBase;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-    rk = aes->key_C_fallback;
-#else
-    rk = aes->key;
-#endif
     for (int i = index; i < sz; i += stride) {
         inBlock = inBlockBase + i * 4 * sizeof(s0);
         outBlock = outBlockBase + i * 4 * sizeof(s0);
@@ -904,7 +898,41 @@ __global__ void AesEncrypt_C_CUDA(Aes* aes, const byte* inBlockBase, byte* outBl
 void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
         word32 r)
 {
-    AesEncrypt_C_CUDA<<<1,1>>>(aes, inBlock, outBlock, r, 1);
+    byte *inBlock_GPU = NULL;
+    byte *outBlock_GPU = NULL;
+    word32* rk_GPU = NULL;
+    cudaError_t ret = cudaSuccess;
+    word32* rk;
+
+#define AES_KEY_SIZE_CUDA (sizeof(word32) * 60)
+#ifdef WC_AES_C_DYNAMIC_FALLBACK
+    rk = aes->key_C_fallback;
+#else
+    rk = aes->key;
+#endif
+
+    if ( ret == cudaSuccess )
+        ret = cudaMalloc(&rk_GPU, AES_KEY_SIZE_CUDA);
+    if ( ret == cudaSuccess )
+        ret = cudaMemcpy(rk_GPU, rk, AES_KEY_SIZE_CUDA, cudaMemcpyDefault);
+
+    if ( ret == cudaSuccess )
+        ret = cudaMalloc(&inBlock_GPU, AES_BLOCK_SIZE);
+    if ( ret == cudaSuccess )
+        ret = cudaMemcpy(inBlock_GPU, inBlock, AES_BLOCK_SIZE, cudaMemcpyDefault);
+
+    if ( ret == cudaSuccess )
+        ret = cudaMalloc(&outBlock_GPU, AES_BLOCK_SIZE);
+
+    if ( ret == cudaSuccess )
+        AesEncrypt_C_CUDA<<<1,1>>>(rk_GPU, inBlock_GPU, outBlock_GPU, r, 1);
+
+    if ( ret == cudaSuccess )
+        ret = cudaMemcpy(outBlock, outBlock_GPU, AES_BLOCK_SIZE, cudaMemcpyDefault);
+
+    cudaFree(inBlock_GPU);
+    cudaFree(outBlock_GPU);
+    cudaFree(rk_GPU);
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
@@ -918,7 +946,39 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
  */
 void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 {
-    AesEncrypt_C_CUDA<<<1,256>>>(aes, in, out, aes->rounds >> 1, sz);
+#if 1
+    word32 i;
+    for (i = 0; i < sz; i += AES_BLOCK_SIZE) {
+        AesEncrypt_C(aes, in, out, aes->rounds >> 1);
+        in += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
+    }
+#else
+    byte *in_GPU = NULL;
+    byte *out_GPU = NULL;
+    word32* rk_GPU = NULL;
+
+#ifdef WC_AES_C_DYNAMIC_FALLBACK
+    cudaMalloc(&rk_GPU, sizeof(aes->key_C_fallback));
+    cudaMemcpy(rk_GPU, aes->key_C_fallback, sizeof(aes->key_C_fallback), cudaMemcpyHostToDevice);
+#else
+    cudaMalloc(&rk_GPU, sizeof(aes->key));
+    cudaMemcpy(rk_GPU, aes->key, sizeof(aes->key), cudaMemcpyHostToDevice);
+#endif
+
+    cudaMalloc(&in_GPU, sz * AES_BLOCK_SIZE);
+    cudaMalloc(&out_GPU, sz *  AES_BLOCK_SIZE);
+
+    cudaMemcpy(in_GPU, in, AES_BLOCK_SIZE, cudaMemcpyHostToDevice);
+
+    AesEncrypt_C_CUDA<<<1,256>>>(rk_GPU, in_GPU, out_GPU, aes->rounds >> 1, sz);
+
+    cudaMemcpy(out, out_GPU, sz * AES_BLOCK_SIZE, cudaMemcpyDeviceToHost);
+
+    cudaFree(in_GPU);
+    cudaFree(out_GPU);
+    cudaFree(rk_GPU);
+#endif
 }
 #endif
 
