@@ -393,6 +393,25 @@
     #ifdef HAVE_FIPS
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
+        #if FIPS_VERSION3_GE(6,0,0)
+            extern int wolfCrypt_FIPS_AES_sanity(void);
+            extern int wolfCrypt_FIPS_CMAC_sanity(void);
+            extern int wolfCrypt_FIPS_DH_sanity(void);
+            extern int wolfCrypt_FIPS_ECC_sanity(void);
+            extern int wolfCrypt_FIPS_ED25519_sanity(void);
+            extern int wolfCrypt_FIPS_ED448_sanity(void);
+            extern int wolfCrypt_FIPS_HMAC_sanity(void);
+            extern int wolfCrypt_FIPS_KDF_sanity(void);
+            extern int wolfCrypt_FIPS_PBKDF_sanity(void);
+            extern int wolfCrypt_FIPS_DRBG_sanity(void);
+            extern int wolfCrypt_FIPS_RSA_sanity(void);
+            extern int wolfCrypt_FIPS_SHA_sanity(void);
+            extern int wolfCrypt_FIPS_SHA256_sanity(void);
+            extern int wolfCrypt_FIPS_SHA512_sanity(void);
+            extern int wolfCrypt_FIPS_SHA3_sanity(void);
+            extern int wolfCrypt_FIPS_FT_sanity(void);
+            extern int wc_RunAllCast_fips(void);
+        #endif
     #endif
 
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
@@ -553,6 +572,25 @@
         #ifdef HAVE_FIPS
         typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
         typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
+        #if FIPS_VERSION3_GE(6,0,0)
+            typeof(wolfCrypt_FIPS_AES_sanity) *wolfCrypt_FIPS_AES_sanity;
+            typeof(wolfCrypt_FIPS_CMAC_sanity) *wolfCrypt_FIPS_CMAC_sanity;
+            typeof(wolfCrypt_FIPS_DH_sanity) *wolfCrypt_FIPS_DH_sanity;
+            typeof(wolfCrypt_FIPS_ECC_sanity) *wolfCrypt_FIPS_ECC_sanity;
+            typeof(wolfCrypt_FIPS_ED25519_sanity) *wolfCrypt_FIPS_ED25519_sanity;
+            typeof(wolfCrypt_FIPS_ED448_sanity) *wolfCrypt_FIPS_ED448_sanity;
+            typeof(wolfCrypt_FIPS_HMAC_sanity) *wolfCrypt_FIPS_HMAC_sanity;
+            typeof(wolfCrypt_FIPS_KDF_sanity) *wolfCrypt_FIPS_KDF_sanity;
+            typeof(wolfCrypt_FIPS_PBKDF_sanity) *wolfCrypt_FIPS_PBKDF_sanity;
+            typeof(wolfCrypt_FIPS_DRBG_sanity) *wolfCrypt_FIPS_DRBG_sanity;
+            typeof(wolfCrypt_FIPS_RSA_sanity) *wolfCrypt_FIPS_RSA_sanity;
+            typeof(wolfCrypt_FIPS_SHA_sanity) *wolfCrypt_FIPS_SHA_sanity;
+            typeof(wolfCrypt_FIPS_SHA256_sanity) *wolfCrypt_FIPS_SHA256_sanity;
+            typeof(wolfCrypt_FIPS_SHA512_sanity) *wolfCrypt_FIPS_SHA512_sanity;
+            typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
+            typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
+            typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
+        #endif
         #endif
 
         #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)

@@ -24692,7 +24692,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
                        salt, (int)sizeof(salt), iterations,
                        kLen, WC_SHA256, HEAP_HINT, devId);
     if (ret != 0)
-        return ret;
+        return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return WC_TEST_RET_ENC_NC;
@@ -28505,13 +28505,13 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
     WOLFSSL_MSG_EX("ecc_test_curve keySize = %d", keySize);
 
 #if FIPS_VERSION3_GE(6,0,0)
+    #ifdef DEBUG_WOLFSSL
     printf("keySize is %d\n", keySize);
+    #endif
     if (keySize < WC_ECC_FIPS_GEN_MIN) {
-        ret = 0;
         goto skip_A;
     }
 #endif
-
 
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, curve_id,
         NULL);
@@ -28541,7 +28541,6 @@ static wc_test_ret_t ecc_test_curve(WC_RNG* rng, int keySize, int curve_id)
 
 #if FIPS_VERSION3_GE(6,0,0)
     if (keySize < WC_ECC_FIPS_GEN_MIN) {
-        ret = 0;
         goto skip_B;
     }
 #endif
@@ -50579,8 +50578,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     PRIVATE_KEY_LOCK();
 #endif
 #ifdef HAVE_ED25519
+    PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = ed25519_test();
+    PRIVATE_KEY_LOCK();
 #endif
 #ifdef HAVE_CURVE25519
     if (ret == 0)
@@ -50636,8 +50637,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 #ifndef NO_PWDBASED
     #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
+    PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = pbkdf2_test();
+    PRIVATE_KEY_LOCK();
     #endif
 #endif
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES)

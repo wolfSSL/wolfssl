@@ -44,9 +44,8 @@
     #endif
 #endif
 
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
@@ -57,7 +56,8 @@
     }
 #endif
 
-#include <wolfssl/wolfcrypt/logging.h>
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -16486,8 +16486,6 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/aes.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
