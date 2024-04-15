@@ -10,6 +10,7 @@ src and wolfcrypt directories. Uncheck the following:
     ```
     wolfcrypt/src/aes_asm.asm
     wolfcrypt/src/aes_gcm_asm.asm
+    wolfcrypt/src/aes_xts_asm.asm
     wolfcrypt/src/aes_asm.s
     examples/echoclient/
     examples/echoserver/
