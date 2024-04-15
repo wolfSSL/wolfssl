@@ -236,6 +236,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\dilithium.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\dh.c"
 				>
 			</File>
@@ -249,6 +253,14 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\error.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\ext_kyber.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\falcon.c"
 				>
 			</File>
 			<File
@@ -277,6 +289,14 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\integer.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_kyber.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_kyber_poly.c"
 				>
 			</File>
 			<File
@@ -344,6 +364,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\sphincs.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\sp_c32.c"
 				>
 			</File>
@@ -389,6 +413,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wolfevent.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\port\liboqs\liboqs.c"
 				>
 			</File>
 		</Filter>
