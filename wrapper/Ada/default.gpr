@@ -26,10 +26,6 @@ project Default is
       for Spec_Suffix ("C") use ".h";
    end Naming;
 
-   package Builder is
-      for Global_Configuration_Pragmas use "gnat.adc";
-   end Builder;
-
    package Compiler is
       for Switches ("C") use
          ("-DWOLFSSL_USER_SETTINGS", --  Use the user_settings.h file.

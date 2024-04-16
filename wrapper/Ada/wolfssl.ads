@@ -19,6 +19,7 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
+with GNAT.Sockets;
 with Interfaces.C;
 
 --  This package is annotated "with SPARK_Mode" that SPARK can verify
@@ -69,6 +70,22 @@ package WolfSSL with SPARK_Mode is
    function TLSv1_3_Client_Method return Method_Type;
    --  This function is used to indicate that the application is a client
    --  and will only support the TLS 1.3 protocol.
+
+   function DTLSv1_2_Server_Method return Method_Type;
+   --  This function is used to indicate that the application is a server
+   --  and will only support the DTLS 1.2 protocol.
+
+   function DTLSv1_2_Client_Method return Method_Type;
+   --  This function is used to indicate that the application is a client
+   --  and will only support the DTLS 1.2 protocol.
+
+   function DTLSv1_3_Server_Method return Method_Type;
+   --  This function is used to indicate that the application is a server
+   --  and will only support the DTLS 1.3 protocol.
+
+   function DTLSv1_3_Client_Method return Method_Type;
+   --  This function is used to indicate that the application is a client
+   --  and will only support the DTLS 1.3 protocol.
 
    procedure Create_Context (Method  : Method_Type;
                              Context : out Context_Type);
@@ -269,6 +286,14 @@ package WolfSSL with SPARK_Mode is
    --  of a file. The buffer is provided by the Input argument.
    --  Format specifies the format type of the buffer; ASN1 or PEM.
    --  Please see the examples for proper usage.
+
+   function DTLS_Set_Peer
+     (Ssl     : WolfSSL_Type;
+      Address : GNAT.Sockets.Sock_Addr_Type)
+      return Subprogram_Result with
+     Pre => Is_Valid (Ssl);
+   --  This function wraps the corresponding WolfSSL C function to allow
+   --  clients to use Ada socket types when implementing a DTLS client.
 
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
