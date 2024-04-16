@@ -3687,7 +3687,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          * thread->threadStack = k_thread_stack_alloc(WOLFSSL_ZEPHYR_STACK_SZ,
          *                                            0);
          */
-        printf("thread stack size is %ld\n", Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ));
         thread->threadStack = (void*)XMALLOC(
                 Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ),
                 wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);

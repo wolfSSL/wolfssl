@@ -102,9 +102,6 @@ extern "C" {
 #undef  NO_MD4
 #define NO_MD4
 
-//#undef  NO_PWDBASED
-//#define NO_PWDBASED
-
 #undef  USE_FAST_MATH
 #define USE_FAST_MATH
 
@@ -116,9 +113,6 @@ extern "C" {
 
 #undef  WC_NO_ASYNC_THREADING
 #define WC_NO_ASYNC_THREADING
-
-//#undef  NO_DES3
-//#define NO_DES3
 
 #undef  WOLFSSL_STATIC_MEMORY
 #define WOLFSSL_STATIC_MEMORY

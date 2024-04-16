@@ -24,7 +24,10 @@
 
 #ifdef CONFIG_WOLFSSL
 
-/* If a custom user_settings file is provided use it instead */
+/* If a custom user_settings file is provided use it instead.
+ * CONFIG_WOLFSSL_SETTINGS_FILE is always defined. If it is not explicitly set
+ * in prj.conf then it is auto-defined to "". This obviously causes issues here.
+ * That is why we define WOLFSSL_SETTINGS_FILE in CMakeLists.txt. */
 #ifdef WOLFSSL_SETTINGS_FILE
 #include WOLFSSL_SETTINGS_FILE
 #else
@@ -219,7 +222,7 @@ extern "C" {
     #undef  NO_SHA /* on by default */
     //#define USE_SLOW_SHA /* 1k smaller, but 25% slower */
 #else
-    #define NO_SHA
+    // #define NO_SHA /* Necessary for pkcs12 tests */
 #endif
 
 /* SHA2-256 */
@@ -297,7 +300,7 @@ extern "C" {
 #define NO_RC4
 #define NO_MD4
 #define NO_MD5
-#define NO_DES3
+//#define NO_DES3 /* Necessary for pkcs12 tests */
 #define WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE256
 

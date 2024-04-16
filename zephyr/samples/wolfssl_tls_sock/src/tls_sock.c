@@ -445,20 +445,8 @@ void client_thread()
     WOLFSSL*     client_ssl = NULL;
     SOCKET_T     sockfd = WOLFSSL_SOCKET_INVALID;
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    //if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
-    //                           sizeof(gMemoryClient),
-    //                           WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
-    //    printf("unable to load static memory");
-    //    ret = -1;
-    //}
-
-    if (ret == 0)
-#endif
-    {
-        /* Client connection */
-        ret = wolfssl_client_new(&client_ctx, &client_ssl);
-    }
+    /* Client connection */
+    ret = wolfssl_client_new(&client_ctx, &client_ssl);
 
     if (ret == 0)
         ret = wolfssl_client_connect_tcp(client_ssl, &sockfd);
@@ -526,6 +514,9 @@ int main()
 
     k_sleep(Z_TIMEOUT_TICKS(100));
     client_thread();
+    /* Join is not working in qemu when the thread is still active. Wait for it
+     * to shut down to join it. */
+    k_sleep(Z_TIMEOUT_TICKS(100));
 
     if (wolfSSL_JoinThread(serverThread) != 0) {
         printf("Failed to join server thread\n");
