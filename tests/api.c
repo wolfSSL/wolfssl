@@ -348,8 +348,14 @@
 #ifdef HAVE_PKCS7
     #include <wolfssl/openssl/pkcs7.h>
 #endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/openssl/ec25519.h>
+#endif
 #ifdef HAVE_ED25519
     #include <wolfssl/openssl/ed25519.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/openssl/ec448.h>
 #endif
 #ifdef HAVE_ED448
     #include <wolfssl/openssl/ed448.h>
@@ -5004,6 +5010,90 @@ static int test_wolfSSL_SetMinVersion(void)
 
 
 #ifdef OPENSSL_EXTRA
+static int test_EC25519(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_KEY_GEN)
+    byte         priv[CURVE25519_KEYSIZE];
+    unsigned int privSz = CURVE25519_KEYSIZE;
+    byte         pub[CURVE25519_KEYSIZE];
+    unsigned int pubSz = CURVE25519_KEYSIZE;
+    byte         priv2[CURVE25519_KEYSIZE];
+    unsigned int priv2Sz = CURVE25519_KEYSIZE;
+    byte         pub2[CURVE25519_KEYSIZE];
+    unsigned int pub2Sz = CURVE25519_KEYSIZE;
+    byte         shared[CURVE25519_KEYSIZE];
+    unsigned int sharedSz = CURVE25519_KEYSIZE;
+    byte         shared2[CURVE25519_KEYSIZE];
+    unsigned int shared2Sz = CURVE25519_KEYSIZE;
+
+    /* Bad parameter testing of key generation. */
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(NULL,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(NULL, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(NULL, &privSz,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv,    NULL,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv, &privSz,  pub,   NULL), 0);
+    /*   Bad length */
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv, &privSz, pub, &pubSz), 0);
+    privSz = CURVE25519_KEYSIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv, &privSz, pub, &pubSz), 0);
+    pubSz = CURVE25519_KEYSIZE;
+
+    /* Good case of generating key. */
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv, &privSz, pub, &pubSz), 1);
+    ExpectIntEQ(wolfSSL_EC25519_generate_key(priv2, &priv2Sz, pub2, &pub2Sz),
+        1);
+    ExpectIntEQ(privSz, CURVE25519_KEYSIZE);
+    ExpectIntEQ(pubSz, CURVE25519_KEYSIZE);
+
+    /* Bad parameter testing of shared key. */
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(  NULL,      NULL, NULL, privSz,
+        NULL,  pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(  NULL, &sharedSz, NULL, privSz,
+        NULL, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(  NULL, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, NULL, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+        NULL, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(  NULL, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared,      NULL, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, NULL, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+        NULL, pubSz), 0);
+    /*   Bad length. */
+    sharedSz = 1;
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    sharedSz = CURVE25519_KEYSIZE;
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    privSz = CURVE25519_KEYSIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    pubSz = CURVE25519_KEYSIZE;
+
+    /* Good case of shared key. */
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+        pub2, pub2Sz), 1);
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared2, &shared2Sz, priv2, priv2Sz,
+        pub, pubSz), 1);
+    ExpectIntEQ(sharedSz, CURVE25519_KEYSIZE);
+    ExpectIntEQ(shared2Sz, CURVE25519_KEYSIZE);
+    ExpectIntEQ(XMEMCMP(shared, shared2, sharedSz), 0);
+#endif /* HAVE_CURVE25519 && WOLFSSL_KEY_GEN */
+    return EXPECT_RESULT();
+}
+
 static int test_ED25519(void)
 {
     EXPECT_DECLS;
@@ -5020,22 +5110,186 @@ static int test_ED25519(void)
     unsigned int sigSz = (unsigned int)sizeof(sig);
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_IMPORT */
 
+    /* Bad parameter testing of key generation. */
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(NULL,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(NULL, &privSz, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(NULL,    NULL,  pub,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(NULL,    NULL, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(NULL, &privSz,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv,    NULL,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz,  pub,   NULL), 0);
+    /*   Bad length. */
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz), 0);
+    privSz = ED25519_PRV_KEY_SIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz), 0);
+    pubSz = ED25519_PUB_KEY_SIZE;
+
+    /* Good case of generating key. */
     ExpectIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz),
-        WOLFSSL_SUCCESS);
+        1);
     ExpectIntEQ(privSz, ED25519_PRV_KEY_SIZE);
     ExpectIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
 
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_IMPORT)
+    /* Bad parameter testing of signing. */
+    ExpectIntEQ(wolfSSL_ED25519_sign(      NULL, msglen, NULL, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, NULL, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign(      NULL, msglen, priv, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign(      NULL, msglen, NULL, privSz, sig,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign(      NULL, msglen, NULL, privSz, NULL,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign(      NULL, msglen, priv, privSz,  sig,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, NULL, privSz,  sig,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz,  NULL,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz,  sig,
+          NULL), 0);
+    /*   Bad length. */
+    privSz = 1;
     ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
-        &sigSz), WOLFSSL_SUCCESS);
+        &sigSz), 0);
+    privSz = ED25519_PRV_KEY_SIZE;
+    sigSz = 1;
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
+        &sigSz), 0);
+    sigSz = ED25519_SIG_SIZE;
+
+    /* Good case of signing. */
+    ExpectIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
+        &sigSz), 1);
     ExpectIntEQ(sigSz, ED25519_SIG_SIZE);
 
 #ifdef HAVE_ED25519_VERIFY
+    /* Bad parameter testing of verification. */
+    ExpectIntEQ(wolfSSL_ED25519_verify(      NULL, msglen, NULL, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, NULL, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify(      NULL, msglen,  pub, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify(      NULL, msglen, NULL, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify(      NULL, msglen,  pub, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, NULL, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen,  pub, pubSz, NULL,
+        sigSz), 0);
+    /*   Bad length. */
+    pubSz = 1;
     ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
-        sigSz), WOLFSSL_SUCCESS);
+        sigSz), 0);
+    pubSz = ED25519_PUB_KEY_SIZE;
+    sigSz = 1;
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 0);
+    sigSz = ED25519_SIG_SIZE;
+
+    /* Good case of verification. */
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 1);
+    /* Bad signature. */
+    if (EXPECT_SUCCESS()) {
+        sig[1] ^= 0x80;
+    }
+    ExpectIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 0);
 #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_IMPORT */
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && WOLFSSL_KEY_GEN */
+    return EXPECT_RESULT();
+}
+
+static int test_EC448(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(WOLFSSL_KEY_GEN)
+    byte         priv[CURVE448_KEY_SIZE];
+    unsigned int privSz = CURVE448_KEY_SIZE;
+    byte         pub[CURVE448_KEY_SIZE];
+    unsigned int pubSz = CURVE448_KEY_SIZE;
+    byte         priv2[CURVE448_KEY_SIZE];
+    unsigned int priv2Sz = CURVE448_KEY_SIZE;
+    byte         pub2[CURVE448_KEY_SIZE];
+    unsigned int pub2Sz = CURVE448_KEY_SIZE;
+    byte         shared[CURVE448_KEY_SIZE];
+    unsigned int sharedSz = CURVE448_KEY_SIZE;
+    byte         shared2[CURVE448_KEY_SIZE];
+    unsigned int shared2Sz = CURVE448_KEY_SIZE;
+
+    /* Bad parameter testing of key generation. */
+    ExpectIntEQ(wolfSSL_EC448_generate_key(NULL,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(NULL, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(NULL, &privSz,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv,    NULL,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv, &privSz,  pub,   NULL), 0);
+    /*   Bad length. */
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv, &privSz, pub, &pubSz), 0);
+    privSz = CURVE448_KEY_SIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv, &privSz, pub, &pubSz), 0);
+    pubSz = CURVE448_KEY_SIZE;
+
+    /* Good case of generating key. */
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv, &privSz, pub, &pubSz), 1);
+    ExpectIntEQ(wolfSSL_EC448_generate_key(priv2, &priv2Sz, pub2, &pub2Sz), 1);
+    ExpectIntEQ(privSz, CURVE448_KEY_SIZE);
+    ExpectIntEQ(pubSz, CURVE448_KEY_SIZE);
+
+    /* Bad parameter testing of shared key. */
+    ExpectIntEQ(wolfSSL_EC448_shared_key(  NULL,      NULL, NULL, privSz,
+        NULL,  pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(  NULL, &sharedSz, NULL, privSz,
+        NULL, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(  NULL, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, NULL, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+        NULL, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(  NULL, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared,      NULL, priv, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, NULL, privSz,
+         pub, pubSz), 0);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+        NULL, pubSz), 0);
+    /*   Bad length. */
+    sharedSz = 1;
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    sharedSz = CURVE448_KEY_SIZE;
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    privSz = CURVE448_KEY_SIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+         pub, pubSz), 0);
+    pubSz = CURVE448_KEY_SIZE;
+
+    /* Good case of shared key. */
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared, &sharedSz, priv, privSz,
+        pub2, pub2Sz), 1);
+    ExpectIntEQ(wolfSSL_EC448_shared_key(shared2, &shared2Sz, priv2, priv2Sz,
+        pub, pubSz), 1);
+    ExpectIntEQ(sharedSz, CURVE448_KEY_SIZE);
+    ExpectIntEQ(shared2Sz, CURVE448_KEY_SIZE);
+    ExpectIntEQ(XMEMCMP(shared, shared2, sharedSz), 0);
+#endif /* HAVE_CURVE448 && WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 }
 
@@ -5055,19 +5309,99 @@ static int test_ED448(void)
     unsigned int sigSz = (unsigned int)sizeof(sig);
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_IMPORT */
 
-    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz),
-        WOLFSSL_SUCCESS);
+    /* Bad parameter testing of key generation. */
+    ExpectIntEQ(wolfSSL_ED448_generate_key(NULL,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv,    NULL, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(NULL, &privSz, NULL,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(NULL,    NULL,  pub,   NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(NULL,    NULL, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(NULL, &privSz,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv,    NULL,  pub, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, NULL, &pubSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz,  pub,   NULL), 0);
+    /*   Bad length. */
+    privSz = 1;
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz), 0);
+    privSz = ED448_PRV_KEY_SIZE;
+    pubSz = 1;
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz), 0);
+    pubSz = ED448_PUB_KEY_SIZE;
+
+    /* Good case of generating key. */
+    ExpectIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz), 1);
     ExpectIntEQ(privSz, ED448_PRV_KEY_SIZE);
     ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
 
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_IMPORT)
+    /* Bad parameter testing of signing. */
+    ExpectIntEQ(wolfSSL_ED448_sign(      NULL, msglen, NULL, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, NULL, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign(      NULL, msglen, priv, privSz, NULL,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign(      NULL, msglen, NULL, privSz, sig,
+          NULL), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign(      NULL, msglen, NULL, privSz, NULL,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign(      NULL, msglen, priv, privSz,  sig,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, NULL, privSz,  sig,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz,  NULL,
+        &sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz,  sig,
+          NULL), 0);
+    /*   Bad length. */
+    privSz = 1;
     ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
-        &sigSz), WOLFSSL_SUCCESS);
+        &sigSz), 0);
+    privSz = ED448_PRV_KEY_SIZE;
+    sigSz = 1;
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
+        &sigSz), 0);
+    sigSz = ED448_SIG_SIZE;
+
+    /* Good case of signing. */
+    ExpectIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
+        &sigSz), 1);
     ExpectIntEQ(sigSz, ED448_SIG_SIZE);
 
 #ifdef HAVE_ED448_VERIFY
+   /* Bad parameter testing of verification. */
+    ExpectIntEQ(wolfSSL_ED448_verify(      NULL, msglen, NULL, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, NULL, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify(      NULL, msglen,  pub, pubSz, NULL,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify(      NULL, msglen, NULL, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify(      NULL, msglen,  pub, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, NULL, pubSz,  sig,
+        sigSz), 0);
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen,  pub, pubSz, NULL,
+        sigSz), 0);
+    /*   Bad length. */
+    pubSz = 1;
     ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
-        sigSz), WOLFSSL_SUCCESS);
+        sigSz), 0);
+    pubSz = ED448_PUB_KEY_SIZE;
+    sigSz = 1;
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 0);
+    sigSz = ED448_SIG_SIZE;
+
+    /* Good case of verification. */
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 1);
+    /* Bad signature. */
+    if (EXPECT_SUCCESS()) {
+        sig[1] ^= 0x80;
+    }
+    ExpectIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
+        sigSz), 0);
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_IMPORT */
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT && WOLFSSL_KEY_GEN */
@@ -27097,7 +27431,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
 
     /* reinitialize and test setting stream mode */
     {
-        int signedSz;
+        int signedSz = 0;
         encodeSignedDataStream strm;
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -34345,29 +34679,79 @@ static int test_wolfSSL_private_keys(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_PEM_def_callback(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    char buf[10];
+    const char* defpwd = "DEF PWD";
+    int defpwdLen = (int)XSTRLEN(defpwd);
+    int smallLen = 1;
+
+    /* Bad parameters. */
+    ExpectIntEQ(wolfSSL_PEM_def_callback(NULL, sizeof(buf), 0, NULL), 0);
+    ExpectIntEQ(wolfSSL_PEM_def_callback(NULL, sizeof(buf), 0, (void*)defpwd),
+        0);
+    ExpectIntEQ(wolfSSL_PEM_def_callback(buf, sizeof(buf), 0, NULL), 0);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_PEM_def_callback(buf, sizeof(buf), 0, (void*)defpwd),
+        defpwdLen);
+    ExpectIntEQ(XMEMCMP(buf, defpwd, defpwdLen), 0);
+    ExpectIntEQ(buf[defpwdLen], 0);
+    /* Size of buffer is smaller than default password. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_PEM_def_callback(buf, smallLen, 0, (void*)defpwd),
+        smallLen);
+    ExpectIntEQ(XMEMCMP(buf, defpwd, smallLen), 0);
+    ExpectIntEQ(buf[smallLen], 0);
+#endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_PEM_read_PrivateKey(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) \
-    && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_DH))
     XFILE file = XBADFILE;
-    const char* fname = "./certs/server-key.pem";
-    EVP_PKEY* pkey = NULL;
+#if !defined(NO_RSA)
+    const char* fname_rsa = "./certs/server-key.pem";
     RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
     unsigned char* sig = NULL;
     size_t sigLen = 0;
     const unsigned char tbs[] = {0, 1, 2, 3, 4, 5, 6, 7};
     size_t tbsLen = sizeof(tbs);
+#endif
+#if !defined(NO_DSA)
+    const char* fname_dsa = "./certs/dsa2048.pem";
+#endif
+#if defined(HAVE_ECC)
+    const char* fname_ec = "./certs/ecc-key.pem";
+#endif
+#if !defined(NO_DH)
+    const char* fname_dh = "./certs/dh-priv-2048.pem";
+#endif
+    EVP_PKEY* pkey = NULL;
 
     /* Check error case. */
     ExpectNull(pkey = PEM_read_PrivateKey(NULL, NULL, NULL, NULL));
 
+    /* not a PEM key. */
+    ExpectTrue((file = XFOPEN("./certs/ecc-key.der", "rb")) != XBADFILE);
+    ExpectNull(PEM_read_PrivateKey(file, NULL, NULL, NULL));
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    file = XBADFILE;
+
+#ifndef NO_RSA
     /* Read in an RSA key. */
-    ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectTrue((file = XFOPEN(fname_rsa, "rb")) != XBADFILE);
     ExpectNotNull(pkey = PEM_read_PrivateKey(file, NULL, NULL, NULL));
     if (file != XBADFILE)
         XFCLOSE(file);
+    file = XBADFILE;
 
     /* Make sure the key is usable by signing some data with it. */
     ExpectNotNull(rsa = EVP_PKEY_get0_RSA(pkey));
@@ -34382,6 +34766,52 @@ static int test_wolfSSL_PEM_read_PrivateKey(void)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+
+#ifndef NO_DSA
+    /* Read in a DSA key. */
+    ExpectTrue((file = XFOPEN(fname_dsa, "rb")) != XBADFILE);
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
+    ExpectNotNull(pkey = PEM_read_PrivateKey(file, NULL, NULL, NULL));
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#else
+    ExpectNull(PEM_read_PrivateKey(file, NULL, NULL, NULL));
+#endif
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    file = XBADFILE;
+#endif
+
+#ifdef HAVE_ECC
+    /* Read in an EC key. */
+    ExpectTrue((file = XFOPEN(fname_ec, "rb")) != XBADFILE);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectPtrEq(PEM_read_PrivateKey(file, &pkey, NULL, NULL), pkey);
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    file = XBADFILE;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#endif
+
+#ifndef NO_DH
+    /* Read in a DH key. */
+    ExpectTrue((file = XFOPEN(fname_dh, "rb")) != XBADFILE);
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_OPENSSH)) && (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    ExpectNotNull(pkey = PEM_read_PrivateKey(file, NULL, NULL, NULL));
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+#else
+    ExpectNull(PEM_read_PrivateKey(file, NULL, NULL, NULL));
+#endif
+    if (file != XBADFILE)
+        XFCLOSE(file);
+    file = XBADFILE;
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -34402,8 +34832,399 @@ static int test_wolfSSL_PEM_read_PUBKEY(void)
     ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
     ExpectNotNull(pkey = PEM_read_PUBKEY(file, NULL, NULL, NULL));
     EVP_PKEY_free(pkey);
+    pkey = NULL;
     if (file != XBADFILE)
         XFCLOSE(file);
+    file = XBADFILE;
+    ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    ExpectPtrEq(PEM_read_PUBKEY(file, &pkey, NULL, NULL), pkey);
+    EVP_PKEY_free(pkey);
+    if (file != XBADFILE)
+        XFCLOSE(file);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* test loading RSA key using BIO */
+static int test_wolfSSL_PEM_PrivateKey_rsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO)
+    BIO*      bio = NULL;
+    XFILE file = XBADFILE;
+    const char* fname = "./certs/server-key.pem";
+    const char* fname_rsa_p8 = "./certs/server-keyPkcs8.pem";
+    EVP_PKEY* pkey  = NULL;
+    size_t sz = 0;
+    byte* buf = NULL;
+    EVP_PKEY* pkey2 = NULL;
+    EVP_PKEY* pkey3 = NULL;
+    RSA* rsa_key = NULL;
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+    unsigned char extra[10];
+    int i;
+    BIO* pub_bio = NULL;
+    const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+#endif
+
+    ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
+    ExpectIntGT(sz = XFTELL(file), 0);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
+    ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+    if (buf != NULL) {
+        ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
+    }
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    /* Test using BIO new mem and loading PEM private key */
+    ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+    ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+    buf = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
+    /* New empty EVP_PKEY */
+    ExpectNotNull(pkey2 = EVP_PKEY_new());
+    if (pkey2 != NULL) {
+        pkey2->type = EVP_PKEY_RSA;
+    }
+    /* Test parameter copy */
+    ExpectIntEQ(EVP_PKEY_copy_parameters(pkey2, pkey), 0);
+    EVP_PKEY_free(pkey2);
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+
+    /* Qt unit test case : rsa pkcs8 key */
+    ExpectTrue((file = XFOPEN(fname_rsa_p8, "rb")) != XBADFILE);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
+    ExpectIntGT(sz = XFTELL(file), 0);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
+    ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+    if (buf) {
+        ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
+    }
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+    ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+    buf = NULL;
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(pkey3 = EVP_PKEY_new());
+
+    ExpectNotNull(rsa_key = EVP_PKEY_get1_RSA(pkey));
+    ExpectIntEQ(EVP_PKEY_set1_RSA(pkey3, rsa_key), WOLFSSL_SUCCESS);
+
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
+#else
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
+#endif
+
+    RSA_free(rsa_key);
+    EVP_PKEY_free(pkey3);
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+    pkey2 = NULL;
+
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+    #define BIO_PEM_TEST_CHAR 'a'
+    XMEMSET(extra, BIO_PEM_TEST_CHAR, sizeof(extra));
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
+    ExpectNotNull(pub_bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(BIO_set_write_buf_size(pub_bio, 4096), SSL_FAILURE);
+
+    ExpectNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey, &server_key,
+        (long)sizeof_server_key_der_2048));
+    ExpectNull(pkey);
+
+    ExpectNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &server_key,
+        (long)sizeof_server_key_der_2048));
+    ExpectIntEQ(PEM_write_bio_PrivateKey(NULL, pkey, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio,  NULL, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio,  pkey, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(BIO_pending(bio), 0);
+    ExpectIntEQ(BIO_pending(bio), 1679);
+    /* Check if the pubkey API writes only the public key */
+#ifdef WOLFSSL_KEY_GEN
+    ExpectIntEQ(PEM_write_bio_PUBKEY(NULL, pkey), WOLFSSL_FAILURE);
+    ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, pkey), WOLFSSL_SUCCESS);
+    ExpectIntGT(BIO_pending(pub_bio), 0);
+    /* Previously both the private key and the pubkey calls would write
+     * out the private key and the PEM header was the only difference.
+     * The public PEM should be significantly shorter than the
+     * private key versison. */
+    ExpectIntEQ(BIO_pending(pub_bio), 451);
+#else
+    /* Not supported. */
+    ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, pkey), 0);
+#endif
+
+    /* test creating new EVP_PKEY with good args */
+    ExpectNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr) {
+        ExpectIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr,
+            pkey->pkey_sz), 0);
+    }
+
+    /* test of reuse of EVP_PKEY */
+    ExpectNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+    ExpectIntEQ(BIO_pending(bio), 0);
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+            SSL_SUCCESS);
+    /* add 10 extra bytes after PEM */
+    ExpectIntEQ(BIO_write(bio, extra, 10), 10);
+    ExpectNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+    ExpectNotNull(pkey);
+    if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr) {
+        ExpectIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr,
+            pkey->pkey_sz), 0);
+    }
+    /* check 10 extra bytes still there */
+    ExpectIntEQ(BIO_pending(bio), 10);
+    ExpectIntEQ(BIO_read(bio, extra, 10), 10);
+    for (i = 0; i < 10; i++) {
+        ExpectIntEQ(extra[i], BIO_PEM_TEST_CHAR);
+    }
+
+    BIO_free(pub_bio);
+    BIO_free(bio);
+    bio = NULL;
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+    EVP_PKEY_free(pkey2);
+#endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_RSA && USE_CERT_BUFFERS_2048 &&
+        * !NO_FILESYSTEM && !NO_BIO */
+    return EXPECT_RESULT();
+}
+
+/* test loading ECC key using BIO */
+static int test_wolfSSL_PEM_PrivateKey_ecc(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_ECC) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+    BIO*      bio = NULL;
+    EVP_PKEY* pkey  = NULL;
+    XFILE file = XBADFILE;
+    const char* fname = "./certs/ecc-key.pem";
+    const char* fname_ecc_p8  = "./certs/ecc-keyPkcs8.pem";
+
+    size_t sz = 0;
+    byte* buf = NULL;
+    EVP_PKEY* pkey2 = NULL;
+    EVP_PKEY* pkey3 = NULL;
+    EC_KEY*   ec_key = NULL;
+    int nid = 0;
+    BIO* pub_bio = NULL;
+
+    ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
+    ExpectIntGT(sz = XFTELL(file), 0);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
+    ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+    if (buf) {
+        ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
+    }
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    /* Test using BIO new mem and loading PEM private key */
+    ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+    ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    BIO_free(bio);
+    bio = NULL;
+    XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+    buf = NULL;
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectNotNull(pub_bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(BIO_pending(bio), 0);
+    /* No parmeters. */
+    ExpectIntEQ(BIO_pending(bio), 227);
+    /* Check if the pubkey API writes only the public key */
+#ifdef WOLFSSL_KEY_GEN
+    ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, pkey), WOLFSSL_SUCCESS);
+    ExpectIntGT(BIO_pending(pub_bio), 0);
+    /* Previously both the private key and the pubkey calls would write
+     * out the private key and the PEM header was the only difference.
+     * The public PEM should be significantly shorter than the
+     * private key versison. */
+    ExpectIntEQ(BIO_pending(pub_bio), 178);
+#endif
+    BIO_free(pub_bio);
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(pkey2 = EVP_PKEY_new());
+    ExpectNotNull(pkey3 = EVP_PKEY_new());
+    if (pkey2 != NULL) {
+         pkey2->type = EVP_PKEY_EC;
+    }
+    /* Test parameter copy */
+    ExpectIntEQ(EVP_PKEY_copy_parameters(pkey2, pkey), 1);
+
+
+    /* Qt unit test case 1*/
+    ExpectNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
+    ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
+    #ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
+    #else
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
+    #endif
+    /* Test default digest */
+    ExpectIntEQ(EVP_PKEY_get_default_digest_nid(pkey, &nid), 1);
+    ExpectIntEQ(nid, NID_sha256);
+    EC_KEY_free(ec_key);
+    ec_key = NULL;
+    EVP_PKEY_free(pkey3);
+    pkey3 = NULL;
+    EVP_PKEY_free(pkey2);
+    pkey2 = NULL;
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+
+    /* Qt unit test case ec pkcs8 key */
+    ExpectTrue((file = XFOPEN(fname_ecc_p8, "rb")) != XBADFILE);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
+    ExpectIntGT(sz = XFTELL(file), 0);
+    ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
+    ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+    if (buf) {
+        ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
+    }
+    if (file != XBADFILE) {
+        XFCLOSE(file);
+        file = XBADFILE;
+    }
+
+    ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+    ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+    buf = NULL;
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(pkey3 = EVP_PKEY_new());
+    /* Qt unit test case */
+    ExpectNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
+    ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
+#else
+    ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
+#endif
+    EC_KEY_free(ec_key);
+    EVP_PKEY_free(pkey3);
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* test loading DSA key using BIO */
+static int test_wolfSSL_PEM_PrivateKey_dsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_DSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    BIO*      bio = NULL;
+    EVP_PKEY* pkey  = NULL;
+
+    ExpectNotNull(bio = BIO_new_file("./certs/dsa2048.pem", "rb"));
+    /* Private DSA EVP_PKEY */
+    ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
+        NULL));
+    BIO_free(bio);
+    bio = NULL;
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+#if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+#endif
+
+#ifdef WOLFSSL_KEY_GEN
+    ExpectIntEQ(PEM_write_bio_PUBKEY(bio, pkey), 1);
+    ExpectIntEQ(BIO_pending(bio), 1178);
+    BIO_reset(bio);
+#endif
+
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+        1);
+    ExpectIntEQ(BIO_pending(bio), 1196);
+
+    BIO_free(bio);
+    bio = NULL;
+
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* test loading DH key using BIO */
+static int test_wolfSSL_PEM_PrivateKey_dh(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_DH) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_OPENSSH)) && (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    BIO*      bio = NULL;
+    EVP_PKEY* pkey  = NULL;
+
+    ExpectNotNull(bio = BIO_new_file("./certs/dh-priv-2048.pem", "rb"));
+    /* Private DH EVP_PKEY */
+    ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
+        NULL));
+    BIO_free(bio);
+    bio = NULL;
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+
+#if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+#endif
+#ifdef WOLFSSL_KEY_GEN
+    ExpectIntEQ(PEM_write_bio_PUBKEY(bio, pkey), 0);
+#endif
+
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+        1);
+    ExpectIntEQ(BIO_pending(bio), 806);
+
+    BIO_free(bio);
+    bio = NULL;
+
+    EVP_PKEY_free(pkey);
+    pkey  = NULL;
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -34424,258 +35245,27 @@ static int test_wolfSSL_PEM_PrivateKey(void)
     /* test creating new EVP_PKEY with bad arg */
     ExpectNull((pkey = PEM_read_bio_PrivateKey(NULL, NULL, NULL, NULL)));
 
-    /* test loading RSA key using BIO */
-#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
-    {
-        XFILE file = XBADFILE;
-        const char* fname = "./certs/server-key.pem";
-        const char* fname_rsa_p8 = "./certs/server-keyPkcs8.pem";
-
-        size_t sz = 0;
-        byte* buf = NULL;
-        EVP_PKEY* pkey2 = NULL;
-        EVP_PKEY* pkey3 = NULL;
-        RSA* rsa_key = NULL;
-
-        ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectIntGT(sz = XFTELL(file), 0);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
-        ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
-        if (buf != NULL) {
-            ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
-        }
-        if (file != XBADFILE) {
-            XFCLOSE(file);
-            file = XBADFILE;
-        }
-
-        /* Test using BIO new mem and loading PEM private key */
-        ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
-        ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
-        buf = NULL;
-        BIO_free(bio);
-        bio = NULL;
-        ExpectNotNull(pkey2 = EVP_PKEY_new());
-        if (pkey2 != NULL) {
-            pkey2->type = EVP_PKEY_RSA;
-        }
-        /* Test parameter copy */
-        ExpectIntEQ(EVP_PKEY_copy_parameters(pkey2, pkey), 0);
-        EVP_PKEY_free(pkey2);
-        EVP_PKEY_free(pkey);
-        pkey  = NULL;
-
-        /* Qt unit test case : rsa pkcs8 key */
-        ExpectTrue((file = XFOPEN(fname_rsa_p8, "rb")) != XBADFILE);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectIntGT(sz = XFTELL(file), 0);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
-        ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
-        if (buf) {
-            ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
-        }
-        if (file != XBADFILE) {
-            XFCLOSE(file);
-            file = XBADFILE;
-        }
-
-        ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
-        ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
-        buf = NULL;
-        BIO_free(bio);
-        bio = NULL;
-        ExpectNotNull(pkey3 = EVP_PKEY_new());
-
-        ExpectNotNull(rsa_key = EVP_PKEY_get1_RSA(pkey));
-        ExpectIntEQ(EVP_PKEY_set1_RSA(pkey3, rsa_key), WOLFSSL_SUCCESS);
-
-        #ifdef WOLFSSL_ERROR_CODE_OPENSSL
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
-        #else
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
-        #endif
-
-        RSA_free(rsa_key);
-        EVP_PKEY_free(pkey3);
-        EVP_PKEY_free(pkey);
-        pkey  = NULL;
+    /* Test bad EVP_PKEY type. */
+    /* New HMAC EVP_PKEY */
+    ExpectNotNull(bio = BIO_new_mem_buf("", 1));
+    ExpectNotNull(pkey = EVP_PKEY_new());
+    if (pkey != NULL) {
+        pkey->type = EVP_PKEY_HMAC;
     }
+    ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+        0);
+#if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
 #endif
-
-    /* test loading ECC key using BIO */
-#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
-    {
-        XFILE file = XBADFILE;
-        const char* fname = "./certs/ecc-key.pem";
-        const char* fname_ecc_p8  = "./certs/ecc-keyPkcs8.pem";
-
-        size_t sz = 0;
-        byte* buf = NULL;
-        EVP_PKEY* pkey2 = NULL;
-        EVP_PKEY* pkey3 = NULL;
-        EC_KEY*   ec_key = NULL;
-        int nid = 0;
-
-        ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectIntGT(sz = XFTELL(file), 0);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
-        ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
-        if (buf) {
-            ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
-        }
-        if (file != XBADFILE) {
-            XFCLOSE(file);
-            file = XBADFILE;
-        }
-
-        /* Test using BIO new mem and loading PEM private key */
-        ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
-        ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
-        buf = NULL;
-        BIO_free(bio);
-        bio = NULL;
-        ExpectNotNull(pkey2 = EVP_PKEY_new());
-        ExpectNotNull(pkey3 = EVP_PKEY_new());
-        if (pkey2 != NULL) {
-             pkey2->type = EVP_PKEY_EC;
-        }
-        /* Test parameter copy */
-        ExpectIntEQ(EVP_PKEY_copy_parameters(pkey2, pkey), 1);
-        /* Qt unit test case 1*/
-        ExpectNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
-        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
-        #ifdef WOLFSSL_ERROR_CODE_OPENSSL
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
-        #else
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
-        #endif
-        /* Test default digest */
-        ExpectIntEQ(EVP_PKEY_get_default_digest_nid(pkey, &nid), 1);
-        ExpectIntEQ(nid, NID_sha256);
-        EC_KEY_free(ec_key);
-        ec_key = NULL;
-        EVP_PKEY_free(pkey3);
-        pkey3 = NULL;
-        EVP_PKEY_free(pkey2);
-        pkey2 = NULL;
-        EVP_PKEY_free(pkey);
-        pkey  = NULL;
-
-        /* Qt unit test case ec pkcs8 key */
-        ExpectTrue((file = XFOPEN(fname_ecc_p8, "rb")) != XBADFILE);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectIntGT(sz = XFTELL(file), 0);
-        ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
-        ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
-        if (buf) {
-            ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
-        }
-        if (file != XBADFILE) {
-            XFCLOSE(file);
-            file = XBADFILE;
-        }
-
-        ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
-        ExpectNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
-        buf = NULL;
-        BIO_free(bio);
-        bio = NULL;
-        ExpectNotNull(pkey3 = EVP_PKEY_new());
-        /* Qt unit test case */
-        ExpectNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
-        ExpectIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
-        #ifdef WOLFSSL_ERROR_CODE_OPENSSL
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
-        #else
-        ExpectIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
-        #endif
-        EC_KEY_free(ec_key);
-        EVP_PKEY_free(pkey3);
-        EVP_PKEY_free(pkey);
-        pkey  = NULL;
-    }
-#endif
-
-#if !defined(NO_BIO) && !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || \
-    defined(WOLFSSL_CERT_GEN))
-    {
-        #define BIO_PEM_TEST_CHAR 'a'
-        EVP_PKEY* pkey2 = NULL;
-        unsigned char extra[10];
-        int i;
-        BIO* pub_bio = NULL;
-
-        XMEMSET(extra, BIO_PEM_TEST_CHAR, sizeof(extra));
-
-        ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
-        ExpectIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
-        ExpectNotNull(pub_bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
-        ExpectIntEQ(BIO_set_write_buf_size(pub_bio, 4096), SSL_FAILURE);
-
-        ExpectNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey,
-                &server_key, (long)sizeof_server_key_der_2048));
-        ExpectNull(pkey);
-
-        ExpectNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
-                &server_key, (long)sizeof_server_key_der_2048));
-        ExpectIntEQ(PEM_write_bio_PrivateKey(NULL, pkey, NULL, NULL, 0, NULL,
-                NULL), WOLFSSL_FAILURE);
-        ExpectIntEQ(PEM_write_bio_PrivateKey(bio, NULL, NULL, NULL, 0, NULL,
-                NULL), WOLFSSL_FAILURE);
-        ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
-                NULL), WOLFSSL_SUCCESS);
-        ExpectIntGT(BIO_pending(bio), 0);
-        ExpectIntEQ(BIO_pending(bio), 1679);
-        /* Check if the pubkey API writes only the public key */
 #ifdef WOLFSSL_KEY_GEN
-        ExpectIntEQ(PEM_write_bio_PUBKEY(NULL, pkey), WOLFSSL_FAILURE);
-        ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, NULL), WOLFSSL_FAILURE);
-        ExpectIntEQ(PEM_write_bio_PUBKEY(pub_bio, pkey), WOLFSSL_SUCCESS);
-        ExpectIntGT(BIO_pending(pub_bio), 0);
-        /* Previously both the private key and the pubkey calls would write
-         * out the private key and the PEM header was the only difference.
-         * The public PEM should be significantly shorter than the
-         * private key versison. */
-        ExpectIntEQ(BIO_pending(pub_bio), 451);
+    ExpectIntEQ(PEM_write_bio_PUBKEY(bio, pkey), WOLFSSL_FAILURE);
 #endif
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
 
-
-        /* test creating new EVP_PKEY with good args */
-        ExpectNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-        if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr)
-            ExpectIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz), 0);
-
-        /* test of reuse of EVP_PKEY */
-        ExpectNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
-        ExpectIntEQ(BIO_pending(bio), 0);
-        ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
-                SSL_SUCCESS);
-        ExpectIntEQ(BIO_write(bio, extra, 10), 10); /* add 10 extra bytes after PEM */
-        ExpectNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
-        ExpectNotNull(pkey);
-        if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr) {
-            ExpectIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
-        }
-        ExpectIntEQ(BIO_pending(bio), 10); /* check 10 extra bytes still there */
-        ExpectIntEQ(BIO_read(bio, extra, 10), 10);
-        for (i = 0; i < 10; i++) {
-            ExpectIntEQ(extra[i], BIO_PEM_TEST_CHAR);
-        }
-
-        BIO_free(pub_bio);
-        BIO_free(bio);
-        bio = NULL;
-        EVP_PKEY_free(pkey);
-        pkey  = NULL;
-        EVP_PKEY_free(pkey2);
-    }
-    #endif
 
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
@@ -35195,7 +35785,7 @@ static int test_wolfSSL_PEM_PUBKEY(void)
     {
         XFILE file = XBADFILE;
         const char* fname = "./certs/ecc-client-keyPub.pem";
-        size_t sz;
+        size_t sz = 0;
         byte* buf = NULL;
 
         EVP_PKEY* pkey2 = NULL;
@@ -35216,6 +35806,13 @@ static int test_wolfSSL_PEM_PUBKEY(void)
         /* Test using BIO new mem and loading PEM private key */
         ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
         ExpectNotNull((pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)));
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        ExpectNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        ExpectNotNull(pkey = EVP_PKEY_new());
+        ExpectPtrEq(PEM_read_bio_PUBKEY(bio, &pkey, NULL, NULL), pkey);
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
         bio = NULL;
@@ -35233,7 +35830,7 @@ static int test_wolfSSL_PEM_PUBKEY(void)
         EC_KEY_free(ec_key);
         EVP_PKEY_free(pkey2);
         EVP_PKEY_free(pkey);
-        pkey  = NULL;
+        pkey = NULL;
     }
 #endif
 
@@ -41491,6 +42088,18 @@ static int test_wolfSSL_PKCS8_Compat(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO)
+static int NoPasswordCallBack(char* passwd, int sz, int rw, void* userdata)
+{
+    (void)passwd;
+    (void)sz;
+    (void)rw;
+    (void)userdata;
+
+    return -1;
+}
+#endif
+
 static int test_wolfSSL_PKCS8_d2i(void)
 {
     EXPECT_DECLS;
@@ -41573,6 +42182,13 @@ static int test_wolfSSL_PKCS8_d2i(void)
 #endif /* OPENSSL_ALL */
 
 #ifndef NO_FILESYSTEM
+#if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(XBADFILE, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, NULL, NULL, NULL, 0, NULL,
+        NULL), 0);
+#endif
+
 #ifndef NO_RSA
     /* Get DER encoded RSA PKCS#8 data. */
     ExpectTrue((file = XFOPEN(rsaDerPkcs8File, "rb")) != XBADFILE);
@@ -41603,19 +42219,32 @@ static int test_wolfSSL_PKCS8_d2i(void)
 #if defined(OPENSSL_ALL) && \
     !defined(NO_BIO) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(NULL, pkey, NULL, NULL, 0, NULL,
+        NULL), 0);
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, NULL, NULL, NULL, 0, NULL,
+        NULL), 0);
     /* Write PKCS#8 PEM to BIO. */
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), bytes);
+    /* Write PKCS#8 PEM to stderr. */
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, NULL, NULL, 0, NULL,
         NULL), bytes);
     /* Compare file and written data */
     ExpectIntEQ(BIO_get_mem_data(bio, &p), bytes);
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
     BIO_free(bio);
     bio = NULL;
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_gcm(),
+        NULL, 0, PasswordCallBack, (void*)"yassl123"), 0);
+#endif
 #if !defined(NO_DES3) && !defined(NO_SHA)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO. */
     bytes = 1834;
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_des_ede3_cbc(),
+        NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_des_ede3_cbc(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
     ExpectNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, PasswordCallBack,
         (void*)"yassl123"));
@@ -41686,6 +42315,8 @@ static int test_wolfSSL_PKCS8_d2i(void)
     /* Write PKCS#8 PEM to BIO. */
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
         NULL), bytes);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, NULL, NULL, 0, NULL,
+        NULL), bytes);
     /* Compare file and written data */
     ExpectIntEQ(BIO_get_mem_data(bio, &p), bytes);
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
@@ -41695,6 +42326,14 @@ static int test_wolfSSL_PKCS8_d2i(void)
     /* Write Encrypted PKCS#8 PEM to BIO. */
     bytes = 379;
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
+        NULL, 0, NoPasswordCallBack, (void*)"yassl123"), 0);
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, EVP_aes_256_cbc(),
+        NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_cbc(),
+        NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_128_cbc(),
+        (char*)"yassl123", 8, PasswordCallBack, NULL), bytes);
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, pkey, EVP_aes_256_cbc(),
         NULL, 0, PasswordCallBack, (void*)"yassl123"), bytes);
     ExpectNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, PasswordCallBack,
         (void*)"yassl123"));
@@ -55949,6 +56588,25 @@ static int test_wolfSSL_PEM_read(void)
     size_t fileDataSz = 0;
     byte* out;
 
+    ExpectNotNull(bio = BIO_new_file(filename, "rb"));
+    ExpectIntEQ(PEM_read_bio(bio, NULL, &header, &data, &len), 0);
+    ExpectIntEQ(PEM_read_bio(bio, &name, NULL, &data, &len), 0);
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, NULL, &len), 0);
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, NULL), 0);
+
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, &len), 1);
+    ExpectIntEQ(XSTRNCMP(name, "RSA PRIVATE KEY", 15), 0);
+    ExpectIntGT(XSTRLEN(header), 0);
+    ExpectIntGT(len, 0);
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    name = NULL;
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    header = NULL;
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    data = NULL;
+    BIO_free(bio);
+    bio = NULL;
+
     ExpectTrue((fp = XFOPEN(filename, "rb")) != XBADFILE);
 
     /* Fail cases. */
@@ -55987,6 +56645,26 @@ static int test_wolfSSL_PEM_read(void)
     ExpectIntEQ(XMEMCMP(out, fileData, fileDataSz), 0);
 
     /* Fail cases. */
+    ExpectIntEQ(PEM_write(XBADFILE, name, header, data, len), 0);
+    ExpectIntEQ(PEM_write(stderr, NULL, header, data, len), 0);
+    ExpectIntEQ(PEM_write(stderr, name, NULL, data, len), 0);
+    ExpectIntEQ(PEM_write(stderr, name, header, NULL, len), 0);
+    /* Pass case */
+    ExpectIntEQ(PEM_write(stderr, name, header, data, len), fileDataSz);
+
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    name = NULL;
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    header = NULL;
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    data = NULL;
+    /* Read out of a fixed buffer BIO - forces malloc in PEM_read_bio. */
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, &len), 1);
+    ExpectIntEQ(XSTRNCMP(name, "RSA PRIVATE KEY", 15), 0);
+    ExpectIntGT(XSTRLEN(header), 0);
+    ExpectIntGT(len, 0);
+
+    /* Fail cases. */
     ExpectIntEQ(PEM_get_EVP_CIPHER_INFO(NULL, &cipher), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_get_EVP_CIPHER_INFO(header, NULL), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_get_EVP_CIPHER_INFO((char*)"", &cipher), WOLFSSL_FAILURE);
@@ -55996,6 +56674,8 @@ static int test_wolfSSL_PEM_read(void)
 #endif
 
     /* Fail cases. */
+    ExpectIntEQ(PEM_do_header(NULL, data, &len, PasswordCallBack,
+        (void*)"yassl123"), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_do_header(&cipher, NULL, &len, PasswordCallBack,
         (void*)"yassl123"), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_do_header(&cipher, data, NULL, PasswordCallBack,
@@ -56003,9 +56683,14 @@ static int test_wolfSSL_PEM_read(void)
     ExpectIntEQ(PEM_do_header(&cipher, data, &len, NULL,
         (void*)"yassl123"), WOLFSSL_FAILURE);
 
+    ExpectIntEQ(PEM_do_header(&cipher, data, &len, NoPasswordCallBack,
+                              (void*)"yassl123"), WOLFSSL_FAILURE);
 #if !defined(NO_DES3) && !defined(NO_MD5)
     ExpectIntEQ(PEM_do_header(&cipher, data, &len, PasswordCallBack,
                               (void*)"yassl123"), WOLFSSL_SUCCESS);
+#else
+    ExpectIntEQ(PEM_do_header(&cipher, data, &len, PasswordCallBack,
+                              (void*)"yassl123"), WOLFSSL_FAILURE);
 #endif
 
     BIO_free(bio);
@@ -66862,7 +67547,7 @@ static int test_extra_alerts_bad_psk(void)
         WOLFSSL_ERROR_WANT_READ);
 
     ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
-    ExpectIntEQ( wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
 
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
@@ -71326,9 +72011,14 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_certs),
 
     TEST_DECL(test_wolfSSL_private_keys),
+    TEST_DECL(test_wolfSSL_PEM_def_callback),
     TEST_DECL(test_wolfSSL_PEM_read_PrivateKey),
     TEST_DECL(test_wolfSSL_PEM_read_RSA_PUBKEY),
     TEST_DECL(test_wolfSSL_PEM_read_PUBKEY),
+    TEST_DECL(test_wolfSSL_PEM_PrivateKey_rsa),
+    TEST_DECL(test_wolfSSL_PEM_PrivateKey_ecc),
+    TEST_DECL(test_wolfSSL_PEM_PrivateKey_dsa),
+    TEST_DECL(test_wolfSSL_PEM_PrivateKey_dh),
     TEST_DECL(test_wolfSSL_PEM_PrivateKey),
     TEST_DECL(test_wolfSSL_PEM_file_RSAKey),
     TEST_DECL(test_wolfSSL_PEM_file_RSAPrivateKey),
@@ -71824,7 +72514,9 @@ TEST_CASE testCases[] = {
 #endif
 
 #ifdef OPENSSL_EXTRA
+    TEST_DECL(test_EC25519),
     TEST_DECL(test_ED25519),
+    TEST_DECL(test_EC448),
     TEST_DECL(test_ED448),
 #endif
 

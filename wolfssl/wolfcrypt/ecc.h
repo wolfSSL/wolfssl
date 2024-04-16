@@ -139,6 +139,10 @@
     #define WC_ECC_FIPS_GEN_MIN (WC_ECC_FIPS_SIG_MIN/8)
 #endif
 
+#ifdef WOLFSSL_SM2
+    #define WOLFSSL_SM2_KEY_BITS   256
+#endif
+
 /* calculate max ECC bytes */
 #if ((MAX_ECC_BITS * 2) % 8) == 0
     #define MAX_ECC_BYTES     (MAX_ECC_BITS / 8)
