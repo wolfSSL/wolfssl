@@ -256,7 +256,6 @@
 		700F0C0D2A2FBC5100755BA7 /* eccsi.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF72A2FBC1600755BA7 /* eccsi.h */; };
 		700F0C0E2A2FBC5100755BA7 /* ed448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF82A2FBC1600755BA7 /* ed448.h */; };
 		700F0C0F2A2FBC5100755BA7 /* ed25519.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF42A2FBC1600755BA7 /* ed25519.h */; };
-		700F0C102A2FBC5100755BA7 /* ext_kyber.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF92A2FBC1600755BA7 /* ext_kyber.h */; };
 		700F0C112A2FBC5100755BA7 /* falcon.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C022A2FBC1600755BA7 /* falcon.h */; };
 		700F0C122A2FBC5100755BA7 /* fe_448.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BEB2A2FBC1500755BA7 /* fe_448.h */; };
 		700F0C132A2FBC5100755BA7 /* fe_operations.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0BF62A2FBC1600755BA7 /* fe_operations.h */; };
@@ -625,7 +624,6 @@
 				700F0C0D2A2FBC5100755BA7 /* eccsi.h in CopyFiles */,
 				700F0C0E2A2FBC5100755BA7 /* ed448.h in CopyFiles */,
 				700F0C0F2A2FBC5100755BA7 /* ed25519.h in CopyFiles */,
-				700F0C102A2FBC5100755BA7 /* ext_kyber.h in CopyFiles */,
 				700F0C112A2FBC5100755BA7 /* falcon.h in CopyFiles */,
 				700F0C122A2FBC5100755BA7 /* fe_448.h in CopyFiles */,
 				700F0C132A2FBC5100755BA7 /* fe_operations.h in CopyFiles */,
@@ -1000,7 +998,6 @@
 		700F0BF62A2FBC1600755BA7 /* fe_operations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fe_operations.h; path = ../../wolfssl/wolfcrypt/fe_operations.h; sourceTree = "<group>"; };
 		700F0BF72A2FBC1600755BA7 /* eccsi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = eccsi.h; path = ../../wolfssl/wolfcrypt/eccsi.h; sourceTree = "<group>"; };
 		700F0BF82A2FBC1600755BA7 /* ed448.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ed448.h; path = ../../wolfssl/wolfcrypt/ed448.h; sourceTree = "<group>"; };
-		700F0BF92A2FBC1600755BA7 /* ext_kyber.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ext_kyber.h; path = ../../wolfssl/wolfcrypt/ext_kyber.h; sourceTree = "<group>"; };
 		700F0BFA2A2FBC1600755BA7 /* sha3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sha3.h; path = ../../wolfssl/wolfcrypt/sha3.h; sourceTree = "<group>"; };
 		700F0BFB2A2FBC1600755BA7 /* signature.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = signature.h; path = ../../wolfssl/wolfcrypt/signature.h; sourceTree = "<group>"; };
 		700F0BFC2A2FBC1600755BA7 /* cmac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cmac.h; path = ../../wolfssl/wolfcrypt/cmac.h; sourceTree = "<group>"; };
@@ -1157,7 +1154,6 @@
 				700F0BF72A2FBC1600755BA7 /* eccsi.h */,
 				700F0BF82A2FBC1600755BA7 /* ed448.h */,
 				700F0BF42A2FBC1600755BA7 /* ed25519.h */,
-				700F0BF92A2FBC1600755BA7 /* ext_kyber.h */,
 				700F0C022A2FBC1600755BA7 /* falcon.h */,
 				700F0BEB2A2FBC1500755BA7 /* fe_448.h */,
 				700F0BF62A2FBC1600755BA7 /* fe_operations.h */,

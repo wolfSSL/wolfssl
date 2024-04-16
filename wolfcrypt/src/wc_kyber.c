@@ -42,7 +42,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_HAVE_KYBER
 
 /******************************************************************************/
 
@@ -1264,4 +1264,4 @@ int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER */

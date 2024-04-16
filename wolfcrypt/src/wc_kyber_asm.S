@@ -45,7 +45,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_HAVE_KYBER
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -27818,7 +27818,7 @@ _kyber_sha3_256_blocksx4_seed_avx2:
 .size	kyber_sha3_256_blocksx4_seed_avx2,.-kyber_sha3_256_blocksx4_seed_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

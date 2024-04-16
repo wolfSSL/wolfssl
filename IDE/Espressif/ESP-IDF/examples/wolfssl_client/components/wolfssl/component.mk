@@ -142,7 +142,6 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed25519.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed448.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/error.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/evp.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_kyber.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_lms.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_xmss.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/falcon.o

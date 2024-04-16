@@ -55009,7 +55009,7 @@ static int test_tls13_apis(void)
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
                                WOLFSSL_KYBER_LEVEL1
 #else
                                WOLFSSL_ECC_SECP256R1
@@ -55031,12 +55031,9 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
-#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
-            ":P256_KYBER_LEVEL1"
-#endif
 #endif
 #endif /* !defined(NO_ECC_SECP) */
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
             ":KYBER_LEVEL1"
 #endif
             "";
@@ -55169,7 +55166,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
-#if defined(HAVE_PQC)
+#if defined(WOLFSSL_HAVE_KYBER)
     ExpectIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_KYBER_LEVEL3), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
     ExpectIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_KYBER_LEVEL3),
@@ -70357,7 +70354,7 @@ static int test_dtls13_frag_ch_pq(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(HAVE_LIBOQS)
+    && defined(WOLFSSL_DTLS_CH_FRAG) && defined(WOLFSSL_HAVE_KYBER)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -70626,7 +70623,7 @@ static int test_dtls_empty_keyshare_with_cookie(void)
 }
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(HAVE_LIBOQS)
+    defined(WOLFSSL_HAVE_KYBER)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
     int group = WOLFSSL_KYBER_LEVEL5;
@@ -70643,7 +70640,7 @@ static int test_tls13_pq_groups(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(HAVE_LIBOQS)
+    defined(WOLFSSL_HAVE_KYBER)
     callback_functions func_cb_client;
     callback_functions func_cb_server;
 

@@ -256,10 +256,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\ext_kyber.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\falcon.c"
 				>
 			</File>

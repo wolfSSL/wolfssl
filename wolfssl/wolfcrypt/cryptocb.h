@@ -71,13 +71,9 @@
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#elif defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
-#endif
 #endif
 #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
     #include <wolfssl/wolfcrypt/dilithium.h>

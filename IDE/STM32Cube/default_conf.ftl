@@ -334,15 +334,6 @@ extern ${variable.value} ${variable.name};
     #define NO_SESSION_CACHE
 #endif
 
-/* Post Quantum
- * Note: PQM4 is compatible with STM32. The project can be found at:
- * https://github.com/mupq/pqm4
- */
-#if defined(WOLF_CONF_PQM4) && WOLF_CONF_PQM4 == 1
-    #define HAVE_PQM4
-#endif
-
-
 /* ------------------------------------------------------------------------- */
 /* Crypto */
 /* ------------------------------------------------------------------------- */

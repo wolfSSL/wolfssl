@@ -76,6 +76,10 @@
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_KYBER)
+    #include <wolfssl/wolfcrypt/kyber.h>
+#endif /* WOLFSSL_HAVE_KYBER */
+
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
     #include <wolfssl/openssl/ssl.h>
@@ -440,7 +444,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("KYBER_LEVEL1"), "KYBER_LEVEL1", WOLFSSL_KYBER_LEVEL1},
     {XSTR_SIZEOF("KYBER_LEVEL3"), "KYBER_LEVEL3", WOLFSSL_KYBER_LEVEL3},
     {XSTR_SIZEOF("KYBER_LEVEL5"), "KYBER_LEVEL5", WOLFSSL_KYBER_LEVEL5},
-#ifdef HAVE_LIBOQS
+#if defined(HAVE_ECC)
     {XSTR_SIZEOF("P256_KYBER_LEVEL1"), "P256_KYBER_LEVEL1",
      WOLFSSL_P256_KYBER_LEVEL1},
     {XSTR_SIZEOF("P384_KYBER_LEVEL3"), "P384_KYBER_LEVEL3",
@@ -3339,11 +3343,11 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_ECC
         case WOLFSSL_P256_KYBER_LEVEL1:
         case WOLFSSL_P384_KYBER_LEVEL3:
         case WOLFSSL_P521_KYBER_LEVEL5:
@@ -14138,28 +14142,12 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     if (ssl == NULL)
         return NULL;
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_PQC)
+#if defined(WOLFSSL_TLS13)
     /* Check for post-quantum groups. Return now because we do not want the ECC
      * check to override this result in the case of a hybrid. */
     if (IsAtLeastTLSv1_3(ssl->version)) {
         switch (ssl->namedGroup) {
-#ifdef HAVE_LIBOQS
-        case WOLFSSL_KYBER_LEVEL1:
-            return "KYBER_LEVEL1";
-        case WOLFSSL_KYBER_LEVEL3:
-            return "KYBER_LEVEL3";
-        case WOLFSSL_KYBER_LEVEL5:
-            return "KYBER_LEVEL5";
-        case WOLFSSL_P256_KYBER_LEVEL1:
-            return "P256_KYBER_LEVEL1";
-        case WOLFSSL_P384_KYBER_LEVEL3:
-            return "P384_KYBER_LEVEL3";
-        case WOLFSSL_P521_KYBER_LEVEL5:
-            return "P521_KYBER_LEVEL5";
-#elif defined(HAVE_PQM4)
-        case WOLFSSL_KYBER_LEVEL1:
-            return "KYBER_LEVEL1";
-#elif defined(WOLFSSL_WC_KYBER)
+#ifdef WOLFSSL_HAVE_KYBER
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
@@ -14172,11 +14160,25 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_KYBER_LEVEL5:
             return "KYBER_LEVEL5";
     #endif
+#if defined(HAVE_ECC)
+    #ifdef WOLFSSL_KYBER512
+        case WOLFSSL_P256_KYBER_LEVEL1:
+            return "P256_KYBER_LEVEL1";
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        case WOLFSSL_P384_KYBER_LEVEL3:
+            return "P384_KYBER_LEVEL3";
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        case WOLFSSL_P521_KYBER_LEVEL5:
+            return "P521_KYBER_LEVEL5";
+    #endif
 #endif
+#endif /* WOLFSSL_HAVE_KYBER */
         }
     }
 
-#endif /* WOLFSSL_TLS13 && HAVE_PQC */
+#endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_FFDHE
     if (ssl->namedGroup != 0) {
         cName = wolfssl_ffdhe_name(ssl->namedGroup);

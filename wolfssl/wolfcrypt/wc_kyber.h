@@ -43,7 +43,6 @@
 #endif
 
 /* Define algorithm type when not excluded. */
-
 #ifndef WOLFSSL_NO_KYBER512
 #define WOLFSSL_KYBER512
 #endif

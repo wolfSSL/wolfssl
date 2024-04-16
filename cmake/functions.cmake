@@ -789,10 +789,6 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/dilithium.c)
          endif()
 
-         if(BUILD_EXT_KYBER)
-              list(APPEND LIB_SOURCES wolfcrypt/src/ext_kyber.c)
-         endif()
-
          if(BUILD_LIBZ)
               list(APPEND LIB_SOURCES wolfcrypt/src/compress.c)
          endif()

@@ -41,7 +41,6 @@
         <itemPath>../../../wolfcrypt/src/ed448.c</itemPath>
         <itemPath>../../../wolfcrypt/src/error.c</itemPath>
         <itemPath>../../../wolfcrypt/src/evp.c</itemPath>
-        <itemPath>../../../wolfcrypt/src/ext_kyber.c</itemPath>
         <itemPath>../../../wolfcrypt/src/falcon.c</itemPath>
         <itemPath>../../../wolfcrypt/src/fe_448.c</itemPath>
         <itemPath>../../../wolfcrypt/src/fe_low_mem.c</itemPath>

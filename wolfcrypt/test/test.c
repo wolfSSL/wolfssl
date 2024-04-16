@@ -307,12 +307,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 #ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#endif
-#if defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
-#endif
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/xmss.h>
@@ -35479,7 +35474,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 #endif /* HAVE_ED448 */
 
 #ifdef WOLFSSL_HAVE_KYBER
-#ifdef WOLFSSL_WC_KYBER /* OQS and PQM4 do not support KATs */
 #ifdef WOLFSSL_KYBER512
 static wc_test_ret_t kyber512_kat(void)
 {
@@ -37510,7 +37504,6 @@ static wc_test_ret_t kyber1024_kat(void)
     return 0;
 }
 #endif /* WOLFSSL_KYBER1024 */
-#endif /* WOLFSSL_WC_KYBER */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 {
@@ -37612,7 +37605,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 
     wc_FreeRng(&rng);
 
-#ifdef WOLFSSL_WC_KYBER
 #ifdef WOLFSSL_KYBER512
     ret = kyber512_kat();
     if (ret != 0)
@@ -37628,7 +37620,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
     if (ret != 0)
         return ret;
 #endif
-#endif /* WOLFSSL_WC_KYBER */
 
     return 0;
 }

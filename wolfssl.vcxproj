@@ -308,7 +308,6 @@
     <ClCompile Include="wolfcrypt\src\ed25519.c" />
     <ClCompile Include="wolfcrypt\src\ed448.c" />
     <ClCompile Include="wolfcrypt\src\error.c" />
-    <ClCompile Include="wolfcrypt\src\ext_kyber.c" />
     <ClCompile Include="wolfcrypt\src\falcon.c" />
     <ClCompile Include="wolfcrypt\src\fe_448.c" />
     <ClCompile Include="wolfcrypt\src\fe_low_mem.c" />

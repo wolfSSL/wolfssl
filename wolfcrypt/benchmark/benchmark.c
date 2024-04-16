@@ -167,12 +167,6 @@
 #endif
 #ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
-    #ifdef WOLFSSL_WC_KYBER
-        #include <wolfssl/wolfcrypt/wc_kyber.h>
-    #endif
-    #if defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
-        #include <wolfssl/wolfcrypt/ext_kyber.h>
-    #endif
 #endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
     #include <wolfssl/wolfcrypt/lms.h>

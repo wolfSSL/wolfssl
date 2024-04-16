@@ -217,6 +217,7 @@ WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
     } /* extern "C" */
 #endif
 
+#include <wolfssl/wolfcrypt/wc_kyber.h>
 #endif /* WOLFSSL_HAVE_KYBER */
 
 #endif /* WOLF_CRYPT_KYBER_H */

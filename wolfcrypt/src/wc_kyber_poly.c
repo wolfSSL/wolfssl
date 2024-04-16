@@ -32,7 +32,7 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_HAVE_KYBER
 
 #ifdef USE_INTEL_SPEEDUP
 static word32 cpuid_flags = 0;
@@ -3035,4 +3035,4 @@ void kyber_to_bytes(byte* b, sword16* p, int k)
     }
 }
 
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER */

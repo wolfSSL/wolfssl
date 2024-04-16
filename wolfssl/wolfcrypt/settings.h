@@ -3316,24 +3316,9 @@ extern void uITRON4_free(void *p) ;
 #ifndef WOLFSSL_NO_SPHINCS
     #define HAVE_SPHINCS
 #endif
-#ifndef WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_KYBER512
-    #define WOLFSSL_KYBER768
-    #define WOLFSSL_KYBER1024
-#endif
-#endif
-
-#ifdef HAVE_PQM4
-#define HAVE_PQC
-#define WOLFSSL_HAVE_KYBER
-#define WOLFSSL_KYBER512
-#define WOLFSSL_NO_KYBER768
-#define WOLFSSL_NO_KYBER1024
 #endif
 
 #if (defined(HAVE_LIBOQS) ||                                            \
-     defined(WOLFSSL_WC_KYBER) ||                                       \
      defined(HAVE_LIBXMSS) ||                                           \
      defined(HAVE_LIBLMS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
@@ -3341,13 +3326,8 @@ extern void uITRON4_free(void *p) ;
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
-    !defined(WOLFSSL_HAVE_KYBER)
+#if defined(HAVE_PQC) && !defined(WOLFSSL_HAVE_KYBER) && !defined(HAVE_LIBOQS)
 #error Please do not define HAVE_PQC yourself.
-#endif
-
-#if defined(HAVE_PQC) && defined(HAVE_LIBOQS) && defined(HAVE_PQM4)
-#error Please do not define both HAVE_LIBOQS and HAVE_PQM4.
 #endif
 
 #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13) && \

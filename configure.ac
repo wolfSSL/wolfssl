@@ -1162,7 +1162,6 @@ AC_ARG_ENABLE([kyber],
     [ ENABLED_KYBER=no ]
     )
 
-ENABLED_WC_KYBER=no
 for v in `echo $ENABLED_KYBER | tr "," " "`
 do
   case $v in
@@ -1195,12 +1194,7 @@ if test "$ENABLED_KYBER" != "no"
 then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([KYBER requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
-    # Use liboqs if specified.
-    if test "$ENABLED_LIBOQS" = "no"; then
-        ENABLED_WC_KYBER=yes
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
-    fi
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_KYBER"
 
     if test "$ENABLED_KYBER512" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
@@ -1212,12 +1206,9 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
     fi
 
-    if test "$ENABLED_WC_KYBER" = "yes"
-    then
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
-    fi
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_shake128" = "" && enable_shake128=yes
+    test "$enable_shake256" = "" && enable_shake256=yes
 fi
 
 
@@ -9331,7 +9322,7 @@ AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_KYBER],[test "x$ENABLED_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9823,7 +9814,6 @@ if test "$ENABLED_LIBXMSS" = "yes"; then
 echo "   * XMSS_ROOT:                  $XMSS_ROOT"
 fi
 echo "   * KYBER:                      $ENABLED_KYBER"
-echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"

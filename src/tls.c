@@ -48,13 +48,9 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#elif defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
-#endif
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -7585,7 +7581,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     return ret;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 static int kyber_id2type(int id, int *type)
 {
     int ret = 0;
@@ -7788,7 +7784,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* Generate a secret/key using the key share entry.
  *
@@ -7805,7 +7801,7 @@ int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_GenX448Key(ssl, kse);
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group))
         ret = TLSX_KeyShare_GenPqcKey(ssl, kse);
 #endif
@@ -8398,7 +8394,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     return ret;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 /* Process the Kyber key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
@@ -8567,7 +8563,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     wc_KyberKey_Free(kem);
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* Process the key share extension on the client side.
  *
@@ -8593,7 +8589,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessPqc(ssl, keyShareEntry);
 #endif
@@ -8915,7 +8911,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     return 0;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     KeyShareEntry* keyShareEntry, byte* data, word16 len)
 {
@@ -9125,7 +9121,7 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         ret = server_generate_pqc_ciphertext((WOLFSSL*)ssl, keyShareEntry, data,
@@ -9292,8 +9288,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
         #endif
     #endif
-    #ifdef HAVE_PQC
-    #ifdef WOLFSSL_WC_KYBER
+    #ifdef WOLFSSL_HAVE_KYBER
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
         #endif
@@ -9303,33 +9298,19 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         #ifdef WOLFSSL_KYBER1024
             case WOLFSSL_KYBER_LEVEL5:
         #endif
+     #ifdef HAVE_ECC
+     #ifdef WOLFSSL_KYBER512
+            case WOLFSSL_P256_KYBER_LEVEL1:
+     #endif
+     #ifdef WOLFSSL_KYBER768
+            case WOLFSSL_P384_KYBER_LEVEL3:
+     #endif
+     #ifdef WOLFSSL_KYBER1024
+            case WOLFSSL_P521_KYBER_LEVEL5:
+     #endif
+     #endif /* HAVE_ECC */
                 break;
-    #elif defined(HAVE_LIBOQS)
-        case WOLFSSL_KYBER_LEVEL1:
-        case WOLFSSL_KYBER_LEVEL3:
-        case WOLFSSL_KYBER_LEVEL5:
-        case WOLFSSL_P256_KYBER_LEVEL1:
-        case WOLFSSL_P384_KYBER_LEVEL3:
-        case WOLFSSL_P521_KYBER_LEVEL5:
-        {
-            int ret;
-            int id;
-            findEccPqc(NULL, &namedGroup, namedGroup);
-            ret = kyber_id2type(namedGroup, &id);
-            if (ret == NOT_COMPILED_IN) {
-                return 0;
-            }
-
-            if (! ext_kyber_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-    #elif defined(HAVE_PQM4)
-        case WOLFSSL_KYBER_LEVEL1:
-            break;
-    #endif
-    #endif /* HAVE_PQC */
+    #endif /* WOLFSSL_HAVE_KYBER */
         default:
             return 0;
     }
@@ -9375,7 +9356,7 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_FFDHE_8192)
     WOLFSSL_FFDHE_8192,
 #endif
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_HAVE_KYBER
     #ifdef WOLFSSL_KYBER512
     WOLFSSL_KYBER_LEVEL1,
     #endif
@@ -9385,16 +9366,17 @@ static const word16 preferredGroup[] = {
     #ifdef WOLFSSL_KYBER1024
     WOLFSSL_KYBER_LEVEL5,
     #endif
-#elif defined(HAVE_LIBOQS)
-    /* These require a runtime call to TLSX_KeyShare_IsSupported to use */
-    WOLFSSL_KYBER_LEVEL1,
-    WOLFSSL_KYBER_LEVEL3,
-    WOLFSSL_KYBER_LEVEL5,
+#if defined(HAVE_ECC)
+    #ifdef WOLFSSL_KYBER512
     WOLFSSL_P256_KYBER_LEVEL1,
+    #endif
+    #ifdef WOLFSSL_KYBER768
     WOLFSSL_P384_KYBER_LEVEL3,
+    #endif
+    #ifdef WOLFSSL_KYBER1024
     WOLFSSL_P521_KYBER_LEVEL5,
-#elif defined(HAVE_PQM4)
-    WOLFSSL_KYBER_LEVEL1,
+    #endif
+#endif
 #endif
     WOLFSSL_NAMED_GROUP_INVALID
 };
@@ -9426,7 +9408,7 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
         numGroups = ssl->numGroups;
     }
 
-#ifdef HAVE_LIBOQS
+#ifdef WOLFSSL_HAVE_KYBER
       if (!TLSX_KeyShare_IsSupported(group))
           return -1;
 #endif
@@ -12986,8 +12968,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
 #endif
 
-#ifdef HAVE_PQC
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_HAVE_KYBER
 #ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1,
@@ -12998,32 +12979,29 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
                                      ssl->heap);
 #endif
-#ifdef WOLFSSL_KYBER768
+#ifdef WOLFSSL_KYBER1024
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
                                      ssl->heap);
 #endif
-#elif defined(HAVE_LIBOQS)
-    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
-                                     ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
-                                     ssl->heap);
+#ifdef HAVE_ECC
+#ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_LEVEL1,
                                      ssl->heap);
+#endif
+#ifdef WOLFSSL_KYBER768
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_LEVEL3,
                                      ssl->heap);
+#endif
+#ifdef WOLFSSL_KYBER1024
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap);
-#elif defined(HAVE_PQM4)
-    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
-#endif /* HAVE_LIBOQS */
-#endif /* HAVE_PQC */
+#endif
+#endif /* HAVE_ECC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
     (void)ssl;
     (void)extensions;

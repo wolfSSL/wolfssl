@@ -13329,7 +13329,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     }
 #endif
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
@@ -13755,7 +13755,7 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
     #endif /* !NO_TLS */
     for (i = 0; i < count; i++) {
         /* Call to wolfSSL_UseSupportedCurve also checks if input groups
-                 * are valid */
+         * are valid */
         if ((ret = wolfSSL_UseSupportedCurve(ssl, (word16)groups[i]))
                 != WOLFSSL_SUCCESS) {
     #if !defined(NO_TLS)
