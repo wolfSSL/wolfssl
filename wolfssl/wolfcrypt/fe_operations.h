@@ -116,8 +116,8 @@ WOLFSSL_LOCAL void fe_cmov(fe f, const fe g, int b);
 WOLFSSL_LOCAL void fe_pow22523(fe out,const fe z);
 
 /* 64 type needed for SHA512 */
-WOLFSSL_LOCAL word64 load_3(const unsigned char *in);
-WOLFSSL_LOCAL word64 load_4(const unsigned char *in);
+WOLFSSL_LOCAL sword64 load_3(const unsigned char *in);
+WOLFSSL_LOCAL sword64 load_4(const unsigned char *in);
 
 #ifdef CURVED25519_ASM
 WOLFSSL_LOCAL void fe_cmov_table(fe* r, fe* base, signed char b);
