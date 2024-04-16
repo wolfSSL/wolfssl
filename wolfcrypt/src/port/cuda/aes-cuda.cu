@@ -93,14 +93,14 @@ extern "C" {
 #ifdef WC_RC2
 
 /* This routine performs a left circular arithmetic shift of <x> by <y> value */
-WC_MISC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
+static WC_INLINE word16 rotlFixed16(word16 x, word16 y)
 {
     return (x << y) | (x >> (sizeof(x) * 8 - y));
 }
 
 
 /* This routine performs a right circular arithmetic shift of <x> by <y> value */
-WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
+static WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 {
     return (x >> y) | (x << (sizeof(x) * 8 - y));
 }
@@ -111,7 +111,47 @@ WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 #if defined(__CCRX__) && !defined(NO_INLINE) /* shortest version for CC-RX */
     #define ByteReverseWord32(value, outRef) ( *outRef = _builtin_revl(value) )
 #else
-    #define ByteReverseWord32(value, outRef) ( *outRef = rotlFixed( ((value & 0xFF00FF00) >> 8) | ((value & 0x00FF00FF) << 8) , 16U) )
+__device__
+static WC_INLINE word32 ByteReverseWord32(word32 value)
+{
+#ifdef PPC_INTRINSICS
+    /* PPC: load reverse indexed instruction */
+    return (word32)__lwbrx(&value,0);
+#elif defined(__ICCARM__)
+    return (word32)__REV(value);
+#elif defined(KEIL_INTRINSICS)
+    return (word32)__rev(value);
+#elif defined(__CCRX__)
+    return (word32)_builtin_revl(value);
+#elif defined(WOLF_ALLOW_BUILTIN) && \
+        defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
+    return (word32)__builtin_bswap32(value);
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      defined(__aarch64__)
+    __asm__ volatile (
+        "REV32 %0, %0  \n"
+        : "+r" (value)
+        :
+    );
+    return value;
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      (defined(__thumb__) || defined(__arm__))
+    __asm__ volatile (
+        "REV %0, %0  \n"
+        : "+r" (value)
+        :
+    );
+    return value;
+#elif defined(FAST_ROTATE)
+    /* 5 instructions with rotate instruction, 9 without */
+    return (rotrFixed(value, 8U) & 0xff00ff00) |
+           (rotlFixed(value, 8U) & 0x00ff00ff);
+#else
+    /* 6 instructions with rotate instruction, 8 without */
+    value = ((value & 0xFF00FF00) >> 8) | ((value & 0x00FF00FF) << 8);
+    return rotlFixed(value, 16U);
+#endif
+}
 #endif /* ! (__CCRX__ && !NO_INLINE) */
 
 #if defined(STM32_CRYPTO)
@@ -618,7 +658,7 @@ __device__ static const byte Tsbox[256] = {
  * @param [in]  r         Rounds divided by 2.
  * @param [in]  sz        Size of the block
  */
-__global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* outBlockBase,
+__global__ void AesEncrypt_C_CUDA(word32* rkBase, const byte* inBlockBase, byte* outBlockBase,
         word32 r, word32 sz)
 {
     word32 s0, s1, s2, s3;
@@ -628,8 +668,10 @@ __global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* out
     int stride = blockDim.x * gridDim.x;
     const byte* inBlock = inBlockBase;
     byte* outBlock = outBlockBase;
+    word32* rk;
 
     for (int i = index; i < sz; i += stride) {
+        rk = rkBase;
         inBlock = inBlockBase + i * 4 * sizeof(s0);
         outBlock = outBlockBase + i * 4 * sizeof(s0);
 
@@ -643,10 +685,10 @@ __global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* out
         XMEMCPY(&s3, inBlock + 3 * sizeof(s0), sizeof(s3));
 
 #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWord32(s0,&s0);
-        ByteReverseWord32(s1,&s1);
-        ByteReverseWord32(s2,&s2);
-        ByteReverseWord32(s3,&s3);
+        s0 = ByteReverseWord32(s0);
+        s1 = ByteReverseWord32(s1);
+        s2 = ByteReverseWord32(s2);
+        s3 = ByteReverseWord32(s3);
 #endif
 
         /* AddRoundKey */
@@ -800,8 +842,7 @@ __global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* out
 #endif
 #else
 #ifndef WC_NO_CACHE_RESISTANT
-        PreFetchSBox(sBox);
-        s0 |= sBox;
+        s0 |= PreFetchSBox();
 #endif
 
         r *= 2;
@@ -882,10 +923,10 @@ __global__ void AesEncrypt_C_CUDA(word32* rk, const byte* inBlockBase, byte* out
 
         /* write out */
 #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWord32(s0,&s0);
-        ByteReverseWord32(s1,&s1);
-        ByteReverseWord32(s2,&s2);
-        ByteReverseWord32(s3,&s3);
+        s0 = ByteReverseWord32(s0);
+        s1 = ByteReverseWord32(s1);
+        s2 = ByteReverseWord32(s2);
+        s3 = ByteReverseWord32(s3);
 #endif
 
         XMEMCPY(outBlock,                  &s0, sizeof(s0));
