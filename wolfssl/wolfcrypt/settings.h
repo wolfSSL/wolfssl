@@ -2082,9 +2082,16 @@ extern void uITRON4_free(void *p) ;
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_ZEPHYR
+    #include <version.h>
+#if KERNEL_VERSION_NUMBER >= 0x30100
     #include <zephyr/kernel.h>
     #include <zephyr/sys/printk.h>
     #include <zephyr/sys/util.h>
+#else
+    #include <kernel.h>
+    #include <sys/printk.h>
+    #include <sys/util.h>
+#endif
     #include <stdlib.h>
 
     #define WOLFSSL_DH_CONST

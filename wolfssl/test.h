@@ -143,9 +143,26 @@
     #include <pthread.h>
     #define SOCKET_T int
 #elif defined(WOLFSSL_ZEPHYR)
+    #include <version.h>
     #include <string.h>
     #include <sys/types.h>
-    #include <zephyr/net/socket.h>
+    #if KERNEL_VERSION_NUMBER >= 0x30100
+        #include <zephyr/net/socket.h>
+        #ifdef CONFIG_POSIX_API
+            #include <zephyr/posix/poll.h>
+            #include <zephyr/posix/netdb.h>
+            #include <zephyr/posix/sys/socket.h>
+            #include <zephyr/posix/sys/select.h>
+        #endif
+    #else
+        #include <net/socket.h>
+        #ifdef CONFIG_POSIX_API
+            #include <posix/poll.h>
+            #include <posix/netdb.h>
+            #include <posix/sys/socket.h>
+            #include <posix/sys/select.h>
+        #endif
+    #endif
     #define SOCKET_T int
     #define SOL_SOCKET 1
     #define WOLFSSL_USE_GETADDRINFO

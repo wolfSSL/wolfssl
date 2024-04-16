@@ -32,7 +32,7 @@
 #endif
 
 #define BUFFER_SIZE           2048
-#define STATIC_MEM_SIZE       (192*1024)
+#define STATIC_MEM_SIZE       (256*1024)
 #define MAX_SEND_SIZE         256
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -94,7 +94,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL*     client_ssl = NULL;
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_client_method(),
+    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_client_method_ex(HEAP_HINT_CLIENT),
                                                    HEAP_HINT_CLIENT)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -165,7 +165,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL*     server_ssl = NULL;
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_server_method(),
+    if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_server_method_ex(HEAP_HINT_SERVER),
                                                    HEAP_HINT_SERVER)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -446,12 +446,12 @@ void client_thread()
     SOCKET_T     sockfd = WOLFSSL_SOCKET_INVALID;
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
-                               sizeof(gMemoryClient),
-                               WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
-        printf("unable to load static memory");
-        ret = -1;
-    }
+    //if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
+    //                           sizeof(gMemoryClient),
+    //                           WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
+    //    printf("unable to load static memory");
+    //    ret = -1;
+    //}
 
     if (ret == 0)
 #endif
@@ -505,6 +505,17 @@ int main()
     wolfSSL_Init();
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
+                               sizeof(gMemoryClient),
+                               WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
+        printf("unable to load static memory");
+        return -1;
+    }
+
+    wolfsslThreadHeapHint = HEAP_HINT_CLIENT;
 #endif
 
     /* Start server */

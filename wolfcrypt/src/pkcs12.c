@@ -131,14 +131,21 @@ typedef struct WC_PKCS12_ATTRIBUTE {
 
 WC_PKCS12* wc_PKCS12_new(void)
 {
+    return wc_PKCS12_new_ex(NULL);
+}
+
+
+WC_PKCS12* wc_PKCS12_new_ex(void* heap)
+{
     WC_PKCS12* pkcs12 = (WC_PKCS12*)XMALLOC(sizeof(WC_PKCS12),
-                                                      NULL, DYNAMIC_TYPE_PKCS);
+                                                      heap, DYNAMIC_TYPE_PKCS);
     if (pkcs12 == NULL) {
         WOLFSSL_MSG("Memory issue when creating WC_PKCS12 struct");
         return NULL;
     }
 
     XMEMSET(pkcs12, 0, sizeof(WC_PKCS12));
+    pkcs12->heap = heap;
 
     return pkcs12;
 }
@@ -202,7 +209,7 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     }
 #endif
 
-    XFREE(pkcs12, NULL, DYNAMIC_TYPE_PKCS);
+    XFREE(pkcs12, heap, DYNAMIC_TYPE_PKCS);
 }
 
 
@@ -2604,17 +2611,9 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         return NULL;
     }
 
-    if ((pkcs12 = wc_PKCS12_new()) == NULL) {
+    if ((pkcs12 = wc_PKCS12_new_ex(heap)) == NULL) {
         wc_FreeRng(&rng);
         WOLFSSL_LEAVE("wc_PKCS12_create", MEMORY_E);
-        return NULL;
-    }
-
-    if ((ret = wc_PKCS12_SetHeap(pkcs12, heap)) != 0) {
-        wc_PKCS12_free(pkcs12);
-        wc_FreeRng(&rng);
-        WOLFSSL_LEAVE("wc_PKCS12_create", ret);
-        (void)ret;
         return NULL;
     }
 
