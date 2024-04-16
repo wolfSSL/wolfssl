@@ -943,19 +943,18 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     byte *outBlock_GPU = NULL;
     word32* rk_GPU = NULL;
     cudaError_t ret = cudaSuccess;
-    word32* rk;
 
-#define AES_KEY_SIZE_CUDA (sizeof(word32) * 60)
 #ifdef WC_AES_C_DYNAMIC_FALLBACK
-    rk = aes->key_C_fallback;
+    if ( ret == cudaSuccess )
+        ret = cudaMalloc(&rk_GPU, sizeof(aes->key_C_fallback));
+    if ( ret == cudaSuccess )
+        ret = cudaMemcpy(rk_GPU, aes->key_C_fallback, sizeof(aes->key_C_fallback), cudaMemcpyDefault);
 #else
-    rk = aes->key;
+    if ( ret == cudaSuccess )
+        ret = cudaMalloc(&rk_GPU, sizeof(aes->key));
+    if ( ret == cudaSuccess )
+        ret = cudaMemcpy(rk_GPU, aes->key, sizeof(aes->key), cudaMemcpyDefault);
 #endif
-
-    if ( ret == cudaSuccess )
-        ret = cudaMalloc(&rk_GPU, AES_KEY_SIZE_CUDA);
-    if ( ret == cudaSuccess )
-        ret = cudaMemcpy(rk_GPU, rk, AES_KEY_SIZE_CUDA, cudaMemcpyDefault);
 
     if ( ret == cudaSuccess )
         ret = cudaMalloc(&inBlock_GPU, AES_BLOCK_SIZE);
@@ -987,7 +986,7 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
  */
 void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 {
-#if 1
+#if 0
     word32 i;
     for (i = 0; i < sz; i += AES_BLOCK_SIZE) {
         AesEncrypt_C(aes, in, out, aes->rounds >> 1);
