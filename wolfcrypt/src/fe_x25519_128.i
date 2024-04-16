@@ -600,7 +600,7 @@ void fe_sq2(fe r, const fe a)
  * in  An array of bytes.
  * returns a 64-bit word.
  */
-word64 load_3(const unsigned char *in)
+sword64 load_3(const unsigned char *in)
 {
     word64 result;
 
@@ -608,7 +608,7 @@ word64 load_3(const unsigned char *in)
               (((word64)in[1]) <<  8) |
               (((word64)in[2]) << 16));
 
-    return result;
+    return (sword64)result;
 }
 
 /* Load 4 little endian bytes into a 64-bit word.
@@ -616,7 +616,7 @@ word64 load_3(const unsigned char *in)
  * in  An array of bytes.
  * returns a 64-bit word.
  */
-word64 load_4(const unsigned char *in)
+sword64 load_4(const unsigned char *in)
 {
     word64 result;
 
@@ -625,6 +625,6 @@ word64 load_4(const unsigned char *in)
               (((word64)in[2]) << 16) |
               (((word64)in[3]) << 24));
 
-    return result;
+    return (sword64)result;
 }
 

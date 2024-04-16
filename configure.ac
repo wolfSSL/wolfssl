@@ -5363,7 +5363,7 @@ then
 fi
 
 # Ed448
-if test "$ENABLED_ED448" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_ED448" != "no"
 then
     if test "$ENABLED_ED448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
@@ -5416,7 +5416,7 @@ fi
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE128="no"])
 
-if test "$ENABLED_SHAKE128" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE128" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE128"
     if test "$ENABLED_SHA3" = "no"
@@ -5432,7 +5432,7 @@ fi
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE256="no"])
 
-if test "$ENABLED_SHAKE256" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE256" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
     if test "$ENABLED_SHA3" = "no"
@@ -8667,7 +8667,7 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_ED25519" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_ED25519" != "no"
 then
     if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
