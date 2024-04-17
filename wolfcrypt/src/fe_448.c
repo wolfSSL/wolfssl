@@ -1834,6 +1834,7 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     sword64 t13  = (sword64)a[ 6] * b[ 7];
     sword64 t113 = (sword64)a[ 7] * b[ 6];
     sword64 t14  = (sword64)a[ 7] * b[ 7];
+    sword64 o, t15;
     t1  += t101;
     t2  += t102; t2  += t202;
     t3  += t103; t3  += t203; t3  += t303;
@@ -1850,8 +1851,8 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     t11 += t111; t11 += t211; t11 += t311;
     t12 += t112; t12 += t212;
     t13 += t113;
-    sword64 o = t14 >> 28;
-    sword64 t15 = o;
+    o = t14 >> 28;
+    t15 = o;
     t14 -= o << 28;
     o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
     o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
