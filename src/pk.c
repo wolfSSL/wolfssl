@@ -16198,7 +16198,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     int passwdSz, wc_pem_password_cb* cb, void* ctx)
 {
     byte* pem = NULL;
-    int pemSz;
+    int pemSz = 0;
     int res = 1;
 
     /* Validate parameters. */
@@ -16243,7 +16243,7 @@ int wolfSSL_PEM_write_PKCS8PrivateKey(XFILE f, WOLFSSL_EVP_PKEY* pkey,
     wc_pem_password_cb* cb, void* ctx)
 {
     byte* pem = NULL;
-    int pemSz;
+    int pemSz = 0;
     int res = 1;
 
     /* Validate parameters. */
