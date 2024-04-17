@@ -208,9 +208,7 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
 #endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
 #if (defined(OPENSSL_EXTRA) || defined(PERSIST_CERT_CACHE) || \
-     (!defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-      !defined(WOLFSSL_NO_CLIENT_AUTH)))) && !defined(WOLFCRYPT_ONLY) && \
-    !defined(NO_FILESYSTEM)
+     !defined(NO_CERTS)) && !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
 /* Read all the data from a file.
  *
  * @param [in]  fp          File pointer to read with.
