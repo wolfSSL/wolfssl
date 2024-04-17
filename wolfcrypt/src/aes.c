@@ -12726,19 +12726,8 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     {
 #ifdef WOLFSSL_AESNI
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-        int orig_use_aesni = aes->use_aesni;
-#endif
-
-        if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2()) != 0)) {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-            aes->use_aesni = 0;
-            xaes->tweak.use_aesni = 0;
-#else
-            return ret;
-#endif
-        }
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_encrypt_avx1(in, out, sz, i,
@@ -12756,23 +12745,13 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                                       (int)aes->rounds);
                 ret = 0;
             }
+            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
         {
             ret = AesXtsEncrypt_sw(xaes, out, in, sz, i);
         }
-
-#ifdef WOLFSSL_AESNI
-        if (aes->use_aesni)
-            RESTORE_VECTOR_REGISTERS();
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-        else if (orig_use_aesni) {
-            aes->use_aesni = orig_use_aesni;
-            xaes->tweak.use_aesni = orig_use_aesni;
-        }
-#endif
-#endif
     }
 
     return ret;
@@ -12962,19 +12941,8 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     {
 #ifdef WOLFSSL_AESNI
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-        int orig_use_aesni = aes->use_aesni;
-#endif
-
-        if (aes->use_aesni && ((ret = SAVE_VECTOR_REGISTERS2() != 0))) {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-            aes->use_aesni = 0;
-            xaes->tweak.use_aesni = 0;
-#else
-            return ret;
-#endif
-        }
         if (aes->use_aesni) {
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_decrypt_avx1(in, out, sz, i,
@@ -12992,23 +12960,13 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                                       (int)aes->rounds);
                 ret = 0;
             }
+            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
         {
             ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
         }
-
-#ifdef WOLFSSL_AESNI
-        if (aes->use_aesni)
-            RESTORE_VECTOR_REGISTERS();
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
-        else if (orig_use_aesni) {
-            aes->use_aesni = orig_use_aesni;
-            xaes->tweak.use_aesni = orig_use_aesni;
-        }
-#endif
-#endif
 
         return ret;
     }

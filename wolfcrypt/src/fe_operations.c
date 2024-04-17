@@ -58,24 +58,24 @@ t[0]+2^26 t[1]+2^51 t[2]+2^77 t[3]+2^102 t[4]+...+2^230 t[9].
 Bounds on each t[i] vary depending on context.
 */
 
-word64 load_3(const unsigned char *in)
+sword64 load_3(const unsigned char *in)
 {
   word64 result;
   result = (word64) in[0];
   result |= ((word64) in[1]) << 8;
   result |= ((word64) in[2]) << 16;
-  return result;
+  return (sword64)result;
 }
 
 
-word64 load_4(const unsigned char *in)
+sword64 load_4(const unsigned char *in)
 {
   word64 result;
   result = (word64) in[0];
   result |= ((word64) in[1]) << 8;
   result |= ((word64) in[2]) << 16;
   result |= ((word64) in[3]) << 24;
-  return result;
+  return (sword64)result;
 }
 #endif
 
@@ -170,8 +170,8 @@ int curve25519(byte* q, const byte* n, const byte* p)
 #endif
     b &= 1;
     swap ^= b;
-    fe_cswap(x2,x3,swap);
-    fe_cswap(z2,z3,swap);
+    fe_cswap(x2,x3,(int)swap);
+    fe_cswap(z2,z3,(int)swap);
     swap = b;
 
     /* montgomery */
@@ -194,8 +194,8 @@ int curve25519(byte* q, const byte* n, const byte* p)
     fe_mul(z3,x1,z2);
     fe_mul(z2,tmp1,tmp0);
   }
-  fe_cswap(x2,x3,swap);
-  fe_cswap(z2,z3,swap);
+  fe_cswap(x2,x3,(int)swap);
+  fe_cswap(z2,z3,(int)swap);
 
   fe_invert(z2,z2);
   fe_mul(x2,x2,z2);

@@ -809,6 +809,8 @@ then
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha224" = "" && enable_sha224=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_shake128" = "" && enable_shake128=yes
     test "$enable_shake256" = "" && enable_shake256=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
@@ -867,12 +869,6 @@ then
     test "$enable_ech" = "" && enable_ech=yes
     test "$enable_srtp" = "" && enable_srtp=yes
 
-    if test "$ENABLED_32BIT" != "yes"
-    then
-        test "$enable_sha512" = "" && enable_sha512=yes
-        test "$enable_sha3" = "" && enable_sha3=yes
-    fi
-
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
@@ -923,13 +919,10 @@ then
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
         test "$enable_mcast" = "" && enable_mcast=yes
-        if test "$ENABLED_32BIT" != "yes"
-        then
-            test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-            test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
-        fi
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -1005,6 +998,8 @@ then
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha224" = "" && enable_sha224=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_shake128" = "" && enable_shake128=yes
     test "$enable_shake256" = "" && enable_shake256=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
@@ -1047,12 +1042,6 @@ then
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_srtp_kdf" = "" && enable_srtp_kdf=yes
 
-    if test "$ENABLED_32BIT" != "yes"
-    then
-        test "$enable_sha512" = "" && enable_sha512=yes
-        test "$enable_sha3" = "" && enable_sha3=yes
-    fi
-
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
@@ -1074,13 +1063,10 @@ then
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
-        if test "$ENABLED_32BIT" != "yes"
-        then
-            test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-            test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
-        fi
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -3433,7 +3419,7 @@ fi
 # set sha3 default
 SHA3_DEFAULT=no
 if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" ||
-    test "$host_cpu" = "amd64") && test "$ENABLED_32BIT" = "no"
+    test "$host_cpu" = "amd64")
 then
     if test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" -ge 2
     then
@@ -3475,7 +3461,7 @@ AC_ARG_ENABLE([sha512],
     )
 
 # options that don't require sha512
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
     ENABLED_SHA512="no"
 fi
@@ -3501,7 +3487,7 @@ AC_ARG_ENABLE([sha384],
     )
 
 # options that don't require sha384
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
     ENABLED_SHA384="no"
 fi
@@ -5363,7 +5349,7 @@ then
 fi
 
 # Ed448
-if test "$ENABLED_ED448" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_ED448" != "no"
 then
     if test "$ENABLED_ED448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
@@ -5406,7 +5392,7 @@ then
 fi
 
 # Set SHA-3 flags
-if test "$ENABLED_SHA3" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHA3" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
 fi
@@ -5416,7 +5402,7 @@ fi
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE128="no"])
 
-if test "$ENABLED_SHAKE128" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE128" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE128"
     if test "$ENABLED_SHA3" = "no"
@@ -5432,7 +5418,7 @@ fi
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
         [ENABLED_SHAKE256="no"])
 
-if test "$ENABLED_SHAKE256" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE256" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
     if test "$ENABLED_SHA3" = "no"
@@ -8667,7 +8653,7 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_ED25519" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_ED25519" != "no"
 then
     if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
@@ -8835,9 +8821,9 @@ AS_IF([test "x$ENABLED_CERTGEN" = "xyes"],
 AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"])
 
-AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
+AS_IF([test "x$ENABLED_ED25519" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"])
-AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
+AS_IF([test "x$ENABLED_ED25519" = "xyes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
