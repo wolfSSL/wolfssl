@@ -1,4 +1,4 @@
-/* aes.c
+/* aes.cu
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
