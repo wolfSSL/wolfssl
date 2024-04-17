@@ -2872,7 +2872,7 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
         ret = 0;
     }
 
-    for (i = 0; (ret == 0) && (i < sizeof(storeNames)/sizeof(*storeNames));
+    for (i = 0; (ret == 1) && (i < sizeof(storeNames)/sizeof(*storeNames));
          ++i) {
         handle = CertOpenSystemStoreA(hProv, storeNames[i]);
         if (handle != NULL) {
